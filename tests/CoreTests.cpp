@@ -44,6 +44,30 @@ std::shared_ptr<ContiguousRasterSurface> makeSurface(std::uint32_t width = 4, st
     return std::make_shared<ContiguousRasterSurface>(Extent2u {width, height}, Rgba8 {1, 2, 3, 255});
 }
 
+void layerFactoriesStartUnstyled()
+{
+    const std::array layers {
+        Layer::raster("Raster", makeSurface()),
+        Layer::text("Text", TextLayer{}),
+        Layer::shape("Shape", ShapeLayer{}),
+    };
+    for (const auto& layer : layers) {
+        CHECK(!layer.adjustments);
+        CHECK(!layer.filters);
+        CHECK(!layer.filterCache);
+        CHECK(!layer.effects);
+        CHECK(!layer.effectCache);
+        CHECK(!layer.rasterEffectFrame);
+        CHECK(!layer.crop);
+        CHECK(!layer.renderCache);
+        CHECK(layer.localToDocument == AffineTransform{});
+        CHECK(layer.rasterOrigin == Vec2d{});
+        CHECK(layer.visible);
+        CHECK(layer.opacity == 1.0F);
+        CHECK(layer.blendMode == BlendMode::Normal);
+    }
+}
+
 void rasterTracksDirtyRegions()
 {
     auto surface = makeSurface();
@@ -445,6 +469,7 @@ void brushAssetRegistryRejectsAmbiguousIdentityAndPaths()
 
 int main()
 {
+    layerFactoriesStartUnstyled();
     rasterTracksDirtyRegions();
     rasterReplacementClipsWithoutMisaligningSource();
     historyAppliesUndoRedoAndDiverges();

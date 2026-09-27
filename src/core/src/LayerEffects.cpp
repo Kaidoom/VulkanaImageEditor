@@ -54,7 +54,7 @@ float at(const SpatialPlane &p, int x, int y) {
   y -= p.bounds.y;
   return x < 0 || y < 0 || x >= p.bounds.width || y >= p.bounds.height
              ? 0
-             : p.pixels[std::size_t(y) * p.bounds.width + x];
+             : p.pixels[std::size_t(y) * std::size_t(p.bounds.width) + std::size_t(x)];
 }
 // Exact grayscale circular max morphology with a one-pixel analytic radial
 // coverage ramp. A max pyramid prunes constant interiors; it never substitutes
@@ -70,7 +70,7 @@ class MaskMaxTree {
     const auto &l = levels_[std::size_t(level)];
     if (x >= l.w || y >= l.h)
       return best;
-    const auto value = l.p[std::size_t(y) * l.w + x];
+    const auto value = l.p[std::size_t(y) * std::size_t(l.w) + std::size_t(x)];
     if (value <= best)
       return best;
     const int span = 1 << level;
@@ -111,15 +111,15 @@ public:
     while (levels_.back().w > 1 || levels_.back().h > 1) {
       const auto &prev = levels_.back();
       Level next{(prev.w + 1) / 2, (prev.h + 1) / 2, {}};
-      next.p.resize(std::size_t(next.w) * next.h);
+      next.p.resize(std::size_t(next.w) * std::size_t(next.h));
       for (int y = 0; y < next.h; ++y)
         for (int x = 0; x < next.w; ++x)
           for (int dy = 0; dy < 2; ++dy)
             for (int dx = 0; dx < 2; ++dx)
               if (x * 2 + dx < prev.w && y * 2 + dy < prev.h)
-                next.p[std::size_t(y) * next.w + x] = std::max(
-                    next.p[std::size_t(y) * next.w + x],
-                    prev.p[std::size_t(y * 2 + dy) * prev.w + x * 2 + dx]);
+                next.p[std::size_t(y) * std::size_t(next.w) + std::size_t(x)] = std::max(
+                    next.p[std::size_t(y) * std::size_t(next.w) + std::size_t(x)],
+                    prev.p[std::size_t(y * 2 + dy) * std::size_t(prev.w) + std::size_t(x * 2 + dx)]);
       levels_.push_back(std::move(next));
     }
   }
@@ -146,7 +146,7 @@ SpatialPlane morph(const SpatialPlane &p, double radius, bool erode,
             value, std::clamp(float(radius) + 1.0F - float(edge), 0.0F, 1.0F));
         value = 1 - value;
       }
-      result.pixels[std::size_t(y) * p.bounds.width + x] = value;
+      result.pixels[std::size_t(y) * std::size_t(p.bounds.width) + std::size_t(x)] = value;
     }
   }
   return result;
@@ -327,7 +327,7 @@ prepareLayerEffects(const Layer &layer, const FilterPreparationOptions &o) {
         source->copyRgba8({0, int(y), int(e.width), 1}, row, row.size());
         for (std::uint32_t x = 0; x < e.width; ++x)
           silhouette
-              ->pixels[std::size_t(y + std::uint32_t(padding)) * bounds.width +
+              ->pixels[std::size_t(y + std::uint32_t(padding)) * std::size_t(bounds.width) +
                        x + std::uint32_t(padding)] =
               float(std::to_integer<unsigned>(row[std::size_t(x) * 4 + 3])) /
               255;
@@ -389,7 +389,7 @@ prepareLayerEffects(const Layer &layer, const FilterPreparationOptions &o) {
               fy);
           const float base = at(alpha, x, y);
           shifted
-              .pixels[std::size_t(y - bounds.y) * bounds.width + x - bounds.x] =
+              .pixels[std::size_t(y - bounds.y) * std::size_t(bounds.width) + std::size_t(x - bounds.x)] =
               inner ? (base > 0 ? std::clamp((base - value) / base, 0.0F, 1.0F)
                                 : 0)
               : i == 3 ? std::max(0.0F, value - base)

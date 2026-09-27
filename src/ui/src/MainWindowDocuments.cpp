@@ -464,7 +464,7 @@ MainWindow::DocumentMemory MainWindow::documentMemory() const
         for(const auto& layer:context->session.document()->layers()) {
             if(const auto* raster=std::get_if<core::RasterLayer>(&layer.payload);raster&&raster->surface&&sources.insert(raster->surface->id()).second)
                 result.sourceBytes+=bytes(raster->surface);
-            for(const auto surface:{layer.renderCache?layer.renderCache->surface:nullptr,layer.filterCache?layer.filterCache->surface:nullptr})
+            for(const auto& surface:{layer.renderCache?layer.renderCache->surface:nullptr,layer.filterCache?layer.filterCache->surface:nullptr})
                 if(surface&&derived.insert(surface->id()).second)result.derivedBytes+=bytes(surface);
             if(layer.effectCache)for(const auto& mask:layer.effectCache->masks)
                 if(mask&&mask->coverage&&masks.insert(mask->coverage.get()).second)result.derivedBytes+=mask->coverage->memoryCost();
