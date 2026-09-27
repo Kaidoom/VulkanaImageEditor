@@ -1,0 +1,15 @@
+add_executable(imageeditor_layer_merge_tests LayerMergeTests.cpp)
+target_link_libraries(imageeditor_layer_merge_tests PRIVATE imageeditor_ui)
+target_compile_definitions(imageeditor_layer_merge_tests PRIVATE
+    IMAGEEDITOR_MERGE_FONT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts")
+imageeditor_enable_warnings(imageeditor_layer_merge_tests)
+add_test(NAME imageeditor_layer_merge_tests COMMAND imageeditor_layer_merge_tests)
+set_tests_properties(imageeditor_layer_merge_tests PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 45 LABELS "layers;hierarchy;merge;sampling;deterministic")
+
+add_executable(imageeditor_native_baking_tests NativeBakingTests.cpp)
+target_link_libraries(imageeditor_native_baking_tests PRIVATE imageeditor_ui)
+target_compile_definitions(imageeditor_native_baking_tests PRIVATE IMAGEEDITOR_BAKING_FONT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts")
+imageeditor_enable_warnings(imageeditor_native_baking_tests)
+add_test(NAME imageeditor_native_baking_tests COMMAND imageeditor_native_baking_tests)
+set_tests_properties(imageeditor_native_baking_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 90 LABELS "layers;merge;rasterize;pixel-preview;sampling;history;async")

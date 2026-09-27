@@ -1,0 +1,19 @@
+<RCC>
+  <qresource prefix="/imageeditor/brush/v1">
+    <file alias="registry.json">registry-v1.json</file>
+    <file alias="tips/t_ast_07.png" compression-algorithm="none">packaged/v1/tips/t_ast_07.png</file>
+    <file alias="tips/t_ast_103.png" compression-algorithm="none">packaged/v1/tips/t_ast_103.png</file>
+    <file alias="tips/t_ast_119.png" compression-algorithm="none">packaged/v1/tips/t_ast_119.png</file>
+    <file alias="tips/t_ast_49.png" compression-algorithm="none">packaged/v1/tips/t_ast_49.png</file>
+    <file alias="tips/t_ast_78.png" compression-algorithm="none">packaged/v1/tips/t_ast_78.png</file>
+    <file alias="grains/cloudy_noise.png" compression-algorithm="none">packaged/v1/grains/cloudy_noise.png</file>
+    <file alias="grains/noise_125.png" compression-algorithm="none">packaged/v1/grains/noise_125.png</file>
+    <file alias="grains/noise_148.png" compression-algorithm="none">packaged/v1/grains/noise_148.png</file>
+    <file alias="grains/noise_151.png" compression-algorithm="none">packaged/v1/grains/noise_151.png</file>
+    <file alias="grains/noise_178.png" compression-algorithm="none">packaged/v1/grains/noise_178.png</file>
+    <file alias="grains/noise_231.png" compression-algorithm="none">packaged/v1/grains/noise_231.png</file>
+    <file alias="grains/noise_370.png" compression-algorithm="none">packaged/v1/grains/noise_370.png</file>
+    <file alias="grains/perlin_noise_m.png" compression-algorithm="none">packaged/v1/grains/perlin_noise_m.png</file>
+    <file alias="grains/multiscale-mottle.png" compression-algorithm="none">packaged/v1/grains/multiscale-mottle.png</file>
+  </qresource>
+</RCC>

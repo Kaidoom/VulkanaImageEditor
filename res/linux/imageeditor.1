@@ -1,0 +1,56 @@
+.TH IMAGEEDITOR 1 "September 2026" "Vulkana Image Editor" "User Commands"
+.SH NAME
+imageeditor \- Vulkana Image Editor
+.SH SYNOPSIS
+.B imageeditor
+.RI [ options ]
+.RI [ document ]
+.SH DESCRIPTION
+A Linux image editor with a Vulkan canvas, editable raster, text and shape
+layers, brushes and selections. Local .vulkana projects and raster images
+open in document tabs. Without a document, the New Document dialog opens.
+.SH OPTIONS
+.TP
+.B --help
+Show command-line usage.
+.TP
+.B --version
+Show the application version, independent of the native project schema.
+.TP
+.B --fps
+Show the actual event-driven Vulkan canvas frame rate.
+.TP
+.BI --ui-config " path"
+Read custom panel size defaults from an INI file once at startup.
+.TP
+.B --skip-new-dialog
+Start a default transparent canvas without the startup prompt.
+.TP
+.B --force-update-check
+Check for updates at startup even if an automatic check was attempted in the
+last 24 hours. No update is downloaded without user action.
+.TP
+.B --smoke-test
+Run automated lifecycle checks and exit. This diagnostic requires the
+optional Khronos Vulkan validation layer; normal editing does not.
+.SH FILES
+.TP
+.I ~/.config/vulkanaEditor/vulkanaEditor.conf
+Preferences, recent files and panel layout.
+.TP
+.I ~/.local/share/vulkanaEditor/brush-presets-v2
+Custom brush preset copies. Packaged presets are immutable.
+.TP
+.I /usr/share/vulkana-editor
+Read-only shaders, assets and layout defaults.
+.PP
+XDG_CONFIG_HOME and XDG_DATA_HOME override the corresponding user roots.
+Projects are saved at the user's chosen location.
+.SH ENVIRONMENT
+.B IMAGEEDITOR_UI_CONFIG
+is an optional alternative to --ui-config. No development environment
+variables are needed for installed operation.
+.SH NOTES
+Wayland and X11 are supported. A working Vulkan 1.2 driver is required.
+Vulkana-owned code and assets use the MIT License. Third-party components
+retain their own licenses; see Help, About, Third-party Notices.

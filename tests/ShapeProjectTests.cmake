@@ -1,0 +1,6 @@
+add_executable(imageeditor_shape_project_tests ShapeProjectTests.cpp)
+target_link_libraries(imageeditor_shape_project_tests PRIVATE imageeditor_ui)
+imageeditor_enable_warnings(imageeditor_shape_project_tests)
+add_test(NAME imageeditor_shape_project_tests COMMAND imageeditor_shape_project_tests)
+set_tests_properties(imageeditor_shape_project_tests PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 45 LABELS "shape;project;compatibility;deterministic")

@@ -1,0 +1,6 @@
+add_executable(imageeditor_layer_hierarchy_project_tests LayerHierarchyProjectTests.cpp)
+target_link_libraries(imageeditor_layer_hierarchy_project_tests PRIVATE imageeditor_ui)
+imageeditor_enable_warnings(imageeditor_layer_hierarchy_project_tests)
+add_test(NAME imageeditor_layer_hierarchy_project_tests COMMAND imageeditor_layer_hierarchy_project_tests)
+set_tests_properties(imageeditor_layer_hierarchy_project_tests PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 45 LABELS "layers;hierarchy;project;compatibility;deterministic")

@@ -1,0 +1,23 @@
+ImageEditorBrushPreset 2
+id "builtin.preset.hard-round.v1"
+name "Hard Round"
+tip.asset "builtin.tip.procedural-round.v1"
+tip.aspect 1
+tip.angle 0
+tip.rotation follow-stroke
+grain.asset "builtin.grain.none.v1"
+grain.scale 96
+grain.angle 0
+grain.strength 0
+grain.invert 0
+size 32
+hardness 1
+opacity 1
+flow 1
+spacing 10
+foreground 79 115 255 255
+pressure.size 0
+pressure.flow 0
+smoothing none
+smoothing.ms 12
+seed 1

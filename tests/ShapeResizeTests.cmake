@@ -1,0 +1,7 @@
+add_executable(imageeditor_shape_resize_tests ShapeResizeTests.cpp)
+set_target_properties(imageeditor_shape_resize_tests PROPERTIES AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
+target_link_libraries(imageeditor_shape_resize_tests PRIVATE imageeditor_core)
+imageeditor_enable_warnings(imageeditor_shape_resize_tests)
+add_test(NAME imageeditor_shape_resize_tests COMMAND imageeditor_shape_resize_tests)
+set_tests_properties(imageeditor_shape_resize_tests PROPERTIES
+    TIMEOUT 20 LABELS "core;shape;transform;history;deterministic")

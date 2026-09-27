@@ -1,0 +1,6 @@
+add_executable(imageeditor_layer_selection_tests LayerSelectionTests.cpp)
+set_target_properties(imageeditor_layer_selection_tests PROPERTIES AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
+target_link_libraries(imageeditor_layer_selection_tests PRIVATE imageeditor_core)
+imageeditor_enable_warnings(imageeditor_layer_selection_tests)
+add_test(NAME imageeditor_layer_selection_tests COMMAND imageeditor_layer_selection_tests)
+set_tests_properties(imageeditor_layer_selection_tests PROPERTIES LABELS "core;layers;selection;history")

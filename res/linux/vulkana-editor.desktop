@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Vulkana Image Editor
+GenericName=Raster Image Editor
+Comment=Edit layered images and editable text with a Vulkan canvas
+Exec=imageeditor %f
+TryExec=imageeditor
+Icon=vulkana-editor
+Terminal=false
+Categories=Graphics;2DGraphics;RasterGraphics;
+Keywords=image;photo;paint;layers;Vulkan;
+MimeType=application/x-vulkana;image/png;image/jpeg;image/webp;image/bmp;
+StartupNotify=true

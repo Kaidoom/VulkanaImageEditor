@@ -1,0 +1,23 @@
+ImageEditorBrushPreset 2
+id "builtin.preset.dry-ink.v1"
+name "Dry Ink"
+tip.asset "builtin.tip.bitmap-dry-ink.v1"
+tip.aspect 0.38
+tip.angle -34
+tip.rotation follow-stroke
+grain.asset "builtin.grain.dry-ink-paper.v1"
+grain.scale 72
+grain.angle 7
+grain.strength 0.68
+grain.invert 0
+size 46
+hardness 0.58
+opacity 0.96
+flow 0.72
+spacing 8
+foreground 79 115 255 255
+pressure.size 1
+pressure.flow 1
+smoothing weighted
+smoothing.ms 10
+seed 3509214957

@@ -1,0 +1,17 @@
+{
+  "format": "org.vulkana.project",
+  "version": 1,
+  "required": ["rgba8", "rich-text-v1"],
+  "canvas": {"width": 11, "height": 7, "ppi": 144},
+  "layers": [
+    {
+      "id": "17",
+      "type": "raster",
+      "name": "Four corners / hidden RGB",
+      "visible": true,
+      "opacity": 0.625,
+      "transform": [-1.25, 0.375, 8.125, 0.5, 0.875, -2.25],
+      "raster": {"width": 3, "height": 2, "path": "rasters/17.rgba"}
+    }
+  ]
+}

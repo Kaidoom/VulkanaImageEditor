@@ -1,0 +1,56 @@
+{
+  "format": 1,
+  "profile": "source",
+  "version": "@VULKANA_VERSION@",
+  "release_channel": "@VULKANA_RELEASE_CHANNEL@",
+  "source_url": "",
+  "source_url_published": false,
+  "acknowledgements": [
+    "Qt is used under the LGPL v3 option. Copies of LGPL v3 and GPL v3 are included.",
+    "These direct dependencies are supplied by the build/runtime environment, not bundled with Vulkana's source. Their installed notices cover additional plugins and transitive components."
+  ],
+  "components": [
+    {
+      "notice": {
+        "name": "Qt Core, Gui, Widgets and Network",
+        "version": "@Qt6Core_VERSION@",
+        "scope": "System-provided",
+        "license": "LGPL-3.0-only option; embedded third-party components retain their own terms",
+        "copyright": "The Qt Company Ltd. and contributors; see the installed Qt notices for individual attributions."
+      },
+      "texts": ["LGPL-3.0.txt", "GPL-3.0.txt"]
+    },
+    {
+      "notice": {
+        "name": "Vulkan headers and loader",
+        "version": "@Vulkan_VERSION@",
+        "scope": "System-provided",
+        "license": "Apache-2.0; additional per-file terms in the installed headers/loader",
+        "copyright": "The Khronos Group and contributors; see the installed Vulkan notices for individual attributions."
+      },
+      "texts": ["Apache-2.0.txt"]
+    },
+    {
+      "notice": {
+        "name": "minizip-ng",
+        "version": "@MINIZIP_VERSION@",
+        "scope": "System-provided",
+        "license": "Zlib",
+        "copyright": "Gilles Vollant, Mathias Svensson and Nathan Moinvaziri."
+      },
+      "texts": ["minizip-LICENSE.txt"]
+    },
+    {
+      "notice": {
+        "name": "libwebp / libwebpmux",
+        "version": "@WEBP_libwebp_VERSION@",
+        "scope": "System-provided",
+        "license": "BSD-3-Clause",
+        "copyright": "Copyright (c) 2010, Google Inc. All rights reserved. Additional IP rights grant in PATENTS."
+      },
+      "texts": ["libwebp-COPYING.txt", "libwebp-PATENTS.txt"]
+    }
+  ],
+  "notice_text_keys": [],
+  "texts": {}
+}

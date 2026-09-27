@@ -1,0 +1,5 @@
+#pragma once
+namespace imageeditor::platform {
+inline constexpr char buildVersion[] = "@VULKANA_VERSION@";
+inline constexpr char releaseChannel[] = "@VULKANA_RELEASE_CHANNEL@";
+} // namespace imageeditor::platform

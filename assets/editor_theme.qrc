@@ -1,0 +1,12 @@
+<RCC>
+  <qresource prefix="/theme">
+    <file alias="chevron-up.svg">icons/chevron-up.svg</file>
+    <file alias="chevron-up-disabled.svg">icons/chevron-up-disabled.svg</file>
+    <file alias="chevron-up-light.svg">icons/chevron-up-light.svg</file>
+    <file alias="chevron-up-disabled-light.svg">icons/chevron-up-disabled-light.svg</file>
+    <file alias="chevron-down.svg">icons/chevron-down.svg</file>
+    <file alias="chevron-down-disabled.svg">icons/chevron-down-disabled.svg</file>
+    <file alias="chevron-down-light.svg">icons/chevron-down-light.svg</file>
+    <file alias="chevron-down-disabled-light.svg">icons/chevron-down-disabled-light.svg</file>
+  </qresource>
+</RCC>

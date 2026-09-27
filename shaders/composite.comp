@@ -1,0 +1,191 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#define B_INLINE precise
+#define BVec3 vec3
+#define BVec4 vec4
+#define bMin min
+#define bMax max
+#define bClamp clamp
+#define bPow pow
+#define bSqrt sqrt
+#define bAbs abs
+#include "imageeditor/core/detail/BlendMath.inc"
+
+layout(local_size_x=16, local_size_y=16) in;
+layout(set=0,binding=0) uniform sampler2D layerTexture;
+layout(rgba32f,set=1,binding=0) uniform image2D composition;
+layout(std430,set=2,binding=0) readonly buffer AdjustmentParameters { float values[]; } adjustmentParameters;
+layout(std430,set=2,binding=1) readonly buffer AdjustmentMasks { uint words[]; } adjustmentMasks;
+layout(push_constant) uniform CompositePush {
+    vec4 localX; // framebuffer-pixel -> source-texel affine rows
+    vec4 localY;
+    vec4 canvasRect;
+    ivec4 region; // framebuffer dispatch origin and size
+    float opacity;
+    int mode;
+    int adjustmentOffset;
+    int cropEnabled;
+    vec4 sourceToLocalX;
+    vec4 sourceToLocalY;
+    vec4 cropRect;
+} pc;
+
+#define C_INLINE precise
+#define CVec2 vec2
+#define CVec4 vec4
+#define cAbs abs
+#define cClamp clamp
+#include "imageeditor/core/detail/CropMath.inc"
+
+#define A_INLINE precise
+#define A_PARAM(index) adjustmentParameters.values[pc.adjustmentOffset+(index)]
+#define aFloor floor
+#include "imageeditor/core/detail/AdjustmentMath.inc"
+
+float maskTexel(uint header,ivec2 point)
+{
+    uvec2 size=uvec2(adjustmentMasks.words[header],adjustmentMasks.words[header+1]);
+    if (any(lessThan(point,ivec2(0))) || any(greaterThanEqual(uvec2(point),size))) return 0.0;
+    uvec2 tile=uvec2(point)/128u;
+    uint address=adjustmentMasks.words[header+4+tile.y*adjustmentMasks.words[header+2]+tile.x];
+    if ((address&0x80000000u)!=0u) return float(address&255u)/255.0;
+    uvec2 local=uvec2(point)%128u;
+    uint index=local.y*128u+local.x;
+    return float((adjustmentMasks.words[address+index/4u]>>((index%4u)*8u))&255u)/255.0;
+}
+float stageCoverage(int stage,vec2 layerLocal)
+{
+    int meta=2560+12+stage*12;
+    uint header=floatBitsToUint(A_PARAM(meta+3));
+    if (header==0u) return 1.0;
+    precise vec2 point=vec2(dot(vec3(A_PARAM(meta),A_PARAM(meta+1),A_PARAM(meta+2)),vec3(layerLocal,1)),
+        dot(vec3(A_PARAM(meta+4),A_PARAM(meta+5),A_PARAM(meta+6)),vec3(layerLocal,1)))
+        /dot(vec3(A_PARAM(meta+8),A_PARAM(meta+9),A_PARAM(meta+10)),vec3(layerLocal,1))-vec2(.5);
+    vec2 size=vec2(adjustmentMasks.words[header],adjustmentMasks.words[header+1]);
+    if (any(isnan(point)) || any(isinf(point))) return 0.0;
+    if (any(lessThan(point,vec2(-1))) || any(greaterThanEqual(point,size))) return 0.0;
+    ivec2 lo=ivec2(floor(point)); vec2 f=fract(point);
+    precise float a=maskTexel(header,lo)*(1.0-f.x)+maskTexel(header,lo+ivec2(1,0))*f.x;
+    precise float b=maskTexel(header,lo+ivec2(0,1))*(1.0-f.x)+maskTexel(header,lo+ivec2(1,1))*f.x;
+    return a*(1.0-f.y)+b*f.y;
+}
+vec4 adjustSource(vec4 source,vec2 sourceLocal)
+{
+    if (pc.adjustmentOffset<0 || source.a<=0.0) return source;
+    vec2 local=vec2(dot(vec3(A_PARAM(2560),A_PARAM(2561),A_PARAM(2562)),vec3(sourceLocal,1)),
+        dot(vec3(A_PARAM(2564),A_PARAM(2565),A_PARAM(2566)),vec3(sourceLocal,1)))
+        /dot(vec3(A_PARAM(2568),A_PARAM(2569),A_PARAM(2570)),vec3(sourceLocal,1));
+    precise vec3 color=aClamp(vec3(source.r==source.a?1.0:source.r/source.a,
+        source.g==source.a?1.0:source.g/source.a,source.b==source.a?1.0:source.b/source.a));
+    bool changed=false;
+    for (int stage=0;stage<10;++stage) {
+        if (A_PARAM(stage*256)==0.0) continue;
+        float coverage=stageCoverage(stage,local);
+        if (coverage<=0.0) continue;
+        vec3 adjusted=aEvaluateStage(color,stage);
+        color=coverage==1.0?adjusted:color+(adjusted-color)*coverage;
+        changed=true;
+    }
+    return changed?vec4(color*source.a,source.a):source;
+}
+
+vec4 premultipliedTexel(ivec2 p)
+{
+    vec4 c = texelFetch(layerTexture,p,0); // unassociated encoded sRGB, alpha linear
+    return vec4(vec3(bDecode(c.r),bDecode(c.g),bDecode(c.b))*c.a,c.a);
+}
+int effectOffset;
+float effectCoverage[6];
+#define E_INLINE precise
+#define E_PARAM(index) adjustmentParameters.values[effectOffset+(index)]
+#define E_MASK(index) effectCoverage[index]
+#include "imageeditor/core/detail/LayerEffectMath.inc"
+float sampleStyleMask(int i,vec2 local)
+{
+    int meta=228+i*8;
+    uint header=floatBitsToUint(E_PARAM(meta+3));if(header==0u)return 0;
+    vec2 p=vec2(dot(vec3(E_PARAM(meta),E_PARAM(meta+1),E_PARAM(meta+2)),vec3(local,1)),
+        dot(vec3(E_PARAM(meta+4),E_PARAM(meta+5),E_PARAM(meta+6)),vec3(local,1)))-vec2(.5);
+    vec2 size=vec2(adjustmentMasks.words[header],adjustmentMasks.words[header+1]);
+    if(any(isnan(p))||any(isinf(p))||any(lessThan(p,vec2(-1)))||any(greaterThanEqual(p,size)))return 0;
+    ivec2 lo=ivec2(floor(p));vec2 f=fract(p);
+    return mix(mix(maskTexel(header,lo),maskTexel(header,lo+ivec2(1,0)),f.x),
+        mix(maskTexel(header,lo+ivec2(0,1)),maskTexel(header,lo+ivec2(1,1)),f.x),f.y);
+}
+void main()
+{
+    effectOffset=(pc.mode>>8)-1;
+    int cropMode=pc.cropEnabled&3;
+    int geometry=(pc.cropEnabled>>2)-1;
+    vec3 inverseW=vec3(0,0,1),sourceW=vec3(0,0,1);
+    if(geometry>=0) {
+        inverseW=vec3(adjustmentParameters.values[geometry],adjustmentParameters.values[geometry+1],adjustmentParameters.values[geometry+2]);
+        sourceW=vec3(adjustmentParameters.values[geometry+4],adjustmentParameters.values[geometry+5],adjustmentParameters.values[geometry+6]);
+    }
+    ivec2 offset = ivec2(gl_GlobalInvocationID.xy);
+    if (any(greaterThanEqual(offset,pc.region.zw))) return;
+    ivec2 pixel = pc.region.xy + offset;
+    vec2 p = vec2(pixel)+vec2(0.5);
+    if (any(lessThan(p,pc.canvasRect.xy)) || any(greaterThanEqual(p,pc.canvasRect.xy+pc.canvasRect.zw))) return;
+    float denominator=dot(inverseW,vec3(p,1));
+    if(abs(denominator)<1e-12)return;
+    vec2 local = vec2(dot(pc.localX.xyz,vec3(p,1)),dot(pc.localY.xyz,vec3(p,1)))/denominator;
+    if(any(isnan(local))||any(isinf(local)))return;
+    ivec2 size = textureSize(layerTexture,0);
+    bool outside=any(lessThan(local,vec2(0))) || any(greaterThanEqual(local,vec2(size)));
+    float edgeCoverage=outside?0:1;
+    if(inverseW.x!=0 || inverseW.y!=0){
+        vec2 du=(vec2(pc.localX.x,pc.localY.x)-local*inverseW.x)/denominator;
+        vec2 dv=(vec2(pc.localX.y,pc.localY.y)-local*inverseW.y)/denominator;
+        edgeCoverage=cCoverage(du,dv,vec4(-local,vec2(size)-local),vec4(0));
+    }
+    if (edgeCoverage<=0&&effectOffset<0) return;
+    vec2 q = clamp(local-vec2(0.5),vec2(0),vec2(size-1));
+    ivec2 lo = ivec2(floor(q)), hi = min(lo+ivec2(1),size-1);
+    vec2 f = fract(q);
+    // Premultiply each texel BEFORE interpolation. Hidden RGB at alpha zero
+    // cannot contaminate AA edges. Same texel-center/clamp rule as CPU sampling.
+    precise vec4 source;
+    if(cropMode==3) {
+        // Pixel Preview is axis-aligned in document space. Magnification keeps
+        // native pixel cells sharp; reduction integrates their premultiplied
+        // linear-light areas (not hidden RGB or a straight-alpha interpolation).
+        vec2 footprint=vec2(abs(pc.localX.x),abs(pc.localY.y));
+        if(all(lessThanEqual(footprint,vec2(1))))source=premultipliedTexel(ivec2(floor(local)));
+        else {
+            vec2 a=max(vec2(0),local-footprint*.5),b=min(vec2(size),local+footprint*.5);
+            vec4 sum=vec4(0);float weight=0;
+            for(int y=int(floor(a.y));y<int(ceil(b.y));++y)
+                for(int x=int(floor(a.x));x<int(ceil(b.x));++x) {
+                    float w=(min(b.x,float(x+1))-max(a.x,float(x)))
+                        *(min(b.y,float(y+1))-max(a.y,float(y)));
+                    sum+=premultipliedTexel(ivec2(x,y))*w;weight+=w;
+                }
+            source=weight>0?sum/weight:vec4(0);
+        }
+    } else source = mix(mix(premultipliedTexel(lo),premultipliedTexel(ivec2(hi.x,lo.y)),f.x),
+        mix(premultipliedTexel(ivec2(lo.x,hi.y)),premultipliedTexel(hi),f.x),f.y);
+    source*=edgeCoverage;
+    if (source.a <= 0.0&&effectOffset<0) return;
+    source=adjustSource(source,local);
+    float cropCoverage=1;
+    if(cropMode==1 || cropMode==2){
+        float w=dot(sourceW,vec3(local,1));
+        vec2 center=vec2(dot(pc.sourceToLocalX.xyz,vec3(local,1)),dot(pc.sourceToLocalY.xyz,vec3(local,1)))/w;
+        vec2 du=(vec2(pc.localX.x,pc.localY.x)-local*inverseW.x)/denominator;
+        vec2 dv=(vec2(pc.localX.y,pc.localY.y)-local*inverseW.y)/denominator;
+        vec2 rowX=(pc.sourceToLocalX.xy-center.x*sourceW.xy)/w;
+        vec2 rowY=(pc.sourceToLocalY.xy-center.y*sourceW.xy)/w;
+        vec2 dx=vec2(dot(rowX,du),dot(rowY,du));
+        vec2 dy=vec2(dot(rowX,dv),dot(rowY,dv));
+        float coverage=cCoverage(dx,dy,pc.cropRect-vec4(center,center),
+            vec4(pc.localX.w,pc.localY.w,pc.sourceToLocalX.w,pc.sourceToLocalY.w));
+        cropCoverage=cropMode==2 ? .12+.88*coverage : coverage;
+    }
+    vec4 backdrop=imageLoad(composition,pixel);
+    if(effectOffset>=0) {
+        vec2 point=vec2(dot(pc.sourceToLocalX.xyz,vec3(local,1)),dot(pc.sourceToLocalY.xyz,vec3(local,1)))/dot(sourceW,vec3(local,1));
+        for(int i=0;i<6;++i)effectCoverage[i]=sampleStyleMask(i,point);
+        imageStore(composition,pixel,eComposite(backdrop,source,point.x,point.y,pc.opacity*cropCoverage,pc.mode&255));
+    }else imageStore(composition,pixel,bComposite(backdrop,source*cropCoverage,pc.opacity,pc.mode));
+}

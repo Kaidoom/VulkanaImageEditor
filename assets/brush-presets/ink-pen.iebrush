@@ -1,0 +1,23 @@
+ImageEditorBrushPreset 2
+id "builtin.preset.ink-pen.v1"
+name "Ink Pen"
+tip.asset "builtin.tip.procedural-ellipse.v1"
+tip.aspect 0.24
+tip.angle -38
+tip.rotation follow-stroke
+grain.asset "builtin.grain.none.v1"
+grain.scale 96
+grain.angle 0
+grain.strength 0
+grain.invert 0
+size 24
+hardness 0.94
+opacity 1
+flow 1
+spacing 7
+foreground 79 115 255 255
+pressure.size 1
+pressure.flow 0
+smoothing weighted
+smoothing.ms 10
+seed 1

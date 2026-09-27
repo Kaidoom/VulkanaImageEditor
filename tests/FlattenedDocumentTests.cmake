@@ -1,0 +1,8 @@
+add_executable(imageeditor_flattened_document_tests FlattenedDocumentTests.cpp)
+target_link_libraries(imageeditor_flattened_document_tests PRIVATE imageeditor_ui)
+target_compile_definitions(imageeditor_flattened_document_tests PRIVATE
+    IMAGEEDITOR_FLATTEN_FONT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts")
+imageeditor_enable_warnings(imageeditor_flattened_document_tests)
+add_test(NAME imageeditor_flattened_document_tests COMMAND imageeditor_flattened_document_tests)
+set_tests_properties(imageeditor_flattened_document_tests PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 45 LABELS "shape;text;flatten;sampling;deterministic")

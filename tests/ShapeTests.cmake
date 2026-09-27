@@ -1,0 +1,6 @@
+add_executable(imageeditor_shape_tests ShapeTests.cpp)
+set_target_properties(imageeditor_shape_tests PROPERTIES AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
+target_link_libraries(imageeditor_shape_tests PRIVATE imageeditor_core)
+imageeditor_enable_warnings(imageeditor_shape_tests)
+add_test(NAME imageeditor_shape_tests COMMAND imageeditor_shape_tests)
+set_tests_properties(imageeditor_shape_tests PROPERTIES LABELS "core;shape;history;deterministic")

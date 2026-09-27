@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240">
+  <title>ImageEditor top-left coordinate orientation reference</title>
+  <rect x="0" y="0" width="160" height="120" fill="#ef4444"/>
+  <rect x="160" y="0" width="160" height="120" fill="#22c55e"/>
+  <rect x="0" y="120" width="160" height="120" fill="#3b82f6"/>
+  <rect x="160" y="120" width="160" height="120" fill="#facc15"/>
+  <path d="M160 12 L148 34 H155 V70 H165 V34 H172 Z" fill="#111827" opacity="0.72"/>
+  <text x="18" y="42" fill="white" font-family="sans-serif" font-size="28" font-weight="700">TL</text>
+  <text x="302" y="42" fill="#111827" font-family="sans-serif" font-size="28" font-weight="700" text-anchor="end">TR</text>
+  <text x="18" y="222" fill="white" font-family="sans-serif" font-size="28" font-weight="700">BL</text>
+  <text x="302" y="222" fill="#111827" font-family="sans-serif" font-size="28" font-weight="700" text-anchor="end">BR</text>
+  <text x="160" y="96" fill="#111827" font-family="sans-serif" font-size="16" font-weight="700" text-anchor="middle">TOP</text>
+</svg>

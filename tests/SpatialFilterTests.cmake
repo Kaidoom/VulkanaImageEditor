@@ -1,0 +1,9 @@
+add_executable(imageeditor_spatial_filter_tests SpatialFilterTests.cpp)
+target_link_libraries(imageeditor_spatial_filter_tests PRIVATE imageeditor_core)
+imageeditor_enable_warnings(imageeditor_spatial_filter_tests)
+add_test(NAME imageeditor_spatial_filter_tests COMMAND imageeditor_spatial_filter_tests)
+set_tests_properties(imageeditor_spatial_filter_tests PROPERTIES TIMEOUT 120 LABELS "filters;core;deterministic;alpha")
+
+add_executable(imageeditor_spatial_filter_benchmark SpatialFilterBenchmark.cpp)
+target_link_libraries(imageeditor_spatial_filter_benchmark PRIVATE imageeditor_core Qt6::Gui)
+imageeditor_enable_warnings(imageeditor_spatial_filter_benchmark)
