@@ -605,6 +605,22 @@ target_link_libraries(imageeditor_m2_benchmarks PRIVATE
     imageeditor_core imageeditor_render)
 imageeditor_enable_warnings(imageeditor_m2_benchmarks)
 
+# Opt-in: fast large-tip strokes, with pixel fingerprints for before/after comparisons.
+add_executable(imageeditor_brush_performance_benchmark BrushPerformanceBenchmark.cpp)
+set_target_properties(imageeditor_brush_performance_benchmark PROPERTIES AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
+target_link_libraries(imageeditor_brush_performance_benchmark PRIVATE imageeditor_core)
+imageeditor_enable_warnings(imageeditor_brush_performance_benchmark)
+
+add_executable(imageeditor_brush_native_benchmark BrushNativeBenchmark.cpp)
+target_link_libraries(imageeditor_brush_native_benchmark PRIVATE imageeditor_ui Qt6::Test)
+imageeditor_enable_warnings(imageeditor_brush_native_benchmark)
+
+add_executable(imageeditor_parallel_brush_tests ParallelBrushTests.cpp)
+target_link_libraries(imageeditor_parallel_brush_tests PRIVATE imageeditor_core)
+imageeditor_enable_warnings(imageeditor_parallel_brush_tests)
+add_test(NAME imageeditor_parallel_brush_tests COMMAND imageeditor_parallel_brush_tests)
+set_tests_properties(imageeditor_parallel_brush_tests PROPERTIES TIMEOUT 180 LABELS "brush;parallel;deterministic")
+
 # Opt-in 4K/5K selection, extraction and masked-edit timings (not CTest gates).
 add_executable(imageeditor_selection_benchmarks SelectionBenchmarks.cpp)
 set_target_properties(imageeditor_selection_benchmarks PROPERTIES AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)

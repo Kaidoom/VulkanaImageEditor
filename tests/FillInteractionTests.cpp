@@ -813,7 +813,8 @@ void cancellingDiscoveryAndClosingTheWindowNeverLeavesPartialEdits()
 
 int nativeFillValidation()
 {
-    if (QGuiApplication::platformName() != QStringLiteral("wayland"))
+    if (QGuiApplication::platformName() != QStringLiteral("wayland")
+        && QGuiApplication::platformName() != QStringLiteral("xcb"))
         return 77;
     std::atomic_uint64_t warnings { 0 }, errors { 0 };
     QVulkanInstance instance;
@@ -856,10 +857,25 @@ int nativeFillValidation()
         const auto panDepth = f.history().undoDepth();
         const auto panStats = f.canvas->rendererStats();
         const auto originalPan = f.canvas->scene().viewport.pan();
+        const auto originalColors = f.window.editorSession().colors();
         for (auto* receiver : {f.window.windowHandle(), f.workspace->panelOverlay()->windowHandle()}) {
             CHECK(receiver);
             if (!receiver) continue;
             if (auto* focus = QApplication::focusWidget()) focus->clearFocus();
+            const auto pickPoint = f.logical({20.5, 20.5});
+            sendMouse(*f.canvas, QEvent::MouseMove, pickPoint, Qt::NoButton, Qt::NoButton);
+            QTest::keyPress(receiver, Qt::Key_Alt);
+            CHECK(f.canvas->scene().eyedropperActive);
+            sendMouse(*f.canvas, QEvent::MouseButtonPress, pickPoint, Qt::LeftButton, Qt::LeftButton, Qt::AltModifier);
+            CHECK(f.canvas->scene().eyedropperSampleValid);
+            QTest::keyRelease(receiver, Qt::Key_Alt);
+            CHECK(f.canvas->scene().eyedropperActive);
+            sendMouse(*f.canvas, QEvent::MouseButtonRelease, pickPoint, Qt::LeftButton, Qt::NoButton);
+            CHECK(!f.canvas->scene().eyedropperActive);
+            CHECK(f.window.editorSession().activeTool() == core::ToolId::Fill);
+            CHECK(f.pixels() == panPixels && f.surface().revision() == panRevision);
+            CHECK(f.history().undoDepth() == panDepth);
+            f.colors(originalColors);
             for (const double direction : {1.0, -1.0}) {
                 const QPointF start(160, 150);
                 const QPointF finish = start + QPointF(35 * direction, 22 * direction);
@@ -921,7 +937,8 @@ int nativeFillValidation()
         f.window.logRendererDiagnostics();
     }
     CHECK(warnings == 0 && errors == 0);
-    std::cout << "Native fill validation: warnings=" << warnings << " errors=" << errors << '\n';
+    std::cout << "Native fill validation (" << QGuiApplication::platformName().toStdString()
+        << "): warnings=" << warnings << " errors=" << errors << '\n';
     return failures ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 

@@ -1448,7 +1448,8 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
         canvasWindow_->updateShapeModifiers(modifiers);
         canvasWindow_->updateMeasureModifiers(modifiers);
     }
-    const bool brush = session().activeTool() == core::ToolId::Brush || session().activeTool() == core::ToolId::Eraser;
+    const bool temporaryPickerTool = session().activeTool() == core::ToolId::Brush
+        || session().activeTool() == core::ToolId::Eraser || session().activeTool() == core::ToolId::Fill;
     const bool editing = editorTextInputActive() || editableWidgetOwnsInput(widget);
     const bool blocked = QApplication::activeModalWidget() || QApplication::activePopupWidget();
     if(ourTarget && smartInteractionActive() && !blocked && key->key()==Qt::Key_Escape
@@ -1549,7 +1550,7 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
         event->accept();
         return true;
     }
-    if (ourTarget && key->key() == Qt::Key_Alt && brush && canvasWindow_->scene().cursorInside && !editing
+    if (ourTarget && key->key() == Qt::Key_Alt && temporaryPickerTool && canvasWindow_->scene().cursorInside && !editing
         && !QApplication::activeModalWidget() && !QApplication::activePopupWidget()) {
         canvasWindow_->setTemporaryEyedropper(event->type() == QEvent::KeyPress);
         event->accept();

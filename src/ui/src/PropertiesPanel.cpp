@@ -751,7 +751,8 @@ QWidget* PropertiesPanel::createFillPage()
     auto* page = createPageShell(QStringLiteral("Fill"),
         QStringLiteral("Fill the active layer or current selection."), content);
     auto* help = new QLabel(QStringLiteral(
-        "{{ToolAction_fill}} · Fill; click · Apply the highlighted color\nX · Switch color swatch\n"
+        "{{ToolAction_fill}} · Fill; click · Apply the highlighted color\nAlt · Temporary eyedropper\n"
+        "{{SwapColorsAction}} · Switch color swatch\n"
         "{{FillForegroundAction}} / {{FillBackgroundAction}} · Fill with foreground / background\n"
         "Escape · Cancel pending fill\n{{UndoAction}} / {{RedoAction}} · Undo / redo\n\n"
         "Selection / Layer fills every selected region; no selection fills the layer inside the canvas. "
@@ -766,9 +767,9 @@ QWidget* PropertiesPanel::createEyedropperPage()
 {
     QVBoxLayout* content = nullptr;
     auto* page = createPageShell(QStringLiteral("Eyedropper"),
-        QStringLiteral("Pick the document color, including alpha. Hold Alt with Brush or Eraser for temporary picking."), content);
+        QStringLiteral("Pick the document color, including alpha. Hold Alt with Brush, Eraser or Fill for temporary picking."), content);
     auto* help = new QLabel(QStringLiteral(
-        "{{ToolAction_eyedropper}} · Eyedropper; click / drag · Sample\nAlt in Brush / Eraser · Temporary picker\n"
+        "{{ToolAction_eyedropper}} · Eyedropper; click / drag · Sample\nAlt in Brush / Eraser / Fill · Temporary picker\n"
         "{{SwapColorsAction}} · Switch color swatch\nEscape · End picking\n\n"
         "Merged Visible samples the visible document. Active Layer ignores its visibility and opacity. "
         "Samples retain alpha. The ring shows hovered color above, current color below.\n\n"

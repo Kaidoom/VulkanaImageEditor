@@ -471,11 +471,11 @@ void CanvasWindow::cancelColorSampling()
 
 void CanvasWindow::refreshColorSample()
 {
-    const bool brushContext = scene_.activeTool == core::ToolId::Brush
-        || scene_.activeTool == core::ToolId::Eraser;
+    const bool temporaryPickerTool = scene_.activeTool == core::ToolId::Brush
+        || scene_.activeTool == core::ToolId::Eraser || scene_.activeTool == core::ToolId::Fill;
     scene_.eyedropperActive = !measureActive() && !brushing_ && !panning_ && !spaceHeld_
         && (scene_.activeTool == core::ToolId::Eyedropper || picking_
-            || (brushContext && temporaryEyedropper_));
+            || (temporaryPickerTool && temporaryEyedropper_));
     scene_.eyedropperSampleValid = false;
     if (scene_.eyedropperActive && scene_.cursorInside && onColorSampleRequested) {
         const auto sample = onColorSampleRequested(documentPositionForLogical(
@@ -750,10 +750,6 @@ void CanvasWindow::mousePressEvent(QMouseEvent* event)
         event->accept();
         return;
     }
-    if (event->button() == Qt::LeftButton && scene_.activeTool == core::ToolId::Fill) {
-        if (onFillRequested) onFillRequested(documentPositionForLogical(event->position()));
-        event->accept(); return;
-    }
     if (event->button() == Qt::LeftButton && (scene_.transformOverlay || scene_.activeTool == core::ToolId::Move)) {
         beginTransformInput(event->position());
         event->accept();
@@ -775,6 +771,10 @@ void CanvasWindow::mousePressEvent(QMouseEvent* event)
         applyColorSample();
         event->accept();
         return;
+    }
+    if (event->button() == Qt::LeftButton && scene_.activeTool == core::ToolId::Fill) {
+        if (onFillRequested) onFillRequested(documentPositionForLogical(event->position()));
+        event->accept(); return;
     }
     if (event->button() == Qt::LeftButton
         && (scene_.activeTool == core::ToolId::Brush
@@ -976,11 +976,6 @@ void CanvasWindow::tabletEvent(QTabletEvent* event)
     scene_.cursorInside = true;
     if (event->type() == QEvent::TabletPress && event->button() == Qt::LeftButton)
         notifyOutsideDocumentPress(event->position());
-    if (scene_.activeTool == core::ToolId::Fill && !spaceHeld_ && !panning_) {
-        if (event->type() == QEvent::TabletPress && onFillRequested)
-            onFillRequested(documentPositionForLogical(event->position()));
-        event->accept(); return;
-    }
     if (selecting_ || (core::isSelectionTool(scene_.activeTool) && !spaceHeld_ && !panning_)) {
         if(onSelectionSample)onSelectionSample(tabletSample(*event));
         if (event->type() == QEvent::TabletPress) beginSelectionInput(event->position(), event->modifiers());
@@ -1017,6 +1012,11 @@ void CanvasWindow::tabletEvent(QTabletEvent* event)
         }
         event->accept();
         return;
+    }
+    if (scene_.activeTool == core::ToolId::Fill && !spaceHeld_ && !panning_) {
+        if (event->type() == QEvent::TabletPress && onFillRequested)
+            onFillRequested(documentPositionForLogical(event->position()));
+        event->accept(); return;
     }
     if ((scene_.activeTool != core::ToolId::Brush
             && scene_.activeTool != core::ToolId::Eraser && scene_.activeTool!=core::ToolId::Cloning

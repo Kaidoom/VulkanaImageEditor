@@ -255,6 +255,7 @@ const MaskCache& cache() { static const MaskCache result; return result; }
 
 class GeometricTip final : public IBrushTip {
 public:
+    bool supportsConcurrentSampling() const noexcept override { return true; }
     explicit GeometricTip(bool pixel) : pixel_(pixel) {}
     BrushTipBounds prepareDab(const BrushDab& dab, double hardness, double footprint) noexcept override
     {
@@ -289,6 +290,7 @@ private:
 
 class BristleTip final : public IBrushTip {
 public:
+    bool supportsConcurrentSampling() const noexcept override { return true; }
     BrushTipBounds prepareDab(const BrushDab& dab, double hardness, double footprint) noexcept override
     {
         if (!(dab.diameterPixels > 0)) { active_ = false; return {}; }
@@ -342,6 +344,7 @@ private:
 
 class GeneratedTip final : public IBrushTip {
 public:
+    bool supportsConcurrentSampling() const noexcept override { return true; }
     explicit GeneratedTip(Kind kind) : kind_(kind), tip_(cache().masks[std::size_t(kind)], BitmapMaskTip::Filtering::Anisotropic) {}
     BrushTipBounds prepareDab(const BrushDab& source, double hardness, double footprint) noexcept override
     {

@@ -22,6 +22,11 @@ namespace imageeditor::core {
     const std::function<void(unsigned, unsigned)>& function,
     const std::function<bool()>& cancelled = {});
 
+// Interactive work must not queue behind a background solve. Returns false
+// without invoking callbacks if the pool is occupied; the caller can run serially.
+[[nodiscard]] bool tryBoundedParallel(unsigned workers,
+    const std::function<void(unsigned, unsigned)>& function);
+
 // Stable dependency schedule for in-place left/up (or right/down) propagation.
 // Pixels on one x+y diagonal are independent; each diagonal completes before
 // the next. Inputs must be unique nonnegative row-major pixel indices.

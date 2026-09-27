@@ -496,6 +496,60 @@ void bitmapCoverageKeepsExactBlackEmpty()
     }
 }
 
+void preparedMaskSamplingExactlyMatchesTheReference()
+{
+    struct Level { std::uint32_t width, height; std::vector<float> pixels; };
+    for (const auto extent : {Extent2u{1, 1}, Extent2u{5, 3}, Extent2u{16, 8}, Extent2u{7, 1}}) {
+        std::vector<std::uint8_t> bytes(std::size_t(extent.width) * extent.height);
+        for (std::size_t i = 0; i < bytes.size(); ++i) bytes[i] = std::uint8_t((i * 71 + 33) % 256);
+        GrayscaleMaskAsset mask("sampling-reference", 1, extent.width, extent.height, bytes);
+        std::vector<Level> levels {{extent.width, extent.height, {}}};
+        for (const auto byte : bytes) levels[0].pixels.push_back(float(byte) / 255.0F);
+        while (levels.back().width > 1 || levels.back().height > 1) {
+            const auto& previous = levels.back();
+            Level next {std::max(1U, (previous.width + 1) / 2), std::max(1U, (previous.height + 1) / 2), {}};
+            for (std::uint32_t y = 0; y < next.height; ++y) for (std::uint32_t x = 0; x < next.width; ++x) {
+                double sum = 0;
+                for (std::uint32_t dy = 0; dy < 2; ++dy) for (std::uint32_t dx = 0; dx < 2; ++dx)
+                    sum += previous.pixels[std::size_t(std::min(previous.height - 1, y * 2 + dy)) * previous.width
+                        + std::min(previous.width - 1, x * 2 + dx)];
+                next.pixels.push_back(float(sum * .25));
+            }
+            levels.push_back(std::move(next));
+        }
+        // Deliberately retain the pre-optimization algorithm: separate wrapped
+        // fetches, two mip samples even at integer LOD, unchanged arithmetic.
+        const auto sampleLevel = [&levels](std::size_t index, double u, double v, bool repeat) {
+            const auto& level = levels[index];
+            const auto x = u * level.width - .5, y = v * level.height - .5;
+            const auto x0 = std::int64_t(std::floor(x)), y0 = std::int64_t(std::floor(y));
+            const auto tx = x - double(x0), ty = y - double(y0);
+            const auto fetch = [&level, repeat](std::int64_t column, std::int64_t row) {
+                const auto width = std::int64_t(level.width), height = std::int64_t(level.height);
+                if (repeat) { column = ((column % width) + width) % width; row = ((row % height) + height) % height; }
+                else if (column < 0 || row < 0 || column >= width || row >= height) return 0.;
+                return double(level.pixels[std::size_t(row) * level.width + std::size_t(column)]);
+            };
+            const auto top = fetch(x0, y0) + (fetch(x0 + 1, y0) - fetch(x0, y0)) * tx;
+            const auto bottom = fetch(x0, y0 + 1) + (fetch(x0 + 1, y0 + 1) - fetch(x0, y0 + 1)) * tx;
+            return top + (bottom - top) * ty;
+        };
+        for (const bool repeat : {false, true}) for (const double lod : {-1., 0., .125, .5, 1., 1.75, 2., 4., 100.}) {
+            const auto prepared = mask.prepareSampler(lod, repeat);
+            const auto clamped = std::clamp(lod, 0., double(levels.size() - 1));
+            const auto first = std::size_t(std::floor(clamped)), second = std::min(first + 1, levels.size() - 1);
+            for (int y = -12; y <= 20; ++y) for (int x = -12; x <= 20; ++x) {
+                const auto u = x / 8.0, v = y / 8.0;
+                const auto a = sampleLevel(first, u, v, repeat), b = sampleLevel(second, u, v, repeat);
+                const auto expected = std::clamp(a + (b - a) * (clamped - double(first)), 0., 1.);
+                CHECK(prepared.sample(u, v) == expected);
+                CHECK(mask.sample(u, v, lod, repeat) == expected);
+            }
+        }
+    }
+    CHECK(GrayscaleMaskAsset::Sampler{}.sample(0, 0) == 0);
+}
+
 void rotationInterpolationUsesTheShortestArc()
 {
     auto settings = proceduralBrushPreset(ProceduralBrushPreset::InkPen);
@@ -844,6 +898,7 @@ int main(int argc, char** argv)
     ellipseTipGeometryIsStable();
     bitmapTipFiltersAndRotatesAsymmetricMasks();
     bitmapCoverageKeepsExactBlackEmpty();
+    preparedMaskSamplingExactlyMatchesTheReference();
     rotationInterpolationUsesTheShortestArc();
     grainIsDocumentAnchoredAndSeeded();
     presetsRoundTripAsVersionedData();

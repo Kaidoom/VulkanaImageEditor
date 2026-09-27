@@ -111,6 +111,7 @@ struct CanvasFixture {
     int brushMoves {0};
     int brushEnds {0};
     int brushCancels {0};
+    int fills {0};
     core::Rgba8 working {12, 34, 56, 78};
 
     CanvasFixture()
@@ -153,6 +154,7 @@ struct CanvasFixture {
             return true;
         };
         window.onBrushStrokeCancelled = [this] { ++brushCancels; };
+        window.onFillRequested = [this](core::Vec2d) { ++fills; };
     }
 
     [[nodiscard]] QPointF logical(core::Vec2d documentPoint) const
@@ -165,7 +167,7 @@ struct CanvasFixture {
 
 void altPickingKeepsItsOwnerAndReferenceUntilRelease()
 {
-    for (const auto tool : {core::ToolId::Brush, core::ToolId::Eraser}) {
+    for (const auto tool : {core::ToolId::Brush, core::ToolId::Eraser, core::ToolId::Fill}) {
         CanvasFixture fixture;
         auto& canvas = fixture.window;
         canvas.setActiveTool(tool);
@@ -204,6 +206,7 @@ void altPickingKeepsItsOwnerAndReferenceUntilRelease()
         CHECK(canvas.scene().eyedropperReference == fixture.working);
         CHECK(canvas.scene().activeTool == tool);
         CHECK(fixture.brushEnds == 0);
+        CHECK(fixture.fills == 0);
         const auto picks = fixture.pickedColors.size();
         sendMouse(canvas, QEvent::MouseMove, first, Qt::NoButton, Qt::NoButton);
         CHECK(fixture.pickedColors.size() == picks);
@@ -211,8 +214,9 @@ void altPickingKeepsItsOwnerAndReferenceUntilRelease()
             Qt::LeftButton, Qt::LeftButton);
         sendMouse(canvas, QEvent::MouseButtonRelease, first,
             Qt::LeftButton, Qt::NoButton);
-        CHECK(fixture.brushBegins == 1);
-        CHECK(fixture.brushEnds == 1);
+        CHECK(fixture.brushBegins == (tool == core::ToolId::Fill ? 0 : 1));
+        CHECK(fixture.brushEnds == (tool == core::ToolId::Fill ? 0 : 1));
+        CHECK(fixture.fills == (tool == core::ToolId::Fill ? 1 : 0));
     }
 }
 
@@ -382,6 +386,37 @@ void tabletSamplingUsesTheSameLockedGesture()
         fixture.logical({40, 50}), Qt::AltModifier);
     CHECK(fixture.brushEnds == 1);
     CHECK(fixture.brushCancels == 1);
+}
+
+void fillTabletSamplingNeverFillsUntilTheNextPlainPress()
+{
+    const QPointingDevice pen(QStringLiteral("Fill test pen"), 9128,
+        QInputDevice::DeviceType::Stylus, QPointingDevice::PointerType::Pen,
+        QInputDevice::Capability::Position | QInputDevice::Capability::Pressure, 1, 2);
+    CanvasFixture fixture;
+    auto& canvas = fixture.window;
+    canvas.setActiveTool(core::ToolId::Fill);
+    const auto point = fixture.logical({30, 45});
+    sendTablet(canvas, pen, QEvent::TabletPress, point, Qt::AltModifier);
+    CHECK(canvas.scene().eyedropperActive);
+    CHECK(fixture.pickedColors.size() == 1);
+    sendTablet(canvas, pen, QEvent::TabletMove, point + QPointF(10, 0), Qt::NoModifier);
+    CHECK(canvas.scene().eyedropperActive);
+    sendTablet(canvas, pen, QEvent::TabletRelease, point, Qt::NoModifier);
+    CHECK(!canvas.scene().eyedropperActive);
+    CHECK(canvas.scene().activeTool == core::ToolId::Fill);
+    CHECK(fixture.fills == 0);
+    CHECK(fixture.brushBegins == 0);
+    sendTablet(canvas, pen, QEvent::TabletPress, point, Qt::NoModifier);
+    sendTablet(canvas, pen, QEvent::TabletRelease, point, Qt::NoModifier);
+    CHECK(fixture.fills == 1);
+
+    // Escape abandons the sampling gesture; its eventual release must not fill.
+    sendTablet(canvas, pen, QEvent::TabletPress, point, Qt::AltModifier);
+    sendKey(canvas, QEvent::KeyPress, Qt::Key_Escape);
+    sendTablet(canvas, pen, QEvent::TabletRelease, point, Qt::NoModifier);
+    CHECK(!canvas.scene().eyedropperActive);
+    CHECK(fixture.fills == 1);
 }
 
 void samplingCoordinatesAreIndependentOfZoomAndPanWinsOverAlt()
@@ -819,6 +854,32 @@ void applicationSamplingSynchronizesTheActiveSlotWithoutHistory()
         QTest::keyRelease(size, Qt::Key_Alt);
         CHECK(!canvas->scene().eyedropperActive);
     }
+    auto* fill = window.findChild<QAction*>(QStringLiteral("ToolAction_fill"));
+    CHECK(fill);
+    if (fill) {
+        fill->trigger();
+        sendMouse(*canvas, QEvent::MouseMove, point, Qt::NoButton, Qt::NoButton);
+        QTest::keyPress(properties, Qt::Key_Alt);
+        CHECK(canvas->scene().eyedropperActive);
+        CHECK(session.activeTool() == core::ToolId::Fill);
+        QTest::keyRelease(properties, Qt::Key_Alt);
+        CHECK(!canvas->scene().eyedropperActive);
+        auto* opacity = dynamic_cast<ui::CompactValueControl*>(
+            window.findChild<QDoubleSpinBox*>(QStringLiteral("FillOpacityControl")));
+        CHECK(opacity);
+        if (opacity) {
+            window.activateWindow();
+            opacity->setFocus(Qt::OtherFocusReason);
+            QCoreApplication::processEvents();
+            QTest::keyClick(opacity, Qt::Key_6);
+            CHECK(opacity->isManualEntryActive());
+            QTest::keyPress(opacity, Qt::Key_Alt);
+            CHECK(!canvas->scene().eyedropperActive);
+            CHECK(opacity->isManualEntryActive());
+            QTest::keyRelease(opacity, Qt::Key_Alt);
+            QTest::keyClick(opacity, Qt::Key_Escape);
+        }
+    }
     auto* toolbar = window.findChild<QToolBar*>(QStringLiteral("ToolRail"));
     CHECK(toolbar != nullptr);
     // This fixture tests the unobstructed color control, not Qt's intentional
@@ -1160,6 +1221,7 @@ int main(int argc, char** argv)
     pickerCancellationStopsTheGestureWithoutCreatingPaint();
     permanentPickerHoverIsReadOnlyAndInvalidSamplesAreIgnored();
     tabletSamplingUsesTheSameLockedGesture();
+    fillTabletSamplingNeverFillsUntilTheNextPlainPress();
     samplingCoordinatesAreIndependentOfZoomAndPanWinsOverAlt();
     colorSelectorsShareSlotAndSwapSemanticsWithoutSetterFeedback();
     colorAnimationKeepsIdentityAndSettlesAfterRapidSwitches();

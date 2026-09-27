@@ -64,6 +64,11 @@ void executorTests()
             });
         });
         acquired.wait();
+        std::atomic<unsigned> unexpectedCalls {0};
+        auto interactive = std::async(std::launch::async, [&] {
+            return tryBoundedParallel(8, [&](unsigned, unsigned) { ++unexpectedCalls; });
+        });
+        const auto interactiveReady = interactive.wait_for(std::chrono::milliseconds(250));
         std::atomic<bool> cancel {false};
         auto pending = std::async(std::launch::async, [&] {
             return boundedParallel(2, [](unsigned, unsigned) { throw std::runtime_error("cancelled queued batch ran"); },
@@ -72,8 +77,11 @@ void executorTests()
         cancel.store(true);
         const auto ready = pending.wait_for(std::chrono::milliseconds(250));
         release.count_down();
+        check(interactiveReady == std::future_status::ready && !interactive.get() && unexpectedCalls == 0,
+            "interactive work declines a busy pool without callbacks or waiting for its owner");
         check(ready == std::future_status::ready && !pending.get(), "waiting for a busy pool is promptly cancellable");
         check(owner.get(), "queued cancellation cannot interrupt the pool owner");
+        check(tryBoundedParallel(8, [](unsigned, unsigned) {}), "nonblocking pool is reusable after contention");
     }
 }
 

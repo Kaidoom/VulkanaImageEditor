@@ -61,12 +61,15 @@ public:
     }
 
     bool run(unsigned count, const std::function<void(unsigned, unsigned)>& function,
-        const std::function<bool()>& cancelled)
+        const std::function<bool()>& cancelled, bool waitForPool = true)
     {
         // Separate ownership from worker state: no extra worker sets under
         // concurrent callers, and cancellation does not wait for another solve.
         {
-            std::unique_lock lock(batchMutex_);
+            std::unique_lock lock(batchMutex_, std::defer_lock);
+            if (waitForPool) lock.lock();
+            else if (!lock.try_lock()) return false;
+            if (busy_ && !waitForPool) return false;
             while (busy_) {
                 lock.unlock();
                 if (cancelled && cancelled()) return false;
@@ -177,6 +180,18 @@ bool boundedParallel(unsigned workers,
         return true;
     }
     return executor().run(count, function, cancelled);
+}
+
+bool tryBoundedParallel(unsigned workers,
+    const std::function<void(unsigned, unsigned)>& function)
+{
+    const unsigned count = boundedParallelWorkerCount(workers);
+    if (count == 1) {
+        DepthGuard guard;
+        function(0, 1);
+        return true;
+    }
+    return executor().run(count, function, {}, false);
 }
 
 DiagonalWavefront::DiagonalWavefront(std::span<const int> pixels, int width)

@@ -345,18 +345,33 @@ std::size_t GrayscaleMaskAsset::retainedBytes() const noexcept
 double GrayscaleMaskAsset::sample(
     double u, double v, double lod, bool repeat) const noexcept
 {
-    if (levels_.empty() || !std::isfinite(u) || !std::isfinite(v)) {
-        return 0.0;
-    }
+    return prepareSampler(lod, repeat).sample(u, v);
+}
+
+GrayscaleMaskAsset::Sampler GrayscaleMaskAsset::prepareSampler(double lod, bool repeat) const noexcept
+{
+    Sampler sampler;
+    if (levels_.empty()) return sampler;
     lod = std::clamp(std::isfinite(lod) ? lod : 0.0, 0.0,
         static_cast<double>(levels_.size() - 1U));
-    const auto first = static_cast<std::size_t>(std::floor(lod));
-    const auto second = std::min(first + 1U, levels_.size() - 1U);
-    const auto blend = lod - static_cast<double>(first);
-    const auto firstValue = sampleLevel(first, u, v, repeat);
-    const auto secondValue = sampleLevel(second, u, v, repeat);
+    sampler.asset_ = this;
+    sampler.first_ = static_cast<std::size_t>(std::floor(lod));
+    sampler.second_ = std::min(sampler.first_ + 1U, levels_.size() - 1U);
+    sampler.blend_ = lod - static_cast<double>(sampler.first_);
+    sampler.repeat_ = repeat;
+    return sampler;
+}
+
+double GrayscaleMaskAsset::Sampler::sample(double u, double v) const noexcept
+{
+    if (!asset_ || !std::isfinite(u) || !std::isfinite(v)) return 0.0;
+    const auto firstValue = asset_->sampleLevel(first_, u, v, repeat_);
+    // Integer LOD (including magnification) has no contribution from the next
+    // mip. Keep the same reconstruction without fetching a discarded level.
+    if (blend_ == 0.0 || first_ == second_) return std::clamp(firstValue, 0.0, 1.0);
+    const auto secondValue = asset_->sampleLevel(second_, u, v, repeat_);
     return std::clamp(firstValue
-            + (secondValue - firstValue) * blend,
+            + (secondValue - firstValue) * blend_,
         0.0, 1.0);
 }
 
@@ -370,25 +385,44 @@ double GrayscaleMaskAsset::sampleLevel(std::size_t levelIndex,
     const auto y0 = static_cast<std::int64_t>(std::floor(y));
     const auto amountX = x - static_cast<double>(x0);
     const auto amountY = y - static_cast<double>(y0);
-    const auto fetch = [&level, repeat](std::int64_t column,
-                           std::int64_t row) noexcept {
-        const auto width = static_cast<std::int64_t>(level.width);
-        const auto height = static_cast<std::int64_t>(level.height);
-        if (repeat) {
-            column = ((column % width) + width) % width;
-            row = ((row % height) + height) % height;
-        } else if (column < 0 || row < 0
-            || column >= width || row >= height) {
-            return 0.0;
-        }
-        return static_cast<double>(level.texels[
-            static_cast<std::size_t>(row) * level.width
-            + static_cast<std::size_t>(column)]);
-    };
-    const auto top = fetch(x0, y0)
-        + (fetch(x0 + 1, y0) - fetch(x0, y0)) * amountX;
-    const auto bottom = fetch(x0, y0 + 1)
-        + (fetch(x0 + 1, y0 + 1) - fetch(x0, y0 + 1)) * amountX;
+    const auto width = static_cast<std::int64_t>(level.width);
+    const auto height = static_cast<std::int64_t>(level.height);
+    double a, b, c, d;
+    if (repeat) {
+        // Wrap each axis once, not separately for every bilinear fetch. This
+        // also handles negative coordinates and single-texel mip levels.
+        auto column = x0 % width;
+        auto row = y0 % height;
+        if (column < 0) column += width;
+        if (row < 0) row += height;
+        const auto nextColumn = column + 1 == width ? 0 : column + 1;
+        const auto nextRow = row + 1 == height ? 0 : row + 1;
+        const auto topOffset = static_cast<std::size_t>(row) * level.width;
+        const auto bottomOffset = static_cast<std::size_t>(nextRow) * level.width;
+        a = level.texels[topOffset + static_cast<std::size_t>(column)];
+        b = level.texels[topOffset + static_cast<std::size_t>(nextColumn)];
+        c = level.texels[bottomOffset + static_cast<std::size_t>(column)];
+        d = level.texels[bottomOffset + static_cast<std::size_t>(nextColumn)];
+    } else if (x0 >= 0 && y0 >= 0 && x0 + 1 < width && y0 + 1 < height) {
+        const auto topOffset = static_cast<std::size_t>(y0) * level.width + static_cast<std::size_t>(x0);
+        const auto bottomOffset = topOffset + level.width;
+        a = level.texels[topOffset];
+        b = level.texels[topOffset + 1];
+        c = level.texels[bottomOffset];
+        d = level.texels[bottomOffset + 1];
+    } else {
+        const auto fetch = [&level, width, height](std::int64_t column, std::int64_t row) noexcept {
+            if (column < 0 || row < 0 || column >= width || row >= height) return 0.0;
+            return static_cast<double>(level.texels[static_cast<std::size_t>(row) * level.width
+                + static_cast<std::size_t>(column)]);
+        };
+        a = fetch(x0, y0);
+        b = fetch(x0 + 1, y0);
+        c = fetch(x0, y0 + 1);
+        d = fetch(x0 + 1, y0 + 1);
+    }
+    const auto top = a + (b - a) * amountX;
+    const auto bottom = c + (d - c) * amountX;
     return top + (bottom - top) * amountY;
 }
 
@@ -434,6 +468,7 @@ BrushTipBounds BitmapMaskTip::prepareDab(const BrushDab& dab,
         if (texelsX > texelsY) filterStepU_ = footprint / (halfWidth_ * 2 * filterTaps_);
         else filterStepV_ = footprint / (halfHeight_ * 2 * filterTaps_);
     }
+    sampler_ = mask_->prepareSampler(lod_, false);
     const auto extentX = std::abs(cosine_) * halfWidth_
         + std::abs(sine_) * halfHeight_
         + std::max(0.0, documentPixelFootprint);
@@ -455,15 +490,18 @@ double BitmapMaskTip::coverage(Vec2d point) const noexcept
     const auto localY = -sine_ * deltaX + cosine_ * deltaY;
     const auto u = localX / (halfWidth_ * 2.0) + 0.5;
     const auto v = localY / (halfHeight_ * 2.0) + 0.5;
-    if (filterTaps_ == 1)
-        return std::pow(mask_->sample(u, v, lod_, false), coverageExponent_);
+    if (filterTaps_ == 1) {
+        const auto value = sampler_.sample(u, v);
+        return value == 0.0 || value == 1.0 ? value : std::pow(value, coverageExponent_);
+    }
     double coverage = 0;
     for (int i = 0; i < filterTaps_; ++i) {
         const auto offset = double(i) - (filterTaps_ - 1) * .5;
-        coverage += mask_->sample(u + offset * filterStepU_, v + offset * filterStepV_, lod_, false);
+        coverage += sampler_.sample(u + offset * filterStepU_, v + offset * filterStepV_);
     }
     // Hardness acts on the reconstructed coverage once, not on individual taps.
-    return std::pow(coverage / filterTaps_, coverageExponent_);
+    coverage /= filterTaps_;
+    return coverage == 0.0 || coverage == 1.0 ? coverage : std::pow(coverage, coverageExponent_);
 }
 
 DocumentAnchoredMaskGrain::DocumentAnchoredMaskGrain(
@@ -492,6 +530,7 @@ void DocumentAnchoredMaskGrain::prepareDab(const BrushDab& dab,
             * std::max(1.0e-6, documentPixelFootprint)
         : 1.0;
     lod_ = std::max(0.0, std::log2(std::max(1.0, sourceTexelsPerPixel)));
+    sampler_ = mask_ ? mask_->prepareSampler(lod_, true) : GrayscaleMaskAsset::Sampler {};
 }
 
 double DocumentAnchoredMaskGrain::modulation(Vec2d point) const noexcept
@@ -505,7 +544,7 @@ double DocumentAnchoredMaskGrain::modulation(Vec2d point) const noexcept
     const auto grainY = -sine_ * point.x + cosine_ * point.y;
     const auto u = grainX / scaleX_ + offsetU_;
     const auto v = grainY / scaleY_ + offsetV_;
-    auto value = mask_->sample(u, v, lod_, true);
+    auto value = sampler_.sample(u, v);
     if (invert_) {
         value = 1.0 - value;
     }

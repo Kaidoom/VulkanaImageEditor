@@ -55,6 +55,12 @@ is one history action; cancellation and exact no-ops preserve redo/checkpoints.
 Selection restoration belongs to the operation, not a later panel side effect.
 Project writing is atomic; see [the format contract](VULKANA_FORMAT.md).
 
+Large brush dabs share the bounded core worker pool for immutable tip/grain
+sampling and independent tile accumulation. Dabs remain ordered; surface reads,
+regional writes and history stay on the originating thread. Small dabs, custom
+samplers without a concurrency contract, and sampled repair/filter callbacks
+use the serial path. Painting never queues behind a busy background worker batch.
+
 ## Coordinates and transforms
 
 Use the shared [coordinate convention](COORDINATE_SYSTEM.md): top-left origin,

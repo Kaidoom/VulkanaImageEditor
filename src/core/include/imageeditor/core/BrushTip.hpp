@@ -29,6 +29,9 @@ struct BrushTipBounds {
 class IBrushTip {
 public:
     virtual ~IBrushTip() = default;
+    // Opt-in: coverage calls may run concurrently after prepareDab returns.
+    // Custom tips with mutable sampling state keep the safe serial default.
+    [[nodiscard]] virtual bool supportsConcurrentSampling() const noexcept { return false; }
     // Called once per dab. Implementations cache inverse transforms and filter
     // selection here; coverage() remains the hot per-pixel path.
     [[nodiscard]] virtual BrushTipBounds prepareDab(const BrushDab& dab,
@@ -39,6 +42,7 @@ public:
 
 class ProceduralRoundTip final : public IBrushTip {
 public:
+    bool supportsConcurrentSampling() const noexcept override { return true; }
     [[nodiscard]] BrushTipBounds prepareDab(const BrushDab& dab,
         double hardness, double documentPixelFootprint) noexcept override;
     [[nodiscard]] double coverage(
@@ -56,6 +60,7 @@ private:
 
 class ProceduralEllipseTip final : public IBrushTip {
 public:
+    bool supportsConcurrentSampling() const noexcept override { return true; }
     [[nodiscard]] BrushTipBounds prepareDab(const BrushDab& dab,
         double hardness, double documentPixelFootprint) noexcept override;
     [[nodiscard]] double coverage(
@@ -75,6 +80,19 @@ private:
 // The same instance is shared across strokes by an asset resolver.
 class GrayscaleMaskAsset final {
 public:
+    // A non-owning sampler for one prepared dab. The tip/grain retains the
+    // immutable asset; LOD selection is shared by all of that dab's pixels.
+    class Sampler {
+    public:
+        [[nodiscard]] double sample(double u, double v) const noexcept;
+    private:
+        friend class GrayscaleMaskAsset;
+        const GrayscaleMaskAsset* asset_ {nullptr};
+        std::size_t first_ {0};
+        std::size_t second_ {0};
+        double blend_ {0};
+        bool repeat_ {false};
+    };
     GrayscaleMaskAsset(std::string id, std::uint64_t revision,
         std::uint32_t width, std::uint32_t height,
         std::span<const std::uint8_t> pixels);
@@ -90,6 +108,7 @@ public:
     [[nodiscard]] std::size_t retainedBytes() const noexcept;
     [[nodiscard]] double sample(double u, double v, double lod,
         bool repeat) const noexcept;
+    [[nodiscard]] Sampler prepareSampler(double lod, bool repeat) const noexcept;
 
 private:
     struct Level {
@@ -108,6 +127,7 @@ private:
 
 class BitmapMaskTip final : public IBrushTip {
 public:
+    bool supportsConcurrentSampling() const noexcept override { return true; }
     enum class Filtering { Isotropic, Anisotropic };
     // Existing bitmap assets retain their reviewed filtering. New directional
     // recipes opt into bounded anisotropy to preserve detail along a wide nib.
@@ -126,6 +146,7 @@ public:
 private:
     std::shared_ptr<const GrayscaleMaskAsset> mask_;
     Filtering filtering_;
+    GrayscaleMaskAsset::Sampler sampler_;
     Vec2d center_;
     double halfWidth_ {0.0};
     double halfHeight_ {0.0};
@@ -143,6 +164,7 @@ private:
 class IBrushGrain {
 public:
     virtual ~IBrushGrain() = default;
+    [[nodiscard]] virtual bool supportsConcurrentSampling() const noexcept { return false; }
     virtual void prepareDab(const BrushDab& dab,
         double documentPixelFootprint) noexcept = 0;
     [[nodiscard]] virtual double modulation(
@@ -151,6 +173,7 @@ public:
 
 class NoBrushGrain final : public IBrushGrain {
 public:
+    bool supportsConcurrentSampling() const noexcept override { return true; }
     void prepareDab(const BrushDab&, double) noexcept override {}
     [[nodiscard]] double modulation(Vec2d) const noexcept override
     {
@@ -160,6 +183,7 @@ public:
 
 class DocumentAnchoredMaskGrain final : public IBrushGrain {
 public:
+    bool supportsConcurrentSampling() const noexcept override { return true; }
     explicit DocumentAnchoredMaskGrain(
         std::shared_ptr<const GrayscaleMaskAsset> mask);
 
@@ -170,6 +194,7 @@ public:
 
 private:
     std::shared_ptr<const GrayscaleMaskAsset> mask_;
+    GrayscaleMaskAsset::Sampler sampler_;
     double scaleX_ {96.0};
     double scaleY_ {96.0};
     double cosine_ {1.0};

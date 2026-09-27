@@ -92,6 +92,10 @@ public:
     [[nodiscard]] std::size_t capturedTileCount() const noexcept { return journal_.size(); }
     [[nodiscard]] std::size_t capturedPixelBytes() const noexcept;
     [[nodiscard]] bool hasSelection() const noexcept { return selectionMask_ != nullptr; }
+    // Our pinned mask is immutable. A borrowed/custom mask has no concurrent
+    // sampling contract and must remain on the caller thread.
+    [[nodiscard]] bool supportsConcurrentAdmission() const noexcept
+    { return !selectionMask_ || selectionMask_ == pinnedSelection_.get(); }
     [[nodiscard]] bool cropAllows(int x,int y) const noexcept { return ignoreCrop_ || cropAllowsTexel(crop_,x,y); }
     [[nodiscard]] RectI clipToCrop(RectI bounds) const noexcept;
     [[nodiscard]] bool selectionIsEmpty() const noexcept

@@ -43,6 +43,14 @@ struct BrushStrokeStats {
     std::size_t retainedStrokeTiles {0};
     std::uint64_t maximumCandidatePixels {0};
     std::uint64_t rejectedCandidatePixels {0};
+    std::uint64_t parallelDabs {0};
+    std::size_t coverageScratchBytes {0};
+};
+
+// Execution policy is not brush/preset data. One forces the reference serial
+// path; zero uses the shared bounded pool for sufficiently large dabs.
+struct BrushExecutionOptions {
+    unsigned workers {0};
 };
 
 // Product vertical slice joining an arbitrary IBrushEngine to a raster edit
@@ -58,7 +66,8 @@ public:
         std::unique_ptr<IBrushTip> tip = {},
         std::unique_ptr<IBrushGrain> grain = {},
         const IBrushAssetResolver* assetResolver = nullptr,
-        RasterEditTransactionOptions transactionOptions = {});
+        RasterEditTransactionOptions transactionOptions = {},
+        BrushExecutionOptions executionOptions = {});
     BasicPixelBrushStroke(Document& document, LayerId layerId,
         BrushSettings settings, BrushCompositeMode compositeMode,
         std::unique_ptr<IBrushEngine> engine =
@@ -69,7 +78,8 @@ public:
         RasterEditTransactionOptions transactionOptions = {},
         std::function<PremultipliedColor(Vec2d)> sampledColor = {},
         std::string_view historyLabel = {}, bool deferSampledWrites = false,
-        std::function<void(const BrushDab&)> dabObserver = {});
+        std::function<void(const BrushDab&)> dabObserver = {},
+        BrushExecutionOptions executionOptions = {});
     ~BasicPixelBrushStroke();
 
     BasicPixelBrushStroke(const BasicPixelBrushStroke&) = delete;
@@ -122,11 +132,20 @@ private:
         std::vector<std::byte> working;
         std::vector<float> flowCoverage;
         RectI pendingDirty;
+        std::uint64_t changedPixels {0};
+    };
+
+    struct DabTileWork {
+        RectI region;
+        StrokeTile* tile {nullptr};
+        std::uint64_t evaluatedPixels {0};
+        bool hasCoverage {false};
     };
 
     using TileKey = std::pair<std::int32_t, std::int32_t>;
 
     void emitDab(const BrushDab& dab) override;
+    bool emitParallelDab(const BrushDab&, RectI bounds);
     [[nodiscard]] StrokeTile* ensureTile(std::int32_t localX, std::int32_t localY);
     [[nodiscard]] RectI localDabBounds(
         const BrushTipBounds& bounds) const noexcept;
@@ -162,6 +181,9 @@ private:
     RectI coverageBounds_;
     DirtySet lastDirty_;
     BrushStrokeStats stats_;
+    BrushExecutionOptions executionOptions_;
+    std::vector<double> coverageScratch_;
+    std::vector<DabTileWork> dabTileWork_;
     std::optional<double> lastResolvedTipAngleDegrees_;
     double documentPixelFootprint_ {1.0};
     bool valid_ {false};

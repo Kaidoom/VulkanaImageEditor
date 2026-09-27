@@ -54,6 +54,8 @@ content and do not affect document history. Existing settings are preserved.
   Ctrl/Shift layer-click selection) are fixed and not exposed as bindings.
 - Menu mnemonics and Alt-to-menu focus are disabled; explicit Alt chords such as
   reveal layers or fill remain available.
+- Hold Alt in Brush, Eraser or Fill for temporary eyedropper sampling. A sampling
+  drag keeps its ownership until release, even if Alt is released first.
 - Persistent Measure (Shift+R) and temporary Measure (hold R) are independent
   commands. Held access tracks the physical key until release, even if Shift
   changes or focus moves. Changing tool bindings does not alter gesture modifiers.

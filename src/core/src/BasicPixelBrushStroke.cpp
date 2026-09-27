@@ -1,6 +1,7 @@
 #include "imageeditor/core/BasicPixelBrushStroke.hpp"
 #include "imageeditor/core/ColorMath.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
+#include "imageeditor/core/BoundedParallel.hpp"
 
 #include <algorithm>
 #include <array>
@@ -46,10 +47,10 @@ BasicPixelBrushStroke::BasicPixelBrushStroke(Document& document, LayerId layerId
     BrushSettings settings, std::unique_ptr<IBrushEngine> engine,
     std::unique_ptr<IBrushTip> tip, std::unique_ptr<IBrushGrain> grain,
     const IBrushAssetResolver* assetResolver,
-    RasterEditTransactionOptions transactionOptions)
+    RasterEditTransactionOptions transactionOptions, BrushExecutionOptions executionOptions)
     : BasicPixelBrushStroke(document, layerId, std::move(settings),
           BrushCompositeMode::Paint, std::move(engine), std::move(tip),
-          std::move(grain), assetResolver, transactionOptions)
+          std::move(grain), assetResolver, transactionOptions, {}, {}, false, {}, executionOptions)
 {
 }
 
@@ -61,7 +62,7 @@ BasicPixelBrushStroke::BasicPixelBrushStroke(Document& document, LayerId layerId
     RasterEditTransactionOptions transactionOptions,
     std::function<PremultipliedColor(Vec2d)> sampledColor,
     std::string_view historyLabel, bool deferSampledWrites,
-    std::function<void(const BrushDab&)> dabObserver)
+    std::function<void(const BrushDab&)> dabObserver, BrushExecutionOptions executionOptions)
     : document_(&document)
     , layerId_(layerId)
     , settings_(settings)
@@ -74,6 +75,7 @@ BasicPixelBrushStroke::BasicPixelBrushStroke(Document& document, LayerId layerId
     , grain_(std::move(grain))
     , canvasExtent_(document.canvas().extent)
     , tileSize_(transactionOptions.journalTileSize)
+    , executionOptions_(executionOptions)
 {
     if (!assetResolver) {
         assetResolver = &builtinBrushAssetResolver();
@@ -192,6 +194,8 @@ void BasicPixelBrushStroke::cancel() noexcept
     active_ = false;
     valid_ = false;
     lastResolvedTipAngleDegrees_.reset();
+    dabTileWork_.clear();
+    std::vector<double>().swap(coverageScratch_);
     tiles_.clear();
     retainedPixels_=0;
     coverageBounds_={};
@@ -225,6 +229,7 @@ void BasicPixelBrushStroke::emitDab(const BrushDab& dab)
         return;
     }
     grain_->prepareDab(dab, documentPixelFootprint_);
+    if (candidates >= 16'384 && emitParallelDab(dab, bounds)) return;
     for (std::int32_t localY = bounds.y; localY < bounds.bottom(); ++localY) {
         for (std::int32_t localX = bounds.x; localX < bounds.right(); ++localX) {
             if(!transaction_->cropAllows(localX,localY))continue;
@@ -241,10 +246,11 @@ void BasicPixelBrushStroke::emitDab(const BrushDab& dab)
             // transaction. Zero coverage must not allocate/copy journal tiles.
             if (transaction_->hasSelection() && transaction_->selectionCoverageAtDocumentPoint(documentCenter) == 0)
                 continue;
-            const auto coverage = std::clamp(
-                tip_->coverage(documentCenter)
-                    * grain_->modulation(documentCenter),
-                0.0, 1.0);
+            const auto tipCoverage = tip_->coverage(documentCenter);
+            // Rotated/textured tip bounds include empty pixels. Grain cannot
+            // add coverage there, so don't sample it outside the actual tip.
+            if (tipCoverage <= 0.0) continue;
+            const auto coverage = std::clamp(tipCoverage * grain_->modulation(documentCenter), 0.0, 1.0);
             if (coverage <= 0.0) {
                 continue;
             }
@@ -254,6 +260,76 @@ void BasicPixelBrushStroke::emitDab(const BrushDab& dab)
             }
         }
     }
+}
+
+bool BasicPixelBrushStroke::emitParallelDab(const BrushDab& dab, RectI bounds)
+{
+    if (executionOptions_.workers == 1 || sampledColor_ || deferSampledWrites_
+        || !tip_->supportsConcurrentSampling() || !grain_->supportsConcurrentSampling()
+        || !transaction_->supportsConcurrentAdmission()) return false;
+    const auto pixels = std::size_t(bounds.width) * std::size_t(bounds.height);
+    const auto requested = executionOptions_.workers ? executionOptions_.workers
+        : static_cast<unsigned>(std::clamp(pixels / 8'192, std::size_t(2), std::size_t(8)));
+    const auto workers = boundedParallelWorkerCount(requested);
+    if (workers == 1) return false;
+
+    // Reuse bounded scratch without vector's geometric growth exceeding the
+    // per-dab work limit. This is temporary coverage, not another raster copy.
+    if (coverageScratch_.capacity() < pixels) coverageScratch_.reserve(pixels);
+    coverageScratch_.resize(pixels);
+    stats_.coverageScratchBytes = coverageScratch_.capacity() * sizeof(double);
+    dabTileWork_.clear();
+    const auto tileSize = static_cast<int>(tileSize_);
+    for (int y = bounds.y / tileSize * tileSize; y < bounds.bottom(); y += tileSize)
+        for (int x = bounds.x / tileSize * tileSize; x < bounds.right(); x += tileSize)
+            dabTileWork_.push_back({RectI{x, y, tileSize, tileSize}.clippedTo(bounds)});
+
+    // Prepare every sampler on the owner, then only read immutable geometry /
+    // masks on workers. Each tile owns disjoint scratch and counters.
+    const bool started = tryBoundedParallel(workers, [&](unsigned rank, unsigned count) {
+        for (std::size_t i = rank; i < dabTileWork_.size(); i += count) {
+            auto& work = dabTileWork_[i];
+            for (int y = work.region.y; y < work.region.bottom(); ++y)
+                for (int x = work.region.x; x < work.region.right(); ++x) {
+                    auto& coverage = coverageScratch_[std::size_t(y - bounds.y) * std::size_t(bounds.width) + std::size_t(x - bounds.x)];
+                    coverage = 0;
+                    if (!transaction_->cropAllows(x, y)) continue;
+                    const auto point = localToDocument_.map({double(x) + .5, double(y) + .5});
+                    ++work.evaluatedPixels;
+                    if (point.x < 0 || point.y < 0 || point.x >= double(canvasExtent_.width)
+                        || point.y >= double(canvasExtent_.height)) continue;
+                    if (transaction_->hasSelection() && !transaction_->selectionCoverageAtDocumentPoint(point)) continue;
+                    const auto tip = tip_->coverage(point);
+                    if (tip <= 0) continue;
+                    coverage = std::clamp(tip * grain_->modulation(point), 0.0, 1.0);
+                    work.hasCoverage |= coverage > 0;
+                }
+        }
+    });
+    if (!started) return false; // Never queue interactive painting behind a repair job.
+
+    // Surface reads and lazy allocations are still owner-thread-only. Empty
+    // tips/selection/crop regions never capture or retain a raster tile.
+    for (auto& work : dabTileWork_) {
+        stats_.evaluatedPixels += work.evaluatedPixels;
+        if (work.hasCoverage) work.tile = ensureTile(work.region.x, work.region.y);
+    }
+    const auto accumulate = [&](unsigned rank, unsigned count) {
+        for (std::size_t i = rank; i < dabTileWork_.size(); i += count) {
+            const auto& work = dabTileWork_[i];
+            if (!work.tile) continue;
+            for (int y = work.region.y; y < work.region.bottom(); ++y)
+                for (int x = work.region.x; x < work.region.right(); ++x) {
+                    const auto coverage = coverageScratch_[std::size_t(y - bounds.y) * std::size_t(bounds.width) + std::size_t(x - bounds.x)];
+                    if (coverage > 0) compositePixel(*work.tile, x, y, dab, coverage);
+                }
+        }
+    };
+    // Tile ownership makes accumulation independent; do not parallelize dabs,
+    // sampled-color callbacks, authoritative surface writes or history.
+    if (!tryBoundedParallel(workers, accumulate)) accumulate(0, 1);
+    ++stats_.parallelDabs;
+    return true;
 }
 
 BasicPixelBrushStroke::StrokeTile* BasicPixelBrushStroke::ensureTile(
@@ -443,7 +519,7 @@ void BasicPixelBrushStroke::resolvePixel(StrokeTile& tile,
     const RectI changedPixel {localX, localY, 1, 1};
     tile.pendingDirty = tile.pendingDirty.empty()
         ? changedPixel : tile.pendingDirty.united(changedPixel);
-    ++stats_.changedPixels;
+    ++tile.changedPixels;
 }
 
 RectI BasicPixelBrushStroke::coverageBounds() const noexcept
@@ -512,6 +588,8 @@ void BasicPixelBrushStroke::flushPending()
     patches.reserve(tiles_.size());
     for (auto& [key, tile] : tiles_) {
         (void)key;
+        stats_.changedPixels += tile.changedPixels;
+        tile.changedPixels = 0;
         if (tile.pendingDirty.empty()) {
             continue;
         }
