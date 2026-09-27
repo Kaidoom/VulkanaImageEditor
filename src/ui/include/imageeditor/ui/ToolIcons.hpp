@@ -12,7 +12,8 @@ enum class ToolGlyph {
     SelectByColor, Crop, ShowSource, Chamfer, ResetCrop, AspectLock, FlipHorizontal, FlipVertical,
     QuickSelection, MagicWand, Cloning, CloneStamp, CloneHeal, SpotHeal, CloneSource,
     CurrentAndBelow, CloneAligned, FollowStrokeDirection, LocalBlur,
-    Person, SocialX, Mail, Globe, ExternalLink, Refresh, Download, CheckCircle, InfoCircle, Close
+    Person, SocialX, Mail, Globe, ExternalLink, Refresh, Download, CheckCircle, InfoCircle, Close,
+    Repository
 };
 // Original code-native glyphs, rendered and cached at the requested size/DPR.
 QIcon toolGlyph(ToolGlyph glyph);

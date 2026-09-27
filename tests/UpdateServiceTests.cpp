@@ -358,6 +358,15 @@ void dialogTests()
     CHECK(!dialog.findChild<QPushButton*>("AboutDownload")); // Exactly one primary action.
     CHECK(website->openExternalLinks() && website->text().contains("https://updates.example/"));
     CHECK(website->text().contains(u::themeColor(u::ThemeColor::Accent).name()));
+    auto* github = dialog.findChild<QLabel*>("AboutVulkanaGitHub");
+    auto* githubIcon = dialog.findChild<QLabel*>("AboutVulkanaGitHubIcon");
+    CHECK(github && githubIcon && !githubIcon->pixmap().isNull());
+    if (github) {
+        CHECK(github->openExternalLinks());
+        CHECK(github->text().contains("href=\"https://github.com/Kaidoom/VulkanaImageEditor\""));
+        CHECK(github->text().contains(u::themeColor(u::ThemeColor::Accent).name()));
+        CHECK(github->toolTip() == "https://github.com/Kaidoom/VulkanaImageEditor");
+    }
     CHECK(network.requests.isEmpty() && check->text() == "Check for Updates" && page->isEnabled());
     CHECK(status->textFormat() == Qt::PlainText);
     CHECK(status->parentWidget() == check->parentWidget());

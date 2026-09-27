@@ -43,6 +43,12 @@ QPixmap rasterizedGlyph(ToolGlyph glyph, const QColor& ink, const QSize& size, q
     } else if (glyph == ToolGlyph::SocialX) {
         p.drawPolygon(QPolygonF{{4, 3}, {8, 3}, {20, 21}, {16, 21}});
         p.drawLine(QPointF(20, 3), QPointF(4, 21));
+    } else if (glyph == ToolGlyph::Repository) {
+        // A code repository/book, in the same original line style as contacts.
+        p.drawRoundedRect(QRectF(3, 2, 18, 20), 2, 2);
+        p.drawLine(QPointF(3, 18), QPointF(21, 18));
+        p.drawPolyline(QPolygonF{{10, 7}, {7, 10}, {10, 13}});
+        p.drawPolyline(QPolygonF{{14, 7}, {17, 10}, {14, 13}});
     } else if (glyph == ToolGlyph::Mail) {
         p.drawRoundedRect(QRectF(2, 5, 20, 15), 2, 2);
         p.drawPolyline(QPolygonF{{3, 6}, {12, 13}, {21, 6}});

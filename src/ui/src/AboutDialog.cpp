@@ -125,6 +125,7 @@ AboutDialog::AboutDialog(QWidget* parent, QNetworkAccessManager* transport, Upda
     const auto addContact = [&](ToolGlyph glyph, const QString& name, const QString& text, const QString& tooltip) {
         const int row = contacts->rowCount();
         auto* symbol = new QLabel(this);
+        symbol->setObjectName(name + QStringLiteral("Icon"));
         symbol->setFixedSize(20, 20);
         symbol->setPixmap(toolGlyph(glyph, secondary).pixmap({20, 20}, devicePixelRatioF()));
         contacts->addWidget(symbol, row, 0, Qt::AlignCenter);
@@ -147,6 +148,10 @@ AboutDialog::AboutDialog(QWidget* parent, QNetworkAccessManager* transport, Upda
     addContact(ToolGlyph::SocialX, QStringLiteral("AboutVulkanaSocial"),
         QStringLiteral("<a href=\"https://x.com/KaidoomDev\">@KaidoomDev</a>"),
         QStringLiteral("https://x.com/KaidoomDev"));
+    addContact(ToolGlyph::Repository, QStringLiteral("AboutVulkanaGitHub"),
+        QStringLiteral("<a href=\"https://github.com/Kaidoom/VulkanaImageEditor\">%1</a>")
+            .arg(tr("View on GitHub").toHtmlEscaped()),
+        QStringLiteral("https://github.com/Kaidoom/VulkanaImageEditor"));
     addContact(ToolGlyph::Mail, QStringLiteral("AboutVulkanaEmail"),
         QStringLiteral("<a href=\"mailto:kaidoomdev@pm.me\">kaidoomdev@pm.me</a>"),
         tr("Send an email to kaidoomdev@pm.me"));
