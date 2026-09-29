@@ -387,6 +387,10 @@ void zoomChangesAndModifierLatchingDoNotChangeConstructionGeometry()
     CHECK(coverage(f.selection(),28,15)==0);
     f.undo();
     f.mode("LassoModePolygonal");
+    // This checks raw pointer routing, not alignment. Selection movement now
+    // snaps: at 100% the proposed y=5 is within the canvas-edge capture radius.
+    // Dedicated selection-snapping tests cover that intentional correction.
+    f.window.findChild<QAction*>(QStringLiteral("SnappingAction"))->setChecked(false);
     f.press({7,7}); f.drag({11,9});
     CHECK(!f.canvas->scene().selectionPathPreview); // Existing coverage takes shared Move precedence.
     f.release({11,9}); f.waitIdle();

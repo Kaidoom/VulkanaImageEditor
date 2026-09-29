@@ -53,6 +53,7 @@ void VulkanCanvasRenderer::initializeDevice(const VulkanDeviceContext& context)
     stagingAlignment_ = std::max<VkDeviceSize>(4,
         context.properties.limits.optimalBufferCopyOffsetAlignment);
     stats_.deviceName = context.properties.deviceName;
+    stats_.maximumImageDimension2D = context.properties.limits.maxImageDimension2D;
     qCInfo(logVulkanCanvas) << "Canvas renderer device:" << context.properties.deviceName
                             << "API" << VK_VERSION_MAJOR(context.properties.apiVersion)
                             << VK_VERSION_MINOR(context.properties.apiVersion)

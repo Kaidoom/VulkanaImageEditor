@@ -6,6 +6,7 @@
 namespace imageeditor::render {
 
 struct RendererStats {
+    std::uint32_t maximumImageDimension2D {0};
     std::string compositionError;
     std::uint64_t adjustmentParameterUploads {0};
     std::uint64_t adjustmentParameterBytes {0};

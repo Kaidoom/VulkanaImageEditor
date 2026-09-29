@@ -18,6 +18,8 @@ QString kindName(RecentFileKind kind)
         return QStringLiteral("project");
     case RecentFileKind::Image:
         return QStringLiteral("image");
+    case RecentFileKind::Pdf:
+        return QStringLiteral("pdf");
     }
     return { };
 }
@@ -28,6 +30,8 @@ std::optional<RecentFileKind> parseKind(const QString& value)
         return RecentFileKind::Project;
     if (value == QStringLiteral("image"))
         return RecentFileKind::Image;
+    if (value == QStringLiteral("pdf"))
+        return RecentFileKind::Pdf;
     return std::nullopt;
 }
 }

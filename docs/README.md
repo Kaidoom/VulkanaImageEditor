@@ -8,6 +8,7 @@ The guides below describe the architecture, behavior and algorithms.
 - [Coordinates](COORDINATE_SYSTEM.md): pixel grids, transforms and input mapping.
 - [Project format](VULKANA_FORMAT.md): persistence, limits and compatibility.
 - [Document tabs](DOCUMENT_TABS.md): ownership, activation and cross-tab copying.
+- [PDF import](PDF_IMPORT.md): page geometry, rasterization, destinations and limits.
 - [Shortcuts](SHORTCUTS.md): bindings, focus ownership and configuration.
 - [Single instance](SINGLE_INSTANCE.md): startup arbitration and file forwarding.
 - [Adjustments](ADJUSTMENT_ALGORITHMS.md): color/alpha equations and masks.

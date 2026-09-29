@@ -1,4 +1,5 @@
 #include "imageeditor/ui/MainWindow.hpp"
+#include "imageeditor/ui/PdfImport.hpp"
 #include "imageeditor/ui/EffectsPanel.hpp"
 #include "imageeditor/ui/PopupOwnership.hpp"
 #include "imageeditor/ui/AboutDialog.hpp"
@@ -472,14 +473,14 @@ private:
 
 QString supportedImageFilter()
 {
-    QStringList patterns;
+    QStringList patterns {QStringLiteral("*.pdf"),QStringLiteral("*.PDF")};
     for (const auto& format : QImageReader::supportedImageFormats()) {
         const auto extension = QString::fromLatin1(format);
         patterns << QStringLiteral("*.") + extension << QStringLiteral("*.") + extension.toUpper();
     }
     patterns.removeDuplicates();
     patterns.sort();
-    return QStringLiteral("Supported images (%1);;All files (*)").arg(patterns.join(QChar(' ')));
+    return QStringLiteral("Images and PDF (%1);;All files (*)").arg(patterns.join(QChar(' ')));
 }
 
 QString toolName(core::ToolId tool)
@@ -2951,6 +2952,7 @@ bool MainWindow::openImageFromPath(const QString& filePath)
 bool MainWindow::importImageAsLayerFromPath(const QString& filePath)
 {
     if (fileBusy_) return false;
+    if (isPdfFile(filePath)) return importPdfFromPath(filePath,true);
     cancelPendingEdits();
     auto* document = session().document();
     if (!document) {
@@ -3003,6 +3005,7 @@ void MainWindow::handleDroppedImages(const QStringList& filePaths)
 {
     bool mayOpenFirstSuccessfulImage = fileState().untouched;
     for (const auto& filePath : filePaths) {
+        if (isPdfFile(filePath)) { importPdfFromPath(filePath,session().document()!=nullptr); continue; }
         if (QFileInfo(filePath).suffix().compare(QStringLiteral("vulkana"), Qt::CaseInsensitive) == 0) {
             openImageFromPath(filePath); continue;
         }

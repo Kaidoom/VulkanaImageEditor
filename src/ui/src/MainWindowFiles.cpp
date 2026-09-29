@@ -4,6 +4,7 @@
 #include "imageeditor/ui/CropOptionsPage.hpp"
 #include "imageeditor/ui/LayerListModel.hpp"
 #include "imageeditor/ui/QtRasterImageLoader.hpp"
+#include "imageeditor/ui/PdfImport.hpp"
 #include "imageeditor/ui/TextController.hpp"
 #include "imageeditor/ui/TransformOptionsPage.hpp"
 #include "imageeditor/ui/ShapeOptionsPage.hpp"
@@ -137,7 +138,7 @@ QString MainWindow::documentOpenFilter()
     QStringList suffixes;
     for (const auto& format : QImageReader::supportedImageFormats())
         suffixes.append(QStringLiteral("*.%1").arg(QString::fromLatin1(format)));
-    return QStringLiteral("Projects and images (*.vulkana %1);;Vulkana project (*.vulkana);;Images (%1)")
+    return QStringLiteral("Projects, images and PDF (*.vulkana *.pdf *.PDF %1);;Vulkana project (*.vulkana);;PDF (*.pdf *.PDF);;Images (%1)")
         .arg(suffixes.join(' '));
 }
 
@@ -326,6 +327,7 @@ bool MainWindow::openDocumentFromPath(const QString& filePath)
     if (fileBusy_ || filePath.isEmpty())
         return false;
     const auto path = QFileInfo(filePath).absoluteFilePath();
+    if (isPdfFile(path)) return importPdfFromPath(path, false);
     const bool project = QFileInfo(path).suffix().compare(QStringLiteral("vulkana"), Qt::CaseInsensitive) == 0;
     if (project) for (const auto& context : documents_) {
         if (!context->projectPath.isEmpty() && QFileInfo(context->projectPath).canonicalFilePath() == QFileInfo(path).canonicalFilePath()
@@ -396,7 +398,8 @@ void MainWindow::refreshRecentMenu()
     for (const auto& entry : recentFiles_.entries()) {
         const QFileInfo file(entry.path);
         auto* item = recentMenu_->addMenu(QStringLiteral("%1  ·  %2 — %3")
-                .arg(file.fileName(), entry.kind == RecentFileKind::Project ? QStringLiteral("Project") : QStringLiteral("Image"), file.absolutePath()));
+                .arg(file.fileName(), entry.kind == RecentFileKind::Project ? QStringLiteral("Project")
+                    : entry.kind == RecentFileKind::Pdf ? QStringLiteral("PDF") : QStringLiteral("Image"), file.absolutePath()));
         item->addAction(QStringLiteral("Open"), this, [this, path = entry.path] { openImageFromPath(path); });
         item->addAction(QStringLiteral("Remove from recent files"), this, [this, path = entry.path] { recentFiles_.remove(path); });
     }

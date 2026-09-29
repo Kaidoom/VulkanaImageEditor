@@ -21,6 +21,8 @@ with a Qt workspace and Vulkan-accelerated canvas.
   Shadow, Outer/Inner Glow, Color Overlay and Gradient Overlay.
 - **Multiple documents:** tabs with independent history, selections and view state,
   plus editable layer copying between documents.
+- **PDF import:** selected pages at your chosen PPI, as raster layers or separate
+  documents, with transparent or white backgrounds.
 - **Workspace and output:** dockable panels, themes, editable shortcuts, rulers,
   Pixel Preview, native `.vulkana` projects and PNG/JPEG/WebP export.
 
@@ -31,7 +33,8 @@ Actively developed beta. Please keep backups of important projects.
 Requires Linux, a C++20 compiler, Ninja, pkg-config, and these development libraries:
 
 - CMake **3.28+** for the supplied presets.
-- Qt **6.8+**: Core, Gui, Widgets and Network; Qt Test for tests.
+- Qt **6.8+**: Core, Gui, Widgets, Network and PDF; Qt Test for tests.
+- qpdf **11+** development library (page geometry; not the command-line tool).
 - Vulkan **1.2+** headers/loader, a working Vulkan driver, and `glslc`.
 - minizip-ng **4.x** (the `minizip` pkg-config module, not legacy minizip).
 - libwebp and libwebpmux **1.2+**.
@@ -39,6 +42,9 @@ Requires Linux, a C++20 compiler, Ninja, pkg-config, and these development libra
 Install Qt's platform plugins for your desktop, SVG support and image-format
 plugins. Point `CMAKE_PREFIX_PATH` at your Qt installation if it is outside the
 system search path.
+Qt PDF is a separate development package on many distributions (for example,
+`qt6-qtpdf-devel` on Fedora, `qt6-pdf-dev` on Ubuntu). It does not require a
+WebEngine browser in Vulkana's runtime.
 
 From the repository root:
 

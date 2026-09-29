@@ -380,11 +380,22 @@ bool MainWindow::initializeDocument(std::unique_ptr<core::Document> document, QS
         bool valid = false; const auto id = value.toString().toULongLong(&valid);
         if (valid && id) next->collapsedFolders.push_back(id);
     }
+    return publishDocuments({std::move(next)});
+}
+bool MainWindow::publishDocuments(std::vector<std::shared_ptr<DocumentContext>> staged)
+{
+    if (staged.empty() || !settleForDocumentSwitch()) return false;
+    for (const auto& context : staged)
+        if (!context || context->closed || !context->session.document()) return false;
+    // Allocate the complete tab set before publishing any of it. Inactive tabs
+    // retain source pixels only; activation alone prepares display resources.
+    documents_.reserve(documents_.size() + staged.size());
     // Only the untouched launch placeholder may be retired without a close
     // decision. Explicit New canvases and every opened document remain tabs.
     auto placeholder = activeDocument_ && activeDocument_->untouched && !session().document()->isModified() ? activeDocument_ : nullptr;
-    documents_.push_back(next);
-    if (!activateDocument(next->id)) { documents_.pop_back(); return false; }
+    const auto oldCount = documents_.size();
+    documents_.insert(documents_.end(), staged.begin(), staged.end());
+    if (!activateDocument(staged.front()->id)) { documents_.resize(oldCount); return false; }
     if (placeholder) {
         placeholder->closed = true;
         textController_->forgetSession(placeholder->session);

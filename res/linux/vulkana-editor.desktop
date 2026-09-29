@@ -9,5 +9,5 @@ Icon=vulkana-editor
 Terminal=false
 Categories=Graphics;2DGraphics;RasterGraphics;
 Keywords=image;photo;paint;layers;Vulkan;
-MimeType=application/x-vulkana;image/png;image/jpeg;image/webp;image/bmp;
+MimeType=application/x-vulkana;application/pdf;image/png;image/jpeg;image/webp;image/bmp;
 StartupNotify=true

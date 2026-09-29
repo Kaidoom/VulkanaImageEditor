@@ -12,6 +12,26 @@
   "components": [
     {
       "notice": {
+        "name": "Qt PDF / PDFium",
+        "version": "@Qt6Pdf_VERSION@",
+        "scope": "System-provided PDF renderer; not a browser engine",
+        "license": "Qt PDF: LGPL-3.0-only option; PDFium and its embedded dependencies retain their own terms",
+        "copyright": "The Qt Company Ltd. and contributors; the PDFium Authors and embedded-code authors. Full dependency notices accompany the installed Qt PDF library."
+      },
+      "texts": ["LGPL-3.0.txt", "GPL-3.0.txt", "PDFium-LICENSE.txt"]
+    },
+    {
+      "notice": {
+        "name": "qpdf (PDF geometry metadata)",
+        "version": "@qpdf_VERSION@",
+        "scope": "System-provided",
+        "license": "Apache-2.0; embedded code as described in NOTICE",
+        "copyright": "Jay Berkenbilt, Manfred Holger and contributors; complete attributions in qpdf NOTICE."
+      },
+      "texts": ["Apache-2.0.txt", "qpdf-NOTICE.txt"]
+    },
+    {
+      "notice": {
         "name": "Qt Core, Gui, Widgets and Network",
         "version": "@Qt6Core_VERSION@",
         "scope": "System-provided",

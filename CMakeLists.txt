@@ -33,7 +33,8 @@ if(VULKANA_NOTICES_DIRECTORY)
         ABSOLUTE BASE_DIR "${PROJECT_SOURCE_DIR}")
 endif()
 
-find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Widgets Network)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Widgets Network Pdf)
+find_package(qpdf REQUIRED)
 find_package(Vulkan 1.2 REQUIRED)
 find_program(GLSLC_EXECUTABLE NAMES glslc REQUIRED)
 

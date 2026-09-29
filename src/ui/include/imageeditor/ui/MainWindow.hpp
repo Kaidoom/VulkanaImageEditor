@@ -296,6 +296,7 @@ private:
     void changeCanvasSize();
     void openImage();
     bool openDocumentFromPath(const QString&);
+    bool importPdfFromPath(const QString&, bool intoCurrent);
     bool settleForFileOperation();
     bool guardUnsavedChanges();
     void updateDocumentTitle();
@@ -413,6 +414,7 @@ private:
     bool switchingDocument_ {false};
     std::uint64_t documentActivationClock_ {0};
     bool initializeDocument(std::unique_ptr<core::Document>, QString name, QString path = {}, QJsonObject metadata = {}, QString source = {});
+    bool publishDocuments(std::vector<std::shared_ptr<DocumentContext>>);
     void createDocumentTabs();
     void refreshDocumentTabs();
     bool settleForDocumentSwitch();
