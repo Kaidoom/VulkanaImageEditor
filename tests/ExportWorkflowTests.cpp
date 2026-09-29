@@ -112,6 +112,11 @@ void dialogControls()
     initial.webpQuality = 24;
     initial.webpEffort = 1;
     u::ExportDialog dialog(initial, nativeSize);
+    CHECK(dialog.windowTitle() == "Export");
+    CHECK(dialog.findChild<QLabel*>("ToolTitle")->text() == "Export");
+    auto* close = dialog.findChild<QPushButton*>("ExportHeaderClose");
+    auto* cancel = dialog.findChild<QPushButton*>("ExportCancel");
+    CHECK(close && !close->icon().isNull() && cancel && cancel->isHidden());
     CHECK(dialog.findChild<QLabel*>("ExportStatus")->alignment() == Qt::AlignCenter);
     auto* width = dialog.findChild<QDoubleSpinBox*>("ExportWidth");
     auto* height = dialog.findChild<QDoubleSpinBox*>("ExportHeight");
@@ -130,9 +135,11 @@ void dialogControls()
         if (!editor || editor->isReadOnly())
             return;
     }
-    int settingsChanges = 0, exportRequests = 0;
+    int settingsChanges = 0, exportRequests = 0, cancelRequests = 0, closeRequests = 0;
     dialog.onSettingsChanged = [&] { ++settingsChanges; };
     dialog.onExportRequested = [&] { ++exportRequests; };
+    dialog.onCancelRequested = [&] { ++cancelRequests; };
+    dialog.onCloseRequested = [&] { ++closeRequests; dialog.done(QDialog::Rejected); };
     dialog.show();
     dialog.activateWindow();
     CHECK(QTest::qWaitForWindowActive(&dialog));
@@ -252,10 +259,14 @@ void dialogControls()
     CHECK(write->isEnabled());
 
     dialog.setProgress("Encoding preview");
+    CHECK(cancel->isHidden());
     CHECK(!write->isEnabled() && reset->isEnabled());
     dialog.setPreview(preview(nativeSize), 400);
     CHECK(write->isEnabled());
     dialog.setProgress("Writing export", true);
+    CHECK(cancel->isVisible() && close->isEnabled());
+    cancel->click();
+    CHECK(cancelRequests == 1 && closeRequests == 0 && dialog.isVisible());
     CHECK(!write->isEnabled() && !reset->isEnabled());
     CHECK(!width->isEnabled() && !destination->isEnabled());
     const auto writingSettings = dialog.settings();
@@ -263,12 +274,16 @@ void dialogControls()
     reset->click();
     CHECK(dialog.settings() == writingSettings && settingsChanges == before);
     dialog.setError("Write failed");
+    CHECK(cancel->isHidden());
     CHECK(!write->isEnabled() && reset->isEnabled() && width->isEnabled());
     dialog.setPreview(preview(nativeSize), 400);
     CHECK(write->isEnabled());
     QTest::mouseClick(write, Qt::LeftButton);
     CHECK(exportRequests == 1);
-    dialog.close();
+    dialog.setCancelled(true);
+    CHECK(cancel->isHidden() && write->isEnabled() && width->isEnabled());
+    close->click();
+    CHECK(closeRequests == 1 && cancelRequests == 1 && !dialog.isVisible());
 }
 void exportConfirmation()
 {
@@ -324,6 +339,8 @@ void workflow(QVulkanInstance* instance, const QString& artifacts)
     QTemporaryDir files;
     u::MainWindow window(instance, true, false);
     window.setUnsavedPromptEnabled(false);
+    auto* exportAction = window.findChild<QAction*>("ExportImageAction");
+    CHECK(exportAction && exportAction->text() == "Export…" && !exportAction->icon().isNull());
     window.resize(1380, 920);
     window.show();
     QTest::qWait(150);
@@ -552,6 +569,47 @@ void workflow(QVulkanInstance* instance, const QString& artifacts)
 
     // A cancelled encode/render never writes or replaces last-success prefs.
     const auto lastDestination = QSettings().value("export/v1/destination");
+    // Cancel stops an explicitly requested export, unlike the header X/Escape.
+    // It must keep the panel usable, without publishing or persisting anything.
+    stage = 0;
+    elapsed.restart();
+    QObject::disconnect(&driver, nullptr, &window, nullptr);
+    QObject::connect(&driver, &QTimer::timeout, &window, [&] {
+        auto* dialog = exportDialog();
+        if (!dialog) return;
+        if (elapsed.elapsed() > 15000) {
+            CHECK(false);
+            dialog->reject();
+            return;
+        }
+        auto* cancel = dialog->findChild<QPushButton*>("ExportCancel");
+        if (stage == 0) {
+            stage = 1; // Rendering pumps events; don't reenter this setup.
+            dialog->setDestination(files.filePath("cancel-stay.webp"));
+            dialog->findChild<QComboBox*>("ExportFormat")->setCurrentIndex(2);
+            dialog->findChild<QComboBox*>("ExportWebpMode")->setCurrentIndex(1);
+            dialog->findChild<QDoubleSpinBox*>("ExportWidth")->setValue(1024);
+            // Same path as Export Again while preparation is still in flight.
+            dialog->onExportRequested();
+            CHECK(cancel->isVisible());
+            cancel->click();
+            stage = 2;
+        } else if (stage == 2 && cancel->isHidden()) {
+            CHECK(dialog->isVisible());
+            CHECK(dialog->findChild<QLineEdit*>("ExportDestination")->isEnabled());
+            CHECK(dialog->findChild<QPushButton*>("ExportReset")->isEnabled());
+            CHECK(!QFileInfo::exists(files.filePath("cancel-stay.webp")));
+            CHECK(QSettings().value("export/v1/destination") == lastDestination);
+            stage = 3;
+            dialog->findChild<QPushButton*>("ExportHeaderClose")->click();
+        }
+    });
+    driver.start();
+    window.exportImage();
+    driver.stop();
+    CHECK(stage == 3);
+    baseline.verify(window);
+
     stage = 0;
     elapsed.restart();
     QObject::disconnect(&driver, nullptr, &window, nullptr);

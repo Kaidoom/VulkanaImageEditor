@@ -23,6 +23,8 @@ with a Qt workspace and Vulkan-accelerated canvas.
   plus editable layer copying between documents.
 - **PDF import:** selected pages at your chosen PPI, as raster layers or separate
   documents, with transparent or white backgrounds.
+- **PDF export:** a composite or layers/groups as pages, custom page selection,
+  canvas/fitted sizes and selectable text where supported.
 - **Workspace and output:** dockable panels, themes, editable shortcuts, rulers,
   Pixel Preview, native `.vulkana` projects and PNG/JPEG/WebP export.
 
@@ -34,7 +36,7 @@ Requires Linux, a C++20 compiler, Ninja, pkg-config, and these development libra
 
 - CMake **3.28+** for the supplied presets.
 - Qt **6.8+**: Core, Gui, Widgets, Network and PDF; Qt Test for tests.
-- qpdf **11+** development library (page geometry; not the command-line tool).
+- qpdf **11+** development library (PDF import/export; not the command-line tool).
 - Vulkan **1.2+** headers/loader, a working Vulkan driver, and `glslc`.
 - minizip-ng **4.x** (the `minizip` pkg-config module, not legacy minizip).
 - libwebp and libwebpmux **1.2+**.

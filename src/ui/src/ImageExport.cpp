@@ -122,6 +122,8 @@ QByteArray exportFormatName(ExportFormat format)
         return "jpeg";
     case ExportFormat::WebP:
         return "webp";
+    case ExportFormat::Pdf:
+        return "pdf";
     }
     return { };
 }
@@ -143,6 +145,7 @@ QString exportPathForFormat(const QString& path, ExportFormat format)
 }
 QString validateExport(const ExportSettings& s, QSize canvas)
 {
+    if(s.format==ExportFormat::Pdf)return {}; // Geometry/selection validated by the immutable PDF page plan.
     const auto invalidSize = [](QSize size) {
         return size.width() < 1 || size.height() < 1 || size.width() > kMaximumExportDimension
             || size.height() > kMaximumExportDimension;
@@ -199,6 +202,7 @@ QString validateExportDestination(const QString& path, const QString& projectPat
 FlattenedDocumentResult renderExport(
     const core::Document& document, const ExportSettings& settings, FlattenedDocumentProgress progress)
 {
+    if(settings.format==ExportFormat::Pdf)return {{},QStringLiteral("PDF export requires a page plan"),false,{}};
     const auto extent = document.canvas().extent;
     if (const auto error = validateExport(settings, { int(extent.width), int(extent.height) });
         !error.isEmpty())
@@ -220,6 +224,7 @@ FlattenedDocumentResult renderExport(
 EncodedExport encodeExport(
     const QImage& source, const ExportSettings& settings, const std::atomic_bool& cancel)
 {
+    if(settings.format==ExportFormat::Pdf)return {{},{},QStringLiteral("PDF export uses the streaming page writer"),false};
     try {
         checkCancel(cancel);
         const auto error = validateExport(settings, source.size());
@@ -342,7 +347,7 @@ ExportSettings loadExportPreferences(QSize canvas, const QString& suggestedName)
     s.beginGroup("export/v1");
     ExportSettings out;
     out.size = canvas;
-    out.format = ExportFormat(std::clamp(s.value("format", 0).toInt(), 0, 2));
+    out.format = ExportFormat(std::clamp(s.value("format", 0).toInt(), 0, 3));
     const auto previous = s.value("destination").toString();
     auto name = previous.isEmpty() ? QFileInfo(suggestedName).completeBaseName() + ".png"
                                    : QFileInfo(previous).fileName();
@@ -361,6 +366,14 @@ ExportSettings loadExportPreferences(QSize canvas, const QString& suggestedName)
     out.webpLossless = s.value("webpLossless", false).toBool();
     out.webpQuality = std::clamp(s.value("webpQuality", 90).toInt(), 0, 100);
     out.webpEffort = std::clamp(s.value("webpEffort", 4).toInt(), 0, 6);
+    out.pdf.mode=PdfExportMode(std::clamp(s.value("pdf/mode",0).toInt(),0,1));
+    out.pdf.pageSize=PdfExportPageSize(std::clamp(s.value("pdf/pageSize",0).toInt(),0,1));
+    out.pdf.text=PdfExportText(std::clamp(s.value("pdf/text",0).toInt(),0,1));
+    out.pdf.reverse=s.value("pdf/reverse",false).toBool();
+    out.pdf.ignoreHidden=s.value("pdf/ignoreHidden",true).toBool();
+    out.pdf.matte=s.value("pdf/matte",false).toBool();
+    out.pdf.matteColor=s.value("pdf/matteColor",QColor(Qt::white)).value<QColor>();
+    if(!out.pdf.matteColor.isValid())out.pdf.matteColor=Qt::white;
     return out;
 }
 void saveExportPreferences(const ExportSettings& value)
@@ -380,6 +393,13 @@ void saveExportPreferences(const ExportSettings& value)
     s.setValue("webpLossless", value.webpLossless);
     s.setValue("webpQuality", value.webpQuality);
     s.setValue("webpEffort", value.webpEffort);
+    s.setValue("pdf/mode",int(value.pdf.mode));
+    s.setValue("pdf/pageSize",int(value.pdf.pageSize));
+    s.setValue("pdf/text",int(value.pdf.text));
+    s.setValue("pdf/reverse",value.pdf.reverse);
+    s.setValue("pdf/ignoreHidden",value.pdf.ignoreHidden);
+    s.setValue("pdf/matte",value.pdf.matte);
+    s.setValue("pdf/matteColor",value.pdf.matteColor);
     s.endGroup();
     s.sync();
     rememberExportDirectory(value.destination);

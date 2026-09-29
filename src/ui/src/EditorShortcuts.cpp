@@ -23,7 +23,7 @@ const QList<ShortcutDefinition>& shortcutDefinitions()
         add("SaveDocumentAction", "Save", "File", "Ctrl+S", EditorKeys | TextKeys);
         add("SaveDocumentAsAction", "Save as", "File", "Ctrl+Shift+S", EditorKeys | TextKeys);
         add("ImportImageAction", "Import image as layer", "File");
-        add("ExportImageAction", "Export image", "File", "Ctrl+Shift+E");
+        add("ExportImageAction", "Export", "File", "Ctrl+Shift+E");
         add("ExportAgainAction", "Export again", "File");
         add("QuitAction", "Quit", "File", "Ctrl+Q");
         add("UndoAction", "Undo", "Edit", "Ctrl+Z", EditorKeys | TextKeys);

@@ -67,4 +67,19 @@ struct FlattenedDocumentResult {
 [[nodiscard]] FlattenedDocumentResult rasterizeLayerContent(const core::Document&, core::LayerId,
     FlattenedDocumentProgress = {}, FlattenedDocumentLimits = {});
 
+struct EvaluatedDocumentBounds {
+    core::RectI rect;
+    QString error;
+    bool cancelled {false};
+};
+// The same evaluated visual bounds used by native baking, without allocating
+// or sampling an output image. Empty visible content returns an empty rect.
+[[nodiscard]] EvaluatedDocumentBounds evaluatedLayerItemsBounds(const core::Document&,
+    std::span<const core::LayerId>, FlattenedDocumentProgress = {}, FlattenedDocumentLimits = {});
+// Explicit document-space page region. Preserves source coordinates and native
+// pixels; output density affects reconstruction, never document geometry.
+[[nodiscard]] FlattenedDocumentResult flattenDocumentRegion(const core::Document&, core::RectI,
+    core::Extent2u output, FlattenedDocumentProgress = {}, FlattenedDocumentLimits = {},
+    std::optional<core::Rgba8> matte = {});
+
 } // namespace imageeditor::ui

@@ -14,11 +14,22 @@ public:
     void setDestination(const QString&);
     void setProgress(const QString& stage, bool writing = false);
     void setPreview(const QImage& decoded, qint64 actualBytes);
+    void configurePdf(const PdfExportSnapshot&);
+    void setPdfPlan(const PdfExportPlan&);
+    void setPdfPreview(const PdfExportPlan&, int page, const QImage&);
+    void setPdfThumbnail(core::LayerId,const QImage&);
+    [[nodiscard]] std::vector<core::LayerId> neededPdfThumbnails() const;
+    [[nodiscard]] int pdfPreviewPage() const;
+    [[nodiscard]] QString pdfInputError() const;
     void setError(const QString&);
+    void setCancelled(bool previewReady);
     void setExported(const QString& destination, QSize size, qint64 bytes);
     std::function<void()> onSettingsChanged;
     std::function<void()> onExportRequested;
     std::function<void()> onCancelRequested;
+    std::function<void()> onCloseRequested;
+    std::function<void()> onPdfPageChanged;
+    std::function<void()> onPdfThumbnailsRequested;
     void reject() override;
 
 private:

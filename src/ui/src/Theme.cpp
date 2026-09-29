@@ -134,6 +134,15 @@ public:
             painter->restore(); return;
         }
         if (element == PE_IndicatorItemViewItemCheck) {
+            // Export checklists select output, rather than changing visibility.
+            if (widget && widget->property("standardItemCheckIndicators").toBool()) {
+                QStyleOptionButton checkbox;
+                checkbox.rect = option->rect;
+                checkbox.palette = option->palette;
+                checkbox.state = option->state;
+                QProxyStyle::drawPrimitive(PE_IndicatorCheckBox, &checkbox, painter, widget);
+                return;
+            }
             painter->save(); painter->setRenderHint(QPainter::Antialiasing);
             const auto area = QRectF(option->rect).adjusted(2, 4, -2, -4);
             const bool on = option->state.testFlag(State_On);

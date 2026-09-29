@@ -1924,7 +1924,8 @@ void MainWindow::createMenus()
     auto* saveAs = fileMenu->addAction(QStringLiteral("Save &As…"), this, [this] { saveDocument(true); });
     saveAs->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+S")));
     saveAs->setObjectName(QStringLiteral("SaveDocumentAsAction")); registerEditorWindowAction(saveAs);
-    auto* exportAction = fileMenu->addAction(QStringLiteral("Export &Image…"), this, [this] { exportImage(); });
+    auto* exportAction = fileMenu->addAction(QIcon::fromTheme(QStringLiteral("document-export"),
+        toolGlyph(ToolGlyph::ExternalLink)), tr("Export…"), this, [this] { exportImage(); });
     exportAction->setObjectName(QStringLiteral("ExportImageAction"));
     exportAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+E"))); registerEditorWindowAction(exportAction);
     auto* exportAgain = fileMenu->addAction(QStringLiteral("Export Again…"), this, [this] { exportImage(true); });

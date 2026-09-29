@@ -59,7 +59,8 @@ std::shared_ptr<const core::LayerRenderCache> prepareDocumentSampleCache(const c
 static FlattenedDocumentResult flattenImpl(
     const core::Document& document, FlattenedDocumentProgress progress, FlattenedDocumentLimits limits,
     std::optional<std::span<const core::LayerId>> items, core::Extent2u requested = {},
-    std::optional<core::Rgba8> matte = {}, MergeProfile* profile = nullptr, bool intrinsic = false)
+    std::optional<core::Rgba8> matte = {}, MergeProfile* profile = nullptr, bool intrinsic = false,
+    std::optional<core::RectI> region = {}, core::RectI* boundsOnly = nullptr)
 {
     if (profile) *profile={};
     ProfileStage setup(profile?&profile->setupMs:nullptr);
@@ -68,7 +69,10 @@ static FlattenedDocumentResult flattenImpl(
         limits.outputPixels = std::min(limits.outputPixels, hard.outputPixels);
         limits.derivedCacheBytes = std::min(limits.derivedCacheBytes, hard.derivedCacheBytes);
         limits.metadataBytes = std::min(limits.metadataBytes, hard.metadataBytes);
-        const auto canvasExtent = document.canvas().extent;
+        if(region)require(region->width>0&&region->height>0,"Output region must be positive");
+        const auto canvasExtent = region ? core::Extent2u{std::uint32_t(region->width),std::uint32_t(region->height)}
+                                         : document.canvas().extent;
+        core::Vec2d origin = region ? core::Vec2d{double(region->x),double(region->y)} : core::Vec2d{};
         auto extent = requested.empty() ? canvasExtent : requested;
         auto pixels = std::uint64_t(extent.width) * extent.height;
         if (!items)
@@ -76,8 +80,9 @@ static FlattenedDocumentResult flattenImpl(
                     && pixels <= limits.outputPixels,
                 "Flattened output exceeds the pixel/dimension limit");
         require(document.layers().size() <= 1024, "Flattened output exceeds the layer limit");
-        const core::AffineTransform outputGrid{std::max(1.0,double(extent.width)/canvasExtent.width),0,0,
-            0,std::max(1.0,double(extent.height)/canvasExtent.height),0};
+        const auto densityX=std::max(1.0,double(extent.width)/canvasExtent.width);
+        const auto densityY=std::max(1.0,double(extent.height)/canvasExtent.height);
+        const core::AffineTransform outputGrid{densityX,0,-origin.x*densityX,0,densityY,-origin.y*densityY};
         std::vector<core::LayerId> selected;
         if (items) {
             for (auto id : *items)
@@ -204,7 +209,6 @@ static FlattenedDocumentResult flattenImpl(
         };
         for(auto& layer:layers) {prepareLayer(layer);tick(++completed);}
 
-        core::Vec2d origin { };
         ProfileStage bounds(profile?&profile->boundsMs:nullptr);
         if (items) {
             double left = std::numeric_limits<double>::max(), top = left, right = -left, bottom = -left;
@@ -276,6 +280,7 @@ static FlattenedDocumentResult flattenImpl(
             right = std::ceil(right);
             bottom = std::ceil(bottom);
             const auto width = right - left, height = bottom - top;
+            if(boundsOnly && (right<=left || bottom<=top))return {};
             require(width > 0 && height > 0 && width <= 32768 && height <= 32768 && width * height <= double(limits.outputPixels)
                     && std::abs(left) <= 1e9 && std::abs(top) <= 1e9,
                 "Merge bounds exceed the pixel/dimension limit, or all selected content is hidden");
@@ -283,6 +288,10 @@ static FlattenedDocumentResult flattenImpl(
             extent = { std::uint32_t(width), std::uint32_t(height) };
             pixels = std::uint64_t(extent.width) * extent.height;
             total = pixels + layers.size();
+        }
+        if(boundsOnly) {
+            *boundsOnly={int(origin.x),int(origin.y),int(extent.width),int(extent.height)};
+            tick(total);return {};
         }
         bounds.finish();
         if(profile) {profile->outputBytes=pixels*4;profile->derivedBytes=cacheBytes;}
@@ -422,6 +431,21 @@ FlattenedDocumentResult rasterizeLayerContent(const core::Document& doc, core::L
     if (!doc.layer(id)) return {{},QStringLiteral("Rasterize requires a renderable layer"),false,{}};
     const std::array ids{id};
     return flattenImpl(doc,std::move(progress),limits,ids,{}, {},nullptr,true);
+}
+
+EvaluatedDocumentBounds evaluatedLayerItemsBounds(const core::Document& doc,
+    std::span<const core::LayerId> ids, FlattenedDocumentProgress progress, FlattenedDocumentLimits limits)
+{
+    core::RectI rect{};
+    const auto result=flattenImpl(doc,std::move(progress),limits,ids,{}, {},nullptr,false,{},&rect);
+    return {rect,result.error,result.cancelled};
+}
+FlattenedDocumentResult flattenDocumentRegion(const core::Document& doc,core::RectI region,
+    core::Extent2u output,FlattenedDocumentProgress progress,FlattenedDocumentLimits limits,
+    std::optional<core::Rgba8> matte)
+{
+    if(output.empty())return {{},QStringLiteral("Output dimensions must be positive"),false,{}};
+    return flattenImpl(doc,std::move(progress),limits,std::nullopt,output,matte,nullptr,false,region);
 }
 
 } // namespace imageeditor::ui

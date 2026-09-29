@@ -22,7 +22,7 @@
     },
     {
       "notice": {
-        "name": "qpdf (PDF geometry metadata)",
+        "name": "qpdf (PDF import/export)",
         "version": "@qpdf_VERSION@",
         "scope": "System-provided",
         "license": "Apache-2.0; embedded code as described in NOTICE",

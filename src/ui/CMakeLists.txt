@@ -42,6 +42,8 @@ add_library(imageeditor_ui STATIC
     src/MainWindowUpdates.cpp
     src/MainWindowDocuments.cpp
     src/ImageExport.cpp
+    src/PdfExport.cpp
+    src/PdfExportPanel.cpp
     src/FileDialogLocations.cpp
     src/ExportDialog.cpp
     src/MainWindowExport.cpp

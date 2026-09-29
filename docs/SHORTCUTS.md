@@ -78,7 +78,7 @@ content and do not affect document history. Existing settings are preserved.
 | Save | Ctrl+S |
 | Save as | Ctrl+Shift+S |
 | Import image as layer | Unassigned |
-| Export image | Ctrl+Shift+E |
+| Export | Ctrl+Shift+E |
 | Export again | Unassigned |
 | Quit | Ctrl+Q |
 
