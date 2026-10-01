@@ -21,6 +21,7 @@ class LayerListModel final : public QAbstractListModel {
 public:
     // A folder containing a selected item, not an additional selected row.
     static constexpr int SelectedDescendantRole = Qt::UserRole + 7;
+    static constexpr int HasMaskRole = Qt::UserRole + 8;
     explicit LayerListModel(QObject* parent = nullptr);
 
     void setSession(core::EditorSession* session);
@@ -74,12 +75,14 @@ private:
     std::set<core::LayerId> selectedAncestorFolders_;
     struct Thumbnail { std::size_t stamp; std::size_t appearanceStamp; QIcon icon; qint64 renderedAt; };
     mutable std::map<core::LayerId, Thumbnail> thumbnails_;
+    mutable std::map<core::LayerId, Thumbnail> rowThumbnails_;
     QElapsedTimer thumbnailClock_;
     mutable bool thumbnailRefreshQueued_{false};
     std::uint64_t sessionGeneration_ {0};
     void rebuildRows();
     [[nodiscard]] std::set<core::LayerId> selectedAncestorFolders() const;
     [[nodiscard]] QIcon groupThumbnail(core::LayerId) const;
+    [[nodiscard]] QIcon layerThumbnail(const core::Layer&) const;
     [[nodiscard]] std::optional<core::ItemPlacement> dropPlacement(int row, const QModelIndex&) const;
 };
 

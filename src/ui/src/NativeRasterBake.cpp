@@ -25,7 +25,7 @@ bool needsRasterization(const core::Layer& layer)
         || !t.isAffine() || t.m00!=1 || t.m11!=1 || t.m01!=0 || t.m10!=0
         || t.m02!=std::floor(t.m02) || t.m12!=std::floor(t.m12)
         || core::compileAdjustmentStack(layer.adjustments).active || core::hasActiveSpatialFilters(layer.filters)
-        || core::hasActiveLayerEffects(layer.effects);
+        || core::hasActiveLayerEffects(layer.effects) || (layer.mask&&layer.mask->enabled);
 }
 namespace {
 void removeBakedEffects(core::Layer& baked,const core::Layer& original)
@@ -33,6 +33,14 @@ void removeBakedEffects(core::Layer& baked,const core::Layer& original)
     // Keep disabled, unbaked settings. Captured masks are re-based to the new
     // pixel-local frame; their coverage planes remain immutable/shared.
     const auto toOld=core::composeAffine(*original.localToDocument.inverted(),baked.localToDocument);
+    if(original.mask) {
+        if(original.mask->enabled)baked.mask.reset();
+        else {
+            auto mask=std::make_shared<core::LayerMask>(*original.mask);
+            mask->localToMask=core::composeTransform(mask->localToMask,toOld);
+            baked.mask=std::move(mask);
+        }
+    }
     if(original.adjustments) {
         auto stack=std::make_shared<core::AdjustmentStack>(*original.adjustments);
         for(auto& item:stack->items) {
@@ -62,10 +70,10 @@ void removeBakedEffects(core::Layer& baked,const core::Layer& original)
 }
 }
 RasterizeResult prepareRasterizeLayers(const core::Document& doc,const core::LayerSelectionState& selection,
-    std::size_t budget,FlattenedDocumentProgress progress)
+    std::size_t budget,FlattenedDocumentProgress progress,std::optional<core::LayerId> onlyLayer)
 {
     try {
-        const auto ids=doc.expandedLayers(selection.ids);
+        const auto ids=onlyLayer?std::vector<core::LayerId>{*onlyLayer}:doc.expandedLayers(selection.ids);
         std::vector<core::LayerId> removed;
         std::vector<core::Layer> added;
         std::size_t cost=2*doc.tree().memoryCost()+65536;

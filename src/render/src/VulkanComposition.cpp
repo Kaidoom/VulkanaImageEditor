@@ -133,6 +133,13 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
         key.push_back(std::bit_cast<std::uint32_t>(layer.opacity));
         key.push_back(layer.adjustmentRevision);
         key.push_back(layer.effectRevision);key.push_back(styled);
+        const bool masked=layer.mask&&layer.mask->enabled;
+        key.push_back(masked);
+        if(masked) {
+            key.push_back(layer.mask->coverage->revision());key.push_back(layer.mask->outside);
+            const auto& m=layer.mask->localToMask;
+            for(double v:{m.m00,m.m01,m.m02,m.m10,m.m11,m.m12,m.m20,m.m21,m.m22})key.push_back(std::bit_cast<std::uint64_t>(v));
+        }
         if(styled)for(const auto& mask:layer.effectCache->masks)key.push_back(mask?mask->coverage->revision():0);
         key.push_back(bypassFilters);
         key.push_back(scene.adjustmentBypassLayer==layer.id);
@@ -190,7 +197,7 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
             appendAdjustmentParameters(layer,filtered||scene.adjustmentBypassLayer==layer.id,adjustmentParameters),layer.crop?(scene.cropPreviewLayer==layer.id?2:1):0,{},{},{}};
         if(styled)push.mode|=(appendEffectParameters(layer,adjustmentParameters)+1)<<8;
         const auto pixelsToLocal=bypassFilters?core::intrinsicPixelsToLocal(layer):core::renderPixelsToLocal(layer);
-        if(layer.crop||styled){
+        if(layer.crop||styled||masked){
             push.sourceToLocalX={float(pixelsToLocal.m00),float(pixelsToLocal.m01),float(pixelsToLocal.m02),0};
             push.sourceToLocalY={float(pixelsToLocal.m10),float(pixelsToLocal.m11),float(pixelsToLocal.m12),0};
         }
@@ -202,13 +209,24 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
             push.sourceToLocalX[3]=float(cuts[2]);push.sourceToLocalY[3]=float(cuts[3]);
         }
         if(scene.pixelPreviewEnabled)push.cropMode=3; // native-pixel display sampling
-        if(!inverse->isAffine()||!pixelsToLocal.isAffine()) {
+        if(!inverse->isAffine()||!pixelsToLocal.isAffine()||masked) {
             // Bottom rows live in the existing parameter buffer, preserving
             // the guaranteed 128-byte push-constant budget. Affine dispatches
             // keep their original arithmetic and avoid the extra lookup.
             const auto offset=adjustmentParameters.size();
             adjustmentParameters.insert(adjustmentParameters.end(),{float(inverse->m20),float(inverse->m21),float(inverse->m22),0,
                 float(pixelsToLocal.m20),float(pixelsToLocal.m21),float(pixelsToLocal.m22),0});
+            adjustmentParameters.resize(offset+20,0);
+            if(masked) {
+                const auto foundMask=std::find(adjustmentMasks_.begin(),adjustmentMasks_.end(),layer.mask->coverage);
+                if(foundMask==adjustmentMasks_.end())throw std::runtime_error("Missing layer mask coverage");
+                const auto& m=layer.mask->localToMask;
+                const auto header=adjustmentMaskOffsets_[std::size_t(foundMask-adjustmentMasks_.begin())];
+                const std::array<float,12> values{float(m.m00),float(m.m01),float(m.m02),std::bit_cast<float>(header),
+                    float(m.m10),float(m.m11),float(m.m12),float(layer.mask->outside)/255,
+                    float(m.m20),float(m.m21),float(m.m22),0};
+                std::copy(values.begin(),values.end(),adjustmentParameters.begin()+std::ptrdiff_t(offset+8));
+            }
             push.cropMode|=int(offset+1)<<2;
         }
         work.push_back({push,found->second.descriptorSet});

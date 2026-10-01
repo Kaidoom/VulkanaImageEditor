@@ -147,6 +147,8 @@ std::vector<core::LayerId> chosenEntries(const PdfExportSnapshot &source,
 QString nativeTextReason(const core::Layer &layer, const core::RectI &page) {
   if (!layer.localToDocument.isAffine())
     return QStringLiteral("Projective text transform");
+  if (layer.mask && layer.mask->enabled)
+    return QStringLiteral("Text layer mask");
   if (layer.crop)
     return QStringLiteral("Text crop/chamfer");
   if (core::compileAdjustmentStack(layer.adjustments).active ||

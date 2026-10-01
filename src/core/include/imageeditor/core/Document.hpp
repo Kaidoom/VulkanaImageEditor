@@ -45,6 +45,7 @@ struct LayerSnapshot {
     Vec2d rasterOrigin {};
     std::optional<RectD> rasterEffectFrame;
     std::optional<LayerCrop> crop;
+    LayerMaskState mask;
     LayerSnapshotPayload payload;
     Revision textRevision {1};
     Revision shapeRevision {1};
@@ -129,6 +130,7 @@ public:
     bool setLayerFilters(LayerId id, SpatialFilterState);
     bool setLayerEffects(LayerId id, LayerEffectState);
     bool setLayerCrop(LayerId, std::optional<LayerCrop>);
+    bool setLayerMask(LayerId, LayerMaskState);
     bool renameLayer(LayerId id, std::string name);
     bool setLayerTransform(LayerId id, const AffineTransform& transform);
     bool setLayerTransforms(std::span<const LayerTransformUpdate> updates);

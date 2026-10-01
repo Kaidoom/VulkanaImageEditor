@@ -38,6 +38,7 @@ add_library(imageeditor_ui STATIC
     src/MainWindowAdjustments.cpp
     src/MainWindowMeasure.cpp
     src/MainWindowLayerOrganization.cpp
+    src/MainWindowLayerMasks.cpp
     src/MainWindowFiles.cpp
     src/MainWindowUpdates.cpp
     src/MainWindowDocuments.cpp

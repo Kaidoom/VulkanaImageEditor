@@ -1,5 +1,30 @@
 # Architecture
 
+## Bitmap layer masks
+
+Raster, text and shape layers can own one immutable tiled R8 `LayerMask`.
+Its pixel frame is layer-local and moves with the layer. It is separate from
+the document selection and from captured adjustment/filter masks. Coverage is
+applied to the adjusted, filtered and styled result after crop, before final
+layer opacity/blending; it never changes source pixels during ordinary editing.
+
+`LayerMaskEdit` adapts the existing regional brush/fill transactions to grayscale
+coverage, sharing unchanged tiles. Each gesture publishes one undo command.
+White reveals, black hides, and gray is numeric partial coverage (not gamma
+converted). Selection coverage constrains editing without replacing the selection.
+Eraser/Delete hide; brushes and Fill use the grayscale value of their chosen color.
+The row thumbnail and status identify the per-document content/mask editing target.
+Other destructive pixel tools require returning to the content thumbnail.
+
+Reveal All creates a mask over full local source/styled bounds, with white outside;
+From Selection captures the selection in that frame, with black outside.
+Later text/shape edits retain this frame. Masks do not resize with new content.
+Apply explicitly rasterizes the masked appearance, baking transforms/effects too,
+while retaining layer identity, opacity and blend mode; undo restores the typed
+original. A disabled mask must be enabled before Apply. Canvas, Pixel Preview,
+rendered references, merge and export share the coverage contract. Native PDF text
+falls back to raster output when an enabled layer mask cannot be represented.
+
 ## Module boundaries
 
 - `src/core` owns platform-neutral document data, typed layers, selections,

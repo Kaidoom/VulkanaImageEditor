@@ -32,6 +32,7 @@ private:
     Revision revision_ {0};
     AffineTransform inverse_, documentToLocal_;
     std::optional<LayerCrop> crop_;
+    LayerMaskState mask_;
     std::shared_ptr<const CompiledAdjustmentStack> adjustments_;
     std::optional<EffectParameters> effects_;
     std::shared_ptr<const LayerEffectCache> effectCache_;
@@ -88,6 +89,7 @@ private:
         std::optional<LayerCrop> crop;
         std::optional<EffectParameters> effects;
         std::shared_ptr<const LayerEffectCache> effectCache;
+        LayerMaskState mask;
     };
     const Document* owner_ {nullptr};
     DocumentSnapshot snapshot_;

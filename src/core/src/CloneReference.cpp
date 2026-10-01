@@ -9,6 +9,7 @@
 #include <limits>
 #include <stdexcept>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace imageeditor::core {
 namespace {
@@ -27,6 +28,12 @@ public:
 
     Layer freeze(const Layer& layer, bool visible)
     {
+        if(layer.mask&&masks_.insert(layer.mask->coverage.get()).second) {
+            const auto retained=layer.mask->coverage->memoryCost();
+            if(retained>limit_-bytes_)
+                throw std::length_error("Clone layer masks exceed the snapshot memory limit.");
+            bytes_+=retained;
+        }
         auto cache = layer.renderCache;
         if (!std::holds_alternative<RasterLayer>(layer.payload))
             for (const auto& replacement : prepared_)
@@ -76,6 +83,7 @@ public:
         frozen.localToDocument = layer.localToDocument;
         frozen.rasterOrigin=layer.rasterOrigin;frozen.rasterEffectFrame=layer.rasterEffectFrame;
         frozen.crop = layer.crop;
+        frozen.mask = layer.mask;
         if (std::holds_alternative<RasterLayer>(layer.payload)) {
             frozen.payload = RasterLayer { entry->second };
         } else {
@@ -97,6 +105,7 @@ public:
     [[nodiscard]] std::size_t bytes() const noexcept { return bytes_; }
 
 private:
+    std::unordered_set<const SelectionMask*> masks_;
     std::size_t limit_, bytes_ { 0 };
     std::function<bool()> cancelled_;
     std::span<const SampleCacheOverride> prepared_;
@@ -156,7 +165,8 @@ std::optional<CloneReference> CloneReference::capture(const Document& document, 
         FrozenLayers frozen(limitBytes, std::move(cancelled), prepared);
         const bool rawContext = mode == CloneSampleSource::SourceLayer && sourceId == targetId;
         if (source) {
-            const auto layer = frozen.freeze(*source, true);
+            auto layer = frozen.freeze(*source, true);
+            layer.mask.reset(); // Intrinsic cloning edits source pixels, not rendered visibility.
             result->rawSource.emplace(layer, false);
             result->rawExtent = renderedSurface(layer)->extent();
             result->rawInverse = *renderTransform(layer).inverted();

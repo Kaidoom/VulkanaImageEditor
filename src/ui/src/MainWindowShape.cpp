@@ -43,6 +43,7 @@ namespace {
 }
 bool MainWindow::shapeLayerHit(const core::Layer& layer, core::Vec2d p) const
 {
+    if(const auto inverse=layer.localToDocument.inverted();inverse&&core::layerMaskCoverage(layer.mask,inverse->map(p))<=0)return false;
     if(!core::hitLayerCrop(layer,p))return false;
     if (!session().document() || !session().document()->isEffectivelyVisible(layer.id) || layer.opacity <= 0)
         return false;

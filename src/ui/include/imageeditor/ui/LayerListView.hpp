@@ -22,6 +22,8 @@ public:
     explicit LayerListView(QWidget* parent = nullptr);
     std::function<void(int, Qt::KeyboardModifiers)> onRowSelectionRequested;
     std::function<void(int)> onContextSelectionRequested;
+    std::function<void(int,bool)> onEditingTargetRequested;
+    [[nodiscard]] QRect thumbnailRect(const QModelIndex&,bool mask) const;
     std::function<void()> onEmptySpacePressed;
     // MainWindow owns the cross-native-surface keyboard bridge and global
     // click-away completion; the row owns this ordinary Qt text editor.

@@ -90,6 +90,7 @@ void MainWindow::beginSelectionTransform()
 
 void MainWindow::beginSelectedPixelTransform()
 {
+    if(session().editingLayerMask()){statusBar()->showMessage(tr("Click the content thumbnail before transforming selected pixels."),3500);return;}
     if (selectionTransform_ || fileBusy_ || !session().document())
         return;
     cancelPendingEdits();

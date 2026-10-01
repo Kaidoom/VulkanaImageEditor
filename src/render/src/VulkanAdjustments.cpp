@@ -32,6 +32,10 @@ void VulkanCanvasRenderer::prepareAdjustmentMasks(const CanvasScene& scene)
     std::unordered_set<core::LayerId> retained;
     for (const auto& layer:scene.document.layersBottomToTop) {
         retained.insert(layer.id);
+        if(layer.mask) {
+            appendUnique(referenced,layer.mask->coverage);
+            if(layer.visible&&layer.opacity>0&&layer.mask->enabled)appendUnique(required,layer.mask->coverage);
+        }
         if(layer.effectCache)for(const auto& mask:layer.effectCache->masks)if(mask) {
             appendUnique(referenced,mask->coverage);
             if(layer.visible&&layer.opacity>0&&scene.effectBypassLayer!=layer.id

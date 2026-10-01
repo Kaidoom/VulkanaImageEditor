@@ -129,6 +129,7 @@ std::size_t retainedLayerMemory(const Layer& l) noexcept
     result += adjustmentMemoryCost(l.adjustments);
     result += spatialFilterMemoryCost(l.filters);
     if(l.effects)result += sizeof(LayerEffectStack);
+    if(l.mask)result += sizeof(LayerMask)+l.mask->coverage->memoryCost();
     if (const auto* r = std::get_if<RasterLayer>(&l.payload); r && r->surface)
         result += std::size_t(r->surface->extent().width) * r->surface->extent().height * 4;
     if (const auto* t = std::get_if<TextLayer>(&l.payload))

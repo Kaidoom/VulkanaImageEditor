@@ -134,7 +134,7 @@ void MainWindow::startFill(bool background, bool selectionOnly, core::Vec2d seed
         || selectionTransform_)
         return;
     const auto* target = session().document()->layer(*session().activeLayer());
-    if (eraseSelection && (!target
+    if (!session().editingLayerMask()&&eraseSelection && (!target
         || !std::holds_alternative<core::RasterLayer>(target->payload))) return;
     cancelPendingEdits();
     auto options = fillOptions_;
@@ -143,8 +143,13 @@ void MainWindow::startFill(bool background, bool selectionOnly, core::Vec2d seed
         options.mode = core::FillMode::SelectionOrLayer;
     options.seed = seed;
     options.eraseSelection = eraseSelection;
+    const bool mask=session().editingLayerMask();options.coverageValues=mask;
+    if(mask) {
+        try {activeMaskEdit_=std::make_unique<core::LayerMaskEdit>(*session().document(),*session().activeLayer(),"Fill layer mask");}
+        catch(const std::exception& e){statusBar()->showMessage(QString::fromUtf8(e.what()),4500);return;}
+    }
     activeFill_
-        = std::make_unique<core::FillOperation>(*session().document(), *session().activeLayer(), options);
+        = std::make_unique<core::FillOperation>(mask?activeMaskEdit_->proxy():*session().document(), *session().activeLayer(), options);
     if (!fillProgress_) {
         fillProgress_ = new QWidget(this);
         fillProgress_->setObjectName(QStringLiteral("FillProgress"));
@@ -175,18 +180,25 @@ void MainWindow::advanceFill()
     // <=64K pixel chunks. Surface updates remain on its owning GUI thread;
     // between chunks the event loop can present frames, move panels or cancel.
     auto state = activeFill_->step();
-    if (activeFill_->stats().writeBatches != before)
+    if (activeFill_->stats().writeBatches != before) {
+        if(activeMaskEdit_)canvasWindow_->setDocument(session().document()->snapshot(),false);
         canvasWindow_->scheduleFrame();
+    }
     if (state == core::FillState::Discovering || state == core::FillState::Applying) {
         fillTimer_->start();
         return;
     }
     auto result = core::RasterEditCommitResult::NoChanges;
     if (state == core::FillState::Ready)
-        result = activeFill_->commit(session().history());
+        result = activeFill_->commit(activeMaskEdit_?activeMaskEdit_->provisionalHistory():session().history());
     const auto error = QString::fromUtf8(activeFill_->error());
     const auto label = QString::fromUtf8(activeFill_->label());
     activeFill_.reset();
+    if(activeMaskEdit_) {
+        if(result==core::RasterEditCommitResult::Committed||result==core::RasterEditCommitResult::NoChanges)
+            result=activeMaskEdit_->commit(session().history());
+        activeMaskEdit_.reset();
+    }
     fillProgress_->hide();
     if (result == core::RasterEditCommitResult::Committed)
         fileState().untouched = false;
@@ -203,6 +215,7 @@ void MainWindow::cancelFill()
     fillTimer_->stop();
     activeFill_->cancel();
     activeFill_.reset();
+    if(activeMaskEdit_) {activeMaskEdit_.reset();canvasWindow_->setDocument(session().document()->snapshot(),false);}
     if (fillProgress_)
         fillProgress_->hide();
     canvasWindow_->scheduleFrame();

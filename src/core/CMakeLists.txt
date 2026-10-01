@@ -40,6 +40,8 @@ add_library(imageeditor_core STATIC
     src/RegionFinder.cpp
     src/History.cpp
     src/Layer.cpp
+    src/LayerMask.cpp
+    src/LayerMaskEdit.cpp
     src/LayerCrop.cpp
     src/LayerCropSession.cpp
     src/LayerTree.cpp

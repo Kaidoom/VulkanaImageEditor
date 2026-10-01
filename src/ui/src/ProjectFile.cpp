@@ -353,6 +353,7 @@ namespace {
         bool containsAdjustments = false;
         bool containsSpatialFilters = false;
         bool containsLayerEffects = false;
+        bool containsLayerMasks = false;
         bool containsProjective = false;
         bool containsRasterFrame = false;
         bool containsLayerCrop = false;
@@ -395,6 +396,19 @@ namespace {
             }
             require(layer.colorLabel <= uint8_t(core::ColorLabel::Purple), "Invalid layer color label");
             auto saved = overlayJson(oldLayers[layer.id], o).toObject();
+            saved.remove("layerMask");
+            if (layer.mask) {
+                require(core::validLayerMask(layer.mask), "Invalid layer mask");
+                containsLayerMasks = true;
+                const auto& m = *layer.mask;
+                const auto e = m.coverage->extent();
+                const auto& a = m.localToMask;
+                containsProjective |= !a.isAffine();
+                saved["layerMask"] = QJsonObject{{"version",1},{"enabled",m.enabled},{"outside",int(m.outside)},
+                    {"width",int(e.width)},{"height",int(e.height)},
+                    {"path",QStringLiteral("layer-masks/%1.r8").arg(layer.id)},
+                    {"transform",QJsonArray{a.m00,a.m01,a.m02,a.m10,a.m11,a.m12,a.m20,a.m21,a.m22}}};
+            }
             saved.remove("rasterLocalFrame");
             if(std::holds_alternative<core::RasterLayer>(layer.payload)&&(layer.rasterOrigin!=core::Vec2d{}||layer.rasterEffectFrame)) {
                 containsRasterFrame=true;
@@ -460,6 +474,7 @@ namespace {
             required.append("projective-transform-v1");result["required"]=required;
         }
         if(containsRasterFrame){auto required=result["required"].toArray();required.append("raster-local-frame-v1");result["required"]=required;}
+        if (containsLayerMasks) { auto required=result["required"].toArray();required.append("layer-mask-v1");result["required"]=required; }
         if (containsLayerEffects) {
             auto required=result["required"].toArray();
             required.append("layer-effects-v1");result["required"]=required;
@@ -537,6 +552,7 @@ namespace {
         core::Layer layer;
         core::Extent2u extent;
         QString path;
+        QString maskPath;
         detail::AdjustmentPlan adjustments;
         detail::SpatialFilterPlan filters;
     };
@@ -610,7 +626,7 @@ namespace {
                     || capability == "hierarchy-v1" || capability == "container-visibility-v1"
                     || capability == "layer-blend-modes-v1" || capability == "layer-blend-modes-v2"
                     || capability == "adjustments-v1" || capability == "spatial-filters-v1" || capability == "layer-crop-v1" || capability == "layer-crop-chamfer-v1"
-                    || capability == "selection-recall-v1" || capability == "layer-effects-v1" || capability == "projective-transform-v1" || capability == "raster-local-frame-v1",
+                    || capability == "selection-recall-v1" || capability == "layer-effects-v1" || capability == "projective-transform-v1" || capability == "raster-local-frame-v1" || capability == "layer-mask-v1",
                 "Project requires unsupported capabilities");
         require(o["canvas"].isObject() && o["layers"].isArray(), "Missing canvas or layers");
         const auto canvas = o["canvas"].toObject();
@@ -641,6 +657,33 @@ namespace {
             require(!l.contains("rasterLocalFrame")||l["type"]=="raster","Raster local frame is only supported on raster layers");
             LayerPlan p;
             p.layer.id = layerId(l["id"]);
+            if (l.contains("layerMask")) {
+                const auto m = l["layerMask"].toObject();
+                require(required.contains("layer-mask-v1") && m["version"] == 1 && m["enabled"].isBool(),
+                    "Unsupported or invalid layer mask");
+                const auto e = extent(m);
+                const auto size = quint64(e.width)*e.height;
+                require(size <= 64ULL*1024*1024, "Layer mask exceeds 64 megapixels");
+                p.maskPath = QStringLiteral("layer-masks/%1.r8").arg(p.layer.id);
+                require(m["path"] == p.maskPath && used.insert(p.maskPath).second,
+                    "Invalid layer mask payload path");
+                const auto entry = files.find(p.maskPath);
+                require(entry != files.end() && entry->second.bytes == size, "Missing or incorrectly sized layer mask");
+                result.bytes += size;
+                require(result.bytes <= rasterBudget, "Project exceeds raster and mask memory budget");
+                const auto t = m["transform"].toArray();
+                require(t.size() == 9, "Invalid layer mask transform");
+                std::array<double,9> a{};
+                for (int i=0;i<9;++i) a[size_t(i)]=number(t[i],-1e12,1e12,"Invalid mask transform coefficient");
+                auto mask = std::make_shared<core::LayerMask>();
+                mask->coverage = core::SelectionMask::filled(e,255);
+                mask->localToMask = {a[0],a[1],a[2],a[3],a[4],a[5],a[6],a[7],a[8]};
+                mask->outside = uint8_t(integer(m["outside"],0,255,"Invalid layer mask outside coverage"));
+                mask->enabled = m["enabled"].toBool();
+                require(core::validLayerMask(mask) && (mask->localToMask.isAffine() || required.contains("projective-transform-v1")),
+                    "Invalid or undeclared projective layer mask");
+                p.layer.mask = std::move(mask);
+            }
             require(ids.insert(p.layer.id).second, "Duplicate layer ID");
             leafOrder.push_back(p.layer.id);
             require(l["name"].isString() && !l["name"].toString().isEmpty() && l["name"].toString().size() <= 4096,
@@ -820,6 +863,17 @@ ProjectLoadResult loadProject(const QString& path, ProjectProgress callback)
         const auto families = QFontDatabase::families();
         std::set<QString> missing;
         for (auto& p : plan.layers) {
+            if (p.layer.mask) {
+                auto mask = std::make_shared<core::LayerMask>(*p.layer.mask);
+                const auto e = mask->coverage->extent();
+                std::vector<uint8_t> coverage(size_t(e.width)*e.height);
+                size_t offset = 0;
+                readEntry(zip,files.at(p.maskPath),[&](const char* b,int n) {
+                    std::memcpy(coverage.data()+offset,b,size_t(n)); offset+=size_t(n);
+                },progress);
+                mask->coverage = core::SelectionMask::fromR8(e,coverage,e.width);
+                p.layer.mask = std::move(mask);
+            }
             if(p.filters.stack) {
                 for(const auto& mask:p.filters.masks) {
                     std::vector<std::uint8_t> coverage(std::size_t(mask.extent.width)*mask.extent.height);
@@ -909,6 +963,10 @@ ProjectIoResult saveProject(const QString& path, const core::Document& doc, cons
                 bytes += n;
             }
         for (const auto& layer : doc.layers()) {
+            if (layer.mask) {
+                const auto e=layer.mask->coverage->extent();const auto n=quint64(e.width)*e.height;
+                expected.emplace(QStringLiteral("layer-masks/%1.r8").arg(layer.id),Entry{0,n,0});bytes+=n;
+            }
             if (!layer.adjustments) continue;
             for (const auto& adjustment : layer.adjustments->items) {
                 if (!adjustment.mask) continue;
@@ -962,6 +1020,19 @@ ProjectIoResult saveProject(const QString& path, const core::Document& doc, cons
                     } }, progress);
                 }
             for (const auto& layer : doc.layers()) {
+                if (layer.mask) {
+                    const auto& coverage=*layer.mask->coverage;
+                    const auto e=coverage.extent();const auto rows=std::max<size_t>(1,chunkSize/e.width);
+                    std::vector<uint8_t> buffer(rows*e.width);
+                    writeEntry(zip,QStringLiteral("layer-masks/%1.r8").arg(layer.id),quint64(e.width)*e.height,[&](const auto& write) {
+                        for(uint32_t y=0;y<e.height;) {
+                            const auto h=uint32_t(std::min<size_t>(rows,e.height-y));
+                            for(uint32_t r=0;r<h;++r)for(uint32_t x=0;x<e.width;++x)
+                                buffer[size_t(r)*e.width+x]=coverage.coverageAtDocumentPixel(int(x),int(y+r));
+                            write(reinterpret_cast<const char*>(buffer.data()),int(size_t(h)*e.width));y+=h;
+                        }
+                    },progress);
+                }
                 if (!layer.adjustments) continue;
                 for (const auto& adjustment : layer.adjustments->items) {
                     if (!adjustment.mask) continue;

@@ -4,10 +4,45 @@
 #include <atomic>
 #include <cmath>
 #include <limits>
+#include <map>
 #include <stdexcept>
 #include <tuple>
 
 namespace imageeditor::core {
+SelectionState SelectionMask::replacedR8(std::span<const CoveragePatch> patches) const
+{
+    auto next=std::shared_ptr<SelectionMask>(new SelectionMask(extent_));
+    next->tiles_=tiles_;
+    std::map<std::size_t,std::shared_ptr<Pixels>> changed;
+    for (const auto& patch:patches) {
+        const auto r=patch.region;
+        if(r.empty())continue;
+        if(r.x<0||r.y<0||r.right()>int(extent_.width)||r.bottom()>int(extent_.height)
+            ||patch.stride<std::size_t(r.width)||patch.bytes.size()<patch.stride*std::size_t(r.height-1)+std::size_t(r.width))
+            throw std::invalid_argument("Invalid coverage patch");
+        for(int y=0;y<r.height;++y)for(int x=0;x<r.width;++x) {
+            const auto px=std::uint32_t(r.x+x),py=std::uint32_t(r.y+y);
+            const auto index=std::size_t(py/tileSize)*columns_+px/tileSize;
+            const auto tx=px%tileSize,ty=py%tileSize;
+            const auto value=patch.bytes[std::size_t(y)*patch.stride+std::size_t(x)];
+            auto found=changed.find(index);
+            if((found==changed.end()?tiles_[index].at(tx,ty):(*found->second)[ty*tileSize+tx])==value)continue;
+            if(found==changed.end()) {
+                auto pixels=std::make_shared<Pixels>();
+                if(tiles_[index].pixels)*pixels=*tiles_[index].pixels;else pixels->fill(tiles_[index].uniform);
+                found=changed.emplace(index,std::move(pixels)).first;
+            }
+            (*found->second)[ty*tileSize+tx]=value;
+        }
+    }
+    if(changed.empty())return {};
+    for(const auto& [index,pixels]:changed) {
+        const auto r=tileRect(index);
+        next->tiles_[index]=compress(pixels,{std::uint32_t(r.width),std::uint32_t(r.height)});
+    }
+    next->updateBounds();
+    return next;
+}
 namespace {
 std::atomic<Revision> nextSelectionRevision {1};
 RectI canvasBounds(Extent2u e) { return {0, 0, std::int32_t(e.width), std::int32_t(e.height)}; }

@@ -51,7 +51,7 @@ bool LayerViaCopyCommand::apply(Document& document)
     if (!raster || !raster->surface) return false;
     const auto extent = raster->surface->extent();
     const auto selection = document.selection();
-    const bool bakeFilters=bool(selection)&&(hasActiveSpatialFilters(source->filters)||hasActiveLayerEffects(source->effects));
+    const bool bakeFilters=bool(selection)&&(hasActiveSpatialFilters(source->filters)||hasActiveLayerEffects(source->effects)||(source->mask&&source->mask->enabled));
     std::optional<Layer> filteredSource;
     if(bakeFilters)filteredSource=prepareSpatialFilterLayer(*source);
     std::shared_ptr<RasterSurface> surface;
@@ -121,6 +121,12 @@ bool LayerViaCopyCommand::apply(Document& document)
     }
     auto layer = Layer::raster(source->name + " copy", std::move(surface));
     layer.localToDocument = transform;
+    if(!selection)layer.mask=source->mask;
+    else if(source->mask&&!source->mask->enabled) {
+        auto mask=std::make_shared<LayerMask>(*source->mask);
+        mask->localToMask=composeTransform(mask->localToMask,composeTransform(*source->localToDocument.inverted(),transform));
+        layer.mask=std::move(mask);
+    }
     layer.crop=selection?std::nullopt:source->crop; // Extraction bakes visible crop once; duplication retains it.
     layer.opacity = source->opacity; // sampled pixels do not include layer opacity
     layer.blendMode = source->blendMode; // Extraction retains unblended source pixels.
@@ -161,7 +167,8 @@ std::size_t LayerViaCopyCommand::memoryCost() const noexcept
     const auto extent = std::get<RasterLayer>(result_->payload).surface->extent();
     return sizeof(*this) + result_->name.size() + std::size_t(extent.width) * extent.height * 4
         + adjustmentMemoryCost(result_->adjustments) + spatialFilterMemoryCost(result_->filters)
-        + (result_->effects?sizeof(LayerEffectStack):0);
+        + (result_->effects?sizeof(LayerEffectStack):0)
+        + (result_->mask?sizeof(LayerMask)+result_->mask->coverage->memoryCost():0);
 }
 std::optional<std::uint64_t> LayerViaCopyCommand::activeLayerAfter(bool undo) const noexcept
 { return undo ? std::optional(previousActive_) : createdLayerId(); }

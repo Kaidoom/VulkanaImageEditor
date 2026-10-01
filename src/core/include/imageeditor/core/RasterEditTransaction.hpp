@@ -23,6 +23,7 @@ struct RasterEditTransactionOptions {
     std::uint32_t journalTileSize {64};
     const SelectionMaskInput* selectionMask {nullptr};
     bool ignoreCrop {false}; // Explicit whole-source clear, not ordinary painting.
+    bool coverageValues {false}; // Numeric R8 mask edits, not sRGB colors.
 };
 
 enum class RasterEditCommitResult {
@@ -161,6 +162,7 @@ private:
     std::map<TileKey, JournalTile> journal_;
     bool active_ {false};
     bool ignoreCrop_ {false};
+    bool coverageValues_ {false};
 };
 
 } // namespace imageeditor::core

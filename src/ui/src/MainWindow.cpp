@@ -1956,7 +1956,7 @@ void MainWindow::createMenus()
     editMenu->addAction(transformPixelsAction_);
     for (auto* fill : fillActions_) editMenu->addAction(fill);
     editMenu->addSeparator();
-    auto* addLayer = editMenu->addAction(QIcon::fromTheme(QStringLiteral("list-add")),
+    auto* addLayer = editMenu->addAction(toolGlyph(ToolGlyph::NewLayer),
         QStringLiteral("New Raster Layer"), this, &MainWindow::addRasterLayer);
     addLayer->setObjectName(QStringLiteral("NewRasterLayerAction"));
     addLayer->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+N")));
@@ -1971,6 +1971,8 @@ void MainWindow::createMenus()
     layerMenu->addSeparator();layerMenu->addAction(groupLayersAction_);layerMenu->addAction(ungroupLayersAction_);
     layerMenu->addSeparator();layerMenu->addAction(mergeLayersAction_);
     layerMenu->addAction(rasterizeLayersAction_);
+    auto* maskMenu=layerMenu->addMenu(toolGlyph(ToolGlyph::LayerMask),tr("Layer Mask"));
+    for(auto* action:maskActions_)maskMenu->addAction(action);
     layerMenu->addSeparator();
     for (auto* action : layerVisibilityActions_) layerMenu->addAction(action);
 
@@ -2383,6 +2385,7 @@ void MainWindow::createDocks()
     layerList_->setDefaultDropAction(Qt::MoveAction);
     layerList_->setDragDropOverwriteMode(false);
     layerList_->setIconSize({34, 34});
+    static_cast<LayerListView*>(layerList_)->onEditingTargetRequested=[this](int row,bool mask){setLayerEditingTarget(row,mask);};
     layerList_->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(layerList_,&QWidget::customContextMenuRequested,this,&MainWindow::showLayerItemMenu);
     layersLayout->addWidget(layerList_, 1);
@@ -2391,17 +2394,29 @@ void MainWindow::createDocks()
     auto* buttonLayout = new QHBoxLayout(buttons);
     buttonLayout->setContentsMargins(10, 0, 10, 0);
     buttonLayout->setSpacing(6);
-    auto* addButton = new QPushButton(QIcon::fromTheme(QStringLiteral("list-add")), QStringLiteral("Add"));
-    deleteLayerButton_ = new QPushButton(QIcon::fromTheme(QStringLiteral("edit-delete")), QStringLiteral("Delete"));
+    auto* addButton = new QPushButton(toolGlyph(ToolGlyph::NewLayer), QString());
+    addButton->setObjectName(QStringLiteral("AddLayerButton"));
+    addButton->setToolTip(tr("Add raster layer"));
+    deleteLayerButton_ = new QPushButton(toolGlyph(ToolGlyph::Trash), QString());
     deleteLayerButton_->setObjectName(QStringLiteral("DeleteLayerButton"));
+    deleteLayerButton_->setToolTip(tr("Delete selected layers"));
     buttonLayout->addWidget(addButton);
-    buttonLayout->addStretch(1);
-    buttonLayout->addWidget(deleteLayerButton_);
     auto* folderButton=new QPushButton(toolGlyph(ToolGlyph::Folder),QString());
     folderButton->setObjectName(QStringLiteral("NewFolderButton"));
     folderButton->setToolTip(QStringLiteral("New folder · organizes layers without changing compositing"));
     connect(folderButton,&QPushButton::clicked,newFolderAction_,&QAction::trigger);
     buttonLayout->addWidget(folderButton);
+    addMaskButton_=new QPushButton(toolGlyph(ToolGlyph::LayerMask),QString());
+    addMaskButton_->setObjectName(QStringLiteral("AddLayerMaskButton"));
+    addMaskButton_->setToolTip(tr("Add layer mask · reveal all"));
+    connect(addMaskButton_,&QPushButton::clicked,maskActions_[0],&QAction::trigger);
+    buttonLayout->addWidget(addMaskButton_);
+    for(auto* button:{addButton,deleteLayerButton_,folderButton,addMaskButton_}) {
+        button->setStyleSheet(QStringLiteral("QPushButton { padding: 0; min-width: 30px; max-width: 30px; min-height: 28px; max-height: 28px; }"));
+        button->setFixedSize(32,30);button->setIconSize({18,18});button->setAccessibleName(button->toolTip());
+    }
+    buttonLayout->addStretch(1);
+    buttonLayout->addWidget(deleteLayerButton_);
     layersLayout->addWidget(buttons);
     layersPanelShell_ = new WorkspacePanel(
         QStringLiteral("Layers"), layersBody);
@@ -4232,6 +4247,7 @@ void MainWindow::updateLayerControls()
 
 void MainWindow::updateActionState()
 {
+    refreshLayerMaskActions();
     refreshCloningControls();
     refreshShapeControls();
     refreshShapeOverlay();
@@ -4281,8 +4297,8 @@ void MainWindow::updateActionState()
     transformAction_->setChecked(layerTransform_ || selectionTransform_.has_value());
     transformSelectionAction_->setEnabled(hasActiveSelection && !session().document()->selection()->bounds().empty()
         && !fileBusy_ && !layerTransform_ && !selectionTransform_ && !layerCrop_);
-    transformPixelsAction_->setEnabled(transformSelectionAction_->isEnabled());
-    const bool canFill = layer && std::holds_alternative<core::RasterLayer>(layer->payload)
+    transformPixelsAction_->setEnabled(transformSelectionAction_->isEnabled()&&!session().editingLayerMask());
+    const bool canFill = layer && (session().editingLayerMask()||std::holds_alternative<core::RasterLayer>(layer->payload))
         && layer->localToDocument.inverted() && !layerTransform_ && !selectionTransform_ && !activeFill_;
     for (auto* fill : fillActions_) fill->setEnabled(canFill);
     if (activeFill_) { undoAction_->setEnabled(true); redoAction_->setEnabled(false); transformAction_->setEnabled(false); }
@@ -4343,6 +4359,7 @@ void MainWindow::updateStatusText()
             ? QStringLiteral("  ·  Empty selection — editing blocked")
             : QStringLiteral("  ·  Selection %1 × %2 px").arg(bounds.width).arg(bounds.height)));
     }
+    if(session().editingLayerMask())documentStatus_->setText(documentStatus_->text()+tr("  ·  Editing MASK — white reveals / black hides"));
     zoomStatus_->setText(QStringLiteral("%1%")
         .arg(static_cast<int>(std::lround(canvasWindow_->zoom() * 100.0))));
     documentStatus_->setToolTip(documentStatus_->text());
@@ -4394,6 +4411,9 @@ void MainWindow::mutateRasterForUploadProbe()
 
 bool MainWindow::beginBrushStroke(const core::NormalizedPointerSample& sample)
 {
+    if(session().editingLayerMask()&&session().activeTool()!=core::ToolId::Brush&&session().activeTool()!=core::ToolId::Eraser) {
+        statusBar()->showMessage(tr("Use Brush, Eraser or Fill on a layer mask. Click the content thumbnail for other pixel tools."),4000);return false;
+    }
     if(session().activeTool()==core::ToolId::LocalBlur)return beginLocalBlurStroke(sample);
     if(session().activeTool()==core::ToolId::Cloning)return beginCloneStroke(sample);
     const auto activeTool = session().activeTool();
@@ -4404,7 +4424,7 @@ bool MainWindow::beginBrushStroke(const core::NormalizedPointerSample& sample)
         return false;
     }
     auto* layer = session().document()->layer(*session().activeLayer());
-    if (!layer || !std::holds_alternative<core::RasterLayer>(layer->payload)) {
+    if (!layer || (!session().editingLayerMask()&&!std::holds_alternative<core::RasterLayer>(layer->payload))) {
         statusBar()->showMessage(
             QStringLiteral("Select a raster layer before painting"), 2500);
         return false;
@@ -4412,22 +4432,30 @@ bool MainWindow::beginBrushStroke(const core::NormalizedPointerSample& sample)
     cancelActiveBrushStroke();
     auto strokeSettings = brushSettings_;
     strokeSettings.foreground = session().foregroundColor();
+    const bool mask=session().editingLayerMask();
+    if(mask&&activeTool==core::ToolId::Eraser)strokeSettings.foreground={0,0,0,255};
     const auto unavailable = brushAssets_->unavailableMessage(strokeSettings);
     if (!unavailable.isEmpty()) {
         statusBar()->showMessage(unavailable, 4500);
         return false;
     }
+    if(mask) {
+        try {activeMaskEdit_=std::make_unique<core::LayerMaskEdit>(*session().document(),layer->id,"Paint layer mask");}
+        catch(const std::exception& e){statusBar()->showMessage(QString::fromUtf8(e.what()),4500);return false;}
+    }
+    core::RasterEditTransactionOptions transactionOptions;transactionOptions.coverageValues=mask;
     activeBrushStroke_ = std::make_unique<core::BasicPixelBrushStroke>(
-        *session().document(), *session().activeLayer(), std::move(strokeSettings),
-        activeTool == core::ToolId::Eraser
+        mask?activeMaskEdit_->proxy():*session().document(), *session().activeLayer(), std::move(strokeSettings),
+        mask?core::BrushCompositeMode::MaskCoverage:activeTool == core::ToolId::Eraser
             ? core::BrushCompositeMode::Erase
             : core::BrushCompositeMode::Paint,
         std::make_unique<core::BasicPixelBrushEngine>(),
         std::unique_ptr<core::IBrushTip> {},
-        std::unique_ptr<core::IBrushGrain> {}, brushAssets_.get());
+        std::unique_ptr<core::IBrushGrain> {}, brushAssets_.get(),transactionOptions);
     if (!activeBrushStroke_->valid() || !activeBrushStroke_->begin(sample)) {
         const bool limited=activeBrushStroke_->failure()==core::BrushStrokeFailure::RasterWorkLimitExceeded;
         activeBrushStroke_.reset();
+        activeMaskEdit_.reset();
         statusBar()->showMessage(limited
             ? QStringLiteral("Stroke cancelled: too many source pixels at this layer scale. Reduce brush size or enlarge the layer.")
             : QStringLiteral("Unable to begin brush stroke"), limited ? 6500 : 2500);
@@ -4437,6 +4465,7 @@ bool MainWindow::beginBrushStroke(const core::NormalizedPointerSample& sample)
         canvasWindow_->setResolvedBrushCursorAngle(*angle);
     }
     canvasWindow_->setConstrainedBrushPosition(activeBrushStroke_->constrainedPosition());
+    if(activeMaskEdit_)canvasWindow_->setDocument(session().document()->snapshot(),false);
     canvasWindow_->scheduleFrame();
     return true;
 }
@@ -4454,6 +4483,7 @@ bool MainWindow::moveBrushStroke(const core::NormalizedPointerSample& sample)
         canvasWindow_->setResolvedBrushCursorAngle(*angle);
     }
     canvasWindow_->setConstrainedBrushPosition(activeBrushStroke_->constrainedPosition());
+    if(activeMaskEdit_)canvasWindow_->setDocument(session().document()->snapshot(),false);
     canvasWindow_->scheduleFrame();
     return true;
 }
@@ -4466,7 +4496,7 @@ bool MainWindow::endBrushStroke(const core::NormalizedPointerSample& sample)
     if (!activeBrushStroke_) {
         return false;
     }
-    const auto result = activeBrushStroke_->end(sample, session().history());
+    auto result = activeBrushStroke_->end(sample, activeMaskEdit_?activeMaskEdit_->provisionalHistory():session().history());
     if (const auto angle = activeBrushStroke_->lastResolvedTipAngleDegrees()) {
         canvasWindow_->setResolvedBrushCursorAngle(*angle);
     }
@@ -4474,6 +4504,12 @@ bool MainWindow::endBrushStroke(const core::NormalizedPointerSample& sample)
     const auto stats = activeBrushStroke_->stats();
     const bool limited=activeBrushStroke_->failure()==core::BrushStrokeFailure::RasterWorkLimitExceeded;
     activeBrushStroke_.reset();
+    if(activeMaskEdit_) {
+        if(result==core::RasterEditCommitResult::Committed||result==core::RasterEditCommitResult::NoChanges)
+            result=activeMaskEdit_->commit(session().history());
+        activeMaskEdit_.reset();
+        canvasWindow_->setDocument(session().document()->snapshot(),false);
+    }
     if (result == core::RasterEditCommitResult::Committed) {
         fileState().untouched = false;
         synchronizeUi(false, false);
@@ -4506,6 +4542,7 @@ void MainWindow::cancelActiveBrushStroke(bool preserveCompletedRepair)
     const bool limited=activeBrushStroke_->failure()==core::BrushStrokeFailure::RasterWorkLimitExceeded;
     activeBrushStroke_->cancel();
     activeBrushStroke_.reset();
+    activeMaskEdit_.reset();
     if (session().document()) {
         canvasWindow_->setDocument(session().document()->snapshot(), false);
     }

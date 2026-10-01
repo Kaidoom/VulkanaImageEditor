@@ -49,6 +49,8 @@ public:
     // Single-target tools deliberately replace the layer selection. Layer
     // selection is session state: it never changes content or history.
     void setActiveLayer(std::optional<LayerId> layerId);
+    [[nodiscard]] bool editingLayerMask() const noexcept;
+    void setEditingLayerMask(bool enabled) noexcept;
     [[nodiscard]] const std::vector<LayerId>& selectedLayers() const noexcept { return selectedLayers_; }
     [[nodiscard]] bool isLayerSelected(LayerId layerId) const noexcept;
     [[nodiscard]] std::optional<LayerId> selectionAnchor() const noexcept { return selectionAnchor_; }
@@ -88,6 +90,7 @@ private:
     std::unique_ptr<Document> document_;
     History history_;
     std::optional<LayerId> activeLayer_;
+    std::optional<LayerId> maskTarget_;
     std::vector<LayerId> selectedLayers_;
     std::optional<LayerId> selectionAnchor_;
     ToolId activeTool_ { ToolId::Move };

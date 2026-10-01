@@ -1,4 +1,5 @@
 #pragma once
+#include "imageeditor/core/LayerMaskEdit.hpp"
 #include "imageeditor/core/ShapeResize.hpp"
 #include "imageeditor/core/LayerStructureCommands.hpp"
 #include "imageeditor/core/Measurement.hpp"
@@ -322,6 +323,13 @@ private:
     void setLayerItemLabel(core::LayerId, core::ColorLabel);
     void mergeLayerItems();
     void rasterizeLayerItems();
+    void createLayerMaskActions();
+    void addLayerMask(bool fromSelection = false);
+    void changeLayerMask(bool remove);
+    void applyLayerMask();
+    void layerMaskToSelection();
+    void setLayerEditingTarget(int row, bool mask);
+    void refreshLayerMaskActions();
     bool confirmLayerChange(const QString& title,const QString& question);
     bool commitLayerStructure(const QString&, core::LayerTree,
         std::vector<core::LayerId> removed, std::vector<core::Layer> added,
@@ -643,6 +651,7 @@ private:
     std::shared_ptr<BrushAssetLibrary> brushAssets_;
     BrushPresetStore brushPresetStore_;
     std::vector<core::BrushPresetRecord> brushPresets_;
+    std::unique_ptr<core::LayerMaskEdit> activeMaskEdit_;
     std::unique_ptr<core::BasicPixelBrushStroke> activeBrushStroke_;
     std::unique_ptr<core::CloneStroke> activeCloneStroke_;
     std::optional<core::CloneAnchor> cloneAnchor_;
@@ -712,6 +721,8 @@ private:
     CompactValueControl* opacitySlider_ {nullptr};
     bool publishingOpacity_ {false};
     QPushButton* deleteLayerButton_ {nullptr};
+    QPushButton* addMaskButton_ {nullptr};
+    std::array<QAction*,6> maskActions_ {};
     PropertiesPanel* propertiesPanel_ {nullptr};
     ToolOptionsBar* toolOptionsBar_ {nullptr};
     ToolOptionsButton* editTextButton_ {nullptr};

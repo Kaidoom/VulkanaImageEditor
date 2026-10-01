@@ -1070,11 +1070,38 @@ void spatialFilterRendering(OffscreenCanvas& gpu,Review& review)
     check(gpu.stats().fullUploads==originalUploads+3,"each filter result uploads once, original never reuploads");
 }
 #include "LayerEffectRenderingChecks.inc"
+void layerMaskRendering(OffscreenCanvas& gpu)
+{
+    c::Document doc({{96,80},96});
+    auto layer=c::Layer::raster("Masked",std::make_shared<c::ContiguousRasterSurface>(c::Extent2u{96,80},c::Rgba8{90,160,220,170}));
+    const auto id=layer.id;check(doc.insertLayer(0,layer),"insert mask fixture");
+    auto scene=sceneFor(doc);gpu.render(scene);const auto originalUploads=gpu.stats().uploadedBytes;
+    for(uint8_t value:{uint8_t(255),uint8_t(128),uint8_t(0)}) {
+        auto mask=std::make_shared<c::LayerMask>();mask->coverage=c::SelectionMask::rectangle({96,80},{8,10,49,50},value);
+        mask->localToMask={1,0,.25,0,1,.5};mask->outside=0;
+        check(doc.setLayerMask(id,mask),"set coverage");
+        scene.document=doc.snapshot();verify(doc,scene,gpu.render(scene),"layer mask fractional coverage");
+        check(gpu.stats().uploadedBytes==originalUploads,"mask paint never uploads source RGBA");
+        const auto before=gpu.stats();gpu.render(scene);
+        check(gpu.stats().compositionPasses==before.compositionPasses,"unchanged layer mask reuses composition");
+        mask=std::make_shared<c::LayerMask>(*mask);mask->enabled=false;doc.setLayerMask(id,mask);
+        scene.document=doc.snapshot();verify(doc,scene,gpu.render(scene),"disabled layer mask identity");
+    }
+    auto mask=std::make_shared<c::LayerMask>();mask->coverage=c::SelectionMask::rectangle({96,80},{15,11,54,53},128);mask->outside=255;
+    doc.setLayerMask(id,mask);
+    auto effects=std::make_shared<c::LayerEffectStack>();effects->items[0].enabled=true;effects->items[1].enabled=true;
+    auto styled=*doc.layer(id);styled.effects=effects;styled=c::prepareSpatialFilterLayer(styled);
+    c::Document effectDoc(doc.canvas());check(effectDoc.insertLayer(0,styled),"insert styled mask fixture");
+    scene=sceneFor(effectDoc);verify(effectDoc,scene,gpu.render(scene),"mask multiplies complete styled result once");
+    auto projective=*c::rectangleToQuad({0,0,96,80},{{{1,2},{84,8},{91,72},{5,77}}});
+    effectDoc.setLayerTransform(id,projective);scene=sceneFor(effectDoc);
+    verify(effectDoc,scene,gpu.render(scene),"projective layer mask");
+}
 } // namespace
 
 int main(int argc, char** argv)
 {
-    bool validation = false, benchmark = false, adjustments = false, crop = false, filters = false,effects=false;
+    bool validation = false, benchmark = false, adjustments = false, crop = false, filters = false,effects=false,masks=false;
     for (int i = 1; i < argc; ++i) {
         if (std::string_view(argv[i]) == "--validation") validation = true;
         if (std::string_view(argv[i]) == "--benchmark") benchmark = true;
@@ -1082,6 +1109,7 @@ int main(int argc, char** argv)
         if (std::string_view(argv[i]) == "--crop") crop = true;
         if (std::string_view(argv[i]) == "--filters") filters = true;
         if (std::string_view(argv[i]) == "--effects") effects = true;
+        if (std::string_view(argv[i]) == "--masks") masks = true;
     }
     if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM")) qputenv("QT_QPA_PLATFORM","offscreen");
     QGuiApplication app(argc,argv);
@@ -1094,7 +1122,8 @@ int main(int argc, char** argv)
             Review review(effects?7:filters?c::spatialFilterCount:adjustments?c::adjustmentCount+2:c::allBlendModes.size());
             {
                 OffscreenCanvas gpu(validation);
-                if(effects)layerEffectRendering(gpu,review);
+                if(masks)layerMaskRendering(gpu);
+                else if(effects)layerEffectRendering(gpu,review);
                 else if(filters)spatialFilterRendering(gpu,review);
                 else if (crop) layerCropRendering(gpu);
                 else if (adjustments) {
@@ -1123,6 +1152,7 @@ int main(int argc, char** argv)
     }
     if (failures) std::cerr << failures << " blend-rendering checks failed\n";
     else if (benchmark) std::cout << "Optional 4K/5K blend benchmark and cache/upload assertions passed\n";
+    else if(masks) std::cout << "Vulkan layer masks: CPU agreement, fractional/projective coverage, styles, disable, source upload and idle reuse passed\n";
     else if(filters) std::cout << "Vulkan spatial filters: padded cache, CPU agreement, crop, blending, comparison and texture reuse passed\n";
     else if(crop) std::cout << "Vulkan layer crop: typed sources, alpha edges, zoom/DPR, preview and texture reuse passed\n";
     else std::cout << (adjustments

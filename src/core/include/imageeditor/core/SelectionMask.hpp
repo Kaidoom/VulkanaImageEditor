@@ -30,6 +30,7 @@ struct SelectionEdge {
 
 class SelectionMask;
 using SelectionState = std::shared_ptr<const SelectionMask>; // null = unrestricted
+struct CoveragePatch { RectI region; std::span<const std::uint8_t> bytes; std::size_t stride; };
 
 // Immutable document-space R8 plane. Uniform tiles need no pixel allocation;
 // unchanged tiles are shared across history, snapshots and pinned raster edits.
@@ -52,6 +53,8 @@ public:
     [[nodiscard]] std::optional<std::uint8_t> constantCoverage(RectI) const;
     [[nodiscard]] SelectionState combined(const SelectionMask&, SelectionOperation) const;
     [[nodiscard]] SelectionState inverted() const;
+    // Copy-on-write tile edits; null means every supplied byte was unchanged.
+    [[nodiscard]] SelectionState replacedR8(std::span<const CoveragePatch>) const;
     [[nodiscard]] SelectionState resized(Extent2u) const;
     [[nodiscard]] SelectionState translated(int dx, int dy) const;
     // Signed document-axis radii, per side. X is applied before Y for mixed signs.

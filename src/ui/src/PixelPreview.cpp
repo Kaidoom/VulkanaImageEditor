@@ -25,7 +25,7 @@ bool same(const Input& a,const Input& b)
         const auto& x=a.snapshot.layersBottomToTop[i];const auto& y=b.snapshot.layersBottomToTop[i];
         if(x.id!=y.id || x.visible!=y.visible || x.opacity!=y.opacity || x.blendMode!=y.blendMode
             || x.localToDocument!=y.localToDocument || x.rasterOrigin!=y.rasterOrigin || x.rasterEffectFrame!=y.rasterEffectFrame || x.crop!=y.crop || x.adjustments!=y.adjustments
-            || x.filters!=y.filters || x.effects!=y.effects || x.payload.index()!=y.payload.index())return false;
+            || x.filters!=y.filters || x.effects!=y.effects || x.mask!=y.mask || x.payload.index()!=y.payload.index())return false;
         if(const auto* t=std::get_if<core::TextLayer>(&x.payload);t && *t!=std::get<core::TextLayer>(y.payload))return false;
         if(const auto* s=std::get_if<core::ShapeLayer>(&x.payload);s && *s!=std::get<core::ShapeLayer>(y.payload))return false;
     }
@@ -187,7 +187,7 @@ void PixelPreview::advance()
             const auto& s=input.snapshot.layersBottomToTop[i];
             core::Layer layer;layer.id=s.id;layer.name="Pixel Preview source";
             layer.visible=s.visible;layer.opacity=s.opacity;layer.blendMode=s.blendMode;
-            layer.localToDocument=s.localToDocument;layer.crop=s.crop;
+            layer.localToDocument=s.localToDocument;layer.crop=s.crop;layer.mask=s.mask;
             layer.rasterOrigin=s.rasterOrigin;layer.rasterEffectFrame=s.rasterEffectFrame;
             layer.adjustments=s.adjustments;layer.filters=s.filters;layer.effects=s.effects;
             if(const auto* r=std::get_if<core::RasterLayerSnapshot>(&s.payload)) {

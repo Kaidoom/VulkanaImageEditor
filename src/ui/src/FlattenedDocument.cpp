@@ -324,7 +324,7 @@ static FlattenedDocumentResult flattenImpl(
             if(single) {single=nullptr;break;} single=layer;
         }
         if(single && items && !matte && single->opacity==1
-            && single->blendMode==core::BlendMode::Normal && !single->crop
+            && single->blendMode==core::BlendMode::Normal && !single->crop && (!single->mask||!single->mask->enabled)
             && !core::compileAdjustmentStack(single->adjustments).active
             && !core::hasActiveSpatialFilters(single->filters)&&!core::hasActiveLayerEffects(single->effects)) {
             const auto* raster=std::get_if<core::RasterLayer>(&single->payload);

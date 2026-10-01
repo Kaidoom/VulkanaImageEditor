@@ -92,6 +92,7 @@ PreparedLayerSampler::PreparedLayerSampler(const Layer& original, bool adjusted)
     if (!surface_) return;
     revision_ = surface_->revision(); inverse_ = *inverse; documentToLocal_ = *local;
     crop_=layer.crop;
+    mask_=layer.mask;
     if (adjusted && !layerSpatialFilterCacheValid(layer)) adjustments_ = preparedAdjustments(layer.adjustments);
     if(adjusted&&hasActiveLayerEffects(layer.effects)){
         effects_=compileLayerEffects(layer.effects,layerEffectReferenceFrame(layer));effectCache_=layer.effectCache;
@@ -106,8 +107,10 @@ PremultipliedColor PreparedLayerSampler::sample(Vec2d point, std::size_t stopBef
     auto color = sampleRaster(inverse_, *surface_, point, reads);
     if(adjustments_)color=evaluateAdjustments(*adjustments_,color,documentToLocal_.map(point),stopBefore);
     if(effects_)color=compositeLayerEffects({},color,*effects_,effectCache_.get(),documentToLocal_.map(point),1,BlendMode::Normal);
-    return applyLayerCrop(color,
-        crop_,documentToLocal_,point);
+    color=applyLayerCrop(color,crop_,documentToLocal_,point);
+    const float coverage=layerMaskCoverage(mask_,documentToLocal_.map(point));
+    for(auto& channel:color)channel*=coverage;
+    return color;
 }
 
 PinnedDocumentSampler::PinnedDocumentSampler(const Document& document,
@@ -137,7 +140,8 @@ PinnedDocumentSampler::PinnedDocumentSampler(const Document& document,
             source==ColorSampleSource::ActiveLayer ? BlendMode::Normal : layer.blendMode,
             *local, source==ColorSampleSource::ActiveLayer && appearance==ActiveReferenceAppearance::Intrinsic
                 ? nullptr : layerSpatialFilterCacheValid(layer)?nullptr:preparedAdjustments(layer.adjustments),layer.crop,
-            hasActiveLayerEffects(layer.effects)?std::optional(compileLayerEffects(layer.effects,layerEffectReferenceFrame(layer))):std::nullopt,layer.effectCache});
+            hasActiveLayerEffects(layer.effects)?std::optional(compileLayerEffects(layer.effects,layerEffectReferenceFrame(layer))):std::nullopt,layer.effectCache,
+            intrinsic?LayerMaskState{}:layer.mask});
     }
     if (source==ColorSampleSource::ActiveLayer && sources_.empty())
         throw std::invalid_argument("Reference requires an active layer with a prepared image and valid transform");
@@ -187,7 +191,7 @@ PinnedDocumentSampler::PinnedDocumentSampler(std::span<const Layer* const> layer
         const auto local=composeAffine(documentToSample,layer->localToDocument).inverted();
         if(inverse && local)sources_.push_back({surface,surface->revision(),*inverse,std::clamp(double(layer->opacity),0.0,1.0),layer->blendMode,
             *local,layerSpatialFilterCacheValid(*layer)?nullptr:preparedAdjustments(layer->adjustments),layer->crop,
-            hasActiveLayerEffects(layer->effects)?std::optional(compileLayerEffects(layer->effects,layerEffectReferenceFrame(*layer))):std::nullopt,layer->effectCache});
+            hasActiveLayerEffects(layer->effects)?std::optional(compileLayerEffects(layer->effects,layerEffectReferenceFrame(*layer))):std::nullopt,layer->effectCache,layer->mask});
     }
 }
 Rgba8 PinnedDocumentSampler::sample(Vec2d point) const
@@ -251,10 +255,12 @@ void PinnedDocumentSampler::sampleRow(std::int32_t x, std::int32_t y, std::span<
             } else { std::size_t reads=0; c=sampleRaster(s.inverse,*s.surface,p,reads); }
             if (s.adjustments) c=evaluateAdjustments(*s.adjustments,c,s.documentToLocal.map(p));
             if(s.effects){
-                const float crop=applyLayerCrop({1,1,1,1},s.crop,s.documentToLocal,p)[3];
+                const float crop=applyLayerCrop({1,1,1,1},s.crop,s.documentToLocal,p)[3]*layerMaskCoverage(s.mask,s.documentToLocal.map(p));
                 output[std::size_t(i)]=compositeLayerEffects(output[std::size_t(i)],c,*s.effects,s.effectCache.get(),s.documentToLocal.map(p),float(s.opacity),s.blendMode,crop);
             }else{
                 c=applyLayerCrop(c,s.crop,s.documentToLocal,p);
+                const float coverage=layerMaskCoverage(s.mask,s.documentToLocal.map(p));
+                for(auto& channel:c)channel*=coverage;
                 output[std::size_t(i)]=compositeLayer(output[std::size_t(i)],c,float(s.opacity),s.blendMode);
             }
         }
@@ -274,10 +280,12 @@ PremultipliedColor PinnedDocumentSampler::sampleLinear(Vec2d point) const
         auto c=sampleRaster(s.inverse,*s.surface,point,reads,filtering_);
         if (s.adjustments) c=evaluateAdjustments(*s.adjustments,c,s.documentToLocal.map(point));
         if(s.effects){
-            const float crop=applyLayerCrop({1,1,1,1},s.crop,s.documentToLocal,point)[3];
+            const float crop=applyLayerCrop({1,1,1,1},s.crop,s.documentToLocal,point)[3]*layerMaskCoverage(s.mask,s.documentToLocal.map(point));
             merged=compositeLayerEffects(merged,c,*s.effects,s.effectCache.get(),s.documentToLocal.map(point),float(s.opacity),s.blendMode,crop);
         }else{
             c=applyLayerCrop(c,s.crop,s.documentToLocal,point);
+            const float coverage=layerMaskCoverage(s.mask,s.documentToLocal.map(point));
+            for(auto& channel:c)channel*=coverage;
             merged = compositeLayer(merged,c,float(s.opacity),s.blendMode);
         }
     }
@@ -321,6 +329,7 @@ std::optional<LayerId> hitTestRasterLayer(const Document& document, Vec2d point)
         if (!document.isEffectivelyVisible(it->id) || !std::isfinite(it->opacity) || it->opacity <= 0)
             continue;
         if(!hitLayerCrop(*it,point))continue;
+        if(const auto inv=it->localToDocument.inverted();inv&&layerMaskCoverage(it->mask,inv->map(point))<=0)continue;
         if(hitTextBounds(*it,point))return it->id;
         if (const auto* shape = std::get_if<ShapeLayer>(&it->payload)) {
             const auto inverse = it->localToDocument.inverted();
@@ -393,10 +402,14 @@ ColorSample sampleDocumentColor(const Document& document,
         }
         if(hasActiveLayerEffects(layer.effects)){
             const auto inverse=*layer.localToDocument.inverted();
-            const float crop=applyLayerCrop({1,1,1,1},layer.crop,inverse,point)[3];
+            const float crop=applyLayerCrop({1,1,1,1},layer.crop,inverse,point)[3]*layerMaskCoverage(layer.mask,inverse.map(point));
             merged=compositeLayerEffects(merged,color,compileLayerEffects(layer.effects,layerEffectReferenceFrame(layer)),layer.effectCache.get(),inverse.map(point),layer.opacity,layer.blendMode,crop);
         }else{
             if(const auto inverse=layer.localToDocument.inverted())color=applyLayerCrop(color,layer.crop,*inverse,point);
+            if(const auto inverse=layer.localToDocument.inverted()) {
+                const float coverage=layerMaskCoverage(layer.mask,inverse->map(point));
+                for(auto& channel:color)channel*=coverage;
+            }
             merged = compositeLayer(merged,color,layer.opacity,layer.blendMode);
         }
     }

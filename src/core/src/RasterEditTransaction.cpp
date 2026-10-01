@@ -206,6 +206,7 @@ RasterEditTransaction::RasterEditTransaction(Document& document, LayerId layerId
     crop_=layerCrop_;
     if(crop_){crop_->x-=layer->rasterOrigin.x;crop_->y-=layer->rasterOrigin.y;}
     ignoreCrop_=options.ignoreCrop;
+    coverageValues_=options.coverageValues;
     active_ = true;
 }
 
@@ -564,6 +565,14 @@ DirtySet RasterEditTransaction::writeMasked(std::span<const RasterPatch> patches
                     continue;
                 }
                 const auto weight = double(coverage) / 255.0;
+                if(coverageValues_) {
+                    const double before=std::to_integer<std::uint8_t>(output.bytes[outputOffset]);
+                    const double after=std::to_integer<std::uint8_t>(patch.rgbaBytes[sourceOffset]);
+                    const auto value=std::byte(std::uint8_t(std::lround(before+(after-before)*weight)));
+                    output.bytes[outputOffset]=output.bytes[outputOffset+1]=output.bytes[outputOffset+2]=value;
+                    output.bytes[outputOffset+3]=std::byte{255};
+                    continue;
+                }
                 const auto beforeAlpha = double(std::to_integer<std::uint8_t>(output.bytes[outputOffset+3])) / 255.0;
                 const auto afterAlpha = double(std::to_integer<std::uint8_t>(patch.rgbaBytes[sourceOffset+3])) / 255.0;
                 const auto alpha = beforeAlpha * (1.0-weight) + afterAlpha * weight;

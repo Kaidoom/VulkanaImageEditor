@@ -9,6 +9,14 @@
 #include <utility>
 
 namespace imageeditor::core {
+bool Document::setLayerMask(LayerId id,LayerMaskState state)
+{
+    auto* target=layer(id);
+    if (!target || !validLayerMask(state) || target->mask==state) return false;
+    target->mask=std::move(state);
+    touch();
+    return true;
+}
 void Document::advanceContentState() noexcept
 {
     static std::atomic<std::uint64_t> next {1};
@@ -142,6 +150,7 @@ bool Document::replaceStructure(const LayerTree& expected, LayerTree replacement
         if (std::ranges::find(removed, l.id) == removed.end()) ids.push_back(l.id);
     for (const auto& l : added) {
         if (l.colorLabel > std::uint8_t(ColorLabel::Purple) || !isValidBlendMode(l.blendMode)
+            || !validLayerMask(l.mask)
             || (l.crop && !validLayerCrop(*l.crop))
             || (l.adjustments && !validAdjustments(*l.adjustments))
             || (l.filters && !validSpatialFilters(*l.filters))) return false;
@@ -463,6 +472,7 @@ DocumentSnapshot Document::snapshot() const
             .rasterOrigin = source.rasterOrigin,
             .rasterEffectFrame = source.rasterEffectFrame,
             .crop = source.crop,
+            .mask = source.mask,
             .payload = std::visit([](const auto& payload) -> LayerSnapshotPayload {
                 using Payload = std::decay_t<decltype(payload)>;
                 if constexpr (std::is_same_v<Payload, RasterLayer>) {

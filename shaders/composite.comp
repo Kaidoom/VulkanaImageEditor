@@ -69,6 +69,27 @@ float stageCoverage(int stage,vec2 layerLocal)
     precise float b=maskTexel(header,lo+ivec2(0,1))*(1.0-f.x)+maskTexel(header,lo+ivec2(1,1))*f.x;
     return a*(1.0-f.y)+b*f.y;
 }
+float layerCoverage(int geometry,vec2 local)
+{
+    if(geometry<0)return 1;
+    int i=geometry+8;
+    uint header=floatBitsToUint(adjustmentParameters.values[i+3]);
+    if(header==0u)return 1;
+    float outside=adjustmentParameters.values[i+7];
+    vec3 p=vec3(local,1);
+    float w=dot(vec3(adjustmentParameters.values[i+8],adjustmentParameters.values[i+9],adjustmentParameters.values[i+10]),p);
+    vec2 q=vec2(dot(vec3(adjustmentParameters.values[i],adjustmentParameters.values[i+1],adjustmentParameters.values[i+2]),p),
+        dot(vec3(adjustmentParameters.values[i+4],adjustmentParameters.values[i+5],adjustmentParameters.values[i+6]),p))/w-vec2(.5);
+    ivec2 size=ivec2(adjustmentMasks.words[header],adjustmentMasks.words[header+1]);
+    if(any(isnan(q))||any(isinf(q))||any(lessThan(q,vec2(-1)))||any(greaterThanEqual(q,vec2(size))))return outside;
+    ivec2 lo=ivec2(floor(q));vec2 f=fract(q);float coverage=0;
+    for(int y=0;y<2;++y)for(int x=0;x<2;++x){
+        ivec2 v=lo+ivec2(x,y);
+        float a=any(lessThan(v,ivec2(0)))||any(greaterThanEqual(v,size))?outside:maskTexel(header,v);
+        coverage+=a*(x==0?1-f.x:f.x)*(y==0?1-f.y:f.y);
+    }
+    return coverage;
+}
 vec4 adjustSource(vec4 source,vec2 sourceLocal)
 {
     if (pc.adjustmentOffset<0 || source.a<=0.0) return source;
@@ -182,6 +203,8 @@ void main()
             vec4(pc.localX.w,pc.localY.w,pc.sourceToLocalX.w,pc.sourceToLocalY.w));
         cropCoverage=cropMode==2 ? .12+.88*coverage : coverage;
     }
+    vec2 maskLocal=vec2(dot(pc.sourceToLocalX.xyz,vec3(local,1)),dot(pc.sourceToLocalY.xyz,vec3(local,1)))/dot(sourceW,vec3(local,1));
+    cropCoverage*=layerCoverage(geometry,maskLocal);
     vec4 backdrop=imageLoad(composition,pixel);
     if(effectOffset>=0) {
         vec2 point=vec2(dot(pc.sourceToLocalX.xyz,vec3(local,1)),dot(pc.sourceToLocalY.xyz,vec3(local,1)))/dot(sourceW,vec3(local,1));

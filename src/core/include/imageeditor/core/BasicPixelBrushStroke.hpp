@@ -22,6 +22,7 @@ namespace imageeditor::core {
 // and only changes how the resolved coverage is applied to RasterSurface.
 enum class BrushCompositeMode : std::uint8_t {
     Paint,
+    MaskCoverage,
     Erase,
     // Sampled filters replace linear-light color detail using the accumulated
     // brush influence, retaining the exact destination alpha byte.

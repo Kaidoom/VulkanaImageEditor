@@ -14,5 +14,5 @@ struct RasterizeResult {
 };
 [[nodiscard]] RasterizeResult prepareRasterizeLayers(const core::Document&,
     const core::LayerSelectionState&, std::size_t historyBudget,
-    FlattenedDocumentProgress = {});
+    FlattenedDocumentProgress = {}, std::optional<core::LayerId> onlyLayer = {});
 }

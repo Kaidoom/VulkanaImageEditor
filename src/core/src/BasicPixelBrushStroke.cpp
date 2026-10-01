@@ -450,7 +450,12 @@ void BasicPixelBrushStroke::resolvePixel(StrokeTile& tile,
         const auto point = localToDocument_.map({double(localX) + .5, double(localY) + .5});
         accumulated *= double(transaction_->selectionCoverageAtDocumentPoint(point)) / 255.0;
     }
-    if (compositeMode_ == BrushCompositeMode::Erase) {
+    if (compositeMode_ == BrushCompositeMode::MaskCoverage) {
+        const double coverage=std::clamp(dab.strokeOpacity*accumulated*double(dab.color.alpha)/255,0.0,1.0);
+        const double before=std::to_integer<std::uint8_t>(tile.original[offset]);
+        const auto value=std::byte(std::uint8_t(std::lround(before+(double(maskGray(dab.color))-before)*coverage)));
+        output={value,value,value,std::byte{255}};
+    } else if (compositeMode_ == BrushCompositeMode::Erase) {
         // RasterSurface stores straight RGBA. Porter-Duff destination-out
         // scales premultiplied color and alpha equally, so the canonical
         // straight RGB bytes remain unchanged while alpha is reduced.

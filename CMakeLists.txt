@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.25)
 # Release identity lives here, not in a persistent configure cache. A previous
 # -D version must not silently survive a checkout/update to a newer release.
 unset(VULKANA_VERSION CACHE)
-set(VULKANA_VERSION "0.2.9")
+set(VULKANA_VERSION "0.2.10")
 set(VULKANA_RELEASE_CHANNEL "Beta")
 project(ImageEditor
     VERSION ${VULKANA_VERSION}

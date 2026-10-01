@@ -57,7 +57,7 @@ FillOperation::FillOperation(Document& document, LayerId layer, FillOptions opti
         workBounds_
             = { l / 64 * 64, t / 64 * 64, std::max(0, r - l / 64 * 64), std::max(0, b - t / 64 * 64) };
         transaction_ = std::make_unique<RasterEditTransaction>(document, layer, std::string(label()),
-            RasterEditTransactionOptions{.ignoreCrop=clearLayer});
+            RasterEditTransactionOptions{.ignoreCrop=clearLayer,.coverageValues=options_.coverageValues});
         state_ = FillState::Ready;
         if ((!options_.eraseSelection && (!options_.color.alpha || options_.opacity == 0)) || workBounds_.empty()
             || (selection_ && selection_->bounds().empty()))
@@ -122,6 +122,12 @@ Rgba8 FillOperation::source(int x, int y)
 }
 Rgba8 FillOperation::composite(Rgba8 before)
 {
+    if(options_.coverageValues) {
+        const double amount=options_.eraseSelection?1:options_.opacity*double(options_.color.alpha)/255;
+        const double target=options_.eraseSelection?0:maskGray(options_.color);
+        const auto value=std::uint8_t(std::lround(before.red+(target-before.red)*amount));
+        return {value,value,value,255};
+    }
     if (options_.eraseSelection) return {before.red, before.green, before.blue, 0};
     auto& table = tables_[before.alpha];
     if (!table) {

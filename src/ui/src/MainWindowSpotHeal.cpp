@@ -50,6 +50,7 @@ struct MainWindow::SpotHealJob {
 
 bool MainWindow::beginSpotHealStroke(const core::NormalizedPointerSample& sample)
 {
+    if(session().editingLayerMask())return false;
     if (spotHealJob_ || cloneProcessing_ || fileBusy_) return false;
     cancelActiveBrushStroke();
     auto* document = session().document();

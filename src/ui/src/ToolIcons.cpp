@@ -2,6 +2,7 @@
 #include <QPainter>
 #include <QPixmap>
 #include <QPainterPath>
+#include <QLinearGradient>
 #include <QApplication>
 #include <QIconEngine>
 #include <algorithm>
@@ -305,6 +306,27 @@ QPixmap rasterizedGlyph(ToolGlyph glyph, const QColor& ink, const QSize& size, q
             p.setPen(Qt::NoPen); p.setBrush(soft);
             p.drawEllipse(QPointF(12, 15), ring, ring);
         }
+    } else if (glyph == ToolGlyph::NewLayer) {
+        p.drawPolyline(QPolygonF{{6,17},{3,17},{3,3},{16,3},{16,6}});
+        p.drawRoundedRect(QRectF(7,7,14,14),1,1);
+    } else if (glyph == ToolGlyph::Trash) {
+        p.drawRoundedRect(QRectF(6,7,12,14),1,1);
+        p.drawLine(QPointF(4,6),QPointF(20,6));
+        p.drawPolyline(QPolygonF{{9,6},{9,3},{15,3},{15,6}});
+        p.drawLine(QPointF(10,10),QPointF(10,18));
+        p.drawLine(QPointF(14,10),QPointF(14,18));
+    } else if (glyph == ToolGlyph::LayerMask) {
+        // A fading coverage tile, using palette ink so both themes stay legible.
+        auto middle=ink, transparent=ink;
+        middle.setAlphaF(ink.alphaF()*.55F);
+        transparent.setAlphaF(ink.alphaF()*.06F);
+        QLinearGradient coverage(QPointF(4,8),QPointF(20,16));
+        coverage.setColorAt(0,ink);
+        coverage.setColorAt(.5,middle);
+        coverage.setColorAt(1,transparent);
+        p.setBrush(coverage);
+        p.setPen(QPen(ink,1.25,Qt::SolidLine,Qt::RoundCap,Qt::RoundJoin));
+        p.drawPolygon(QPolygonF{{12,2},{22,12},{12,22},{2,12}});
     } else if (glyph == ToolGlyph::LayerRaster) {
         p.setBrush(QApplication::palette().color(QPalette::Button));
         p.setPen(QPen(QApplication::palette().color(QPalette::Mid), 1));

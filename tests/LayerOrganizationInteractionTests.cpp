@@ -532,21 +532,35 @@ void layerAndFolderIconsUseIndependentThumbnailDefaultsAndColorLabels()
             == badge.toImage().convertToFormat(QImage::Format_ARGB32);
     };
     const auto checkLabel = [&](core::LayerId id) {
+        // Content thumbnails now include the active editing-target frame;
+        // compare label changes with that independent UI state held constant.
+        f.click(id);
         const auto original = iconFor(id).pixmap(40, 40).toImage();
-        CHECK(!original.isNull() && displaysInk(id, defaultInk));
-        CHECK(displaysInk(id, defaultInk, QIcon::Selected));
+        const bool container=f.document().tree().container(id)!=nullptr;
+        CHECK(!original.isNull());
+        if(container) {
+            CHECK(displaysInk(id, defaultInk));
+            CHECK(displaysInk(id, defaultInk, QIcon::Selected));
+        } else {
+            // Source thumbnails have no default-ink badge. Labels belong to
+            // the row-edge stripe, leaving the preview pixels unchanged.
+            CHECK(!displaysInk(id, defaultInk));
+        }
         CHECK(f.menuCommand(id, "Red", true));
         CHECK(f.row(id).data(Qt::UserRole + 5).toInt() == int(core::ColorLabel::Red));
         const auto labelled = iconFor(id);
         const auto redInk = ui::layerLabelColor(core::ColorLabel::Red);
-        CHECK(displaysInk(id, redInk));
-        CHECK(displaysInk(id, redInk, QIcon::Selected));
+        if(container) {
+            CHECK(displaysInk(id, redInk));
+            CHECK(displaysInk(id, redInk, QIcon::Selected));
+        } else CHECK(labelled.pixmap(40,40).toImage()==original);
         CHECK(labelled.cacheKey() == iconFor(id).cacheKey());
         CHECK(f.menuCommand(id, "None", true));
         CHECK(f.row(id).data(Qt::UserRole + 5).toInt() == int(core::ColorLabel::None));
         CHECK(iconFor(id).pixmap(40, 40).toImage() == original);
         CHECK(f.shortcut(QKeySequence::Undo));
-        CHECK(displaysInk(id, redInk));
+        if(container)CHECK(displaysInk(id, redInk));
+        else CHECK(iconFor(id).pixmap(40,40).toImage()==original);
         CHECK(f.shortcut(QKeySequence::Undo));
         CHECK(iconFor(id).pixmap(40, 40).toImage() == original);
     };

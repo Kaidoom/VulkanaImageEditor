@@ -15,6 +15,7 @@ struct FillOptions {
     // cropped/off-canvas pixels. An active empty mask remains a no-op. Color and
     // bucket opacity are irrelevant. Coverage is applied once by the transaction.
     bool eraseSelection { false };
+    bool coverageValues { false };
 };
 enum class FillState { Discovering, Applying, Ready, Finished, Cancelled, Failed };
 struct FillStats {

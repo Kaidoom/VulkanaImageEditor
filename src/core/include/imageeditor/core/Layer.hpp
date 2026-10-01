@@ -4,6 +4,7 @@
 #include "imageeditor/core/Adjustments.hpp"
 #include "imageeditor/core/SpatialFilters.hpp"
 #include "imageeditor/core/LayerEffects.hpp"
+#include "imageeditor/core/LayerMask.hpp"
 #include "imageeditor/core/Geometry.hpp"
 #include "imageeditor/core/CropGeometry.hpp"
 #include "imageeditor/core/RasterSurface.hpp"
@@ -110,6 +111,7 @@ struct Layer {
     Vec2d rasterOrigin {};
     std::optional<RectD> rasterEffectFrame;
     std::optional<LayerCrop> crop; // Stable layer-local output visibility; never a source rebase.
+    LayerMaskState mask;
     LayerPayload payload;
     Revision textRevision {1};
     Revision shapeRevision {1};

@@ -51,6 +51,7 @@ Layer Layer::raster(std::string name, std::shared_ptr<RasterSurface> surface)
         .localToDocument = {},
         .rasterEffectFrame = {},
         .crop = {},
+        .mask = {},
         .payload = RasterLayer {.surface = std::move(surface)},
         .renderCache = {},
     };
@@ -71,6 +72,7 @@ Layer Layer::text(std::string name, TextLayer textData)
         .localToDocument = {},
         .rasterEffectFrame = {},
         .crop = {},
+        .mask = {},
         .payload = normalizedText(std::move(textData)),
         .renderCache = {},
     };
@@ -93,6 +95,7 @@ Layer Layer::shape(std::string name, ShapeLayer shapeData)
         .localToDocument = {},
         .rasterEffectFrame = {},
         .crop = {},
+        .mask = {},
         .payload = std::move(shapeData),
         .renderCache = {},
     };

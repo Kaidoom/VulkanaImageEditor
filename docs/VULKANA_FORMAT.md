@@ -61,6 +61,20 @@ These required capabilities do not change the application/package version or
 the schema-1 archive envelope. Older readers reject them explicitly rather than
 silently flattening or misplacing the content.
 
+## Bitmap layer masks
+
+`layer-mask-v1` declares optional `layerMask` data on raster, text and shape layers.
+The descriptor contains `version: 1`, boolean `enabled`, byte `outside`, integer
+`width`/`height`, `path: "layer-masks/<id>.r8"`, and nine `transform` coefficients
+mapping layer-local coordinates to mask pixels. Non-affine mappings also require
+`projective-transform-v1`. The payload is exactly width × height grayscale coverage
+bytes, top-to-bottom; 0 hides and 255 reveals. Each mask is bounded to 64 Mi pixels
+and 32768 pixels per axis, and counts toward the project payload budget.
+
+Masks remain separate from source pixels, document selection and effect masks.
+Missing descriptors mean no mask. Readers reject unknown versions and malformed
+payloads; deleting/applying a mask removes both its owned descriptor and payload.
+
 ## Editable text
 
 A `type: "text"` layer has `text` instead of `raster`. Its object uses the shared explicit rich-text codec:

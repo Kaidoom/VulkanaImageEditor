@@ -51,6 +51,7 @@ namespace {
 }
 void MainWindow::createLayerOrganizationActions()
 {
+    createLayerMaskActions();
     const auto action = [&](QString name, QString object, ToolGlyph glyph, const auto& callback) {
         auto* a = new QAction(toolGlyph(glyph), name, this);
         a->setObjectName(object);
@@ -312,12 +313,29 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
 {
     if (fileBusy_ || !session().document())
         return;
-    const auto id = layerModel_->layerIdAt(layerList_->indexAt(point).row());
+    const auto index = layerList_->indexAt(point);
+    const auto id = layerModel_->layerIdAt(index.row());
+    const auto* view = static_cast<LayerListView*>(layerList_);
+    const auto* layer = id ? session().document()->layer(*id) : nullptr;
+    const bool maskThumbnail = layer && layer->mask && view->thumbnailRect(index,true).contains(point);
+    const bool contentThumbnail = layer && view->thumbnailRect(index,false).contains(point);
     // Also cover keyboard/synthetic context-menu invocation. The pointer path
     // already selected on press, so do not settle/cancel the interaction twice.
     if (id && (!session().isLayerSelected(*id) || session().activeLayer() != id))
         selectLayerFromRow(layerModel_->rowForLayer(*id), Qt::NoModifier, true);
+    if(maskThumbnail || contentThumbnail) {
+        session().setEditingLayerMask(maskThumbnail);
+        synchronizeUi(false,false);
+    }
     QMenu menu(layerList_);
+    if(maskThumbnail) {
+        menu.setObjectName(QStringLiteral("LayerMaskContextMenu"));
+        // This thumbnail already owns a mask: offer only operations on it.
+        for(size_t i=2;i<maskActions_.size();++i)menu.addAction(maskActions_[i]);
+        menu.exec(layerList_->viewport()->mapToGlobal(point));
+        return;
+    }
+    menu.setObjectName(QStringLiteral("LayerContextMenu"));
     auto* newFolder = menu.addAction(toolGlyph(ToolGlyph::Folder), tr("New Folder"),
         this, [this, id] { createLayerFolder(id); });
     newFolder->setObjectName(QStringLiteral("ContextNewLayerFolderAction"));
@@ -360,6 +378,8 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
     menu.addAction(groupLayersAction_);
     menu.addAction(mergeLayersAction_);
     menu.addAction(rasterizeLayersAction_);
+    menu.addSeparator();
+    for (auto* action : maskActions_) menu.addAction(action);
     menu.exec(layerList_->viewport()->mapToGlobal(point));
 }
 void MainWindow::mergeLayerItems()

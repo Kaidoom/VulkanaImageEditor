@@ -9,6 +9,7 @@
 #include <QDragMoveEvent>
 #include <QDropEvent>
 #include <QEvent>
+#include <QHelpEvent>
 #include <QIcon>
 #include <QKeyEvent>
 #include <QLineEdit>
@@ -20,6 +21,7 @@
 #include <QStyleOptionViewItem>
 #include <QStyledItemDelegate>
 #include <QTimer>
+#include <QToolTip>
 #include <utility>
 
 namespace imageeditor::ui {
@@ -27,6 +29,23 @@ namespace {
     class LayerRowDelegate final : public QStyledItemDelegate {
     public:
         using QStyledItemDelegate::QStyledItemDelegate;
+        void initStyleOption(QStyleOptionViewItem* option,const QModelIndex& index) const override {
+            QStyledItemDelegate::initStyleOption(option,index);
+            option->decorationSize={index.data(LayerListModel::HasMaskRole).toBool()?74:34,34};
+        }
+        QRect decorationRect(QStyleOptionViewItem option,const QModelIndex& index) const {
+            option.rect.adjust(index.data(Qt::UserRole+2).toInt(),0,0,0);
+            initStyleOption(&option,index);
+            return (option.widget?option.widget->style():QApplication::style())->subElementRect(QStyle::SE_ItemViewItemDecoration,&option,option.widget);
+        }
+        bool helpEvent(QHelpEvent* event,QAbstractItemView* view,
+            const QStyleOptionViewItem& option,const QModelIndex& index) override {
+            if(event->type()==QEvent::ToolTip && decorationRect(option,index).contains(event->pos())) {
+                QToolTip::hideText();
+                return true; // Content/mask thumbnails stay unobstructed; status shows the target help.
+            }
+            return QStyledItemDelegate::helpEvent(event,view,option,index);
+        }
         void updateEditorGeometry(QWidget* editor, const QStyleOptionViewItem& option,
             const QModelIndex& index) const override
         {
@@ -109,6 +128,13 @@ LayerListView::LayerListView(QWidget* parent)
     : QListView(parent)
 {
     setItemDelegate(new LayerRowDelegate(this));
+}
+
+QRect LayerListView::thumbnailRect(const QModelIndex& index,bool mask) const
+{
+    QStyleOptionViewItem option;initViewItemOption(&option);option.rect=visualRect(index);
+    const auto decoration=static_cast<LayerRowDelegate*>(itemDelegate())->decorationRect(option,index);
+    return {decoration.x()+(mask?40:0),decoration.y(),34,34};
 }
 
 void LayerListView::setModel(QAbstractItemModel* next)
@@ -283,6 +309,16 @@ bool LayerListView::event(QEvent* event)
 void LayerListView::mousePressEvent(QMouseEvent* event)
 {
     const auto row = indexAt(event->position().toPoint());
+    if(row.isValid()&&onEditingTargetRequested&&row.data(LayerListModel::HasMaskRole).toBool()
+        &&event->button()==Qt::LeftButton) {
+        const bool mask=thumbnailRect(row,true).contains(event->position().toPoint());
+        if(mask||thumbnailRect(row,false).contains(event->position().toPoint())) {
+            onEditingTargetRequested(row.row(),mask);
+            // Keep Qt's drag baseline, but never let its selection callbacks switch the target back.
+            {const QSignalBlocker guard(selectionModel());QListView::mousePressEvent(event);}
+            event->accept();return;
+        }
+    }
     if (event->button() == Qt::LeftButton && row.data(Qt::UserRole + 3).toBool()) {
         const auto r = visualRect(row);
         if (event->position().x() < r.left() + row.data(Qt::UserRole + 2).toInt()) {
@@ -295,6 +331,9 @@ void LayerListView::mousePressEvent(QMouseEvent* event)
         }
     }
     if (event->button() == Qt::RightButton) {
+        // Use the ordinary context-selection path for thumbnails too. Target
+        // switching belongs to the context menu, not press-time file settling
+        // (which cancels this new pointer capture before Qt opens the popup).
         if (row.isValid() && onContextSelectionRequested)
             onContextSelectionRequested(row.row());
         event->accept();

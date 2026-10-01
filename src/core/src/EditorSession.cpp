@@ -5,12 +5,21 @@
 #include <utility>
 
 namespace imageeditor::core {
+bool EditorSession::editingLayerMask() const noexcept {
+    const auto* l=document_&&activeLayer_?document_->layer(*activeLayer_):nullptr;
+    return l&&l->mask&&maskTarget_==activeLayer_;
+}
+void EditorSession::setEditingLayerMask(bool enabled) noexcept {
+    maskTarget_=enabled?activeLayer_:std::nullopt;
+    if(!editingLayerMask())maskTarget_.reset();
+}
 
 void EditorSession::replaceDocument(std::unique_ptr<Document> document)
 {
     document_ = std::move(document);
     history_.clear();
     activeLayer_.reset();
+    maskTarget_.reset();
     selectedLayers_.clear();
     selectionAnchor_.reset();
     if (document_ && !document_->layers().empty())
@@ -57,6 +66,7 @@ void EditorSession::setLayerSelection(std::span<const LayerId> layerIds,
                 selected.push_back(id);
         }
     }
+    if(activeLayer_!=primary)maskTarget_.reset();
     selectedLayers_ = std::move(selected);
     activeLayer_ = primary && isLayerSelected(*primary) ? primary : topmostSelectedLayer();
     selectionAnchor_ = anchor && document_ && document_->containsItem(*anchor)
@@ -66,6 +76,7 @@ void EditorSession::setLayerSelection(std::span<const LayerId> layerIds,
 
 void EditorSession::toggleSelectedLayer(LayerId layerId)
 {
+    maskTarget_.reset();
     if (!document_ || !document_->containsItem(layerId))
         return;
     if (isLayerSelected(layerId)) {
@@ -101,6 +112,7 @@ void EditorSession::selectLayerRange(LayerId layerId,
 void EditorSession::applyActiveLayerHint()
 {
     if (const auto* hint=history_.layerSelectionHint()) {
+        if(activeLayer_!=hint->primary)maskTarget_.reset();
         selectedLayers_.assign(hint->ids.begin(),hint->ids.end()); // Reserved before history mutation.
         activeLayer_=hint->primary;
         selectionAnchor_=hint->anchor;
@@ -109,9 +121,10 @@ void EditorSession::applyActiveLayerHint()
     if (const auto hint = history_.activeLayerHint(); hint && document_->containsItem(*hint)) {
         // Editing one primary layer must not collapse an existing group. New
         // layer/copy commands still select their newly introduced target alone.
-        if (isLayerSelected(*hint))
+        if (isLayerSelected(*hint)) {
+            if(activeLayer_!=hint)maskTarget_.reset();
             activeLayer_ = hint;
-        else
+        } else
             setActiveLayer(hint);
     }
 }

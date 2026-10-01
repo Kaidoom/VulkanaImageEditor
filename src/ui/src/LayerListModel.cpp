@@ -1,6 +1,7 @@
 #include "imageeditor/ui/LayerListModel.hpp"
 #include "imageeditor/ui/LayerTransferMimeData.hpp"
 #include "imageeditor/core/ColorSampler.hpp"
+#include "imageeditor/core/ColorMath.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/ui/ToolIcons.hpp"
 #include "imageeditor/ui/Theme.hpp"
@@ -91,6 +92,7 @@ void LayerListModel::setSession(core::EditorSession* session)
     ++sessionGeneration_; thumbnailRefreshQueued_ = false;
     collapsed_.clear();
     thumbnails_.clear();
+    rowThumbnails_.clear();
     rebuildRows();
     endResetModel();
 }
@@ -110,7 +112,8 @@ void LayerListModel::rebuildRows()
         }
     };
     visit(visit, tree.roots, 0);
-    std::erase_if(thumbnails_, [&](const auto& pair) { return !tree.container(pair.first); });
+    std::erase_if(thumbnails_, [&](const auto& pair) { return !tree.container(pair.first)&&!session_->document()->layer(pair.first); });
+    std::erase_if(rowThumbnails_, [&](const auto& pair) { return !session_->document()->layer(pair.first); });
 }
 void LayerListModel::refresh()
 {
@@ -258,12 +261,10 @@ QVariant LayerListModel::data(const QModelIndex& index, int role) const
                 return toolGlyph(ToolGlyph::Folder, ink);
             return groupThumbnail(*id);
         }
-        if (const auto* s = std::get_if<core::ShapeLayer>(&l->payload))
-            return toolGlyph(ToolGlyph(int(ToolGlyph::ShapeRectangle) + int(s->kind)), ink);
-        return std::holds_alternative<core::TextLayer>(l->payload) ? themedIcon(":/icons/text.svg", ink)
-            : toolGlyph(ToolGlyph::LayerRaster, ink);
+        return layerThumbnail(*l);
     }
     case Qt::ToolTipRole:
+        if(l&&l->mask)return tr("Content thumbnail: edit layer · Mask thumbnail: edit coverage\nWhite reveals · Black hides · Gray is partial · Right-click for mask actions");
         if (c)
             return QStringLiteral("%1 · %2 immediate items\n%3").arg(c->kind == core::ContainerKind::Folder ? "Folder" : "Pass-through group").arg(c->children.size()).arg(c->kind == core::ContainerKind::Folder ? "Organizes content; no opacity or transform. Drop inside to reparent." : "Move/Transform moves all members, including hidden layers. Ungroup keeps editable content.");
         return QStringLiteral("%1\nF2 to rename · right-click for organization").arg(std::holds_alternative<core::RasterLayer>(l->payload) ? "Raster layer" : std::holds_alternative<core::TextLayer>(l->payload) ? "Editable text layer"
@@ -284,6 +285,8 @@ QVariant LayerListModel::data(const QModelIndex& index, int role) const
         return session_->document()->isEffectivelyVisible(*id);
     case SelectedDescendantRole:
         return selectedAncestorFolders_.contains(*id);
+    case HasMaskRole:
+        return l&&bool(l->mask);
     default:
         return { };
     }
@@ -410,6 +413,73 @@ bool LayerListModel::dropMimeData(const QMimeData* data, Qt::DropAction action, 
 Qt::DropActions LayerListModel::supportedDropActions() const { return Qt::MoveAction | Qt::CopyAction; }
 Qt::DropActions LayerListModel::supportedDragActions() const { return Qt::MoveAction | Qt::CopyAction; }
 
+QIcon LayerListModel::layerThumbnail(const core::Layer& layer) const
+{
+    const auto surface=core::renderedSurface(layer);
+    size_t stamp=surface?size_t(surface->id()^(surface->revision()*1099511628211ULL)):0;
+    stamp^=size_t(QApplication::palette().cacheKey());
+    QIcon content;
+    if(const auto found=thumbnails_.find(layer.id);found!=thumbnails_.end()&&found->second.stamp==stamp)
+        content=found->second.icon;
+    else {
+        constexpr int side=96;
+        QImage image(side,side,QImage::Format_RGBA8888);image.fill(Qt::transparent);
+        try {
+            auto source=layer;source.mask.reset();source.crop.reset();source.localToDocument={};
+            const auto bounds=core::layerSourceBounds(source);
+            if(surface&&!bounds.empty()) {
+                core::PreparedLayerSampler sampler(source,false);
+                const double scale=std::max(bounds.width,bounds.height)/side;
+                for(int y=0;y<side;++y)for(int x=0;x<side;++x) {
+                    const core::Vec2d p{bounds.x+bounds.width*.5+(x+.5-side*.5)*scale,
+                        bounds.y+bounds.height*.5+(y+.5-side*.5)*scale};
+                    const auto c=sampler.sample(p);
+                    const auto channel=[&](int i){return c[3]>0?core::linearToSrgb(c[size_t(i)]/c[3]):uint8_t(0);};
+                    image.setPixelColor(x,y,QColor(channel(0),channel(1),channel(2),core::alphaToByte(c[3])));
+                }
+            }
+        }catch(const std::exception&) { }
+        content=QIcon(QPixmap::fromImage(image));
+        thumbnails_[layer.id]={stamp,0,content,thumbnailClock_.elapsed()};
+    }
+    // Both thumbnails share the same fixed row geometry. Target chrome is not
+    // cached with content, so switching targets never recomputes source pixels.
+    const bool hasMask=bool(layer.mask);
+    const bool active=session_->activeLayer()==layer.id;
+    size_t rowStamp=size_t(content.cacheKey());
+    const auto hash=[&](uint64_t value){rowStamp^=size_t(value)+0x9e3779b9+(rowStamp<<6)+(rowStamp>>2);};
+    hash(uint64_t(QApplication::palette().cacheKey()));hash(themeColor(ThemeColor::Accent).rgba());
+    hash(active);hash(active&&session_->editingLayerMask());
+    if(hasMask){hash(layer.mask->coverage->revision());hash(layer.mask->enabled);}
+    if(const auto cached=rowThumbnails_.find(layer.id);cached!=rowThumbnails_.end()&&cached->second.stamp==rowStamp)
+        return cached->second.icon;
+    QPixmap preview((hasMask?74:34)*3,34*3);preview.setDevicePixelRatio(3);preview.fill(Qt::transparent);
+    QPainter painter(&preview);
+    for(int y=1;y<33;y+=4)for(int x=1;x<33;x+=4)
+        painter.fillRect(QRect(x,y,4,4),QColor((x/4+y/4)%2?100:75,(x/4+y/4)%2?100:75,(x/4+y/4)%2?100:75));
+    content.paint(&painter,{1,1,32,32});
+    // Color labels use the row-edge stripe, never paint over source previews.
+    if(hasMask) {
+        const auto e=layer.mask->coverage->extent();
+        QImage mask(96,96,QImage::Format_Grayscale8);
+        for(int y=0;y<96;++y)for(int x=0;x<96;++x)
+            mask.scanLine(y)[x]=layer.mask->coverage->coverageAtDocumentPixel(int(uint64_t(x)*e.width/96),int(uint64_t(y)*e.height/96));
+        painter.drawImage(QRect(41,1,32,32),mask);
+        if(!layer.mask->enabled){painter.setPen(QPen(QColor(230,75,65),2));painter.drawLine(42,31,72,2);}
+    }
+    painter.setBrush(Qt::NoBrush);
+    for(int i=0;i<(hasMask?2:1);++i) {
+        const bool editing=active&&(i==1)==session_->editingLayerMask();
+        painter.setPen(QPen(editing?themeColor(ThemeColor::Accent):QApplication::palette().color(QPalette::Mid),editing?2:1));
+        painter.drawRoundedRect(QRectF(i*40+1,1,32,32),2,2);
+    }
+    painter.end();
+    QIcon result;
+    for(auto mode:{QIcon::Normal,QIcon::Selected,QIcon::Active})result.addPixmap(preview,mode);
+    rowThumbnails_[layer.id]={rowStamp,0,result,thumbnailClock_.elapsed()};
+    return result;
+}
+
 QIcon LayerListModel::groupThumbnail(core::LayerId id) const
 {
     const auto& doc = *session_->document();
@@ -463,6 +533,7 @@ QIcon LayerListModel::groupThumbnail(core::LayerId id) const
         hash(layer.adjustmentRevision);
         hash(layer.filterRevision);
         hash(layer.effectRevision);
+        if(layer.mask){hash(layer.mask->coverage->revision());hash(layer.mask->enabled);hash(layer.mask->outside);}
         if(layer.effectCache)for(const auto& m:layer.effectCache->masks)if(m)hash(m->coverage->revision());
         hash(layer.crop.has_value());
         if(layer.crop)for(double v:layer.crop->corners)hash(std::bit_cast<std::uint64_t>(v));

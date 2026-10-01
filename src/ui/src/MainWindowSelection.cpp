@@ -503,6 +503,7 @@ void MainWindow::runSelectionAction(int action)
     auto* document = session().document();
     try {
         if (action == 3) {
+            if(session().editingLayerMask()){statusBar()->showMessage(tr("Click the content thumbnail before copying pixels to a new layer."),3500);return;}
             if (!session().activeLayer())
                 return;
             if (session().execute(std::make_unique<core::LayerViaCopyCommand>(
