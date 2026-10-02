@@ -108,7 +108,7 @@ AboutDialog::AboutDialog(QWidget* parent, QNetworkAccessManager* transport, Upda
         layout->addWidget(line);
     };
     addPolicyLine("AboutUsage", tr("Free to use for personal and commercial projects."), false);
-    addPolicyLine("AboutCopyright", tr("© 2026 KaidoomDev. All rights reserved for Vulkana-owned contributions."), true);
+    addPolicyLine("AboutCopyright", tr("© 2026 KaidoomDev. Licensed under the MIT License."), true);
     addPolicyLine("AboutThirdPartyRights", tr("Third-party components are licensed separately."), true);
     addPolicyLine("AboutBetaNote", tr("Actively developed beta. Please keep backups of important projects."), true);
     layout->addSpacing(2);
