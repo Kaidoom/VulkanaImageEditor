@@ -28,6 +28,7 @@ foreach(shader IN LISTS IMAGEEDITOR_SHADER_SOURCES)
         DEPENDS "${shader}" "${PROJECT_SOURCE_DIR}/src/core/include/imageeditor/core/detail/BlendMath.inc"
             "${PROJECT_SOURCE_DIR}/src/core/include/imageeditor/core/detail/AdjustmentMath.inc"
             "${PROJECT_SOURCE_DIR}/src/core/include/imageeditor/core/detail/LayerEffectMath.inc"
+            "${PROJECT_SOURCE_DIR}/src/core/include/imageeditor/core/detail/ClippingMath.inc"
             "${PROJECT_SOURCE_DIR}/src/core/include/imageeditor/core/detail/CropMath.inc"
         COMMENT "Compiling Vulkan shader ${shader_name}"
         VERBATIM

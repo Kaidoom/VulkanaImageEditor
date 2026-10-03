@@ -61,6 +61,7 @@ and transformation metadata is not applied again.
 | Layer styles | One modern solid Stroke and Color Overlay; separate enabled state, color, opacity, blend, Stroke position/size and style scale |
 | Bitmap mask | Separate grayscale coverage, its own origin/extent/outside coverage, enabled state; remains paintable and undoable |
 | Groups | Unstyled fully opaque pass-through hierarchy; visibility retained |
+| Clipping chains | Sibling-scoped native Clipping Mask Groups when Blend Clipped Layers As Group (`clbl`) is enabled/default |
 
 The 20 blend mappings are explicit in `PsdImport.cpp`: Normal, Multiply, Screen,
 Overlay, Soft/Hard Light, Darken/Lighten, Difference, Exclusion, Hue, Saturation,
@@ -68,7 +69,7 @@ Color, Luminosity, Color/Linear Dodge, Color/Linear Burn, Subtract and Divide.
 Vulkana's existing linear-light composition is unchanged. Editable style edges,
 typography and blend results can differ from the saved composition.
 
-Unsupported items include isolated/styled groups, clipping dependencies, Blend
+Unsupported items include isolated/styled groups, ungrouped clipping (`clbl=false`), Blend
 If, knockout, non-default Fill opacity, paragraph-box/warped/vertical text,
 explicit tracking/leading/baseline shifts and unsupported decorations,
 curved/compound vector paths, non-centered/dashed vector strokes, other active
@@ -76,6 +77,13 @@ styles, and bitmap-plus-vector masks. Mask density/feather, rendered/inverted
 mask flags and combined effective/component masks require explicit fallback.
 Masks use Vulkana's stable layer-local anchoring; independent unlinked-mask
 movement is not introduced by this importer.
+
+Clipping chains never cross PSD group boundaries. The original base is retained
+even when hidden. Skipping it requires dependent members to be skipped or
+explicitly imported as Base pixels only; another clipped member is never silently
+promoted. Converted children retain their own pixels, masks and styles. Review
+records the native style ordering when styled chains are involved; see
+[clipping groups](CLIPPING_GROUPS.md).
 
 Modern effect records take precedence over duplicate legacy representations.
 Disabled dormant effects do not generate warnings. Legacy-only effects are not

@@ -58,6 +58,7 @@ struct DocumentSnapshot {
     std::vector<LayerSnapshot> layersBottomToTop;
     SelectionState selection;
     Revision selectionRevision {0};
+    LayerTree tree;
 };
 
 struct RemovedLayer {

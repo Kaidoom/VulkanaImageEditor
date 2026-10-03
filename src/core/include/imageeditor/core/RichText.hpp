@@ -1,6 +1,7 @@
 #pragma once
 #include "imageeditor/core/Command.hpp"
 #include "imageeditor/core/Layer.hpp"
+#include "imageeditor/core/LayerTree.hpp"
 #include <optional>
 
 namespace imageeditor::core {
@@ -60,5 +61,6 @@ private:
     std::optional<Layer> created_;
     std::size_t index_ { 0 };
     std::optional<LayerId> previousActive_;
+    std::optional<ItemPlacement> placement_;
 };
 }

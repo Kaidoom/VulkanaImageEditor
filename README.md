@@ -7,8 +7,9 @@ with a Qt workspace and Vulkan-accelerated canvas.
 
 ## Features
 
-- **Layered editing:** raster, editable text and shapes; folders, multi-selection,
-  blend modes, duplication, merging and explicit rasterization.
+- **Layered editing:** raster, editable text and shapes; bitmap masks, folders,
+  clipping mask groups, multi-selection, blend modes, duplication, merging and
+  explicit rasterization.
 - **Painting and retouching:** pressure-sensitive brushes, procedural and textured
   presets, erasing, fill, local blur, Clone Stamp, Heal and automatic Spot Heal.
 - **Selections:** rectangle, ellipse, freehand/polygon/magnetic lasso, select by
@@ -22,7 +23,7 @@ with a Qt workspace and Vulkan-accelerated canvas.
 - **Multiple documents:** tabs with independent history, selections and view state,
   plus editable layer copying between documents.
 - **PSD import:** reviewed conversion to native layers, rich text, simple shapes,
-  bitmap masks and supported styles, with explicit saved-raster fallbacks.
+  bitmap masks, clipping groups and supported styles, with explicit saved-raster fallbacks.
 - **PDF import:** selected pages at your chosen PPI, as raster layers or separate
   documents, with transparent or white backgrounds.
 - **PDF export:** a composite or layers/groups as pages, custom page selection,

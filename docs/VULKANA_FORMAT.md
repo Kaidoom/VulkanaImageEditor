@@ -61,6 +61,17 @@ These required capabilities do not change the application/package version or
 the schema-1 archive envelope. Older readers reject them explicitly rather than
 silently flattening or misplacing the content.
 
+## Clipping mask groups
+
+Clipping mask groups use the structural `clipping-mask-group-v1` capability.
+Their tree container has `kind: "clipping-mask-group"`; children retain their
+ordinary IDs and bottom-to-top order. The bottommost direct child is the base,
+computed from the hierarchy rather than stored separately. Empty and one-child
+containers are valid. No clipped caches or duplicated bitmap masks are saved.
+Old projects retain ordinary folder/group behavior. Readers that do not support
+this capability reject it explicitly. See [Clipping groups](CLIPPING_GROUPS.md)
+for composition and partial-selection semantics.
+
 ## Bitmap layer masks
 
 `layer-mask-v1` declares optional `layerMask` data on raster, text and shape layers.

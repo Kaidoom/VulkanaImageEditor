@@ -181,6 +181,10 @@ bool AddLayerCommand::apply(Document& document)
     if (!placement_) {
         placement_=index_<document.layers().size()?*document.tree().placement(document.layers()[index_].id)
             :ItemPlacement{0,document.tree().roots.size()};
+        if(previousActive_) {
+            const auto next=document.tree().insertionAbove(*previousActive_);
+            if(const auto* c=document.tree().container(next.parent);c&&c->kind==ContainerKind::ClippingMaskGroup)placement_=next;
+        }
     }
     return document.insertLayerAt(*placement_, layer_);
 }

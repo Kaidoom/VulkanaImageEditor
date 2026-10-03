@@ -73,11 +73,22 @@ RasterizeResult prepareRasterizeLayers(const core::Document& doc,const core::Lay
     std::size_t budget,FlattenedDocumentProgress progress,std::optional<core::LayerId> onlyLayer)
 {
     try {
-        const auto ids=onlyLayer?std::vector<core::LayerId>{*onlyLayer}:doc.expandedLayers(selection.ids);
+        const auto roots=onlyLayer?std::vector<core::LayerId>{*onlyLayer}:doc.tree().normalize(selection.ids);
+        std::vector<core::LayerId> ids,groups;
+        for(auto root:roots) {
+            const auto* c=doc.tree().container(root);
+            if(c&&c->kind==core::ContainerKind::ClippingMaskGroup&&!c->children.empty())groups.push_back(root);
+            else {const auto leaves=doc.expandedLayers(std::array{root});ids.insert(ids.end(),leaves.begin(),leaves.end());}
+        }
+        auto afterTree=doc.tree();auto afterSelection=selection;
         std::vector<core::LayerId> removed;
         std::vector<core::Layer> added;
         std::size_t cost=2*doc.tree().memoryCost()+65536;
         for(auto id:ids)if(needsRasterization(*doc.layer(id))) {
+            removed.push_back(id);cost+=core::retainedLayerMemory(*doc.layer(id));
+        }
+        const auto ordinary=removed;
+        for(auto group:groups)for(auto id:doc.expandedLayers(std::array{group})) {
             removed.push_back(id);cost+=core::retainedLayerMemory(*doc.layer(id));
         }
         if(removed.empty())return {};
@@ -92,16 +103,32 @@ RasterizeResult prepareRasterizeLayers(const core::Document& doc,const core::Lay
             if(doc.revision()!=revision || !std::ranges::all_of(sources,[](const auto& s){return s.first->revision()==s.second;}))
                 throw std::runtime_error("Rasterize targets changed; no layers were changed");
         };
-        for(std::size_t i=0;i<removed.size();++i) {
+        for(auto group:groups) {
+            FlattenedDocumentLimits limits;limits.outputPixels=std::min<std::uint64_t>(limits.outputPixels,(budget-cost)/4);
+            auto pixels=flattenLayerItems(doc,std::array{group},[&](auto done,auto total){requireCurrent();return !progress||progress(done,total);},limits);
+            if(!pixels)return {{},pixels.error,pixels.cancelled};
+            requireCurrent();const auto* original=doc.tree().container(group);
+            auto baked=core::Layer::raster(original->name,surfaceFromNativeImage(pixels.image));
+            baked.localToDocument={1,0,pixels.origin.x,0,1,pixels.origin.y};baked.colorLabel=std::uint8_t(original->colorLabel);baked.visible=original->visible;
+            const auto id=baked.id;
+            if(!afterTree.consolidate(std::array{group},id))throw std::runtime_error("Rasterize clipping group target changed");
+            for(auto& selected:afterSelection.ids)if(selected==group)selected=id;
+            if(afterSelection.primary==group)afterSelection.primary=id;
+            if(afterSelection.anchor==group)afterSelection.anchor=id;
+            cost+=core::retainedLayerMemory(baked);
+            if(cost>budget)throw std::runtime_error("Rasterize exceeds the undo memory budget; no layers were changed");
+            added.push_back(std::move(baked));
+        }
+        for(std::size_t i=0;i<ordinary.size();++i) {
             FlattenedDocumentLimits limits;
             limits.outputPixels=std::min<std::uint64_t>(limits.outputPixels,(budget-cost)/4);
-            auto pixels=rasterizeLayerContent(doc,removed[i],[&](auto done,auto total){
+            auto pixels=rasterizeLayerContent(doc,ordinary[i],[&](auto done,auto total){
                 const auto keepGoing=!progress || progress(i*1000+done*1000/std::max<std::uint64_t>(total,1),removed.size()*1000);
                 requireCurrent();return keepGoing;
             },limits);
             if(!pixels)return {{},pixels.error,pixels.cancelled};
             requireCurrent();
-            const auto& original=*doc.layer(removed[i]);
+            const auto& original=*doc.layer(ordinary[i]);
             auto baked=original;
             baked.payload=core::RasterLayer{surfaceFromNativeImage(pixels.image)};
             baked.localToDocument={1,0,pixels.origin.x,0,1,pixels.origin.y};
@@ -111,8 +138,8 @@ RasterizeResult prepareRasterizeLayers(const core::Document& doc,const core::Lay
             if(cost>budget)throw std::runtime_error("Rasterize exceeds the undo memory budget; no layers were changed");
             added.push_back(std::move(baked));
         }
-        auto command=std::make_unique<core::LayerStructureCommand>("Rasterize layers",doc,doc.tree(),
-            std::move(removed),std::move(added),selection,selection);
+        auto command=std::make_unique<core::LayerStructureCommand>("Rasterize layers",doc,std::move(afterTree),
+            std::move(removed),std::move(added),selection,afterSelection);
         if(command->memoryCost()>budget)throw std::runtime_error("Rasterize exceeds the undo memory budget; no layers were changed");
         return {std::move(command),{},false};
     }catch(const std::exception& e){return {{},QString::fromUtf8(e.what()),false};}

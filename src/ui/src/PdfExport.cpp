@@ -128,6 +128,19 @@ core::Document pageDocument(const PdfExportSnapshot &snapshot,
       require(result.insertLayer(result.layers().size(), std::move(layer)),
               "Invalid PDF export layer");
     }
+  // Retain structural clipping, including hidden bases (as hidden leaves).
+  // A filtered-out base must never promote one of its upper members.
+  auto tree=snapshot.document->tree();
+  for(const auto& source:snapshot.document->layers())if(!contains(ids,source.id)) {
+    bool requiredBase=false;
+    for(const auto& c:tree.containers)if(c.kind==core::ContainerKind::ClippingMaskGroup && !c.children.empty()
+        && (c.children.front()==source.id || tree.isAncestor(c.children.front(),source.id)))
+      for(auto id:ids)if(tree.isAncestor(c.id,id))requiredBase=true;
+    if(requiredBase) {auto hidden=source;hidden.visible=false;require(result.insertLayer(result.layers().size(),std::move(hidden)),"Invalid hidden clipping base");}
+    else if(auto p=tree.placement(source.id))std::erase(*tree.children(p->parent),source.id);
+  }
+  for(auto& c:tree.containers)c.visible=true;
+  if(result.tree()!=tree)require(result.replaceStructure(result.tree(),std::move(tree)),"Invalid PDF clipping hierarchy");
   return result;
 }
 std::vector<core::LayerId> chosenEntries(const PdfExportSnapshot &source,
@@ -222,6 +235,13 @@ QString nativeTextReason(const core::Layer &layer, const core::RectI &page) {
 void classifyText(const PdfExportSnapshot &source, PdfExportPlan &plan,
                   PdfExportPage &page) {
   bool sawNative = false, requiresCombined = false;
+  for(const auto& c:source.document->tree().containers)
+    if(c.kind==core::ContainerKind::ClippingMaskGroup && c.children.size()>1)
+      for(auto id:page.leaves)if(source.document->tree().isAncestor(c.id,id)) {
+        requiresCombined=true;
+        page.textReasons.append(QStringLiteral("Clipping group requires canonical raster composition"));
+        break;
+      }
   for (auto id : page.leaves) {
     const auto &layer = *source.document->layer(id);
     const bool text = std::holds_alternative<core::TextLayer>(layer.payload);

@@ -679,9 +679,6 @@ bool isShape(const Record &r) {
 }
 QStringList restrictions(const Record &r) {
   auto issues = r.issues;
-  if (r.clipping)
-    issues << "Clipping-layer dependencies are unsupported; use the saved "
-              "composite or explicitly omit/base-import this content";
   if (r.blendIf)
     issues << "Blend If is unsupported";
   if (r.knockout)
@@ -925,6 +922,28 @@ PsdInspection inspectPsd(const QString &path,
                        "\n" + info.details + "\n";
       result.layers.push_back(std::move(info));
     }
+    // Clipping chains are sibling-scoped. A hidden base is still the base.
+    QMap<int,int> bases;
+    for(auto& layer:result.layers) {
+      const auto& rec=s->records[size_t(layer.sourceIndex)];
+      if(!rec.clipping) { bases[layer.parent]=layer.sourceIndex; continue; }
+      const int base=bases.value(layer.parent,-1);
+      const bool grouped=base>=0 && (!s->records[size_t(base)].tags.contains("clbl")
+          || (!s->records[size_t(base)].tags.value("clbl").isEmpty() && s->records[size_t(base)].tags.value("clbl").at(0)!=0));
+      if(grouped) {
+        layer.clippingBase=base;
+        layer.status += " · Clipped";
+        layer.details += QStringLiteral("\nNative clipping group; base record %1. Base opacity/blend governs the stack; upper styles stay clipped.").arg(base);
+        if(s->records[size_t(base)].tags.contains("lfx2") || rec.tags.contains("lfx2")) {
+          layer.issues << "Native clipping style order: base styles follow stack colors; upper styles are clipped to base content coverage";
+          layer.details += '\n'+layer.issues.back();
+        }
+      } else {
+        layer.editable=layer.raster=false;layer.suggested=PsdRoute::Skip;layer.status="Review required";
+        layer.issues << (base<0 ? "Clipping chain has no base in this group" : "Blend Clipped Layers As Group is disabled; use saved composite or explicitly import base pixels only");
+      }
+    }
+    for(const auto& layer:result.layers)if(layer.clippingBase>=0)result.report+=layer.name+": "+layer.details+'\n';
     // Unsupported parent compositing cannot silently become organizational.
     for (auto &layer : result.layers)
       for (int parent = layer.parent; parent >= 0;
@@ -1030,6 +1049,12 @@ PsdConversion convertPsd(const PsdInspection &in, const PsdOptions &options,
         }
         if (!included[i])
           continue;
+        if(info.clippingBase>=0 && route!=PsdRoute::BasePixels) {
+          const auto base=std::ranges::find_if(in.layers,[&](const auto& l){return l.sourceIndex==info.clippingBase;});
+          if(base==in.layers.end() || options.layers[size_t(base-in.layers.begin())].route==PsdRoute::Skip)
+            throw Error(QStringLiteral("%1 requires clipping base %2. Include the base, skip this member, or choose Base pixels only to release clipping.")
+                .arg(info.name,base==in.layers.end()?QStringLiteral("(missing)"):base->name).toStdString());
+        }
         if ((route == PsdRoute::Editable && !info.editable) ||
             (route == PsdRoute::Raster && !info.raster) ||
             (route == PsdRoute::BasePixels && !info.basePixels))
@@ -1159,6 +1184,25 @@ PsdConversion convertPsd(const PsdInspection &in, const PsdOptions &options,
         }
       if (layers.empty())
         throw Error("Choose at least one renderable layer");
+      QMap<int,std::vector<core::LayerId>> clippingChains;
+      for(size_t i=0;i<in.layers.size();++i) {
+        const auto& info=in.layers[i];
+        if(!included[i] || info.clippingBase<0 || options.layers[i].route==PsdRoute::BasePixels)continue;
+        auto& chain=clippingChains[info.clippingBase];
+        if(chain.empty())chain.push_back(ids.value(info.clippingBase));
+        chain.push_back(ids.value(info.sourceIndex));
+      }
+      for(auto it=clippingChains.begin();it!=clippingChains.end();++it) {
+        const auto& children=it.value();
+        const auto position=tree.placement(children.back());
+        if(!position)throw Error("Clipping base was omitted by an ancestor choice");
+        const auto id=core::makeLayerId();
+        tree.containers.push_back({id,"Clipping Mask Group",core::ContainerKind::ClippingMaskGroup,core::ColorLabel::None,{}});
+        auto& siblings=*tree.children(position->parent);
+        siblings.insert(siblings.begin()+std::ptrdiff_t(position->index+1),id);
+        if(!tree.reparent(children,{id,0}))throw Error("Invalid clipping hierarchy");
+        out.report+=QStringLiteral("Clipping Mask Group: base record %1 + %2 clipped members; editable native children.\n").arg(it.key()).arg(children.size()-1);
+      }
       if (!document->replaceStructure(document->tree(), std::move(tree), {},
                                       layers))
         throw Error("Invalid converted layer tree");

@@ -317,6 +317,7 @@ private:
     void createLayerFolder(std::optional<core::LayerId> contextItem = std::nullopt);
     void addSelectionToNewFolder();
     void groupLayerItems();
+    void clippingGroupItems();
     void dissolveLayerItem(core::LayerId);
     void removeLayerItem(core::LayerId, bool contents);
     void renameLayerItem(core::LayerId);
@@ -751,6 +752,7 @@ private:
     QAction* duplicateLayersAction_ {nullptr};
     QAction* newFolderAction_ {nullptr};
     QAction* groupLayersAction_ {nullptr};
+    QAction* clippingGroupAction_ {nullptr};
     QAction* ungroupLayersAction_ {nullptr};
     QAction* mergeLayersAction_ {nullptr};
     QAction* rasterizeLayersAction_ {nullptr};

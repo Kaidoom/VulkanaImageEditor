@@ -22,6 +22,7 @@ public:
     // A folder containing a selected item, not an additional selected row.
     static constexpr int SelectedDescendantRole = Qt::UserRole + 7;
     static constexpr int HasMaskRole = Qt::UserRole + 8;
+    static constexpr int ClippingBaseRole = Qt::UserRole + 9;
     explicit LayerListModel(QObject* parent = nullptr);
 
     void setSession(core::EditorSession* session);

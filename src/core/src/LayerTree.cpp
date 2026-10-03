@@ -60,7 +60,7 @@ std::vector<LayerId> LayerTree::orderedLeaves(std::span<const LayerId> leaves) c
         require(id && known.insert(id).second);
     for (const auto& c : containers) {
         require(c.id && !c.name.empty() && c.name.size() <= 4096 && known.insert(c.id).second);
-        require(c.kind == ContainerKind::Folder || c.kind == ContainerKind::Group);
+        require(c.kind == ContainerKind::Folder || c.kind == ContainerKind::Group || c.kind == ContainerKind::ClippingMaskGroup);
         require(c.colorLabel <= ColorLabel::Purple);
     }
     std::vector<LayerId> order;
@@ -162,6 +162,12 @@ bool LayerTree::dissolve(LayerId id)
     std::erase_if(next.containers, [id](const auto& entry) { return entry.id == id; });
     *this = std::move(next);
     return true;
+}
+ItemPlacement LayerTree::insertionAbove(LayerId id) const noexcept
+{
+    if(const auto* c=container(id);c&&c->kind==ContainerKind::ClippingMaskGroup)return {id,c->children.size()};
+    if(auto p=placement(id)){++p->index;return *p;}
+    return {0,roots.size()};
 }
 bool LayerTree::consolidate(std::span<const LayerId> input, LayerId replacement)
 {

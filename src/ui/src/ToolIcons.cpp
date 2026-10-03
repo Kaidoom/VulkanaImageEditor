@@ -339,6 +339,10 @@ QPixmap rasterizedGlyph(ToolGlyph glyph, const QColor& ink, const QSize& size, q
         path.lineTo(10,4);path.lineTo(13,7);path.lineTo(20,7);path.quadTo(21,7,21,9);
         path.lineTo(21,18);path.quadTo(21,20,19,20);path.lineTo(5,20);path.quadTo(3,20,3,18);path.closeSubpath();
         p.drawPath(path);p.drawLine(3,10,21,10);
+    } else if(glyph==ToolGlyph::ClippingGroup) {
+        p.drawRoundedRect(QRectF(3,12,18,9),2,2);
+        p.drawRoundedRect(QRectF(7,3,10,6),1,1);
+        p.drawLine(12,9,12,16);p.drawLine(9,13,12,16);p.drawLine(15,13,12,16);
     } else if(glyph==ToolGlyph::Group) {
         p.drawRoundedRect(QRectF(3,8,13,13),2,2);p.drawRoundedRect(QRectF(8,3,13,13),2,2);
     } else if (glyph >= ToolGlyph::ShapeRectangle) {

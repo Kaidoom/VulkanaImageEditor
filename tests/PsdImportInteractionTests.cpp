@@ -252,12 +252,11 @@ int main(int argc, char **argv) {
     }
     if (auto heavy = qEnvironmentVariable("VULKANA_PSD_HEAVY_REFERENCE");
         !heavy.isEmpty()) {
-      // This explicit test plan skips the four unsupported clipping layers;
-      // the production review continues to require the user's own decisions.
+      // Four clipped members now convert inside two native clipping groups.
       CHECK(open(window, heavy, false, false, {}, true));
       const auto *imported = window.editorSession().document();
-      CHECK(imported->layers().size() == 37);
-      CHECK(imported->tree().containers.size() == 7);
+      CHECK(imported->layers().size() == 41);
+      CHECK(imported->tree().containers.size() == 9);
       CHECK(imported->canvas().extent == c::Extent2u{2979, 4000});
     }
     if (instance) {

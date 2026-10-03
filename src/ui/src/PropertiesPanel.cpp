@@ -199,7 +199,9 @@ void PropertiesPanel::setSelectedLayer(const core::Layer* layer, const core::Lay
     if (!layer) {
         if (container) {
             selectedLayerName_->setText(QString::fromUtf8(container->name));
-            selectedLayerType_->setText(container->kind == core::ContainerKind::Group
+            selectedLayerType_->setText(container->kind == core::ContainerKind::ClippingMaskGroup
+                ? tr("Clipping mask group · The bottommost child is the base. Upper members share its coverage.")
+                : container->kind == core::ContainerKind::Group
                 ? tr("Pass-through group · Move/Transform affects every member, including hidden layers.")
                 : tr("Organizational folder · select its layers to move or transform content."));
             return;

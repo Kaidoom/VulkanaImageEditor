@@ -426,7 +426,7 @@ int main(int argc, char** argv)
 {
     QGuiApplication application(argc, argv);
     const auto arguments = application.arguments();
-    const auto asset = QString::fromUtf8(IMAGEEDITOR_SOURCE_DIR) + QStringLiteral("/assets/SmartSelect.png");
+    const auto asset = QString::fromUtf8(IMAGEEDITOR_SOURCE_DIR) + QStringLiteral("/private/reference/SmartSelect.png");
     const QImage source(asset);
     CHECK(!source.isNull() && source.size() == QSize(1080, 810));
     if (source.isNull())

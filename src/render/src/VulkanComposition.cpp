@@ -1,6 +1,7 @@
 #include "imageeditor/render/VulkanCanvasRenderer.hpp"
 #include "imageeditor/render/CanvasCoordinateMapping.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
+#include "imageeditor/core/CompositionPlan.hpp"
 #include <algorithm>
 #include <bit>
 #include <cmath>
@@ -37,7 +38,8 @@ void VulkanCanvasRenderer::initializeComposition()
     checkVk(vkCreateDescriptorSetLayout(device_,&setInfo,nullptr,&compositionSetLayout_),"create compositor image layout");
     const std::array adjustmentBindings {
         VkDescriptorSetLayoutBinding {0,VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,1,VK_SHADER_STAGE_COMPUTE_BIT,nullptr},
-        VkDescriptorSetLayoutBinding {1,VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,1,VK_SHADER_STAGE_COMPUTE_BIT,nullptr}};
+        VkDescriptorSetLayoutBinding {1,VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,1,VK_SHADER_STAGE_COMPUTE_BIT,nullptr},
+        VkDescriptorSetLayoutBinding {2,VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,1,VK_SHADER_STAGE_COMPUTE_BIT,nullptr}};
     setInfo.bindingCount=std::uint32_t(adjustmentBindings.size()); setInfo.pBindings=adjustmentBindings.data();
     checkVk(vkCreateDescriptorSetLayout(device_,&setInfo,nullptr,&adjustmentSetLayout_),"create adjustment buffer layout");
     const std::array sets {descriptorSetLayout_,compositionSetLayout_,adjustmentSetLayout_};
@@ -99,8 +101,13 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
     key.reserve(8+scene.document.layersBottomToTop.size()*12);
     key.push_back(frame.extent.width); key.push_back(frame.extent.height);
     for (double v : rect) key.push_back(std::bit_cast<std::uint64_t>(v));
-    struct Work { CompositePush push; VkDescriptorSet texture; };
+    struct Work { CompositePush push; VkDescriptorSet texture; core::LayerId cache{}; };
     std::vector<Work> work;
+    std::unordered_map<core::LayerId,Work> leafWork;
+    const bool structuralClipping=!scene.pixelPreviewEnabled && core::hasClippingGroups(scene.document.tree);
+    std::unordered_map<core::LayerId,std::vector<std::uint64_t>> leafKeys,cacheKeys;
+    struct Clear {std::size_t offset,bytes;core::LayerId cache;};
+    std::vector<Clear> clears;
     std::vector<float> adjustmentParameters;
     if(!unavailable && !scene.pixelPreviewEnabled)prepareAdjustmentMasks(scene);
     // This replaces only composition input, never the editor's document scene.
@@ -127,6 +134,7 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
         const auto toFrame = core::composeTransform({x.x,y.x,o.x,x.y,y.y,o.y},t);
         const auto inverse = toFrame.inverted();
         if (!inverse) continue;
+        const auto keyStart=key.size();
         key.push_back(layer.id);
         key.push_back(surface->id()); key.push_back(surface->revision());
         key.push_back(static_cast<std::uint32_t>(layer.blendMode));
@@ -195,7 +203,11 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
             {std::int32_t(left),std::int32_t(top),std::int32_t(right-left),std::int32_t(bottom-top)},
             layer.opacity,static_cast<std::int32_t>(layer.blendMode),
             appendAdjustmentParameters(layer,filtered||scene.adjustmentBypassLayer==layer.id,adjustmentParameters),layer.crop?(scene.cropPreviewLayer==layer.id?2:1):0,{},{},{}};
-        if(styled)push.mode|=(appendEffectParameters(layer,adjustmentParameters)+1)<<8;
+        if(styled) {
+            const auto offset=appendEffectParameters(layer,adjustmentParameters)+1;
+            if(offset>=0x400000)throw std::runtime_error("Effect program exceeds the GPU composition parameter limit");
+            push.mode|=offset<<8;
+        }
         const auto pixelsToLocal=bypassFilters?core::intrinsicPixelsToLocal(layer):core::renderPixelsToLocal(layer);
         if(layer.crop||styled||masked){
             push.sourceToLocalX={float(pixelsToLocal.m00),float(pixelsToLocal.m01),float(pixelsToLocal.m02),0};
@@ -230,10 +242,138 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
             push.cropMode|=int(offset+1)<<2;
         }
         work.push_back({push,found->second.descriptorSet});
+        if(structuralClipping) {
+            leafWork.emplace(layer.id,work.back());
+            auto& leafKey=leafKeys[layer.id];leafKey.assign(key.begin()+std::ptrdiff_t(keyStart),key.end());
+            leafKey.push_back(scene.documentInstance);
+        }
+    }
+    clippingBytes_=0;
+    if(structuralClipping && !work.empty()) {
+        for(const auto& c:scene.document.tree.containers) {
+            key.push_back(c.id);key.push_back(std::uint64_t(c.kind));key.push_back(c.children.size());
+            key.insert(key.end(),c.children.begin(),c.children.end());
+        }
+        key.insert(key.end(),scene.document.tree.roots.begin(),scene.document.tree.roots.end());
+        std::vector<core::LayerId> ids;for(const auto& l:layers)ids.push_back(l.id);
+        const auto plan=core::compositionPlan(scene.document.tree,ids);
+        struct Target { std::int32_t offset{-1}; core::RectI rect{}; bool scalar{false}; };
+        const auto prototype=work.front();work.clear();
+        const auto bounds=[&](const auto& self,const core::CompositionNode& n)->core::RectI {
+            if(n.leaf) {
+                const auto it=leafWork.find(n.id);if(it==leafWork.end())return {};
+                const auto& r=it->second.push.region;return {r[0],r[1],r[2],r[3]};
+            }
+            core::RectI r{};
+            if(n.clipping)return self(self,n.children.front());
+            for(const auto& child:n.children) {
+                const auto b=self(self,child);if(b.empty())continue;
+                if(r.empty())r=b;
+                else {const auto right=std::max(r.x+r.width,b.x+b.width),bottom=std::max(r.y+r.height,b.y+b.height);
+                    r.x=std::min(r.x,b.x);r.y=std::min(r.y,b.y);r.width=right-r.x;r.height=bottom-r.y;}
+                if(n.clipping)break;
+            }return r;
+        };
+        const auto allocate=[&](core::RectI r,core::LayerId cache=0,bool scalar=false) {
+            Target t{std::int32_t(clippingBytes_/16),r,scalar};
+            const auto pixels=std::size_t(r.width)*std::size_t(r.height);
+            const auto bytes=(scalar?(pixels+3)/4:pixels)*16;
+            clears.push_back({clippingBytes_,bytes,cache});
+            clippingBytes_+=bytes;
+            if(clippingBytes_>512ULL*1024*1024)throw std::runtime_error("Clipping working surfaces exceed 512 MiB");
+            return t;
+        };
+        const Target main{-1,{0,0,int(frame.extent.width),int(frame.extent.height)}};
+        const auto appendWork=[&](Work entry,int op,Target dst,Target input,Target base,Target coverage,bool contentOnly) {
+            auto& p=entry.push;
+            const int left=std::max(p.region[0],dst.rect.x),top=std::max(p.region[1],dst.rect.y);
+            const int right=std::min(p.region[0]+p.region[2],dst.rect.x+dst.rect.width),bottom=std::min(p.region[1]+p.region[3],dst.rect.y+dst.rect.height);
+            if(right<=left||bottom<=top)return;
+            p.region={left,top,right-left,bottom-top};
+            const auto old=(p.cropMode>>2)-1;
+            std::array<float,20> geometry{0,0,1,0,0,0,1,0};
+            if(old>=0)std::copy_n(adjustmentParameters.begin()+old,20,geometry.begin());
+            const auto offset=adjustmentParameters.size();
+            adjustmentParameters.insert(adjustmentParameters.end(),geometry.begin(),geometry.end());
+            adjustmentParameters.push_back(float(op));
+            for(const auto& target:{dst,input,base,coverage}) {
+                adjustmentParameters.insert(adjustmentParameters.end(),{std::bit_cast<float>(target.offset),float(target.rect.x),float(target.rect.y),float(target.scalar?-target.rect.width:target.rect.width),float(target.rect.height)});
+            }
+            p.cropMode=(p.cropMode&3)|(int(offset+1)<<2);
+            if(contentOnly)p.mode&=255;
+            p.mode|=0x40000000;
+            work.push_back(entry);
+        };
+        const auto draw=[&](const auto& self,const core::CompositionNode& n,Target dst,bool contentOnly)->void {
+            if(n.leaf) {
+                const auto it=leafWork.find(n.id);if(it!=leafWork.end())appendWork(it->second,0,dst,main,main,main,contentOnly);
+                return;
+            }
+            if(!n.clipping) {for(const auto& child:n.children)self(self,child,dst,contentOnly);return;}
+            const auto& base=n.children.front();const auto r=bounds(bounds,base);if(r.empty())return;
+            const auto working=allocate(r);
+            Target styled=main,coverage=main;
+            if(base.leaf) {
+                const auto cacheId=core::LayerId(clippingBytes_/16+1);
+                styled=allocate(r,cacheId);coverage=allocate(r,cacheId,true);
+                auto& cacheKey=cacheKeys[cacheId];cacheKey=leafKeys.at(base.id);cacheKey.push_back(n.id);
+                cacheKey.insert(cacheKey.end(),{std::uint64_t(styled.offset),std::uint64_t(coverage.offset),std::uint64_t(r.x),std::uint64_t(r.y),std::uint64_t(r.width),std::uint64_t(r.height)});
+                auto entry=leafWork.at(base.id);entry.cache=cacheId;
+                appendWork(entry,1,styled,coverage,main,main,true);
+                entry.cache=0;appendWork(entry,3,working,styled,main,main,true);
+            }
+            else {
+                const auto cacheId=core::LayerId(clippingBytes_/16+1);
+                const auto firstClear=clears.size(),firstWork=work.size();
+                styled=allocate(r,cacheId);coverage=contentOnly?styled:allocate(r,cacheId);
+                self(self,base,styled,contentOnly);if(!contentOnly)self(self,base,coverage,true);
+                // Retain the complete base subtree. Its internal temporary
+                // targets are owned by this capture, not competing caches.
+                for(auto i=firstClear;i<clears.size();++i)clears[i].cache=cacheId;
+                for(auto i=firstWork;i<work.size();++i)work[i].cache=cacheId;
+                std::erase_if(cacheKeys,[&](const auto& item){return item.first>=cacheId&&item.first<core::LayerId(clippingBytes_/16+1);});
+                auto& cacheKey=cacheKeys[cacheId];
+                cacheKey={scene.documentInstance,n.id,std::uint64_t(contentOnly),std::uint64_t(styled.offset),std::uint64_t(coverage.offset),
+                    std::uint64_t(r.x),std::uint64_t(r.y),std::uint64_t(r.width),std::uint64_t(r.height)};
+                const auto appendKey=[&](const auto& visit,const core::CompositionNode& node)->void {
+                    cacheKey.insert(cacheKey.end(),{node.id,node.leaf,node.clipping,node.children.size()});
+                    if(node.leaf) {
+                        const auto found=leafKeys.find(node.id);cacheKey.push_back(found!=leafKeys.end());
+                        if(found!=leafKeys.end())cacheKey.insert(cacheKey.end(),found->second.begin(),found->second.end());
+                    }else for(const auto& child:node.children)visit(visit,child);
+                };
+                appendKey(appendKey,base);
+                auto entry=prototype;entry.push.region={r.x,r.y,r.width,r.height};
+                appendWork(entry,3,working,styled,main,main,true);
+            }
+            for(std::size_t i=1;i<n.children.size();++i)self(self,n.children[i],working,contentOnly);
+            if(base.leaf)appendWork(leafWork.at(base.id),2,dst,working,styled,coverage,contentOnly);
+            else {
+                auto entry=prototype;entry.push.region={r.x,r.y,r.width,r.height};
+                appendWork(entry,4,dst,working,styled,coverage,true);
+            }
+        };
+        draw(draw,plan,main,false);
     }
     if (compositionTexture_.uploadedRevision && key == compositionKey_) return;
     const auto adjustmentSet=uploadAdjustmentData(adjustmentParameters,frame);
+    auto& retainedKeys=adjustmentBuffers_.at(frame.frameSlot).clippingKeys;
+    std::vector<core::LayerId> reused;
+    for(const auto& [id,value]:cacheKeys) {
+        if(const auto it=retainedKeys.find(id);it!=retainedKeys.end() && it->second==value){reused.push_back(id);++stats_.clippingBaseReuses;}
+        else ++stats_.clippingBaseBuilds;
+    }
+    const auto cacheReused=[&](core::LayerId id){return id && std::ranges::find(reused,id)!=reused.end();};
+    stats_.clippingWorkingBytes=clippingBytes_;
     const auto cmd = frame.commandBuffer;
+    if(clippingBytes_) {
+        const auto buffer=adjustmentBuffers_.at(frame.frameSlot).clipping.buffer;
+        for(const auto& clear:clears)if(!cacheReused(clear.cache))vkCmdFillBuffer(cmd,buffer,clear.offset,clear.bytes,0);
+        VkBufferMemoryBarrier b{VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER};
+        b.buffer=buffer;b.size=VK_WHOLE_SIZE;b.srcQueueFamilyIndex=b.dstQueueFamilyIndex=VK_QUEUE_FAMILY_IGNORED;
+        b.srcAccessMask=VK_ACCESS_TRANSFER_WRITE_BIT;b.dstAccessMask=VK_ACCESS_SHADER_READ_BIT|VK_ACCESS_SHADER_WRITE_BIT;
+        vkCmdPipelineBarrier(cmd,VK_PIPELINE_STAGE_TRANSFER_BIT,VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,0,0,nullptr,1,&b,0,nullptr);
+    }
     VkImageMemoryBarrier barrier {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
     barrier.image = compositionTexture_.image;
     barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -252,6 +392,7 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
     vkCmdPipelineBarrier(cmd,VK_PIPELINE_STAGE_TRANSFER_BIT,shaderStages,0,0,nullptr,0,nullptr,1,&barrier);
     vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_COMPUTE,compositionPipeline_);
     for (const auto& entry : work) {
+        if(cacheReused(entry.cache))continue;
         const std::array descriptors {entry.texture,compositionStorageSet_,adjustmentSet};
         vkCmdBindDescriptorSets(cmd,VK_PIPELINE_BIND_POINT_COMPUTE,compositionLayout_,0,
             std::uint32_t(descriptors.size()),descriptors.data(),0,nullptr);
@@ -261,6 +402,10 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
         vkCmdPipelineBarrier(cmd,VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
             0,0,nullptr,0,nullptr,1,&barrier);
+        if(clippingBytes_) {
+            VkMemoryBarrier b{VK_STRUCTURE_TYPE_MEMORY_BARRIER};b.srcAccessMask=VK_ACCESS_SHADER_WRITE_BIT;b.dstAccessMask=VK_ACCESS_SHADER_READ_BIT|VK_ACCESS_SHADER_WRITE_BIT;
+            vkCmdPipelineBarrier(cmd,VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,0,1,&b,0,nullptr,0,nullptr);
+        }
         ++stats_.compositionDispatches;
         stats_.compositionPixels += std::uint64_t(entry.push.region[2])*std::uint64_t(entry.push.region[3]);
     }
@@ -270,6 +415,7 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
         VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,0,0,nullptr,0,nullptr,1,&barrier);
     compositionTexture_.uploadedRevision = 1;
     compositionKey_ = std::move(key);
+    retainedKeys=std::move(cacheKeys);
     ++stats_.compositionPasses;
 }
 }

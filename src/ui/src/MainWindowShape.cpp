@@ -294,7 +294,7 @@ std::optional<core::LayerId> MainWindow::hitShape(core::Vec2d p, bool activeOnly
     const auto& layers = session().document()->layers();
     const auto content = core::hitTestRasterLayer(*session().document(), p);
     for (auto i = layers.rbegin(); i != layers.rend(); ++i) {
-        if (hit(*i))
+        if (hit(*i) && core::clippingVisibility(*session().document(),i->id,p)>0)
             return i->id;
         if (content == i->id && !std::holds_alternative<core::ShapeLayer>(i->payload))
             return { };
@@ -311,7 +311,7 @@ std::optional<core::LayerId> MainWindow::hitMoveLayer(core::Vec2d p) const
     const auto& layers = session().document()->layers();
     for (auto i = layers.rbegin(); i != layers.rend(); ++i) {
         if (std::holds_alternative<core::ShapeLayer>(i->payload)) {
-            if (shapeLayerHit(*i, p))
+            if (shapeLayerHit(*i, p) && core::clippingVisibility(*session().document(),i->id,p)>0)
                 return session().document()->canvasTarget(i->id);
         } else if (ordinary == i->id)
             return session().document()->canvasTarget(i->id);

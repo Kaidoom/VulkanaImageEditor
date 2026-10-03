@@ -21,10 +21,7 @@ bool MainWindow::importPsdFromPath(const QString &input, bool intoCurrent) {
                                 : core::LayerSelectionState{};
   auto placement = core::ItemPlacement{0, doc ? doc->tree().roots.size() : 0};
   if (doc && selection.primary)
-    if (auto p = doc->tree().placement(*selection.primary)) {
-      ++p->index;
-      placement = *p;
-    }
+    placement=doc->tree().insertionAbove(*selection.primary);
   PsdLimits limits;
   const auto memory = documentMemory();
   limits.existingBytes =

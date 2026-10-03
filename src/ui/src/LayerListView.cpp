@@ -50,6 +50,7 @@ namespace {
             const QModelIndex& index) const override
         {
             auto indented = option;
+            if(index.data(LayerListModel::ClippingBaseRole).toBool())indented.rect.adjust(0,0,-38,0);
             indented.rect.adjust(index.data(Qt::UserRole + 2).toInt(), 2, -7, -2);
             // Qt retains the icon/check-indicator spacing; only the displayed
             // name becomes editable, leaving the row controls untouched.
@@ -74,6 +75,8 @@ namespace {
             }
             painter->restore();
             auto indented = option;
+            if (index.data(LayerListModel::ClippingBaseRole).toBool())
+                indented.rect.adjust(0, 0, -38, 0);
             indented.rect.adjust(index.data(Qt::UserRole + 2).toInt(), 0, 0, 0);
             // The delegate owns selection/hover chrome. Let Qt keep all its
             // item geometry and foreground painting, without a second opaque
@@ -110,6 +113,11 @@ namespace {
                                                : QPolygonF { { double(x - 2), double(y - 4) }, { double(x + 2), double(y) }, { double(x - 2), double(y + 4) } });
             }
             const auto label = index.data(Qt::UserRole + 5).toInt();
+            if(index.data(LayerListModel::ClippingBaseRole).toBool()) {
+                auto font=painter->font();font.setPointSizeF(std::max(7.0,font.pointSizeF()-1));painter->setFont(font);
+                painter->setPen(option.palette.color(QPalette::PlaceholderText));
+                painter->drawText(QRect(option.rect.right()-42,option.rect.top(),34,option.rect.height()),Qt::AlignCenter,QStringLiteral("Base"));
+            }
             if (label > 0 && label < 7)
                 painter->fillRect(QRect(option.rect.right() - 4, option.rect.top() + 5, 3, option.rect.height() - 10), layerLabelColor(core::ColorLabel(label)));
             painter->restore();

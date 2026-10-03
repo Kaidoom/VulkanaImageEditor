@@ -289,6 +289,7 @@ struct PsdImportDialog::State {
           excluded = true;
       routes[i]->setEnabled(!excluded);
       rows[i]->setText(1, excluded ? "Ancestor excluded" : statusFor(i));
+      if(!excluded && missingClippingBase(i))rows[i]->setText(1,"Include clipping base, skip this layer, or choose Base pixels only");
     }
     ++generation;
     dismissConfirmation();
@@ -403,9 +404,15 @@ struct PsdImportDialog::State {
   bool reviewed() const {
     if (options.composite)
       return true;
+    for(size_t i=0;i<rows.size();++i)if(routes[i]->isEnabled()&&missingClippingBase(i))return false;
     return std::none_of(routes.begin(), routes.end(), [](auto *route) {
       return route->isEnabled() && route->currentData().toInt() < 0;
     });
+  }
+  bool missingClippingBase(size_t i) const {
+    if(inspection.layers[i].clippingBase<0 || options.layers[i].route==PsdRoute::Skip || options.layers[i].route==PsdRoute::BasePixels)return false;
+    const auto base=std::ranges::find_if(inspection.layers,[&](const auto& l){return l.sourceIndex==inspection.layers[i].clippingBase;});
+    return base==inspection.layers.end() || options.layers[size_t(base-inspection.layers.begin())].route==PsdRoute::Skip;
   }
   QString statusFor(size_t i) const {
     const auto &info = inspection.layers[i];
@@ -445,7 +452,7 @@ struct PsdImportDialog::State {
                        int(PsdRoute::Editable));
       if (info.raster && info.type != "Raster")
         combo->addItem("Import as raster", int(PsdRoute::Raster));
-      if (info.basePixels && !info.raster)
+      if (info.basePixels && (!info.raster || info.clippingBase>=0))
         combo->addItem("Base pixels only", int(PsdRoute::BasePixels));
       combo->addItem("Don’t import", int(PsdRoute::Skip));
       combo->setCurrentIndex(

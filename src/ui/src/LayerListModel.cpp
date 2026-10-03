@@ -107,7 +107,7 @@ void LayerListModel::rebuildRows()
         for (auto it = ids.rbegin(); it != ids.rend(); ++it) {
             rows_.push_back({ *it, depth });
             const auto* c = tree.container(*it);
-            if (c && c->kind == core::ContainerKind::Folder && expanded(*it))
+            if (c && core::isExpandable(c->kind) && expanded(*it))
                 self(self, c->children, depth + 1);
         }
     };
@@ -131,7 +131,7 @@ std::set<core::LayerId> LayerListModel::selectedAncestorFolders() const
     std::unordered_map<core::LayerId, core::LayerId> parents;
     std::unordered_set<core::LayerId> folders;
     for (const auto& container : session_->document()->tree().containers) {
-        if (container.kind == core::ContainerKind::Folder) folders.insert(container.id);
+        if (core::isExpandable(container.kind)) folders.insert(container.id);
         for (auto child : container.children) parents.emplace(child, container.id);
     }
     for (auto id : session_->selectedLayers()) {
@@ -159,7 +159,7 @@ std::vector<core::LayerId> LayerListModel::collapsedFolderIds() const
     if (session_ && session_->document())
         for (auto id : collapsed_)
             if (const auto* folder = session_->document()->tree().container(id);
-                folder && folder->kind == core::ContainerKind::Folder)
+                folder && core::isExpandable(folder->kind))
                 result.push_back(id);
     return result;
 }
@@ -169,7 +169,7 @@ void LayerListModel::restoreCollapsedFolderIds(std::span<const core::LayerId> id
     if (session_ && session_->document() && ids.size() <= core::LayerTree::maxItems)
         for (auto id : ids)
             if (const auto* folder = session_->document()->tree().container(id);
-                folder && folder->kind == core::ContainerKind::Folder)
+                folder && core::isExpandable(folder->kind))
                 restored.insert(id);
     collapsed_.swap(restored);
 }
@@ -205,7 +205,7 @@ bool LayerListModel::renameItem(core::LayerId id, const QString& name)
 void LayerListModel::toggleExpanded(core::LayerId id)
 {
     const auto* c = session_ && session_->document() ? session_->document()->tree().container(id) : nullptr;
-    if (!c || c->kind != core::ContainerKind::Folder)
+    if (!c || !core::isExpandable(c->kind))
         return;
     beginResetModel();
     if (!collapsed_.erase(id))
@@ -221,7 +221,7 @@ int LayerListModel::rowIndent(int row) const
     if (row < 0 || row >= int(rows_.size()))
         return 0;
     const auto* c = session_->document()->tree().container(rows_[std::size_t(row)].id);
-    return rows_[std::size_t(row)].depth * 16 + (c && c->kind == core::ContainerKind::Folder ? 18 : 0);
+    return rows_[std::size_t(row)].depth * 16 + (c && core::isExpandable(c->kind) ? 18 : 0);
 }
 const core::Layer* LayerListModel::layerAt(int row) const
 {
@@ -257,6 +257,8 @@ QVariant LayerListModel::data(const QModelIndex& index, int role) const
     case Qt::DecorationRole: {
         const auto ink = thumbnailInk(c ? c->colorLabel : core::ColorLabel(l->colorLabel));
         if (c) {
+            if (c->kind == core::ContainerKind::ClippingMaskGroup)
+                return toolGlyph(ToolGlyph::ClippingGroup, ink);
             if (c->kind == core::ContainerKind::Folder)
                 return toolGlyph(ToolGlyph::Folder, ink);
             return groupThumbnail(*id);
@@ -264,6 +266,7 @@ QVariant LayerListModel::data(const QModelIndex& index, int role) const
         return layerThumbnail(*l);
     }
     case Qt::ToolTipRole:
+        if(c&&c->kind==core::ContainerKind::ClippingMaskGroup)return tr("Clipping mask group · Bottommost child is the base · Reorder to change the base");
         if(l&&l->mask)return tr("Content thumbnail: edit layer · Mask thumbnail: edit coverage\nWhite reveals · Black hides · Gray is partial · Right-click for mask actions");
         if (c)
             return QStringLiteral("%1 · %2 immediate items\n%3").arg(c->kind == core::ContainerKind::Folder ? "Folder" : "Pass-through group").arg(c->children.size()).arg(c->kind == core::ContainerKind::Folder ? "Organizes content; no opacity or transform. Drop inside to reparent." : "Move/Transform moves all members, including hidden layers. Ungroup keeps editable content.");
@@ -276,7 +279,7 @@ QVariant LayerListModel::data(const QModelIndex& index, int role) const
     case Qt::UserRole + 2:
         return rowIndent(index.row());
     case Qt::UserRole + 3:
-        return c && c->kind == core::ContainerKind::Folder;
+        return c && core::isExpandable(c->kind);
     case Qt::UserRole + 4:
         return expanded(*id);
     case Qt::UserRole + 5:
@@ -287,6 +290,12 @@ QVariant LayerListModel::data(const QModelIndex& index, int role) const
         return selectedAncestorFolders_.contains(*id);
     case HasMaskRole:
         return l&&bool(l->mask);
+    case ClippingBaseRole: {
+        const auto& tree=session_->document()->tree();
+        const auto p=tree.placement(*id);
+        const auto* parent=p?tree.container(p->parent):nullptr;
+        return parent && parent->kind==core::ContainerKind::ClippingMaskGroup && !parent->children.empty() && parent->children.front()==*id;
+    }
     default:
         return { };
     }
@@ -355,7 +364,7 @@ std::optional<core::ItemPlacement> LayerListModel::dropPlacement(int row, const 
     if (parent.isValid() && row < 0) {
         const auto id = layerIdAt(parent.row());
         const auto* c = id ? tree.container(*id) : nullptr;
-        if (c && c->kind == core::ContainerKind::Folder)
+        if (c && core::isExpandable(c->kind))
             return core::ItemPlacement { c->id, c->children.size() };
         return { };
     }
@@ -522,6 +531,7 @@ QIcon LayerListModel::groupThumbnail(core::LayerId id) const
     const auto hash = [&](std::uint64_t value) { stamp = (stamp ^ value) * 1099511628211ULL; };
     hash(static_cast<std::uint64_t>(QApplication::palette().cacheKey()));
     hash(ink.rgba());
+    for(const auto& c:doc.tree().containers){hash(c.id);hash(std::uint64_t(c.kind));for(auto child:c.children)hash(child);}
     const auto appearanceStamp = stamp;
     for (auto leaf : previewLeaves) {
         const auto& layer = *doc.layer(leaf);
@@ -596,15 +606,16 @@ QIcon LayerListModel::groupThumbnail(core::LayerId id) const
         if (std::isfinite(left) && right > left && bottom > top) {
             const auto scale = (thumbnailPixels * .85) / std::max(right - left, bottom - top);
             std::vector<const core::Layer*> prepared;
+            std::vector<core::Layer> previewLayers;previewLayers.reserve(previewLeaves.size());
             const core::AffineTransform fit { scale, 0, thumbnailPixels * .075 - left * scale,
                 0, scale, thumbnailPixels * .075 - top * scale };
             for (auto leaf : previewLeaves) {
                 const auto* l = doc.layer(leaf);
-                if (!visibleForPreview(leaf) || !core::renderedSurface(*l))
-                    continue;
-                prepared.push_back(l);
+                previewLayers.push_back(*l);
+                previewLayers.back().visible=visibleForPreview(leaf)&&bool(core::renderedSurface(*l));
             }
-            core::PinnedDocumentSampler sampler(prepared, core::Extent2u { thumbnailPixels, thumbnailPixels }, fit);
+            for(const auto& l:previewLayers)prepared.push_back(&l);
+            core::PinnedDocumentSampler sampler(prepared, core::Extent2u { thumbnailPixels, thumbnailPixels }, fit,{},&doc.tree());
             for (int y = 0; y < thumbnailPixels; ++y)
                 for (int x = 0; x < thumbnailPixels; ++x) {
                     const auto c = sampler.sample({ x + .5, y + .5 });

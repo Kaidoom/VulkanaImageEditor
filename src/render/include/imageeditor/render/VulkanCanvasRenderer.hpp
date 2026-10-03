@@ -91,11 +91,12 @@ private:
         std::size_t stablePrefix {0};
     };
     struct AdjustmentBuffers {
-        BufferResource parameters, masks;
+        BufferResource parameters, masks, clipping;
         float* mappedParameters {nullptr};
         VkDescriptorSet descriptor {VK_NULL_HANDLE};
         std::uint64_t maskGeneration {0};
         std::vector<float> parameterKey;
+        std::unordered_map<core::LayerId,std::vector<std::uint64_t>> clippingKeys;
     };
     struct AdjustmentProgram {
         core::AdjustmentState state;
@@ -198,6 +199,7 @@ private:
     VkPipeline compositionPipeline_ {VK_NULL_HANDLE};
     VkDescriptorSetLayout adjustmentSetLayout_ {VK_NULL_HANDLE};
     std::vector<AdjustmentBuffers> adjustmentBuffers_;
+    std::size_t clippingBytes_{0};
     std::unordered_map<core::LayerId,AdjustmentProgram> adjustmentPrograms_;
     std::vector<core::SelectionState> adjustmentMasks_;
     std::vector<core::Revision> failedAdjustmentMaskRevisions_;

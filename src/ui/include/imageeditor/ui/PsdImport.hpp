@@ -20,6 +20,7 @@ struct PsdRasterScope {
 };
 struct PsdLayerInfo {
   int sourceIndex{}, parent{-1};
+  int clippingBase{-1};
   QString name, type, status, details;
   QStringList issues, fonts;
   QMap<QString, QString> proposedFonts;

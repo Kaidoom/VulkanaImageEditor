@@ -15,6 +15,7 @@ The guides below describe the architecture, behavior and algorithms.
 - [Single instance](SINGLE_INSTANCE.md): startup arbitration and file forwarding.
 - [Adjustments](ADJUSTMENT_ALGORITHMS.md): color/alpha equations and masks.
 - [Layer effects](LAYER_EFFECTS_V1.md): style order, bounds and compositing.
+- [Clipping groups](CLIPPING_GROUPS.md): structural membership, alpha math and baking.
 - [Spatial filters](SPATIAL_FILTER_PIPELINE.md) and [kernels](spatial-filter-kernels.md).
 - [Local blur](LOCAL_BLUR.md), [Heal](HEALING_ALGORITHM.md), and
   [Spot Heal](SPOT_HEAL_ALGORITHM.md): algorithms and integration contracts.

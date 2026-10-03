@@ -10,12 +10,14 @@
 #define bSqrt sqrt
 #define bAbs abs
 #include "imageeditor/core/detail/BlendMath.inc"
+#include "imageeditor/core/detail/ClippingMath.inc"
 
 layout(local_size_x=16, local_size_y=16) in;
 layout(set=0,binding=0) uniform sampler2D layerTexture;
 layout(rgba32f,set=1,binding=0) uniform image2D composition;
 layout(std430,set=2,binding=0) readonly buffer AdjustmentParameters { float values[]; } adjustmentParameters;
 layout(std430,set=2,binding=1) readonly buffer AdjustmentMasks { uint words[]; } adjustmentMasks;
+layout(std430,set=2,binding=2) buffer ClippingWork { vec4 pixels[]; } clippingWork;
 layout(push_constant) uniform CompositePush {
     vec4 localX; // framebuffer-pixel -> source-texel affine rows
     vec4 localY;
@@ -133,11 +135,40 @@ float sampleStyleMask(int i,vec2 local)
     return mix(mix(maskTexel(header,lo),maskTexel(header,lo+ivec2(1,0)),f.x),
         mix(maskTexel(header,lo+ivec2(0,1)),maskTexel(header,lo+ivec2(1,1)),f.x),f.y);
 }
+int clippingGeometry=-1;
+vec4 loadTarget(int slot,ivec2 pixel)
+{
+    if(clippingGeometry<0)return imageLoad(composition,pixel);
+    int o=clippingGeometry+21+slot*5;
+    int offset=floatBitsToInt(adjustmentParameters.values[o]);
+    if(offset<0)return imageLoad(composition,pixel);
+    ivec2 local=pixel-ivec2(adjustmentParameters.values[o+1],adjustmentParameters.values[o+2]);
+    ivec2 size=ivec2(adjustmentParameters.values[o+3],adjustmentParameters.values[o+4]);
+    bool scalar=size.x<0;size.x=abs(size.x);
+    if(any(lessThan(local,ivec2(0)))||any(greaterThanEqual(local,size)))return vec4(0);
+    int index=local.y*size.x+local.x;
+    if(scalar)return vec4(clippingWork.pixels[offset+index/4][index%4]);
+    return clippingWork.pixels[offset+index];
+}
+void storeTargetSlot(int slot,ivec2 pixel,vec4 value)
+{
+    if(clippingGeometry<0){imageStore(composition,pixel,value);return;}
+    int o=clippingGeometry+21+slot*5;
+    int offset=floatBitsToInt(adjustmentParameters.values[o]);
+    if(offset<0){imageStore(composition,pixel,value);return;}
+    ivec2 local=pixel-ivec2(adjustmentParameters.values[o+1],adjustmentParameters.values[o+2]);
+    int width=int(adjustmentParameters.values[o+3]);
+    if(width<0) {int index=local.y*(-width)+local.x;clippingWork.pixels[offset+index/4][index%4]=value.r;return;}
+    clippingWork.pixels[offset+local.y*width+local.x]=value;
+}
+void storeTarget(ivec2 pixel,vec4 value){storeTargetSlot(0,pixel,value);}
 void main()
 {
-    effectOffset=(pc.mode>>8)-1;
+    effectOffset=((pc.mode&0x3fffffff)>>8)-1;
     int cropMode=pc.cropEnabled&3;
     int geometry=(pc.cropEnabled>>2)-1;
+    clippingGeometry=(pc.mode&0x40000000)!=0?geometry:-1;
+    int operation=clippingGeometry>=0?int(adjustmentParameters.values[clippingGeometry+20]):0;
     vec3 inverseW=vec3(0,0,1),sourceW=vec3(0,0,1);
     if(geometry>=0) {
         inverseW=vec3(adjustmentParameters.values[geometry],adjustmentParameters.values[geometry+1],adjustmentParameters.values[geometry+2]);
@@ -146,6 +177,12 @@ void main()
     ivec2 offset = ivec2(gl_GlobalInvocationID.xy);
     if (any(greaterThanEqual(offset,pc.region.zw))) return;
     ivec2 pixel = pc.region.xy + offset;
+    if(operation==3){storeTarget(pixel,bClippingOpaque(loadTarget(1,pixel)));return;}
+    if(operation==4){
+        vec4 styled=loadTarget(2,pixel),content=loadTarget(3,pixel),working=loadTarget(1,pixel);
+        styled=bClippingContainer(styled,content,working);
+        storeTarget(pixel,bComposite(loadTarget(0,pixel),styled,1,0));return;
+    }
     vec2 p = vec2(pixel)+vec2(0.5);
     if (any(lessThan(p,pc.canvasRect.xy)) || any(greaterThanEqual(p,pc.canvasRect.xy+pc.canvasRect.zw))) return;
     float denominator=dot(inverseW,vec3(p,1));
@@ -160,14 +197,15 @@ void main()
         vec2 dv=(vec2(pc.localX.y,pc.localY.y)-local*inverseW.y)/denominator;
         edgeCoverage=cCoverage(du,dv,vec4(-local,vec2(size)-local),vec4(0));
     }
-    if (edgeCoverage<=0&&effectOffset<0) return;
+    if (edgeCoverage<=0&&effectOffset<0&&operation!=1&&operation!=2) return;
     vec2 q = clamp(local-vec2(0.5),vec2(0),vec2(size-1));
     ivec2 lo = ivec2(floor(q)), hi = min(lo+ivec2(1),size-1);
     vec2 f = fract(q);
     // Premultiply each texel BEFORE interpolation. Hidden RGB at alpha zero
     // cannot contaminate AA edges. Same texel-center/clamp rule as CPU sampling.
     precise vec4 source;
-    if(cropMode==3) {
+    if(operation==2)source=loadTarget(2,pixel);
+    else if(cropMode==3) {
         // Pixel Preview is axis-aligned in document space. Magnification keeps
         // native pixel cells sharp; reduction integrates their premultiplied
         // linear-light areas (not hidden RGB or a straight-alpha interpolation).
@@ -186,9 +224,10 @@ void main()
         }
     } else source = mix(mix(premultipliedTexel(lo),premultipliedTexel(ivec2(hi.x,lo.y)),f.x),
         mix(premultipliedTexel(ivec2(lo.x,hi.y)),premultipliedTexel(hi),f.x),f.y);
-    source*=edgeCoverage;
-    if (source.a <= 0.0&&effectOffset<0) return;
-    source=adjustSource(source,local);
+    if(operation!=2)source*=edgeCoverage;
+    if (source.a <= 0.0&&effectOffset<0&&operation!=1&&operation!=2) return;
+    if(operation!=2)source=adjustSource(source,local);
+    if(operation==2)source.rgb=loadTarget(1,pixel).rgb*source.a;
     float cropCoverage=1;
     if(cropMode==1 || cropMode==2){
         float w=dot(sourceW,vec3(local,1));
@@ -205,10 +244,12 @@ void main()
     }
     vec2 maskLocal=vec2(dot(pc.sourceToLocalX.xyz,vec3(local,1)),dot(pc.sourceToLocalY.xyz,vec3(local,1)))/dot(sourceW,vec3(local,1));
     cropCoverage*=layerCoverage(geometry,maskLocal);
-    vec4 backdrop=imageLoad(composition,pixel);
+    if(operation==1){storeTarget(pixel,source);storeTargetSlot(1,pixel,vec4(cropCoverage));return;}
+    if(operation==2)cropCoverage=loadTarget(3,pixel).r;
+    vec4 backdrop=loadTarget(0,pixel);
     if(effectOffset>=0) {
         vec2 point=vec2(dot(pc.sourceToLocalX.xyz,vec3(local,1)),dot(pc.sourceToLocalY.xyz,vec3(local,1)))/dot(sourceW,vec3(local,1));
         for(int i=0;i<6;++i)effectCoverage[i]=sampleStyleMask(i,point);
-        imageStore(composition,pixel,eComposite(backdrop,source,point.x,point.y,pc.opacity*cropCoverage,pc.mode&255));
-    }else imageStore(composition,pixel,bComposite(backdrop,source*cropCoverage,pc.opacity,pc.mode));
+        storeTarget(pixel,eComposite(backdrop,source,point.x,point.y,pc.opacity*cropCoverage,pc.mode&255));
+    }else storeTarget(pixel,bComposite(backdrop,source*cropCoverage,pc.opacity,pc.mode&255));
 }

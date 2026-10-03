@@ -528,6 +528,8 @@ namespace {
         if (!doc.tree().containers.empty() || containsLabels) {
             auto required = result["required"].toArray();
             required.append("hierarchy-v1");
+            if (std::ranges::any_of(doc.tree().containers, [](const auto& c) { return c.kind==core::ContainerKind::ClippingMaskGroup; }))
+                required.append("clipping-mask-group-v1");
             if (std::any_of(doc.tree().containers.begin(), doc.tree().containers.end(),
                     [](const auto& container) { return !container.visible; }))
                 required.append("container-visibility-v1");
@@ -551,7 +553,7 @@ namespace {
                 auto saved = oldContainers[container.id];
                 saved["id"] = QString::number(container.id);
                 saved["name"] = QString::fromStdString(container.name);
-                saved["kind"] = container.kind == core::ContainerKind::Folder ? "folder" : "group";
+                saved["kind"] = container.kind == core::ContainerKind::Folder ? "folder" : container.kind == core::ContainerKind::ClippingMaskGroup ? "clipping-mask-group" : "group";
                 saved["colorLabel"] = int(container.colorLabel);
                 saved["children"] = encodeIds(container.children);
                 saved["visible"] = container.visible;
@@ -614,8 +616,8 @@ namespace {
                     && item["name"].toString().toUtf8().size() <= 4096,
                 "Invalid container name");
             container.name = item["name"].toString().toStdString();
-            require(item["kind"] == "folder" || item["kind"] == "group", "Unsupported container kind");
-            container.kind = item["kind"] == "folder" ? core::ContainerKind::Folder : core::ContainerKind::Group;
+            require(item["kind"] == "folder" || item["kind"] == "group" || item["kind"] == "clipping-mask-group", "Unsupported container kind");
+            container.kind = item["kind"] == "folder" ? core::ContainerKind::Folder : item["kind"] == "clipping-mask-group" ? core::ContainerKind::ClippingMaskGroup : core::ContainerKind::Group;
             container.colorLabel = core::ColorLabel(integer(item.contains("colorLabel") ? item["colorLabel"] : QJsonValue(0),
                 0, int(core::ColorLabel::Purple), "Invalid container color label"));
             require(!item.contains("visible") || item["visible"].isBool(), "Invalid container visibility");
@@ -639,7 +641,7 @@ namespace {
         const auto required = o["required"].toArray();
         for (const auto& capability : required)
             require(capability == "rgba8" || capability == "rich-text-v1" || capability == "shape-v1" || capability == "shape-stroke-v2"
-                    || capability == "hierarchy-v1" || capability == "container-visibility-v1"
+                    || capability == "hierarchy-v1" || capability == "container-visibility-v1" || capability == "clipping-mask-group-v1"
                     || capability == "layer-blend-modes-v1" || capability == "layer-blend-modes-v2"
                     || capability == "adjustments-v1" || capability == "spatial-filters-v1" || capability == "layer-crop-v1" || capability == "layer-crop-chamfer-v1"
                     || capability == "selection-recall-v1" || capability == "layer-effects-v1" || capability == "projective-transform-v1" || capability == "raster-local-frame-v1" || capability == "layer-mask-v1",
@@ -825,6 +827,9 @@ namespace {
         if (o.contains("hierarchy")) {
             require(required.contains("hierarchy-v1"), "Hierarchy requires declared hierarchy-v1 capability");
             result.tree = decodeHierarchy(o["hierarchy"], leafOrder);
+            for(const auto& c:result.tree.containers)
+                require(c.kind!=core::ContainerKind::ClippingMaskGroup || required.contains("clipping-mask-group-v1"),
+                    "Clipping groups require declared clipping-mask-group-v1 capability");
             for (const auto& container : result.tree.containers)
                 require(container.visible || required.contains("container-visibility-v1"),
                     "Hidden containers require declared container-visibility-v1 capability");

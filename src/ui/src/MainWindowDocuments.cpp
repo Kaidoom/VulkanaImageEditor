@@ -180,7 +180,7 @@ bool MainWindow::receiveLayerTransfer(const QMimeData* data, std::optional<core:
     if (!placement) {
         placement = core::ItemPlacement{0, document.tree().roots.size()};
         if (const auto active = session().activeLayer()) {
-            if (auto above = document.tree().placement(*active)) { ++above->index; placement = above; }
+            placement=document.tree().insertionAbove(*active);
         }
     }
     try {

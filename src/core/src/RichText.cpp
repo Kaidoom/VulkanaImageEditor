@@ -229,7 +229,17 @@ bool TextEditCommand::apply(Document& doc)
         layer.renderCache.reset();
         layer.filterCache.reset();
         layer.effectCache.reset();
-        return doc.insertLayer(index_, std::move(layer));
+        if (!placement_) {
+            placement_ = index_ < doc.layers().size() ? *doc.tree().placement(doc.layers()[index_].id)
+                : ItemPlacement{0, doc.tree().roots.size()};
+            if (previousActive_) {
+                const auto next = doc.tree().insertionAbove(*previousActive_);
+                if (const auto* container = doc.tree().container(next.parent);
+                    container && container->kind == ContainerKind::ClippingMaskGroup)
+                    placement_ = next;
+            }
+        }
+        return doc.insertLayerAt(*placement_, std::move(layer));
     }
     const auto* layer = doc.layer(id_);
     const auto* text = layer ? std::get_if<TextLayer>(&layer->payload) : nullptr;

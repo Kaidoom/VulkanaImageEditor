@@ -21,6 +21,7 @@ inline float bSqrt(float a) { return std::sqrt(a); }
 inline float bAbs(float a) { return std::abs(a); }
 #define B_INLINE inline
 #include "imageeditor/core/detail/BlendMath.inc"
+#include "imageeditor/core/detail/ClippingMath.inc"
 #undef B_INLINE
 }
 [[nodiscard]] inline PremultipliedColor compositeLayer(PremultipliedColor backdrop,

@@ -305,7 +305,7 @@ static FlattenedDocumentResult flattenImpl(
         // Sampling the original document coordinates also preserves exact edge
         // decisions: translating a matrix before inversion can move a source
         // boundary a few ulps and drop a fully visible pixel.
-        const core::PinnedDocumentSampler sampler(prepared, items ? extent : canvasExtent, {}, origin);
+        const core::PinnedDocumentSampler sampler(prepared, items ? extent : canvasExtent, {}, origin, intrinsic ? nullptr : &document.tree(),items.value_or(std::span<const core::LayerId>{}));
         samplerSetup.finish();
         ProfileStage allocation(profile?&profile->allocationMs:nullptr);
         QImage output(int(extent.width), int(extent.height), QImage::Format_RGBA8888);
@@ -323,7 +323,7 @@ static FlattenedDocumentResult flattenImpl(
             if (!layer->visible || layer->opacity<=0)continue;
             if(single) {single=nullptr;break;} single=layer;
         }
-        if(single && items && !matte && single->opacity==1
+        if(single && items && !matte && (intrinsic || !core::hasClippingGroups(document.tree())) && single->opacity==1
             && single->blendMode==core::BlendMode::Normal && !single->crop && (!single->mask||!single->mask->enabled)
             && !core::compileAdjustmentStack(single->adjustments).active
             && !core::hasActiveSpatialFilters(single->filters)&&!core::hasActiveLayerEffects(single->effects)) {

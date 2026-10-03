@@ -233,6 +233,13 @@ VkDescriptorSet VulkanCanvasRenderer::uploadAdjustmentData(std::span<const float
         return true;
     };
     const bool newParameters=resize(resources.parameters,data.size_bytes(),parameterBudget,true);
+    if(clippingBytes_) {
+        VkPhysicalDeviceProperties properties{};
+        vkGetPhysicalDeviceProperties(physicalDevice_,&properties);
+        const auto budget=std::min<std::size_t>(512ULL*1024*1024,properties.limits.maxStorageBufferRange);
+        if(clippingBytes_>budget)throw std::runtime_error("Clipping working surfaces exceed the GPU storage budget");
+        if(resize(resources.clipping,clippingBytes_,budget,false))resources.clippingKeys.clear();
+    }
     if (newParameters || resources.parameterKey.size()!=data.size()
         || !std::equal(data.begin(),data.end(),resources.parameterKey.begin())) {
         std::memcpy(resources.mappedParameters,data.data(),data.size_bytes());
@@ -267,9 +274,10 @@ VkDescriptorSet VulkanCanvasRenderer::uploadAdjustmentData(std::span<const float
         // the already-valid parameter buffer instead of staging/uploading a
         // dummy word in each slot of an otherwise unadjusted document.
         const auto& masks=resources.masks.buffer?resources.masks:resources.parameters;
+        const auto& clipping=resources.clipping.buffer?resources.clipping:resources.parameters;
         const std::array infos {VkDescriptorBufferInfo {resources.parameters.buffer,0,resources.parameters.size},
-            VkDescriptorBufferInfo {masks.buffer,0,masks.size}};
-        std::array<VkWriteDescriptorSet,2> writes {};
+            VkDescriptorBufferInfo {masks.buffer,0,masks.size}, VkDescriptorBufferInfo{clipping.buffer,0,clipping.size}};
+        std::array<VkWriteDescriptorSet,3> writes {};
         for (std::size_t i=0;i<writes.size();++i) {
             writes[i]={VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
             writes[i].dstSet=resources.descriptor; writes[i].dstBinding=std::uint32_t(i);
@@ -286,7 +294,7 @@ void VulkanCanvasRenderer::releaseAdjustments()
     for (auto& resources:adjustmentBuffers_) {
         if (resources.descriptor) vkFreeDescriptorSets(device_,descriptorPool_,1,&resources.descriptor);
         if (resources.mappedParameters) vkUnmapMemory(device_,resources.parameters.memory);
-        destroyBuffer(resources.parameters); destroyBuffer(resources.masks);
+        destroyBuffer(resources.parameters); destroyBuffer(resources.masks); destroyBuffer(resources.clipping);
     }
     adjustmentBuffers_.clear(); adjustmentPrograms_.clear(); adjustmentMasks_.clear();
     failedAdjustmentMaskRevisions_.clear();

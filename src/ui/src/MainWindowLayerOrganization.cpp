@@ -61,6 +61,7 @@ void MainWindow::createLayerOrganizationActions()
     };
     newFolderAction_ = action(tr("New Folder"), "NewLayerFolderAction", ToolGlyph::Folder, [this] { createLayerFolder(); });
     groupLayersAction_ = action(tr("Group Selected Items"), "GroupLayersAction", ToolGlyph::Group, [this] { groupLayerItems(); });
+    clippingGroupAction_ = action(tr("Add to Clipping Mask Group"), "ClippingGroupAction", ToolGlyph::ClippingGroup, [this] { clippingGroupItems(); });
     ungroupLayersAction_ = action(tr("Ungroup"), "UngroupLayersAction", ToolGlyph::Group, [this] {if(session().activeLayer())dissolveLayerItem(*session().activeLayer()); });
     mergeLayersAction_ = action(tr("Merge Layers…"), "MergeLayersAction", ToolGlyph::MergedVisible, [this] { mergeLayerItems(); });
     mergeLayersAction_->setToolTip(tr("Bake selected content together over transparency; unselected backdrop layers are not included."));
@@ -185,6 +186,25 @@ void MainWindow::groupLayerItems()
     siblings.insert(siblings.begin() + std::ptrdiff_t(p.index), id);
     commitLayerStructure(tr("Group layers"), std::move(tree), { }, { }, selected({ id }));
 }
+void MainWindow::clippingGroupItems()
+{
+    if (!session().document() || !settleForFileOperation()) return;
+    auto tree=session().document()->tree();
+    const auto ids=tree.normalize(session().selectedLayers());
+    if(ids.empty())return;
+    if(ids.size()==1)if(auto* c=tree.container(ids.front()); c && core::isGroup(c->kind)) {
+        const bool release=c->kind==core::ContainerKind::ClippingMaskGroup;
+        c->kind=release?core::ContainerKind::Group:core::ContainerKind::ClippingMaskGroup;
+        commitLayerStructure(release?tr("Release clipping"):tr("Convert to clipping mask group"),std::move(tree),{},{},selected(ids));
+        return;
+    }
+    const auto top=*tree.placement(ids.back());
+    const auto id=core::makeLayerId();
+    tree.containers.push_back({id,"Clipping Mask Group",core::ContainerKind::ClippingMaskGroup,core::ColorLabel::None,{}});
+    auto& siblings=*tree.children(top.parent);
+    siblings.insert(siblings.begin()+std::ptrdiff_t(top.index+1),id);
+    if(tree.reparent(ids,{id,0}))commitLayerStructure(tr("Add to clipping mask group"),std::move(tree),{},{},selected({id}));
+}
 void MainWindow::dissolveLayerItem(core::LayerId id)
 {
     if (!session().document() || !settleForFileOperation())
@@ -205,7 +225,7 @@ void MainWindow::dissolveLayerItem(core::LayerId id)
         selection.primary = replacement;
     if (selection.anchor == id)
         selection.anchor = replacement;
-    const auto label = c->kind == core::ContainerKind::Group ? tr("Ungroup") : tr("Remove folder, keep contents");
+    const auto label = core::isGroup(c->kind) ? tr("Ungroup") : tr("Remove folder, keep contents");
     std::vector<core::ItemVisibilityUpdate> hiddenLeaves;
     if (!c->visible) {
         // Removing a hidden gate must not suddenly reveal its contents. Carry
@@ -363,7 +383,7 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
                     session().setLayerSelection(ids, ids.empty() ? std::nullopt : std::optional(ids.back()));
                     synchronizeUi(false, false);
                 });
-            menu.addAction(c->kind == core::ContainerKind::Group ? tr("Ungroup") : c->children.empty() ? tr("Remove empty folder")
+            menu.addAction(core::isGroup(c->kind) ? tr("Ungroup") : c->children.empty() ? tr("Remove empty folder")
                                                                                                        : tr("Remove folder, keep contents"),
                 this, [this, id] { dissolveLayerItem(*id); });
             if (!c->children.empty())
@@ -376,6 +396,7 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
     for (auto* action : layerVisibilityActions_) menu.addAction(action);
     menu.addSeparator();
     menu.addAction(groupLayersAction_);
+    menu.addAction(clippingGroupAction_);
     menu.addAction(mergeLayersAction_);
     menu.addAction(rasterizeLayersAction_);
     menu.addSeparator();

@@ -1,4 +1,5 @@
 #include "imageeditor/ui/TextController.hpp"
+#include "imageeditor/core/ColorSampler.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/render/CanvasCoordinateMapping.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
@@ -429,7 +430,7 @@ bool TextController::press(core::Vec2d p, Qt::KeyboardModifiers modifiers, bool 
     prepareCaches();
     const core::Layer* hit = nullptr;
     for (auto it = doc->layers().rbegin(); it != doc->layers().rend(); ++it)
-        if (doc->isEffectivelyVisible(it->id) && core::hitTextBounds(*it, p)) {
+        if (doc->isEffectivelyVisible(it->id) && core::hitTextBounds(*it, p) && core::clippingVisibility(*doc,it->id,p)>0) {
             hit = &*it;
             break;
         }

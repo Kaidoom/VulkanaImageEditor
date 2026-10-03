@@ -80,7 +80,7 @@ void BoundsSnapping::rebuild(const Document& document)
         }
         // Folders are organizational only. Groups have a visible-content
         // aggregate, but no ancestor containing a mover can attract itself.
-        if (item.kind == ContainerKind::Group && result.bounds && !result.containsMoving)
+        if (isGroup(item.kind) && result.bounds && !result.containsMoving)
             add(id, *result.bounds);
         return result;
     };

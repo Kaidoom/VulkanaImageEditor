@@ -89,8 +89,10 @@ See [document tabs](DOCUMENT_TABS.md) for transfer and close/save policies.
 
 `LayerTree` owns bottom-first hierarchy order and stable item identities.
 `Document::layers()` exposes the materialized leaf traversal, not a separate stack.
-Containers are pass-through organizational/visibility structures; leaves retain
-document-space transforms. Effective visibility includes ancestor gates.
+Ordinary containers are pass-through organizational/visibility structures; leaves
+retain document-space transforms. Effective visibility includes ancestor gates.
+Explicit [clipping groups](CLIPPING_GROUPS.md) use a shared structural composition
+plan, with the bottommost direct child's stable coverage and final opacity/blend.
 
 Raster bytes, editable text/shape models, transforms, crop, adjustments, filters
 and styles are authoritative. Whole-layer transforms retain source detail and

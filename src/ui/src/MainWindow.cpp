@@ -613,7 +613,7 @@ MainWindow::MainWindow(
         if(!textController_->active()) {
             const auto hit=hitMoveLayer(p);
             const auto* container=hit?session().document()->tree().container(*hit):nullptr;
-            if(container && container->kind==core::ContainerKind::Group) {
+            if(container && core::isGroup(container->kind)) {
                 session().setActiveLayer(*hit);synchronizeUi(false,false);
                 statusBar()->showMessage(QStringLiteral("Group selected · Ungroup or explicitly select a child to edit its text."),4000);
                 return false;
@@ -2992,7 +2992,7 @@ bool MainWindow::importImageAsLayerFromPath(const QString& filePath)
 
     const auto layerId = result.layer->id;
     if (!executeDocumentCommand(std::make_unique<core::AddLayerCommand>(
-            std::move(*result.layer), document->layers().size()))) {
+            std::move(*result.layer), document->layers().size(), session().activeLayer()))) {
         QMessageBox::critical(this, QStringLiteral("Unable to import image"),
             QStringLiteral("The image could not be added to the current document."));
         return false;
@@ -4080,7 +4080,7 @@ void MainWindow::addRasterLayer()
             "Layer " + std::to_string(document->layers().size() + 1U), std::move(surface));
         const auto id = layer.id;
         if (executeDocumentCommand(std::make_unique<core::AddLayerCommand>(
-                std::move(layer), document->layers().size()))) {
+                std::move(layer), document->layers().size(), session().activeLayer()))) {
             session().setActiveLayer(id);
             fileState().untouched = false;
             synchronizeUi(true, false);
@@ -4333,9 +4333,13 @@ void MainWindow::updateActionState()
     renameLayerAction_->setEnabled(session().activeLayer().has_value() && !fileBusy_);
     groupLayersAction_->setEnabled(session().document() && !session().selectedLayers().empty() && !fileBusy_);
     mergeLayersAction_->setEnabled(groupLayersAction_->isEnabled());
+    clippingGroupAction_->setEnabled(groupLayersAction_->isEnabled());
+    clippingGroupAction_->setText(activeContainer && session().selectedLayers().size()==1 && core::isGroup(activeContainer->kind)
+        ? activeContainer->kind==core::ContainerKind::ClippingMaskGroup ? tr("Convert to Ordinary Group") : tr("Convert to Clipping Mask Group")
+        : tr("Add to Clipping Mask Group"));
     rasterizeLayersAction_->setEnabled(groupLayersAction_->isEnabled());
     duplicateLayersAction_->setEnabled(groupLayersAction_->isEnabled());
-    ungroupLayersAction_->setEnabled(activeContainer && activeContainer->kind==core::ContainerKind::Group && !fileBusy_);
+    ungroupLayersAction_->setEnabled(activeContainer && core::isGroup(activeContainer->kind) && !fileBusy_);
     for (std::size_t i = 0; i < layerVisibilityActions_.size(); ++i)
         layerVisibilityActions_[i]->setEnabled(session().document() && !fileBusy_
             && (i == 3 || !session().selectedLayers().empty()));

@@ -397,7 +397,7 @@ QImage verify(const c::Document& document, const r::CanvasScene& scene, const QI
         pointers.push_back(&layer);
     }
     const c::PinnedDocumentSampler sampler(pointers,
-        {OffscreenCanvas::extent.width,OffscreenCanvas::extent.height},toFrame);
+        {OffscreenCanvas::extent.width,OffscreenCanvas::extent.height},toFrame,{},&document.tree());
     const auto rect = mapping.documentCanvasFramebufferRect();
     QImage expected(actual.size(),QImage::Format_RGBA8888);
     int worst = 0, badPixels = 0, inspected = 0;
@@ -1097,11 +1097,112 @@ void layerMaskRendering(OffscreenCanvas& gpu)
     effectDoc.setLayerTransform(id,projective);scene=sceneFor(effectDoc);
     verify(effectDoc,scene,gpu.render(scene),"projective layer mask");
 }
+void clippingRendering(OffscreenCanvas& gpu)
+{
+    c::Document doc({{96,80},96});
+    auto base=c::Layer::raster("Base",std::make_shared<c::ContiguousRasterSurface>(c::Extent2u{48,45},c::Rgba8{130,90,180,128}));
+    base.localToDocument={1,0,12,0,1,13};base.opacity=.6F;
+    auto upper=c::Layer::raster("Upper",std::make_shared<c::ContiguousRasterSurface>(c::Extent2u{75,70},c::Rgba8{220,140,60,210}));
+    auto second=c::Layer::raster("Second",std::make_shared<c::ContiguousRasterSurface>(c::Extent2u{32,40},c::Rgba8{50,180,210,190}));
+    second.localToDocument={1,0,30,0,1,20};
+    auto outside=c::Layer::raster("Unrelated backdrop",patterned({96,80},false));
+    for(const auto& l:{outside,base,upper,second})check(doc.insertLayer(doc.layers().size(),l),"clip fixture insertion");
+    auto tree=doc.tree();const auto group=c::makeLayerId();tree.roots={outside.id,group};
+    tree.containers.push_back({group,"Clipping",c::ContainerKind::ClippingMaskGroup,c::ColorLabel::None,{base.id,upper.id,second.id}});
+    check(doc.replaceStructure(doc.tree(),tree),"clip fixture hierarchy");
+    for(auto mode:c::allBlendModes) {
+        doc.setLayerBlendMode(upper.id,mode);doc.setLayerBlendMode(base.id,mode);
+        auto scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"clipping mode");
+        const auto before=gpu.stats();gpu.render(scene);
+        check(gpu.stats().uploadedBytes==before.uploadedBytes && gpu.stats().compositionPasses==before.compositionPasses,"clipping idle reuse");
+    }
+    doc.setLayerBlendMode(base.id,c::BlendMode::Normal);
+    auto cachedScene=sceneFor(doc);gpu.render(cachedScene);
+    const auto cached=gpu.stats();
+    doc.setLayerOpacity(second.id,.5F);cachedScene=sceneFor(doc);gpu.render(cachedScene);
+    check(gpu.stats().clippingBaseBuilds==cached.clippingBaseBuilds && gpu.stats().clippingBaseReuses>cached.clippingBaseReuses,"upper-only edit reuses clipping base");
+    check(gpu.stats().uploadedBytes==cached.uploadedBytes,"clipping edit never reuploads unchanged source");
+    tree=doc.tree();std::swap(tree.container(group)->children[1],tree.container(group)->children[2]);
+    check(doc.replaceStructure(doc.tree(),tree),"reorder only upper members");
+    const auto beforeReorder=gpu.stats();cachedScene=sceneFor(doc);verify(doc,cachedScene,gpu.render(cachedScene),"reordered upper members");
+    check(gpu.stats().clippingBaseBuilds==beforeReorder.clippingBaseBuilds,"upper reorder reuses base coverage");
+    auto mask=std::make_shared<c::LayerMask>();mask->coverage=c::SelectionMask::rectangle({48,45},{5,5,30,30},128);mask->outside=0;
+    doc.setLayerMask(base.id,mask);doc.setLayerCrop(base.id,c::LayerCrop{2,2,40,40});
+    auto scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"clipping soft mask and crop");
+    check(gpu.stats().clippingBaseBuilds>beforeReorder.clippingBaseBuilds,"base mask and crop invalidate coverage");
+    doc.setLayerTransform(base.id,*c::rectangleToQuad({0,0,48,45},{{{8,12},{66,8},{59,71},{12,55}}}));
+    scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"clipping projective base");
+    doc.setLayerVisibility(base.id,false);scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"hidden clipping base");
+    doc.setLayerVisibility(base.id,true);
+    // Direct container base is evaluated as a subtree, not one descendant.
+    tree=doc.tree();const auto nested=c::makeLayerId();
+    tree.containers.push_back({nested,"Base subtree",c::ContainerKind::Folder,c::ColorLabel::None,{base.id,upper.id}});
+    tree.container(group)->children={nested,second.id};check(doc.replaceStructure(doc.tree(),tree),"container base");
+    scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"container clipping base");
+    tree.container(nested)->kind=c::ContainerKind::ClippingMaskGroup;check(doc.replaceStructure(doc.tree(),tree),"nested clipping");
+    scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"nested clipping base");
+    const auto beforeContainerEdit=gpu.stats();doc.setLayerOpacity(second.id,.3F);
+    scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"cached container base");
+    check(gpu.stats().clippingBaseBuilds==beforeContainerEdit.clippingBaseBuilds
+        &&gpu.stats().clippingBaseReuses>beforeContainerEdit.clippingBaseReuses,"upper edits reuse complete container base");
+    for(std::size_t type=0;type<c::layerEffectCount;++type) {
+        auto effects=std::make_shared<c::LayerEffectStack>();auto& effect=effects->items[type];
+        effect.enabled=true;effect.size=4.5;effect.distance=6;effect.spread=.2;effect.color={220,80,20,190};
+        doc.setLayerEffects(base.id,effects);doc.setLayerEffects(second.id,effects);
+        *doc.layer(base.id)=c::prepareSpatialFilterLayer(*doc.layer(base.id));
+        *doc.layer(second.id)=c::prepareSpatialFilterLayer(*doc.layer(second.id));
+        scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"nested clipping base and upper styles");
+        const c::PinnedDocumentSampler sampler(doc,{},c::ColorSampleSource::MergedVisible);
+        std::array<c::PremultipliedColor,96> row;
+        for(int y:{2,18,40,65}) {
+            sampler.sampleRow(0,y,row);
+            for(int x=0;x<96;++x)check(c::encodeColor(row[std::size_t(x)])==sampler.sample({x+.5,y+.5}),"clipping scanline matches scalar styles");
+        }
+    }
+    tree=doc.tree();tree.container(nested)->children.clear();
+    tree.roots={outside.id,base.id,upper.id,group};
+    check(doc.replaceStructure(doc.tree(),tree),"empty direct container base");
+    scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"empty base must not promote upper");
+    c::Document textDoc({{96,80},96});
+    c::TextLayer text;text.utf8="O8";text.defaultStyle.font.family="Noto Sans";text.defaultStyle.sizePixels=54;
+    text.defaultStyle.color={255,255,255,255};auto title=c::Layer::text("Editable base",c::normalizedText(text));
+    title.localToDocument={1,.15,4,-.1,1,15};title.renderCache=u::prepareDocumentSampleCache(title,1024*1024);
+    auto photo=c::Layer::raster("Photo",patterned({96,80},false));
+    c::ShapeLayer shape;shape.kind=c::ShapeKind::Ellipse;shape.size={35,28};shape.fillColor={220,120,40,190};
+    auto highlight=c::Layer::shape("Highlight",shape);highlight.localToDocument={1,0,25,0,1,30};highlight.blendMode=c::BlendMode::Screen;
+    highlight.renderCache=u::prepareDocumentSampleCache(highlight,1024*1024);
+    for(const auto& l:{title,photo,highlight})textDoc.insertLayer(textDoc.layers().size(),l);
+    auto textTree=textDoc.tree();const auto textGroup=c::makeLayerId();textTree.roots={textGroup};
+    textTree.containers.push_back({textGroup,"Text clipping",c::ContainerKind::ClippingMaskGroup,c::ColorLabel::None,{title.id,photo.id,highlight.id}});
+    check(textDoc.replaceStructure(textDoc.tree(),textTree),"typed clipping fixture");
+    scene=sceneFor(textDoc);verify(textDoc,scene,gpu.render(scene),"photo and highlights clipped into editable text",false);
+    scene.logicalViewport={76.8,64};scene.viewport.setZoom(1.2);
+    verify(textDoc,scene,gpu.render(scene),"clipping fractional DPI",false);
+}
+void clippingBenchmarks(bool validation)
+{
+    for(const auto extent:{c::Extent2u{3840,2160},c::Extent2u{5120,2880}}) {
+        OffscreenCanvas gpu(validation,{extent.width,extent.height});c::Document doc({extent,96});
+        auto base=c::Layer::raster("Base",std::make_shared<c::ContiguousRasterSurface>(extent,c::Rgba8{80,130,190,128}));
+        auto upper=c::Layer::raster("Upper",std::make_shared<c::ContiguousRasterSurface>(extent,c::Rgba8{210,130,45,180}));
+        doc.insertLayer(0,base);doc.insertLayer(1,upper);auto tree=doc.tree();const auto id=c::makeLayerId();tree.roots={id};
+        tree.containers.push_back({id,"Clipping",c::ContainerKind::ClippingMaskGroup,c::ColorLabel::None,{base.id,upper.id}});doc.replaceStructure(doc.tree(),tree);
+        auto scene=sceneFor(doc);scene.logicalViewport={double(extent.width),double(extent.height)};
+        gpu.render(scene,false);const auto cold=gpu.frameMilliseconds();const auto before=gpu.stats();
+        double warm=0;
+        for(int i=0;i<8;++i){doc.setLayerOpacity(upper.id,.6F+float(i)*.03F);scene.document=doc.snapshot();gpu.render(scene,false);warm+=gpu.frameMilliseconds();}
+        check(gpu.stats().clippingBaseBuilds==before.clippingBaseBuilds,"large upper edits retain base cache");
+        check(gpu.stats().uploadedBytes==before.uploadedBytes,"large upper edits retain source textures");
+        const auto idle=gpu.stats();gpu.render(scene,false);check(gpu.stats().compositionPasses==idle.compositionPasses,"large clipping idle reuse");
+        std::cout<<"Clipping "<<extent.width<<'x'<<extent.height<<" cold_ms "<<cold<<" warm_ms "<<warm/8
+            <<" work_bytes "<<gpu.stats().clippingWorkingBytes<<" retained_buffer_bytes "<<gpu.stats().adjustmentBufferCapacity<<'\n';
+    }
+}
 } // namespace
 
 int main(int argc, char** argv)
 {
-    bool validation = false, benchmark = false, adjustments = false, crop = false, filters = false,effects=false,masks=false;
+    bool validation = false, benchmark = false, adjustments = false, crop = false, filters = false,effects=false,masks=false,clipping=false;
     for (int i = 1; i < argc; ++i) {
         if (std::string_view(argv[i]) == "--validation") validation = true;
         if (std::string_view(argv[i]) == "--benchmark") benchmark = true;
@@ -1110,19 +1211,22 @@ int main(int argc, char** argv)
         if (std::string_view(argv[i]) == "--filters") filters = true;
         if (std::string_view(argv[i]) == "--effects") effects = true;
         if (std::string_view(argv[i]) == "--masks") masks = true;
+        if (std::string_view(argv[i]) == "--clipping") clipping = true;
     }
     if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM")) qputenv("QT_QPA_PLATFORM","offscreen");
     QGuiApplication app(argc,argv);
     QCoreApplication::setApplicationName("VulkanaBlendRenderingTests");
     try {
-        if (benchmark && adjustments) adjustmentBenchmarks(validation);
+        if (benchmark && clipping) clippingBenchmarks(validation);
+        else if (benchmark && adjustments) adjustmentBenchmarks(validation);
         else if (benchmark) benchmarks(validation);
         else {
             loadFontFixture();
             Review review(effects?7:filters?c::spatialFilterCount:adjustments?c::adjustmentCount+2:c::allBlendModes.size());
             {
                 OffscreenCanvas gpu(validation);
-                if(masks)layerMaskRendering(gpu);
+                if(clipping)clippingRendering(gpu);
+                else if(masks)layerMaskRendering(gpu);
                 else if(effects)layerEffectRendering(gpu,review);
                 else if(filters)spatialFilterRendering(gpu,review);
                 else if (crop) layerCropRendering(gpu);

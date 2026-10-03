@@ -1,5 +1,6 @@
 #include "../src/ui/src/PsdReader.hpp"
 #include "PsdFixture.hpp"
+#include "imageeditor/core/ColorSampler.hpp"
 #include "imageeditor/core/LayerStructureCommands.hpp"
 #include "imageeditor/core/RichText.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
@@ -385,6 +386,29 @@ void semanticFixtures() {
   auto lossy = u::convertPsd(in, options, job, {}, false);
   CHECK(lossy.document && lossy.report.contains("omitted"));
   leaf.clipping = false;
+  {
+    f::Layer base;base.name="Base";base.tags["clbl"]=QByteArray::fromHex("01000000");
+    f::Layer clipped;clipped.name="Clipped";clipped.clipping=true;
+    auto chain=inspect(f::file({base,clipped}));CHECK(chain.error.isEmpty());
+    CHECK(chain.layers[1].editable&&chain.layers[1].clippingBase==0);
+    auto result=convert(chain);CHECK(result.document&&result.document->layers().size()==2);
+    CHECK(result.document&&result.document->tree().containers.front().kind==c::ContainerKind::ClippingMaskGroup);
+    auto choices=u::defaultPsdOptions(chain);choices.layers[0].route=u::PsdRoute::Skip;
+    auto missing=u::convertPsd(chain,choices,job,{},false);CHECK(!missing.document&&missing.error.contains("requires clipping base"));
+    choices.layers[1].route=u::PsdRoute::BasePixels;auto detached=u::convertPsd(chain,choices,job,{},false);
+    CHECK(detached.document&&detached.document->tree().containers.empty());
+    base.tags["clbl"]=QByteArray::fromHex("00000000");chain=inspect(f::file({base,clipped}));
+    CHECK(!chain.layers[1].editable&&chain.layers[1].issues.join(' ').contains("disabled"));
+    base.hidden=true;base.tags["clbl"]=QByteArray::fromHex("01000000");chain=inspect(f::file({base,clipped}));result=convert(chain);
+    CHECK(result.document&&c::PinnedDocumentSampler(*result.document,{},c::ColorSampleSource::MergedVisible).sample({1.5,1.5}).alpha==0);
+    f::Layer folder;folder.name="Folder";folder.tags["lsct"]=f::group(1,"pass");
+    f::Layer boundary;boundary.tags["lsct"]=f::group(3);
+    chain=inspect(f::file({base,boundary,clipped,folder}));
+    CHECK(chain.error.isEmpty());
+    const auto orphan=std::ranges::find_if(chain.layers,[](const auto& item){return item.name=="Clipped";});
+    CHECK(orphan!=chain.layers.end()&&!orphan->editable&&orphan->clippingBase<0);
+    CHECK(orphan!=chain.layers.end()&&orphan->issues.join(' ').contains("no base in this group"));
+  }
   leaf.tags["iOpa"] = QByteArray(1, char(120));
   in = inspect(f::file({leaf}));
   CHECK(!in.layers[0].editable &&

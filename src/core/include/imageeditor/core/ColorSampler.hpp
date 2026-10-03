@@ -2,6 +2,8 @@
 
 #include "imageeditor/core/Document.hpp"
 #include "imageeditor/core/Adjustments.hpp"
+#include "imageeditor/core/CompositionPlan.hpp"
+#include <unordered_map>
 
 namespace imageeditor::core {
 
@@ -61,7 +63,8 @@ public:
     // sampleOrigin offsets sample coordinates without rebasing source matrices:
     // inverse-map evaluation remains identical at tight off-canvas merge edges.
     PinnedDocumentSampler(std::span<const Layer* const>, Extent2u sampleExtent,
-        const AffineTransform& documentToSample = {}, Vec2d sampleOrigin = {});
+        const AffineTransform& documentToSample = {}, Vec2d sampleOrigin = {}, const LayerTree* tree = nullptr,
+        std::span<const LayerId> selectedItems = {});
     [[nodiscard]] bool matches(const Document&) const noexcept;
     [[nodiscard]] Rgba8 sample(Vec2d) const;
     // Continuous document coordinates, accumulated premultiplied linear RGBA.
@@ -90,6 +93,7 @@ private:
         std::optional<EffectParameters> effects;
         std::shared_ptr<const LayerEffectCache> effectCache;
         LayerMaskState mask;
+        LayerId id{};
     };
     const Document* owner_ {nullptr};
     DocumentSnapshot snapshot_;
@@ -97,6 +101,10 @@ private:
     Vec2d sampleOrigin_;
     bool activeOnly_ {false};
     SampleFiltering filtering_ {SampleFiltering::AlphaAware};
+    std::optional<CompositionNode> composition_;
+    std::unordered_map<LayerId,std::size_t> sourceById_;
+    std::vector<std::shared_ptr<const PinnedDocumentSampler>> clippingGates_;
+    [[nodiscard]] PremultipliedColor sampleComposition(Vec2d, std::span<const PremultipliedColor> = {}) const;
 };
 
 struct ColorSample {
@@ -121,5 +129,6 @@ struct ColorSample {
 // this never quantizes to document pixel centers. UI shape targeting extends
 // lines with a display-space tolerance through its path service.
 [[nodiscard]] std::optional<LayerId> hitTestRasterLayer(const Document&, Vec2d);
+[[nodiscard]] float clippingVisibility(const Document&, LayerId, Vec2d);
 
 } // namespace imageeditor::core

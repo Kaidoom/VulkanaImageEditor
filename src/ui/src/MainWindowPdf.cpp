@@ -23,7 +23,7 @@ bool MainWindow::importPdfFromPath(const QString& filePath, bool intoCurrent)
     auto placement = core::ItemPlacement{0, targetDocument ? targetDocument->tree().roots.size() : 0};
     const auto selection = target ? target->session.layerSelectionState() : core::LayerSelectionState{};
     if (targetDocument && selection.primary)
-        if (auto above = targetDocument->tree().placement(*selection.primary)) { ++above->index; placement = *above; }
+        placement=targetDocument->tree().insertionAbove(*selection.primary);
     PdfLimits limits;
     const auto memory = documentMemory();
     limits.existingBytes = memory.sourceBytes + memory.derivedBytes + memory.historyBytes;

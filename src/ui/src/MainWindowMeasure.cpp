@@ -68,7 +68,8 @@ void MainWindow::refreshSelectionStatus()
                 : std::holds_alternative<core::TextLayer>(layer->payload) ? QStringLiteral("Text") : QStringLiteral("Shape");
         } else if (const auto* container = document->tree().container(selected.front())) {
             name = QString::fromStdString(container->name);
-            type = container->kind == core::ContainerKind::Group ? QStringLiteral("Group") : QStringLiteral("Folder");
+            type = container->kind == core::ContainerKind::ClippingMaskGroup ? QStringLiteral("Clipping Mask Group")
+                : container->kind == core::ContainerKind::Group ? QStringLiteral("Group") : QStringLiteral("Folder");
         }
         if (!type.isEmpty()) {
             text = QStringLiteral("%1 (%2)").arg(name.simplified(), type);

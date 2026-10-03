@@ -80,7 +80,7 @@ LayerId Document::canvasTarget(LayerId leaf) const noexcept
     while (p && p->parent) {
         const auto* c = tree_.container(p->parent);
         if (!c) break;
-        if (c->kind == ContainerKind::Group) result = c->id;
+        if (isGroup(c->kind)) result = c->id;
         p = tree_.placement(c->id);
     }
     return result;
@@ -449,6 +449,7 @@ DocumentSnapshot Document::snapshot() const
         .layersBottomToTop = {},
         .selection = selection_,
         .selectionRevision = selectionRevision_,
+        .tree = tree_,
     };
     result.layersBottomToTop.reserve(layers_.size());
     for (const auto& source : layers_) {
