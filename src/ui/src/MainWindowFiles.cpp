@@ -5,6 +5,7 @@
 #include "imageeditor/ui/LayerListModel.hpp"
 #include "imageeditor/ui/QtRasterImageLoader.hpp"
 #include "imageeditor/ui/PdfImport.hpp"
+#include "imageeditor/ui/PsdImport.hpp"
 #include "imageeditor/ui/TextController.hpp"
 #include "imageeditor/ui/TransformOptionsPage.hpp"
 #include "imageeditor/ui/ShapeOptionsPage.hpp"
@@ -138,7 +139,7 @@ QString MainWindow::documentOpenFilter()
     QStringList suffixes;
     for (const auto& format : QImageReader::supportedImageFormats())
         suffixes.append(QStringLiteral("*.%1").arg(QString::fromLatin1(format)));
-    return QStringLiteral("Projects, images and PDF (*.vulkana *.pdf *.PDF %1);;Vulkana project (*.vulkana);;PDF (*.pdf *.PDF);;Images (%1)")
+    return QStringLiteral("Projects, images, PDF and PSD (*.vulkana *.pdf *.PDF *.psd *.PSD *.psb *.PSB %1);;Vulkana project (*.vulkana);;PDF (*.pdf *.PDF);;PSD (*.psd *.PSD *.psb *.PSB);;Images (%1)")
         .arg(suffixes.join(' '));
 }
 
@@ -328,6 +329,7 @@ bool MainWindow::openDocumentFromPath(const QString& filePath)
         return false;
     const auto path = QFileInfo(filePath).absoluteFilePath();
     if (isPdfFile(path)) return importPdfFromPath(path, false);
+    if (isPsdFile(path)) return importPsdFromPath(path, false);
     const bool project = QFileInfo(path).suffix().compare(QStringLiteral("vulkana"), Qt::CaseInsensitive) == 0;
     if (project) for (const auto& context : documents_) {
         if (!context->projectPath.isEmpty() && QFileInfo(context->projectPath).canonicalFilePath() == QFileInfo(path).canonicalFilePath()
@@ -399,7 +401,8 @@ void MainWindow::refreshRecentMenu()
         const QFileInfo file(entry.path);
         auto* item = recentMenu_->addMenu(QStringLiteral("%1  ·  %2 — %3")
                 .arg(file.fileName(), entry.kind == RecentFileKind::Project ? QStringLiteral("Project")
-                    : entry.kind == RecentFileKind::Pdf ? QStringLiteral("PDF") : QStringLiteral("Image"), file.absolutePath()));
+                    : entry.kind == RecentFileKind::Pdf ? QStringLiteral("PDF")
+                    : entry.kind == RecentFileKind::Psd ? QStringLiteral("PSD") : QStringLiteral("Image"), file.absolutePath()));
         item->addAction(QStringLiteral("Open"), this, [this, path = entry.path] { openImageFromPath(path); });
         item->addAction(QStringLiteral("Remove from recent files"), this, [this, path = entry.path] { recentFiles_.remove(path); });
     }

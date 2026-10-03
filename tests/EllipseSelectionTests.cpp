@@ -484,12 +484,14 @@ void transformedBrushEraseFillAndCopyShareCoverage()
                 CHECK(stroke.end(sample, history) == RasterEditCommitResult::Committed);
             }
             unsigned changed = 0, partial = 0;
+            const auto editedSurface=std::get<RasterLayer>(document.layer(id)->payload).surface;
+            const auto origin=document.layer(id)->rasterOrigin;
             for (int y = 0; y < 9; ++y) {
                 for (int x = 0; x < 12; ++x) {
                     const auto doc = mapping.map({ x + 0.5, y + 0.5 });
                     const auto coverage = selection->coverageAtDocumentPixel(
                         int(std::floor(doc.x)), int(std::floor(doc.y)));
-                    const auto actual = pixel(*surface, x, y);
+                    const auto actual = pixel(*editedSurface, x-int(origin.x), y-int(origin.y));
                     CHECK(coverage ? actual != original : actual == original);
                     changed += actual != original;
                     partial += coverage > 0 && coverage < 255;
@@ -503,13 +505,13 @@ void transformedBrushEraseFillAndCopyShareCoverage()
             CHECK(history.undoDepth() == 1);
             CHECK(document.selection() == selection);
             CHECK(document.layer(id)->localToDocument == mapping);
-            const auto edited = pixels(*surface);
+            const auto edited = pixels(*editedSurface);
             CHECK(history.undo(document));
             for (int y = 0; y < 9; ++y)
                 for (int x = 0; x < 12; ++x)
                     CHECK(pixel(*surface, x, y) == original);
             CHECK(history.redo(document));
-            CHECK(pixels(*surface) == edited);
+            CHECK(pixels(*std::get<RasterLayer>(document.layer(id)->payload).surface) == edited);
         }
     }
     // A one-pixel ellipse makes partial extraction and opacity accounting

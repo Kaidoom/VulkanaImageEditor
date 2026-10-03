@@ -107,6 +107,9 @@ BasicPixelBrushStroke::BasicPixelBrushStroke(Document& document, LayerId layerId
         || surfaceExtent_.height > std::uint32_t(std::numeric_limits<std::int32_t>::max())) return;
     documentPixelFootprint_ = std::max(
         1.0e-6, localToDocument_.isAffine()?maximumTransformScale(localToDocument_):localToDocument_.maximumScaleOver({0,0,double(surfaceExtent_.width),double(surfaceExtent_.height)}));
+    // Repair/filter/mask producers have their own bounded reference contracts.
+    allowGrowth_ = compositeMode_ == BrushCompositeMode::Paint && !sampledColor_ && !transactionOptions.coverageValues;
+    transactionOptions.allowGrowth = allowGrowth_;
     transaction_ = std::make_unique<RasterEditTransaction>(
         document, layerId,
         !historyLabel.empty() ? historyLabel : compositeMode_ == BrushCompositeMode::Erase
@@ -130,7 +133,7 @@ bool BasicPixelBrushStroke::begin(const NormalizedPointerSample& sample)
     try {
         if (!engine_->beginStroke(settings_, sample, *this)) { cancel(); return false; }
     } catch (const RasterWorkLimit&) { cancel(); return false; }
-    flushPending();
+    try { flushPending(); } catch (const std::length_error&) { failure_=BrushStrokeFailure::RasterWorkLimitExceeded;cancel();return false; }
     return true;
 }
 
@@ -144,7 +147,7 @@ bool BasicPixelBrushStroke::append(const NormalizedPointerSample& sample)
     try {
         if (!engine_->appendSample(sample, *this)) { cancel(); return false; }
     } catch (const RasterWorkLimit&) { cancel(); return false; }
-    flushPending();
+    try { flushPending(); } catch (const std::length_error&) { failure_=BrushStrokeFailure::RasterWorkLimitExceeded;cancel();return false; }
     return true;
 }
 
@@ -169,7 +172,7 @@ bool BasicPixelBrushStroke::finishInput(const NormalizedPointerSample& sample)
         cancel();
         return false;
     }
-    flushPending();
+    try { flushPending(); } catch (const std::length_error&) { failure_=BrushStrokeFailure::RasterWorkLimitExceeded;cancel();return false; }
     return true;
 }
 
@@ -217,7 +220,9 @@ void BasicPixelBrushStroke::emitDab(const BrushDab& dab)
         failure_=BrushStrokeFailure::RasterWorkLimitExceeded;
         throw RasterWorkLimit {};
     }
-    const auto bounds = transaction_->clipToCrop(localDabBounds(preparedBounds).clippedTo(surfaceBounds()));
+    auto bounds = localDabBounds(preparedBounds);
+    if (!allowGrowth_) bounds = bounds.clippedTo(surfaceBounds());
+    bounds = transaction_->clipToCrop(bounds);
     const auto candidates=std::uint64_t(bounds.width)*std::uint64_t(bounds.height);
     stats_.maximumCandidatePixels=std::max(stats_.maximumCandidatePixels,candidates);
     if (candidates>kMaximumBrushDabCandidatePixels) {
@@ -280,8 +285,8 @@ bool BasicPixelBrushStroke::emitParallelDab(const BrushDab& dab, RectI bounds)
     stats_.coverageScratchBytes = coverageScratch_.capacity() * sizeof(double);
     dabTileWork_.clear();
     const auto tileSize = static_cast<int>(tileSize_);
-    for (int y = bounds.y / tileSize * tileSize; y < bounds.bottom(); y += tileSize)
-        for (int x = bounds.x / tileSize * tileSize; x < bounds.right(); x += tileSize)
+    for (int y = int(std::floor(double(bounds.y) / tileSize)) * tileSize; y < bounds.bottom(); y += tileSize)
+        for (int x = int(std::floor(double(bounds.x) / tileSize)) * tileSize; x < bounds.right(); x += tileSize)
             dabTileWork_.push_back({RectI{x, y, tileSize, tileSize}.clippedTo(bounds)});
 
     // Prepare every sampler on the owner, then only read immutable geometry /
@@ -335,8 +340,8 @@ bool BasicPixelBrushStroke::emitParallelDab(const BrushDab& dab, RectI bounds)
 BasicPixelBrushStroke::StrokeTile* BasicPixelBrushStroke::ensureTile(
     std::int32_t localX, std::int32_t localY)
 {
-    const auto tileX = localX / static_cast<std::int32_t>(tileSize_);
-    const auto tileY = localY / static_cast<std::int32_t>(tileSize_);
+    const auto tileX = int(std::floor(double(localX) / tileSize_));
+    const auto tileY = int(std::floor(double(localY) / tileSize_));
     const TileKey key {tileX, tileY};
     const auto found = tiles_.find(key);
     if (found != tiles_.end()) {
@@ -348,7 +353,7 @@ BasicPixelBrushStroke::StrokeTile* BasicPixelBrushStroke::ensureTile(
         static_cast<std::int32_t>(tileSize_),
         static_cast<std::int32_t>(tileSize_),
     };
-    const auto region = gridTile.clippedTo(surfaceBounds());
+    const auto region = allowGrowth_ ? gridTile : gridTile.clippedTo(surfaceBounds());
     if (region.empty() || !surface_) {
         return nullptr;
     }
@@ -369,7 +374,7 @@ BasicPixelBrushStroke::StrokeTile* BasicPixelBrushStroke::ensureTile(
     // Stroke-local accumulation needs a stable source tile, but the history
     // journal remains lazy: RasterEditTransaction captures this region only
     // when flushPending performs the first byte-changing write.
-    surface_->copyRgba8(region, tile.original,
+    transaction_->copyCurrentRgba8(region, tile.original,
         static_cast<std::size_t>(region.width) * kBytesPerPixel);
     tile.working = tile.original;
     auto [inserted, wasInserted] = tiles_.emplace(key, std::move(tile));
@@ -408,10 +413,13 @@ RectI BasicPixelBrushStroke::localDabBounds(
         [](Vec2d left, Vec2d right) { return left.y < right.y; });
     // Clip in double precision before converting. A legal tiny layer scale
     // can otherwise produce inverse-mapped coordinates far beyond INT32_MAX.
-    const auto left = static_cast<std::int32_t>(std::clamp(std::floor(minimumX->x),0.0,double(surfaceExtent_.width)));
-    const auto top = static_cast<std::int32_t>(std::clamp(std::floor(minimumY->y),0.0,double(surfaceExtent_.height)));
-    const auto right = static_cast<std::int32_t>(std::clamp(std::ceil(maximumX->x),0.0,double(surfaceExtent_.width)));
-    const auto bottom = static_cast<std::int32_t>(std::clamp(std::ceil(maximumY->y),0.0,double(surfaceExtent_.height)));
+    const double minX=allowGrowth_?-32768.0:0.0,minY=allowGrowth_?-32768.0:0.0;
+    const double maxX=double(surfaceExtent_.width)+(allowGrowth_?32768.0:0.0);
+    const double maxY=double(surfaceExtent_.height)+(allowGrowth_?32768.0:0.0);
+    const auto left = static_cast<std::int32_t>(std::clamp(std::floor(minimumX->x),minX,maxX));
+    const auto top = static_cast<std::int32_t>(std::clamp(std::floor(minimumY->y),minY,maxY));
+    const auto right = static_cast<std::int32_t>(std::clamp(std::ceil(maximumX->x),minX,maxX));
+    const auto bottom = static_cast<std::int32_t>(std::clamp(std::ceil(maximumY->y),minY,maxY));
     return {left, top, std::max(0, right - left), std::max(0, bottom - top)};
 }
 

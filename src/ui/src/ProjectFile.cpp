@@ -1,4 +1,5 @@
 #include "imageeditor/ui/ProjectFile.hpp"
+#include "imageeditor/platform/AvailableMemory.hpp"
 #include "LayerEffectCodec.hpp"
 #include "AdjustmentCodec.hpp"
 #include "SpatialFilterCodec.hpp"
@@ -31,7 +32,6 @@
 
 namespace imageeditor::ui {
 namespace {
-    constexpr quint64 rasterBudget = 1024ULL * 1024 * 1024;
     constexpr quint64 manifestBudget = 8ULL * 1024 * 1024;
     constexpr quint64 pixelLimit = 64ULL * 1024 * 1024;
     constexpr int layerLimit = 1024, chunkSize = 256 * 1024;
@@ -43,6 +43,11 @@ namespace {
             throw std::runtime_error(message);
     }
     void checked(int result, const char* message) { require(result == MZ_OK, message); }
+    quint64 checkedBytes(quint64 a, quint64 b)
+    {
+        require(b <= std::numeric_limits<quint64>::max() - a, "Project byte count overflow");
+        return a + b;
+    }
     struct Progress {
         ProjectProgress callback;
         quint64 done { 0 }, total { 1 };
@@ -148,7 +153,7 @@ namespace {
         checked(mz_zip_get_disk_number_with_cd(zip.handle, &disk), "Missing ZIP disk information");
         require(disk == 0 && count > 0 && count <= entryLimit, "Unsupported multipart archive or excessive entry count");
         Entries result;
-        quint64 bytes = 0, metadata = 0;
+        quint64 metadata = 0;
         checked(mz_zip_goto_first_entry(zip.handle), "Empty ZIP archive");
         for (quint64 i = 0; i < count; ++i) {
             mz_zip_file* info = nullptr;
@@ -168,11 +173,10 @@ namespace {
             require(info->compression_method == MZ_COMPRESS_METHOD_STORE || info->compression_method == MZ_COMPRESS_METHOD_DEFLATE,
                 "Unsupported archive compression");
             require(info->compressed_size >= 0 && info->uncompressed_size >= 0
-                    && quint64(info->uncompressed_size) <= rasterBudget,
+                    && quint64(info->uncompressed_size) <= pixelLimit * 4,
                 "Archive payload exceeds limits");
-            bytes += quint64(info->uncompressed_size);
             metadata += quint64(info->filename_size) + info->extrafield_size + info->comment_size;
-            require(bytes <= rasterBudget + manifestBudget && metadata <= 2 * manifestBudget, "Archive exceeds memory budget");
+            require(metadata <= 2 * manifestBudget, "Archive metadata exceeds memory budget");
             require(result.emplace(path, Entry { mz_zip_get_entry(zip.handle), quint64(info->uncompressed_size), info->crc, quint64(info->compressed_size) }).second,
                 "Duplicate archive entry");
             const auto next = mz_zip_goto_next_entry(zip.handle);
@@ -304,7 +308,10 @@ namespace {
             { "cornerRadius", shape.cornerRadius }, { "fillEnabled", shape.fillEnabled },
             { "fillRgba", shapeColor(shape.fillColor) }, { "strokeEnabled", shape.strokeEnabled },
             { "strokeRgba", shapeColor(shape.strokeColor) }, { "strokeWidth", shape.strokeWidth },
-            { "strokePlacement", "center" }, { "cap", "round" }, { "join", "round" } };
+            { "strokePlacement", "center" },
+            { "cap", shape.strokeCap==core::ShapeCap::Butt?"butt":shape.strokeCap==core::ShapeCap::Square?"square":"round" },
+            { "join", shape.strokeJoin==core::ShapeJoin::Miter?"miter":shape.strokeJoin==core::ShapeJoin::Bevel?"bevel":"round" },
+            { "miterLimit", shape.strokeMiterLimit } };
     }
     core::ShapeLayer decodeShape(const QJsonObject& object)
     {
@@ -338,8 +345,13 @@ namespace {
         shape.fillColor = shapeColor(object["fillRgba"]);
         shape.strokeColor = shapeColor(object["strokeRgba"]);
         shape.strokeWidth = number(object["strokeWidth"], 0, core::maximumShapeStyleDimension, "Invalid shape stroke width");
-        require(object["strokePlacement"] == "center" && object["cap"] == "round" && object["join"] == "round",
+        require(object["strokePlacement"] == "center"
+                && (object["cap"]=="round"||object["cap"]=="butt"||object["cap"]=="square")
+                && (object["join"]=="round"||object["join"]=="miter"||object["join"]=="bevel"),
             "Unsupported shape stroke placement, cap or join");
+        shape.strokeCap=object["cap"]=="butt"?core::ShapeCap::Butt:object["cap"]=="square"?core::ShapeCap::Square:core::ShapeCap::Round;
+        shape.strokeJoin=object["join"]=="miter"?core::ShapeJoin::Miter:object["join"]=="bevel"?core::ShapeJoin::Bevel:core::ShapeJoin::Round;
+        if(object.contains("miterLimit"))shape.strokeMiterLimit=number(object["miterLimit"],.5,1000,"Invalid shape miter limit");
         require(core::validShape(shape), "Invalid shape geometry or style");
         return shape;
     }
@@ -347,6 +359,7 @@ namespace {
     {
         QJsonArray layers;
         bool containsShapes = false;
+        bool containsShapeStrokeV2 = false;
         bool containsLabels = false;
         bool containsBlendModes = false;
         bool containsExtendedBlendModes = false;
@@ -393,6 +406,8 @@ namespace {
                 o["type"] = "shape";
                 o["shape"] = encodeShape(std::get<core::ShapeLayer>(layer.payload));
                 containsShapes = true;
+                const auto& shape=std::get<core::ShapeLayer>(layer.payload);
+                containsShapeStrokeV2 |= shape.strokeJoin!=core::ShapeJoin::Round || shape.strokeCap!=core::ShapeCap::Round;
             }
             require(layer.colorLabel <= uint8_t(core::ColorLabel::Purple), "Invalid layer color label");
             auto saved = overlayJson(oldLayers[layer.id], o).toObject();
@@ -491,6 +506,7 @@ namespace {
         if (containsShapes) {
             auto required = result["required"].toArray();
             required.append("shape-v1");
+            if(containsShapeStrokeV2)required.append("shape-stroke-v2");
             result["required"] = required;
         }
         if (containsBlendModes) {
@@ -622,7 +638,7 @@ namespace {
         require(!o.contains("required") || o["required"].isArray(), "Invalid required capabilities");
         const auto required = o["required"].toArray();
         for (const auto& capability : required)
-            require(capability == "rgba8" || capability == "rich-text-v1" || capability == "shape-v1"
+            require(capability == "rgba8" || capability == "rich-text-v1" || capability == "shape-v1" || capability == "shape-stroke-v2"
                     || capability == "hierarchy-v1" || capability == "container-visibility-v1"
                     || capability == "layer-blend-modes-v1" || capability == "layer-blend-modes-v2"
                     || capability == "adjustments-v1" || capability == "spatial-filters-v1" || capability == "layer-crop-v1" || capability == "layer-crop-chamfer-v1"
@@ -649,7 +665,7 @@ namespace {
             require(size <= 64ULL*1024*1024, "Remembered selection exceeds the 64 megapixel limit");
             const auto entry = files.find("selections/last.r8");
             require(entry != files.end() && entry->second.bytes == size, "Missing or incorrectly sized remembered selection");
-            used.insert("selections/last.r8"); result.bytes += size; result.hasLastSelection = true;
+            used.insert("selections/last.r8"); result.bytes = checkedBytes(result.bytes, size); result.hasLastSelection = true;
         }
         for (const auto& value : layers) {
             require(value.isObject(), "Invalid layer record");
@@ -669,8 +685,7 @@ namespace {
                     "Invalid layer mask payload path");
                 const auto entry = files.find(p.maskPath);
                 require(entry != files.end() && entry->second.bytes == size, "Missing or incorrectly sized layer mask");
-                result.bytes += size;
-                require(result.bytes <= rasterBudget, "Project exceeds raster and mask memory budget");
+                result.bytes = checkedBytes(result.bytes, size);
                 const auto t = m["transform"].toArray();
                 require(t.size() == 9, "Invalid layer mask transform");
                 std::array<double,9> a{};
@@ -748,8 +763,7 @@ namespace {
                 for(const auto& mask:p.filters.masks) {
                     require(mask.localToMask.isAffine()||required.contains("projective-transform-v1"),"Undeclared projective filter mask");
                     const quint64 size=quint64(mask.extent.width)*mask.extent.height;
-                    result.bytes+=size;
-                    require(result.bytes<=rasterBudget,"Project exceeds 1 GiB raster and effect-mask budget");
+                    result.bytes = checkedBytes(result.bytes, size);
                     const auto entry=files.find(mask.path);
                     require(entry!=files.end() && entry->second.bytes==size && used.insert(mask.path).second,
                         "Missing, duplicate or incorrectly sized spatial-filter mask");
@@ -762,8 +776,7 @@ namespace {
                 for (const auto& mask : p.adjustments.masks) {
                     require(mask.localToMask.isAffine()||required.contains("projective-transform-v1"),"Undeclared projective adjustment mask");
                     const quint64 size = quint64(mask.extent.width) * mask.extent.height;
-                    result.bytes += size;
-                    require(result.bytes <= rasterBudget, "Project exceeds 1 GiB raster and adjustment-mask budget");
+                    result.bytes = checkedBytes(result.bytes, size);
                     const auto entry = files.find(mask.path);
                     require(entry != files.end() && entry->second.bytes == size && used.insert(mask.path).second,
                         "Missing, duplicate or incorrectly sized adjustment-mask payload");
@@ -788,8 +801,7 @@ namespace {
                 p.path = r["path"].toString();
                 require(p.path == QStringLiteral("rasters/%1.rgba").arg(p.layer.id), "Invalid raster payload path");
                 const quint64 size = quint64(p.extent.width) * p.extent.height * 4;
-                result.bytes += size;
-                require(result.bytes <= rasterBudget, "Project exceeds 1 GiB raster and adjustment-mask budget");
+                result.bytes = checkedBytes(result.bytes, size);
                 const auto entry = files.find(p.path);
                 require(entry != files.end() && entry->second.bytes == size && used.insert(p.path).second,
                     "Missing, duplicate or incorrectly sized raster payload");
@@ -801,7 +813,11 @@ namespace {
             } else if (l["type"] == "shape") {
                 require(required.contains("shape-v1"), "Shape layer requires declared shape-v1 capability");
                 require(l["shape"].isObject(), "Missing shape descriptor");
-                p.layer.payload = decodeShape(l["shape"].toObject());
+                auto shape=decodeShape(l["shape"].toObject());
+                require((shape.strokeJoin==core::ShapeJoin::Round && shape.strokeCap==core::ShapeCap::Round)
+                        || required.contains("shape-stroke-v2"),
+                    "Non-round shape stroke requires declared shape-stroke-v2 capability");
+                p.layer.payload = std::move(shape);
             } else
                 throw std::runtime_error("Unsupported layer type; project was not opened");
             result.layers.push_back(std::move(p));
@@ -833,13 +849,12 @@ namespace {
     }
 }
 
-ProjectLoadResult loadProject(const QString& path, ProjectProgress callback)
+ProjectLoadResult loadProject(const QString& path, ProjectProgress callback, ProjectLoadLimits limits)
 {
     ProjectLoadResult result;
     try {
         QFile file(path);
         require(file.open(QIODevice::ReadOnly), "Cannot open project file");
-        require(quint64(file.size()) <= 2 * rasterBudget, "Project archive exceeds file size limit");
         Archive zip(file, false);
         const auto files = entries(zip);
         Progress progress { std::move(callback) };
@@ -850,6 +865,18 @@ ProjectLoadResult loadProject(const QString& path, ProjectProgress callback)
         progress.tick();
         result.metadata = readManifest(zip, files, progress);
         auto plan = validateManifest(result.metadata, files);
+        // Saving streams data already owned by the document. Loading must admit
+        // new resident pixels, mask decoding, upload staging and driver backing.
+        // Do not apply this admission to the save-time streaming CRC pass.
+        const auto twicePixels = checkedBytes(plan.bytes, plan.bytes);
+        const auto estimate = checkedBytes(checkedBytes(twicePixels, twicePixels), 64ULL * 1024 * 1024);
+        const auto allowance = limits.workingBytes ? limits.workingBytes : platform::availableWorkingMemoryBytes();
+        if (estimate > allowance)
+            throw std::runtime_error(QStringLiteral(
+                "Project needs about %1 MiB of working memory; available load allowance is %2 MiB. "
+                "Close other documents/apps and try again.")
+                .arg(double(estimate) / 1048576, 0, 'f', 0)
+                .arg(double(allowance) / 1048576, 0, 'f', 0).toStdString());
         auto doc = std::make_unique<core::Document>(plan.canvas);
         if (plan.hasLastSelection) {
             const auto e = plan.canvas.extent;
@@ -984,7 +1011,7 @@ ProjectIoResult saveProject(const QString& path, const core::Document& doc, cons
                 expected.emplace(detail::spatialFilterMaskPath(layer.id,filter.type),Entry{0,n,0});bytes+=n;
             }
         }
-        (void)validateManifest(manifest, expected); // Same limits for writer and reader.
+        (void)validateManifest(manifest, expected); // Same structural checks for writer and reader.
         Progress progress { std::move(callback), 0, bytes * 2 };
         progress.tick();
         const QFileInfo target(path);

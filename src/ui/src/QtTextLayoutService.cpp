@@ -17,6 +17,7 @@ constexpr int styleProperty = familyProperty + 1;
 constexpr int weightProperty = familyProperty + 2;
 constexpr int italicProperty = familyProperty + 3;
 constexpr int sizeProperty = familyProperty + 4;
+constexpr int originalFaceProperty = familyProperty + 5;
 Qt::Alignment alignment(core::TextAlignment a)
 {
     return a == core::TextAlignment::Center ? Qt::AlignHCenter
@@ -67,6 +68,7 @@ QTextCharFormat QtTextLayout::format(const core::TextStyle& s)
     f.setProperty(weightProperty, s.font.weight);
     f.setProperty(italicProperty, s.font.italic);
     f.setProperty(sizeProperty, s.sizePixels);
+    f.setProperty(originalFaceProperty, QString::fromStdString(s.font.originalFace));
     return f;
 }
 core::TextStyle QtTextLayout::style(const QTextCharFormat& f, core::TextStyle s)
@@ -81,6 +83,8 @@ core::TextStyle QtTextLayout::style(const QTextCharFormat& f, core::TextStyle s)
         s.font.italic = f.property(italicProperty).toBool();
     if (f.hasProperty(sizeProperty))
         s.sizePixels = f.property(sizeProperty).toDouble();
+    if (f.hasProperty(originalFaceProperty))
+        s.font.originalFace = f.property(originalFaceProperty).toString().toStdString();
     if (f.hasProperty(QTextFormat::ForegroundBrush)) {
         const auto c = f.foreground().color();
         s.color = { static_cast<std::uint8_t>(c.red()), static_cast<std::uint8_t>(c.green()),

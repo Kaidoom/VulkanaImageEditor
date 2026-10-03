@@ -171,6 +171,48 @@ void expectFrame(const Fixture& f, const std::array<core::Vec2d, 4>& corners)
     }
 }
 
+void rasterOutlinesUseContentOrigin(QVulkanInstance* instance = nullptr)
+{
+    Fixture f(instance); CHECK(f.valid()); if (!f.valid()) return;
+    auto surface = std::make_shared<core::ContiguousRasterSurface>(core::Extent2u{18,14});
+    // Transparent storage padding, including a faint edge that must not be trimmed.
+    std::vector<std::byte> pixels(12 * 7 * 4, std::byte{1});
+    surface->replaceRgba8({2,3,12,7}, pixels, 12 * 4);
+    const std::array<core::AffineTransform, 3> transforms{{
+        {}, {-1,.25,120,.15,1,8}, {1,.2,20,-.1,1,10,.002,-.001,1}
+    }};
+    for (const auto origin : {core::Vec2d{52,39}, core::Vec2d{-9,-6}, core::Vec2d{0,0}}) {
+        CHECK(f.document().setLayerRasterStorage(f.base, surface, origin, std::nullopt));
+        for (const auto& transform : transforms) {
+            f.document().setLayerTransform(f.base, transform);
+            f.publish();
+            CHECK(f.canvas->scene().layerOutlineEdges && f.canvas->scene().layerOutlineEdges->size() == 4);
+            expectFrame(f, {{transform.map(origin + core::Vec2d{2,3}),
+                transform.map(origin + core::Vec2d{14,3}),
+                transform.map(origin + core::Vec2d{14,10}),
+                transform.map(origin + core::Vec2d{2,10})}});
+        }
+    }
+    f.document().setLayerTransform(f.base, {});
+    CHECK(f.document().setLayerRasterStorage(f.base, surface, {52,39}, std::nullopt));
+    CHECK(f.document().setLayerCrop(f.base, core::LayerCrop{60,40,20,6})); f.publish();
+    expectFrame(f, {{{60,42}, {66,42}, {66,46}, {60,46}}});
+    CHECK(f.document().setLayerCrop(f.base, core::LayerCrop{0,0,10,10})); f.publish();
+    CHECK(!f.outlined());
+    CHECK(f.document().setLayerCrop(f.base, {}));
+    const auto path = f.assets.filePath(QStringLiteral("compact-outline.vulkana"));
+    CHECK(ui::saveProject(path, f.document()));
+    CHECK(f.window.openImageFromPath(path)); settle();
+    f.base = f.session().activeLayer().value_or(0);
+    f.clickLayer(f.base);
+    expectFrame(f, {{{54,42}, {66,42}, {66,49}, {54,49}}});
+    // Clearing content keeps an editable frame at the storage origin, not canvas zero.
+    auto empty = std::make_shared<core::ContiguousRasterSurface>(core::Extent2u{18,14});
+    CHECK(f.document().setLayerRasterStorage(f.base, empty, {-9,39}, std::nullopt)); f.publish();
+    expectFrame(f, {{{-9,39}, {9,39}, {9,53}, {-9,53}}});
+    CHECK(f.session().history().undoDepth() == 0);
+}
+
 void mixedContainersKeepIndividualTransformedFrames()
 {
     Fixture f; CHECK(f.valid()); if (!f.valid()) return;
@@ -546,7 +588,8 @@ void generalPreferencePreviewsAppliesAndSurvivesRestart()
 
 int nativeValidation()
 {
-    if (QGuiApplication::platformName() != QStringLiteral("wayland")) return 77;
+    if (QGuiApplication::platformName() != QStringLiteral("wayland")
+        && QGuiApplication::platformName() != QStringLiteral("xcb")) return 77;
     std::atomic_uint64_t warnings {0}, errors {0};
     QVulkanInstance instance;
     instance.setApiVersion(QVersionNumber(1, 2));
@@ -563,6 +606,7 @@ int nativeValidation()
         return true;
     });
     if (!instance.create()) return EXIT_FAILURE;
+    rasterOutlinesUseContentOrigin(&instance);
     {
         Fixture f(&instance); CHECK(f.valid()); if (!f.valid()) return EXIT_FAILURE;
         CHECK(f.document().setLayerTransform(f.base, {.8,-.25,-12,.25,.8,8})); f.publish();
@@ -623,7 +667,9 @@ int main(int argc, char** argv)
     QSettings::setDefaultFormat(QSettings::IniFormat);
     QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settings.path());
     ui::applyEditorTheme(application);
-    if (application.arguments().contains(QStringLiteral("--wayland-validation"))) return nativeValidation();
+    if (application.arguments().contains(QStringLiteral("--wayland-validation"))
+        || application.arguments().contains(QStringLiteral("--native-validation"))) return nativeValidation();
+    rasterOutlinesUseContentOrigin();
     mixedContainersKeepIndividualTransformedFrames();
     outlineViewChangesKeepGeometryPixelsAndHistory();
     dismissalAndOOnlyRevealSelectedLayers();

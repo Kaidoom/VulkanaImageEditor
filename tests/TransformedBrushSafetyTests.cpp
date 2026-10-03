@@ -242,7 +242,7 @@ AffineTransform tinyTransform(Vec2d documentOrigin)
     };
 }
 
-void tinySurfaceAtExtremeScaleRemainsEditable()
+void unboundedGrowthAtExtremeScaleRejectsSafely()
 {
     Document document(CanvasSpec {.extent = {512, 512}});
     auto surface = std::make_shared<ContiguousRasterSurface>(
@@ -254,14 +254,15 @@ void tinySurfaceAtExtremeScaleRemainsEditable()
     History history;
     BasicPixelBrushStroke stroke(document, layerId, hardRound(64.0));
     CHECK(stroke.valid());
-    CHECK(stroke.begin(sample(documentCenter)));
+    // The brush now paints beyond the old 8x8 rectangle. At 1e-6 scale
+    // its actual local footprint exceeds the same per-dab resource ceiling.
+    CHECK(!stroke.begin(sample(documentCenter)));
     CHECK(stroke.end(sample(documentCenter), history)
-        == RasterEditCommitResult::Committed);
-    CHECK(stroke.failure() == BrushStrokeFailure::None);
-    CHECK(stroke.stats().maximumCandidatePixels == 64);
-    CHECK(stroke.stats().rejectedCandidatePixels == 0);
-    CHECK(pixelAt(*surface, 4, 4) == Rgba8({219, 47, 91, 255}));
-    CHECK(history.undoDepth() == 1);
+        == RasterEditCommitResult::TargetUnavailable);
+    CHECK(stroke.failure() == BrushStrokeFailure::RasterWorkLimitExceeded);
+    CHECK(stroke.stats().rejectedCandidatePixels > kMaximumBrushDabCandidatePixels);
+    CHECK(pixelAt(*surface, 4, 4) == Rgba8({0, 0, 0, 0}));
+    CHECK(history.undoDepth() == 0);
 }
 
 void fakeFiveKSurfaceRejectsBeforeAnyRasterOrGrainWork()
@@ -397,7 +398,7 @@ void approvedThousandPixelTipsRemainWithinBudget()
 
 int main()
 {
-    tinySurfaceAtExtremeScaleRemainsEditable();
+    unboundedGrowthAtExtremeScaleRejectsSafely();
     fakeFiveKSurfaceRejectsBeforeAnyRasterOrGrainWork();
     invalidTipBoundsRejectBeforeCoordinateConversion();
     priorLiveDabRollsBackForPaintAndErase();

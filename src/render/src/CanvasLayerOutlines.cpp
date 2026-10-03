@@ -92,27 +92,18 @@ void CanvasWindow::refreshLayerOutlines()
         const std::unordered_set selected(layerOutlineTargets_.begin(), layerOutlineTargets_.end());
         for (const auto& layer : scene_.document.layersBottomToTop) {
             if (!selected.contains(layer.id)) continue;
-            core::Extent2d size;
             if (const auto* raster = std::get_if<core::RasterLayerSnapshot>(&layer.payload)) {
                 if (!raster->surface) continue;
-                size = {double(raster->surface->extent().width), double(raster->surface->extent().height)};
-            } else if (const auto* shape = std::get_if<core::ShapeLayer>(&layer.payload)) {
-                size = shape->size; // Same fractional local geometry as shape handles.
-            } else if (layer.renderCache) {
-                size = {double(layer.renderCache->logicalExtent.width), double(layer.renderCache->logicalExtent.height)};
-            } else continue;
+            } else if (!std::holds_alternative<core::ShapeLayer>(layer.payload) && !layer.renderCache) continue;
+            const auto bounds = core::layerInteractionBounds(layer);
+            if (layer.crop && bounds.empty()) continue;
+            const core::Extent2d size{bounds.width, bounds.height};
             if (!std::isfinite(size.width) || !std::isfinite(size.height) || size.width < 0 || size.height < 0) continue;
-            auto frame=layer.localToDocument;
-            if(layer.crop){
-                const auto bounds=core::layerVisibleBounds(layer);
-                if(bounds.empty())continue;
-                size={bounds.width,bounds.height};
-                frame=core::composeAffine(frame,{1,0,bounds.x,0,1,bounds.y});
-            }
+            const auto frame = core::composeAffine(layer.localToDocument, {1,0,bounds.x,0,1,bounds.y});
             const auto handles = core::geometryTransformHandles(frame, size);
             if (!std::ranges::all_of(handles, [](auto p) { return std::isfinite(p.x) && std::isfinite(p.y); })) continue;
-            // Preserve rotation/shear/flips. Never replace individual frames
-            // with a combined axis-aligned selection rectangle or scan alpha.
+            // Preserve each content frame's rotation/shear/flips/perspective;
+            // neither viewport clipping nor effect padding defines the outline.
             for (std::size_t i = 0; i < 4; ++i)
                 edges.push_back({handles[i * 2], handles[((i + 1) % 4) * 2]});
         }

@@ -35,6 +35,7 @@ source and binaries are not vendored in the application source tree.
 | qpdf 11+ | PDF import geometry; export page assembly and shaped-text Unicode mappings | [Apache-2.0](https://github.com/qpdf/qpdf/blob/v12.3.2/LICENSE.txt), with embedded-code notices in [NOTICE](res/notices/licenses/qpdf-NOTICE.txt). Library objects stay inside PDF services; the command-line program is not used. |
 | Vulkan headers and loader, API 1.2+ | GPU rendering | [Khronos headers](https://github.com/KhronosGroup/Vulkan-Headers/blob/v1.4.341/LICENSE.md): Apache-2.0/MIT per file; [loader](https://github.com/KhronosGroup/Vulkan-Loader/blob/v1.4.341/LICENSE.txt): Apache-2.0 with permissive file exceptions. |
 | minizip-ng 4.x | Project-file ZIP reading/writing | [Zlib license](https://github.com/zlib-ng/minizip-ng/blob/4.1.0/LICENSE); Gilles Vollant, Mathias Svensson and Nathan Moinvaziri. |
+| zlib-compatible runtime | PSD ZIP channel decoding | [Zlib license](https://zlib.net/zlib_license.html); Jean-loup Gailly, Mark Adler and implementation contributors. Uses the selected system implementation (zlib or zlib-ng compatibility API), not vendored source. |
 | libwebp / libwebpmux 1.2+ | WebP export | [BSD-3-Clause](https://github.com/webmproject/libwebp/blob/v1.6.0/COPYING), Google Inc. and contributors; [patent grant](https://github.com/webmproject/libwebp/blob/v1.6.0/PATENTS). |
 
 Qt platform/image plugins, font libraries, system C/C++ libraries and Vulkan

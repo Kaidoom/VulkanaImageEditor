@@ -479,9 +479,9 @@ void targetGuardsRevisionsAndMemory()
     large.runs.front().style.font.family.reserve(128);
     std::size_t expected = large.utf8.capacity() + large.runs.capacity() * sizeof(TextFormatRun)
         + large.paragraphs.capacity() * sizeof(TextParagraph) + large.defaultStyle.font.family.capacity()
-        + large.defaultStyle.font.style.capacity();
+        + large.defaultStyle.font.style.capacity() + large.defaultStyle.font.originalFace.capacity();
     for (const auto& run : large.runs)
-        expected += run.style.font.family.capacity() + run.style.font.style.capacity();
+        expected += run.style.font.family.capacity() + run.style.font.style.capacity() + run.style.font.originalFace.capacity();
     CHECK(textMemoryCost(large) == expected);
 
     Fixture merged(text("start"));

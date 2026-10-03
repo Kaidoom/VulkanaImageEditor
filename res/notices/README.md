@@ -7,7 +7,8 @@ that generated data. No network connection or private release files are needed.
 
 The LGPL, GPL, Apache, GCC exception and WebP copyright copies were retained from
 the reviewed upstream/distro notices. The minizip license is from minizip-ng
-4.1.0; WebP's copyright and patent grant are from libwebp 1.6.0.
+4.1.0; WebP's copyright and patent grant are from libwebp 1.6.0. The zlib license
+copy is from 1.3.2; the build may use the compatible zlib-ng implementation.
 Upstream references are in [THIRD_PARTY.md](../../THIRD_PARTY.md).
 
 This is not an inventory of a bundled binary distribution. A distributor can

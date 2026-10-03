@@ -205,7 +205,7 @@ void MainWindow::refreshMoveControls()
         const auto* layer = session().document() && session().activeLayer()
             ? session().document()->layer(*session().activeLayer())
             : nullptr;
-        if (session().document() && (!layer || layer->crop || session().selectedLayers().size() > 1)) {
+        if (session().document() && (!layer || layer->crop || std::holds_alternative<core::RasterLayer>(layer->payload) || session().selectedLayers().size() > 1)) {
             core::LayerTransformSession group(*session().document(), session().selectedLayers());
             if (group.active())
                 values = group.values();

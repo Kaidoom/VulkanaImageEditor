@@ -8,6 +8,8 @@
 namespace imageeditor::core {
 
 enum class ShapeKind { Rectangle, RoundedRectangle, Ellipse, Triangle, Line, Polygon };
+enum class ShapeJoin { Round, Miter, Bevel };
+enum class ShapeCap { Round, Butt, Square };
 
 // Authoritative geometry is measured in layer-local document pixels (+X right,
 // +Y down). The canonical frame starts at (0,0); viewport zoom never changes it.
@@ -23,10 +25,13 @@ struct ShapeLayer {
     bool strokeEnabled {false};
     Rgba8 fillColor {255, 255, 255, 255};
     Rgba8 strokeColor {0, 0, 0, 255};
-    // Centered, non-cosmetic stroke, round joins and round line caps in V1.
+    // Centered, non-cosmetic stroke. Existing shapes default to round joins/caps.
     // Zero width paints no stroke, never a device-pixel hairline. Geometry and
     // stroke transform together (including anisotropic scaling and flips).
     double strokeWidth {2};
+    ShapeJoin strokeJoin {ShapeJoin::Round};
+    ShapeCap strokeCap {ShapeCap::Round};
+    double strokeMiterLimit {2}; // Ratio to complete stroke width (Qt convention).
 
     friend bool operator==(const ShapeLayer& a, const ShapeLayer& b)
     {
@@ -34,7 +39,8 @@ struct ShapeLayer {
             && a.points == b.points && a.cornerRadius == b.cornerRadius
             && a.fillEnabled == b.fillEnabled && a.strokeEnabled == b.strokeEnabled
             && a.fillColor == b.fillColor && a.strokeColor == b.strokeColor
-            && a.strokeWidth == b.strokeWidth;
+            && a.strokeWidth == b.strokeWidth && a.strokeJoin == b.strokeJoin
+            && a.strokeCap == b.strokeCap && a.strokeMiterLimit == b.strokeMiterLimit;
     }
 };
 

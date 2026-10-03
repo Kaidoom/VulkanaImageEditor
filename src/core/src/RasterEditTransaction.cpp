@@ -78,6 +78,53 @@ bool samePixel(std::span<const std::byte> left, std::span<const std::byte> right
         == 0;
 }
 
+// Storage growth and pixel edits are one history action. Subsequent strokes
+// can mutate the regional surface; retain its COW tile state for exact redo.
+class GrowingRasterCommand final : public Command {
+public:
+    GrowingRasterCommand(LayerId id, std::shared_ptr<RasterSurface> before,
+        std::shared_ptr<RegionalRasterSurface> after, Vec2d origin,
+        std::optional<RectD> frame, std::optional<RectD> nextFrame,
+        AffineTransform external, std::string label)
+        : id_(id), before_(std::move(before)), after_(std::move(after)),
+          state_(after_->state()), origin_(origin), frame_(frame), nextFrame_(nextFrame),
+          external_(external), label_(std::move(label)) {
+        cost_=sizeof(*this)+state_.tiles.size()*96;
+        const auto* old=dynamic_cast<const RegionalRasterSurface*>(before_.get());
+        for(const auto& [key,tile]:state_.tiles)
+            if(!old||!old->state().tiles.contains(key)||old->state().tiles.at(key)!=tile)
+                cost_+=sizeof(RegionalRasterSurface::Tile);
+    }
+    bool apply(Document& d) override {
+        if (!matches(d, before_, origin_)) return false;
+        after_->restore(state_);
+        return d.setLayerRasterStorage(id_,after_,after_->origin(),nextFrame_);
+    }
+    bool undo(Document& d) override {
+        if (!canAdoptApplied(d)) return false;
+        return d.setLayerRasterStorage(id_,before_,origin_,frame_);
+    }
+    bool canAdoptApplied(const Document& d) const noexcept override {
+        return matches(d,after_,{double(state_.bounds.x),double(state_.bounds.y)});
+    }
+    std::string_view label() const noexcept override { return label_; }
+    std::size_t memoryCost() const noexcept override {return cost_;}
+private:
+    bool matches(const Document& d,const std::shared_ptr<RasterSurface>& surface,Vec2d origin) const noexcept {
+        const auto* l=d.layer(id_);const auto* r=l?std::get_if<RasterLayer>(&l->payload):nullptr;
+        return r&&r->surface==surface&&l->rasterOrigin==origin&&l->localToDocument==external_;
+    }
+    LayerId id_;
+    std::shared_ptr<RasterSurface> before_;
+    std::shared_ptr<RegionalRasterSurface> after_;
+    RegionalRasterSurface::State state_;
+    Vec2d origin_;
+    std::optional<RectD> frame_,nextFrame_;
+    AffineTransform external_;
+    std::string label_;
+    std::size_t cost_{};
+};
+
 } // namespace
 
 RasterEditCommand::RasterEditCommand(LayerId layerId, SurfaceId surfaceId,
@@ -207,6 +254,13 @@ RasterEditTransaction::RasterEditTransaction(Document& document, LayerId layerId
     if(crop_){crop_->x-=layer->rasterOrigin.x;crop_->y-=layer->rasterOrigin.y;}
     ignoreCrop_=options.ignoreCrop;
     coverageValues_=options.coverageValues;
+    allowGrowth_=options.allowGrowth && !coverageValues_;
+    originalSurface_=liveSurface_;
+    originalOrigin_=layer->rasterOrigin;
+    externalTransform_=layer->localToDocument;
+    originalFrame_=layer->rasterEffectFrame;
+    growingFrame_=layerEffectReferenceFrame(*layer);
+    originalContentState_=document.contentState();
     active_ = true;
 }
 
@@ -220,7 +274,9 @@ bool RasterEditTransaction::targetAvailable() const noexcept
     if (!active_ || !document_ || !liveSurface_ || !resolveCurrentTarget()) {
         return false;
     }
-    return document_->layer(layerId_)->crop==layerCrop_ && intrinsicTransform(*document_->layer(layerId_))==localToDocument_
+    const auto* layer=document_->layer(layerId_);
+    return layer->crop==layerCrop_ && layer->localToDocument==externalTransform_
+        && layer->rasterOrigin==(growingSurface_?growingSurface_->origin():originalOrigin_)
         && (!selectionMask_ || selectionMask_->revision() == selectionRevision_);
 }
 
@@ -240,6 +296,7 @@ bool RasterEditTransaction::capture(RectI localRegion)
         return false;
     }
     if (selectionIsEmpty()) return true;
+    if (growingSurface_) return true; // Original is now an immutable retained surface.
     const auto clipped = localRegion.clippedTo(surfaceBounds());
     if (clipped.empty()) {
         return true;
@@ -278,7 +335,7 @@ void RasterEditTransaction::copyOriginalRgba8(RectI localRegion,
     std::span<std::byte> destination, std::size_t destinationStride) const
 {
     if (!active_ || localRegion.empty()
-        || localRegion.clippedTo(surfaceBounds()) != localRegion) {
+        || (!allowGrowth_ && localRegion.clippedTo(surfaceBounds()) != localRegion)) {
         throw std::invalid_argument("Original raster copy must be inside the transaction surface");
     }
     const auto rowBytes = static_cast<std::size_t>(localRegion.width) * kBytesPerPixel;
@@ -288,9 +345,18 @@ void RasterEditTransaction::copyOriginalRgba8(RectI localRegion,
         throw std::invalid_argument("Original raster destination is too small");
     }
 
+    if (allowGrowth_) {
+        for(int y=0;y<localRegion.height;++y)
+            std::memset(destination.data()+std::size_t(y)*destinationStride,0,rowBytes);
+        const auto r=localRegion.clippedTo(surfaceBounds());
+        if(!r.empty()) originalSurface_->copyRgba8(r,destination.subspan(
+            std::size_t(r.y-localRegion.y)*destinationStride+std::size_t(r.x-localRegion.x)*4),destinationStride);
+        if(growingSurface_)return;
+    }
+
     const auto tileSize = static_cast<std::int32_t>(tileSize_);
-    for (auto ty = localRegion.y / tileSize; ty <= (localRegion.bottom()-1) / tileSize; ++ty)
-    for (auto tx = localRegion.x / tileSize; tx <= (localRegion.right()-1) / tileSize; ++tx) {
+    for (auto ty = int(std::floor(double(localRegion.y) / tileSize)); ty <= int(std::floor(double(localRegion.bottom()-1) / tileSize)); ++ty)
+    for (auto tx = int(std::floor(double(localRegion.x) / tileSize)); tx <= int(std::floor(double(localRegion.right()-1) / tileSize)); ++tx) {
         const auto found = journal_.find({tx, ty});
         if (found == journal_.end()) continue;
         const auto& tile = found->second;
@@ -312,6 +378,20 @@ void RasterEditTransaction::copyOriginalRgba8(RectI localRegion,
                 tile.before.data() + sourceOffset, copyBytes);
         }
     }
+}
+
+void RasterEditTransaction::copyCurrentRgba8(RectI r,std::span<std::byte> bytes,std::size_t stride) const
+{
+    if(r.empty()||stride<std::size_t(r.width)*4||bytes.size()<(std::size_t(r.height)-1)*stride+std::size_t(r.width)*4)
+        throw std::invalid_argument("Invalid raster read buffer");
+    for(int y=0;y<r.height;++y)std::memset(bytes.data()+std::size_t(y)*stride,0,std::size_t(r.width)*4);
+    auto bounds=surfaceBounds();
+    if(growingSurface_) {bounds=growingSurface_->state().bounds;bounds.x-=int(originalOrigin_.x);bounds.y-=int(originalOrigin_.y);}
+    auto part=r.clippedTo(bounds);
+    if(part.empty())return;
+    auto destination=bytes.subspan(std::size_t(part.y-r.y)*stride+std::size_t(part.x-r.x)*4);
+    part.x-=bounds.x;part.y-=bounds.y;
+    liveSurface_->copyRgba8(part,destination,stride);
 }
 
 DirtySet RasterEditTransaction::writeRgba8(RectI localRegion,
@@ -349,10 +429,13 @@ DirtySet RasterEditTransaction::writeRgba8BatchImpl(std::span<const RasterPatch>
             };
         }
     }
-    if (selectionMask_ || (crop_ && !ignoreCrop_) || selectionResolved) {
+    const bool mayExtend=allowGrowth_ && std::ranges::any_of(patches,[&](const auto& p) {
+        return p.region.clippedTo(surfaceBounds())!=p.region;
+    });
+    if (selectionMask_ || (crop_ && !ignoreCrop_) || selectionResolved || mayExtend) {
         return writeMasked(patches, selectionResolved);
     }
-    return liveSurface_->replaceRgba8Batch(patches);
+    return writeAccepted(patches);
 }
 
 RasterEditCommitResult RasterEditTransaction::commit(History& history)
@@ -365,6 +448,14 @@ RasterEditCommitResult RasterEditTransaction::commit(History& history)
         return RasterEditCommitResult::TargetUnavailable;
     }
 
+    if(growingSurface_) {
+        std::unique_ptr<Command> command=std::make_unique<GrowingRasterCommand>(layerId_,originalSurface_,
+            growingSurface_,originalOrigin_,originalFrame_,growingFrame_,externalTransform_,
+            std::string(historyLabel_.data(),historyLabelLength_));
+        if(!history.adoptApplied(*document_,command)) {cancel();return RasterEditCommitResult::HistoryRejected;}
+        active_=false;journal_.clear();liveSurface_.reset();
+        return RasterEditCommitResult::Committed;
+    }
     auto tiles = finalizeTiles();
     if (tiles.empty()) {
         active_ = false;
@@ -416,7 +507,12 @@ void RasterEditTransaction::cancel() noexcept
         return;
     }
     try {
-        restoreOriginalPixels();
+        if(growingSurface_) {
+            if(resolveCurrentTarget()) {
+                document_->setLayerRasterStorage(layerId_,originalSurface_,originalOrigin_,originalFrame_);
+                document_->restoreContentState(originalContentState_);
+            }
+        } else restoreOriginalPixels();
     } catch (...) {
         // Destructors and focus-loss cancellation must never throw. The live
         // surface is retained until this point, so only an invariant violation
@@ -436,7 +532,7 @@ RectI RasterEditTransaction::surfaceBounds() const noexcept
 RasterSurface* RasterEditTransaction::resolveCurrentTarget() const noexcept
 {
     return document_ ? rasterSurfaceForLayer(
-        *document_, layerId_, surfaceId_, surfaceExtent_) : nullptr;
+        *document_, layerId_, liveSurface_->id(), liveSurface_->extent()) : nullptr;
 }
 
 std::vector<RasterEditCommand::TileSnapshot> RasterEditTransaction::finalizeTiles()
@@ -513,7 +609,7 @@ DirtySet RasterEditTransaction::writeMasked(std::span<const RasterPatch> patches
     std::vector<OwnedPatch> owned;
     owned.reserve(patches.size());
     for (const auto& patch : patches) {
-        const auto clipped = patch.region.clippedTo(surfaceBounds());
+        const auto clipped = allowGrowth_ ? patch.region : patch.region.clippedTo(surfaceBounds());
         if (clipped.empty()) {
             continue;
         }
@@ -594,7 +690,7 @@ DirtySet RasterEditTransaction::writeMasked(std::span<const RasterPatch> patches
         const auto& patch = owned[patchIndex];
         const auto stride = std::size_t(patch.region.width) * kBytesPerPixel;
         std::vector<std::byte> current(patch.bytes.size());
-        liveSurface_->copyRgba8(patch.region, current, stride);
+        copyCurrentRgba8(patch.region, current, stride);
         // Preserve ordered/last-write-wins batch semantics even when a future
         // raster producer submits overlapping patches. Compare against prior
         // candidates in this batch, not only the pre-batch live surface.
@@ -634,7 +730,62 @@ DirtySet RasterEditTransaction::writeMasked(std::span<const RasterPatch> patches
             previousRuns = std::move(runs);
         }
     }
-    return liveSurface_->replaceRgba8Batch(views);
+    return writeAccepted(views);
+}
+
+void RasterEditTransaction::beginGrowth()
+{
+    // Preserve preceding in-bounds dabs without copying the whole layer. Roll
+    // the old surface back before using it as an immutable COW base.
+    std::vector<std::vector<std::byte>> after;
+    std::vector<RasterPatch> beforePatches,afterPatches;
+    after.reserve(journal_.size());
+    for(const auto& [key,tile]:journal_) {
+        (void)key;
+        after.emplace_back(tile.before.size());
+        const auto stride=std::size_t(tile.region.width)*4;
+        liveSurface_->copyRgba8(tile.region,after.back(),stride);
+        beforePatches.push_back({tile.region,tile.before,stride});
+        afterPatches.push_back({tile.region,after.back(),stride});
+    }
+    (void)liveSurface_->replaceRgba8Batch(beforePatches);
+    auto candidate=std::make_shared<RegionalRasterSurface>(originalSurface_,originalOrigin_);
+    (void)candidate->replaceRgba8Batch(afterPatches);
+    growingSurface_=std::move(candidate);
+    liveSurface_=growingSurface_;
+    document_->setLayerRasterStorage(layerId_,liveSurface_,originalOrigin_,growingFrame_);
+}
+
+DirtySet RasterEditTransaction::writeAccepted(std::span<const RasterPatch> patches)
+{
+    if(patches.empty())return {liveSurface_->revision(),false,{}};
+    RectI required=surfaceBounds();
+    if(growingSurface_) {required=growingSurface_->state().bounds;required.x-=int(originalOrigin_.x);required.y-=int(originalOrigin_.y);}
+    for(const auto& patch:patches)if(!patch.region.empty())required=required.united(patch.region);
+    const bool grow=allowGrowth_ && (growingSurface_ || required!=surfaceBounds());
+    if(!grow)return liveSurface_->replaceRgba8Batch(patches);
+    // Amortize texture/storage resizing at tile boundaries, not every dab.
+    const auto oldBounds=growingSurface_?growingSurface_->state().bounds:
+        RectI{int(originalOrigin_.x),int(originalOrigin_.y),int(surfaceExtent_.width),int(surfaceExtent_.height)};
+    required.x+=int(originalOrigin_.x);required.y+=int(originalOrigin_.y);
+    const int left=required.x<oldBounds.x?int(std::floor(double(required.x)/64))*64:oldBounds.x;
+    const int top=required.y<oldBounds.y?int(std::floor(double(required.y)/64))*64:oldBounds.y;
+    const int right=required.right()>oldBounds.right()?int(std::ceil(double(required.right())/64))*64:oldBounds.right();
+    const int bottom=required.bottom()>oldBounds.bottom()?int(std::ceil(double(required.bottom())/64))*64:oldBounds.bottom();
+    const RectI expanded{left,top,right-left,bottom-top};
+    RegionalRasterSurface::validateBounds(expanded);
+    if(!externalTransform_.validOver({double(left),double(top),double(expanded.width),double(expanded.height)}))
+        throw std::length_error("Painting would cross the layer's projective horizon");
+    if(!growingSurface_)beginGrowth();
+    const auto previous=growingSurface_->revision();
+    if(expanded!=growingSurface_->state().bounds) {
+        auto next=growingSurface_->state();next.bounds=expanded;growingSurface_->restore(std::move(next));
+        document_->setLayerRasterStorage(layerId_,liveSurface_,growingSurface_->origin(),growingFrame_);
+    }
+    std::vector<RasterPatch> mapped; mapped.reserve(patches.size());
+    for(auto patch:patches) {patch.region.x+=int(originalOrigin_.x)-left;patch.region.y+=int(originalOrigin_.y)-top;mapped.push_back(patch);}
+    (void)growingSurface_->replaceRgba8Batch(mapped);
+    return growingSurface_->dirtySince(previous);
 }
 
 void RasterEditTransaction::restoreOriginalPixels()

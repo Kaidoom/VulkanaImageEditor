@@ -32,6 +32,8 @@ struct FontDescriptor {
     std::string style;
     int weight {400};
     bool italic {false};
+    // Original imported face request; family/style above are the chosen face.
+    std::string originalFace {};
     friend bool operator==(const FontDescriptor&, const FontDescriptor&) = default;
 };
 

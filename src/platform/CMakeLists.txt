@@ -1,4 +1,4 @@
-add_library(imageeditor_platform STATIC src/ApplicationPaths.cpp src/PlatformStartup.cpp src/SingleInstance.cpp src/ServiceConfig.cpp)
+add_library(imageeditor_platform STATIC src/ApplicationPaths.cpp src/PlatformStartup.cpp src/SingleInstance.cpp src/ServiceConfig.cpp src/AvailableMemory.cpp)
 configure_file(include/imageeditor/platform/BuildInfo.hpp.in
     "${CMAKE_CURRENT_BINARY_DIR}/include/imageeditor/platform/BuildInfo.hpp" @ONLY)
 target_include_directories(imageeditor_platform PUBLIC include "${CMAKE_CURRENT_BINARY_DIR}/include")

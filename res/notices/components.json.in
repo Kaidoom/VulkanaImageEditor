@@ -12,6 +12,16 @@
   "components": [
     {
       "notice": {
+        "name": "zlib-compatible runtime (PSD decoding)",
+        "version": "@ZLIB_VERSION@",
+        "scope": "System-provided zlib or compatible implementation; see installed runtime notices",
+        "license": "Zlib",
+        "copyright": "Jean-loup Gailly, Mark Adler and implementation contributors."
+      },
+      "texts": ["zlib-LICENSE.txt"]
+    },
+    {
+      "notice": {
         "name": "Qt PDF / PDFium",
         "version": "@Qt6Pdf_VERSION@",
         "scope": "System-provided PDF renderer; not a browser engine",

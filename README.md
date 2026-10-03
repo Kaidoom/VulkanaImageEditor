@@ -21,6 +21,8 @@ with a Qt workspace and Vulkan-accelerated canvas.
   Shadow, Outer/Inner Glow, Color Overlay and Gradient Overlay.
 - **Multiple documents:** tabs with independent history, selections and view state,
   plus editable layer copying between documents.
+- **PSD import:** reviewed conversion to native layers, rich text, simple shapes,
+  bitmap masks and supported styles, with explicit saved-raster fallbacks.
 - **PDF import:** selected pages at your chosen PPI, as raster layers or separate
   documents, with transparent or white backgrounds.
 - **PDF export:** a composite or layers/groups as pages, custom page selection,
@@ -37,6 +39,7 @@ Requires Linux, a C++20 compiler, Ninja, pkg-config, and these development libra
 - CMake **3.28+** for the supplied presets.
 - Qt **6.8+**: Core, Gui, Widgets, Network and PDF; Qt Test for tests.
 - qpdf **11+** development library (PDF import/export; not the command-line tool).
+- zlib-compatible development library (PSD ZIP channels).
 - Vulkan **1.2+** headers/loader, a working Vulkan driver, and `glslc`.
 - minizip-ng **4.x** (the `minizip` pkg-config module, not legacy minizip).
 - libwebp and libwebpmux **1.2+**.

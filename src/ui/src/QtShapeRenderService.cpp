@@ -75,15 +75,17 @@ QPainterPath geometryPath(const core::ShapeLayer& shape)
     return path;
 }
 
-QPainterPath strokePath(const QPainterPath& path, double width)
+QPainterPath strokePath(const QPainterPath& path, double width,
+    core::ShapeJoin join=core::ShapeJoin::Round, core::ShapeCap cap=core::ShapeCap::Round, double miter=2)
 {
     // Width zero is explicitly no stroke, never Qt's cosmetic hairline.
     if (path.isEmpty() || !std::isfinite(width) || width <= 0)
         return {};
     QPainterPathStroker stroker;
     stroker.setWidth(width);
-    stroker.setCapStyle(Qt::RoundCap);
-    stroker.setJoinStyle(Qt::RoundJoin);
+    stroker.setCapStyle(cap==core::ShapeCap::Butt?Qt::FlatCap:cap==core::ShapeCap::Square?Qt::SquareCap:Qt::RoundCap);
+    stroker.setJoinStyle(join==core::ShapeJoin::Miter?Qt::MiterJoin:join==core::ShapeJoin::Bevel?Qt::BevelJoin:Qt::RoundJoin);
+    stroker.setMiterLimit(miter);
     // Use a finer flattening threshold than Qt's 0.25 default so curved
     // outlines stay smooth when the cache is regenerated at up to 8x density.
     stroker.setCurveThreshold(.03125);
@@ -218,7 +220,7 @@ class QtShapeHitGeometry final : public core::ShapeHitGeometry {
 public:
     explicit QtShapeHitGeometry(const core::ShapeLayer& shape)
         : path_(geometryPath(shape))
-        , stroke_(shape.strokeEnabled ? strokePath(path_, shape.strokeWidth) : QPainterPath {})
+        , stroke_(shape.strokeEnabled ? strokePath(path_, shape.strokeWidth,shape.strokeJoin,shape.strokeCap,shape.strokeMiterLimit) : QPainterPath {})
         , bounds_(stroke_.isEmpty() ? path_.boundingRect()
                                   : path_.boundingRect().united(stroke_.boundingRect()))
         , closed_(shape.kind != core::ShapeKind::Line)
@@ -305,7 +307,7 @@ std::shared_ptr<const core::LayerRenderCache> QtShapeRenderService::render(
     const auto path = geometryPath(shape);
     const bool drawFill = shape.kind != core::ShapeKind::Line && shape.fillEnabled && shape.fillColor.alpha;
     const bool drawStroke = shape.strokeEnabled && shape.strokeWidth > 0 && shape.strokeColor.alpha;
-    const auto stroke = drawStroke ? strokePath(path, shape.strokeWidth) : QPainterPath {};
+    const auto stroke = drawStroke ? strokePath(path, shape.strokeWidth,shape.strokeJoin,shape.strokeCap,shape.strokeMiterLimit) : QPainterPath {};
     if (path.isEmpty() || (!drawFill && stroke.isEmpty()))
         return emptyCache(shape, requested);
 
@@ -366,7 +368,7 @@ core::RectD QtShapeRenderService::documentBounds(const core::ShapeLayer& shape,
     const auto path = geometryPath(shape);
     const bool drawFill = shape.kind != core::ShapeKind::Line && shape.fillEnabled && shape.fillColor.alpha;
     const auto stroke = shape.strokeEnabled && shape.strokeColor.alpha
-        ? strokePath(path, shape.strokeWidth) : QPainterPath {};
+        ? strokePath(path, shape.strokeWidth,shape.strokeJoin,shape.strokeCap,shape.strokeMiterLimit) : QPainterPath {};
     const auto rect = shapeDocumentBounds(path, stroke, drawFill, localToDocument);
     return { rect.x(), rect.y(), rect.width(), rect.height() };
 }
@@ -383,7 +385,7 @@ std::shared_ptr<const core::LayerRenderCache> QtShapeRenderService::renderDocume
     const auto path = geometryPath(shape);
     const bool drawFill = shape.kind != core::ShapeKind::Line && shape.fillEnabled && shape.fillColor.alpha;
     const auto stroke = shape.strokeEnabled && shape.strokeColor.alpha
-        ? strokePath(path, shape.strokeWidth) : QPainterPath {};
+        ? strokePath(path, shape.strokeWidth,shape.strokeJoin,shape.strokeCap,shape.strokeMiterLimit) : QPainterPath {};
     auto rect = shapeDocumentBounds(path, stroke, drawFill, localToDocument);
     const auto localRect = shapeDocumentBounds(path, stroke, drawFill, {});
     const auto localSourceBounds = localRect.isEmpty() ? core::RectD { 0, 0, 1, 1 }

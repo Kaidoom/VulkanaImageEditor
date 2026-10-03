@@ -319,7 +319,8 @@ void NewDocumentDialog::refreshRecentFiles()
         for (const auto& entry : recentFiles_->entries()) {
             const QFileInfo file(entry.path);
             const auto kind = entry.kind == RecentFileKind::Project ? QStringLiteral("Project")
-                : entry.kind == RecentFileKind::Pdf ? QStringLiteral("PDF") : QStringLiteral("Image");
+                : entry.kind == RecentFileKind::Pdf ? QStringLiteral("PDF")
+                : entry.kind == RecentFileKind::Psd ? QStringLiteral("PSD") : QStringLiteral("Image");
             auto* item = new QListWidgetItem(file.fileName(), recentList_);
             item->setData(Qt::UserRole, entry.path);
             item->setData(Qt::UserRole + 1, int(entry.kind));

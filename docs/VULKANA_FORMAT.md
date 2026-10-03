@@ -96,6 +96,10 @@ Runs contain `start`, `length`, and `format` (same fields as `default`). Offsets
 
 Text data is authoritative; font layout, raster caches, caret and character selection are excluded. The temporary document selection, active layer, tools, global colors, brushes, view/UI state and history are also excluded. A selection explicitly captured as an adjustment mask is persistent layer data, as described below.
 
+Imported text formats may also contain optional `originalFace` provenance.
+The `family`/`style` fields remain the explicitly selected rendering face; the
+original request is not used to override that choice on reopening.
+
 ## Editable shapes (`shape-v1`)
 
 Shape layers extend schema 1 through its existing required-capability mechanism. A document containing any shape includes `"shape-v1"` in the root `required` array. A pre-shape reader rejects that capability explicitly before constructing a document; it cannot silently flatten or discard shapes. Raster/text-only saves do not require this capability, so they remain compatible with the original schema-1 reader. The app/package version remains independent of both schema and capability versions.
@@ -122,7 +126,7 @@ A layer with `type: "shape"` contains the following authoritative descriptor and
 
 Every descriptor field above is required. Kinds are `rectangle`, `rounded-rectangle`, `ellipse`, `triangle`, `line`, and `polygon`. Size, radius, stroke width and vertices are doubles measured in **layer-local document pixels** (+X right, +Y down), unaffected by monitor DPI or viewport zoom. `points` is empty for primitives, exactly two `[x,y]` pairs for lines, and at least three for polygons; each vertex lies in the inclusive local frame `[0,width] × [0,height]`. Polygon filling is even-odd, including self-intersections. Structurally valid degenerate geometry can be reopened and edited even though empty creation gestures do not create layers.
 
-Fill and stroke each retain their own straight-sRGB RGBA8 color, including hidden RGB at zero alpha. Disabled fill means no fill. Disabled stroke or zero stroke width means **no stroke**, never a device-pixel hairline. Strokes are centered with round joins/caps; these explicit descriptor fields prevent a later implementation from silently changing their meaning. Stroke and geometry share the layer's affine transform, including stretching, rotation and negative scales. Corner radius is stored without permanently clamping it to the current size; rendering applies the geometric clamp.
+Fill and stroke each retain their own straight-sRGB RGBA8 color, including hidden RGB at zero alpha. Disabled fill means no fill. Disabled stroke or zero stroke width means **no stroke**, never a device-pixel hairline. Strokes are centered. Round joins/caps remain the default; `shape-stroke-v2` permits `miter`/`bevel` joins and `butt`/`square` caps. Non-round semantics require that capability. Optional `miterLimit` defaults to 2 and is measured in whole stroke widths, with a valid range of 0.5–1000. Stroke and geometry share the layer transform, including stretching, rotation and negative scales. Corner radius is stored without permanently clamping it to the current size; rendering applies the geometric clamp.
 
 Caches, antialiasing outsets and cache density are disposable and excluded. On publication, the common shape-cache preparation path rebuilds them from the descriptor, including stroke/antialiasing bounds; load does not allocate up to 1024 derived full-resolution images during untrusted archive decoding. Existing metadata preservation applies inside `shape` as well. Unknown shape versions, kinds, essential stroke semantics, or missing `shape-v1` declarations fail explicitly.
 
@@ -194,7 +198,7 @@ Mask payloads use the canonical path `adjustments/<decimal-layer-id>/<stable-typ
 
 `localToMask` uses the same six-coefficient layout as a layer transform but maps current layer-local coordinates into the frozen capture plane. It must be finite, invertible, and within the affine coefficient bounds below. Mask dimensions belong to that captured plane; they need not equal the current canvas or current text/shape bounds. Moving or transforming a layer, resizing the canvas, or editing text/shape bounds does not rewrite or normalize its saved coverage. Ctrl+J raster extraction retains editable adjustments and composes this mapping into the new output-local frame; only extraction pixels and selection alpha are baked. Successful merge instead writes already-adjusted raster content into a fresh layer with no adjustment collection.
 
-Original raster bytes, text content/formatting and shape geometry/style stay authoritative and unchanged. Compiled parameter blocks, display caches, histograms, panel navigation and temporary before/after bypass are not serialized. Adjustment data is an owned subtree: the writer replaces it with the current authoritative collection, and removes it when that collection is absent. Resetting therefore cannot resurrect old settings or mask paths retained in source metadata. Masks are currently stored per record, without deduplicating shared immutable coverage across records or layers; each payload counts toward the aggregate byte limit.
+Original raster bytes, text content/formatting and shape geometry/style stay authoritative and unchanged. Compiled parameter blocks, display caches, histograms, panel navigation and temporary before/after bypass are not serialized. Adjustment data is an owned subtree: the writer replaces it with the current authoritative collection, and removes it when that collection is absent. Resetting therefore cannot resurrect old settings or mask paths retained in source metadata. Masks are currently stored per record, without deduplicating shared immutable coverage across records or layers; each payload contributes to the load-memory estimate.
 
 ## Evolution and validation
 
@@ -207,8 +211,8 @@ Unknown **noncritical JSON** fields are retained at document/canvas/layer/nested
 Hard bounds on reading and writing:
 
 - 1–1024 layers; 1–32768 pixels per axis; 64 × 1024² pixels per canvas or raster.
-- Aggregate raw raster plus adjustment-mask bytes ≤1 GiB; manifest ≤8 MiB; archive file ≤2 GiB. The aggregate limit uses inflated bytes, independently of ZIP compression ratio.
-- Entries ≤11265 (one manifest, up to 1024 raster payloads and up to ten masks per layer), names ≤256 bytes; cumulative ZIP filename/extra/comment metadata ≤16 MiB.
+- Manifest ≤8 MiB; individual raster payloads ≤256 MiB (64 Mi pixels × RGBA8). There is no fixed aggregate-pixel or archive-file size cap. ZIP64 remains supported without a schema change.
+- Entries ≤14337; names ≤256 bytes; cumulative ZIP filename/extra/comment metadata ≤16 MiB.
 - Each adjustment mask: 1–32768 pixels per axis, at most 64 × 1024² coverage bytes. All descriptor versions, parameter ranges, exact entry lengths, canonical paths and aggregate bounds are validated before any mask coverage plane is allocated.
 - Existing rich-text limits: UTF-8 ≤256 KiB per text layer, ≤16384 runs, ≤4096 paragraphs; valid finite fonts/styles and ordered scalar-boundary ranges.
 - Shapes: ≤100000 vertices per layer; finite local dimensions in [0, 1000000] and radius/stroke width in [0, 100000]; vertices within their local frame. The aggregate 8 MiB manifest limit also bounds total shape data before descriptor allocation.
@@ -225,7 +229,17 @@ On Linux, save creates a uniquely named `QTemporaryFile` **beside the destinatio
 
 The parent directory is not fsynced, so the rename may be lost after sudden power failure even though the file data was flushed.
 
-Loading allocates each validated raw surface once, fills it in bounded chunks and moves it into a temporary document. Each validated mask is read into one bounded R8 buffer, converted to the immutable tiled selection representation, and then releases that buffer; its decoded coverage and conversion buffer coexist temporarily. The current and candidate documents coexist until success; this is the necessary cost of failed-open safety. GPU/text/shape caches are rebuilt after publication. Service limits bound the candidate, not total process memory including the existing document/history/render caches.
+Loading allocates each validated raw surface once, fills it in bounded chunks and moves it into a temporary document. Each validated mask is read into one bounded R8 buffer, converted to the immutable tiled selection representation, and then releases that buffer; its decoded coverage and conversion buffer coexist temporarily. The current and candidate documents coexist until success; this is the necessary cost of failed-open safety. GPU/text/shape caches are rebuilt after publication.
+
+Before pixel allocation, load admission compares four times the declared raw
+raster/mask bytes plus 64 MiB overhead against 75% of currently available RAM,
+including finite inherited Linux cgroup-v2 limits. The allowance accounts for
+resident pixels, mask scratch, upload staging and driver backing. Existing open
+documents already reduce reported available memory. Unknown headroom falls back
+to 1.5 GiB; callers can supply an explicit working-memory allowance. This is a
+conservative estimate, not an OS reservation. A refusal reports estimated and
+allowed MiB. Saving and its streaming verification do not apply this load
+admission, since they do not allocate another copy of the document.
 
 ## Saved state and interactions
 

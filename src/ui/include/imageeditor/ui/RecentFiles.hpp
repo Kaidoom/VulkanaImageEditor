@@ -7,7 +7,7 @@
 
 namespace imageeditor::ui {
 
-enum class RecentFileKind { Project, Image, Pdf };
+enum class RecentFileKind { Project, Image, Pdf, Psd };
 
 struct RecentFileEntry {
     QString path;

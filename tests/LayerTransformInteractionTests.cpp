@@ -325,7 +325,7 @@ struct RasterFixture : Fixture {
     core::LayerId lowerId {0};
     core::LayerId upperId {0};
 
-    RasterFixture()
+    explicit RasterFixture(bool transparentPadding = true)
     {
         QImage lower(256, 192, QImage::Format_RGBA8888);
         lower.fill(QColor(210, 75, 42, 255));
@@ -333,7 +333,7 @@ struct RasterFixture : Fixture {
         upper.fill(Qt::transparent);
         {
             QPainter painter(&upper);
-            painter.fillRect(64, 0, 64, 96, QColor(40, 180, 210, 255));
+            painter.fillRect(transparentPadding?64:0, 0, transparentPadding?64:128, 96, QColor(40, 180, 210, 255));
         }
         const auto lowerPath = assets.filePath(QStringLiteral("lower.png"));
         const auto upperPath = assets.filePath(QStringLiteral("upper.png"));
@@ -638,7 +638,9 @@ void altDragMixedSelectionSupportsCrossPanelReleaseAndFocusCancellation()
 
 void movementSnappingModifiersPreferencesAndGuideCleanup()
 {
-    RasterFixture f; CHECK(f.valid()); if (!f.valid()) return;
+    // Start aligned with the canvas. Transparent storage margins are no
+    // longer snap anchors; the padded fixture is covered by bounds tests.
+    RasterFixture f(false); CHECK(f.valid()); if (!f.valid()) return;
     auto* snapping=f.window.findChild<QAction*>("SnappingAction");
     auto* layers=f.window.findChild<QAction*>("SnapLayersAction");
     auto* canvas=f.window.findChild<QAction*>("SnapCanvasAction");
@@ -936,8 +938,9 @@ struct MoveControls {
 
     void checkMatches(const Fixture& fixture) const
     {
-        const auto& raster = std::get<core::RasterLayer>(fixture.activeLayer()->payload);
-        const auto values = core::valuesFromTransform(fixture.transform(), raster.surface->extent());
+        const auto bounds=core::layerInteractionBounds(*fixture.activeLayer());
+        const auto frame=core::composeTransform(fixture.transform(),{1,0,bounds.x,0,1,bounds.y});
+        const auto values = core::geometryValuesFromTransform(frame,core::Extent2d{bounds.width,bounds.height});
         CHECK(values.has_value());
         if (values) {
             CHECK(near(x->value(), values->center.x, 0.011));
@@ -1062,22 +1065,26 @@ void moveNumericEditsAndFlipsHaveIndependentGlobalUndoAndPreservePixels()
     record();
     controls.angle->setValue(37);
     record();
-    const auto beforeFlip = core::valuesFromTransform(fixture.transform(), surface->extent());
+    const auto contentBounds=core::layerInteractionBounds(*fixture.activeLayer());
+    const core::Extent2d contentSize{contentBounds.width,contentBounds.height};
+    const core::AffineTransform toFrame{1,0,contentBounds.x,0,1,contentBounds.y};
+    const core::AffineTransform fromFrame{1,0,-contentBounds.x,0,1,-contentBounds.y};
+    const auto beforeFlip = core::geometryValuesFromTransform(core::composeTransform(fixture.transform(),toFrame),contentSize);
     CHECK(beforeFlip.has_value());
     if (!beforeFlip) return;
     auto expectedFlip = *beforeFlip;
     expectedFlip.scaleX *= -1;
     controls.flipH->click();
     record();
-    CHECK(sameTransform(fixture.transform(), core::transformFromValues(expectedFlip, surface->extent())));
-    const auto beforeVerticalFlip = core::valuesFromTransform(fixture.transform(), surface->extent());
+    CHECK(sameTransform(fixture.transform(), core::composeTransform(core::transformFromGeometryValues(expectedFlip,contentSize),fromFrame)));
+    const auto beforeVerticalFlip = core::geometryValuesFromTransform(core::composeTransform(fixture.transform(),toFrame),contentSize);
     CHECK(beforeVerticalFlip.has_value());
     if (!beforeVerticalFlip) return;
     expectedFlip = *beforeVerticalFlip;
     expectedFlip.scaleY *= -1;
     controls.flipV->click();
     record();
-    CHECK(sameTransform(fixture.transform(), core::transformFromValues(expectedFlip, surface->extent())));
+    CHECK(sameTransform(fixture.transform(), core::composeTransform(core::transformFromGeometryValues(expectedFlip,contentSize),fromFrame)));
 
     for (std::size_t i = states.size() - 1; i > 0; --i) {
         undo->trigger();
@@ -2143,7 +2150,9 @@ void cornerResizeCursorsStayDiagonalOnWideTallRotatedAndFlippedFrames()
 
 void distortedSideHandlesRemainHoverableAndDraggable()
 {
-    RasterFixture f;
+    // Exercise the full-support extreme quad, without a transparent margin
+    // crossing the projective horizon outside the new tight handle frame.
+    RasterFixture f(false);
     CHECK(f.valid());
     if (!f.valid()) return;
     f.startWithAction();

@@ -360,6 +360,54 @@ void frozenFixtureDefaultsAndZipVariants()
     }
 }
 
+void largeStreamingSave()
+{
+    // Exercise >1 GiB of real ZIP payloads without retaining that much RAM in
+    // the routine test suite. copyRgba8 must only be asked for bounded chunks.
+    struct ZeroSurface final : c::RasterSurface {
+        c::SurfaceId id() const noexcept override { return 1; }
+        c::Extent2u extent() const noexcept override { return {8192, 8192}; }
+        c::Revision revision() const noexcept override { return 1; }
+        c::DirtySet dirtySince(c::Revision) const override { return {}; }
+        void copyRgba8(c::RectI r, std::span<std::byte> target, size_t stride) const override {
+            CHECK(r.x == 0 && r.width == 8192 && r.height > 0);
+            CHECK(target.size() <= 256 * 1024);
+            CHECK(target.size() == size_t(r.height) * stride);
+            std::fill(target.begin(), target.end(), std::byte{});
+        }
+        c::DirtySet replaceRgba8Batch(std::span<const c::RasterPatch>) override {
+            throw std::runtime_error("Read-only generated fixture");
+        }
+        c::DirtySet swapRgba8Batch(std::span<c::MutableRasterPatch>) override {
+            throw std::runtime_error("Read-only generated fixture");
+        }
+    };
+    Fixture f;
+    c::Document doc(c::CanvasSpec{{8192, 8192}, 72});
+    auto surface = std::make_shared<ZeroSurface>();
+    for (unsigned i = 0; i < 5; ++i) {
+        c::Layer layer;
+        layer.id = c::makeLayerId();
+        layer.name = "Generated large raster";
+        layer.payload = c::RasterLayer{surface};
+        CHECK(doc.insertLayer(doc.layers().size(), std::move(layer)));
+    }
+    const auto revision = doc.revision();
+    quint64 done = 0, total = 0;
+    auto saved = u::saveProject(f.path("large.vulkana"), doc, {}, [&](quint64 d, quint64 t) {
+        CHECK(d <= t && d >= done);
+        done = d;
+        total = t;
+        return true;
+    });
+    CHECK(saved);
+    CHECK(done == total && total > 2ULL * 1024 * 1024 * 1024);
+    CHECK(doc.revision() == revision);
+    CHECK(QFileInfo(f.path("large.vulkana")).size() > 0);
+    const auto constrained = u::loadProject(f.path("large.vulkana"), {}, {1});
+    CHECK(!constrained && constrained.error.contains("available load allowance"));
+}
+
 void exactRasterAndRichTextRoundTrip()
 {
     Fixture f;
@@ -561,7 +609,8 @@ void dimensionAndAllocationLimits()
         budgetEntries.push_back({ QString("rasters/%1.rgba").arg(i + 100).toUtf8(), referencePixels() });
     auto budgetArchive = makeZip(budgetEntries);
     // The central directory declares five individually legal 256 MiB rasters.
-    // Reject their aggregate metadata BEFORE attempting to decode/allocate any.
+    // An explicit constrained-memory load must reject BEFORE decoding/allocating.
+    // There is no fixed 1 GiB file or aggregate-pixel cap anymore.
     qsizetype central = 0;
     int changed = 0;
     while ((central = budgetArchive.indexOf(QByteArray("PK\1\2", 4), central)) >= 0) {
@@ -574,9 +623,14 @@ void dimensionAndAllocationLimits()
         central += 4;
     }
     CHECK(changed == 5);
-    const auto budgetError = f.reject("aggregate raster exceeds 1 GiB", budgetArchive);
-    CHECK(budgetError.contains("budget", Qt::CaseInsensitive)
-        || budgetError.contains("limit", Qt::CaseInsensitive));
+    const auto budgetPath = f.store(budgetArchive);
+    const auto constrained = u::loadProject(budgetPath, {}, { 1024ULL * 1024 * 1024 });
+    CHECK(!constrained && constrained.error.contains("available load allowance"));
+    // With sufficient declared headroom it reaches payload verification, where
+    // this intentionally truncated fixture fails, rather than a 1 GiB veto.
+    const auto admitted = u::loadProject(budgetPath, {}, { 8ULL * 1024 * 1024 * 1024 });
+    CHECK(!admitted && !admitted.error.isEmpty());
+    CHECK(!admitted.error.contains("allowance") && !admitted.error.contains("budget"));
     large = baseManifest();
     large["too-large"] = QString(8 * 1024 * 1024, QChar('x'));
     f.reject("manifest exceeds 8 MiB", large);
@@ -987,6 +1041,7 @@ int main(int argc, char** argv)
         frozenFixtureDefaultsAndZipVariants();
         rememberedSelectionRoundTrip();
         exactRasterAndRichTextRoundTrip();
+        largeStreamingSave();
         unknownMetadataSurvivesKnownFieldChanges();
         requiredFieldsTypesAndFeatures();
         dimensionAndAllocationLimits();

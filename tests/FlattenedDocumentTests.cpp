@@ -1,6 +1,8 @@
 #include "imageeditor/ui/FlattenedDocument.hpp"
 
 #include "imageeditor/core/ColorMath.hpp"
+#include "imageeditor/core/ColorSampler.hpp"
+#include "imageeditor/core/SpatialFilterCache.hpp"
 #include "imageeditor/core/RichText.hpp"
 #include "imageeditor/core/SelectionMask.hpp"
 
@@ -224,6 +226,105 @@ void failureCancellationAndLimits()
     CHECK(!allocation && allocation.image.isNull() && allocation.error.contains("memory"));
 }
 
+// Deliberately scalar reference: compose each native sample independently,
+// then integrate in linear premultiplied space before the single quantization.
+QImage scalarReduction(const c::Document& doc, c::Extent2u size, std::optional<c::Rgba8> matte = {})
+{
+    auto layers = doc.layers();
+    std::vector<const c::Layer*> prepared;
+    for (auto& layer : layers) {
+        layer.visible = doc.isEffectivelyVisible(layer.id);
+        layer.renderCache = u::prepareDocumentSampleCache(layer, 1024*1024);
+        layer.filterCache = c::prepareLayerSpatialFilters(layer);
+        layer.effectCache = c::prepareLayerEffects(layer, {});
+        prepared.push_back(&layer);
+    }
+    const auto e = doc.canvas().extent;
+    const c::PinnedDocumentSampler sampler(prepared, e);
+    QImage result(int(size.width), int(size.height), QImage::Format_RGBA8888);
+    const double dx = double(e.width)/size.width, dy = double(e.height)/size.height;
+    for (std::uint32_t y=0; y<size.height; ++y) for (std::uint32_t x=0; x<size.width; ++x) {
+        const double left=x*dx, right=(x+1)*dx, top=y*dy, bottom=(y+1)*dy;
+        std::array<double,4> sum{};
+        for (int sy=int(std::floor(top)); sy<int(std::ceil(bottom)); ++sy)
+            for (int sx=int(std::floor(left)); sx<int(std::ceil(right)); ++sx) {
+                const double wx=(std::min(right,double(sx+1))-std::max(left,double(sx)))/dx;
+                const double wy=(std::min(bottom,double(sy+1))-std::max(top,double(sy)))/dy;
+                const auto value=sampler.sampleLinear({sx+.5,sy+.5});
+                for (std::size_t i=0; i<4; ++i) sum[i]+=double(value[i])*wx*wy;
+            }
+        c::PremultipliedColor value{float(sum[0]),float(sum[1]),float(sum[2]),float(sum[3])};
+        if (matte) value=c::compositeLayer(c::decodeColor(*matte),value,1,c::BlendMode::Normal);
+        auto color=c::encodeColor(value);
+        if (!color.alpha) color={};
+        auto* p=result.scanLine(int(y))+x*4;
+        p[0]=color.red;p[1]=color.green;p[2]=color.blue;p[3]=color.alpha;
+    }
+    return result;
+}
+
+void rowReductionMatchesScalar(const std::string& fontFamily)
+{
+    c::Document doc({{47,39},144});
+    std::vector<std::byte> bytes(23*19*4);
+    for (std::size_t i=0; i<bytes.size(); ++i) bytes[i]=std::byte((i*31+i/9)%256);
+    auto source=std::make_shared<c::ContiguousRasterSurface>(c::Extent2u{23,19}, std::move(bytes));
+    auto base=c::Layer::raster("Offset source",source);
+    base.rasterOrigin={3,-1};base.localToDocument={1,0,2,0,1,4};
+    CHECK(doc.insertLayer(0,std::move(base)));
+    auto upper=c::Layer::raster("Projective masked source",source);
+    upper.localToDocument={-1,.15,36,.12,1,7,.001,-.002,1};
+    upper.opacity=.63F;upper.crop=c::LayerCrop{1.25,2.5,20,16};
+    upper.crop->corners={2,1,3,0};
+    auto mask=std::make_shared<c::LayerMask>();
+    mask->coverage=c::SelectionMask::rectangle({30,25},{2,3,17,14},123);
+    upper.mask=mask;
+    auto adjustments=std::make_shared<c::AdjustmentStack>();
+    auto& exposure=adjustments->items[std::size_t(c::AdjustmentType::Exposure)];
+    exposure.enabled=true;exposure.parameters=c::ExposureParameters{.35};
+    upper.adjustments=adjustments;
+    const auto id=upper.id;
+    CHECK(doc.insertLayer(1,std::move(upper)));
+    for (const auto mode:c::allBlendModes) {
+        doc.setLayerBlendMode(id,mode);
+        for (const auto size: {c::Extent2u{13,11},c::Extent2u{47,8},c::Extent2u{9,39},c::Extent2u{1,1}}) {
+            const auto expected=scalarReduction(doc,size);
+            const auto actual=u::flattenDocumentAtSize(doc,size);
+            CHECK(actual && actual.image==expected);
+        }
+    }
+    c::ShapeLayer shape;shape.kind=c::ShapeKind::Ellipse;shape.size={17,14};
+    shape.fillColor={220,80,50,127};
+    auto ellipse=c::Layer::shape("Styled ellipse",shape);
+    ellipse.localToDocument={1,.15,3,-.2,1,18};
+    auto filters=std::make_shared<c::SpatialFilterStack>();
+    filters->items[0].enabled=true;filters->items[0].parameters=c::GaussianBlurParameters{2,3};
+    ellipse.filters=filters;
+    auto effects=std::make_shared<c::LayerEffectStack>();
+    auto& shadow=effects->items[std::size_t(c::LayerEffectType::DropShadow)];
+    shadow.enabled=true;shadow.size=3;shadow.distance=4.5;shadow.opacity=.6;
+    ellipse.effects=effects;
+    CHECK(doc.insertLayer(2,std::move(ellipse)));
+    c::TextLayer text;text.utf8="O!";text.defaultStyle.font.family=fontFamily;
+    text.defaultStyle.sizePixels=12;text.defaultStyle.color={20,240,70,179};
+    CHECK(doc.insertLayer(3,c::Layer::text("Text",text)));
+    doc.markSaved();const auto revision=doc.revision(), pixels=source->revision();
+    for (const auto matte: {std::optional<c::Rgba8>{},std::optional<c::Rgba8>{{19,53,90,255}}}) {
+        const c::Extent2u size{13,11};
+        const auto expected=scalarReduction(doc,size,matte);
+        const auto actual=u::flattenDocumentAtSize(doc,size,{}, {},matte);
+        CHECK(actual && actual.image==expected);
+    }
+    std::uint64_t previous=0;
+    const auto cancelled=u::flattenDocumentAtSize(doc,{13,11},[&](auto done,auto total) {
+        CHECK(done>=previous && done<=total);previous=done;
+        return done<doc.layers().size()+26;
+    });
+    CHECK(cancelled.cancelled && cancelled.image.isNull());
+    CHECK(doc.revision()==revision && source->revision()==pixels && !doc.isModified());
+    CHECK(std::ranges::none_of(doc.layers(),[](const auto& layer){return bool(layer.renderCache)||bool(layer.filterCache)||bool(layer.effectCache);}));
+}
+
 void boundedPerformance()
 {
     c::Document document({ { 1024, 1024 }, 96 });
@@ -270,6 +371,7 @@ int main(int argc, char** argv)
         mixtureAndViewportIndependence(families.front().toStdString());
         alphaClippingAndStackOrder();
         failureCancellationAndLimits();
+        rowReductionMatchesScalar(families.front().toStdString());
         boundedPerformance();
     } catch (const std::exception& error) {
         ++failures;

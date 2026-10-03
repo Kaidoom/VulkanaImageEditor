@@ -316,8 +316,9 @@ LayerTransformSession::LayerTransformSession(Document& document, std::span<const
     extent_ = targets_.front().extent;
     geometryExtent_ = { double(extent_.width), double(extent_.height) };
     original_ = targets_.front().original;
-    if(!grouped() && (document.layer(layerId_)->crop || document.layer(layerId_)->rasterOrigin!=Vec2d{})){
-        const auto bounds=layerInteractionBounds(*document.layer(layerId_));
+    const auto interactionBounds=layerInteractionBounds(*document.layer(layerId_));
+    if(!grouped() && interactionBounds!=RectD{0,0,double(extent_.width),double(extent_.height)}){
+        const auto bounds=interactionBounds;
         geometryExtent_={bounds.width,bounds.height};
         original_=composeAffine(original_,{1,0,bounds.x,0,1,bounds.y});
         reframed_=true;

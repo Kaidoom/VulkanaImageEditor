@@ -1,5 +1,24 @@
 # Architecture
 
+Raster interaction bounds are cached per surface revision in 64-pixel tiles.
+Only dirty tiles are rescanned; masks, layer visibility, opacity and effect
+padding do not redefine raw content bounds. Storage origins and effect frames
+remain distinct from that interaction rectangle. Ordinary brush strokes retain
+the incremental journal path until storage must grow, then use the existing
+regional COW surface and a single storage/pixel history action. Gesture mapping
+stays anchored to the original pixel frame; left/up growth does not rebase
+crops, masks or gradients. The native canvas snapshot is rebound only on a
+storage-geometry change, not for every dab.
+
+## Memory readout
+
+The status bar samples whole-process resident RAM and cached layer-texture bytes
+once per second. RAM includes all tabs/history/CPU caches; the GPU-cache figure
+is not total VRAM. Hover details include reserved upload staging, whose backing
+may overlap resident RAM. The figures are not additive. Sampling reads OS and
+existing renderer counters only, pauses while hidden/minimized, and never
+requests a canvas frame or walks pixel data. Narrow layouts prioritize RAM.
+
 ## Bitmap layer masks
 
 Raster, text and shape layers can own one immutable tiled R8 `LayerMask`.
@@ -35,6 +54,13 @@ falls back to raster output when an enabled layer mask cannot be represented.
 - `src/ui` connects Qt panels/tools to the core, performs text/shape preparation,
   orchestrates jobs, and handles project/image I/O.
 - `src/app` contains the executable entry point and startup coordination.
+
+PSD conversion stays at the UI/IO boundary: checked binary inspection produces
+an immutable source and capability list, the owned review dialog supplies a
+plan, and a bounded worker constructs a standalone native document. Publication
+pins the runtime destination/revision and uses existing tab or atomic structure
+insertion. No PSD descriptors, executable content or external source dependencies
+enter `.vulkana`. See [PSD import](PSD_IMPORT.md).
 
 Keep authoritative document content separate from reconstructible render caches
 and UI state. Panels and the renderer consume the same document model; they must

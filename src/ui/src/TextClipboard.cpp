@@ -10,6 +10,7 @@ QJsonObject style(const core::TextStyle& s)
 {
     return { { "family", QString::fromStdString(s.font.family) },
         { "style", QString::fromStdString(s.font.style) }, { "weight", s.font.weight },
+        { "originalFace", QString::fromStdString(s.font.originalFace) },
         { "italic", s.font.italic }, { "size", s.sizePixels },
         { "rgba", QJsonArray { s.color.red, s.color.green, s.color.blue, s.color.alpha } } };
 }
@@ -29,6 +30,9 @@ core::TextStyle readStyle(const QJsonObject& o)
     s.font = { o["family"].toString().toStdString(), o["style"].toString().toStdString(),
         o["weight"].toInt(), o["italic"].toBool() };
     s.sizePixels = o["size"].toDouble();
+    if(o.contains("originalFace") && (!o["originalFace"].isString() || o["originalFace"].toString().size()>1024))
+        throw std::invalid_argument("Invalid original font face");
+    s.font.originalFace=o["originalFace"].toString().toStdString();
     s.color = { std::uint8_t(c[0].toInt()), std::uint8_t(c[1].toInt()), std::uint8_t(c[2].toInt()),
         std::uint8_t(c[3].toInt()) };
     return s;

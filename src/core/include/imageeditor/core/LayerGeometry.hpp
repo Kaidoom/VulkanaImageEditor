@@ -65,9 +65,10 @@ template <class L> AffineTransform renderTransform(const L& layer)
     }
     return composeAffine(layer.localToDocument,renderPixelsToLocal(layer));
 }
-inline Extent2u layerGeometryExtent(const Layer& layer)
+template<class L> Extent2u layerGeometryExtent(const L& layer)
 {
-    if (const auto* raster = std::get_if<RasterLayer>(&layer.payload))
+    using Raster = std::conditional_t<std::is_same_v<L, Layer>, RasterLayer, RasterLayerSnapshot>;
+    if (const auto* raster = std::get_if<Raster>(&layer.payload))
         return raster->surface ? raster->surface->extent() : Extent2u { };
     if (const auto* shape = std::get_if<ShapeLayer>(&layer.payload))
         return shapeGeometryExtent(*shape);
@@ -118,10 +119,20 @@ template<class L> bool hitLayerCrop(const L& layer,Vec2d documentPoint)
     const auto inverse=layer.localToDocument.inverted();
     return inverse && layer.crop->contains(inverse->map(documentPoint));
 }
-// Preserve the established uncropped geometry frame; crops intersect it with
-// source visibility without rebasing the layer's canonical local origin.
-inline RectD layerInteractionBounds(const Layer& layer)
+// Use the same local frame for interaction and snapshot overlays. Raster bounds
+// come from cached source alpha, offset by storage origin; typed layers keep their
+// geometry frame. Cropping never rebases the canonical local origin.
+template<class L> RectD layerInteractionBounds(const L& layer)
 {
+    using Raster = std::conditional_t<std::is_same_v<L, Layer>, RasterLayer, RasterLayerSnapshot>;
+    if (const auto* raster = std::get_if<Raster>(&layer.payload); raster && raster->surface) {
+        const auto b = raster->surface->contentBounds();
+        if (!b.empty()) {
+            const RectD content{layer.rasterOrigin.x+b.x,layer.rasterOrigin.y+b.y,double(b.width),double(b.height)};
+            return layer.crop ? croppedBounds(*layer.crop,content) : content;
+        }
+        // An empty layer still has a usable editing/transform frame.
+    }
     if(layer.crop)return layerVisibleBounds(layer);
     const auto e=layerGeometryExtent(layer);
     if(const auto* shape=std::get_if<ShapeLayer>(&layer.payload))return {0,0,shape->size.width,shape->size.height};

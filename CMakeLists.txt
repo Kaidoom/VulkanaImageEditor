@@ -35,6 +35,7 @@ endif()
 
 find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Widgets Network Pdf)
 find_package(qpdf REQUIRED)
+find_package(ZLIB REQUIRED)
 find_package(Vulkan 1.2 REQUIRED)
 find_program(GLSLC_EXECUTABLE NAMES glslc REQUIRED)
 

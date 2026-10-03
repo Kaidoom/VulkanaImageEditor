@@ -5,6 +5,7 @@
 #include "imageeditor/core/History.hpp"
 #include "imageeditor/core/RasterSurface.hpp"
 #include "imageeditor/core/LayerCrop.hpp"
+#include "imageeditor/core/RegionalRasterSurface.hpp"
 
 #include <array>
 #include <cstddef>
@@ -24,6 +25,7 @@ struct RasterEditTransactionOptions {
     const SelectionMaskInput* selectionMask {nullptr};
     bool ignoreCrop {false}; // Explicit whole-source clear, not ordinary painting.
     bool coverageValues {false}; // Numeric R8 mask edits, not sRGB colors.
+    bool allowGrowth {false}; // Painting may extend storage, never the canonical local frame.
 };
 
 enum class RasterEditCommitResult {
@@ -115,6 +117,8 @@ public:
     bool capture(RectI localRegion);
     void copyOriginalRgba8(RectI localRegion, std::span<std::byte> destination,
         std::size_t destinationStride) const;
+    // Gesture-start pixel coordinates; zero outside storage when growth is enabled.
+    void copyCurrentRgba8(RectI, std::span<std::byte>, std::size_t) const;
 
     [[nodiscard]] DirtySet writeRgba8(RectI localRegion,
         std::span<const std::byte> source, std::size_t sourceStride);
@@ -143,6 +147,8 @@ private:
     [[nodiscard]] DirtySet writeRgba8BatchImpl(std::span<const RasterPatch> patches, bool selectionResolved);
     [[nodiscard]] DirtySet writeMasked(std::span<const RasterPatch> patches, bool selectionResolved);
     void restoreOriginalPixels();
+    [[nodiscard]] DirtySet writeAccepted(std::span<const RasterPatch>);
+    void beginGrowth();
 
     Document* document_ {nullptr};
     LayerId layerId_ {0};
@@ -163,6 +169,13 @@ private:
     bool active_ {false};
     bool ignoreCrop_ {false};
     bool coverageValues_ {false};
+    bool allowGrowth_ {false};
+    std::shared_ptr<RasterSurface> originalSurface_;
+    std::shared_ptr<RegionalRasterSurface> growingSurface_;
+    Vec2d originalOrigin_;
+    AffineTransform externalTransform_;
+    std::optional<RectD> originalFrame_, growingFrame_;
+    std::uint64_t originalContentState_ {0};
 };
 
 } // namespace imageeditor::core

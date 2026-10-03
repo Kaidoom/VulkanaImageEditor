@@ -298,6 +298,7 @@ private:
     void openImage();
     bool openDocumentFromPath(const QString&);
     bool importPdfFromPath(const QString&, bool intoCurrent);
+    bool importPsdFromPath(const QString&, bool intoCurrent);
     bool settleForFileOperation();
     bool guardUnsavedChanges();
     void updateDocumentTitle();

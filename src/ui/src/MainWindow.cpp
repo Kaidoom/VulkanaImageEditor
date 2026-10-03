@@ -1,5 +1,8 @@
 #include "imageeditor/ui/MainWindow.hpp"
+#include "imageeditor/ui/MemoryStatusLabel.hpp"
+#include "imageeditor/platform/AvailableMemory.hpp"
 #include "imageeditor/ui/PdfImport.hpp"
+#include "imageeditor/ui/PsdImport.hpp"
 #include "imageeditor/ui/EffectsPanel.hpp"
 #include "imageeditor/ui/PopupOwnership.hpp"
 #include "imageeditor/ui/AboutDialog.hpp"
@@ -473,7 +476,7 @@ private:
 
 QString supportedImageFilter()
 {
-    QStringList patterns {QStringLiteral("*.pdf"),QStringLiteral("*.PDF")};
+    QStringList patterns {QStringLiteral("*.pdf"),QStringLiteral("*.PDF"),QStringLiteral("*.psd"),QStringLiteral("*.PSD"),QStringLiteral("*.psb"),QStringLiteral("*.PSB")};
     for (const auto& format : QImageReader::supportedImageFormats()) {
         const auto extension = QString::fromLatin1(format);
         patterns << QStringLiteral("*.") + extension << QStringLiteral("*.") + extension.toUpper();
@@ -2528,6 +2531,11 @@ void MainWindow::createStatusBar(bool showCanvasFps)
         auto* canvasFps = new CanvasFpsLabel(*canvasWindow_, right);
         rightLayout->addWidget(canvasFps);
     }
+    rightLayout->addWidget(new MemoryStatusLabel([this] {
+        const auto stats = canvasWindow_->rendererStats();
+        return MemoryStatusSnapshot{platform::processResidentMemoryBytes(),
+                                    stats.textureCacheBytes, stats.stagingCapacityBytes};
+    }, right));
     rightLayout->addWidget(zoomStatus_);
     statusBar()->addPermanentWidget(new StatusReadouts(statusBar(), documentStatus_, toolContextStatus_, right),1);
     // Keep informational lanes permanent. Existing operation/error messages
@@ -2969,6 +2977,7 @@ bool MainWindow::importImageAsLayerFromPath(const QString& filePath)
 {
     if (fileBusy_) return false;
     if (isPdfFile(filePath)) return importPdfFromPath(filePath,true);
+    if (isPsdFile(filePath)) return importPsdFromPath(filePath,true);
     cancelPendingEdits();
     auto* document = session().document();
     if (!document) {
@@ -3022,6 +3031,7 @@ void MainWindow::handleDroppedImages(const QStringList& filePaths)
     bool mayOpenFirstSuccessfulImage = fileState().untouched;
     for (const auto& filePath : filePaths) {
         if (isPdfFile(filePath)) { importPdfFromPath(filePath,session().document()!=nullptr); continue; }
+        if (isPsdFile(filePath)) { importPsdFromPath(filePath,session().document()!=nullptr); continue; }
         if (QFileInfo(filePath).suffix().compare(QStringLiteral("vulkana"), Qt::CaseInsensitive) == 0) {
             openImageFromPath(filePath); continue;
         }
@@ -4452,6 +4462,7 @@ bool MainWindow::beginBrushStroke(const core::NormalizedPointerSample& sample)
         std::make_unique<core::BasicPixelBrushEngine>(),
         std::unique_ptr<core::IBrushTip> {},
         std::unique_ptr<core::IBrushGrain> {}, brushAssets_.get(),transactionOptions);
+    const auto rasterGeometryRevision=session().document()->revision();
     if (!activeBrushStroke_->valid() || !activeBrushStroke_->begin(sample)) {
         const bool limited=activeBrushStroke_->failure()==core::BrushStrokeFailure::RasterWorkLimitExceeded;
         activeBrushStroke_.reset();
@@ -4465,7 +4476,8 @@ bool MainWindow::beginBrushStroke(const core::NormalizedPointerSample& sample)
         canvasWindow_->setResolvedBrushCursorAngle(*angle);
     }
     canvasWindow_->setConstrainedBrushPosition(activeBrushStroke_->constrainedPosition());
-    if(activeMaskEdit_)canvasWindow_->setDocument(session().document()->snapshot(),false);
+    if(activeMaskEdit_ || session().document()->revision()!=rasterGeometryRevision)
+        canvasWindow_->setDocument(session().document()->snapshot(),false);
     canvasWindow_->scheduleFrame();
     return true;
 }
@@ -4475,6 +4487,7 @@ bool MainWindow::moveBrushStroke(const core::NormalizedPointerSample& sample)
     if(activeSpotHealStroke_)return moveSpotHealStroke(sample);
     if(activeCloneStroke_)return moveCloneStroke(sample);
     if(activeLocalBlurStroke_)return moveLocalBlurStroke(sample);
+    const auto rasterGeometryRevision=session().document()?session().document()->revision():0;
     if (!activeBrushStroke_ || !activeBrushStroke_->append(sample)) {
         cancelActiveBrushStroke();
         return false;
@@ -4483,7 +4496,8 @@ bool MainWindow::moveBrushStroke(const core::NormalizedPointerSample& sample)
         canvasWindow_->setResolvedBrushCursorAngle(*angle);
     }
     canvasWindow_->setConstrainedBrushPosition(activeBrushStroke_->constrainedPosition());
-    if(activeMaskEdit_)canvasWindow_->setDocument(session().document()->snapshot(),false);
+    if(activeMaskEdit_ || session().document()->revision()!=rasterGeometryRevision)
+        canvasWindow_->setDocument(session().document()->snapshot(),false);
     canvasWindow_->scheduleFrame();
     return true;
 }

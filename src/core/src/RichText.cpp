@@ -65,7 +65,7 @@ void validateStyle(const TextStyle& s)
 {
     if (!std::isfinite(s.sizePixels) || s.sizePixels < 0.25 || s.sizePixels > 2048
         || s.font.family.size() > 512 || s.font.style.size() > 512 || s.font.weight < 1
-        || s.font.weight > 1000)
+        || s.font.weight > 1000 || s.font.originalFace.size()>1024)
         throw std::invalid_argument("Invalid text style (size range 0.25–2048 document px)");
 }
 void append(
@@ -187,9 +187,9 @@ std::size_t textMemoryCost(const TextLayer& t) noexcept
 {
     std::size_t n = t.utf8.capacity() + t.runs.capacity() * sizeof(TextFormatRun)
         + t.paragraphs.capacity() * sizeof(TextParagraph) + t.defaultStyle.font.family.capacity()
-        + t.defaultStyle.font.style.capacity();
+        + t.defaultStyle.font.style.capacity() + t.defaultStyle.font.originalFace.capacity();
     for (const auto& r : t.runs)
-        n += r.style.font.family.capacity() + r.style.font.style.capacity();
+        n += r.style.font.family.capacity() + r.style.font.style.capacity() + r.style.font.originalFace.capacity();
     return n;
 }
 TextEditCommand::TextEditCommand(LayerId id, TextLayer before, TextLayer after, TextEditHint a,

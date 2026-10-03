@@ -401,12 +401,14 @@ void transformedPaintEraseAndFillReuseMask()
                 CHECK(stroke.end(sample({ 32, 32 }), history) == RasterEditCommitResult::Committed);
             }
             bool changed = false;
+            const auto editedSurface=std::get<RasterLayer>(document.layer(id)->payload).surface;
+            const auto origin=document.layer(id)->rasterOrigin;
             for (int y = 0; y < 9; ++y) {
                 for (int x = 0; x < 12; ++x) {
                     const auto doc = mapping.map({ x + 0.5, y + 0.5 });
                     const auto coverage = selection->coverageAtDocumentPixel(
                         int(std::floor(doc.x)), int(std::floor(doc.y)));
-                    const auto actual = pixel(*surface, x, y);
+                    const auto actual = pixel(*editedSurface, x-int(origin.x), y-int(origin.y));
                     CHECK(coverage ? actual != original : actual == original);
                     changed = changed || actual != original;
                     if (operation == 1 && coverage)
@@ -419,13 +421,13 @@ void transformedPaintEraseAndFillReuseMask()
             CHECK(history.undoDepth() == 1);
             CHECK(document.selection() == selection);
             CHECK(document.layer(id)->localToDocument == mapping);
-            const auto edited = pixels(*surface);
+            const auto edited = pixels(*editedSurface);
             CHECK(history.undo(document));
             for (int y = 0; y < 9; ++y)
                 for (int x = 0; x < 12; ++x)
                     CHECK(pixel(*surface, x, y) == original);
             CHECK(history.redo(document));
-            CHECK(pixels(*surface) == edited);
+            CHECK(pixels(*std::get<RasterLayer>(document.layer(id)->payload).surface) == edited);
         }
     }
 }

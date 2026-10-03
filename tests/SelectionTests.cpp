@@ -607,6 +607,10 @@ void transformedBrushAndEraseRespectDocumentSelection()
             BasicPixelBrushStroke stroke(document, id, settings, mode);
             CHECK(stroke.begin(sample({32, 32})));
             CHECK(stroke.end(sample({32, 32}, 1000), history) == RasterEditCommitResult::Committed);
+            // Painting can replace/extend storage; inspect the current surface
+            // at the same canonical local pixels, not the retained undo base.
+            const auto editedSurface=std::get<RasterLayer>(document.layer(id)->payload).surface;
+            const auto origin=document.layer(id)->rasterOrigin;
             bool changed = false;
             for (std::int32_t y = 0; y < 6; ++y) {
                 for (std::int32_t x = 0; x < 8; ++x) {
@@ -614,7 +618,7 @@ void transformedBrushAndEraseRespectDocumentSelection()
                     const bool selected = mask->coverageAtDocumentPixel(
                         static_cast<std::int32_t>(std::floor(doc.x)),
                         static_cast<std::int32_t>(std::floor(doc.y))) != 0;
-                    const auto value = pixel(*surface, x, y);
+                    const auto value = pixel(*editedSurface, x-int(origin.x), y-int(origin.y));
                     CHECK(selected ? value != original : value == original);
                     changed = changed || value != original;
                     if (mode == BrushCompositeMode::Erase && selected) {
@@ -628,13 +632,13 @@ void transformedBrushAndEraseRespectDocumentSelection()
             CHECK(changed);
             CHECK(document.selection() == mask);
             CHECK(document.layer(id)->localToDocument == transform);
-            const auto edited = pixels(*surface);
+            const auto edited = pixels(*editedSurface);
             CHECK(history.undo(document));
             for (std::int32_t y = 0; y < 6; ++y)
                 for (std::int32_t x = 0; x < 8; ++x)
                     CHECK(pixel(*surface, x, y) == original);
             CHECK(history.redo(document));
-            CHECK(pixels(*surface) == edited);
+            CHECK(pixels(*std::get<RasterLayer>(document.layer(id)->payload).surface) == edited);
         }
     }
 }

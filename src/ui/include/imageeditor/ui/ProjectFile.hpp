@@ -24,5 +24,9 @@ struct ProjectLoadResult {
 // snapshot is advertised as immutable; work uses bounded row/chunk buffers.
 ProjectIoResult saveProject(const QString&, const core::Document&,
     const QJsonObject& metadata = { }, ProjectProgress = { });
-ProjectLoadResult loadProject(const QString&, ProjectProgress = { });
+struct ProjectLoadLimits {
+    // Zero selects available system/cgroup headroom, not a fixed project cap.
+    quint64 workingBytes { 0 };
+};
+ProjectLoadResult loadProject(const QString&, ProjectProgress = { }, ProjectLoadLimits = { });
 }

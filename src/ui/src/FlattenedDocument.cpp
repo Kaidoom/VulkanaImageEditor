@@ -352,19 +352,55 @@ static FlattenedDocumentResult flattenImpl(
         std::uint64_t processed = 0;
         const double stepX = items ? 1 : double(canvasExtent.width)/extent.width;
         const double stepY = items ? 1 : double(canvasExtent.height)/extent.height;
+        // Reduction still integrates the complete native composite before any
+        // quantization. Compose each native row once using the existing sparse
+        // row path, instead of revisiting every layer at every footprint sample.
+        // Keep scratch bounded even for unusually wide caller-supplied canvases.
+        const bool reduceRows = stepX >= 1 && stepY >= 1 && (stepX > 1 || stepY > 1)
+            && canvasExtent.width <= 32768;
         ProfileStage scratchAllocation(profile?&profile->allocationMs:nullptr);
-        std::vector<core::PremultipliedColor> rowColors(stepX==1 && stepY==1?extent.width:0);
+        std::vector<core::PremultipliedColor> rowColors(reduceRows ? canvasExtent.width
+            : stepX==1 && stepY==1 ? extent.width : 0);
         std::vector<std::byte> rowScratch(rowColors.size()*4);
+        std::vector<std::array<double,4>> reduced(reduceRows ? extent.width : 0);
+        int cachedRow = -1;
         scratchAllocation.finish();
         for (std::uint32_t y = 0; y < extent.height; ++y) {
             auto* row = output.scanLine(int(y));
             ProfileStage sampling(profile?&profile->samplingBlendMs:nullptr);
-            if(!rowColors.empty())sampler.sampleRow(0,int(y),rowColors,rowScratch);
+            if (reduceRows) {
+                std::fill(reduced.begin(), reduced.end(), std::array<double,4>{});
+                const double top = y*stepY, bottom = (y+1)*stepY;
+                for (int sy=int(std::floor(top)); sy<int(std::ceil(bottom)); ++sy) {
+                    if (cachedRow != sy) {
+                        sampler.sampleRow(0,sy,rowColors,rowScratch);
+                        cachedRow = sy;
+                    }
+                    const double wy = stepY>1
+                        ? (std::min(bottom,double(sy+1))-std::max(top,double(sy)))/stepY : 1;
+                    for (std::uint32_t x=0; x<extent.width; ++x) {
+                        const double left=x*stepX, right=(x+1)*stepX;
+                        for (int sx=int(std::floor(left)); sx<int(std::ceil(right)); ++sx) {
+                            const double wx = stepX>1
+                                ? (std::min(right,double(sx+1))-std::max(left,double(sx)))/stepX : 1;
+                            // A boundary rounded beyond the canvas contributes
+                            // transparency, as in sampleLinear's bounds contract.
+                            const auto c = sx>=0 && sx<int(canvasExtent.width)
+                                ? rowColors[std::size_t(sx)] : core::PremultipliedColor{};
+                            for (std::size_t i=0; i<4; ++i)
+                                reduced[x][i] += double(c[i])*wx*wy;
+                        }
+                    }
+                    tick(completed + std::uint64_t(y)*extent.width);
+                }
+            } else if(!rowColors.empty())sampler.sampleRow(0,int(y),rowColors,rowScratch);
             sampling.finish();
             ProfileStage encoding(profile?&profile->encodingMs:nullptr);
             for (std::uint32_t x = 0; x < extent.width; ++x) {
                 core::PremultipliedColor linear;
-                if (stepX == 1 && stepY == 1)
+                if (reduceRows)
+                    linear={float(reduced[x][0]),float(reduced[x][1]),float(reduced[x][2]),float(reduced[x][3])};
+                else if (stepX == 1 && stepY == 1)
                     linear = rowColors[x];
                 else {
                     // Exact box/area reduction, continuous alpha-aware source

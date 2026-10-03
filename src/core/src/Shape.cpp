@@ -40,6 +40,8 @@ bool validShape(const ShapeLayer& shape) noexcept
         || !bounded(shape.size.height, maximumShapeDimension)
         || !bounded(shape.cornerRadius, maximumShapeStyleDimension)
         || !bounded(shape.strokeWidth, maximumShapeStyleDimension)
+        || !bounded(shape.strokeMiterLimit, 1000) || shape.strokeMiterLimit < 0.5
+        || static_cast<unsigned>(shape.strokeJoin)>2 || static_cast<unsigned>(shape.strokeCap)>2
         || shape.points.size() > maximumShapePoints)
         return false;
     switch (shape.kind) {

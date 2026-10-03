@@ -20,8 +20,8 @@ bool near(double actual, double expected, double tolerance = 1e-9)
         && std::abs(actual - expected) <= tolerance * std::max(1.0, std::abs(expected));
 }
 
-// Large-document bounds must use geometry only: any pixel/dirty-cache access
-// is an observable failure, without allocating a 5K raster just to measure it.
+// Content bounds are scanned once, then repeated geometry queries must not
+// access pixels/dirty tracking or allocate a second large image.
 class GeometryOnlySurface final : public RasterSurface {
 public:
     explicit GeometryOnlySurface(Extent2u size) : size_(size) {}
@@ -29,7 +29,7 @@ public:
     Extent2u extent() const noexcept override { return size_; }
     Revision revision() const noexcept override { return 1; }
     DirtySet dirtySince(Revision) const override { ++pixelOperations; return {}; }
-    void copyRgba8(RectI, std::span<std::byte>, std::size_t) const override { ++pixelOperations; }
+    void copyRgba8(RectI, std::span<std::byte> bytes, std::size_t) const override { ++pixelOperations; std::fill(bytes.begin(),bytes.end(),std::byte{}); }
     DirtySet replaceRgba8Batch(std::span<const RasterPatch>) override { ++pixelOperations; return {}; }
     DirtySet swapRgba8Batch(std::span<MutableRasterPatch>) override { ++pixelOperations; return {}; }
     mutable int pixelOperations {0};
@@ -141,9 +141,11 @@ void transformedAndContainerBounds()
     CHECK(selectedLayerBounds(document, std::array {group}) == all);
     CHECK(selectedLayerBounds(document, std::array {folder}) == all);
     CHECK(selectedLayerBounds(document, std::array {folder, group, nested, shapeId, shapeId}) == all);
+    const auto preparedOperations=surface->pixelOperations;
+    CHECK(preparedOperations>0);
     for (int i = 0; i < 1000; ++i)
         CHECK(selectedLayerBounds(document, std::array {group}) == all);
-    CHECK(surface->pixelOperations == 0);
+    CHECK(surface->pixelOperations == preparedOperations);
     CHECK(document.layer(textId)->renderCache == cache);
     CHECK(document.revision() == revision && document.contentState() == contentState && !document.isModified());
     CHECK(!selectedLayerBounds(document, std::span<const LayerId> {}));
@@ -166,7 +168,10 @@ void highResolutionAndDegenerateGeometry()
         CHECK(document.insertLayer(document.layers().size(), std::move(layer)));
         const auto bounds = selectedLayerBounds(document, std::array {id});
         CHECK(bounds && bounds->extent().width == extent.width && bounds->extent().height == extent.height);
-        CHECK(surface->pixelOperations == 0);
+        const auto preparedOperations=surface->pixelOperations;
+        CHECK(preparedOperations>0);
+        CHECK(selectedLayerBounds(document,std::array{id})==bounds);
+        CHECK(surface->pixelOperations == preparedOperations);
     }
     ShapeLayer line;
     line.kind = ShapeKind::Line;

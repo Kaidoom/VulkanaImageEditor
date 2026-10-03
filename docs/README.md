@@ -9,6 +9,7 @@ The guides below describe the architecture, behavior and algorithms.
 - [Project format](VULKANA_FORMAT.md): persistence, limits and compatibility.
 - [Document tabs](DOCUMENT_TABS.md): ownership, activation and cross-tab copying.
 - [PDF import](PDF_IMPORT.md): page geometry, rasterization, destinations and limits.
+- [PSD import](PSD_IMPORT.md): editable conversion, review choices, saved-raster scope and limits.
 - [PDF export](PDF_EXPORT.md): page ordering, physical sizes, hybrid text and safety.
 - [Shortcuts](SHORTCUTS.md): bindings, focus ownership and configuration.
 - [Single instance](SINGLE_INSTANCE.md): startup arbitration and file forwarding.

@@ -175,6 +175,7 @@ private:
     AffineTransform localToDocument_;
     AffineTransform documentToLocal_;
     Extent2u surfaceExtent_;
+    bool allowGrowth_ {false};
     Extent2u canvasExtent_;
     std::uint32_t tileSize_ {64};
     std::map<TileKey, StrokeTile> tiles_;

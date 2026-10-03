@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <deque>
+#include <mutex>
 #include <span>
 #include <vector>
 
@@ -50,6 +51,10 @@ public:
     [[nodiscard]] virtual Revision revision() const noexcept = 0;
     [[nodiscard]] virtual DirtySet dirtySince(Revision uploadedRevision) const = 0;
 
+    // Strict alpha > 0, independent of visibility, masks and storage padding.
+    // Only dirty tiles are rescanned; unchanged geometry queries read no pixels.
+    [[nodiscard]] RectI contentBounds() const;
+
     virtual void copyRgba8(RectI region, std::span<std::byte> destination,
         std::size_t destinationStride) const = 0;
     // A batch is one logical surface mutation: all changed regions share one
@@ -75,6 +80,12 @@ public:
         MutableRasterPatch patch {region, pixels, stride};
         return swapRgba8Batch(std::span<MutableRasterPatch>(&patch, 1));
     }
+private:
+    mutable std::mutex boundsMutex_;
+    mutable Revision boundsRevision_ {0};
+    mutable Extent2u boundsExtent_;
+    mutable std::vector<RectI> tileContentBounds_;
+    mutable RectI contentBounds_;
 };
 
 class ContiguousRasterSurface final : public RasterSurface {

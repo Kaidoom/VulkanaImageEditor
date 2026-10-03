@@ -124,7 +124,7 @@ int main(int argc, char** argv)
     imageeditor::ui::AboutDialog about(nullptr);
     check(about.findChild<QLabel*>("AboutVulkanaVersion")->text().contains(QString::fromLatin1(imageeditor::platform::buildVersion)), "About version differs from build");
     check(about.findChild<QLabel*>("AboutVulkanaVersion")->text().contains("Beta"), "missing release channel");
-    check(about.findChild<QLabel*>("AboutCopyright")->text().contains("Vulkana-owned contributions"), "copyright scope is too broad");
+    check(about.findChild<QLabel*>("AboutCopyright")->text().contains("Licensed under the MIT License"), "About must reflect the adopted MIT source license");
     check(about.findChild<QLabel*>("AboutBetaNote")->text().contains("backups"), "missing beta note");
     if (const auto screenshotDir = qEnvironmentVariable("VULKANA_NOTICES_SCREENSHOT_DIR"); !screenshotDir.isEmpty()) {
         about.show(); app.processEvents();

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <array>
 #include <cstring>
 #include <limits>
 #include <stdexcept>
@@ -29,6 +30,48 @@ std::size_t checkedByteCount(Extent2u extent)
 } // namespace
 
 SurfaceId makeSurfaceId() noexcept { return nextSurfaceId.fetch_add(1,std::memory_order_relaxed); }
+
+RectI RasterSurface::contentBounds() const
+{
+    std::lock_guard lock(boundsMutex_);
+    const auto e = extent();
+    if (boundsRevision_ == revision() && boundsExtent_ == e) return contentBounds_;
+    constexpr int side = 64;
+    const int columns = int((e.width + side - 1) / side), rows = int((e.height + side - 1) / side);
+    const auto dirty = dirtySince(boundsRevision_);
+    const bool all = boundsRevision_ == 0 || boundsExtent_ != e || dirty.fullRefresh;
+    std::vector<bool> scan(std::size_t(columns) * std::size_t(rows), all);
+    if (all) tileContentBounds_.assign(scan.size(), {});
+    else for (const auto r : dirty.regions) {
+        const auto clipped = r.clippedTo({0, 0, int(e.width), int(e.height)});
+        if (clipped.empty()) continue;
+        for (int y = clipped.y / side; y <= (clipped.bottom()-1) / side; ++y)
+            for (int x = clipped.x / side; x <= (clipped.right()-1) / side; ++x)
+                scan[std::size_t(y * columns + x)] = true;
+    }
+    std::array<std::byte, side * side * 4> bytes;
+    RectI result;
+    for (int y = 0; y < rows; ++y) for (int x = 0; x < columns; ++x) {
+        const auto index = std::size_t(y * columns + x);
+        if (scan[index]) {
+            const auto tile = RectI{x*side, y*side, side, side}.clippedTo({0,0,int(e.width),int(e.height)});
+            copyRgba8(tile, bytes, std::size_t(tile.width) * 4);
+            int left = tile.right(), top = tile.bottom(), right = tile.x, bottom = tile.y;
+            for (int row = 0; row < tile.height; ++row) for (int col = 0; col < tile.width; ++col)
+                if (bytes[std::size_t(row * tile.width + col)*4+3] != std::byte{0}) {
+                    left = std::min(left,tile.x+col); right = std::max(right,tile.x+col+1);
+                    top = std::min(top,tile.y+row); bottom = std::max(bottom,tile.y+row+1);
+                }
+            tileContentBounds_[index] = {left,top,std::max(0,right-left),std::max(0,bottom-top)};
+        }
+        if (!tileContentBounds_[index].empty())
+            result = result.empty() ? tileContentBounds_[index] : result.united(tileContentBounds_[index]);
+    }
+    contentBounds_ = result;
+    boundsExtent_ = e;
+    boundsRevision_ = revision();
+    return result;
+}
 
 ContiguousRasterSurface::ContiguousRasterSurface(Extent2u extent, Rgba8 fill)
     : id_(makeSurfaceId())

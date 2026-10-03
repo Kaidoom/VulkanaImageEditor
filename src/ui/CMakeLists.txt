@@ -33,6 +33,7 @@ add_library(imageeditor_ui STATIC
     src/LayerListModel.cpp
     src/LayerListView.cpp
     src/MainWindow.cpp
+    src/MemoryStatusLabel.cpp
     src/MainWindowCrop.cpp
     src/CropOptionsPage.cpp
     src/MainWindowAdjustments.cpp
@@ -73,6 +74,10 @@ add_library(imageeditor_ui STATIC
     src/PdfImport.cpp
     src/PdfImportDialog.cpp
     src/MainWindowPdf.cpp
+    src/PsdReader.cpp
+    src/PsdImport.cpp
+    src/PsdImportDialog.cpp
+    src/MainWindowPsd.cpp
     src/QtTextLayoutService.cpp
     src/TextController.cpp
     src/FontFamilyPicker.cpp
@@ -122,3 +127,4 @@ target_link_libraries(imageeditor_ui PRIVATE PkgConfig::MINIZIP)
 pkg_check_modules(WEBP REQUIRED IMPORTED_TARGET libwebp>=1.2 libwebpmux>=1.2)
 target_link_libraries(imageeditor_ui PRIVATE PkgConfig::WEBP)
 target_link_libraries(imageeditor_ui PRIVATE Qt6::Network Qt6::Pdf qpdf::libqpdf)
+target_link_libraries(imageeditor_ui PRIVATE ZLIB::ZLIB)
