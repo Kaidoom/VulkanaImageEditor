@@ -6,6 +6,7 @@
 #include "imageeditor/ui/ToolOptionsNumber.hpp"
 #include "imageeditor/ui/PopupOwnership.hpp"
 #include "imageeditor/ui/PdfExportPanel.hpp"
+#include "imageeditor/ui/PsdExportPanel.hpp"
 
 #include <QButtonGroup>
 #include <QCheckBox>
@@ -91,6 +92,7 @@ namespace {
             setAttribute(Qt::WA_OpaquePaintEvent);
         }
         QImage decoded;
+        QString placeholder{tr("The encoded image preview will appear here.")};
         bool fit { true };
 
     protected:
@@ -101,7 +103,7 @@ namespace {
             if (decoded.isNull()) {
                 p.setPen(palette().color(QPalette::PlaceholderText));
                 p.drawText(rect().adjusted(20, 20, -20, -20), Qt::AlignCenter | Qt::TextWordWrap,
-                    tr("The encoded image preview will appear here."));
+                    placeholder);
                 return;
             }
             const qreal dpr = devicePixelRatioF();
@@ -159,6 +161,11 @@ namespace {
             surface_->fit = fit;
             updateSurface();
         }
+        void setPlaceholder(const QString& text)
+        {
+            surface_->placeholder = text;
+            surface_->update();
+        }
 
     protected:
         void resizeEvent(QResizeEvent* event) override
@@ -197,6 +204,8 @@ namespace {
             return QStringLiteral("WebP image (*.webp)");
         case ExportFormat::Pdf:
             return QStringLiteral("PDF document (*.pdf)");
+        case ExportFormat::Psd:
+            return QStringLiteral("Photoshop document (*.psd)");
         }
         return { };
     }
@@ -223,6 +232,10 @@ struct ExportDialog::Impl {
     ToolOptionsButton* aspect { nullptr };
     QStackedWidget* options { nullptr };
     PdfExportPanel* pdf {nullptr};
+    PsdExportPanel* psd {nullptr};
+    QCheckBox* psdPreview {nullptr};
+    QScrollArea* settingsScroll {nullptr};
+    QWidget* psdOptions {nullptr};
     QList<QWidget*> sizeControls;
     QLabel *previewTitle {nullptr}, *previewHint {nullptr};
     int pdfPages {0};
@@ -330,11 +343,19 @@ struct ExportDialog::Impl {
     void updateFormat()
     {
         const bool isPdf=draft.format==ExportFormat::Pdf;
+        const bool isPsd=draft.format==ExportFormat::Psd;
         options->setCurrentIndex(int(draft.format));
-        for(auto* control:sizeControls)control->setVisible(!isPdf);
+        for(auto* control:sizeControls)control->setVisible(!isPdf&&!isPsd);
         pdf->setPdfVisible(isPdf);
-        previewTitle->setText(isPdf?owner.tr("Page preview"):owner.tr("Encoded preview"));
+        psd->setPsdVisible(isPsd);
+        settingsScroll->setVisible(!isPsd);
+        psdOptions->setVisible(isPsd);
+        psdPreview->setVisible(isPsd);
+        preview->setPlaceholder(isPsd && !psdPreview->isChecked()
+            ? owner.tr("Preview disabled.") : owner.tr("The preview will appear here."));
+        previewTitle->setText(isPdf?owner.tr("Page preview"):isPsd?owner.tr("Composite preview"):owner.tr("Encoded preview"));
         previewHint->setText(isPdf?owner.tr("Canonical page preview · checkerboard is never exported. PDF viewers may rasterize text edges differently.")
+            :isPsd?owner.tr("Composite preview · Checkerboard is not exported.")
             :owner.tr("Decoded from the encoded file · checkerboard is preview-only."));
     }
     void setBusy(bool isWriting, bool previewReady = false)
@@ -377,6 +398,7 @@ struct ExportDialog::Impl {
         pngColor->update();
         jpegColor->update();
         pdf->reset();
+        psd->reset();
         notify(); // One coherent update, not one encoder request per control.
     }
     void chooseMatte(bool png)
@@ -453,7 +475,7 @@ ExportDialog::ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* pa
     d.format = new ExportCombo(d.controls);
     d.format->setObjectName(QStringLiteral("ExportFormat"));
     d.format->setAccessibleName(tr("Export format"));
-    d.format->addItems({ tr("PNG"), tr("JPEG"), tr("WebP"), tr("PDF") });
+    d.format->addItems({ tr("PNG"), tr("JPEG"), tr("WebP"), tr("PDF"), tr("PSD") });
     d.format->setCurrentIndex(int(d.draft.format));
     d.format->setMinimumWidth(115);
     fileRow->addWidget(d.format);
@@ -481,6 +503,7 @@ ExportDialog::ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* pa
     body->setSpacing(18);
     content->addLayout(body, 1);
     auto* settingsScroll = new QScrollArea(d.controls);
+    d.settingsScroll = settingsScroll;
     settingsScroll->setObjectName(QStringLiteral("ExportSettingsScroll"));
     settingsScroll->setFrameShape(QFrame::NoFrame);
     settingsScroll->setWidgetResizable(true);
@@ -601,6 +624,19 @@ ExportDialog::ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* pa
     webpLayout->addStretch();
     d.pdf=new PdfExportPanel(d.draft.pdf,d.options,d.controls);
     d.options->addWidget(d.pdf);
+    // PSD uses the full width: conversion list and preview above, options below.
+    // Retain a placeholder in the format stack so other format indices stay stable.
+    d.options->addWidget(new QWidget(d.options));
+    d.psdOptions = new QWidget(d.controls);
+    auto* psdOptionsLayout = new QVBoxLayout(d.psdOptions);
+    psdOptionsLayout->setContentsMargins(0, 0, 0, 0);
+    auto* psdOptionsTitle = new QLabel(tr("Format options"), d.psdOptions);
+    psdOptionsTitle->setObjectName(QStringLiteral("SectionLabel"));
+    psdOptionsLayout->addWidget(psdOptionsTitle);
+    d.psd=new PsdExportPanel(d.draft.psd,d.psdOptions,d.controls);
+    psdOptionsLayout->addWidget(d.psd);
+    content->addWidget(d.psdOptions);
+    body->addWidget(d.psd->itemsWidget(), 2);
     d.options->setCurrentIndex(int(d.draft.format));
     form->addStretch();
     auto* previewColumn = new QVBoxLayout;
@@ -613,6 +649,10 @@ ExportDialog::ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* pa
     d.previewTitle=previewTitle;
     previewHeader->addWidget(previewTitle);
     previewHeader->addStretch();
+    d.psdPreview = new QCheckBox(tr("Enable preview"), d.controls);
+    d.psdPreview->setObjectName(QStringLiteral("PsdExportPreview"));
+    d.psdPreview->setChecked(true);
+    previewHeader->addWidget(d.psdPreview);
     auto* fit = new ToolOptionsButton(QStringLiteral("ExportPreviewFit"), tr("Fit"),
         tr("Fit the encoded result in the preview without enlarging it"), ToolOptionsButton::Kind::Toggle,
         d.controls);
@@ -671,6 +711,13 @@ ExportDialog::ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* pa
     buttons->addWidget(d.exportButton);
     root->addLayout(buttons);
     d.pdf->changed=[this]{impl_->notify();};
+    d.psd->changed=[this]{impl_->notify();};
+    connect(d.psdPreview, &QCheckBox::toggled, this, [this](bool enabled) {
+        impl_->preview->setPlaceholder(enabled ? tr("Preparing preview…") : tr("Preview disabled."));
+        if (!enabled) impl_->preview->setImage({});
+        impl_->exportButton->setEnabled(false);
+        if (onPsdPreviewChanged) onPsdPreviewChanged();
+    });
     d.pdf->pageChanged=[this]{if(onPdfPageChanged)onPdfPageChanged();};
     d.pdf->thumbnailsChanged=[this]{if(onPdfThumbnailsRequested)onPdfThumbnailsRequested();};
     d.updateFormat();
@@ -879,6 +926,18 @@ void ExportDialog::setCancelled(bool previewReady)
 }
 void ExportDialog::configurePdf(const PdfExportSnapshot& source){impl_->pdf->setSource(source);}
 void ExportDialog::setPdfPlan(const PdfExportPlan& plan){impl_->pdfPages=int(plan.pages.size());impl_->pdf->setPlan(plan);}
+void ExportDialog::setPsdPlan(const PsdExportPlan& plan,const QImage& image)
+{
+    impl_->psd->setPlan(plan);
+    impl_->preview->setImage(psdPreviewEnabled() ? image : QImage{});
+    if(!plan){setError(plan.error);return;}
+    const auto error=validateExportDestination(impl_->draft.destination);
+    if(!error.isEmpty()){setError(error);return;}
+    impl_->setBusy(false,!psdPreviewEnabled() || !image.isNull());
+    impl_->status->setForegroundRole(QPalette::Text);
+    impl_->status->setText(tr("PSD · %1 × %2 px").arg(impl_->canvas.width()).arg(impl_->canvas.height()));
+}
+bool ExportDialog::psdPreviewEnabled() const { return impl_->psdPreview->isChecked(); }
 int ExportDialog::pdfPreviewPage()const{return impl_->pdf->previewPage();}
 QString ExportDialog::pdfInputError()const{return impl_->pdf->inputError();}
 std::vector<core::LayerId> ExportDialog::neededPdfThumbnails()const{return impl_->pdf->visibleThumbnails();}
@@ -898,7 +957,9 @@ void ExportDialog::setPdfPreview(const PdfExportPlan& plan,int page,const QImage
 void ExportDialog::setExported(const QString& destination, QSize size, qint64 bytes)
 {
     const bool pdf=impl_->draft.format==ExportFormat::Pdf;
-    impl_->setBusy(false, (pdf||size == impl_->draft.size) && bytes > 0);
+    const bool psd=impl_->draft.format==ExportFormat::Psd;
+    if(psd)size=impl_->canvas;
+    impl_->setBusy(false, (pdf||psd||size == impl_->draft.size) && bytes > 0);
     impl_->exportedPath = destination;
     impl_->status->setForegroundRole(QPalette::Text);
     impl_->status->setText(pdf?tr("Exported %1 · %2 page(s) · %3").arg(QFileInfo(destination).fileName()).arg(impl_->pdfPages).arg(bytesLabel(bytes)):tr("Exported %1 · %2 × %3 px · %4")
@@ -963,7 +1024,7 @@ void ExportDialog::setExported(const QString& destination, QSize size, qint64 by
     detail->setToolTip(QDir::toNativeSeparators(destination));
     content->addWidget(detail);
     auto* buttons = new QHBoxLayout;
-    auto* openImage = new QPushButton(pdf?tr("Open PDF"):tr("Open image"), card);
+    auto* openImage = new QPushButton(pdf?tr("Open PDF"):psd?tr("Open PSD"):tr("Open image"), card);
     openImage->setObjectName(QStringLiteral("ExportSuccessOpenImage"));
     openImage->setAutoDefault(false);
     auto* browse = new QPushButton(tr("Browse location"), card);

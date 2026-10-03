@@ -9,8 +9,10 @@ The destination canvas/PPI is unchanged. Source-image imports are not deduplicat
 
 ## Review and fallback choices
 
-The review lists detected types, conversion status and actions, with an
-Attention needed filter and a preview through Vulkana's canonical renderer.
+The list shows detected types and conversion status. Select a layer to choose
+its conversion beneath the list, with a short description of that option.
+Attention needed only and Hide groups start enabled. Hidden group rows do not
+hide their layers or change membership; shown groups use subdued text.
 Editable conversion is the default where supported. Missing fonts show the
 original request and an installed replacement; changing that replacement only
 affects runs requesting that face. “Import all text as raster” sets a starting
@@ -22,12 +24,16 @@ confirmation overlay shows the preview, layer/pixel memory and estimated working
 memory. **Confirm** imports that prepared result; **Cancel** (or Escape) returns
 to the settings. Choices do not trigger rendering. Revalidating unchanged choices
 reuses the prepared result; changing a choice discards it.
+**Enable preview** starts checked. Turn it off to prepare/import layers without
+rendering a preview. Turning it on reuses a current image, or renders from the
+prepared layers without decoding them again. If the choices have changed, enabling
+preview explicitly prepares the new choices first; it does not confirm the import.
 Layer preparation and preview rendering have separate progress stages. The preview
 integrates the native-resolution composite in linear premultiplied color, reusing
 bounded scanline buffers without reducing imported pixel quality.
 
-- **Import editable:** native raster, rich text, polygon/rectangle or folder.
-- **Editable with substitution:** native content with the stated font/layout change.
+- **Import editable:** native raster, rich text, supported vector shape or folder.
+- **Import editable** can include a font/layout substitution where indicated.
 - **Import as raster:** full-resolution saved layer channels, not a thumbnail.
   Supported mask, layer opacity, blending and modern styles remain separate.
 - **Base pixels only:** explicit recovery without unsupported composition,
@@ -48,6 +54,9 @@ channels. Saved compatibility composites currently support raw/RLE. PSB,
 16/32-bit and non-RGB files are explicitly rejected; there is no untested
 depth/mode conversion advertised as a fallback.
 
+Merged transparency is decoded from its white-matted RGB representation before
+ICC conversion. This does not affect the separate straight-RGBA layer channels.
+
 Layer names, bottom-to-top stacking, bounds (including off-canvas), visibility,
 opacity and resolution are read from records. Decoded saved pixels already
 contain their raster geometry; original Smart Object resolution is not invented
@@ -57,7 +66,7 @@ and transformation metadata is not applied again.
 | --- | --- |
 | Raster content/brush artwork | Straight RGBA8 pixels at the stored extent and offset |
 | Point text | Unicode, multiline strings, per-run face/size/RGB/alpha, faux bold/italic, left/center/right paragraphs, affine text matrix and baseline |
-| Solid vector shapes | One closed straight polygon or rectangle from path coordinates; filled or hollow; centered solid stroke; miter/round/bevel joins and butt/round/square caps |
+| Solid vector shapes | One closed polygon/rectangle or recognized four-cubic ellipse; filled or hollow; centered solid stroke; miter/round/bevel joins and butt/round/square caps |
 | Layer styles | One modern solid Stroke and Color Overlay; separate enabled state, color, opacity, blend, Stroke position/size and style scale |
 | Bitmap mask | Separate grayscale coverage, its own origin/extent/outside coverage, enabled state; remains paintable and undoable |
 | Groups | Unstyled fully opaque pass-through hierarchy; visibility retained |
@@ -72,7 +81,7 @@ typography and blend results can differ from the saved composition.
 Unsupported items include isolated/styled groups, ungrouped clipping (`clbl=false`), Blend
 If, knockout, non-default Fill opacity, paragraph-box/warped/vertical text,
 explicit tracking/leading/baseline shifts and unsupported decorations,
-curved/compound vector paths, non-centered/dashed vector strokes, other active
+other curved/compound vector paths, sheared ellipse strokes, non-centered/dashed vector strokes, other active
 styles, and bitmap-plus-vector masks. Mask density/feather, rendered/inverted
 mask flags and combined effective/component masks require explicit fallback.
 Masks use Vulkana's stable layer-local anchoring; independent unlinked-mask

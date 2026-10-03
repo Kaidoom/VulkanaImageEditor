@@ -14,7 +14,9 @@
 #include <QPointer>
 #include <QPushButton>
 #include <QResizeEvent>
+#include <QScopedValueRollback>
 #include <QSignalBlocker>
+#include <QStyledItemDelegate>
 #include <QTimer>
 #include <QTreeWidget>
 #include <QVBoxLayout>
@@ -72,19 +74,20 @@ struct PsdImportDialog::State {
   std::future<PsdConversion> renderJob;
   QTimer timer;
   QTreeWidget *tree;
-  QLabel *summary, *status, *fontNote;
+  QLabel *summary, *status, *description;
   PreviewLabel *preview;
-  QCheckBox *attention, *allRaster;
-  QComboBox *mode, *destination, *fontRequest;
+  QCheckBox *attention, *hideGroups, *allRaster, *previewEnabled;
+  QComboBox *mode, *destination, *fontRequest, *action;
   QFontComboBox *replacement;
   QPlainTextEdit *details;
   QProgressBar *progress;
   QPushButton *import;
   std::vector<QTreeWidgetItem *> rows;
-  std::vector<QComboBox *> routes;
+  std::vector<int> choices; // -1 is an unresolved choice, separate from Skip.
+  QMap<int, size_t> sourceIndexes;
   QPointer<QWidget> confirmation;
   QList<QPointer<QWidget>> confirmationDisabled;
-  bool refreshing{}, closed{};
+  bool refreshing{}, closed{}, previewWork{}, confirmWhenReady{};
   unsigned generation{}, renderGeneration{};
   State(PsdImportDialog &dialog, QString path, bool available, bool current,
         PsdLimits budget)
@@ -108,26 +111,54 @@ struct PsdImportDialog::State {
     summary->setWordWrap(true);
     layout->addWidget(summary);
     auto *policies = new QHBoxLayout;
-    attention = new QCheckBox("Attention needed", &owner);
+    attention = new QCheckBox("Attention needed only", &owner);
     attention->setObjectName("PsdAttention");
+    attention->setChecked(true);
     policies->addWidget(attention);
+    hideGroups = new QCheckBox("Hide groups", &owner);
+    hideGroups->setObjectName("PsdHideGroups");
+    hideGroups->setChecked(true);
+    policies->addWidget(hideGroups);
     allRaster = new QCheckBox("Import all text as raster", &owner);
     allRaster->setObjectName("PsdRasterText");
     policies->addWidget(allRaster);
     policies->addStretch();
     layout->addLayout(policies);
     auto *body = new QHBoxLayout;
-    tree = new QTreeWidget(&owner);
+    auto *conversions = new QWidget(&owner);
+    conversions->setObjectName("PsdConversions");
+    auto *list = new QVBoxLayout(conversions);
+    list->setContentsMargins(0, 0, 0, 0);
+    tree = new QTreeWidget(conversions);
     tree->setObjectName("PsdLayers");
-    tree->setHeaderLabels({"Layer / detected type", "Conversion", "Action"});
+    tree->setHeaderLabels({"Layer / detected type", "Conversion"});
     tree->setRootIsDecorated(true);
     tree->setMinimumWidth(475);
-    tree->setColumnWidth(0, 175);
-    tree->setColumnWidth(1, 130);
+    tree->header()->setSectionResizeMode(0, QHeaderView::Stretch);
+    tree->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
     tree->header()->setStretchLastSection(true);
     tree->setMinimumHeight(120);
-    body->addWidget(tree, 3);
-    preview = new PreviewLabel(&owner);
+    list->addWidget(tree, 1);
+    action = new QComboBox(conversions);
+    action->setObjectName("PsdImportAction");
+    action->setItemDelegate(new QStyledItemDelegate(action));
+    list->addWidget(action);
+    description = new QLabel(conversions);
+    description->setObjectName("PsdImportActionDescription");
+    description->setWordWrap(true);
+    description->setTextFormat(Qt::PlainText);
+    description->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    list->addWidget(description);
+    body->addWidget(conversions, 3);
+    auto *previewColumn = new QWidget(&owner);
+    previewColumn->setMaximumWidth(310);
+    auto *previewLayout = new QVBoxLayout(previewColumn);
+    previewLayout->setContentsMargins(0, 0, 0, 0);
+    previewEnabled = new QCheckBox("Enable preview", previewColumn);
+    previewEnabled->setObjectName("PsdImportPreview");
+    previewEnabled->setChecked(true);
+    previewLayout->addWidget(previewEnabled);
+    preview = new PreviewLabel(previewColumn);
     preview->message("Choose settings, then validate to preview the import.");
     preview->setObjectName("PsdPreview");
     preview->setAlignment(Qt::AlignCenter);
@@ -135,7 +166,8 @@ struct PsdImportDialog::State {
     preview->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
     preview->setMaximumWidth(310);
     preview->setWordWrap(true);
-    body->addWidget(preview, 2);
+    previewLayout->addWidget(preview, 1);
+    body->addWidget(previewColumn, 2);
     layout->addLayout(body, 1);
     auto *fontRow = new QHBoxLayout;
     fontRequest = new QComboBox(&owner);
@@ -145,10 +177,6 @@ struct PsdImportDialog::State {
     fontRow->addWidget(fontRequest, 1);
     fontRow->addWidget(replacement, 1);
     layout->addLayout(fontRow);
-    fontNote = new QLabel(&owner);
-    fontNote->setWordWrap(true);
-    fontNote->setTextFormat(Qt::PlainText);
-    layout->addWidget(fontNote);
     auto *output = new QHBoxLayout;
     mode = new QComboBox(&owner);
     mode->setObjectName("PsdMode");
@@ -199,6 +227,25 @@ struct PsdImportDialog::State {
                      [this] { validate(); });
     QObject::connect(attention, &QCheckBox::toggled, &owner,
                      [this] { filter(); });
+    QObject::connect(hideGroups, &QCheckBox::toggled, &owner,
+                     [this] { filter(); });
+    QObject::connect(previewEnabled, &QCheckBox::toggled, &owner, [this](bool on) {
+      if (!on) {
+        if (previewWork && render) render->cancelled = true;
+        preview->message("Preview disabled.");
+        if (result.document && !renderJob.valid() && !result.error.isEmpty()) {
+          result.error.clear();
+          prepared();
+        }
+      } else if (!result.preview.isNull()) {
+        preview->setImage(result.preview);
+      } else {
+        preview->message(renderJob.valid() ? "Preparing preview…"
+            : "Choose settings, then validate to preview the import.");
+        if (!renderJob.valid())
+          prepare(false); // An explicit request; ordinary option edits stay lazy.
+      }
+    });
     QObject::connect(mode, &QComboBox::currentIndexChanged, &owner, [this] {
       options.composite = mode->currentData().toBool();
       tree->setEnabled(!options.composite);
@@ -206,21 +253,27 @@ struct PsdImportDialog::State {
       changed();
     });
     QObject::connect(allRaster, &QCheckBox::toggled, &owner, [this](bool on) {
-      refreshing = true;
       for (size_t i = 0; i < inspection.layers.size(); ++i)
         if (inspection.layers[i].type == "Text") {
           auto route = on ? PsdRoute::Raster : inspection.layers[i].suggested;
-          auto index = routes[i]->findData(int(route));
-          if (index >= 0) {
-            routes[i]->setCurrentIndex(index);
+          if (this->available(i, route)) {
+            choices[i] = int(route);
             options.layers[i].route = route;
           }
         }
-      refreshing = false;
       changed();
     });
     QObject::connect(tree, &QTreeWidget::currentItemChanged, &owner,
-                     [this] { fonts(); });
+                     [this] { selectionChanged(); });
+    QObject::connect(action, &QComboBox::currentIndexChanged, &owner, [this](int n) {
+      const auto i = selected();
+      if (refreshing || i < 0 || n < 0)
+        return;
+      choices[size_t(i)] = action->currentData().toInt();
+      options.layers[size_t(i)].route = choices[size_t(i)] < 0
+          ? PsdRoute::Skip : PsdRoute(choices[size_t(i)]);
+      changed();
+    });
     QObject::connect(fontRequest, &QComboBox::currentIndexChanged, &owner,
                      [this] {
                        auto i = selected();
@@ -244,7 +297,7 @@ struct PsdImportDialog::State {
     loadJob = inspectPsdAsync(std::move(path), load, limits);
     QObject::connect(&timer, &QTimer::timeout, &owner, [this] { poll(); });
     timer.start(60);
-    fonts();
+    selectionChanged();
   }
   int selected() const {
     return tree->currentItem()
@@ -252,64 +305,181 @@ struct PsdImportDialog::State {
                : -1;
   }
   void fonts() {
-    refreshing = true;
+    QScopedValueRollback guard(refreshing, true);
     QSignalBlocker a(fontRequest), b(replacement);
+    const auto requestedFace = fontRequest->currentText();
     fontRequest->clear();
     auto i = selected();
-    bool visible = i >= 0 && !inspection.layers[size_t(i)].fonts.empty();
-    fontNote->setText(i >= 0 ? inspection.layers[size_t(i)].issues.join('\n')
-                             : QString{});
+    bool visible = i >= 0 && !options.composite &&
+        options.layers[size_t(i)].route == PsdRoute::Editable &&
+        !inspection.layers[size_t(i)].fonts.empty();
     if (visible) {
       fontRequest->addItems(inspection.layers[size_t(i)].fonts);
+      if (const auto index = fontRequest->findText(requestedFace); index >= 0)
+        fontRequest->setCurrentIndex(index);
       replacement->setCurrentFont(
           QFont(options.layers[size_t(i)].replacements.value(
               fontRequest->currentText())));
     }
     fontRequest->setVisible(visible);
     replacement->setVisible(visible);
-    refreshing = false;
+  }
+  bool available(size_t i, PsdRoute route) const {
+    const auto &info = inspection.layers[i];
+    switch (route) {
+    case PsdRoute::Editable: return info.editable;
+    case PsdRoute::Raster: return info.raster && info.type != "Raster";
+    case PsdRoute::BasePixels: return info.basePixels && (!info.raster || info.clippingBase >= 0);
+    case PsdRoute::Skip: return true;
+    }
+    return false;
+  }
+  bool excluded(size_t i) const {
+    auto parent = inspection.layers[i].parent;
+    while (parent >= 0 && sourceIndexes.contains(parent)) {
+      const auto index = sourceIndexes.value(parent);
+      if (options.layers[index].route == PsdRoute::Skip)
+        return true;
+      parent = inspection.layers[index].parent;
+    }
+    return false;
+  }
+  void selectionChanged() {
+    QScopedValueRollback guard(refreshing, true);
+    action->clear();
+    action->hide();
+    description->clear();
+    description->hide();
+    fonts();
+    const auto selectedIndex = selected();
+    if (selectedIndex < 0 || options.composite)
+      return;
+    const auto i = size_t(selectedIndex);
+    const auto &info = inspection.layers[i];
+    if (info.container && info.editable)
+      return;
+    if (info.suggested == PsdRoute::Skip && info.visible)
+      action->addItem("Choose action…", -1);
+    if (available(i, PsdRoute::Editable))
+      action->addItem("Import editable", int(PsdRoute::Editable));
+    if (available(i, PsdRoute::Raster))
+      action->addItem("Import as raster", int(PsdRoute::Raster));
+    if (available(i, PsdRoute::BasePixels))
+      action->addItem("Base pixels only", int(PsdRoute::BasePixels));
+    action->addItem("Don’t import", int(PsdRoute::Skip));
+    action->setCurrentIndex(action->findData(choices[i]));
+    action->setEnabled(!excluded(i));
+    action->show();
+    QString text;
+    if (excluded(i))
+      text = "This layer is excluded with its group.";
+    else if (choices[i] < 0)
+      text = "Choose how to bring this content into Vulkana.";
+    else switch (PsdRoute(choices[i])) {
+    case PsdRoute::Editable:
+      text = "Keep this layer editable in Vulkana.";
+      if (!info.issues.empty())
+        text += " Its appearance may differ from the original.";
+      break;
+    case PsdRoute::Raster:
+      text = "Import the saved layer image as pixels instead of editable text or shapes.";
+      break;
+    case PsdRoute::BasePixels:
+      text = "Import only the original pixels, without unsupported effects or clipping.";
+      break;
+    case PsdRoute::Skip:
+      text = info.container ? "Leave this group and its layers out of the import."
+                            : "Leave this layer out of the import.";
+      break;
+    }
+    if (!excluded(i) && missingClippingBase(i))
+      text += " Include the clipping base, or choose Base pixels only or Don’t import.";
+    description->setText(text);
+    description->show();
   }
   void filter() {
-    for (size_t i = 0; i < rows.size(); ++i)
-      rows[i]->setHidden(attention->isChecked() &&
-                         inspection.layers[i].issues.empty());
-    for (auto *row : rows)
-      if (!row->isHidden())
-        for (auto *parent = row->parent(); parent; parent = parent->parent())
-          parent->setHidden(false);
+    QScopedValueRollback guard(refreshing, true);
+    const auto previous = selected();
+    tree->clear();
+    rows.assign(inspection.layers.size(), nullptr);
+    tree->setRootIsDecorated(!hideGroups->isChecked());
+    QMap<int, QTreeWidgetItem *> parents;
+    for (size_t j = inspection.layers.size(); j > 0; --j) {
+      const auto i = j - 1;
+      const auto &info = inspection.layers[i];
+      auto *parent = parents.value(info.parent, nullptr);
+      if (info.container && hideGroups->isChecked()) {
+        parents[info.sourceIndex] = parent;
+        continue;
+      }
+      auto *row = parent ? new QTreeWidgetItem(parent) : new QTreeWidgetItem(tree);
+      rows[i] = row;
+      parents[info.sourceIndex] = row;
+      row->setData(0, Qt::UserRole, int(i));
+      row->setData(0, Qt::UserRole + 1, choices[i]);
+      row->setData(0, Qt::UserRole + 2,
+          !info.issues.empty() || choices[i] < 0 || missingClippingBase(i));
+      row->setText(0, info.name + " · " + info.type);
+      row->setText(1, excluded(i) ? "Ancestor excluded" : missingClippingBase(i)
+          ? "Clipping base omitted" : statusFor(i));
+      if (info.container)
+        for (int column = 0; column < tree->columnCount(); ++column)
+          row->setForeground(column, themeColor(ThemeColor::SecondaryText));
+      row->setExpanded(true);
+    }
+    const auto visit = [&](auto &&self, QTreeWidgetItem *row) -> bool {
+      bool show = !attention->isChecked() || row->data(0, Qt::UserRole + 2).toBool();
+      for (int i = 0; i < row->childCount(); ++i)
+        show = self(self, row->child(i)) || show;
+      row->setHidden(!show);
+      return show;
+    };
+    for (int i = 0; i < tree->topLevelItemCount(); ++i)
+      visit(visit, tree->topLevelItem(i));
+    if (previous >= 0 && rows[size_t(previous)] && !rows[size_t(previous)]->isHidden())
+      tree->setCurrentItem(rows[size_t(previous)]);
+    else
+      for (QTreeWidgetItemIterator row(tree); *row; ++row)
+        if (!(*row)->isHidden()) {
+          tree->setCurrentItem(*row);
+          break;
+        }
+    selectionChanged();
   }
   void changed() {
     if (refreshing)
       return;
-    for (size_t i = 0; i < rows.size(); ++i) {
-      bool excluded = false;
-      for (auto *parent = rows[i]->parent(); parent; parent = parent->parent())
-        if (options.layers[size_t(parent->data(0, Qt::UserRole).toInt())]
-                .route == PsdRoute::Skip)
-          excluded = true;
-      routes[i]->setEnabled(!excluded);
-      rows[i]->setText(1, excluded ? "Ancestor excluded" : statusFor(i));
-      if(!excluded && missingClippingBase(i))rows[i]->setText(1,"Include clipping base, skip this layer, or choose Base pixels only");
-    }
+    filter();
     ++generation;
+    confirmWhenReady = false;
     dismissConfirmation();
     if (render)
       render->cancelled = true;
     result = {};
-    preview->message("Choose settings, then validate to preview the import.");
+    preview->message(previewEnabled->isChecked()
+        ? "Choose settings, then validate to preview the import." : "Preview disabled.");
     details->setPlainText(inspection.report);
     status->setText(reviewed() ? "Ready to validate your import settings."
-                              : "Choose an action for each visible unsupported layer.");
+                              : "Choose an action for each unsupported layer or group.");
     updateValidationButton();
   }
   void updateValidationButton() {
     import->setEnabled(inspection.source && !closed && !renderJob.valid() && reviewed());
   }
   void validate() {
+    prepare(true);
+  }
+  void prepare(bool confirm) {
     if (closed || !inspection.source || renderJob.valid() || !reviewed())
       return;
+    confirmWhenReady = confirm;
     if (result.document) {
-      showConfirmation();
+      if (previewEnabled->isChecked() && result.preview.isNull())
+        startPreview();
+      else if (confirm) {
+        result.error.clear();
+        showConfirmation();
+      }
       return;
     }
     render = std::make_shared<PsdJob>();
@@ -317,10 +487,42 @@ struct PsdImportDialog::State {
     progress->show();
     progress->setRange(0, 0);
     status->setText("Validating and preparing proposed import…");
-    preview->message("Preparing preview…");
-    renderJob = convertPsdAsync(inspection, options, render, limits, true);
+    if (previewEnabled->isChecked()) preview->message("Preparing preview…");
+    previewWork = false;
+    renderJob = convertPsdAsync(inspection, options, render, limits, false);
     updateValidationButton();
     timer.start(60);
+  }
+  void startPreview() {
+    render = std::make_shared<PsdJob>();
+    renderGeneration = generation;
+    previewWork = true;
+    progress->show();
+    progress->setRange(0, 0);
+    status->setText("Rendering proposed preview…");
+    preview->message("Preparing preview…");
+    renderJob = previewPsdImportAsync(std::move(result), render, limits);
+    updateValidationButton();
+    timer.start(60);
+  }
+  void prepared() {
+    if (previewEnabled->isChecked() && !result.preview.isNull())
+      preview->setImage(result.preview);
+    else
+      preview->message("Preview disabled.");
+    details->setPlainText(inspection.report + "\nProposed conversion\n" + result.report);
+    status->setText(QStringLiteral(
+        "%1 layers ready · %2 MiB layer/mask pixels · %3 MiB estimated working memory.")
+        .arg(result.document->layers().size())
+        .arg(double(result.rasterBytes) / 1048576, 0, 'f', 1)
+        .arg(double(result.estimatedWorkingBytes) / 1048576, 0, 'f', 0)
+        + (options.composite ? "\nOne saved image; layer choices are ignored." : ""));
+    progress->hide();
+    updateValidationButton();
+    if (confirmWhenReady) {
+      confirmWhenReady = false;
+      showConfirmation();
+    }
   }
   void dismissConfirmation() {
     if (!confirmation)
@@ -367,11 +569,13 @@ struct PsdImportDialog::State {
     font.setBold(true);
     heading->setFont(font);
     content->addWidget(heading);
-    auto *image = new QLabel(card);
-    image->setAlignment(Qt::AlignCenter);
-    image->setPixmap(displayPreview(result.preview).scaled(
-        380, 180, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-    content->addWidget(image);
+    if (previewEnabled->isChecked() && !result.preview.isNull()) {
+      auto *image = new QLabel(card);
+      image->setAlignment(Qt::AlignCenter);
+      image->setPixmap(displayPreview(result.preview).scaled(
+          380, 180, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+      content->addWidget(image);
+    }
     auto *stats = new QLabel(status->text() + "\n\n" + destination->currentText(), card);
     stats->setObjectName("PsdConfirmationStats");
     stats->setTextFormat(Qt::PlainText);
@@ -404,10 +608,10 @@ struct PsdImportDialog::State {
   bool reviewed() const {
     if (options.composite)
       return true;
-    for(size_t i=0;i<rows.size();++i)if(routes[i]->isEnabled()&&missingClippingBase(i))return false;
-    return std::none_of(routes.begin(), routes.end(), [](auto *route) {
-      return route->isEnabled() && route->currentData().toInt() < 0;
-    });
+    for (size_t i = 0; i < choices.size(); ++i)
+      if (!excluded(i) && (choices[i] < 0 || missingClippingBase(i)))
+        return false;
+    return true;
   }
   bool missingClippingBase(size_t i) const {
     if(inspection.layers[i].clippingBase<0 || options.layers[i].route==PsdRoute::Skip || options.layers[i].route==PsdRoute::BasePixels)return false;
@@ -416,6 +620,16 @@ struct PsdImportDialog::State {
   }
   QString statusFor(size_t i) const {
     const auto &info = inspection.layers[i];
+    if (choices[i] < 0)
+      return "Choose action";
+    if (options.layers[i].route == PsdRoute::Skip)
+      return "Don’t import";
+    if (options.layers[i].route == PsdRoute::BasePixels)
+      return "Base pixels only";
+    if (options.layers[i].route == PsdRoute::Raster)
+      return "Raster";
+    if (info.container && info.editable)
+      return "Automatic";
     return info.editable && !info.issues.empty()
                ? QStringLiteral("Substitution")
                : info.status;
@@ -424,65 +638,16 @@ struct PsdImportDialog::State {
     summary->setText(inspection.summary);
     details->setPlainText(inspection.report);
     options = defaultPsdOptions(inspection);
-    QMap<int, QTreeWidgetItem *> parents;
-    rows.resize(inspection.layers.size());
-    routes.resize(rows.size());
-    refreshing = true;
-    for (size_t j = inspection.layers.size(); j > 0; --j) {
-      auto i = j - 1;
+    choices.resize(inspection.layers.size());
+    sourceIndexes.clear();
+    for (size_t i = 0; i < inspection.layers.size(); ++i) {
       const auto &info = inspection.layers[i];
-      auto *row = new QTreeWidgetItem;
-      row->setText(0, info.name + " · " + info.type);
-      row->setData(0, Qt::UserRole, int(i));
-      row->setText(1, statusFor(i));
-      row->setToolTip(1, info.issues.join('\n'));
-      if (info.parent >= 0 && parents.contains(info.parent))
-        parents[info.parent]->addChild(row);
-      else
-        tree->addTopLevelItem(row);
-      parents[info.sourceIndex] = row;
-      rows[i] = row;
-      auto *combo = new QComboBox(tree);
-      combo->setObjectName(QStringLiteral("PsdRoute%1").arg(i));
-      if (info.suggested == PsdRoute::Skip && info.visible)
-        combo->addItem("Choose action…", -1);
-      if (info.editable)
-        combo->addItem(info.issues.empty() ? "Import editable"
-                                           : "Editable (adapted)",
-                       int(PsdRoute::Editable));
-      if (info.raster && info.type != "Raster")
-        combo->addItem("Import as raster", int(PsdRoute::Raster));
-      if (info.basePixels && (!info.raster || info.clippingBase>=0))
-        combo->addItem("Base pixels only", int(PsdRoute::BasePixels));
-      combo->addItem("Don’t import", int(PsdRoute::Skip));
-      combo->setCurrentIndex(
-          combo->findData(info.suggested == PsdRoute::Skip && info.visible
-                              ? -1
-                              : int(info.suggested)));
-      tree->setItemWidget(row, 2, combo);
-      routes[i] = combo;
-      QObject::connect(combo, &QComboBox::currentIndexChanged, &owner,
-                       [this, i, combo] {
-                         options.layers[i].route =
-                             combo->currentData().toInt() < 0
-                                 ? PsdRoute::Skip
-                                 : PsdRoute(combo->currentData().toInt());
-                         changed();
-                       });
+      sourceIndexes[info.sourceIndex] = i;
+      choices[i] = info.suggested == PsdRoute::Skip && info.visible
+          ? -1 : int(info.suggested);
     }
-    tree->expandAll();
     if (inspection.savedComposite)
       mode->addItem("Saved composite as one image", true);
-    refreshing = false;
-    attention->setChecked(
-        std::any_of(inspection.layers.begin(), inspection.layers.end(),
-                    [](const auto &info) { return !info.issues.empty(); }));
-    filter();
-    for (auto it = rows.rbegin(); it != rows.rend(); ++it)
-      if (!(*it)->isHidden()) {
-        tree->setCurrentItem(*it);
-        break;
-      }
     changed();
   }
   void poll() {
@@ -501,26 +666,23 @@ struct PsdImportDialog::State {
     }
     if (ready(renderJob)) {
       auto converted = renderJob.get();
-      if (renderGeneration == generation && !converted.cancelled) {
+      const bool wasPreview = previewWork;
+      previewWork = false;
+      if (renderGeneration == generation && (!converted.cancelled || wasPreview)) {
+        // Cancelling only the optional preview retains already prepared layers.
+        // Generation changes still discard all stale work.
+        converted.cancelled = false;
         if (!converted.error.isEmpty()) {
           status->setText(converted.error);
+          if (wasPreview) result = std::move(converted);
           progress->hide();
-        } else {
+        } else if (converted.document) {
           result = std::move(converted);
-          preview->setImage(result.preview);
-          details->setPlainText(inspection.report + "\nProposed conversion\n" +
-                                result.report);
-          status->setText(QStringLiteral(
-                        "%1 layers ready · %2 MiB layer/mask pixels · %3 MiB "
-                        "estimated working memory. Review "
-                        "substitutions and omitted content above.")
-                        .arg(result.document->layers().size())
-                        .arg(double(result.rasterBytes) / 1048576, 0, 'f', 1)
-                        .arg(double(result.estimatedWorkingBytes) / 1048576, 0, 'f', 0)
-              + (options.composite ? "\nOne saved image; layer choices are ignored. No editable text or shapes." : ""));
-          progress->hide();
-          updateValidationButton();
-          showConfirmation();
+          if (previewEnabled->isChecked() && result.preview.isNull()) {
+            startPreview();
+            return;
+          }
+          prepared();
         }
       }
       progress->hide();

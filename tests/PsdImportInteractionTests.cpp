@@ -6,6 +6,7 @@
 #include <QApplication>
 #include <QAction>
 #include <QComboBox>
+#include <QCheckBox>
 #include <QFile>
 #include <QLabel>
 #include <QPushButton>
@@ -46,13 +47,38 @@ bool open(u::MainWindow &window, const QString &path, bool current = false,
       return;
     }
     auto *button = card->findChild<QPushButton *>("PsdImport");
-    if (skipUnsupported && !validating)
-      for (auto *route : card->findChildren<QComboBox *>())
-        if (route->objectName().startsWith("PsdRoute") &&
-            route->currentData().toInt() < 0)
+    if (skipUnsupported && !validating) {
+      card->findChild<QCheckBox *>("PsdHideGroups")->setChecked(false);
+      auto *tree = card->findChild<QTreeWidget *>("PsdLayers");
+      for (QTreeWidgetItemIterator row(tree); *row; ++row)
+        if ((*row)->data(0, Qt::UserRole + 1).toInt() < 0) {
+          tree->setCurrentItem(*row);
+          auto *route = card->findChild<QComboBox *>("PsdImportAction");
           route->setCurrentIndex(route->findData(int(u::PsdRoute::Skip)));
+          return; // Choices rebuild the view; resolve the next on a fresh tick.
+        }
+    }
     if (!validating && button->isEnabled()) {
       CHECK(button->text() == "Validate Import");
+      auto *tree = card->findChild<QTreeWidget *>("PsdLayers");
+      CHECK(tree->columnCount() == 2 && tree->findChildren<QComboBox *>().empty());
+      auto *hideGroups = card->findChild<QCheckBox *>("PsdHideGroups");
+      auto *attention = card->findChild<QCheckBox *>("PsdAttention");
+      CHECK(attention->isChecked());
+      if (!skipUnsupported) CHECK(hideGroups->isChecked());
+      attention->setChecked(false);
+      hideGroups->setChecked(false);
+      for (QTreeWidgetItemIterator row(tree); *row; ++row)
+        if ((*row)->text(0).endsWith(" · Group") && (*row)->text(1) == "Automatic") {
+          CHECK((*row)->foreground(0).color() == u::themeColor(u::ThemeColor::SecondaryText));
+          tree->setCurrentItem(*row);
+          CHECK(card->findChild<QComboBox *>("PsdImportAction")->isHidden());
+        }
+      hideGroups->setChecked(true);
+      attention->setChecked(true);
+      CHECK(button->isEnabled()); // View filters do not invalidate conversion.
+      if (const auto screenshot = qEnvironmentVariable("VULKANA_PSD_IMPORT_LAYOUT"); !screenshot.isEmpty())
+        CHECK(card->grab().save(screenshot));
       button->click();
       validating = true;
     }
@@ -70,8 +96,8 @@ bool open(u::MainWindow &window, const QString &path, bool current = false,
       auto *preview = card->findChild<QLabel *>("PsdPreview");
       auto *fonts = card->findChild<QComboBox *>("PsdFontRequest");
       if (fonts->isVisible()) {
-        CHECK(tree->geometry().bottom() < fonts->geometry().top());
-        CHECK(preview->geometry().bottom() < fonts->geometry().top());
+        CHECK(tree->mapTo(card, QPoint(0, tree->height())).y() < fonts->geometry().top());
+        CHECK(preview->mapTo(card, QPoint(0, preview->height())).y() < fonts->geometry().top());
       }
       CHECK(preview->pixmap().height() <= preview->height());
       CHECK(preview->pixmap().width() <= preview->width());
@@ -150,7 +176,14 @@ int main(int argc, char **argv) {
     masked.name = "Mask";
     masked.maskRect = {1, 0, 1, 1};
     masked.mask = QByteArray(1, 0);
-    auto bytes = psdfixture::file({text, masked});
+    psdfixture::Layer folder;
+    folder.name = "Automatic group";
+    folder.pixels = false;
+    folder.blend = "pass";
+    folder.tags["lsct"] = psdfixture::group(1);
+    auto end = folder;
+    end.tags["lsct"] = psdfixture::group(3);
+    auto bytes = psdfixture::file({end, text, masked, folder});
     CHECK(file.write(bytes) == bytes.size());
     file.close();
     u::MainWindow window(instance, false);
@@ -176,6 +209,7 @@ int main(int argc, char **argv) {
     auto *document = session.document();
     CHECK(document->isModified());
     CHECK(document->layers().size() == 2);
+    CHECK(document->tree().containers.size() == 1);
     CHECK(std::holds_alternative<c::TextLayer>(document->layers()[0].payload));
     CHECK(document->layers()[1].mask);
     const auto selection = session.layerSelectionState();

@@ -24,6 +24,7 @@
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTreeWidget>
+#include <QLabel>
 #include <iostream>
 #include <zlib.h>
 namespace u = imageeditor::ui;
@@ -489,16 +490,33 @@ void semanticFixtures() {
   QFile::remove(dir.filePath("test.psd"));
   auto async = future.get();
   CHECK(async.document);
+  auto *preparedDocument = async.document.get();
+  const auto preparedSurface = std::get<c::RasterLayer>(async.document->layers()[0].payload).surface;
+  CHECK(async.preview.isNull());
+  auto previewJob = std::make_shared<u::PsdJob>();
+  previewJob->cancelled = true;
+  async = u::previewPsdImportAsync(std::move(async), previewJob).get();
+  CHECK(async.cancelled && async.document.get() == preparedDocument && async.preview.isNull());
+  previewJob = std::make_shared<u::PsdJob>();
+  async = u::previewPsdImportAsync(std::move(async), previewJob).get();
+  CHECK(!async.cancelled && async.error.isEmpty() && !async.preview.isNull());
+  CHECK(async.document.get() == preparedDocument);
+  CHECK(std::get<c::RasterLayer>(async.document->layers()[0].payload).surface == preparedSurface);
+  const auto previewKey = async.preview.cacheKey();
+  previewJob = std::make_shared<u::PsdJob>();
+  async = u::previewPsdImportAsync(std::move(async), previewJob).get();
+  CHECK(async.preview.cacheKey() == previewKey && !previewJob->renderingPreview);
   inspect(f::file({text, leaf}));
   u::PsdImportDialog dialog(dir.filePath("test.psd"), true, false, {});
   dialog.show();
   auto *submit = dialog.findChild<QPushButton *>("PsdImport");
   QElapsedTimer timer;
   timer.start();
-  while (!dialog.findChild<QComboBox *>("PsdRoute0") && timer.elapsed() < 10000)
+  auto *tree = dialog.findChild<QTreeWidget *>("PsdLayers");
+  while (!tree->topLevelItemCount() && timer.elapsed() < 10000)
     QTest::qWait(20);
   CHECK(!submit->isEnabled());
-  auto *undecided = dialog.findChild<QComboBox *>("PsdRoute0");
+  auto *undecided = dialog.findChild<QComboBox *>("PsdImportAction");
   CHECK(undecided && undecided->currentData().toInt() == -1);
   if (undecided)
     undecided->setCurrentIndex(undecided->findData(int(u::PsdRoute::Skip)));
@@ -509,13 +527,19 @@ void semanticFixtures() {
   CHECK(submit->text() == "Validate Import");
   QTest::qWait(200);
   CHECK(!dialog.takeResult().document); // Choices alone never construct a document.
-  auto *tree = dialog.findChild<QTreeWidget *>("PsdLayers");
   CHECK(tree && tree->topLevelItemCount() == 2);
+  CHECK(tree->columnCount() == 2 && tree->findChildren<QComboBox *>().empty());
+  CHECK(dialog.findChild<QCheckBox *>("PsdAttention")->isChecked());
+  CHECK(dialog.findChild<QCheckBox *>("PsdHideGroups")->isChecked());
   dialog.findChild<QCheckBox *>("PsdAttention")->setChecked(true);
   CHECK(tree->topLevelItem(0)->isHidden());
   dialog.findChild<QCheckBox *>("PsdAttention")->setChecked(false);
   dialog.findChild<QComboBox *>("PsdMode")->setCurrentIndex(1);
   CHECK(!tree->isEnabled() && submit->isEnabled());
+  auto *enablePreview = dialog.findChild<QCheckBox *>("PsdImportPreview");
+  auto *preview = dialog.findChild<QLabel *>("PsdPreview");
+  CHECK(enablePreview && enablePreview->isChecked());
+  enablePreview->setChecked(false);
   QTest::qWait(200);
   CHECK(!dialog.takeResult().document);
   submit->click();
@@ -528,9 +552,22 @@ void semanticFixtures() {
   CHECK(confirm && overlay && overlay->isVisible() && !overlay->isWindow());
   CHECK(overlay && overlay->parentWidget() == &dialog);
   CHECK(!submit->isEnabled());
+  CHECK(preview->pixmap().isNull());
   dialog.reject(); // Escape returns to settings, not out of the import dialog.
   CHECK(dialog.isVisible() && overlay && !overlay->isVisible());
   CHECK(submit->isEnabled());
+  // Enabling computes the missing image from already prepared content, without
+  // another confirmation; toggling again reuses that image synchronously.
+  enablePreview->setChecked(true);
+  timer.restart();
+  while ((!submit->isEnabled() || preview->pixmap().isNull()) && timer.elapsed() < 10000)
+    QTest::qWait(20);
+  CHECK(submit->isEnabled() && !preview->pixmap().isNull());
+  CHECK(!dialog.findChild<QWidget *>("PsdConfirmationOverlay"));
+  enablePreview->setChecked(false);
+  CHECK(preview->pixmap().isNull() && submit->isEnabled());
+  enablePreview->setChecked(true);
+  CHECK(!preview->pixmap().isNull() && submit->isEnabled());
   // An unchanged validation reuses prepared pixels, immediately showing the card.
   QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
   submit->click();
@@ -554,7 +591,7 @@ void semanticFixtures() {
   cancelled.show();
   auto *validate = cancelled.findChild<QPushButton *>("PsdImport");
   timer.restart();
-  while (!cancelled.findChild<QComboBox *>("PsdRoute0") && timer.elapsed() < 10000)
+  while (!cancelled.findChild<QTreeWidget *>("PsdLayers")->topLevelItemCount() && timer.elapsed() < 10000)
     QTest::qWait(20);
   cancelled.findChild<QComboBox *>("PsdMode")->setCurrentIndex(1);
   validate->click();
@@ -874,6 +911,23 @@ void compactBounds() {
     }
   }
 }
+void mergedTransparency() {
+  // Independent raw merged-image fixture: encoded RGB is white-matted, unlike
+  // layer channels. Alpha 85 makes the expected unmatte exact, not a tolerance.
+  u::PsdSource source;
+  source.size = {3, 1}; source.channels = 4; source.depth = 8;
+  source.mode = 3; source.compositeAlpha = true;
+  source.colorSpace = QColorSpace(QColorSpace::SRgb);
+  source.bytes = QByteArray::fromHex("0000c8ff14a0ff287fff3c55ff00");
+  // RGB at pixel 0 after unmatting: (90, -30, -129) is clipped to (90,0,0).
+  auto image = u::psd::composite(source, {});
+  CHECK(image.pixelColor(0, 0) == QColor(90, 0, 0, 85));
+  CHECK(image.pixelColor(1, 0) == QColor(255, 255, 255, 255));
+  CHECK(image.pixelColor(2, 0).alpha() == 0);
+  source.compositeAlpha = false;
+  image = u::psd::composite(source, {});
+  CHECK(image.pixelColor(0, 0) == QColor(200, 160, 127, 255));
+}
 int main(int argc, char **argv) {
   QApplication app(argc, argv);
   if (argc >= 3 && (QString::fromLocal8Bit(argv[1]) == "--profile" ||
@@ -888,6 +942,7 @@ int main(int argc, char **argv) {
     return failures ? 1 : 0;
   }
   unit();
+  mergedTransparency();
   semanticFixtures();
   compactBounds();
   if (argc >= 4 && QString::fromLocal8Bit(argv[1]) == "--sample")

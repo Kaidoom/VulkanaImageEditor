@@ -694,6 +694,22 @@ QImage composite(const PsdSource &s, const std::shared_ptr<PsdJob> &job) {
         row[x * 4 + c] = quint8(decoded[qsizetype(y) * w + x]);
     }
   }
+  // A merged transparency channel (negative layer count) uses white-matted
+  // encoded RGB. Ordinary layer channels are straight and must NOT enter this
+  // path. Recover straight RGB before the existing profile conversion.
+  if (s.compositeAlpha && s.channels >= 4) {
+    for (int y=0;y<h;++y) {
+      check(job);
+      auto *row=image.scanLine(y);
+      for (int x=0;x<w;++x) {
+        const int a=row[x*4+3];
+        if(a==0||a==255)continue;
+        for(int c=0;c<3;++c)
+          row[x*4+c]=std::uint8_t(std::clamp(
+              int(std::lround((int(row[x*4+c])+a-255)*255./a)),0,255));
+      }
+    }
+  }
   image.setColorSpace(s.colorSpace);
   return image;
 }

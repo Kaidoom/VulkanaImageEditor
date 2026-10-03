@@ -4,6 +4,7 @@
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/WorkspaceDialog.hpp"
 #include "imageeditor/ui/PopupOwnership.hpp"
+#include "imageeditor/platform/AvailableMemory.hpp"
 #include <QApplication>
 #include <QElapsedTimer>
 #include <QFile>
@@ -42,6 +43,8 @@ namespace {
                 && (a.webpLossless || a.webpQuality == b.webpQuality);
         case ExportFormat::Pdf:
             return a.pdf==b.pdf;
+        case ExportFormat::Psd:
+            return a.psd==b.psd;
         }
         return false;
     }
@@ -79,6 +82,17 @@ namespace {
         std::thread worker;
         ~PdfJob(){if(worker.joinable())worker.join();}
     };
+    struct PsdJob {
+        bool writing{false}, renderPreview{true};
+        std::atomic_bool cancel{false},done{false};
+        std::atomic_int progress{0},total{0};
+        ExportSettings settings;
+        PsdExportPlan plan;
+        FlattenedDocumentResult preview;
+        PsdExportResult result;
+        std::thread worker;
+        ~PsdJob(){if(worker.joinable())worker.join();}
+    };
 
     // Only this owner-thread coordinator sees Document. Codec tasks own
     // immutable output images/bytes, never shared mutable RasterSurfaces or UI.
@@ -111,6 +125,7 @@ namespace {
                 pdfPreview_={};debounce_.start();
             };
             dialog_.onPdfThumbnailsRequested=[this]{prepareThumbnail();};
+            dialog_.onPsdPreviewChanged=[this]{changed();};
             debounce_.start();
         }
         ~ExportCoordinator() override
@@ -121,15 +136,17 @@ namespace {
             if (write_)
                 write_->cancel = true;
             if(pdfJob_)pdfJob_->cancel=true;
+            if(psdJob_)psdJob_->cancel=true;
             dialog_.onSettingsChanged = { };
             dialog_.onExportRequested = { };
             dialog_.onCancelRequested = { };
             dialog_.onCloseRequested = { };
             dialog_.onPdfPageChanged={};dialog_.onPdfThumbnailsRequested={};
+            dialog_.onPsdPreviewChanged={};
         }
         void requestWrite()
         {
-            if (write_ || closing_ || cancelling_ || pendingWrite_ || (pdfJob_&&pdfJob_->kind==PdfJob::Kind::Write))
+            if (write_ || closing_ || cancelling_ || pendingWrite_ || (pdfJob_&&pdfJob_->kind==PdfJob::Kind::Write) || (psdJob_&&psdJob_->writing))
                 return;
             auto s = dialog_.settings();
             if(s.format==ExportFormat::Pdf&&!dialog_.pdfInputError().isEmpty()){
@@ -166,6 +183,13 @@ namespace {
                         &&QFileInfo(s.destination).canonicalFilePath()==QFileInfo(sourcePath_).canonicalFilePath()))){
                 dialog_.setError(tr("Choose a different destination; the imported source PDF is never overwritten."));return;
             }
+            if(s.format==ExportFormat::Psd&&!sourcePath_.isEmpty()
+                &&QFileInfo(sourcePath_).suffix().compare("psd",Qt::CaseInsensitive)==0
+                &&(QFileInfo(s.destination).absoluteFilePath()==QFileInfo(sourcePath_).absoluteFilePath()
+                    ||(!QFileInfo(sourcePath_).canonicalFilePath().isEmpty()&&QFileInfo(s.destination).canonicalFilePath()==QFileInfo(sourcePath_).canonicalFilePath()))
+                &&QMessageBox::question(popupTopLevelOwner(&dialog_),tr("Replace source PSD?"),
+                    tr("This is the imported source PSD. Vulkana exports its supported subset, not a lossless PSD round-trip. Replace the original?"),
+                    QMessageBox::Yes|QMessageBox::Cancel,QMessageBox::Cancel)!=QMessageBox::Yes)return;
             if (const auto destinationError = validateExportDestination(s.destination, projectPath_);
                 !destinationError.isEmpty()) {
                 dialog_.setError(destinationError);
@@ -181,7 +205,7 @@ namespace {
                 return;
             pendingWrite_ = s;
             dialog_.setProgress(tr("Preparing export…"), true);
-            if(s.format==ExportFormat::Pdf){debounce_.stop();prepare();return;}
+            if(s.format==ExportFormat::Pdf||s.format==ExportFormat::Psd){debounce_.stop();prepare();return;}
             if (ready_ && sameEncoding(readySettings_, s))
                 publish();
             else {
@@ -198,12 +222,13 @@ namespace {
         }
         void changed()
         {
-            if (closing_ || cancelling_ || write_ || (pdfJob_&&pdfJob_->kind==PdfJob::Kind::Write))
+            if (closing_ || cancelling_ || write_ || (pdfJob_&&pdfJob_->kind==PdfJob::Kind::Write) || (psdJob_&&psdJob_->writing))
                 return;
             pendingWrite_.reset(); // An overwrite confirmation never authorizes changed
                                    // settings/path.
             const auto s = dialog_.settings();
             if(pdfJob_)pdfJob_->cancel=true;
+            if(psdJob_)psdJob_->cancel=true;
             if (ready_ && sameEncoding(readySettings_, s)) {
                 showReadyPreview();
                 return;
@@ -216,7 +241,7 @@ namespace {
         }
         void prepare()
         {
-            if (closing_ || cancelling_ || write_ || (pdfJob_&&pdfJob_->kind==PdfJob::Kind::Write))
+            if (closing_ || cancelling_ || write_ || (pdfJob_&&pdfJob_->kind==PdfJob::Kind::Write) || (psdJob_&&psdJob_->writing))
                 return;
             if (rendering_) {
                 renderCancel_ = true;
@@ -225,10 +250,17 @@ namespace {
             }
             const auto s = dialog_.settings();
             if(pdfJob_){pdfJob_->cancel=true;poll_.start();return;}
+            if(psdJob_){psdJob_->cancel=true;poll_.start();return;}
+            if(s.format==ExportFormat::Psd){
+                if(encode_){encode_->cancel=true;poll_.start();return;}
+                preparePsd();return;
+            }
             if(s.format==ExportFormat::Pdf){
                 if(encode_){encode_->cancel=true;poll_.start();return;}
                 preparePdf();return;
             }
+            psdSource_.reset();psdPreview_={};psdPlan_={};
+            pdfSource_.reset();pdfPreview_={};pdfPlan_={};pdfThumbnails_.clear();
             if (ready_ && sameEncoding(readySettings_, s)) {
                 showReadyPreview();
                 if (pendingWrite_)
@@ -304,6 +336,7 @@ namespace {
         }
         void poll()
         {
+            if(psdJob_){pollPsd();return;}
             if(pdfJob_){pollPdf();return;}
             if (write_) {
                 if (!write_->done.load(std::memory_order_acquire))
@@ -365,10 +398,63 @@ namespace {
             });poll_.start();}
             catch(const std::exception& e){pdfJob_.reset();pendingWrite_.reset();dialog_.setError(QString::fromUtf8(e.what()));}
         }
+        void preparePsd()
+        {
+            if(!psdSource_){
+                // Do not retain a second frozen format snapshot unnecessarily.
+                pdfSource_.reset();pdfPreview_={};pdfPlan_={};pdfThumbnails_.clear();
+                rendered_={};ready_={};
+                try{PsdExportLimits limits;limits.existingBytes=pdfLimits_.existingBytes;
+                    limits.workingBytes=limits.existingBytes+platform::availableWorkingMemoryBytes();
+                    psdSource_=std::make_shared<PsdExportSnapshot>(capturePsdExport(document_,instanceId_,limits));}
+                catch(const std::exception& e){pendingWrite_.reset();dialog_.setError(QString::fromUtf8(e.what()));return;}
+            }
+            auto s=dialog_.settings();const auto& cached=psdPlan_.options;
+            if(psdPlan_.instanceId&&cached==s.psd&&(!dialog_.psdPreviewEnabled()||!psdPreview_.isNull())){
+                if(!pendingWrite_){dialog_.setPsdPlan(psdPlan_,psdPreview_);return;}
+            }
+            auto job=std::make_shared<PsdJob>();job->settings=s;
+            job->renderPreview=dialog_.psdPreviewEnabled();
+            job->writing=pendingWrite_.has_value()&&psdPlan_.instanceId&&cached==s.psd&&bool(psdPlan_);
+            if(job->writing){job->settings=*pendingWrite_;job->plan=psdPlan_;pendingWrite_.reset();}
+            dialog_.setProgress(job->writing?tr("Writing PSD…"):tr("Preparing PSD export review…"),job->writing);
+            psdJob_=job;const auto source=psdSource_;
+            auto *current=job.get();
+            try{job->worker=std::thread([job=current,source]{
+                try{
+                    if(job->writing)job->result=writePsdExport(*source,job->plan,job->settings.destination,job->cancel,
+                        [job](int n,int total,const QString&){job->progress=n;job->total=total;return !job->cancel.load();});
+                    else{job->plan=planPsdExport(*source,job->settings.psd,job->cancel);if(job->plan&&job->renderPreview)job->preview=previewPsdExport(*source,job->plan,job->cancel);}
+                }catch(const std::exception& e){if(job->writing)job->result.error=QString::fromUtf8(e.what());else job->preview.error=QString::fromUtf8(e.what());}
+                job->done.store(true,std::memory_order_release);
+            });poll_.start();}
+            catch(const std::exception& e){psdJob_.reset();pendingWrite_.reset();dialog_.setError(QString::fromUtf8(e.what()));}
+        }
+        void pollPsd()
+        {
+            if(!psdJob_->done.load(std::memory_order_acquire)){
+                if(psdJob_->writing&&!closing_&&!cancelling_)dialog_.setProgress(tr("Exporting PSD · layer %1 of %2…").arg(psdJob_->progress.load()).arg(psdJob_->total.load()),true);
+                return;
+            }
+            auto job=std::move(psdJob_);poll_.stop();
+            if(job->writing){
+                if(job->result){cancelling_=false;if(persist_)saveExportPreferences(job->settings);dialog_.setExported(job->settings.destination,canvasSize(),job->result.bytes);success_(job->settings,job->result.bytes);}
+                else if(cancelling_){finishCancellation();return;}
+                else if(!job->result.cancelled)dialog_.setError(job->result.error);
+                if(closing_)dialog_.done(QDialog::Rejected);
+                return;
+            }
+            if(cancelling_){finishCancellation();return;}
+            if(job->cancel||dialog_.settings().format!=ExportFormat::Psd||job->settings.psd!=dialog_.settings().psd){debounce_.start();return;}
+            psdPlan_=std::move(job->plan);psdPreview_=std::move(job->preview.image);dialog_.setPsdPlan(psdPlan_,psdPreview_);
+            if(!psdPlan_||(dialog_.psdPreviewEnabled()&&psdPreview_.isNull())){pendingWrite_.reset();if(psdPlan_)dialog_.setError(job->preview.error);return;}
+            if(pendingWrite_){pendingWrite_->psd=psdPlan_.options;preparePsd();}
+        }
         void preparePdf()
         {
             if(!dialog_.pdfInputError().isEmpty()){pendingWrite_.reset();dialog_.setError(dialog_.pdfInputError());return;}
             if(!pdfSource_){
+                psdSource_.reset();psdPreview_={};psdPlan_={};
                 try{pdfSource_=std::make_shared<PdfExportSnapshot>(capturePdfExport(document_,instanceId_,selection_,pdfLimits_));
                     dialog_.configurePdf(*pdfSource_);debounce_.stop();}
                 catch(const std::exception& e){pendingWrite_.reset();dialog_.setError(QString::fromUtf8(e.what()));return;}
@@ -401,7 +487,7 @@ namespace {
         }
         void prepareThumbnail()
         {
-            if(closing_||cancelling_||pdfJob_||encode_||write_||debounce_.isActive()||pendingWrite_||!pdfSource_
+            if(closing_||cancelling_||pdfJob_||psdJob_||encode_||write_||debounce_.isActive()||pendingWrite_||!pdfSource_
                 ||dialog_.settings().format!=ExportFormat::Pdf||!pdfPlan_)return;
             for(auto id:dialog_.neededPdfThumbnails()){
                 if(std::ranges::find(pdfThumbnails_,id)!=pdfThumbnails_.end())continue;
@@ -502,7 +588,9 @@ namespace {
             const bool previewReady = s.format == ExportFormat::Pdf
                 ? pdfPlan_ && pdfPlan_.options == s.pdf && !pdfPreview_.isNull()
                     && pdfPreviewPage_ == dialog_.pdfPreviewPage() && dialog_.pdfInputError().isEmpty()
-                : ready_ && sameEncoding(readySettings_, s);
+                : s.format==ExportFormat::Psd
+                    ? psdPlan_&&psdPlan_.options==s.psd&&(!dialog_.psdPreviewEnabled()||!psdPreview_.isNull())
+                    : ready_ && sameEncoding(readySettings_, s);
             dialog_.setCancelled(previewReady
                 && validateExport(s, canvasSize()).isEmpty()
                 && validateExportDestination(s.destination, projectPath_).isEmpty());
@@ -519,6 +607,7 @@ namespace {
             pendingWrite_.reset();
             renderCancel_ = true;
             if(pdfJob_){pdfJob_->cancel=true;dialog_.setProgress(tr("Cancelling PDF export…"),true);return;}
+            if(psdJob_){psdJob_->cancel=true;dialog_.setProgress(tr("Cancelling PSD export…"),true);return;}
             if (encode_) {
                 encode_->cancel = true;
                 dialog_.setProgress(tr("Cancelling encoding…"), true);
@@ -540,6 +629,10 @@ namespace {
         std::vector<core::LayerId> selection_;
         std::shared_ptr<PdfExportSnapshot> pdfSource_;
         std::shared_ptr<PdfJob> pdfJob_;
+        std::shared_ptr<PsdExportSnapshot> psdSource_;
+        std::shared_ptr<PsdJob> psdJob_;
+        PsdExportPlan psdPlan_;
+        QImage psdPreview_;
         PdfExportLimits pdfLimits_;
         PdfExportPlan pdfPlan_;
         QImage pdfPreview_;int pdfPreviewPage_{-1};
@@ -604,7 +697,7 @@ void MainWindow::exportImage(bool again)
             if (owner->closed) return;
             owner->exportSettings = s;
             if (owner != activeDocument_) return;
-            statusBar()->showMessage(s.format==ExportFormat::Pdf?tr("Exported %1 · %2 bytes").arg(QFileInfo(s.destination).fileName()).arg(bytes):tr("Exported %1 · %2 × %3 px · %4 bytes")
+            statusBar()->showMessage((s.format==ExportFormat::Pdf||s.format==ExportFormat::Psd)?tr("Exported %1 · %2 bytes").arg(QFileInfo(s.destination).fileName()).arg(bytes):tr("Exported %1 · %2 × %3 px · %4 bytes")
                                          .arg(QFileInfo(s.destination).fileName())
                                          .arg(s.size.width())
                                          .arg(s.size.height())
@@ -615,7 +708,7 @@ void MainWindow::exportImage(bool again)
     if (again)
         QTimer::singleShot(0, &dialog, [&coordinator] { coordinator.requestWrite(); });
     presenter.exec(dialog);
-    if (!owner->closed&&dialog.settings().format!=ExportFormat::Pdf) owner->exportSettings = dialog.settings();
+    if (!owner->closed&&dialog.settings().format!=ExportFormat::Pdf&&dialog.settings().format!=ExportFormat::Psd) owner->exportSettings = dialog.settings();
     // No checkpoint, association, selection, viewport or history changes here.
 }
 } // namespace imageeditor::ui

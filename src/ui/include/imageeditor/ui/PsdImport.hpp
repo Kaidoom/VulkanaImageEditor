@@ -89,4 +89,8 @@ inspectPsd(const QString &, const std::shared_ptr<PsdJob> &, PsdLimits = {});
 [[nodiscard]] std::future<PsdConversion>
     convertPsdAsync(PsdInspection, PsdOptions, std::shared_ptr<PsdJob>,
                     PsdLimits = {}, bool preview = true);
+// Moves prepared content through the same bounded worker without decoding or
+// copying its pixels again. Cancellation retains that content in the result.
+[[nodiscard]] std::future<PsdConversion>
+    previewPsdImportAsync(PsdConversion, std::shared_ptr<PsdJob>, PsdLimits = {});
 } // namespace imageeditor::ui

@@ -75,6 +75,10 @@ add_library(imageeditor_ui STATIC
     src/PdfImportDialog.cpp
     src/MainWindowPdf.cpp
     src/PsdReader.cpp
+    src/PsdWriter.cpp
+    src/PsdNativeRecords.cpp
+    src/PsdExport.cpp
+    src/PsdExportPanel.cpp
     src/PsdImport.cpp
     src/PsdImportDialog.cpp
     src/MainWindowPsd.cpp

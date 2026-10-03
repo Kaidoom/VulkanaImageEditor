@@ -546,6 +546,8 @@ void shapeModel(const PsdSource &s, const Record &rec, Model &model) {
     throw Unsupported(
         "Inverted/disabled vector geometry requires saved raster");
   std::vector<core::Vec2d> points;
+  std::vector<std::array<core::Vec2d, 3>> knots;
+  bool curved = false;
   int paths = 0, expected = 0, actual = 0;
   while (path.left() >= 26) {
     auto record = path.section(26);
@@ -569,8 +571,8 @@ void shapeModel(const PsdSource &s, const Record &rec, Model &model) {
                x = double(record.i32()) / 16777216;
         p = {x * s.size.width(), y * s.size.height()};
       }
-      if (controls[0] != controls[1] || controls[1] != controls[2])
-        throw Unsupported("Curved vector paths require saved raster");
+      curved |= controls[0] != controls[1] || controls[1] != controls[2];
+      knots.push_back({controls[0], controls[1], controls[2]});
       if (points.empty() || points.back() != controls[1])
         points.push_back(controls[1]);
     } else if (selector == 8) {
@@ -609,6 +611,35 @@ void shapeModel(const PsdSource &s, const Record &rec, Model &model) {
       })) {
     shape.kind = core::ShapeKind::Rectangle;
     shape.points.clear();
+  }
+  if (curved) {
+    // Recognize a complete four-cubic ellipse, including affine placement.
+    // Other curves stay explicit fallbacks, never their bounding rectangle.
+    if (knots.size() != 4)
+      throw Unsupported("Curved vector paths require saved raster");
+    const auto center = (knots[0][1] + knots[2][1]) * .5;
+    const auto u = (knots[1][1] - knots[3][1]) * .5;
+    const auto v = (knots[2][1] - knots[0][1]) * .5;
+    const double rx = std::hypot(u.x, u.y), ry = std::hypot(v.x, v.y);
+    constexpr double k = .5522847498307936;
+    const double tolerance = std::max(s.size.width(), s.size.height()) * 4. / 16777216;
+    const auto near = [&](core::Vec2d a, core::Vec2d b) {
+      return std::hypot(a.x - b.x, a.y - b.y) <= tolerance;
+    };
+    const std::array<std::array<core::Vec2d, 3>, 4> expectedKnots{{
+      {center-v-u*k, center-v, center-v+u*k},
+      {center+u-v*k, center+u, center+u+v*k},
+      {center+v+u*k, center+v, center+v-u*k},
+      {center-u+v*k, center-u, center-u-v*k}}};
+    if (rx < 1e-6 || ry < 1e-6)
+      throw Unsupported("Degenerate ellipse requires saved raster");
+    for (size_t i=0;i<4;++i) for (size_t j=0;j<3;++j)
+      if (!near(knots[i][j], expectedKnots[i][j]))
+        throw Unsupported("Curved vector paths require saved raster");
+    shape.kind = core::ShapeKind::Ellipse;
+    shape.points.clear(); shape.size = {2*rx, 2*ry};
+    model.transform = {u.x/rx, v.x/ry, center.x-u.x-v.x,
+                       u.y/rx, v.y/ry, center.y-u.y-v.y};
   }
   Map fill;
   if (rec.tags.contains("vscg")) {
@@ -662,6 +693,10 @@ void shapeModel(const PsdSource &s, const Record &rec, Model &model) {
   }
   if (!core::validShape(shape))
     throw Error("Invalid converted shape");
+  if (curved && shape.strokeEnabled &&
+      std::abs(model.transform.m00 * model.transform.m01 +
+               model.transform.m10 * model.transform.m11) > 1e-5)
+    throw Unsupported("Sheared ellipse stroke requires saved raster");
   model.shape = std::move(shape);
 }
 bool savedPixels(const Record &r) {
@@ -785,6 +820,23 @@ template <class F> auto submit(F f) {
   auto future = task->get_future();
   worker.pool.start(QRunnable::create([task] { (*task)(); }));
   return future;
+}
+FlattenedDocumentResult renderImportPreview(const core::Document &document,
+                                           const std::shared_ptr<PsdJob> &job) {
+  if (job) {
+    job->previewPercent = 0;
+    job->renderingPreview = true;
+  }
+  const auto size = document.canvas().extent;
+  const double scale = std::min({1.0, 480.0 / size.width, 420.0 / size.height});
+  return flattenDocumentAtSize(document,
+      {uint(std::max(1L, std::lround(size.width * scale))),
+       uint(std::max(1L, std::lround(size.height * scale)))},
+      [job](auto done, auto total) {
+        if (!job) return true;
+        job->previewPercent = total ? int(done * 100 / total) : 0;
+        return !job->cancelled;
+      });
 }
 } // namespace
 std::uint64_t psdWorkingMemoryLimit(std::uint64_t available,
@@ -1212,21 +1264,7 @@ PsdConversion convertPsd(const PsdInspection &in, const PsdOptions &options,
     check(job);
     out.preparationMilliseconds = timer.elapsed();
     if (preview) {
-      if (job) {
-        job->previewPercent = 0;
-        job->renderingPreview = true;
-      }
-      const double scale =
-          std::min({1.0, 480.0 / in.size.width(), 420.0 / in.size.height()});
-      auto rendered = flattenDocumentAtSize(
-          *document,
-          {uint(std::max(1, int(std::lround(in.size.width() * scale)))),
-           uint(std::max(1, int(std::lround(in.size.height() * scale))))},
-          [job](auto done, auto total) {
-            if (!job) return true;
-            job->previewPercent = total ? int(done * 100 / total) : 0;
-            return !job->cancelled;
-          });
+      auto rendered = renderImportPreview(*document, job);
       if (!rendered) {
         if (rendered.cancelled)
           throw Cancelled();
@@ -1268,6 +1306,41 @@ std::future<PsdConversion> convertPsdAsync(PsdInspection inspection,
                  options = std::move(options), job = std::move(job), limits,
                  preview] {
     return convertPsd(inspection, options, job, limits, preview);
+  });
+}
+std::future<PsdConversion> previewPsdImportAsync(PsdConversion prepared,
+    std::shared_ptr<PsdJob> job, PsdLimits limits) {
+  return submit([out = std::move(prepared), job = std::move(job), limits]() mutable {
+    QElapsedTimer timer;
+    timer.start();
+    out.cancelled = false;
+    out.error.clear();
+    try {
+      check(job);
+      if (!out.document) throw Error("No prepared PSD import to preview");
+      if (!out.preview.isNull()) return std::move(out);
+      const auto budget = resolvedLimits(limits);
+      const auto estimate = memoryAdd(out.estimatedWorkingBytes,
+          FlattenedDocumentLimits{}.derivedCacheBytes + 2 * MiB);
+      if (budget.workingBytes <= budget.existingBytes ||
+          estimate > budget.workingBytes - budget.existingBytes)
+        throw Error("Not enough working memory for a preview. Disable preview to import without it.");
+      auto rendered = renderImportPreview(*out.document, job);
+      if (!rendered) {
+        if (rendered.cancelled) throw Cancelled();
+        throw Error(rendered.error.toStdString());
+      }
+      check(job);
+      out.preview = std::move(rendered.image);
+      out.previewMilliseconds = timer.elapsed();
+      out.milliseconds = out.preparationMilliseconds + out.previewMilliseconds;
+      out.estimatedWorkingBytes = estimate;
+    } catch (const Cancelled &) {
+      out.cancelled = true;
+    } catch (const std::exception &e) {
+      out.error = QString::fromUtf8(e.what());
+    }
+    return std::move(out);
   });
 }
 } // namespace imageeditor::ui

@@ -1,6 +1,7 @@
 #pragma once
 #include "imageeditor/ui/FlattenedDocument.hpp"
 #include "imageeditor/ui/PdfExport.hpp"
+#include "imageeditor/ui/PsdExport.hpp"
 #include <QByteArray>
 #include <QColor>
 #include <QSize>
@@ -8,7 +9,7 @@
 
 namespace imageeditor::ui {
 inline constexpr int kMaximumExportDimension = 32768;
-enum class ExportFormat { Png, Jpeg, WebP, Pdf };
+enum class ExportFormat { Png, Jpeg, WebP, Pdf, Psd };
 struct ExportSettings {
     ExportFormat format { ExportFormat::Png };
     QString destination;
@@ -23,6 +24,7 @@ struct ExportSettings {
     int webpQuality { 90 };
     int webpEffort { 4 }; // libwebp method 0..6; alpha always lossless
     PdfExportOptions pdf;
+    PsdExportOptions psd;
     bool operator==(const ExportSettings&) const = default;
 };
 struct EncodedExport {

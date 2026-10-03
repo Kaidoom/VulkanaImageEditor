@@ -124,6 +124,8 @@ QByteArray exportFormatName(ExportFormat format)
         return "webp";
     case ExportFormat::Pdf:
         return "pdf";
+    case ExportFormat::Psd:
+        return "psd";
     }
     return { };
 }
@@ -146,6 +148,7 @@ QString exportPathForFormat(const QString& path, ExportFormat format)
 QString validateExport(const ExportSettings& s, QSize canvas)
 {
     if(s.format==ExportFormat::Pdf)return {}; // Geometry/selection validated by the immutable PDF page plan.
+    if(s.format==ExportFormat::Psd)return {}; // Validated by the layered export plan.
     const auto invalidSize = [](QSize size) {
         return size.width() < 1 || size.height() < 1 || size.width() > kMaximumExportDimension
             || size.height() > kMaximumExportDimension;
@@ -203,6 +206,7 @@ FlattenedDocumentResult renderExport(
     const core::Document& document, const ExportSettings& settings, FlattenedDocumentProgress progress)
 {
     if(settings.format==ExportFormat::Pdf)return {{},QStringLiteral("PDF export requires a page plan"),false,{}};
+    if(settings.format==ExportFormat::Psd)return {{},QStringLiteral("PSD export requires a layered plan"),false,{}};
     const auto extent = document.canvas().extent;
     if (const auto error = validateExport(settings, { int(extent.width), int(extent.height) });
         !error.isEmpty())
@@ -225,6 +229,7 @@ EncodedExport encodeExport(
     const QImage& source, const ExportSettings& settings, const std::atomic_bool& cancel)
 {
     if(settings.format==ExportFormat::Pdf)return {{},{},QStringLiteral("PDF export uses the streaming page writer"),false};
+    if(settings.format==ExportFormat::Psd)return {{},{},QStringLiteral("PSD export uses the streaming layer writer"),false};
     try {
         checkCancel(cancel);
         const auto error = validateExport(settings, source.size());
@@ -347,7 +352,9 @@ ExportSettings loadExportPreferences(QSize canvas, const QString& suggestedName)
     s.beginGroup("export/v1");
     ExportSettings out;
     out.size = canvas;
-    out.format = ExportFormat(std::clamp(s.value("format", 0).toInt(), 0, 3));
+    out.format = ExportFormat(std::clamp(s.value("format", 0).toInt(), 0, 4));
+    out.psd.mode=PsdExportMode(std::clamp(s.value("psd/mode",0).toInt(),0,1));
+    out.psd.preserveText=s.value("psd/preserveText",true).toBool();
     const auto previous = s.value("destination").toString();
     auto name = previous.isEmpty() ? QFileInfo(suggestedName).completeBaseName() + ".png"
                                    : QFileInfo(previous).fileName();
@@ -382,6 +389,8 @@ void saveExportPreferences(const ExportSettings& value)
     s.beginGroup("export/v1");
     s.setValue("destination", value.destination);
     s.setValue("format", int(value.format));
+    s.setValue("psd/mode",int(value.psd.mode));
+    s.setValue("psd/preserveText",value.psd.preserveText);
     s.setValue("width", value.size.width());
     s.setValue("height", value.size.height());
     s.setValue("aspectLocked", value.aspectLocked);

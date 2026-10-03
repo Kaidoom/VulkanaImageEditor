@@ -24,6 +24,8 @@ with a Qt workspace and Vulkan-accelerated canvas.
   plus editable layer copying between documents.
 - **PSD import:** reviewed conversion to native layers, rich text, simple shapes,
   bitmap masks, clipping groups and supported styles, with explicit saved-raster fallbacks.
+- **PSD export:** layered or flattened output, editable text/shapes/masks and
+  clipping where supported, with reviewed conversions and a fresh composite.
 - **PDF import:** selected pages at your chosen PPI, as raster layers or separate
   documents, with transparent or white backgrounds.
 - **PDF export:** a composite or layers/groups as pages, custom page selection,

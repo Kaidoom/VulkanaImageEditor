@@ -16,6 +16,8 @@ public:
     void setPreview(const QImage& decoded, qint64 actualBytes);
     void configurePdf(const PdfExportSnapshot&);
     void setPdfPlan(const PdfExportPlan&);
+    void setPsdPlan(const PsdExportPlan&, const QImage& preview);
+    [[nodiscard]] bool psdPreviewEnabled() const;
     void setPdfPreview(const PdfExportPlan&, int page, const QImage&);
     void setPdfThumbnail(core::LayerId,const QImage&);
     [[nodiscard]] std::vector<core::LayerId> neededPdfThumbnails() const;
@@ -30,6 +32,7 @@ public:
     std::function<void()> onCloseRequested;
     std::function<void()> onPdfPageChanged;
     std::function<void()> onPdfThumbnailsRequested;
+    std::function<void()> onPsdPreviewChanged;
     void reject() override;
 
 private:
