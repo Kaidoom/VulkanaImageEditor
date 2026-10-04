@@ -8,8 +8,8 @@ E_INLINE BVec4 eColor(int effect)
 E_INLINE BVec4 eGradient(float x,float y)
 {
     int i=6*32;
-    float w=bMax(E_PARAM(226),0.000001F), h=bMax(E_PARAM(227),0.000001F);
-    x-=E_PARAM(224)+w*0.5F;y-=E_PARAM(225)+h*0.5F;
+    float w=bMax(E_PARAM(258),0.000001F), h=bMax(E_PARAM(259),0.000001F);
+    x-=E_PARAM(256)+w*0.5F;y-=E_PARAM(257)+h*0.5F;
     float t;
     float scale=bMax(E_PARAM(i+15),0.01F);
     if(E_PARAM(i+12)>0.5F) t=2.0F*bSqrt((x/w)*(x/w)+(y/h)*(y/h))/scale;
@@ -43,10 +43,23 @@ E_INLINE BVec4 eComposite(BVec4 backdrop,BVec4 base,float x,float y,float opacit
     styled=eInside(styled,eGradient(x,y),6,1.0F);
     styled=eInside(styled,eColor(2),2,E_MASK(3));
     styled=eInside(styled,eColor(4),4,E_MASK(5));
+    if(E_PARAM(224)!=0.0F && styled.w>0.0F) {
+        float alpha=styled.w;
+        BVec4 opaque=BVec4(styled.x/alpha,styled.y/alpha,styled.z/alpha,1.0F);
+        opaque=bComposite(opaque,BVec4(E_PARAM(232),E_PARAM(233),E_PARAM(234),E_PARAM(235)),
+            E_PARAM(242)*E_MASK(7),int(E_PARAM(241)));
+        opaque=bComposite(opaque,eColor(7),E_PARAM(226)*E_MASK(6),int(E_PARAM(225)));
+        styled=BVec4(opaque.x*alpha,opaque.y*alpha,opaque.z*alpha,alpha);
+    }
     styled=eInside(styled,eColor(0),0,E_MASK(1));
     BVec4 result=eOutside(backdrop,1,E_MASK(2));
     result=eOutside(result,3,E_MASK(4));
     result=bComposite(result,styled,1.0F,mode);
+    if(E_PARAM(224)!=0.0F) {
+        result=bComposite(result,BVec4(E_PARAM(232),E_PARAM(233),E_PARAM(234),E_PARAM(235)),
+            E_PARAM(242)*E_MASK(9),int(E_PARAM(241)));
+        result=bComposite(result,eColor(7),E_PARAM(226)*E_MASK(8),int(E_PARAM(225)));
+    }
     result=eOutside(result,0,E_MASK(0));
     // One group-contribution opacity, not opacity applied repeatedly to each
     // generated pass. Final crop coverage uses this same contribution boundary.

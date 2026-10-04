@@ -4,6 +4,7 @@ add_library(imageeditor_core STATIC
     src/AdjustmentCommands.cpp
     src/FilterCommands.cpp
     src/LayerEffects.cpp
+    src/EffectContour.cpp
     src/EffectCommands.cpp
     src/SpatialFilterCache.cpp
     src/RichText.cpp

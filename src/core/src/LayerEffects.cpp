@@ -1,17 +1,29 @@
 #include "imageeditor/core/LayerEffects.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include <numbers>
+#include <chrono>
 #include <stdexcept>
 
 namespace imageeditor::core {
 namespace {
-constexpr std::array<std::string_view, 7> names{
+constexpr std::array<std::string_view, layerEffectCount> names{
     "Stroke",     "Drop Shadow",   "Inner Shadow",    "Outer Glow",
-    "Inner Glow", "Color Overlay", "Gradient Overlay"};
-constexpr std::array<std::string_view, 7> ids{
+    "Inner Glow", "Color Overlay", "Gradient Overlay", "Bevel & Emboss"};
+constexpr std::array<std::string_view, layerEffectCount> ids{
     "stroke",     "drop-shadow",   "inner-shadow",    "outer-glow",
-    "inner-glow", "color-overlay", "gradient-overlay"};
+    "inner-glow", "color-overlay", "gradient-overlay", "bevel-emboss"};
+bool bevelActive(const LayerEffect& e) {
+  return e.enabled && e.size>0 && e.bevel.depth>0 &&
+    (e.opacity*e.color.alpha>0 || e.bevel.shadowOpacity*e.secondColor.alpha>0);
+}
+bool normalsEqual(const LayerEffect& a, const LayerEffect& b) {
+  return a.size==b.size && a.bevel.style==b.bevel.style &&
+    a.bevel.depth==b.bevel.depth && a.bevel.down==b.bevel.down &&
+    a.bevel.soften==b.bevel.soften && a.bevel.surface==b.bevel.surface;
+}
 bool geometryEqual(const LayerEffect &a, const LayerEffect &b, std::size_t i) {
+  if(i==7) return normalsEqual(a,b) && a.angle==b.angle &&
+    a.bevel.altitude==b.bevel.altitude && a.bevel.gloss==b.bevel.gloss;
   if (i >= 5)
     return true;
   return a.size == b.size &&
@@ -39,6 +51,10 @@ template <class L> bool cacheValid(const L &l) {
     if (c->geometry->items[std::size_t(i)].enabled !=
         l.effects->items[std::size_t(i)].enabled)
       return false;
+  const auto& bevel=l.effects->items[7];
+  if(bevelActive(bevel) && (!c->bevelNormals || !c->bevelPrepared ||
+      !geometryEqual(bevel,c->bevelPrepared->items[7],7)))return false;
+  if(bevelActive(bevel)!=bevelActive(c->geometry->items[7]))return false;
   return true;
 }
 void require(bool v, const char *message) {
@@ -165,7 +181,7 @@ SpatialPlane soften(SpatialPlane p, double radius,
   require(bool(result), result.error.c_str());
   return std::move(result.output);
 }
-std::shared_ptr<const LayerEffectMask> store(SpatialPlane plane,
+std::shared_ptr<const LayerEffectMask> store(const SpatialPlane& plane,
                                              const AffineTransform &mapping) {
   std::vector<std::uint8_t> values(plane.pixels.size());
   for (std::size_t i = 0; i < values.size(); ++i)
@@ -186,6 +202,7 @@ std::shared_ptr<const LayerEffectMask> store(SpatialPlane plane,
   return std::make_shared<const LayerEffectMask>(LayerEffectMask{
       coverage, *toLocal.inverted(), {lo.x, lo.y, hi.x - lo.x, hi.y - lo.y}});
 }
+#include "BevelRelief.inc"
 } // namespace
 LayerEffect defaultLayerEffect(LayerEffectType type) {
   LayerEffect e;
@@ -201,6 +218,9 @@ LayerEffect defaultLayerEffect(LayerEffectType type) {
     e.blendMode = BlendMode::Screen;
     e.opacity = .75;
     e.size = 12;
+  }
+  if(type==LayerEffectType::BevelEmboss) {
+    e.blendMode=BlendMode::Screen;e.opacity=.65;e.angle=-135;
   }
   return e;
 }
@@ -225,6 +245,13 @@ bool validLayerEffects(const LayerEffectStack &s) noexcept {
   if (s.algorithmVersion != layerEffectVersion)
     return false;
   for (const auto &e : s.items) {
+    const auto& b=e.bevel;
+    if(b.version!=1 || std::uint32_t(b.style)>2 || !std::isfinite(b.depth) ||
+       b.depth<0 || b.depth>10 || !std::isfinite(b.soften) || b.soften<0 || b.soften>64 ||
+       !std::isfinite(b.altitude) || b.altitude<0 || b.altitude>90 ||
+       !std::isfinite(b.shadowOpacity) || b.shadowOpacity<0 || b.shadowOpacity>1 ||
+       std::find(allBlendModes.begin(),allBlendModes.end(),b.shadowBlend)==allBlendModes.end() ||
+       !validEffectContour(b.surface) || !validEffectContour(b.gloss))return false;
     for (double v : {e.opacity, e.size, e.angle, e.distance, e.spread, e.scale})
       if (!std::isfinite(v))
         return false;
@@ -245,8 +272,10 @@ bool equivalentLayerEffects(const LayerEffectState &a,
          (a ? *a : LayerEffectStack{}) == (b ? *b : LayerEffectStack{});
 }
 bool hasActiveLayerEffects(const LayerEffectState &s) noexcept {
-  return s && std::any_of(s->items.begin(), s->items.end(),
-                          [](const auto &e) { return e.enabled; });
+  if(!s)return false;
+  for(std::size_t i=0;i<layerEffectCount;++i)
+    if(i==7 ? bevelActive(s->items[i]) : s->items[i].enabled)return true;
+  return false;
 }
 bool layerEffectCacheValid(const Layer &l) noexcept { return cacheValid(l); }
 bool equivalentLayerEffectGeometry(const LayerEffectState &a,
@@ -264,6 +293,8 @@ bool equivalentLayerEffectGeometry(const LayerEffectState &a,
     if (x.items[i].enabled != y.items[i].enabled ||
         (x.items[i].enabled && !geometryEqual(x.items[i], y.items[i], i)))
       return false;
+  if(bevelActive(x.items[7])!=bevelActive(y.items[7]) ||
+      (bevelActive(x.items[7])&&!geometryEqual(x.items[7],y.items[7],7)))return false;
   return true;
 }
 bool layerEffectCacheValid(const LayerSnapshot &l) noexcept {
@@ -294,8 +325,12 @@ prepareLayerEffects(const Layer &layer, const FilterPreparationOptions &o) {
                      layer.effectCache->sourceId == source->id() &&
                      layer.effectCache->sourceRevision == source->revision() &&
                      layer.effectCache->pixelsToLocal == mapping;
-  if (reuse)
+  if (reuse) {
     result->masks = layer.effectCache->masks;
+    result->bevelDistance=layer.effectCache->bevelDistance;
+    result->bevelNormals=layer.effectCache->bevelNormals;
+    result->bevelPrepared=layer.effectCache->bevelPrepared;
+  }
   const auto e = source->extent();
   double margin = 1;
   for (std::size_t i = 0; i < 5; ++i)
@@ -306,6 +341,8 @@ prepareLayerEffects(const Layer &layer, const FilterPreparationOptions &o) {
           (effect.size + (i == 1 || i == 2 ? effect.distance : 0)) * density +
               2);
     }
+  const auto& bevel=layer.effects->items[7];
+  if(bevelActive(bevel))margin=std::max(margin,(bevel.size+bevel.bevel.soften)*density+4);
   const int padding = int(std::ceil(margin));
   RectI bounds{-padding, -padding, int(e.width) + padding * 2,
                int(e.height) + padding * 2};
@@ -401,6 +438,16 @@ prepareLayerEffects(const Layer &layer, const FilterPreparationOptions &o) {
     if (o.progress)
       o.progress(double(i + 1) / 5);
   }
+  if(bevelActive(bevel)) {
+    const auto* previous=reuse?layer.effectCache.get():nullptr;
+    const int p=int(std::ceil((bevel.size+bevel.bevel.soften)*density+4));
+    const RectI required{-p,-p,int(e.width)+2*p,int(e.height)+2*p};
+    if(previous&&previous->bevelDistance&&previous->bevelDistance->bounds.x<=required.x&&
+       previous->bevelDistance->bounds.y<=required.y&&previous->bevelDistance->bounds.right()>=required.right()&&
+       previous->bevelDistance->bounds.bottom()>=required.bottom())
+      prepareBevel(*result,bevel,SpatialPlane{required,1,{}},mapping,previous,o);
+    else prepareBevel(*result,bevel,input(),mapping,previous,o);
+  }
   const auto a = mapping.map({0, 0}),
              b = mapping.map({double(e.width), double(e.height)});
   result->visualBounds = {a.x, a.y, b.x - a.x, b.y - a.y};
@@ -417,6 +464,13 @@ prepareLayerEffects(const Layer &layer, const FilterPreparationOptions &o) {
       v.width = right - v.x;
       v.height = bottom - v.y;
     }
+  if(bevelActive(bevel))for(auto i:{8,9}) {
+    if(!result->masks[std::size_t(i)])continue;
+    const auto& r=result->masks[std::size_t(i)]->localBounds;if(r.empty())continue;
+    auto& v=result->visualBounds;
+    const double right=std::max(v.x+v.width,r.x+r.width),bottom=std::max(v.y+v.height,r.y+r.height);
+    v.x=std::min(v.x,r.x);v.y=std::min(v.y,r.y);v.width=right-v.x;v.height=bottom-v.y;
+  }
   require(source->revision() == result->sourceRevision,
           "Effect source changed while preparing");
   return result;
@@ -442,12 +496,12 @@ float sampleEffectMask(const LayerEffectMask &m, Vec2d local) noexcept {
 EffectParameters compileLayerEffects(const LayerEffectState &state,
                                      RectD frame) {
   EffectParameters p{};
-  p[224] = float(frame.x);
-  p[225] = float(frame.y);
-  p[226] = float(frame.width);
-  p[227] = float(frame.height);
+  p[256] = float(frame.x);
+  p[257] = float(frame.y);
+  p[258] = float(frame.width);
+  p[259] = float(frame.height);
   if (state)
-    for (std::size_t n = 0; n < 7; ++n) {
+    for (std::size_t n = 0; n < layerEffectCount; ++n) {
       const auto &e = state->items[n];
       const auto i = n * 32;
       p[i] = e.enabled ? 1.0F : 0.0F;
@@ -461,13 +515,17 @@ EffectParameters compileLayerEffects(const LayerEffectState &state,
       p[i + 14] = float(std::sin(e.angle * std::numbers::pi / 180));
       p[i + 15] = float(e.scale);
       p[i + 16] = e.reverse ? 1.0F : 0.0F;
+      if(n==7) {
+        p[i]=bevelActive(e)?1.F:0.F;
+        p[i+17]=float(e.bevel.shadowBlend);p[i+18]=float(e.bevel.shadowOpacity);
+      }
     }
   return p;
 }
 namespace {
 struct Evaluation {
   const EffectParameters &parameters;
-  std::array<float, 6> masks;
+  std::array<float, layerEffectMaskCount> masks;
   using BVec4 = blend_detail::BVec4;
   static float bMax(float a, float b) { return std::max(a, b); }
   static float bAbs(float v) { return std::abs(v); }
@@ -492,7 +550,7 @@ compositeLayerEffects(PremultipliedColor backdrop, PremultipliedColor base,
                       float cropCoverage) noexcept {
   Evaluation e{p, {}};
   if (cache)
-    for (std::size_t i = 0; i < 6; ++i)
+    for (std::size_t i = 0; i < layerEffectMaskCount; ++i)
       if (cache->masks[i])
         e.masks[i] = sampleEffectMask(*cache->masks[i], local);
   const auto c =

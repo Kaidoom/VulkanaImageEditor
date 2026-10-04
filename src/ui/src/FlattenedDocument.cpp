@@ -200,6 +200,11 @@ static FlattenedDocumentResult flattenImpl(
                     filterOptions.progress=[&](double){tick(completed);};
                     layer.filterCache=core::prepareLayerSpatialFilters(layer,filterOptions);
                     layer.effectCache=core::prepareLayerEffects(layer,filterOptions);
+                    if(layer.effectCache) {
+                        cacheBytes+=layer.effectCache->bevelMemoryCost();
+                        for(const auto& mask:layer.effectCache->masks)if(mask)cacheBytes+=mask->coverage->memoryCost();
+                        require(cacheBytes<=limits.derivedCacheBytes,"Flattened effects exceed the derived-cache budget");
+                    }
                     if(layer.filterCache) {
                         const auto e=layer.filterCache->surface->extent();
                         cacheBytes+=std::uint64_t(e.width)*e.height*4;

@@ -41,6 +41,10 @@ bool adjusted(const core::Layer &l) {
 bool externalStyles(const core::Layer &l) {
   if (!l.effects)
     return false;
+  const auto& bevel=l.effects->items[std::size_t(core::LayerEffectType::BevelEmboss)];
+  if(bevel.enabled&&bevel.size>0&&bevel.bevel.depth>0&&bevel.bevel.style!=core::BevelStyle::Inner&&
+     ((bevel.opacity>0&&bevel.blendMode!=core::BlendMode::Normal)||
+      (bevel.bevel.shadowOpacity>0&&bevel.bevel.shadowBlend!=core::BlendMode::Normal)))return true;
   for (auto type :
        {core::LayerEffectType::Stroke, core::LayerEffectType::DropShadow,
         core::LayerEffectType::OuterGlow}) {

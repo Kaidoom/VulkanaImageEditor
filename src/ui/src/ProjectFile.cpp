@@ -366,7 +366,7 @@ namespace {
         bool containsAdjustments = false;
         bool containsAdjustmentLayers = false;
         bool containsSpatialFilters = false;
-        bool containsLayerEffects = false;
+        bool containsLayerEffects = false, containsBevel = false;
         bool containsLayerMasks = false;
         bool containsProjective = false;
         bool containsRasterFrame = false;
@@ -468,6 +468,7 @@ namespace {
             if(layer.effects) {
                 saved["layerEffects"]=detail::encodeLayerEffects(*layer.effects);
                 containsLayerEffects=true;
+                containsBevel|=layer.effects->items[7]!=core::defaultLayerEffect(core::LayerEffectType::BevelEmboss);
             }
             if(layer.filters) {
                 saved["spatialFilters"]=detail::encodeSpatialFilters(*layer.filters,layer.id);
@@ -501,7 +502,9 @@ namespace {
         if (containsLayerMasks) { auto required=result["required"].toArray();required.append("layer-mask-v1");result["required"]=required; }
         if (containsLayerEffects) {
             auto required=result["required"].toArray();
-            required.append("layer-effects-v1");result["required"]=required;
+            required.append("layer-effects-v1");
+            if(containsBevel)required.append("bevel-emboss-v1");
+            result["required"]=required;
         }
         if (containsSpatialFilters) {
             auto required=result["required"].toArray();
@@ -654,7 +657,7 @@ namespace {
                     || capability == "hierarchy-v1" || capability == "container-visibility-v1" || capability == "clipping-mask-group-v1"
                     || capability == "layer-blend-modes-v1" || capability == "layer-blend-modes-v2"
                     || capability == "adjustments-v1" || capability == "adjustment-layer-v1" || capability == "spatial-filters-v1" || capability == "layer-crop-v1" || capability == "layer-crop-chamfer-v1"
-                    || capability == "selection-recall-v1" || capability == "layer-effects-v1" || capability == "projective-transform-v1" || capability == "raster-local-frame-v1" || capability == "layer-mask-v1",
+                    || capability == "selection-recall-v1" || capability == "layer-effects-v1" || capability == "bevel-emboss-v1" || capability == "projective-transform-v1" || capability == "raster-local-frame-v1" || capability == "layer-mask-v1",
                 "Project requires unsupported capabilities");
         require(o["canvas"].isObject() && o["layers"].isArray(), "Missing canvas or layers");
         const auto canvas = o["canvas"].toObject();
@@ -767,6 +770,7 @@ namespace {
             if(l.contains("layerEffects")) {
                 require(required.contains("layer-effects-v1")&&l["layerEffects"].isObject(),"Invalid layer-effects capability or descriptor");
                 p.layer.effects=detail::decodeLayerEffects(l["layerEffects"].toObject());
+                require(p.layer.effects->items[7]==core::defaultLayerEffect(core::LayerEffectType::BevelEmboss)||required.contains("bevel-emboss-v1"),"Missing bevel effect capability");
             }
             if(l.contains("spatialFilters")) {
                 require(required.contains("spatial-filters-v1"),"Spatial filters require declared spatial-filters-v1 capability");

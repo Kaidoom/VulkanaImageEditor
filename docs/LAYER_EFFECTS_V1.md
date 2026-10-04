@@ -5,13 +5,13 @@ Effect settings use data version 1.
 ## Editing
 
 The fifth Adjustments category, Effects, follows the primary renderable layer.
-Its seven persistent pages each own an independent Enabled state. Selecting a
+Its eight persistent pages each own an independent Enabled state. Selecting a
 page does not enable it. Parameters can be prepared while disabled. The dropdown
 also lists the enable states. Colors belong to the effect, not foreground or
 background swatches. Folders remain organizational/pass-through containers.
 
 Reset beside Enabled restores just that effect's defaults (disabled). Reset Effects
-resets all seven styles without changing adjustments, filters, crop, source
+resets all styles without changing adjustments, filters, crop, source
 pixels, or geometry. Hold for Before bypasses styles only, including native
 Pixel Preview. Comparison/navigation are not project edits. Numeric gestures
 and color-dialog previews use one stable-target transaction; Escape restores
@@ -30,9 +30,10 @@ linear-light premultiplied alpha composition. There are no new blend formulas.
    crop. Effects do not feed their generated pixels into other effects' masks.
 3. Composite Drop Shadow, then Outer Glow against the actual document backdrop.
 4. Modify base color, in order: Color Overlay, Gradient Overlay, Inner Shadow,
-   Inner Glow, inside Stroke. These operations retain the original base alpha.
+   Inner Glow, interior Bevel & Emboss, inside Stroke. These operations retain
+   the original base alpha.
 5. Composite that base with its external layer blend mode.
-6. Composite outside Stroke with its own blend mode.
+6. Composite exterior Bevel & Emboss, then outside Stroke, with their own blend modes.
 7. Interpolate the original backdrop toward the complete styled result by the
    layer opacity times final crop coverage. Overall opacity/crop apply once.
 
@@ -76,6 +77,10 @@ quantized once into the existing compressed R8 mask representation. Linear mask
 sampling includes the half-texel fringe in visual bounds. Empty masks do not
 expand bounds. Widths range up to 256 px and distances up to 512 px. Noise is
 not supported.
+
+Bevel & Emboss adds alpha-derived surface geometry and separate lighting masks.
+Its contours, cache stages, exchange policy and reconstruction rules are described
+in [Bevel & Emboss](BEVEL_EMBOSS.md).
 
 ### Gradients
 

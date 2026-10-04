@@ -8,7 +8,10 @@ bool Document::setLayerEffects(LayerId id, LayerEffectState state) {
     return false;
   target->effects = std::move(state);
   ++target->effectRevision;
-  if (!hasActiveLayerEffects(target->effects))
+  // Zero-strength bevel bypasses drawing, but a material scrub back from zero
+  // can reuse its unchanged relief. Aggregate cache eviction still owns it.
+  if (!hasActiveLayerEffects(target->effects) &&
+      (!target->effects || !target->effects->items[7].enabled))
     target->effectCache.reset();
   touch();
   return true;

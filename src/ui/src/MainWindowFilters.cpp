@@ -205,6 +205,7 @@ void MainWindow::advanceFilterPreparation()
                     std::size_t bytes=0;
                     for(const auto& other:session().document()->layers()) {
                         const auto cache=other.id==job->key.id?job->effects:other.effectCache;
+                        if(cache)bytes+=cache->bevelMemoryCost();
                         if(cache)for(const auto& mask:cache->masks)if(mask)bytes+=mask->coverage->memoryCost();
                     }
                     if(bytes>384ULL*1024*1024)throw std::length_error("Document effect masks exceed the 384 MiB cache budget");

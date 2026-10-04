@@ -1292,13 +1292,14 @@ int main(int argc, char** argv)
     QGuiApplication app(argc,argv);
     QCoreApplication::setApplicationName("VulkanaBlendRenderingTests");
     try {
-        if (benchmark && adjustmentLayers) adjustmentLayerBenchmarks(validation);
+        if (benchmark && effects) bevelBenchmarks(validation);
+        else if (benchmark && adjustmentLayers) adjustmentLayerBenchmarks(validation);
         else if (benchmark && clipping) clippingBenchmarks(validation);
         else if (benchmark && adjustments) adjustmentBenchmarks(validation);
         else if (benchmark) benchmarks(validation);
         else {
             loadFontFixture();
-            Review review(effects?7:filters?c::spatialFilterCount:adjustments?c::adjustmentCount+2:c::allBlendModes.size());
+            Review review(effects?c::layerEffectCount:filters?c::spatialFilterCount:adjustments?c::adjustmentCount+2:c::allBlendModes.size());
             {
                 OffscreenCanvas gpu(validation);
                 if(clipping)clippingRendering(gpu);

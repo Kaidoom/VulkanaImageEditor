@@ -292,8 +292,7 @@ void effects(const PsdSource &s, const Record &rec, Model &m) {
     return;
   }
   auto d = desc(rec, key, 4);
-  if (!d.value("masterFXSwitch", true).toBool())
-    return;
+  const bool masterEnabled=d.value("masterFXSwitch", true).toBool();
   auto stack = std::make_shared<core::LayerEffectStack>();
   bool active = false;
   double scale = number(d.value("Scl "), 100) / 100;
@@ -309,8 +308,47 @@ void effects(const PsdSource &s, const Record &rec, Model &m) {
     int enabled = 0;
     for (const auto &item : list) {
       auto e = item.toMap();
+      if(it.key()=="ebbl" && !e.empty()) {
+        auto& target=stack->items[std::size_t(core::LayerEffectType::BevelEmboss)];auto& b=target.bevel;
+        if(++enabled>1)throw Unsupported("Multiple bevel representations are unsupported");
+        if(enumeration(e["bvlT"])!="SfBL"||e.value("useTexture",false).toBool())
+          throw Unsupported("Bevel technique/texture needs the saved composite or Base pixels only");
+        const auto style=enumeration(e["bvlS"]),direction=enumeration(e["bvlD"]);
+        if(style!="InrB"&&style!="OtrB"&&style!="Embs")throw Unsupported("This bevel style is unsupported");
+        if(direction!="In  "&&direction!="Out ")throw Unsupported("Unknown bevel direction");
+        b.style=style=="InrB"?core::BevelStyle::Inner:style=="OtrB"?core::BevelStyle::Outer:core::BevelStyle::Emboss;
+        b.down=direction=="Out ";target.enabled=masterEnabled&&e.value("enab",true).toBool()&&e.value("present",true).toBool();
+        target.size=number(e["blur"])*scale;b.soften=number(e["Sftn"])*scale;b.depth=number(e["srgR"],100)/100;
+        const bool global=e.value("uglg",false).toBool();
+        target.angle=std::remainder(-(global?s.globalLightAngle:number(e["lagl"],120)),360.);
+        b.altitude=global?s.globalLightAltitude:number(e["Lald"],30);
+        const auto hm=blend(enumeration(e["hglM"]).toLatin1()),sm=blend(enumeration(e["sdwM"]).toLatin1());
+        if(!hm||!sm)throw Unsupported("Unsupported bevel highlight/shadow blend mode");
+        target.blendMode=*hm;b.shadowBlend=*sm;target.color=color(s,e["hglC"].toMap());target.secondColor=color(s,e["sdwC"].toMap());
+        target.opacity=number(e["hglO"],75)/100;b.shadowOpacity=number(e["sdwO"],75)/100;
+        const auto curve=[](const QVariant& v,bool on) {
+          core::EffectContour c;c.enabled=on;
+          if(!v.isValid())return c;
+          const auto points=v.toMap()["Crv "].toList();
+          if(points.size()<2||points.size()>16)throw Unsupported("Bevel contour point count is unsupported");
+          c.points.clear();bool allCorners=true;
+          for(const auto& value:points) {
+            const auto p=value.toMap();const bool corner=!p.value("Cnty",true).toBool();allCorners&=corner;
+            c.points.push_back({number(p["Hrzn"])/255,number(p["Vrtc"])/255,corner});
+          }
+          if(allCorners){c.interpolation=core::EffectContourInterpolation::Linear;for(auto& p:c.points)p.corner=false;}
+          if(!core::validEffectContour(c))throw Unsupported("Bevel contour has invalid or unsupported points");
+          return c;
+        };
+        b.gloss=curve(e["TrnS"],true);b.surface=curve(e["MpgS"],e.value("useShape",false).toBool());
+        if(b.surface.enabled&&number(e["Inpr"],100)!=100)
+          throw Unsupported("Bevel surface contour range requires composite or Base pixels only");
+        m.substitutions<<"Editable Smooth bevel: surface and lighting response may differ outside Vulkana.";
+        if(global)m.substitutions<<"Shared light resolved to this effect's own angle and altitude.";
+        active=true;continue;
+      }
       if (e.empty() || !e.value("enab").toBool() ||
-          !e.value("present", true).toBool())
+          !e.value("present", true).toBool() || !masterEnabled)
         continue;
       if (++enabled > 1)
         throw Unsupported(
@@ -774,6 +812,21 @@ Model modelFor(const PsdSource &s, const Record &rec, const PsdChoice &choice,
       textModel(s, rec, choice, m);
     else if (isShape(rec))
       shapeModel(s, rec, m);
+  }
+  if(m.effects&&m.effects->items[7]!=core::defaultLayerEffect(core::LayerEffectType::BevelEmboss)) {
+    // PSD relief dimensions/light are in document space; native styles travel
+    // with local typed geometry. A similarity has an exact inverse for both.
+    const auto& t=m.transform;const double x=std::hypot(t.m00,t.m10),y=std::hypot(t.m01,t.m11);
+    if(!t.isAffine()||x<1e-9||std::abs(x-y)>1e-6*std::max(x,y)||
+       std::abs(t.m00*t.m01+t.m10*t.m11)>1e-6*x*y)
+      throw Unsupported("Bevel on nonuniform/sheared typed geometry requires a raster or composite choice");
+    auto stack=std::make_shared<core::LayerEffectStack>(*m.effects);auto& e=stack->items[7];
+    e.size/=x;e.bevel.soften/=x;
+    const auto radians=e.angle*std::numbers::pi/180;const auto inverse=t.inverted();
+    const auto direction=inverse->map({std::cos(radians),std::sin(radians)})-inverse->map({0,0});
+    e.angle=std::atan2(direction.y,direction.x)*180/std::numbers::pi;
+    if(!core::validLayerEffects(*stack))throw Unsupported("Local bevel dimensions exceed supported limits");
+    m.effects=std::move(stack);
   }
   return m;
 }

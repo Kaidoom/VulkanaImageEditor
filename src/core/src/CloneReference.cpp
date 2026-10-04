@@ -279,6 +279,11 @@ CloneReference CloneReference::prepared(const std::function<bool()>& cancelled, 
         FilterInputSnapshot frozen{layer, source->id(), source->revision(), 0};
         const auto prepared=prepareLayerSpatialEffects(frozen,options);
         layer.filterCache=prepared.filters;layer.effectCache=prepared.effects;
+        if(layer.effectCache) {
+            const auto bytes=layer.effectCache->bevelMemoryCost();
+            if(bytes>byteBudget-result->bytes)throw std::length_error("Bevel cache exceeds processing budget.");
+            result->bytes+=bytes;
+        }
         if(layer.effectCache)for(const auto& mask:layer.effectCache->masks)if(mask) {
             const auto retained=mask->coverage->memoryCost();
             if(retained>byteBudget-result->bytes)throw std::length_error("Spot Heal effect masks exceed processing budget.");

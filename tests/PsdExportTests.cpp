@@ -525,18 +525,18 @@ void variants(QString dir) {
   }
   write(styles, dir + "/styles.psd");
   auto styled = parse(dir + "/styles.psd");
-  CHECK(styled && styled->records.size() == 7);
+  CHECK(styled && styled->records.size() == c::layerEffectCount);
   if (styled) {
     const QByteArray keys[]{"FrFX", "DrSh", "IrSh", "OrGl",
-                            "IrGl", "SoFi", "GrFl"};
-    for (size_t i = 0; i < 7; ++i) {
+                            "IrGl", "SoFi", "GrFl", "ebbl"};
+    for (size_t i = 0; i < c::layerEffectCount; ++i) {
       u::psd::Reader r(styled->records[i].tags["lfx2"]);
       r.skip(4);
       auto effects = u::psd::versionedDescriptor(r);
       CHECK(effects.contains(QString::fromLatin1(keys[i])));
       auto effect = effects[QString::fromLatin1(keys[i])].toMap();
       CHECK(effect["enab"].toBool());
-      CHECK(std::abs(u::psd::number(effect["Opct"]) -
+      CHECK(std::abs(u::psd::number(effect[i==7?"hglO":"Opct"]) -
                      .65 * 100 * (i == 6 ? 1 : 160. / 255)) < 1e-4);
     }
   }

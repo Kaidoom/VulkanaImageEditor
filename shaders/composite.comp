@@ -118,14 +118,14 @@ vec4 premultipliedTexel(ivec2 p)
     return vec4(vec3(bDecode(c.r),bDecode(c.g),bDecode(c.b))*c.a,c.a);
 }
 int effectOffset;
-float effectCoverage[6];
+float effectCoverage[10];
 #define E_INLINE precise
 #define E_PARAM(index) adjustmentParameters.values[effectOffset+(index)]
 #define E_MASK(index) effectCoverage[index]
 #include "imageeditor/core/detail/LayerEffectMath.inc"
 float sampleStyleMask(int i,vec2 local)
 {
-    int meta=228+i*8;
+    int meta=260+i*8;
     uint header=floatBitsToUint(E_PARAM(meta+3));if(header==0u)return 0;
     vec2 p=vec2(dot(vec3(E_PARAM(meta),E_PARAM(meta+1),E_PARAM(meta+2)),vec3(local,1)),
         dot(vec3(E_PARAM(meta+4),E_PARAM(meta+5),E_PARAM(meta+6)),vec3(local,1)))-vec2(.5);
@@ -260,7 +260,7 @@ void main()
     vec4 backdrop=loadTarget(0,pixel);
     if(effectOffset>=0) {
         vec2 point=vec2(dot(pc.sourceToLocalX.xyz,vec3(local,1)),dot(pc.sourceToLocalY.xyz,vec3(local,1)))/dot(sourceW,vec3(local,1));
-        for(int i=0;i<6;++i)effectCoverage[i]=sampleStyleMask(i,point);
+        for(int i=0;i<10;++i)effectCoverage[i]=sampleStyleMask(i,point);
         storeTarget(pixel,eComposite(backdrop,source,point.x,point.y,pc.opacity*cropCoverage,pc.mode&255));
     }else storeTarget(pixel,bComposite(backdrop,source*cropCoverage,pc.opacity,pc.mode&255));
 }

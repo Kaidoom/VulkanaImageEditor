@@ -13,6 +13,7 @@ add_library(imageeditor_ui STATIC
     src/AdjustmentsPanel.cpp
     src/FiltersPanel.cpp
     src/EffectsPanel.cpp
+    src/EffectsPanelBevel.cpp
     src/MainWindowEffects.cpp
     src/MainWindowFilters.cpp
     src/BrushAssetLibrary.cpp

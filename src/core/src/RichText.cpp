@@ -289,7 +289,7 @@ std::size_t TextEditCommand::memoryCost() const noexcept
                 ? created_->name.capacity() + textMemoryCost(std::get<TextLayer>(created_->payload))
                     + adjustmentMemoryCost(created_->adjustments)
                     + spatialFilterMemoryCost(created_->filters)
-                    + (created_->effects?sizeof(LayerEffectStack):0)
+                    + layerEffectMemoryCost(created_->effects)
                 : 0);
 }
 std::optional<std::uint64_t> TextEditCommand::activeLayerAfter(bool undo) const noexcept

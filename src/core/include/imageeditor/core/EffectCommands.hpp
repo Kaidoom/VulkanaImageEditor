@@ -13,7 +13,7 @@ public:
   bool canAdoptApplied(const Document &) const noexcept override;
   std::string_view label() const noexcept override { return "Layer effects"; }
   std::size_t memoryCost() const noexcept override {
-    return sizeof(*this) + 2 * sizeof(LayerEffectStack);
+    return sizeof(*this) + layerEffectMemoryCost(before_) + layerEffectMemoryCost(after_);
   }
 
 private:

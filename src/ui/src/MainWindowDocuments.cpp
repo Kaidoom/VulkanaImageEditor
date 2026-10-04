@@ -478,6 +478,7 @@ MainWindow::DocumentMemory MainWindow::documentMemory() const
                 result.sourceBytes+=bytes(raster->surface);
             for(const auto& surface:{layer.renderCache?layer.renderCache->surface:nullptr,layer.filterCache?layer.filterCache->surface:nullptr})
                 if(surface&&derived.insert(surface->id()).second)result.derivedBytes+=bytes(surface);
+            if(layer.effectCache)result.derivedBytes+=layer.effectCache->bevelMemoryCost();
             if(layer.effectCache)for(const auto& mask:layer.effectCache->masks)
                 if(mask&&mask->coverage&&masks.insert(mask->coverage.get()).second)result.derivedBytes+=mask->coverage->memoryCost();
         }

@@ -139,6 +139,10 @@ set_tests_properties(imageeditor_adjustment_core_tests PROPERTIES TIMEOUT 60 LAB
 
 add_executable(imageeditor_adjustment_integration_tests AdjustmentIntegrationTests.cpp)
 add_executable(imageeditor_layer_effects_tests LayerEffectsTests.cpp)
+add_executable(imageeditor_bevel_effects_tests BevelEffectsTests.cpp)
+target_link_libraries(imageeditor_bevel_effects_tests PRIVATE imageeditor_ui Qt6::Test)
+add_test(NAME imageeditor_bevel_effects_tests COMMAND imageeditor_bevel_effects_tests)
+set_tests_properties(imageeditor_bevel_effects_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 120 LABELS "effects;project;history;psd")
 add_test(NAME imageeditor_layer_effects_vulkan COMMAND imageeditor_blend_rendering_tests --effects --validation)
 set_tests_properties(imageeditor_layer_effects_vulkan PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 180 LABELS "effects;vulkan")
 target_link_libraries(imageeditor_layer_effects_tests PRIVATE imageeditor_ui Qt6::Test)

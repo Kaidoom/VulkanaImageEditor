@@ -10,6 +10,7 @@ class QHBoxLayout;
 class QLabel;
 namespace imageeditor::ui {
 class CompactValueControl;
+class AdjustmentCurveEditor;
 class EffectsPanel final : public QWidget {
 public:
   explicit EffectsPanel(QWidget *parent = nullptr);
@@ -40,8 +41,15 @@ private:
   void change(const std::function<void()> &);
   void number(std::size_t, const QString &, double, double,
               double core::LayerEffect::*, double factor = 1);
+  CompactValueControl* number(std::size_t, const QString&, double, double,
+                              std::function<double()>,std::function<void(double)>);
+  void bevelPage();
+  AdjustmentCurveEditor* contourEditor_{};
+  bool glossSelected_{};
+  core::EffectContour& selectedContour();
   QHBoxLayout *choices(std::size_t, const QString &, const QStringList &,
-                       std::function<int()>, std::function<void(int)>);
+                       std::function<int()>, std::function<void(int)>,
+                       QHBoxLayout *existingRow = nullptr);
   void color(std::size_t, bool, QHBoxLayout *);
   core::LayerEffectStack working_, before_;
   std::optional<core::LayerId> target_;

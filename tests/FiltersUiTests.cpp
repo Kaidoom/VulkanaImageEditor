@@ -2,6 +2,7 @@
 #include "imageeditor/ui/AdjustmentsPanel.hpp"
 #include "imageeditor/ui/FiltersPanel.hpp"
 #include "imageeditor/ui/EffectsPanel.hpp"
+#include "imageeditor/ui/AdjustmentCurveEditor.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
 #include "imageeditor/ui/LayerListView.hpp"
 #include "imageeditor/ui/LayerListModel.hpp"
@@ -122,7 +123,7 @@ void layerEffectsUi()
     auto* opacity=f.number("Effect5Opacity");opacity->setValue(55);settle();
     check(f.layer().effectCache==cache&&c::intrinsicSurface(f.layer())==source,"material edits reuse silhouette and source");
     const auto state=f.layer().effects;const auto depth=f.session().history().undoDepth();
-    for(int i=0;i<7;++i)nav->setCurrentIndex(i);
+    for(int i=0;i<int(c::layerEffectCount);++i)nav->setCurrentIndex(i);
     check(f.layer().effects==state&&f.session().history().undoDepth()==depth,"navigation is view-only and controls persist");
     check(f.number("Effect0Size")==size,"persistent effect page");
     compare->pressed();check(f.canvas->scene().effectBypassLayer==f.id,"effects-only comparison enabled");compare->released();check(!f.canvas->scene().effectBypassLayer,"comparison release clears bypass");
@@ -133,6 +134,29 @@ void layerEffectsUi()
     check(!c::hasActiveLayerEffects(f.layer().effects)&&f.layer().adjustments==adjustments&&f.layer().filters==filters,"Reset Effects does not reset adjustments/filters");
     check(f.session().history().undoDepth()>start,"effect interactions recorded");
     check(f.session().history().undo(f.document()),"undo reset");f.adjustments->setTarget(&f.layer(),false);check(c::hasActiveLayerEffects(f.layer().effects),"undo restores styles");
+    nav->setCurrentIndex(7);f.widget<QCheckBox>("EffectEnabled7")->setChecked(true);
+    timer.restart();while(!c::layerEffectCacheValid(f.layer())&&timer.elapsed()<10000)QTest::qWait(10);
+    check(c::layerEffectCacheValid(f.layer()),"native bevel async cache publication");
+    auto* bevelSize=f.number("Effect7Size");const auto original=f.layer().effects;
+    QTest::mousePress(bevelSize,Qt::LeftButton,{},bevelSize->valueFieldRect().center());bevelSize->setValue(12);
+    QTest::keyClick(bevelSize,Qt::Key_Escape);QTest::mouseRelease(bevelSize,Qt::LeftButton);settle();
+    check(c::equivalentLayerEffects(original,f.layer().effects),"bevel numeric Escape restores full starting state");
+    auto* contour=dynamic_cast<u::AdjustmentCurveEditor*>(f.widget<QWidget>("BevelContourEditor"));
+    const auto curveDepth=f.session().history().undoDepth();
+    if(contour&&contour->onInteractionStarted()) {
+        contour->onPointsChanged({{0,0},{.4,.8},{1,1}});
+        contour->onPointsChanged({{0,0},{.45,.75},{1,1}});
+        contour->onInteractionFinished(true);
+    }
+    check(f.session().history().undoDepth()==curveDepth+1,"bevel curve movement one history command");
+    check(f.layer().effects->items[7].bevel.surface.points.size()==3,"native curve points retained");
+    const auto selected=f.layer().effects;const auto edits=f.session().history().undoDepth();
+    auto* selector=f.widget<QComboBox>("BevelContourSelector");selector->setCurrentIndex(1);selector->setCurrentIndex(0);
+    check(f.layer().effects==selected&&f.session().history().undoDepth()==edits,"contour selector view only");
+    if(contour&&contour->onInteractionStarted()) {
+        contour->onPointsChanged({{0,.2},{.4,.1},{1,.8}});contour->onInteractionFinished(false);
+    }
+    check(c::equivalentLayerEffects(selected,f.layer().effects),"bevel curve cancellation restores edited values");
     if(const auto path=qEnvironmentVariable("IMAGEEDITOR_EFFECT_PANEL_REVIEW");!path.isEmpty())check(f.adjustments->grab().save(path),"save effects UI review");
 }
 void sharedHeaderScope()

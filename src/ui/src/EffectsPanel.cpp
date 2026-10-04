@@ -1,5 +1,7 @@
 #include "imageeditor/ui/EffectsPanel.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
+#include "imageeditor/ui/AdjustmentCurveEditor.hpp"
+#include "imageeditor/ui/CurrentPageStack.hpp"
 #include <QCheckBox>
 #include <QComboBox>
 #include <QHideEvent>
@@ -19,7 +21,7 @@ EffectsPanel::EffectsPanel(QWidget *parent) : QWidget(parent) {
   auto *row = new QHBoxLayout;
   navigation_ = new QComboBox;
   navigation_->setObjectName("EffectNavigation");
-  navigation_->setMaxVisibleItems(7);
+  navigation_->setMaxVisibleItems(int(core::layerEffectCount));
   row->addWidget(navigation_, 1);
   auto *reset = new QPushButton(tr("Reset"));
   reset->setObjectName("EffectResetCurrent");
@@ -33,7 +35,8 @@ EffectsPanel::EffectsPanel(QWidget *parent) : QWidget(parent) {
   scroll->setWidgetResizable(true);
   scroll->setFrameShape(QFrame::NoFrame);
   scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-  stack_ = new QStackedWidget;
+  stack_ = new CurrentPageStack;
+  stack_->setObjectName("EffectParameterPages");
   stack_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
   scroll->setWidget(stack_);
   outer->addWidget(scroll, 1);
@@ -58,6 +61,7 @@ EffectsPanel::EffectsPanel(QWidget *parent) : QWidget(parent) {
     connect(page.enabled, &QCheckBox::toggled, this, [this, i](bool v) {
       change([&] { working_.items[i].enabled = v; });
     });
+    if(i==7) {bevelPage();page.layout->addStretch();continue;}
     auto *blendRow = choices(
         i, tr("Blend"), blends,
         [this, i] { return int(working_.items[i].blendMode); },
@@ -65,10 +69,6 @@ EffectsPanel::EffectsPanel(QWidget *parent) : QWidget(parent) {
     color(i, false, blendRow);
     if (i == 6)
       color(i, true, blendRow);
-    number(i, tr("Opacity"), 0, 100, &core::LayerEffect::opacity, 100);
-    if (i < 5)
-      number(i, tr("Size"), 0, core::maximumEffectSize,
-             &core::LayerEffect::size);
     if (i == 0)
       choices(
           i, tr("Position"), {tr("Inside"), tr("Center"), tr("Outside")},
@@ -76,24 +76,16 @@ EffectsPanel::EffectsPanel(QWidget *parent) : QWidget(parent) {
           [this, i](int v) {
             working_.items[i].position = core::StrokePosition(v);
           });
-    if (i > 0 && i < 5)
-      number(i, i == 2 || i == 4 ? tr("Choke") : tr("Spread"), 0, 100,
-             &core::LayerEffect::spread, 100);
-    if (i == 1 || i == 2 || i == 6)
-      number(i, tr("Angle"), -180, 180, &core::LayerEffect::angle);
-    if (i == 1 || i == 2)
-      number(i, tr("Distance"), 0, core::maximumEffectDistance,
-             &core::LayerEffect::distance);
     if (i == 6) {
-      choices(
+      auto *typeRow = choices(
           i, tr("Type"), {tr("Linear"), tr("Radial")},
           [this, i] { return int(working_.items[i].gradient); },
           [this, i](int v) {
             working_.items[i].gradient = core::GradientType(v);
           });
-      number(i, tr("Scale"), 1, 1000, &core::LayerEffect::scale, 100);
       auto *reverse = new QCheckBox(tr("Reverse"));
-      page.layout->addWidget(reverse);
+      reverse->setObjectName("Effect6Reverse");
+      typeRow->addWidget(reverse);
       connect(reverse, &QCheckBox::toggled, this, [this](bool v) {
         change([&] { working_.items[6].reverse = v; });
       });
@@ -104,6 +96,20 @@ EffectsPanel::EffectsPanel(QWidget *parent) : QWidget(parent) {
         reverse->setChecked(working_.items[6].reverse);
       };
     }
+    number(i, tr("Opacity"), 0, 100, &core::LayerEffect::opacity, 100);
+    if (i < 5)
+      number(i, tr("Size"), 0, core::maximumEffectSize,
+             &core::LayerEffect::size);
+    if (i > 0 && i < 5)
+      number(i, i == 2 || i == 4 ? tr("Choke") : tr("Spread"), 0, 100,
+             &core::LayerEffect::spread, 100);
+    if (i == 1 || i == 2 || i == 6)
+      number(i, tr("Angle"), -180, 180, &core::LayerEffect::angle);
+    if (i == 1 || i == 2)
+      number(i, tr("Distance"), 0, core::maximumEffectDistance,
+             &core::LayerEffect::distance);
+    if (i == 6)
+      number(i, tr("Scale"), 1, 1000, &core::LayerEffect::scale, 100);
     page.layout->addStretch();
   }
   connect(static_cast<QStandardItemModel *>(navigation_->model()),
@@ -126,7 +132,7 @@ EffectsPanel::EffectsPanel(QWidget *parent) : QWidget(parent) {
   });
   auto *note =
       new QLabel(tr("Local pixels · effects stay independent. Enable each "
-                    "effect separately. Escape cancels the current edit."));
+                    "effect separately."));
   note->setObjectName("MutedLabel");
   note->setWordWrap(true);
   outer->addWidget(note);
@@ -140,6 +146,11 @@ EffectsPanel::EffectsPanel(QWidget *parent) : QWidget(parent) {
 void EffectsPanel::number(std::size_t i, const QString &label, double lo,
                           double hi, double core::LayerEffect::*member,
                           double factor) {
+  number(i,label,lo,hi,[this,i,member,factor]{return working_.items[i].*member*factor;},
+    [this,i,member,factor](double v){working_.items[i].*member=v/factor;});
+}
+CompactValueControl* EffectsPanel::number(std::size_t i,const QString& label,double lo,double hi,
+    std::function<double()> read,std::function<void(double)> write) {
   auto *n = new CompactValueControl;
   n->setObjectName(QString("Effect%1%2").arg(i).arg(label));
   n->setAccessibleName(label);
@@ -151,11 +162,11 @@ void EffectsPanel::number(std::size_t i, const QString &label, double lo,
   pages_[i].layout->addWidget(n);
   pages_[i].numbers.push_back(n);
   const auto previous = pages_[i].refresh;
-  pages_[i].refresh = [this, i, n, member, factor, previous] {
+  pages_[i].refresh = [n, read, previous] {
     if (previous)
       previous();
     if (!n->interactionActive())
-      n->setValue(working_.items[i].*member * factor);
+      n->setValue(read());
   };
   n->onInteractionStarted = [this] {
     if (!updating_)
@@ -166,33 +177,37 @@ void EffectsPanel::number(std::size_t i, const QString &label, double lo,
       finishEditing();
   };
   connect(n, &QDoubleSpinBox::valueChanged, this,
-          [this, i, n, member, factor](double v) {
+          [this, n, write](double v) {
             if (updating_)
               return;
             if (!begin()) {
               refresh();
               return;
             }
-            working_.items[i].*member = v / factor;
+            write(v);
             if (onPreview)
               onPreview(
                   std::make_shared<const core::LayerEffectStack>(working_));
             if (!n->interactionActive())
               finishEditing();
           });
+  return n;
 }
 QHBoxLayout *EffectsPanel::choices(std::size_t i, const QString &label,
                            const QStringList &options,
                            std::function<int()> read,
-                           std::function<void(int)> write) {
-  auto *row = new QHBoxLayout;
-  row->addWidget(new QLabel(label));
+                           std::function<void(int)> write,
+                           QHBoxLayout *existingRow) {
+  auto *row = existingRow ? existingRow : new QHBoxLayout;
+  if (!existingRow)
+    row->addWidget(new QLabel(label));
   auto *box = new QComboBox;
   box->setAccessibleName(label);
   box->addItems(options);
   box->setMaxVisibleItems(int(options.size()));
   row->addWidget(box, 1);
-  pages_[i].layout->addLayout(row);
+  if (!existingRow)
+    pages_[i].layout->addLayout(row);
   const auto previous = pages_[i].refresh;
   pages_[i].refresh = [previous, box, read] {
     if (previous)
@@ -206,7 +221,8 @@ QHBoxLayout *EffectsPanel::choices(std::size_t i, const QString &label,
 void EffectsPanel::color(std::size_t i, bool second, QHBoxLayout *row) {
   auto *button = new QPushButton;
   button->setObjectName(QString("EffectColor%1%2").arg(i).arg(second));
-  const auto label = second ? tr("End") : i == 6 ? tr("Start") : tr("Color");
+  const auto label = i==7 ? (second?tr("Shadow"):tr("Highlight")) :
+      second ? tr("End") : i == 6 ? tr("Start") : tr("Color");
   button->setText(label);
   button->setAccessibleName(label);
   row->addWidget(button);
@@ -257,6 +273,7 @@ void EffectsPanel::finishEditing(bool commit) {
   const QScopedValueRollback guard(finishing_, true);
   const bool had = editing_;
   editing_ = false;
+  if(contourEditor_)contourEditor_->finishInteraction(commit);
   for (auto &p : pages_)
     for (auto *n : p.numbers)
       n->finishEditing(commit, true);

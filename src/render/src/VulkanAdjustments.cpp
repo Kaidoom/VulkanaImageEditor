@@ -189,11 +189,11 @@ std::int32_t VulkanCanvasRenderer::appendAdjustmentParameters(const core::LayerS
 std::int32_t VulkanCanvasRenderer::appendEffectParameters(const core::LayerSnapshot& layer,std::vector<float>& values)
 {
     const auto offset=values.size();
-    if((offset+core::effectParameterCount+48)*sizeof(float)>parameterBudget)
+    if((offset+core::effectParameterCount+core::layerEffectMaskCount*8)*sizeof(float)>parameterBudget)
         throw std::length_error("Layer effect parameters exceed GPU budget");
     const auto program=core::compileLayerEffects(layer.effects,core::layerEffectReferenceFrame(layer));
-    values.insert(values.end(),program.begin(),program.end());values.resize(values.size()+48,0);
-    for(std::size_t i=0;i<6;++i)if(const auto& mask=layer.effectCache->masks[i]) {
+    values.insert(values.end(),program.begin(),program.end());values.resize(values.size()+core::layerEffectMaskCount*8,0);
+    for(std::size_t i=0;i<core::layerEffectMaskCount;++i)if(const auto& mask=layer.effectCache->masks[i]) {
         const auto found=std::find(adjustmentMasks_.begin(),adjustmentMasks_.end(),mask->coverage);
         if(found==adjustmentMasks_.end())throw std::runtime_error("Missing prepared layer effect mask");
         const auto n=offset+core::effectParameterCount+i*8;const auto& t=mask->localToMask;

@@ -67,7 +67,7 @@ and transformation metadata is not applied again.
 | Raster content/brush artwork | Straight RGBA8 pixels at the stored extent and offset |
 | Point text | Unicode, multiline strings, per-run face/size/RGB/alpha, faux bold/italic, left/center/right paragraphs, affine text matrix and baseline |
 | Solid vector shapes | One closed polygon/rectangle or recognized four-cubic ellipse; filled or hollow; centered solid stroke; miter/round/bevel joins and butt/round/square caps |
-| Layer styles | One modern solid Stroke and Color Overlay; separate enabled state, color, opacity, blend, Stroke position/size and style scale |
+| Layer styles | Modern solid Stroke, Color Overlay, and Smooth Inner/Outer/Emboss; independent settings and style scale. Bevel surface/gloss contours remain distinct; shared light resolves per effect. See [Bevel & Emboss](BEVEL_EMBOSS.md) for review limits |
 | Bitmap mask | Separate grayscale coverage, its own origin/extent/outside coverage, enabled state; remains paintable and undoable |
 | Groups | Unstyled fully opaque pass-through hierarchy; visibility retained |
 | Adjustment layers | Native Invert and Exposure with zero offset/unit gamma; supported masks and strength. A Normal folder with a direct native adjustment becomes an explicit local domain |

@@ -12,13 +12,42 @@ enum class LayerEffectType : std::uint32_t {
   OuterGlow,
   InnerGlow,
   ColorOverlay,
-  GradientOverlay
+  GradientOverlay,
+  BevelEmboss
 };
 enum class StrokePosition : std::uint32_t { Inside, Center, Outside };
 enum class GradientType : std::uint32_t { Linear, Radial };
-inline constexpr std::size_t layerEffectCount = 7;
+inline constexpr std::size_t layerEffectCount = 8;
+inline constexpr std::size_t layerEffectMaskCount = 10;
 inline constexpr std::uint32_t layerEffectVersion = 1;
 inline constexpr double maximumEffectSize = 256, maximumEffectDistance = 512;
+enum class BevelStyle : std::uint32_t { Inner, Outer, Emboss };
+struct EffectContourPoint {
+  double input{}, output{};
+  bool corner{false};
+  friend bool operator==(const EffectContourPoint&, const EffectContourPoint&) = default;
+};
+enum class EffectContourInterpolation : std::uint32_t { Linear, Smooth };
+struct EffectContour {
+  bool enabled{false};
+  EffectContourInterpolation interpolation{EffectContourInterpolation::Smooth};
+  std::vector<EffectContourPoint> points{{0,0,false},{1,1,false}};
+  friend bool operator==(const EffectContour&, const EffectContour&) = default;
+};
+[[nodiscard]] bool validEffectContour(const EffectContour&) noexcept;
+[[nodiscard]] double evaluateEffectContour(const EffectContour&, double) noexcept;
+// Locally generated preset data. Index zero is identity; no preset identifier
+// is authoritative or needed to reconstruct a saved curve.
+[[nodiscard]] EffectContour effectContourPreset(bool gloss, int index);
+struct BevelParameters {
+  std::uint32_t version{1};
+  BevelStyle style{BevelStyle::Inner};
+  double depth{1}, soften{0}, altitude{30}, shadowOpacity{.55};
+  bool down{false};
+  BlendMode shadowBlend{BlendMode::Multiply};
+  EffectContour surface, gloss;
+  friend bool operator==(const BevelParameters&, const BevelParameters&) = default;
+};
 struct LayerEffect {
   bool enabled{false};
   BlendMode blendMode{BlendMode::Normal};
@@ -29,6 +58,7 @@ struct LayerEffect {
   GradientType gradient{GradientType::Linear};
   double scale{1};
   bool reverse{false};
+  BevelParameters bevel;
   friend bool operator==(const LayerEffect &, const LayerEffect &) = default;
 };
 struct LayerEffectStack {
@@ -39,6 +69,7 @@ struct LayerEffectStack {
                          const LayerEffectStack &) = default;
 };
 using LayerEffectState = std::shared_ptr<const LayerEffectStack>;
+[[nodiscard]] std::size_t layerEffectMemoryCost(const LayerEffectState&) noexcept;
 [[nodiscard]] LayerEffect defaultLayerEffect(LayerEffectType);
 [[nodiscard]] std::string_view layerEffectName(LayerEffectType) noexcept;
 [[nodiscard]] std::string_view layerEffectIdentifier(LayerEffectType) noexcept;
@@ -60,6 +91,15 @@ struct LayerEffectMask {
   AffineTransform localToMask;
   RectD localBounds;
 };
+struct BevelDistanceCache {
+  RectI bounds;
+  std::vector<float> distance;
+  std::vector<std::uint8_t> alpha, edgeAlpha;
+};
+struct BevelNormalCache {
+  // Unit normal XY in signed normalized 16 bit; positive Z reconstructed.
+  std::vector<std::array<std::int16_t,2>> xy;
+};
 struct LayerEffectCache {
   SurfaceId sourceId{};
   Revision sourceRevision{};
@@ -67,7 +107,17 @@ struct LayerEffectCache {
   LayerEffectState geometry;
   // Stroke outside, stroke inside, drop shadow, inner shadow, outer glow, inner
   // glow.
-  std::array<std::shared_ptr<const LayerEffectMask>, 6> masks;
+  // Followed by bevel interior highlight/shadow, exterior highlight/shadow.
+  std::array<std::shared_ptr<const LayerEffectMask>, layerEffectMaskCount> masks;
+  std::shared_ptr<const BevelDistanceCache> bevelDistance;
+  std::shared_ptr<const BevelNormalCache> bevelNormals;
+  LayerEffectState bevelPrepared;
+  // Per-preparation diagnostics. Reused stages record zero work.
+  double bevelDistanceMilliseconds{}, bevelNormalMilliseconds{}, bevelLightingMilliseconds{};
+  [[nodiscard]] std::size_t bevelMemoryCost() const noexcept {
+    return (bevelDistance ? bevelDistance->distance.size()*6 : 0) +
+           (bevelNormals ? bevelNormals->xy.size()*4 : 0);
+  }
   RectD visualBounds;
   std::size_t workingBytes{};
 };

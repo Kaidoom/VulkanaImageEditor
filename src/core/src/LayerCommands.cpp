@@ -23,7 +23,7 @@ std::size_t retainedLayerCost(const Layer& layer) noexcept
     auto result = saturatingAdd(sizeof(Layer), layer.name.size());
     result = saturatingAdd(result, adjustmentMemoryCost(layer.adjustments));
     result = saturatingAdd(result, spatialFilterMemoryCost(layer.filters));
-    if(layer.effects)result=saturatingAdd(result,sizeof(LayerEffectStack));
+    result=saturatingAdd(result,layerEffectMemoryCost(layer.effects));
     std::visit([&result](const auto& payload) {
         using Payload = std::decay_t<decltype(payload)>;
         if constexpr (std::is_same_v<Payload, RasterLayer>) {

@@ -227,6 +227,13 @@ Original raster bytes, text content/formatting and shape geometry/style stay aut
 
 ## Evolution and validation
 
+Layer style collections additionally support the version-1 `bevel-emboss` record.
+Nondefault records declare required capability `bevel-emboss-v1`. They retain
+Structure/Lighting parameters and distinct `surface`/`gloss` objects: enabled,
+interpolation, and `[input, output, corner]` points. Default-disabled bevel is
+omitted, preserving the original seven-effect descriptor for unchanged styles.
+See [Bevel & Emboss](BEVEL_EMBOSS.md) for ranges and evaluation semantics.
+
 Schema dispatch happens before constructing a document. Only version 1 currently exists; other versions are rejected without rewriting the source. Frozen compatibility samples are in `tests/fixtures/projects`; tests wrap those independently in Store/Deflate/ZIP64 archives.
 
 Required fields: format/version, canvas width/height, nonempty layers, each layer's ID/type/name, and its raster dimensions/path, rich-text descriptor or shape descriptor. Optional defaults: ppi=96, visible=true, opacity=1, transform=identity, colorSpace=srgb, pixelFormat=rgba8-straight, required=[] (base schema remains required; shapes additionally require `shape-v1`). All recognized supplied fields are validated. Invalid types/ranges, unsupported color pipelines, unknown layer types or required capabilities fail explicitly.

@@ -394,7 +394,7 @@ QByteArray effectRecord(const core::Layer &layer) {
       continue;
     auto mode = blend(e.blendMode, true);
     constexpr const char *classes[]{"FrFX", "DrSh", "IrSh", "OrGl",
-                                    "IrGl", "SoFi", "GrFl"};
+                                    "IrGl", "SoFi", "GrFl", "ebbl"};
     const auto cls = classes[i];
     Map effect{{"$class", cls},
                {"enab", e.enabled},
@@ -403,7 +403,33 @@ QByteArray effectRecord(const core::Layer &layer) {
                {"Md  ", enumeration("BlnM", mode.constData())},
                {"Opct", unit(e.opacity * e.color.alpha * 100. / 255, "#Prc")},
                {"Clr ", rgb(e.color)}};
-    if (i == 0) {
+    if(i==7) {
+      const auto& b=e.bevel;
+      effect.remove("Md  ");effect.remove("Clr ");effect.remove("Opct");
+      effect["hglM"]=enumeration("BlnM",mode.constData());effect["hglC"]=rgb(e.color);
+      effect["hglO"]=unit(e.opacity*e.color.alpha*100/255.,"#Prc");
+      const auto shadowMode=blend(b.shadowBlend,true);
+      effect["sdwM"]=enumeration("BlnM",shadowMode.constData());effect["sdwC"]=rgb(e.secondColor);
+      effect["sdwO"]=unit(b.shadowOpacity*e.secondColor.alpha*100/255.,"#Prc");
+      effect["bvlT"]=enumeration("bvlT","SfBL");
+      effect["bvlS"]=enumeration("BESl",b.style==core::BevelStyle::Inner?"InrB":b.style==core::BevelStyle::Outer?"OtrB":"Embs");
+      effect["bvlD"]=enumeration("BESs",b.down?"Out ":"In  ");
+      const auto angle=e.angle*std::numbers::pi/180;
+      const auto direction=layer.localToDocument.map({std::cos(angle),std::sin(angle)})-layer.localToDocument.map({0,0});
+      effect["uglg"]=false;effect["lagl"]=unit(-std::atan2(direction.y,direction.x)*180/std::numbers::pi,"#Ang");
+      effect["Lald"]=unit(b.altitude,"#Ang");effect["srgR"]=unit(b.depth*100,"#Prc");
+      effect["blur"]=unit(e.size*scale);effect["Sftn"]=unit(b.soften*scale);
+      const auto curve=[](const core::EffectContour& c,bool honorEnabled) {
+        List points;
+        const auto effective=honorEnabled&&!c.enabled?core::EffectContour{}:c;
+        for(const auto& p:effective.points)points<<Map{{"$class","CrPt"},{"Hrzn",p.input*255},{"Vrtc",p.output*255},
+          {"Cnty",!p.corner&&effective.interpolation==core::EffectContourInterpolation::Smooth}};
+        return Map{{"$class","ShpC"},{"Nm  ",QString("Vulkana contour")},{"Crv ",points}};
+      };
+      effect["TrnS"]=curve(b.gloss,true);effect["antialiasGloss"]=true;
+      effect["useShape"]=b.surface.enabled;effect["MpgS"]=curve(b.surface,false);
+      effect["AntA"]=true;effect["Inpr"]=unit(100,"#Prc");effect["useTexture"]=false;
+    } else if (i == 0) {
       effect["Styl"] = enumeration(
           "FStl", e.position == core::StrokePosition::Inside   ? "InsF"
                   : e.position == core::StrokePosition::Center ? "CtrF"

@@ -80,7 +80,7 @@ void contracts() {
         "normal overlay preserves partial alpha exactly");
   check(sampler.sample({12.5, 12.5})[3] == 0,
         "overlay preserves transparent hole");
-  for (int type = 0; type < 7; ++type) {
+  for (int type = 0; type < int(c::layerEffectCount); ++type) {
     l.effects = effect(type);
     l = c::prepareSpatialFilterLayer(l);
     check(c::layerEffectCacheValid(l), "prepared cache valid");

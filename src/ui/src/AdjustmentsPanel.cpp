@@ -23,26 +23,11 @@
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QWindow>
+#include "imageeditor/ui/CurrentPageStack.hpp"
 #include <algorithm>
 
 namespace imageeditor::ui {
 namespace {
-// Hidden adjustment pages must not force the active page to scroll.
-class AdjustmentPageStack final : public QStackedWidget {
-public:
-    AdjustmentPageStack()
-    {
-        layout()->setSizeConstraint(QLayout::SetNoConstraint);
-        connect(this, &QStackedWidget::currentChanged, this, [this] { updateGeometry(); });
-    }
-    QSize sizeHint() const override { return currentWidget() ? currentWidget()->sizeHint() : QSize{}; }
-    QSize minimumSizeHint() const override { return currentWidget() ? currentWidget()->minimumSizeHint() : QSize{}; }
-    bool hasHeightForWidth() const override { return currentWidget() && currentWidget()->hasHeightForWidth(); }
-    int heightForWidth(int width) const override
-    {
-        return hasHeightForWidth() ? currentWidget()->heightForWidth(width) : sizeHint().height();
-    }
-};
 using Type = core::AdjustmentType;
 constexpr std::size_t index(Type type) { return static_cast<std::size_t>(type); }
 QString displayName(Type type) { return QString::fromUtf8(core::adjustmentName(type)); }
@@ -124,7 +109,7 @@ AdjustmentsPanel::AdjustmentsPanel(QWidget* parent) : QWidget(parent)
         auto* scroll=new QScrollArea;
         scroll->setFrameShape(QFrame::NoFrame);scroll->setWidgetResizable(true);
         scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-        stacks_[i]=new AdjustmentPageStack;
+        stacks_[i]=new CurrentPageStack;
         stacks_[i]->setSizePolicy(QSizePolicy::Ignored,QSizePolicy::Preferred);
         scroll->setWidget(stacks_[i]);layout->addWidget(scroll,1);
         for(const auto type:groups[i])enabledStack->addWidget(makePage(type,stacks_[i]).enabled);

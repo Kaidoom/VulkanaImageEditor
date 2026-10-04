@@ -31,13 +31,31 @@ core::Rgba8 color(const QJsonValue &v) {
   return {std::uint8_t(integer(a[0], 255)), std::uint8_t(integer(a[1], 255)),
           std::uint8_t(integer(a[2], 255)), std::uint8_t(integer(a[3], 255))};
 }
+QJsonObject contour(const core::EffectContour& c) {
+  QJsonArray points;
+  for(const auto& p:c.points)points.append(QJsonArray{p.input,p.output,p.corner});
+  return {{"enabled",c.enabled},{"interpolation",int(c.interpolation)},{"points",points}};
+}
+core::EffectContour contour(const QJsonValue& value) {
+  require(value.isObject());const auto o=value.toObject();core::EffectContour c;
+  c.enabled=boolean(o["enabled"]);
+  c.interpolation=core::EffectContourInterpolation(integer(o["interpolation"],1));
+  require(o["points"].isArray());c.points.clear();
+  const auto points=o["points"].toArray();require(points.size()>=2&&points.size()<=16);
+  for(const auto& v:points) {
+    require(v.isArray()&&v.toArray().size()==3);const auto p=v.toArray();
+    c.points.push_back({number(p[0]),number(p[1]),boolean(p[2])});
+  }
+  require(core::validEffectContour(c));return c;
+}
 } // namespace
 QJsonObject encodeLayerEffects(const core::LayerEffectStack &stack) {
   require(core::validLayerEffects(stack));
   QJsonArray items;
   for (std::size_t i = 0; i < core::layerEffectCount; ++i) {
     const auto &e = stack.items[i];
-    items.append(QJsonObject{
+    if(i==7&&e==core::defaultLayerEffect(core::LayerEffectType::BevelEmboss))continue;
+    QJsonObject item{
         {"type", QString::fromUtf8(
                      core::layerEffectIdentifier(core::LayerEffectType(i)))},
         {"enabled", e.enabled},
@@ -52,7 +70,15 @@ QJsonObject encodeLayerEffects(const core::LayerEffectStack &stack) {
         {"position", int(e.position)},
         {"gradient", int(e.gradient)},
         {"scale", e.scale},
-        {"reverse", e.reverse}});
+        {"reverse", e.reverse}};
+    if(i==std::size_t(core::LayerEffectType::BevelEmboss)) {
+      const auto& b=e.bevel;
+      item["bevel"]=QJsonObject{{"version",int(b.version)},{"style",int(b.style)},
+        {"depth",b.depth},{"soften",b.soften},{"altitude",b.altitude},{"down",b.down},
+        {"shadowOpacity",b.shadowOpacity},{"shadowBlend",QString::fromUtf8(core::blendModeId(b.shadowBlend))},
+        {"surface",contour(b.surface)},{"gloss",contour(b.gloss)}};
+    }
+    items.append(item);
   }
   return {{"version", int(core::layerEffectVersion)}, {"items", items}};
 }
@@ -85,9 +111,18 @@ core::LayerEffectState decodeLayerEffects(const QJsonObject &o) {
     e.gradient = core::GradientType(integer(item["gradient"], 1));
     e.scale = number(item["scale"]);
     e.reverse = boolean(item["reverse"]);
+    if(*type==core::LayerEffectType::BevelEmboss) {
+      require(item["bevel"].isObject());const auto b=item["bevel"].toObject();
+      require(integer(b["version"],1)==1);
+      e.bevel.style=core::BevelStyle(integer(b["style"],2));e.bevel.depth=number(b["depth"]);
+      e.bevel.soften=number(b["soften"]);e.bevel.altitude=number(b["altitude"]);
+      e.bevel.down=boolean(b["down"]);e.bevel.shadowOpacity=number(b["shadowOpacity"]);
+      const auto mode=core::blendModeFromId(b["shadowBlend"].toString().toStdString());require(mode.has_value());
+      e.bevel.shadowBlend=*mode;e.bevel.surface=contour(b["surface"]);e.bevel.gloss=contour(b["gloss"]);
+    }
   }
-  require(seen.size() == core::layerEffectCount &&
-          core::validLayerEffects(*result));
+  for(std::size_t i=0;i<7;++i)require(seen.contains(core::LayerEffectType(i)));
+  require(core::validLayerEffects(*result));
   return result;
 }
 } // namespace imageeditor::ui::detail

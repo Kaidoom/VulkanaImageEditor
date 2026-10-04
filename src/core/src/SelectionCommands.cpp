@@ -167,7 +167,7 @@ std::size_t LayerViaCopyCommand::memoryCost() const noexcept
     const auto extent = std::get<RasterLayer>(result_->payload).surface->extent();
     return sizeof(*this) + result_->name.size() + std::size_t(extent.width) * extent.height * 4
         + adjustmentMemoryCost(result_->adjustments) + spatialFilterMemoryCost(result_->filters)
-        + (result_->effects?sizeof(LayerEffectStack):0)
+        + layerEffectMemoryCost(result_->effects)
         + (result_->mask?sizeof(LayerMask)+result_->mask->coverage->memoryCost():0);
 }
 std::optional<std::uint64_t> LayerViaCopyCommand::activeLayerAfter(bool undo) const noexcept

@@ -78,6 +78,7 @@ struct PsdSource {
   QByteArray bytes;
   QSize size;
   double ppi{72};
+  double globalLightAngle{120}, globalLightAltitude{30};
   int channels{}, depth{}, mode{};
   qsizetype compositeOffset{};
   bool realComposite{true}, compositeAlpha{};

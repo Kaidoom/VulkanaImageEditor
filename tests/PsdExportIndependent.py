@@ -91,7 +91,8 @@ if (root / "astral.psd").exists():
     assert [int(n.value) for n in astral.engine_dict["StyleRun"]["RunLengthArray"]] == [2, 3]
 
 styles = read("styles.psd")
-for layer, key in zip(styles, (b"FrFX", b"DrSh", b"IrSh", b"OrGl", b"IrGl", b"SoFi", b"GrFl")):
+assert len(styles) == 8
+for layer, key in zip(styles, (b"FrFX", b"DrSh", b"IrSh", b"OrGl", b"IrGl", b"SoFi", b"GrFl", b"ebbl")):
     effects = layer.tagged_blocks.get_data(Tag.OBJECT_BASED_EFFECTS_LAYER_INFO)
     assert key in effects and effects[key][b"enab"].value
     assert len(layer.effects) == 1
