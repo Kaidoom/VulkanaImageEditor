@@ -35,8 +35,10 @@ QUrl UpdateService::downloadPageUrl(const platform::ServiceConfig& config) { ret
 
 UpdatePackage UpdateService::buildPackage()
 {
-#ifdef VULKANA_APPIMAGE_BUILD
+#if defined(VULKANA_UPDATE_PACKAGE_APPIMAGE)
     return UpdatePackage::AppImage;
+#elif defined(VULKANA_UPDATE_PACKAGE_DEB)
+    return UpdatePackage::Deb;
 #else
     return UpdatePackage::Rpm;
 #endif
@@ -94,8 +96,9 @@ std::optional<UpdateRelease> UpdateService::parseManifest(const QByteArray& byte
     }
     const auto document = QJsonDocument::fromJson(bytes);
     const auto object = document.object();
-    const auto key = package==UpdatePackage::AppImage ? QStringLiteral("appimage") : QStringLiteral("rpm");
-    // Retain legacy RPM-feed compatibility; never use RPM metadata for AppImage.
+    const auto key = package==UpdatePackage::AppImage ? QStringLiteral("appimage")
+        : package==UpdatePackage::Deb ? QStringLiteral("deb") : QStringLiteral("rpm");
+    // Retain legacy RPM-feed compatibility; never substitute another package.
     const auto artifact = !object.contains(key)&&package==UpdatePackage::Rpm ? object : object.value(key).toObject();
     UpdateRelease result {object.value(QStringLiteral("version")).toString(),
         artifact.value(QStringLiteral("sha256")).toString().toLatin1(),
@@ -103,6 +106,7 @@ std::optional<UpdateRelease> UpdateService::parseManifest(const QByteArray& byte
     static const QRegularExpression digest(QStringLiteral("\\A[0-9a-fA-F]{64}\\z"));
     const QRegularExpression filename(package==UpdatePackage::AppImage
         ? QStringLiteral("\\A[A-Za-z0-9][A-Za-z0-9._+-]*\\.AppImage\\z")
+        : package==UpdatePackage::Deb ? QStringLiteral("\\A[A-Za-z0-9][A-Za-z0-9._+-]*\\.deb\\z")
         : QStringLiteral("\\A[A-Za-z0-9][A-Za-z0-9._+-]*\\.rpm\\z"));
     // Configured origin only. No local URLs,
     // credentials, alternate ports or redirects to a less trusted origin.
@@ -171,7 +175,7 @@ void UpdateService::check(int timeoutMs)
 
 void UpdateService::download(const QString& destination)
 {
-    if(package_!=UpdatePackage::Rpm) { fail(tr("Use the AppImage update action to replace the running image."));return; }
+    if(package_==UpdatePackage::AppImage) { fail(tr("Use the AppImage update action to replace the running image."));return; }
     beginDownload(destination);
 }
 
@@ -280,7 +284,7 @@ void UpdateService::readAvailable()
                 return;
             }
             hash_.addData(bytes);
-            if(header_.size()<64)header_+=bytes.first(qMin<qsizetype>(bytes.size(),64-header_.size()));
+            if(header_.size()<72)header_+=bytes.first(qMin<qsizetype>(bytes.size(),72-header_.size()));
         }
     }
 }
@@ -316,6 +320,18 @@ void UpdateService::finish()
             fail(tr("Checksum verification failed. No download was saved. Please try again."));
             return;
         }
+        if (package_ == UpdatePackage::Deb) {
+            // dpkg's ar format starts with the debian-binary member and 2.0\n.
+            // Check its bounded header in addition to the whole-file SHA-256.
+            const auto member = header_.mid(8, 16).trimmed();
+            if (header_.size() < 72 || header_.first(8) != "!<arch>\n"
+                || (member != "debian-binary" && member != "debian-binary/")
+                || header_.mid(56, 10).trimmed() != "4"
+                || header_.mid(66, 6) != "`\n2.0\n") {
+                fail(tr("The verified download is not a supported DEB package. No download was saved."));
+                return;
+            }
+        }
         if(package_==UpdatePackage::AppImage) {
             struct stat st {};
             if(!isAppImageHeader(header_)) {fail(tr("The verified download is not an x86-64 Type 2 AppImage. The current image is unchanged."));return;}
@@ -338,7 +354,8 @@ void UpdateService::finish()
         state_ = package_==UpdatePackage::AppImage ? State::RestartReady : State::Downloaded;
         message_ = package_==UpdatePackage::AppImage
             ? tr("AppImage replaced and SHA-256 verified. Restart when you're ready.")
-            : tr("Download saved and SHA-256 verified. Install the RPM manually when ready; Vulkana will not run it.");
+            : tr("Download saved and SHA-256 verified. Install the %1 manually when ready; Vulkana will not run it.")
+                .arg(package_ == UpdatePackage::Deb ? QStringLiteral("DEB") : QStringLiteral("RPM"));
         if(package_==UpdatePackage::AppImage)
             QCoreApplication::instance()->setProperty("vulkanaPendingRestart",downloadedPath_);
     }

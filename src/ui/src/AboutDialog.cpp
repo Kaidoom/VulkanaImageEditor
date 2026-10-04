@@ -242,6 +242,7 @@ AboutDialog::AboutDialog(QWidget* parent, QNetworkAccessManager* transport, Upda
         using State = UpdateService::State;
         const auto state = updates_->state();
         const bool appImage=updates_->package()==UpdatePackage::AppImage;
+        const auto packageName = updates_->package()==UpdatePackage::Deb ? QStringLiteral("DEB") : QStringLiteral("RPM");
         const bool restart=state==State::RestartReady;
         const bool downloading = updates_->state() == UpdateService::State::Downloading;
         const bool checking = updates_->state() == UpdateService::State::Checking;
@@ -251,13 +252,13 @@ AboutDialog::AboutDialog(QWidget* parent, QNetworkAccessManager* transport, Upda
         // makes Qt move focus (and its highlight) to Open Download Page.
         // Repeated checks are ignored below until the reply completes.
         check->setText(restart ? tr("Restart Now") : downloading ? tr("Cancel Download") : checking ? tr("Checking…")
-            : canDownload ? (appImage ? tr("Update AppImage") : tr("Download RPM")) : tr("Check for Updates"));
+            : canDownload ? (appImage ? tr("Update AppImage") : tr("Download %1").arg(packageName)) : tr("Check for Updates"));
         check->setIcon(toolGlyph(downloading ? ToolGlyph::Close
             : canDownload ? ToolGlyph::Download : ToolGlyph::Refresh, primaryInk));
         check->setToolTip(restart ? tr("Restart using the verified update. Unsaved documents are checked first.")
             : downloading ? tr("Cancel the download without saving a partial file.")
             : canDownload ? (appImage ? tr("Download, verify and atomically replace this AppImage. Restart is a separate action.")
-                : tr("Choose where to save the RPM. It will not be installed or run."))
+                : tr("Choose where to save the %1. It will not be installed or run.").arg(packageName))
             : !updates_->configured() ? tr("Updates are not configured for this build.")
             : tr("Check for a newer release."));
         progress->setVisible(downloading);
@@ -270,8 +271,8 @@ AboutDialog::AboutDialog(QWidget* parent, QNetworkAccessManager* transport, Upda
             : state == State::Checking ? tr("Contacting the update service…")
             : state == State::Downloading ? tr("Verifying the file before saving.")
             : restart ? tr("Your current session stays open until you restart.")
-            : state == State::Available ? (appImage ? tr("The current AppImage is kept until verification succeeds.") : tr("Save the RPM, then install it manually."))
-            : state == State::Downloaded ? tr("Install the RPM manually when ready.")
+            : state == State::Available ? (appImage ? tr("The current AppImage is kept until verification succeeds.") : tr("Save the %1, then install it manually.").arg(packageName))
+            : state == State::Downloaded ? tr("Install the %1 manually when ready.").arg(packageName)
             : tr("You're running version %1.").arg(QCoreApplication::applicationVersion()));
         stateIcon->setPixmap(toolGlyph(state == State::Current || state == State::Downloaded || restart
             ? ToolGlyph::CheckCircle : canDownload ? ToolGlyph::Download : ToolGlyph::InfoCircle,
@@ -304,7 +305,7 @@ AboutDialog::AboutDialog(QWidget* parent, QNetworkAccessManager* transport, Upda
         const auto folder = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
         const auto suggested = QDir(folder).filePath(QFileInfo(updates_->release()->url.path()).fileName());
         QString destination = QFileDialog::getSaveFileName(popupTopLevelOwner(this), tr("Save Vulkana update"),
-            suggested, tr("RPM packages (*.rpm)"));
+            suggested, updates_->package()==UpdatePackage::Deb ? tr("DEB packages (*.deb)") : tr("RPM packages (*.rpm)"));
         if (destination.isEmpty()) return;
         updates_->download(destination);
     });

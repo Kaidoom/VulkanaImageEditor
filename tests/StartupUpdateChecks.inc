@@ -24,7 +24,7 @@ void startupPolicyTests()
     CHECK(service.state() == State::Error);
     CHECK(service.message().contains("timed out"));
     // A short automatic deadline must not carry into a later manual retry.
-    network.responses.push_back({manifest("9.9.9")});
+    network.responses.push_back({packageManifest("9.9.9")});
     service.check();
     CHECK(network.requests.back().transferTimeout() == 30000);
     CHECK(waitFor([&] { return !service.busy(); }));
@@ -36,7 +36,7 @@ void startupPresentationTests()
     for (const bool fresh : {false, true}) for (const bool viewUpdate : {false, true}) {
         QSettings().setValue(startupTimeKey, QDateTime::currentSecsSinceEpoch());
         Network network;
-        network.responses.push_back({manifest("9.9.9")});
+        network.responses.push_back({packageManifest("9.9.9")});
         u::MainWindow window(nullptr, false);
         window.setUnsavedPromptEnabled(false);
         window.resize(1200, 850); window.show();
@@ -65,7 +65,9 @@ void startupPresentationTests()
             if (auto* popup = window.findChild<QDialog*>("AboutVulkanaDialog"); popup && popup->isVisible()) {
                 ++about;
                 CHECK(!popup->isWindow());
-                CHECK(popup->findChild<QPushButton*>("AboutCheckUpdate")->text() == "Download RPM");
+                const auto kind = u::UpdateService::buildPackage();
+                CHECK(popup->findChild<QPushButton*>("AboutCheckUpdate")->text()
+                    == (kind == u::UpdatePackage::AppImage ? "Update AppImage" : kind == u::UpdatePackage::Deb ? "Download DEB" : "Download RPM"));
                 CHECK(network.requests.size() == 1); // Cached release, not a second check.
                 popup->reject(); completed = true;
             }
@@ -104,7 +106,7 @@ void startupSilentTests()
         if (scenario == "failure") network.responses.push_back({{}, 503});
         else if (scenario == "invalid") network.responses.push_back({"invalid JSON"});
         else if (scenario == "timeout") network.responses.push_back({{}, 200, QNetworkReply::NoError, true});
-        else if (scenario != "cached") network.responses.push_back({manifest(QCoreApplication::applicationVersion())});
+        else if (scenario != "cached") network.responses.push_back({packageManifest(QCoreApplication::applicationVersion())});
         u::MainWindow window(nullptr, false);
         window.setUnsavedPromptEnabled(false); window.show();
         bool completed = false;

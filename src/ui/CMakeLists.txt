@@ -122,9 +122,8 @@ if(IMAGEEDITOR_DEVELOPMENT_RESOURCES)
     target_compile_definitions(imageeditor_ui PRIVATE
         VULKANA_DEVELOPMENT_NOTICES="${VULKANA_EFFECTIVE_NOTICES_DIRECTORY}/notices.json")
 endif()
-if(IMAGEEDITOR_RELOCATABLE_BUNDLE)
-    target_compile_definitions(imageeditor_ui PRIVATE VULKANA_APPIMAGE_BUILD=1)
-endif()
+target_compile_definitions(imageeditor_ui PRIVATE
+    VULKANA_UPDATE_PACKAGE_${VULKANA_EFFECTIVE_UPDATE_PACKAGE}=1)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(MINIZIP REQUIRED IMPORTED_TARGET GLOBAL minizip>=4.0)

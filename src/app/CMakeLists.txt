@@ -37,7 +37,7 @@ target_compile_definitions(imageeditor PRIVATE
     $<$<CONFIG:Debug>:IMAGEEDITOR_ENABLE_VALIDATION=1>
 )
 if(IMAGEEDITOR_RELOCATABLE_BUNDLE)
-    target_compile_definitions(imageeditor PRIVATE VULKANA_APPIMAGE_BUILD=1)
+    target_compile_definitions(imageeditor PRIVATE VULKANA_BUNDLED_QT=1)
 endif()
 
 install(TARGETS imageeditor RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")

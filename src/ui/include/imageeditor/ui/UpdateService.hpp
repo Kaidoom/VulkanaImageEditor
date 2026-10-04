@@ -25,9 +25,9 @@ struct UpdateRelease {
     QByteArray sha256;
     QUrl url;
 };
-enum class UpdatePackage { Rpm, AppImage };
+enum class UpdatePackage { Rpm, AppImage, Deb };
 
-// Checks are asynchronous. Downloads are user-initiated: RPMs are saved, never
+// Checks are asynchronous. Downloads are user-initiated: RPMs/DEBs are saved, never
 // installed. AppImages are replaced atomically only after verification;
 // restart is a separate unsaved-edit guard.
 // An injected transport lets focused tests exercise failures without networking.

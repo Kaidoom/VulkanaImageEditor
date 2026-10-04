@@ -52,7 +52,7 @@ int main(int argc, char* argv[])
     QCoreApplication::setOrganizationName(QStringLiteral("vulkanaEditor"));
     QCoreApplication::setApplicationName(QStringLiteral("vulkanaEditor"));
     QGuiApplication::setDesktopFileName(QStringLiteral("vulkana-editor"));
-#ifdef VULKANA_APPIMAGE_BUILD
+#ifdef VULKANA_BUNDLED_QT
     // Only our matching Qt portal plugin, not an arbitrary host KDE/GTK plugin.
     // Select it for QApplication initialization, then restore the environment
     // before any browser/file-manager child is launched.
@@ -62,7 +62,7 @@ int main(int argc, char* argv[])
     QApplication application(argc, argv);
     imageeditor::platform::retainPlatformArguments(startup);
     qInfo().noquote() << "Qt platform:" << QGuiApplication::platformName() << "selection=" << startup.selectionSource();
-#ifdef VULKANA_APPIMAGE_BUILD
+#ifdef VULKANA_BUNDLED_QT
     if (previousPlatformTheme.isNull()) qunsetenv("QT_QPA_PLATFORMTHEME");
     else qputenv("QT_QPA_PLATFORMTHEME", previousPlatformTheme);
 #endif

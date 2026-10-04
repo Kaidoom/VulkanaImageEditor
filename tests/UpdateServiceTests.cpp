@@ -237,7 +237,7 @@ void serviceConfigurationTests()
     CHECK(file.write({{"version", 1}, {"domain", "https://updates.example"}, {"apiKey", "test-client-token"}}));
     Network network;
     network.responses.push_back({manifest()});
-    u::UpdateService service("0.2.1", nullptr, &network);
+    u::UpdateService service("0.2.1", nullptr, &network, u::UpdatePackage::Rpm);
     CHECK(file.write({{"version", 1}, {"domain", "https://different.example"}, {"apiKey", "new-token"}}));
     service.check();
     CHECK(waitFor([&] { return !service.busy(); }));
@@ -528,6 +528,83 @@ void appImageTests()
     }
 }
 
+QByteArray debBytes()
+{
+    // The leading member of a Debian 2.0 ar package; remaining bytes exercise
+    // streamed checksums. dpkg validates complete real packages in packaging tests.
+    return QByteArray("!<arch>\n") + QByteArray("debian-binary").leftJustified(16, ' ')
+        + QByteArray("0").leftJustified(12, ' ') + QByteArray("0").leftJustified(6, ' ')
+        + QByteArray("0").leftJustified(6, ' ') + QByteArray("100644").leftJustified(8, ' ')
+        + QByteArray("4").leftJustified(10, ' ') + "`\n2.0\n" + QByteArray(150000, 'd');
+}
+
+QByteArray packageManifest(QString version, const QByteArray& deb = debBytes())
+{
+    auto object = QJsonDocument::fromJson(dualManifest(appImageBytes('b'))).object();
+    object["version"] = version;
+    object["deb"] = QJsonObject{{"url", "https://updates.example/downloads/Vulkana-editor_0.3.0-1_amd64.deb"},
+        {"sha256", QString::fromLatin1(QCryptographicHash::hash(deb, QCryptographicHash::Sha256).toHex())}};
+    return QJsonDocument(object).toJson();
+}
+
+void debTests()
+{
+    QString error;
+    const auto metadata = packageManifest("9.9.9");
+    const auto release = u::UpdateService::parseManifest(metadata, error, u::UpdatePackage::Deb);
+    CHECK(release && release->url.fileName().endsWith(".deb"));
+    CHECK(release && release->sha256 == QCryptographicHash::hash(debBytes(), QCryptographicHash::Sha256).toHex());
+    CHECK(!u::UpdateService::parseManifest(manifest(), error, u::UpdatePackage::Deb));
+    CHECK(!u::UpdateService::parseManifest(dualManifest(appImageBytes('b')), error, u::UpdatePackage::Deb));
+    for (const auto* url : {"https://updates.example/downloads/a.rpm", "http://updates.example/downloads/a.deb",
+            "https://elsewhere.example/downloads/a.deb", "https://updates.example/downloads/../a.deb"}) {
+        auto object = QJsonDocument::fromJson(metadata).object();
+        auto artifact = object["deb"].toObject(); artifact["url"] = url; object["deb"] = artifact;
+        CHECK(!u::UpdateService::parseManifest(QJsonDocument(object).toJson(), error, u::UpdatePackage::Deb));
+    }
+    QTemporaryDir files;
+    const auto path = files.filePath("update.deb");
+    for (int scenario = 0; scenario < 5; ++scenario) {
+        seedFile(path);
+        Network network;
+        const auto payload = scenario == 2 ? package : debBytes();
+        network.responses.push_back({packageManifest("9.9.9", payload)});
+        u::UpdateService service("0.3.0", nullptr, &network, u::UpdatePackage::Deb);
+        service.check(); CHECK(waitFor([&] { return !service.busy(); }));
+        CHECK(service.state() == State::Available);
+        network.responses.push_back({scenario == 1 ? QByteArray("corrupt") : payload, 200,
+            scenario == 4 ? QNetworkReply::RemoteHostClosedError : QNetworkReply::NoError, scenario == 3});
+        service.download(path);
+        CHECK(network.requests.back().url() == release->url);
+        if (scenario == 3) { QTest::qWait(10); service.cancel(); }
+        CHECK(waitFor([&] { return !service.busy(); }));
+        CHECK(readFile(path) == (scenario == 0 ? debBytes() : QByteArray("previous")));
+        CHECK(service.state() == (scenario == 0 ? State::Downloaded : scenario == 3 ? State::Available : State::Error));
+        if (scenario == 0) CHECK(service.message().contains("Install the DEB manually"));
+    }
+    Network network;
+    network.responses.push_back({metadata});
+    QWidget host;
+    u::AboutDialog dialog(&host, &network, u::UpdatePackage::Deb);
+    auto* button = dialog.findChild<QPushButton*>("AboutCheckUpdate");
+    CHECK(button); button->click();
+    CHECK(waitFor([&] { return button->text() == "Download DEB"; }));
+    CHECK(button->toolTip().contains("DEB"));
+    bool pickerSeen = false;
+    QTimer::singleShot(0, &dialog, [&] {
+        auto* picker = qobject_cast<QFileDialog*>(QApplication::activeModalWidget());
+        CHECK(picker);
+        if (picker) {
+            pickerSeen = true;
+            CHECK(picker->selectedNameFilter() == "DEB packages (*.deb)");
+            CHECK(picker->selectedFiles().value(0).endsWith(".deb"));
+            picker->reject();
+        }
+    });
+    button->click();
+    CHECK(pickerSeen && network.requests.size() == 1);
+}
+
 #include "StartupUpdateChecks.inc"
 
 void liveCheck(bool download)
@@ -535,7 +612,8 @@ void liveCheck(bool download)
     QTemporaryDir directory;
     const auto kind = u::UpdateService::buildPackage();
     const auto path = directory.filePath(kind == u::UpdatePackage::AppImage
-        ? QStringLiteral("verified-update.AppImage") : QStringLiteral("verified-update.rpm"));
+        ? QStringLiteral("verified-update.AppImage") : kind == u::UpdatePackage::Deb
+        ? QStringLiteral("verified-update.deb") : QStringLiteral("verified-update.rpm"));
     if (download && kind == u::UpdatePackage::AppImage) {
         // Exercise replacement only on a disposable fixture, never APPIMAGE
         // from the test runner's environment. The downloaded image is not run.
@@ -579,8 +657,9 @@ int main(int argc, char** argv)
     u::applyEditorTheme(app);
     if (app.arguments().contains("--live-check") || app.arguments().contains("--live-download"))
         liveCheck(app.arguments().contains("--live-download"));
-    else { TestServiceConfig services; serviceConfigurationTests(); metadataTests(); stateAndDownloadTests(); dialogTests(); appImageTests();
+    else { TestServiceConfig services; serviceConfigurationTests(); metadataTests(); stateAndDownloadTests(); dialogTests(); appImageTests(); debTests();
         startupPolicyTests(); startupPresentationTests(); startupSilentTests(); startupCloseTests(); }
+    if (app.arguments().contains("--expect-deb")) CHECK(u::UpdateService::buildPackage() == u::UpdatePackage::Deb);
     std::cout << "Update checks: " << failures << " failures\n";
     return failures ? 1 : 0;
 }
