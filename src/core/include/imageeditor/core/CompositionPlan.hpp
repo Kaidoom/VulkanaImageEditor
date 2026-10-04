@@ -2,6 +2,7 @@
 
 #include "imageeditor/core/LayerTree.hpp"
 #include "imageeditor/core/BlendCompositing.hpp"
+#include "imageeditor/core/AdjustmentLayer.hpp"
 #include <functional>
 #include <algorithm>
 
@@ -12,15 +13,23 @@ namespace imageeditor::core {
 // hidden bases remain present, and never promote a different child.
 struct CompositionNode {
     LayerId id{};
-    bool leaf{false}, clipping{false}, included{false};
+    bool leaf{false}, clipping{false}, included{false}, isolated{false}, adjustment{false};
     std::vector<CompositionNode> children;
 };
 inline CompositionNode compositionPlan(const LayerTree& tree, std::span<const LayerId> included,
-    std::span<const LayerId> selection={})
+    std::span<const LayerId> selection={},
+    std::span<const std::pair<LayerId,AdjustmentScope>> adjustments={})
 {
     const auto build = [&](const auto& self, LayerId id) -> CompositionNode {
         CompositionNode n; n.id=id;
         if (const auto* c=tree.container(id)) {
+            // Scope is structural, not conditional on visibility/neutrality.
+            // Root ThisGroup is equivalent to AllBelow; no boundary is stored
+            // against a parent ID that could become stale after reparenting.
+            n.isolated=std::ranges::any_of(adjustments,[&](const auto& a){
+                return std::ranges::find(c->children,a.first)!=c->children.end()
+                    && (c->kind==ContainerKind::ClippingMaskGroup ? c->children.size()<=1 : a.second==AdjustmentScope::ThisGroup);
+            });
             n.included=selection.empty() || std::ranges::any_of(selection,[&](auto root){return root==id||tree.isAncestor(root,id);});
             bool basePresent=false;
             for (auto child:c->children) {
@@ -31,7 +40,10 @@ inline CompositionNode compositionPlan(const LayerTree& tree, std::span<const La
                 n.included=true;
             }
             n.clipping=c->kind==ContainerKind::ClippingMaskGroup && basePresent && n.children.size()>1;
-        } else n.included=n.leaf=std::ranges::find(included,id)!=included.end();
+        } else {
+            n.included=n.leaf=std::ranges::find(included,id)!=included.end();
+            n.adjustment=std::ranges::any_of(adjustments,[&](const auto& a){return a.first==id;});
+        }
         return n;
     };
     CompositionNode root;
@@ -64,14 +76,18 @@ inline PremultipliedColor clippingContainerResult(PremultipliedColor styled,
 // Replacing RGB never replaces alpha: fractional base coverage is applied once.
 template<class Leaf, class Raw>
 PremultipliedColor evaluateComposition(const CompositionNode& node, PremultipliedColor backdrop,
-    const Leaf& leaf, const Raw& raw, bool contentOnly=false)
+    const Leaf& leaf, const Raw& raw, bool contentOnly=false, bool inDomain=false)
 {
     if(node.leaf)return leaf(node.id,backdrop,contentOnly,nullptr);
+    if(node.isolated && !inDomain) {
+        return compositeLayer(backdrop,evaluateComposition(node,{},leaf,raw,contentOnly,true),1,BlendMode::Normal);
+    }
     if(!node.clipping) {
         for(const auto& child:node.children)backdrop=evaluateComposition(child,backdrop,leaf,raw,contentOnly);
         return backdrop;
     }
     const auto& base=node.children.front();
+    if(base.adjustment)return backdrop; // An operator supplies no clipping silhouette.
     const auto styled=base.leaf?raw(base.id):evaluateComposition(base,{},leaf,raw,contentOnly);
     const auto content=base.leaf||contentOnly?styled:evaluateComposition(base,{},leaf,raw,true);
     auto working=clippingOpaque(styled);

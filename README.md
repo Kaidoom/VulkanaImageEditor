@@ -16,7 +16,8 @@ with a Qt workspace and Vulkan-accelerated canvas.
   color and smart selection, with grow/shrink, inversion and reselect.
 - **Transforms:** move, scale, rotate, flip and corner distortion; transform
   selection boundaries or selected pixels, with snapping and alignment guides.
-- **Non-destructive adjustments:** exposure, levels, curves, hue/saturation,
+- **Non-destructive adjustments:** per-layer corrections and masked adjustment
+  layers with All Below / This Group scope; exposure, levels, curves, hue/saturation,
   vibrance, color balance, warmth/tint, monochrome conversion and inversion.
 - **Filters and layer effects:** Gaussian, Motion and Lens Blur; Stroke, Drop/Inner
   Shadow, Outer/Inner Glow, Color Overlay and Gradient Overlay.

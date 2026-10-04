@@ -25,7 +25,7 @@ struct RasterLayerSnapshot {
     std::shared_ptr<const RasterSurface> surface;
 };
 
-using LayerSnapshotPayload = std::variant<RasterLayerSnapshot, TextLayer, ShapeLayer>;
+using LayerSnapshotPayload = std::variant<RasterLayerSnapshot, TextLayer, ShapeLayer, AdjustmentLayer>;
 
 struct LayerSnapshot {
     LayerId id {0};
@@ -128,6 +128,7 @@ public:
     bool setLayerOpacity(LayerId id, float opacity);
     bool setLayerBlendMode(LayerId id, BlendMode mode);
     bool setLayerAdjustments(LayerId id, AdjustmentState);
+    bool setAdjustmentScope(LayerId, AdjustmentScope);
     bool setLayerFilters(LayerId id, SpatialFilterState);
     bool setLayerEffects(LayerId id, LayerEffectState);
     bool setLayerCrop(LayerId, std::optional<LayerCrop>);

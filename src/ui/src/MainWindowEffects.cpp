@@ -41,6 +41,9 @@ void MainWindow::createEffectsPanel() {
 bool MainWindow::beginEffectEdit() {
   if (fileBusy_ || !session().document() || !session().activeLayer())
     return false;
+  if (const auto* layer=session().document()->layer(*session().activeLayer());
+      layer && std::holds_alternative<core::AdjustmentLayer>(layer->payload))
+    return false;
   if (effectEdit_)
     return effectEdit_->active() &&
            effectEdit_->target() == *session().activeLayer();

@@ -492,4 +492,18 @@ QByteArray effectRecord(const core::Layer &layer) {
   u32(b, 0);
   return b + descriptor(effects, "null");
 }
+QMap<QByteArray,QByteArray> adjustmentRecord(const core::Layer& layer) {
+  require(std::holds_alternative<core::AdjustmentLayer>(layer.payload),"Not an adjustment layer");
+  const core::Adjustment* chosen=nullptr;
+  if(layer.adjustments)for(const auto& a:layer.adjustments->items)if(a.enabled&&!core::adjustmentIsNeutral(a)) {
+    require(!chosen,"Several combined corrections require a reviewed group consolidation or Flattened PSD; combined strength cannot be repeated per correction.");
+    require(!a.mask,"Per-correction captured masks require group consolidation or Flattened PSD.");
+    chosen=&a;
+  }
+  if(!chosen) {QByteArray data;u16(data,1);u32(data,std::bit_cast<quint32>(0.0F));u32(data,0);u32(data,std::bit_cast<quint32>(1.0F));return {{"expA",data}};}
+  if(chosen->type==core::AdjustmentType::Invert)return {{"nvrt",QByteArray{}}};
+  require(chosen->type==core::AdjustmentType::Exposure,"This correction has no verified native PSD mapping. Consolidate its group or use Flattened PSD.");
+  QByteArray data;u16(data,1);u32(data,std::bit_cast<quint32>(float(std::get<core::ExposureParameters>(chosen->parameters).stops)));
+  u32(data,0);u32(data,std::bit_cast<quint32>(1.0F));return {{"expA",data}};
+}
 } // namespace imageeditor::ui::psdwrite

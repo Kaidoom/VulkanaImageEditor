@@ -17,10 +17,10 @@ void MainWindow::createLayerMaskActions() {
   const QStringList labels{
       tr("Add Layer Mask"),    tr("Add Mask from Selection"),
       tr("Delete Layer Mask"), tr("Disable Layer Mask"),
-      tr("Apply Layer Mask…"), tr("Add Mask to Selection")};
+      tr("Apply Layer Mask…"), tr("Add Mask to Selection"), tr("Invert Layer Mask")};
   const QStringList names{"AddLayerMaskAction",    "MaskFromSelectionAction",
                           "DeleteLayerMaskAction", "EnableLayerMaskAction",
-                          "ApplyLayerMaskAction",  "MaskToSelectionAction"};
+                          "ApplyLayerMaskAction",  "MaskToSelectionAction", "InvertLayerMaskAction"};
   for (size_t i = 0; i < maskActions_.size(); ++i) {
     auto *action =
         new QAction(toolGlyph(ToolGlyph::LayerMask), labels[int(i)], this);
@@ -40,6 +40,17 @@ void MainWindow::createLayerMaskActions() {
           &MainWindow::applyLayerMask);
   connect(maskActions_[5], &QAction::triggered, this,
           &MainWindow::layerMaskToSelection);
+  connect(maskActions_[6], &QAction::triggered, this,&MainWindow::invertLayerMask);
+}
+void MainWindow::invertLayerMask() {
+  if(fileBusy_||!session().document()||!session().activeLayer()||!settleForFileOperation())return;
+  const auto* layer=session().document()->layer(*session().activeLayer());
+  if(!layer||!layer->mask)return;
+  try {
+    auto mask=std::make_shared<core::LayerMask>(*layer->mask);
+    mask->coverage=mask->coverage->inverted();mask->outside=uint8_t(255-mask->outside);
+    if(session().execute(std::make_unique<core::LayerMaskCommand>(layer->id,layer->mask,mask,"Invert layer mask")))synchronizeUi(true,false);
+  }catch(const std::exception& e){statusBar()->showMessage(QString::fromUtf8(e.what()),6000);}
 }
 void MainWindow::refreshLayerMaskActions() {
   const auto *layer =
@@ -59,6 +70,7 @@ void MainWindow::refreshLayerMaskActions() {
                                ? tr("Enable Layer Mask")
                                : tr("Disable Layer Mask"));
   maskActions_[4]->setEnabled(available && layer->mask && layer->mask->enabled);
+  if(layer && std::holds_alternative<core::AdjustmentLayer>(layer->payload))maskActions_[4]->setEnabled(false);
   if (addMaskButton_)
     addMaskButton_->setEnabled(maskActions_[0]->isEnabled());
 }
@@ -106,6 +118,9 @@ void MainWindow::addLayerMask(bool fromSelection) {
         bounds = QtTextLayout(*text).documentBounds({});
       else
         bounds = core::layerSourceBounds(*layer);
+    }
+    if(std::holds_alternative<core::AdjustmentLayer>(layer->payload)) {
+      const auto e=doc.canvas().extent;bounds={0,0,double(e.width),double(e.height)};
     }
     if (bounds.empty())
       throw std::runtime_error("Layer has no renderable bounds");

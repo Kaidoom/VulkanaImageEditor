@@ -2,6 +2,7 @@
 
 #include "imageeditor/core/BlendMode.hpp"
 #include "imageeditor/core/Adjustments.hpp"
+#include "imageeditor/core/AdjustmentLayer.hpp"
 #include "imageeditor/core/SpatialFilters.hpp"
 #include "imageeditor/core/LayerEffects.hpp"
 #include "imageeditor/core/LayerMask.hpp"
@@ -90,7 +91,7 @@ struct LayerRenderCache {
     std::optional<RectD> localSourceBounds;
 };
 
-using LayerPayload = std::variant<RasterLayer, TextLayer, ShapeLayer>;
+using LayerPayload = std::variant<RasterLayer, TextLayer, ShapeLayer, AdjustmentLayer>;
 
 struct Layer {
     LayerId id {0};
@@ -120,6 +121,7 @@ struct Layer {
     std::shared_ptr<const LayerRenderCache> renderCache;
 
     [[nodiscard]] static Layer raster(std::string name, std::shared_ptr<RasterSurface> surface);
+    [[nodiscard]] static Layer adjustment(std::string name, AdjustmentScope = AdjustmentScope::AllBelow);
     [[nodiscard]] static Layer text(std::string name, TextLayer textData);
     [[nodiscard]] static Layer shape(std::string name, ShapeLayer shapeData);
 };

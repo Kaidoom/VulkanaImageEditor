@@ -67,6 +67,7 @@ template <class L> AffineTransform renderTransform(const L& layer)
 }
 template<class L> Extent2u layerGeometryExtent(const L& layer)
 {
+    if(std::holds_alternative<AdjustmentLayer>(layer.payload))return layer.mask?layer.mask->coverage->extent():Extent2u{1,1};
     using Raster = std::conditional_t<std::is_same_v<L, Layer>, RasterLayer, RasterLayerSnapshot>;
     if (const auto* raster = std::get_if<Raster>(&layer.payload))
         return raster->surface ? raster->surface->extent() : Extent2u { };
@@ -124,6 +125,15 @@ template<class L> bool hitLayerCrop(const L& layer,Vec2d documentPoint)
 // geometry frame. Cropping never rebases the canonical local origin.
 template<class L> RectD layerInteractionBounds(const L& layer)
 {
+    if(std::holds_alternative<AdjustmentLayer>(layer.payload)) {
+        if(!layer.mask)return {};
+        const auto inverse=layer.mask->localToMask.inverted();if(!inverse)return {};
+        const auto e=layer.mask->coverage->extent();
+        const auto a=inverse->map({0,0}),b=inverse->map({double(e.width),0}),
+            c=inverse->map({0,double(e.height)}),d=inverse->map({double(e.width),double(e.height)});
+        const double x=std::min({a.x,b.x,c.x,d.x}),y=std::min({a.y,b.y,c.y,d.y});
+        return {x,y,std::max({a.x,b.x,c.x,d.x})-x,std::max({a.y,b.y,c.y,d.y})-y};
+    }
     using Raster = std::conditional_t<std::is_same_v<L, Layer>, RasterLayer, RasterLayerSnapshot>;
     if (const auto* raster = std::get_if<Raster>(&layer.payload); raster && raster->surface) {
         const auto b = raster->surface->contentBounds();

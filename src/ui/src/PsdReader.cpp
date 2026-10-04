@@ -283,7 +283,7 @@ void readTags(Reader &r, Record &rec) {
     static const QList<QByteArray> retained{
         "luni", "TySh", "vmsk", "vsms", "vstk", "vscg", "SoCo",
         "lfx2", "lmfx", "lrFX", "lsct", "lsdk", "iOpa", "knko",
-        "infx", "clbl", "tsly", "lmgm", "vmgm", "shmd"};
+        "infx", "clbl", "tsly", "lmgm", "vmgm", "shmd", "nvrt", "expA"};
     if (retained.contains(key)) {
       if (rec.tags.contains(key))
         throw Error("Duplicate layer block");
@@ -291,7 +291,7 @@ void readTags(Reader &r, Record &rec) {
     }
     static const QList<QByteArray> unsupported{
         "levl", "curv", "brit", "blnc", "hue2", "hue ", "selc", "mixr",
-        "grdm", "phfl", "expA", "vibA", "blwh", "nvrt", "thrs", "post",
+        "grdm", "phfl", "vibA", "blwh", "thrs", "post",
         "CgEd", "GdFl", "PtFl", "SoLd", "SoLE", "PlLd"};
     if (unsupported.contains(key))
       rec.issues << QStringLiteral("Unsupported layer feature: %1")

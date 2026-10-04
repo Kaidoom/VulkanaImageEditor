@@ -3,12 +3,38 @@
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/WorkspacePanel.hpp"
 #include "imageeditor/ui/TextController.hpp"
+#include "imageeditor/ui/PixelPreview.hpp"
+#include "imageeditor/core/LayerStructureCommands.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include <QScopedValueRollback>
 #include <QStatusBar>
 #include <QListView>
 
 namespace imageeditor::ui {
+void MainWindow::addAdjustmentLayer()
+{
+    if(fileBusy_ || !session().document() || !settleForFileOperation())return;
+    auto& doc=*session().document();
+    try {
+        auto tree=doc.tree();
+        const auto placement=session().activeLayer()?tree.insertionAbove(*session().activeLayer()):core::ItemPlacement{0,tree.roots.size()};
+        auto layer=core::Layer::adjustment("Adjustment",placement.parent?core::AdjustmentScope::ThisGroup:core::AdjustmentScope::AllBelow);
+        auto mask=std::make_shared<core::LayerMask>();
+        mask->coverage=doc.selection()?doc.selection():core::SelectionMask::filled(doc.canvas().extent,255);
+        mask->outside=doc.selection()?0:255;
+        layer.mask=std::move(mask);
+        const auto id=layer.id;
+        auto* siblings=tree.children(placement.parent);
+        siblings->insert(siblings->begin()+std::ptrdiff_t(placement.index),id);
+        if(executeDocumentCommand(std::make_unique<core::LayerStructureCommand>("New adjustment layer",doc,std::move(tree),
+            std::vector<core::LayerId>{},std::vector<core::Layer>{std::move(layer)},session().layerSelectionState(),core::LayerSelectionState{{id},id}))) {
+            session().setEditingLayerMask(false);
+            fileState().untouched=false;
+            synchronizeUi(true,false);
+            adjustmentsPanelShell_->show();
+        }
+    }catch(const std::exception& e){statusBar()->showMessage(QString::fromUtf8(e.what()),6000);}
+}
 void MainWindow::createAdjustmentsPanel()
 {
     adjustmentsPanel_=new AdjustmentsPanel;
@@ -22,7 +48,15 @@ void MainWindow::createAdjustmentsPanel()
     adjustmentsPanel_->onCaptureSelection=[this](core::AdjustmentType type){captureAdjustmentSelection(type);};
     adjustmentsPanel_->onComparison=[this](bool enabled){
         const auto target=adjustmentsPanel_->target();
-        canvasWindow_->setAdjustmentBypassLayer(enabled&&target&&session().activeLayer()==target?target:std::nullopt);
+        const auto bypass=enabled&&target&&session().activeLayer()==target?target:std::nullopt;
+        canvasWindow_->setAdjustmentBypassLayer(bypass);
+        if(pixelPreview_&&session().document()) {
+            auto snapshot=session().document()->snapshot();
+            for(auto& layer:snapshot.layersBottomToTop)if(layer.id==bypass) {
+                layer.adjustments.reset();layer.filters.reset();layer.filterCache.reset();layer.effectCache.reset();
+            }
+            pixelPreview_->request(snapshot);
+        }
     };
     adjustmentsPanel_->onHistogramRequested=[this]{
         const auto* layer=session().document()&&session().activeLayer()?session().document()->layer(*session().activeLayer()):nullptr;
@@ -107,7 +141,7 @@ void MainWindow::refreshAdjustmentPanel()
 {
     if(!adjustmentsPanel_)return;
     const auto* layer=session().document()&&session().activeLayer()?session().document()->layer(*session().activeLayer()):nullptr;
-    adjustmentsPanel_->setTarget(layer,session().document()&&bool(session().document()->selection()));
+    adjustmentsPanel_->setTarget(layer,session().document()&&bool(session().document()->selection()),session().document(),activeDocumentId());
     adjustmentsPanel_->requestHistogram(layer);
 }
 } // namespace imageeditor::ui

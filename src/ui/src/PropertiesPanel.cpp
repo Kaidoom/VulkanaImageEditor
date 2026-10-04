@@ -213,7 +213,8 @@ void PropertiesPanel::setSelectedLayer(const core::Layer* layer, const core::Lay
     selectedLayerName_->setText(QString::fromUtf8(layer->name));
     selectedLayerType_->setText(std::holds_alternative<core::RasterLayer>(layer->payload)
         ? QStringLiteral("Raster layer") : std::holds_alternative<core::ShapeLayer>(layer->payload)
-        ? QStringLiteral("Editable shape layer") : QStringLiteral("Editable text layer"));
+        ? QStringLiteral("Editable shape layer") : std::holds_alternative<core::AdjustmentLayer>(layer->payload)
+        ? tr("Adjustment layer · edits the lower composite. Select its mask thumbnail to paint coverage.") : QStringLiteral("Editable text layer"));
 }
 
 void PropertiesPanel::setBrushSettings(const core::BrushSettings& settings)

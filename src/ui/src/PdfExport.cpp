@@ -136,7 +136,9 @@ core::Document pageDocument(const PdfExportSnapshot &snapshot,
     for(const auto& c:tree.containers)if(c.kind==core::ContainerKind::ClippingMaskGroup && !c.children.empty()
         && (c.children.front()==source.id || tree.isAncestor(c.children.front(),source.id)))
       for(auto id:ids)if(tree.isAncestor(c.id,id))requiredBase=true;
-    if(requiredBase) {auto hidden=source;hidden.visible=false;require(result.insertLayer(result.layers().size(),std::move(hidden)),"Invalid hidden clipping base");}
+    const auto* adjustment=std::get_if<core::AdjustmentLayer>(&source.payload);
+    const bool scopeBoundary=adjustment && adjustment->scope==core::AdjustmentScope::ThisGroup;
+    if(requiredBase || scopeBoundary) {auto hidden=source;hidden.visible=false;require(result.insertLayer(result.layers().size(),std::move(hidden)),"Invalid hidden composition member");}
     else if(auto p=tree.placement(source.id))std::erase(*tree.children(p->parent),source.id);
   }
   for(auto& c:tree.containers)c.visible=true;
@@ -244,6 +246,10 @@ void classifyText(const PdfExportSnapshot &source, PdfExportPlan &plan,
       }
   for (auto id : page.leaves) {
     const auto &layer = *source.document->layer(id);
+    if(std::holds_alternative<core::AdjustmentLayer>(layer.payload)&&core::compileAdjustmentStack(layer.adjustments).active) {
+      requiresCombined=true;
+      page.textReasons.append(QStringLiteral("Adjustment layers require canonical page composition"));
+    }
     const bool text = std::holds_alternative<core::TextLayer>(layer.payload);
     if (layer.blendMode != core::BlendMode::Normal ||
         core::hasActiveLayerEffects(layer.effects))
@@ -534,6 +540,7 @@ PdfExportSnapshot capturePdfExport(const core::Document &document,
                          const QString &folder) -> void {
     for (auto it = items.rbegin(); it != items.rend(); ++it) {
       const auto *container = document.tree().container(*it);
+      if(!container&&std::holds_alternative<core::AdjustmentLayer>(document.layer(*it)->payload))continue;
       const auto name = QString::fromStdString(
           container ? container->name : document.layer(*it)->name);
       if (container && container->kind == core::ContainerKind::Folder) {
@@ -622,6 +629,12 @@ PdfExportPlan planPdfExport(const PdfExportSnapshot &source,
             if (!options.ignoreHidden ||
                 source.document->isEffectivelyVisible(id))
               leaves.insert(id);
+      // Stack operators accompany each page plan, never produce their own
+      // blank page. Their original order/domain restricts them to included
+      // lower content; no unselected drawable pixels are pulled in.
+      for(const auto& layer:source.document->layers())
+        if(std::holds_alternative<core::AdjustmentLayer>(layer.payload)
+            &&(!options.ignoreHidden||source.document->isEffectivelyVisible(layer.id)))leaves.insert(layer.id);
       for (const auto &layer : source.document->layers())
         if (leaves.contains(layer.id))
           page.leaves.push_back(layer.id);

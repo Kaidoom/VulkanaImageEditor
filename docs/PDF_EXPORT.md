@@ -1,5 +1,11 @@
 # PDF export
 
+Adjustment layers are operators, not page entries. Each selected page includes
+the applicable corrections over its included lower content in original stack
+order, without adding unselected artwork or a blank adjustment page. Scope-owned
+group isolation remains in force even for hidden corrections. Active operators
+use the canonical raster page path; see [adjustment layers](ADJUSTMENT_LAYERS.md).
+
 Choose PDF in **File → Export**. Single Composite combines the checked items;
 Layers as Pages gives each chosen layer or group its own page. This exports
 rendered artwork and, where supported, real selectable text. It does not export

@@ -169,7 +169,21 @@ for crop geometry and coverage.
 
 ## Non-destructive adjustments (`adjustments-v1`)
 
-A raster, text or shape layer may contain an `adjustments` object. Any serialized collection requires `"adjustments-v1"` in the root `required` array, including a collection whose entries are currently disabled. Older projects with no adjustment descriptor load as unadjusted. Pass-through folders and groups have no adjustment collection of their own; their children retain their individual settings.
+### Stack operators (`adjustment-layer-v1`)
+
+An operator has layer `type: "adjustment"` and
+`adjustmentLayer: {"version": 1, "scope": "all-below" | "this-group",
+"domainPolicy": "scope-owned-isolation-v1"}`. The project declares
+`adjustment-layer-v1` in `required`. Its ordered corrections use the ordinary
+`adjustments-v1` descriptor; its optional layer mask uses `layer-mask-v1`.
+There is no raster payload. Only Normal blending is admitted; spatial filters,
+styles and crop descriptors are rejected for this type. Unknown scope/domain
+versions fail explicitly. [Adjustment layers](ADJUSTMENT_LAYERS.md) defines the
+scope-owned isolation, alpha-preserving strength and mask-coordinate contract.
+
+### Ordered corrections
+
+A raster, text, shape or adjustment layer may contain an `adjustments` object. Any serialized collection requires `"adjustments-v1"` in the root `required` array, including a collection whose entries are currently disabled. Older projects with no adjustment descriptor load as unadjusted. Folders and groups have no adjustment collection of their own; their children retain their individual settings.
 
 The collection has required numeric `version: 1`, numeric `algorithmVersion: 1`, and an `items` array containing exactly ten records in the order below. Every record requires its stable string `type`, numeric `algorithmVersion: 1`, Boolean `enabled`, and typed `parameters` object. The array order, descriptor version and algorithm version are explicit persisted semantics. Unknown types, unsupported versions, duplicate or reordered types, wrong parameter types, and invalid ranges reject the project rather than silently dropping an effect. The version-one evaluation contract is documented in [Adjustment algorithms](ADJUSTMENT_ALGORITHMS.md).
 

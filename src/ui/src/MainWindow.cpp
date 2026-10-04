@@ -1970,6 +1970,11 @@ void MainWindow::createMenus()
     preferences->setObjectName(QStringLiteral("PreferencesAction"));
 
     auto* layerMenu=menuBar()->addMenu(QStringLiteral("&Layers"));
+    newAdjustmentLayerAction_=new QAction(toolGlyph(ToolGlyph::AdjustmentLayer),tr("New Adjustment Layer"),this);
+    newAdjustmentLayerAction_->setObjectName(QStringLiteral("NewAdjustmentLayerAction"));
+    connect(newAdjustmentLayerAction_,&QAction::triggered,this,&MainWindow::addAdjustmentLayer);
+    layerMenu->addAction(newAdjustmentLayerAction_);
+    editMenu->addAction(newAdjustmentLayerAction_);
     layerMenu->addAction(newFolderAction_);layerMenu->addAction(renameLayerAction_);
     layerMenu->addSeparator();layerMenu->addAction(groupLayersAction_);layerMenu->addAction(ungroupLayersAction_);
     layerMenu->addSeparator();layerMenu->addAction(mergeLayersAction_);
@@ -2054,9 +2059,12 @@ void MainWindow::createMenus()
     workspace_->setViewModeOverlay(previewBadge, false);
     canvasWindow_->onDocumentPresentationChanged=[this](const core::DocumentSnapshot& snapshot){
         updateDocumentResources();
-        if(const auto bypass=canvasWindow_->scene().effectBypassLayer){
+        if(canvasWindow_->scene().effectBypassLayer || canvasWindow_->scene().adjustmentBypassLayer){
             auto before=snapshot;
-            for(auto& layer:before.layersBottomToTop)if(layer.id==bypass){layer.effects.reset();layer.effectCache.reset();}
+            for(auto& layer:before.layersBottomToTop) {
+                if(layer.id==canvasWindow_->scene().effectBypassLayer){layer.effects.reset();layer.effectCache.reset();}
+                if(layer.id==canvasWindow_->scene().adjustmentBypassLayer){layer.adjustments.reset();layer.filters.reset();layer.filterCache.reset();layer.effectCache.reset();}
+            }
             pixelPreview_->request(before);
         }else pixelPreview_->request(snapshot);
     };
@@ -2414,7 +2422,13 @@ void MainWindow::createDocks()
     addMaskButton_->setToolTip(tr("Add layer mask · reveal all"));
     connect(addMaskButton_,&QPushButton::clicked,maskActions_[0],&QAction::trigger);
     buttonLayout->addWidget(addMaskButton_);
-    for(auto* button:{addButton,deleteLayerButton_,folderButton,addMaskButton_}) {
+    auto* adjustmentButton=new QPushButton(toolGlyph(ToolGlyph::AdjustmentLayer),QString());
+    adjustmentButton->setObjectName(QStringLiteral("AddAdjustmentLayerButton"));
+    adjustmentButton->setToolTip(tr("New adjustment layer"));
+    connect(adjustmentButton,&QPushButton::clicked,newAdjustmentLayerAction_,&QAction::trigger);
+    connect(newAdjustmentLayerAction_,&QAction::changed,adjustmentButton,[this,adjustmentButton]{adjustmentButton->setEnabled(newAdjustmentLayerAction_->isEnabled());});
+    buttonLayout->addWidget(adjustmentButton);
+    for(auto* button:{addButton,deleteLayerButton_,folderButton,addMaskButton_,adjustmentButton}) {
         button->setStyleSheet(QStringLiteral("QPushButton { padding: 0; min-width: 30px; max-width: 30px; min-height: 28px; max-height: 28px; }"));
         button->setFixedSize(32,30);button->setIconSize({18,18});button->setAccessibleName(button->toolTip());
     }
@@ -4245,7 +4259,8 @@ void MainWindow::updateLayerControls()
         blendModeCombo_->addItem(QStringLiteral("Pass Through"));
     else if (!container && blendModeCombo_->count() > int(core::allBlendModes.size()))
         blendModeCombo_->removeItem(int(core::allBlendModes.size()));
-    blendModeCombo_->setEnabled(active != nullptr && !fileBusy_);
+    blendModeCombo_->setEnabled(active != nullptr && !fileBusy_ && !std::holds_alternative<core::AdjustmentLayer>(active->payload));
+    opacitySlider_->setPrefix(active && std::holds_alternative<core::AdjustmentLayer>(active->payload)?tr("Strength: "):tr("Opacity: "));
     blendModeCombo_->setCurrentIndex(container ? int(core::allBlendModes.size())
         : active ? int(active->blendMode) : 0);
     propertiesPanel_->setSelectedLayer(active, container);
@@ -4330,6 +4345,7 @@ void MainWindow::updateActionState()
         && session().document()->expandedLayers(session().selectedLayers()).size() < session().document()->layers().size();
     const auto* activeContainer=session().document() && session().activeLayer()?session().document()->tree().container(*session().activeLayer()):nullptr;
     newFolderAction_->setEnabled(session().document() && !fileBusy_);
+    newAdjustmentLayerAction_->setEnabled(session().document() && !fileBusy_);
     renameLayerAction_->setEnabled(session().activeLayer().has_value() && !fileBusy_);
     groupLayersAction_->setEnabled(session().document() && !session().selectedLayers().empty() && !fileBusy_);
     mergeLayersAction_->setEnabled(groupLayersAction_->isEnabled());

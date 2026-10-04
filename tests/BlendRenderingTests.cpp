@@ -1099,6 +1099,45 @@ void layerMaskRendering(OffscreenCanvas& gpu)
 }
 void clippingRendering(OffscreenCanvas& gpu)
 {
+    {
+        c::Document doc({{96,80},96});
+        auto below=c::Layer::raster("Input",patterned({96,80},true));
+        auto adjustment=c::Layer::adjustment("Stack exposure");
+        auto state=std::make_shared<c::AdjustmentStack>();state->items[0].enabled=true;state->items[0].parameters=c::ExposureParameters{1};
+        adjustment.adjustments=state;
+        doc.insertLayer(0,below);doc.insertLayer(1,adjustment);
+        auto scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"adjustment layer float composite");
+        for(float strength:{0.0F,.5F,1.0F}) {
+            doc.setLayerOpacity(adjustment.id,strength);
+            auto mask=std::make_shared<c::LayerMask>();mask->coverage=c::SelectionMask::filled({96,80},128);mask->outside=0;
+            doc.setLayerMask(adjustment.id,mask);
+            scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"adjustment layer soft strength");
+        }
+        const auto before=gpu.stats();scene=sceneFor(doc);gpu.render(scene);
+        check(gpu.stats().uploadedBytes==before.uploadedBytes && gpu.stats().compositionPasses==before.compositionPasses,"adjustment layer idle/source reuse");
+        auto changed=std::make_shared<c::AdjustmentStack>(*state);changed->items[0].parameters=c::ExposureParameters{2};
+        doc.setLayerAdjustments(adjustment.id,changed);scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"adjustment cached lower input");
+        check(gpu.stats().adjustmentInputBuilds==before.adjustmentInputBuilds && gpu.stats().adjustmentInputReuses>before.adjustmentInputReuses,"parameter edit reuses lower composite");
+        check(gpu.stats().uploadedBytes==before.uploadedBytes,"parameter edit uploads no source pixels");
+        auto above=c::Layer::raster("Above",std::make_shared<c::ContiguousRasterSurface>(c::Extent2u{16,16},c::Rgba8{180,20,90,128}));
+        doc.insertLayer(doc.layers().size(),above);const auto beforeAbove=gpu.stats();scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"above operator input reuse");
+        check(gpu.stats().adjustmentInputBuilds==beforeAbove.adjustmentInputBuilds,"above edit retains lower input");
+        check(doc.takeLayer(above.id).has_value(),"remove above fixture");
+        const auto group=c::makeLayerId();auto tree=doc.tree();tree.roots={group};
+        tree.containers.push_back({group,"Local",c::ContainerKind::Folder,c::ColorLabel::None,{below.id,adjustment.id}});
+        doc.replaceStructure(doc.tree(),tree);doc.setAdjustmentScope(adjustment.id,c::AdjustmentScope::ThisGroup);
+        scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"adjustment local domain");
+        doc.setLayerVisibility(adjustment.id,false);scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"hidden adjustment retains local domain");
+        doc.setLayerVisibility(adjustment.id,true);tree=doc.tree();tree.container(group)->kind=c::ContainerKind::ClippingMaskGroup;
+        doc.replaceStructure(doc.tree(),tree);scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"adjustment within clipping domain");
+        tree=doc.tree();std::swap(tree.container(group)->children[0],tree.container(group)->children[1]);doc.replaceStructure(doc.tree(),tree);
+        scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"adjustment cannot provide clipping base coverage");
+        tree=doc.tree();tree.container(group)->kind=c::ContainerKind::Folder;std::swap(tree.container(group)->children[0],tree.container(group)->children[1]);
+        doc.replaceStructure(doc.tree(),tree);doc.setAdjustmentScope(adjustment.id,c::AdjustmentScope::AllBelow);
+        scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"pass-through adjustment domain");
+        const auto pass=gpu.stats();doc.setLayerAdjustments(adjustment.id,state);scene=sceneFor(doc);gpu.render(scene);
+        check(gpu.stats().adjustmentInputBuilds==pass.adjustmentInputBuilds,"pass-through nested input reused");
+    }
     c::Document doc({{96,80},96});
     auto base=c::Layer::raster("Base",std::make_shared<c::ContiguousRasterSurface>(c::Extent2u{48,45},c::Rgba8{130,90,180,128}));
     base.localToDocument={1,0,12,0,1,13};base.opacity=.6F;
@@ -1198,11 +1237,46 @@ void clippingBenchmarks(bool validation)
             <<" work_bytes "<<gpu.stats().clippingWorkingBytes<<" retained_buffer_bytes "<<gpu.stats().adjustmentBufferCapacity<<'\n';
     }
 }
+void adjustmentLayerBenchmarks(bool validation)
+{
+    for(const auto extent:{c::Extent2u{3840,2160},c::Extent2u{5120,2880}}) {
+        OffscreenCanvas gpu(validation,{extent.width,extent.height});c::Document doc({extent,96});
+        for(int i=0;i<4;++i)doc.insertLayer(doc.layers().size(),c::Layer::raster("Input",std::make_shared<c::ContiguousRasterSurface>(extent,c::Rgba8{uint8_t(40+i*35),80,140,128})));
+        const auto raster=doc.layers().front().id;
+        c::LayerId target{};
+        for(int i=0;i<3;++i) {
+            auto layer=c::Layer::adjustment("Correction");auto s=std::make_shared<c::AdjustmentStack>();
+            s->items[0].enabled=true;s->items[0].parameters=c::ExposureParameters{.2};layer.adjustments=s;
+            if(!target)target=layer.id;
+            doc.insertLayer(doc.layers().size(),layer);
+        }
+        const auto start=std::chrono::steady_clock::now();auto scene=sceneFor(doc);gpu.render(scene,false);
+        const auto cold=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-start).count();
+        const auto before=gpu.stats();double scrub=0;
+        for(int i=0;i<12;++i) {
+            auto s=std::make_shared<c::AdjustmentStack>();s->items[0].enabled=true;s->items[0].parameters=c::ExposureParameters{.2+i*.02};
+            doc.setLayerAdjustments(target,s);const auto tick=std::chrono::steady_clock::now();scene=sceneFor(doc);gpu.render(scene,false);
+            scrub+=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-tick).count();
+        }
+        check(gpu.stats().uploadedBytes==before.uploadedBytes,"large adjustment scrub reuses textures");
+        check(gpu.stats().adjustmentInputBuilds==before.adjustmentInputBuilds,"large adjustment scrub reuses lower input");
+        const auto warm=gpu.stats();
+        auto& surface=*std::get<c::RasterLayer>(doc.layer(raster)->payload).surface;
+        std::array<std::byte,4> pixel{std::byte{210},std::byte{80},std::byte{10},std::byte{255}};
+        surface.replaceRgba8({10,10,1,1},pixel,4);
+        const auto tick=std::chrono::steady_clock::now();scene=sceneFor(doc);gpu.render(scene,false);
+        const auto paint=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-tick).count();
+        check(gpu.stats().adjustmentInputBuilds>warm.adjustmentInputBuilds,"lower edit invalidates input");
+        const auto idle=gpu.stats();gpu.render(scene,false);check(gpu.stats().compositionPasses==idle.compositionPasses,"adjustment idle reuse");
+        std::cout<<"AdjustmentLayers "<<extent.width<<'x'<<extent.height<<" cold_ms "<<cold<<" scrub_ms "<<scrub/12<<" lower_edit_ms "<<paint
+            <<" input_reuses "<<gpu.stats().adjustmentInputReuses<<" work_bytes "<<gpu.stats().clippingWorkingBytes<<" retained_buffer_bytes "<<gpu.stats().adjustmentBufferCapacity<<'\n';
+    }
+}
 } // namespace
 
 int main(int argc, char** argv)
 {
-    bool validation = false, benchmark = false, adjustments = false, crop = false, filters = false,effects=false,masks=false,clipping=false;
+    bool validation = false, benchmark = false, adjustments = false, crop = false, filters = false,effects=false,masks=false,clipping=false,adjustmentLayers=false;
     for (int i = 1; i < argc; ++i) {
         if (std::string_view(argv[i]) == "--validation") validation = true;
         if (std::string_view(argv[i]) == "--benchmark") benchmark = true;
@@ -1212,12 +1286,14 @@ int main(int argc, char** argv)
         if (std::string_view(argv[i]) == "--effects") effects = true;
         if (std::string_view(argv[i]) == "--masks") masks = true;
         if (std::string_view(argv[i]) == "--clipping") clipping = true;
+        if (std::string_view(argv[i]) == "--adjustment-layers") adjustmentLayers = true;
     }
     if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM")) qputenv("QT_QPA_PLATFORM","offscreen");
     QGuiApplication app(argc,argv);
     QCoreApplication::setApplicationName("VulkanaBlendRenderingTests");
     try {
-        if (benchmark && clipping) clippingBenchmarks(validation);
+        if (benchmark && adjustmentLayers) adjustmentLayerBenchmarks(validation);
+        else if (benchmark && clipping) clippingBenchmarks(validation);
         else if (benchmark && adjustments) adjustmentBenchmarks(validation);
         else if (benchmark) benchmarks(validation);
         else {

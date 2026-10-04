@@ -2,6 +2,7 @@
 
 #include "imageeditor/core/Adjustments.hpp"
 #include "imageeditor/core/Layer.hpp"
+#include "imageeditor/core/ColorSampler.hpp"
 #include "imageeditor/ui/AdjustmentCurveEditor.hpp"
 #include <QWidget>
 #include <array>
@@ -28,7 +29,7 @@ class AdjustmentsPanel final : public QWidget {
 public:
     explicit AdjustmentsPanel(QWidget* parent = nullptr);
     ~AdjustmentsPanel() override;
-    void setTarget(const core::Layer*, bool hasSelection);
+    void setTarget(const core::Layer*, bool hasSelection, const core::Document* = nullptr, std::uint64_t instance = 0);
     void finishEditing(bool commit = true);
     void requestHistogram(const core::Layer*);
     [[nodiscard]] FiltersPanel* filtersPanel() const { return filtersPanel_; }
@@ -71,6 +72,9 @@ private:
         core::LayerId target {0};
         std::shared_ptr<const core::RasterSurface> surface;
         core::Revision revision {0};
+        core::Extent2u extent{};
+        const core::Document* document{};
+        std::vector<std::uint64_t> inputKey;
         core::AffineTransform pixelsToLocal;
         core::AdjustmentState upstream;
         AdjustmentHistogram bins {};
@@ -79,6 +83,7 @@ private:
     struct HistogramJob {
         HistogramCache result;
         core::CompiledAdjustmentStack program;
+        std::shared_ptr<core::PinnedDocumentSampler> composite;
         std::size_t stage {0}, cursor {0}, columns {0}, rows {0}, step {1};
     };
     Page& makePage(core::AdjustmentType, QStackedWidget*);
@@ -98,6 +103,9 @@ private:
     core::Adjustment& item(core::AdjustmentType);
     const core::Adjustment& item(core::AdjustmentType) const;
     core::AdjustmentStack working_;
+    const core::Document* document_{};
+    std::uint64_t documentInstance_{};
+    QLabel* scopeLabel_{};
     core::AdjustmentStack editingBefore_;
     bool automaticallyEnabled_ {false};
     bool showCapturedRegion_ {true}; // Panel/view state only, shared by all pages.

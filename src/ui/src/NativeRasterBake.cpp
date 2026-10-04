@@ -77,7 +77,10 @@ RasterizeResult prepareRasterizeLayers(const core::Document& doc,const core::Lay
         std::vector<core::LayerId> ids,groups;
         for(auto root:roots) {
             const auto* c=doc.tree().container(root);
-            if(c&&c->kind==core::ContainerKind::ClippingMaskGroup&&!c->children.empty())groups.push_back(root);
+            const auto leaves=doc.expandedLayers(std::array{root});
+            const bool adjustment=std::ranges::any_of(leaves,[&](auto id){return std::holds_alternative<core::AdjustmentLayer>(doc.layer(id)->payload);});
+            if(!c&&adjustment)throw std::runtime_error("An adjustment has no image of its own. Select its lower content and Merge Selected, or rasterize its containing group.");
+            if(c&&!c->children.empty()&&(c->kind==core::ContainerKind::ClippingMaskGroup||adjustment))groups.push_back(root);
             else {const auto leaves=doc.expandedLayers(std::array{root});ids.insert(ids.end(),leaves.begin(),leaves.end());}
         }
         auto afterTree=doc.tree();auto afterSelection=selection;

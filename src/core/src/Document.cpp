@@ -9,6 +9,16 @@
 #include <utility>
 
 namespace imageeditor::core {
+bool Document::setAdjustmentScope(LayerId id, AdjustmentScope scope)
+{
+    auto* target = layer(id);
+    auto* adjustment = target ? std::get_if<AdjustmentLayer>(&target->payload) : nullptr;
+    if (!adjustment || adjustment->scope == scope
+        || (scope != AdjustmentScope::AllBelow && scope != AdjustmentScope::ThisGroup)) return false;
+    adjustment->scope = scope;
+    touch();
+    return true;
+}
 bool Document::setLayerMask(LayerId id,LayerMaskState state)
 {
     auto* target=layer(id);
@@ -155,6 +165,9 @@ bool Document::replaceStructure(const LayerTree& expected, LayerTree replacement
             || (l.adjustments && !validAdjustments(*l.adjustments))
             || (l.filters && !validSpatialFilters(*l.filters))) return false;
         if (const auto* shape=std::get_if<ShapeLayer>(&l.payload); shape && !validShape(*shape)) return false;
+        if (const auto* adjustment=std::get_if<AdjustmentLayer>(&l.payload); adjustment &&
+            ((adjustment->scope!=AdjustmentScope::AllBelow && adjustment->scope!=AdjustmentScope::ThisGroup)
+             || l.blendMode!=BlendMode::Normal || l.crop || l.filters || l.effects)) return false;
         ids.push_back(l.id);
     }
     const auto ordered = replacement.orderedLeaves(ids);
@@ -268,6 +281,7 @@ bool Document::setLayerBlendMode(LayerId id, BlendMode mode)
 {
     auto* target = layer(id);
     if (!target || !isValidBlendMode(mode) || target->blendMode == mode) return false;
+    if (std::holds_alternative<AdjustmentLayer>(target->payload) && mode!=BlendMode::Normal) return false;
     target->blendMode = mode;
     touch();
     return true;
@@ -287,6 +301,7 @@ bool Document::setLayerAdjustments(LayerId id, AdjustmentState state)
 bool Document::setLayerFilters(LayerId id, SpatialFilterState state)
 {
     auto* target = layer(id);
+    if(target && std::holds_alternative<AdjustmentLayer>(target->payload))return false;
     if (!target || (state && !validSpatialFilters(*state))
         || equivalentSpatialFilters(target->filters, state)) return false;
     target->filters = std::move(state);
@@ -305,6 +320,7 @@ bool Document::renameLayer(LayerId id, std::string name)
 bool Document::setLayerCrop(LayerId id, std::optional<LayerCrop> crop)
 {
     auto* target=layer(id);
+    if(target && std::holds_alternative<AdjustmentLayer>(target->payload))return false;
     if(!target || target->crop==crop || (crop && !validLayerCrop(*crop)))return false;
     target->crop=crop;touch();return true;
 }

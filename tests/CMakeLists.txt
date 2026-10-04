@@ -2,6 +2,12 @@ include(ShapeTests.cmake)
 include(ShapeResizeTests.cmake)
 include(LayerSelectionTests.cmake)
 
+add_executable(imageeditor_adjustment_layer_tests AdjustmentLayerTests.cpp)
+target_link_libraries(imageeditor_adjustment_layer_tests PRIVATE imageeditor_ui Qt6::Test)
+imageeditor_enable_warnings(imageeditor_adjustment_layer_tests)
+add_test(NAME imageeditor_adjustment_layer_tests COMMAND imageeditor_adjustment_layer_tests)
+set_tests_properties(imageeditor_adjustment_layer_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 90 LABELS "layers;adjustments;history;project")
+
 add_executable(imageeditor_clipping_group_tests ClippingGroupTests.cpp)
 target_link_libraries(imageeditor_clipping_group_tests PRIVATE imageeditor_ui Qt6::Test)
 imageeditor_enable_warnings(imageeditor_clipping_group_tests)

@@ -38,7 +38,7 @@ std::size_t retainedLayerCost(const Layer& layer) noexcept
             result = saturatingAdd(result, bytes);
         } else if constexpr (std::is_same_v<Payload, TextLayer>) {
             result = saturatingAdd(result, textMemoryCost(payload));
-        } else {
+        } else if constexpr (std::is_same_v<Payload, ShapeLayer>) {
             result = saturatingAdd(result, shapeMemoryCost(payload));
         }
     }, layer.payload);

@@ -2,6 +2,7 @@
 #include "PsdNativeRecords.hpp"
 #include "imageeditor/core/RasterSurface.hpp"
 #include "imageeditor/core/RichText.hpp"
+#include "imageeditor/core/CompositionPlan.hpp"
 #include <QElapsedTimer>
 #include <QFileInfo>
 #include <QSaveFile>
@@ -384,6 +385,10 @@ PsdExportPlan planPsdExport(const PsdExportSnapshot &s,
                        "consolidating this clipping group or flattened export.";
               }
             auto base = d.layer(c->children.front());
+            if(base&&std::holds_alternative<core::AdjustmentLayer>(base->payload)) {
+              e.editable=false;
+              e.reasons<<"An adjustment supplies no native clipping-base coverage. Consolidate this group or use Flattened PSD.";
+            }
             if (base && core::hasActiveLayerEffects(base->effects)) {
               e.attention = true;
               e.reasons << "PSD and Vulkana clipping stacks apply base styles "
@@ -394,11 +399,19 @@ PsdExportPlan planPsdExport(const PsdExportSnapshot &s,
           auto &l = *d.layer(*it);
           e.name = QString::fromStdString(l.name);
           e.type = std::holds_alternative<core::TextLayer>(l.payload) ? "Text"
+                   : std::holds_alternative<core::AdjustmentLayer>(l.payload) ? "Adjustment"
                    : std::holds_alternative<core::ShapeLayer>(l.payload)
                        ? "Shape"
                        : "Raster";
           try {
-            if (std::holds_alternative<core::TextLayer>(l.payload)) {
+            if(std::holds_alternative<core::AdjustmentLayer>(l.payload)) {
+              e.pixels=false;
+              (void)adjustmentRecord(l);
+              if(l.opacity!=1||l.mask) {
+                e.attention=true;
+                e.reasons<<"Editable correction: fractional strength/masks can differ outside Vulkana because its mixing is linear-light.";
+              }
+            } else if (std::holds_alternative<core::TextLayer>(l.payload)) {
               (void)textRecord(l, &e.fonts, &e.reasons);
               if (!options.preserveText) {
                 e.editable = false;
@@ -428,7 +441,7 @@ PsdExportPlan planPsdExport(const PsdExportSnapshot &s,
             e.editable = false;
             e.reasons << QString::fromUtf8(error.what());
           }
-          if (adjusted(l) || core::hasActiveSpatialFilters(l.filters) ||
+          if ((!std::holds_alternative<core::AdjustmentLayer>(l.payload)&&adjusted(l)) || core::hasActiveSpatialFilters(l.filters) ||
               l.crop) {
             e.editable = false;
             e.reasons << "Per-layer processing/crop is baked together with "
@@ -437,8 +450,9 @@ PsdExportPlan planPsdExport(const PsdExportSnapshot &s,
           if (!liveMask(l)) {
             e.editable = false;
             e.reasons
-                << "This mask grid or fractional outside coverage requires "
-                   "baking into the layer result.";
+                << (std::holds_alternative<core::AdjustmentLayer>(l.payload)
+                    ? "This adjustment mask requires group consolidation or Flattened PSD."
+                    : "This mask grid or fractional outside coverage requires baking into the layer result.");
           }
           if (l.mask && std::holds_alternative<core::ShapeLayer>(l.payload)) {
             e.editable = false;
@@ -618,6 +632,11 @@ PsdExportResult writePsdExport(const PsdExportSnapshot &s,
       r.blend = blend(l.blendMode);
       r.label = l.colorLabel;
       r.clipping = clipped;
+      if(std::holds_alternative<core::AdjustmentLayer>(l.payload)) {
+        r.tags=adjustmentRecord(l);r.tags["clbl"]=QByteArray::fromHex("01000000");
+        for(int c:{-1,0,1,2})r.channels.push_back(spoolChannel(spool,c,{},0,cancel,limit));
+        addMask(r,l,spool,cancel,limit);records.push_back(std::move(r));++completed;return;
+      }
       auto pixels = sourceRaster(*d, id, cancel, renderSnapshot);
       require(bool(pixels), pixels.error.toUtf8().constData());
       ensureImage(pixels.image, s);
@@ -659,6 +678,9 @@ PsdExportResult writePsdExport(const PsdExportSnapshot &s,
           start.name = QString::fromStdString(c->name);
           start.section = 1;
           start.blend = "pass";
+          if(c->kind!=core::ContainerKind::ClippingMaskGroup)
+            for(auto child:c->children)if(const auto* l=d->layer(child))
+              if(const auto* a=std::get_if<core::AdjustmentLayer>(&l->payload);a&&a->scope==core::AdjustmentScope::ThisGroup)start.blend="norm";
           start.visible = c->visible;
           start.label = int(c->colorLabel);
           for (int channel : {-1, 0, 1, 2})

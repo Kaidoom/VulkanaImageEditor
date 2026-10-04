@@ -57,6 +57,15 @@ Layer Layer::raster(std::string name, std::shared_ptr<RasterSurface> surface)
     };
 }
 
+Layer Layer::adjustment(std::string name, AdjustmentScope scope)
+{
+    Layer layer;
+    layer.id = makeLayerId();
+    layer.name = std::move(name);
+    layer.payload = AdjustmentLayer{scope};
+    return layer;
+}
+
 Layer Layer::text(std::string name, TextLayer textData)
 {
     return Layer {

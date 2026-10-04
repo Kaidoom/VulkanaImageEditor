@@ -21,7 +21,7 @@ requests a canvas frame or walks pixel data. Narrow layouts prioritize RAM.
 
 ## Bitmap layer masks
 
-Raster, text and shape layers can own one immutable tiled R8 `LayerMask`.
+Raster, text, shape and adjustment layers can own one immutable tiled R8 `LayerMask`.
 Its pixel frame is layer-local and moves with the layer. It is separate from
 the document selection and from captured adjustment/filter masks. Coverage is
 applied to the adjusted, filtered and styled result after crop, before final
@@ -43,6 +43,16 @@ while retaining layer identity, opacity and blend mode; undo restores the typed
 original. A disabled mask must be enabled before Apply. Canvas, Pixel Preview,
 rendered references, merge and export share the coverage contract. Native PDF text
 falls back to raster output when an enabled layer mask cannot be represented.
+
+## Adjustment operators
+
+`AdjustmentLayer` owns an ordered correction collection, scope and optional mask,
+not a source image. `CompositionPlan` defines its lower-stack input and local or
+clipping domain. CPU row/point sampling and Vulkan both mix corrected float RGB
+with the original while retaining alpha. Scope-owned local isolation persists
+while the correction is bypassed and is released undoably with the scope owner.
+See [Adjustment layers](ADJUSTMENT_LAYERS.md) for masking, cache keys and exchange
+policies. No lower pixels are rewritten for parameter/history changes.
 
 ## Module boundaries
 

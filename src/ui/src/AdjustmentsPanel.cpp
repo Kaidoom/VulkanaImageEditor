@@ -65,6 +65,10 @@ AdjustmentsPanel::AdjustmentsPanel(QWidget* parent) : QWidget(parent)
     targetLabel_->setObjectName(QStringLiteral("AdjustmentTarget"));
     targetLabel_->setTextFormat(Qt::PlainText); targetLabel_->setWordWrap(true);
     outer->addWidget(targetLabel_);
+    scopeLabel_=new QLabel;
+    scopeLabel_->setObjectName(QStringLiteral("AdjustmentLayerScope"));
+    scopeLabel_->setWordWrap(true);scopeLabel_->setTextFormat(Qt::PlainText);scopeLabel_->hide();
+    outer->addWidget(scopeLabel_);
     auto* actions = new QHBoxLayout;
     actions->setSpacing(6);
     compare_ = new QPushButton(QStringLiteral("Hold for Before"));
@@ -289,6 +293,7 @@ bool AdjustmentsPanel::filtersCategoryActive() const
 }
 void AdjustmentsPanel::showFilter(core::SpatialFilterType type)
 {
+    if(!tabs_->isTabEnabled(tabs_->indexOf(filtersPanel_)))return;
     tabs_->setCurrentWidget(filtersPanel_);filtersPanel_->selectType(type);
     tabs_->tabBar()->setFocus(Qt::OtherFocusReason);
 }
@@ -399,16 +404,25 @@ void AdjustmentsPanel::finishEditing(bool commit)
     for(auto& page:pages_)for(auto* control:page.numbers)control->finishEditing(commit,true);
     if(hadEdit&&onInteractionFinished)onInteractionFinished(commit);
 }
-void AdjustmentsPanel::setTarget(const core::Layer* layer,bool hasSelection)
+void AdjustmentsPanel::setTarget(const core::Layer* layer,bool hasSelection,const core::Document* document,std::uint64_t instance)
 {
     const auto next=layer?std::optional(layer->id):std::nullopt;
-    if(target_!=next){finishEditing(false);if(onComparison)onComparison(false);histogramJob_.reset();histogramTimer_->stop();histogramCaches_={};}
+    if(target_!=next || document_!=document || documentInstance_!=instance){finishEditing(false);if(onComparison)onComparison(false);histogramJob_.reset();histogramTimer_->stop();histogramCaches_={};}
+    document_=document;documentInstance_=instance;
     target_=next;hasSelection_=hasSelection;
     working_=layer&&layer->adjustments?*layer->adjustments:core::AdjustmentStack{};
     targetLabel_->setText(layer?QStringLiteral("%1 · primary layer").arg(QString::fromStdString(layer->name)):QStringLiteral("Select a raster, text, or shape layer"));
     targetLabel_->setToolTip(layer?QString::fromStdString(layer->name):QString());
-    filtersPanel_->setTarget(layer,hasSelection);
-    effectsPanel_->setTarget(layer);
+    const auto* adjustment=layer?std::get_if<core::AdjustmentLayer>(&layer->payload):nullptr;
+    const auto placement=document&&layer?document->tree().placement(layer->id):std::nullopt;
+    scopeLabel_->setVisible(adjustment);
+    if(adjustment)scopeLabel_->setText(adjustment->scope==core::AdjustmentScope::ThisGroup&&placement&&placement->parent
+        ?tr("This Group · lower content, including nested groups. This group composites locally, even while the correction is bypassed.")
+        :tr("All Below · accumulated content in the current compositing domain."));
+    filtersPanel_->setTarget(adjustment?nullptr:layer,hasSelection);
+    effectsPanel_->setTarget(adjustment?nullptr:layer);
+    tabs_->setTabEnabled(3,!adjustment);tabs_->setTabEnabled(4,!adjustment);
+    if(adjustment && tabs_->currentIndex()>2)tabs_->setCurrentIndex(0);
     tabs_->setEnabled(layer);resetAll_->setEnabled(layer);compare_->setEnabled(layer);refresh();
 }
 Type AdjustmentsPanel::currentType() const

@@ -20,6 +20,7 @@ struct RendererStats {
     std::uint64_t compositionPixels {0};
     std::uint64_t compositionBytes {0};
     std::uint64_t clippingBaseBuilds {0}, clippingBaseReuses {0}, clippingWorkingBytes {0};
+    std::uint64_t adjustmentInputBuilds {0}, adjustmentInputReuses {0};
     std::uint64_t pointerTooltipUploads {0};
     std::uint64_t pointerTooltipUploadedBytes {0};
     std::uint64_t pointerTooltipRasterizations {0};

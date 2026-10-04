@@ -178,6 +178,8 @@ void main()
     if (any(greaterThanEqual(offset,pc.region.zw))) return;
     ivec2 pixel = pc.region.xy + offset;
     if(operation==3){storeTarget(pixel,bClippingOpaque(loadTarget(1,pixel)));return;}
+    if(operation==6){storeTarget(pixel,bComposite(loadTarget(0,pixel),loadTarget(1,pixel),1,0));return;}
+    if(operation==7){storeTarget(pixel,loadTarget(1,pixel));return;}
     if(operation==4){
         vec4 styled=loadTarget(2,pixel),content=loadTarget(3,pixel),working=loadTarget(1,pixel);
         styled=bClippingContainer(styled,content,working);
@@ -188,6 +190,15 @@ void main()
     float denominator=dot(inverseW,vec3(p,1));
     if(abs(denominator)<1e-12)return;
     vec2 local = vec2(dot(pc.localX.xyz,vec3(p,1)),dot(pc.localY.xyz,vec3(p,1)))/denominator;
+    if(operation==5) {
+        vec4 original=loadTarget(0,pixel);
+        if(original.a<=0)return;
+        float strength=clamp(pc.opacity*layerCoverage(geometry,local),0,1);
+        if(strength<=0)return;
+        vec4 corrected=adjustSource(original,local);
+        storeTarget(pixel,vec4(strength==1?corrected.rgb:original.rgb+(corrected.rgb-original.rgb)*strength,original.a));
+        return;
+    }
     if(any(isnan(local))||any(isinf(local)))return;
     ivec2 size = textureSize(layerTexture,0);
     bool outside=any(lessThan(local,vec2(0))) || any(greaterThanEqual(local,vec2(size)));

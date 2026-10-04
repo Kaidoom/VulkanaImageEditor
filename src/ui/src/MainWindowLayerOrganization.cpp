@@ -356,6 +356,21 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
         return;
     }
     menu.setObjectName(QStringLiteral("LayerContextMenu"));
+    menu.addAction(newAdjustmentLayerAction_);
+    if(layer && std::holds_alternative<core::AdjustmentLayer>(layer->payload)) {
+        auto* scopeMenu=menu.addMenu(tr("Adjustment Scope"));
+        const auto scope=std::get<core::AdjustmentLayer>(layer->payload).scope;
+        const auto position=session().document()->tree().placement(layer->id);
+        for(auto value:{core::AdjustmentScope::AllBelow,core::AdjustmentScope::ThisGroup}) {
+            if(value==core::AdjustmentScope::ThisGroup && (!position || !position->parent))continue;
+            auto* action=scopeMenu->addAction(value==core::AdjustmentScope::AllBelow?tr("All Below"):tr("This Group"));
+            action->setCheckable(true);action->setChecked(value==scope || ((!position||!position->parent)&&value==core::AdjustmentScope::AllBelow));
+            connect(action,&QAction::triggered,this,[this,id=*id,scope,value,instance=activeDocumentId()]{
+                if(activeDocumentId()!=instance)return;
+                if(executeDocumentCommand(std::make_unique<core::SetAdjustmentScopeCommand>(id,scope,value)))synchronizeUi(true,false);
+            });
+        }
+    }
     auto* newFolder = menu.addAction(toolGlyph(ToolGlyph::Folder), tr("New Folder"),
         this, [this, id] { createLayerFolder(id); });
     newFolder->setObjectName(QStringLiteral("ContextNewLayerFolderAction"));

@@ -428,7 +428,8 @@ QIcon LayerListModel::layerThumbnail(const core::Layer& layer) const
     size_t stamp=surface?size_t(surface->id()^(surface->revision()*1099511628211ULL)):0;
     stamp^=size_t(QApplication::palette().cacheKey());
     QIcon content;
-    if(const auto found=thumbnails_.find(layer.id);found!=thumbnails_.end()&&found->second.stamp==stamp)
+    if(std::holds_alternative<core::AdjustmentLayer>(layer.payload))content=toolGlyph(ToolGlyph::AdjustmentLayer,thumbnailInk(core::ColorLabel(layer.colorLabel)));
+    else if(const auto found=thumbnails_.find(layer.id);found!=thumbnails_.end()&&found->second.stamp==stamp)
         content=found->second.icon;
     else {
         constexpr int side=96;
@@ -512,7 +513,8 @@ QIcon LayerListModel::groupThumbnail(core::LayerId id) const
     auto previewLeaves = leaves;
     const bool needsBackdrop = std::ranges::any_of(leaves,[&](auto leaf) {
         const auto& l = *doc.layer(leaf);
-        return visibleInGroup(leaf) && l.opacity > 0 && l.blendMode != core::BlendMode::Normal;
+        return visibleInGroup(leaf) && l.opacity > 0 && (l.blendMode != core::BlendMode::Normal
+            || (std::holds_alternative<core::AdjustmentLayer>(l.payload)&&core::compileAdjustmentStack(l.adjustments).active));
     });
     if (needsBackdrop && !leaves.empty()) {
         // A pass-through group's appearance includes its backdrop. Do not
@@ -543,6 +545,7 @@ QIcon LayerListModel::groupThumbnail(core::LayerId id) const
         hash(layer.adjustmentRevision);
         hash(layer.filterRevision);
         hash(layer.effectRevision);
+        if(const auto* adjustment=std::get_if<core::AdjustmentLayer>(&layer.payload))hash(std::uint64_t(adjustment->scope));
         if(layer.mask){hash(layer.mask->coverage->revision());hash(layer.mask->enabled);hash(layer.mask->outside);}
         if(layer.effectCache)for(const auto& m:layer.effectCache->masks)if(m)hash(m->coverage->revision());
         hash(layer.crop.has_value());
@@ -612,7 +615,7 @@ QIcon LayerListModel::groupThumbnail(core::LayerId id) const
             for (auto leaf : previewLeaves) {
                 const auto* l = doc.layer(leaf);
                 previewLayers.push_back(*l);
-                previewLayers.back().visible=visibleForPreview(leaf)&&bool(core::renderedSurface(*l));
+                previewLayers.back().visible=visibleForPreview(leaf)&&(bool(core::renderedSurface(*l))||std::holds_alternative<core::AdjustmentLayer>(l->payload));
             }
             for(const auto& l:previewLayers)prepared.push_back(&l);
             core::PinnedDocumentSampler sampler(prepared, core::Extent2u { thumbnailPixels, thumbnailPixels }, fit,{},&doc.tree());

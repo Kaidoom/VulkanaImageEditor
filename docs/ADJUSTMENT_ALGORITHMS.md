@@ -7,11 +7,12 @@ reference.
 
 ## Evaluation and storage contract
 
-One fixed ordered collection is attached to each renderable leaf: Exposure,
+One fixed ordered collection is attached to each drawable or adjustment layer: Exposure,
 Brightness/Contrast, Levels, Curves, Hue/Saturation, Vibrance, Color Balance,
 Warmth/Tint, Black & White, Invert. Stable string identifiers and algorithm
-version `1` are persisted. Page navigation never changes this order. Containers
-remain pass-through; their leaf children retain independent collections.
+version `1` are persisted. Page navigation never changes this order. Drawable
+layers correct their own content; [adjustment layers](ADJUSTMENT_LAYERS.md)
+correct the accumulated lower composite, with explicit scope domains.
 
 Raster RGBA8, editable text runs and shape geometry remain untouched. Source
 texels are decoded and associated **before** alpha-aware bilinear filtering.

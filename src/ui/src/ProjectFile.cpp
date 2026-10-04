@@ -364,6 +364,7 @@ namespace {
         bool containsBlendModes = false;
         bool containsExtendedBlendModes = false;
         bool containsAdjustments = false;
+        bool containsAdjustmentLayers = false;
         bool containsSpatialFilters = false;
         bool containsLayerEffects = false;
         bool containsLayerMasks = false;
@@ -402,6 +403,14 @@ namespace {
             } else if (const auto* text = std::get_if<core::TextLayer>(&layer.payload)) {
                 o["type"] = "text";
                 o["text"] = QJsonDocument::fromJson(encodeTextClipboard(*text)).object();
+            } else if (const auto* adjustment=std::get_if<core::AdjustmentLayer>(&layer.payload)) {
+                require((adjustment->scope==core::AdjustmentScope::AllBelow || adjustment->scope==core::AdjustmentScope::ThisGroup)
+                    && layer.blendMode==core::BlendMode::Normal && !layer.crop && !layer.filters && !layer.effects,
+                    "Unsupported adjustment-layer operation; project was not saved");
+                containsAdjustmentLayers=true;
+                o["type"]="adjustment";
+                o["adjustmentLayer"]=QJsonObject{{"version",1},{"scope",adjustment->scope==core::AdjustmentScope::ThisGroup?"this-group":"all-below"},
+                    {"domainPolicy","scope-owned-isolation-v1"}};
             } else {
                 o["type"] = "shape";
                 o["shape"] = encodeShape(std::get<core::ShapeLayer>(layer.payload));
@@ -503,6 +512,7 @@ namespace {
             required.append("adjustments-v1");
             result["required"] = required;
         }
+        if (containsAdjustmentLayers) {auto required=result["required"].toArray();required.append("adjustment-layer-v1");result["required"]=required;}
         if (containsShapes) {
             auto required = result["required"].toArray();
             required.append("shape-v1");
@@ -643,7 +653,7 @@ namespace {
             require(capability == "rgba8" || capability == "rich-text-v1" || capability == "shape-v1" || capability == "shape-stroke-v2"
                     || capability == "hierarchy-v1" || capability == "container-visibility-v1" || capability == "clipping-mask-group-v1"
                     || capability == "layer-blend-modes-v1" || capability == "layer-blend-modes-v2"
-                    || capability == "adjustments-v1" || capability == "spatial-filters-v1" || capability == "layer-crop-v1" || capability == "layer-crop-chamfer-v1"
+                    || capability == "adjustments-v1" || capability == "adjustment-layer-v1" || capability == "spatial-filters-v1" || capability == "layer-crop-v1" || capability == "layer-crop-chamfer-v1"
                     || capability == "selection-recall-v1" || capability == "layer-effects-v1" || capability == "projective-transform-v1" || capability == "raster-local-frame-v1" || capability == "layer-mask-v1",
                 "Project requires unsupported capabilities");
         require(o["canvas"].isObject() && o["layers"].isArray(), "Missing canvas or layers");
@@ -807,6 +817,14 @@ namespace {
                 const auto entry = files.find(p.path);
                 require(entry != files.end() && entry->second.bytes == size && used.insert(p.path).second,
                     "Missing, duplicate or incorrectly sized raster payload");
+            } else if (l["type"] == "adjustment") {
+                const auto a=l["adjustmentLayer"].toObject();
+                require(required.contains("adjustment-layer-v1") && a["version"]==1
+                    && a["domainPolicy"]=="scope-owned-isolation-v1"
+                    && (a["scope"]=="all-below" || a["scope"]=="this-group"),"Unsupported adjustment layer or scope policy");
+                require(!p.layer.filters && !p.layer.effects && !p.layer.crop && p.layer.blendMode==core::BlendMode::Normal,
+                    "Adjustment layers support tone/color corrections and Normal correction blending only");
+                p.layer.payload=core::AdjustmentLayer{a["scope"]=="this-group"?core::AdjustmentScope::ThisGroup:core::AdjustmentScope::AllBelow};
             } else if (l["type"] == "text") {
                 require(l["text"].isObject(), "Missing text descriptor");
                 auto text = decodeTextClipboard(QJsonDocument(l["text"].toObject()).toJson(QJsonDocument::Compact));

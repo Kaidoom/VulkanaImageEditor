@@ -4,6 +4,22 @@
 #include "imageeditor/core/History.hpp"
 
 namespace imageeditor::core {
+class SetAdjustmentScopeCommand final : public Command {
+public:
+    SetAdjustmentScopeCommand(LayerId id, AdjustmentScope before, AdjustmentScope after)
+        : id_(id), before_(before), after_(after) {}
+    bool apply(Document& d) override { return change(d, before_, after_); }
+    bool undo(Document& d) override { return change(d, after_, before_); }
+    std::string_view label() const noexcept override { return "Adjustment scope"; }
+    std::size_t memoryCost() const noexcept override { return sizeof(*this); }
+private:
+    bool change(Document& d, AdjustmentScope from, AdjustmentScope to) {
+        const auto* l=d.layer(id_);
+        const auto* a=l?std::get_if<AdjustmentLayer>(&l->payload):nullptr;
+        return a && a->scope==from && d.setAdjustmentScope(id_,to);
+    }
+    LayerId id_; AdjustmentScope before_, after_;
+};
 class SetLayerAdjustmentsCommand final : public Command {
 public:
     SetLayerAdjustmentsCommand(LayerId, AdjustmentState before, AdjustmentState after);

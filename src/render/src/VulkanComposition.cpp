@@ -104,8 +104,13 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
     struct Work { CompositePush push; VkDescriptorSet texture; core::LayerId cache{}; };
     std::vector<Work> work;
     std::unordered_map<core::LayerId,Work> leafWork;
-    const bool structuralClipping=!scene.pixelPreviewEnabled && core::hasClippingGroups(scene.document.tree);
+    std::vector<std::pair<core::LayerId,core::AdjustmentScope>> adjustmentLayers;
+    for(const auto& l:scene.document.layersBottomToTop)
+        if(const auto* a=std::get_if<core::AdjustmentLayer>(&l.payload))adjustmentLayers.emplace_back(l.id,a->scope);
+    const bool structuralClipping=!scene.pixelPreviewEnabled
+        && (core::hasClippingGroups(scene.document.tree)||!adjustmentLayers.empty());
     std::unordered_map<core::LayerId,std::vector<std::uint64_t>> leafKeys,cacheKeys;
+    std::vector<core::LayerId> adjustmentInputCaches;
     struct Clear {std::size_t offset,bytes;core::LayerId cache;};
     std::vector<Clear> clears;
     std::vector<float> adjustmentParameters;
@@ -119,6 +124,43 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
     key.push_back(scene.pixelPreviewEnabled);
     for (const auto& layer : layers) {
         if (!layer.visible || !std::isfinite(layer.opacity) || layer.opacity <= 0) continue;
+        if(std::holds_alternative<core::AdjustmentLayer>(layer.payload)) {
+            const auto adjustmentOffset=appendAdjustmentParameters(layer,scene.adjustmentBypassLayer==layer.id,adjustmentParameters);
+            if(adjustmentOffset<0 || clip.empty())continue;
+            const auto o=mapping.documentToFramebuffer({0,0});
+            const auto x=mapping.documentToFramebuffer({1,0})-o,y=mapping.documentToFramebuffer({0,1})-o;
+            const auto inverse=core::composeTransform({x.x,y.x,o.x,x.y,y.y,o.y},layer.localToDocument).inverted();
+            if(!inverse)continue;
+            const auto start=key.size();
+            key.insert(key.end(),{layer.id,scene.documentInstance,layer.adjustmentRevision,std::bit_cast<std::uint32_t>(layer.opacity)});
+            for(double v:{inverse->m00,inverse->m01,inverse->m02,inverse->m10,inverse->m11,inverse->m12,inverse->m20,inverse->m21,inverse->m22})
+                key.push_back(std::bit_cast<std::uint64_t>(v));
+            CompositePush push{{float(inverse->m00),float(inverse->m01),float(inverse->m02),0},
+                {float(inverse->m10),float(inverse->m11),float(inverse->m12),0},
+                {float(rect[0]),float(rect[1]),float(rect[2]),float(rect[3])},
+                {clip.x,clip.y,clip.width,clip.height},layer.opacity,0,adjustmentOffset,0,{1,0,0,0},{0,1,0,0},{}};
+            const auto offset=adjustmentParameters.size();
+            adjustmentParameters.insert(adjustmentParameters.end(),{float(inverse->m20),float(inverse->m21),float(inverse->m22),0,0,0,1,0});
+            adjustmentParameters.resize(offset+20,0);
+            const bool masked=layer.mask&&layer.mask->enabled;
+            key.push_back(masked);
+            if(masked) {
+                const auto found=std::find(adjustmentMasks_.begin(),adjustmentMasks_.end(),layer.mask->coverage);
+                if(found==adjustmentMasks_.end())throw std::runtime_error("Missing adjustment layer mask");
+                const auto header=adjustmentMaskOffsets_[std::size_t(found-adjustmentMasks_.begin())];
+                const auto& m=layer.mask->localToMask;
+                const std::array<float,12> values{float(m.m00),float(m.m01),float(m.m02),std::bit_cast<float>(header),
+                    float(m.m10),float(m.m11),float(m.m12),float(layer.mask->outside)/255,float(m.m20),float(m.m21),float(m.m22),0};
+                std::copy(values.begin(),values.end(),adjustmentParameters.begin()+std::ptrdiff_t(offset+8));
+                key.push_back(layer.mask->coverage->revision());key.push_back(layer.mask->outside);
+                for(double v:{m.m00,m.m01,m.m02,m.m10,m.m11,m.m12,m.m20,m.m21,m.m22})key.push_back(std::bit_cast<std::uint64_t>(v));
+            }
+            push.cropMode=int(offset+1)<<2;
+            work.push_back({push,compositionTexture_.descriptorSet}); // Shader does not sample a content texture.
+            leafWork.emplace(layer.id,work.back());
+            leafKeys[layer.id].assign(key.begin()+std::ptrdiff_t(start),key.end());
+            continue;
+        }
         const bool bypassFilters=scene.filterBypassLayer==layer.id || scene.adjustmentBypassLayer==layer.id;
         const bool filtered=!bypassFilters && core::layerSpatialFilterCacheValid(layer);
         const bool styled=scene.effectBypassLayer!=layer.id&&!bypassFilters
@@ -256,11 +298,28 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
         }
         key.insert(key.end(),scene.document.tree.roots.begin(),scene.document.tree.roots.end());
         std::vector<core::LayerId> ids;for(const auto& l:layers)ids.push_back(l.id);
-        const auto plan=core::compositionPlan(scene.document.tree,ids);
+        for(const auto& [id,scope]:adjustmentLayers){key.push_back(id);key.push_back(std::uint64_t(scope));}
+        auto plan=core::compositionPlan(scene.document.tree,ids,{},adjustmentLayers);
+        // Pass-through organizational nesting is not a render boundary. Expose
+        // its operators to the containing domain's shared lower-input cache.
+        // Keep direct clipping members intact: a container base is a subtree.
+        const auto normalize=[&](const auto& self,core::CompositionNode& node)->void {
+            for(auto& child:node.children)self(self,child);
+            if(node.clipping)return;
+            std::vector<core::CompositionNode> children;
+            for(auto& child:node.children) {
+                if(!child.leaf&&!child.isolated&&!child.clipping)
+                    for(auto& grandchild:child.children)children.push_back(std::move(grandchild));
+                else children.push_back(std::move(child));
+            }
+            node.children=std::move(children);
+        };
+        normalize(normalize,plan);
         struct Target { std::int32_t offset{-1}; core::RectI rect{}; bool scalar{false}; };
         const auto prototype=work.front();work.clear();
         const auto bounds=[&](const auto& self,const core::CompositionNode& n)->core::RectI {
             if(n.leaf) {
+                if(n.adjustment)return {};
                 const auto it=leafWork.find(n.id);if(it==leafWork.end())return {};
                 const auto& r=it->second.push.region;return {r[0],r[1],r[2],r[3]};
             }
@@ -304,12 +363,52 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
             p.mode|=0x40000000;
             work.push_back(entry);
         };
-        const auto draw=[&](const auto& self,const core::CompositionNode& n,Target dst,bool contentOnly)->void {
+        const auto draw=[&](const auto& self,const core::CompositionNode& n,Target dst,bool contentOnly,bool inDomain=false)->void {
             if(n.leaf) {
-                const auto it=leafWork.find(n.id);if(it!=leafWork.end())appendWork(it->second,0,dst,main,main,main,contentOnly);
+                const auto it=leafWork.find(n.id);if(it!=leafWork.end())appendWork(it->second,n.adjustment?5:0,dst,main,main,main,contentOnly);
                 return;
             }
-            if(!n.clipping) {for(const auto& child:n.children)self(self,child,dst,contentOnly);return;}
+            if(n.isolated && !inDomain) {
+                const auto r=bounds(bounds,n);if(r.empty())return;
+                const auto domain=allocate(r);
+                self(self,n,domain,contentOnly,true);
+                auto entry=prototype;entry.push.region={r.x,r.y,r.width,r.height};
+                appendWork(entry,6,dst,domain,main,main,true);
+                return;
+            }
+            if(!n.clipping) {
+                // Cache the unchanged lower input at the first operator in a
+                // domain. Later corrections reuse this shared prefix; unlike
+                // a per-adjustment canvas copy, memory is bounded per domain.
+                const auto first=std::find_if(n.children.begin(),n.children.end(),[&](const auto& child){return child.adjustment&&leafWork.contains(child.id);});
+                if((n.id==0 || inDomain) && first!=n.children.begin() && first!=n.children.end()) {
+                    core::CompositionNode prefix;prefix.children.assign(n.children.begin(),first);
+                    const auto r=bounds(bounds,prefix);
+                    const auto bytes=std::size_t(std::max(0,r.width))*std::size_t(std::max(0,r.height))*16;
+                    if(bytes && bytes<=256ULL*1024*1024 && clippingBytes_+bytes<=256ULL*1024*1024) {
+                        const auto cacheId=core::LayerId(clippingBytes_/16+1);
+                        const auto firstClear=clears.size(),firstWork=work.size();
+                        const auto input=allocate(r,cacheId);
+                        for(const auto& child:prefix.children)self(self,child,input,contentOnly);
+                        for(auto i=firstClear;i<clears.size();++i)clears[i].cache=cacheId;
+                        for(auto i=firstWork;i<work.size();++i)work[i].cache=cacheId;
+                        std::erase_if(cacheKeys,[&](const auto& item){return item.first>=cacheId&&item.first<core::LayerId(clippingBytes_/16+1);});
+                        auto& k=cacheKeys[cacheId];
+                        k={scene.documentInstance,n.id,std::uint64_t(contentOnly),std::uint64_t(input.offset),std::uint64_t(r.x),std::uint64_t(r.y),std::uint64_t(r.width),std::uint64_t(r.height)};
+                        const auto appendKey=[&](const auto& visit,const core::CompositionNode& node)->void {
+                            k.insert(k.end(),{node.id,node.leaf,node.clipping,node.isolated,node.adjustment,node.children.size()});
+                            if(node.leaf) {const auto found=leafKeys.find(node.id);k.push_back(found!=leafKeys.end());if(found!=leafKeys.end())k.insert(k.end(),found->second.begin(),found->second.end());}
+                            else for(const auto& child:node.children)visit(visit,child);
+                        };
+                        appendKey(appendKey,prefix);adjustmentInputCaches.push_back(cacheId);
+                        auto entry=prototype;entry.push.region={r.x,r.y,r.width,r.height};
+                        appendWork(entry,7,dst,input,main,main,true);
+                        for(auto it=first;it!=n.children.end();++it)self(self,*it,dst,contentOnly);
+                        return;
+                    }
+                }
+                for(const auto& child:n.children)self(self,child,dst,contentOnly);return;
+            }
             const auto& base=n.children.front();const auto r=bounds(bounds,base);if(r.empty())return;
             const auto working=allocate(r);
             Target styled=main,coverage=main;
@@ -336,7 +435,7 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
                 cacheKey={scene.documentInstance,n.id,std::uint64_t(contentOnly),std::uint64_t(styled.offset),std::uint64_t(coverage.offset),
                     std::uint64_t(r.x),std::uint64_t(r.y),std::uint64_t(r.width),std::uint64_t(r.height)};
                 const auto appendKey=[&](const auto& visit,const core::CompositionNode& node)->void {
-                    cacheKey.insert(cacheKey.end(),{node.id,node.leaf,node.clipping,node.children.size()});
+                    cacheKey.insert(cacheKey.end(),{node.id,node.leaf,node.clipping,node.isolated,node.adjustment,node.children.size()});
                     if(node.leaf) {
                         const auto found=leafKeys.find(node.id);cacheKey.push_back(found!=leafKeys.end());
                         if(found!=leafKeys.end())cacheKey.insert(cacheKey.end(),found->second.begin(),found->second.end());
@@ -360,8 +459,9 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
     auto& retainedKeys=adjustmentBuffers_.at(frame.frameSlot).clippingKeys;
     std::vector<core::LayerId> reused;
     for(const auto& [id,value]:cacheKeys) {
-        if(const auto it=retainedKeys.find(id);it!=retainedKeys.end() && it->second==value){reused.push_back(id);++stats_.clippingBaseReuses;}
-        else ++stats_.clippingBaseBuilds;
+        const bool adjustment=std::ranges::find(adjustmentInputCaches,id)!=adjustmentInputCaches.end();
+        if(const auto it=retainedKeys.find(id);it!=retainedKeys.end() && it->second==value){reused.push_back(id);if(adjustment)++stats_.adjustmentInputReuses;else ++stats_.clippingBaseReuses;}
+        else {if(adjustment)++stats_.adjustmentInputBuilds;else ++stats_.clippingBaseBuilds;}
     }
     const auto cacheReused=[&](core::LayerId id){return id && std::ranges::find(reused,id)!=reused.end();};
     stats_.clippingWorkingBytes=clippingBytes_;

@@ -70,6 +70,7 @@ and transformation metadata is not applied again.
 | Layer styles | One modern solid Stroke and Color Overlay; separate enabled state, color, opacity, blend, Stroke position/size and style scale |
 | Bitmap mask | Separate grayscale coverage, its own origin/extent/outside coverage, enabled state; remains paintable and undoable |
 | Groups | Unstyled fully opaque pass-through hierarchy; visibility retained |
+| Adjustment layers | Native Invert and Exposure with zero offset/unit gamma; supported masks and strength. A Normal folder with a direct native adjustment becomes an explicit local domain |
 | Clipping chains | Sibling-scoped native Clipping Mask Groups when Blend Clipped Layers As Group (`clbl`) is enabled/default |
 
 The 20 blend mappings are explicit in `PsdImport.cpp`: Normal, Multiply, Screen,
@@ -78,7 +79,7 @@ Color, Luminosity, Color/Linear Dodge, Color/Linear Burn, Subtract and Divide.
 Vulkana's existing linear-light composition is unchanged. Editable style edges,
 typography and blend results can differ from the saved composition.
 
-Unsupported items include isolated/styled groups, ungrouped clipping (`clbl=false`), Blend
+Unsupported items include other isolated/styled groups, unsupported adjustment equations, ungrouped clipping (`clbl=false`), Blend
 If, knockout, non-default Fill opacity, paragraph-box/warped/vertical text,
 explicit tracking/leading/baseline shifts and unsupported decorations,
 other curved/compound vector paths, sheared ellipse strokes, non-centered/dashed vector strokes, other active

@@ -309,6 +309,7 @@ private:
     void pasteImageAsLayer();
     void handleDroppedImages(const QStringList& filePaths);
     void addRasterLayer();
+    void addAdjustmentLayer();
     void deleteActiveLayer();
     void duplicateLayerItems();
     void createLayerOrganizationActions();
@@ -330,6 +331,7 @@ private:
     void changeLayerMask(bool remove);
     void applyLayerMask();
     void layerMaskToSelection();
+    void invertLayerMask();
     void setLayerEditingTarget(int row, bool mask);
     void refreshLayerMaskActions();
     bool confirmLayerChange(const QString& title,const QString& question);
@@ -724,7 +726,7 @@ private:
     bool publishingOpacity_ {false};
     QPushButton* deleteLayerButton_ {nullptr};
     QPushButton* addMaskButton_ {nullptr};
-    std::array<QAction*,6> maskActions_ {};
+    std::array<QAction*,7> maskActions_ {};
     PropertiesPanel* propertiesPanel_ {nullptr};
     ToolOptionsBar* toolOptionsBar_ {nullptr};
     ToolOptionsButton* editTextButton_ {nullptr};
@@ -751,6 +753,7 @@ private:
     QAction* deleteLayerAction_ {nullptr};
     QAction* duplicateLayersAction_ {nullptr};
     QAction* newFolderAction_ {nullptr};
+    QAction* newAdjustmentLayerAction_ {nullptr};
     QAction* groupLayersAction_ {nullptr};
     QAction* clippingGroupAction_ {nullptr};
     QAction* ungroupLayersAction_ {nullptr};

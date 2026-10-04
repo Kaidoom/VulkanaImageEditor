@@ -57,7 +57,7 @@ class PinnedDocumentSampler {
 public:
     PinnedDocumentSampler(const Document&, std::optional<LayerId>, ColorSampleSource,
         SampleFiltering = SampleFiltering::AlphaAware, std::span<const SampleCacheOverride> = {},
-        ActiveReferenceAppearance = ActiveReferenceAppearance::Intrinsic);
+        ActiveReferenceAppearance = ActiveReferenceAppearance::Intrinsic, LayerId adjustmentProbe = 0);
     // Prepared authoritative output/thumbnail sources. Captures just immutable
     // surfaces + matrices, never copies text payloads or an entire document.
     // sampleOrigin offsets sample coordinates without rebasing source matrices:
@@ -80,6 +80,9 @@ public:
     [[nodiscard]] bool validSample(Vec2d) const noexcept;
     [[nodiscard]] Extent2u extent() const { return snapshot_.canvas.extent; }
     [[nodiscard]] std::size_t sourceCount() const noexcept { return sources_.size(); }
+    // Histogram input at a stack operator, before its selected correction.
+    [[nodiscard]] PremultipliedColor sampleAdjustmentInput(Vec2d, LayerId,
+        std::size_t stopBefore = 0) const;
 private:
     struct Source {
         std::shared_ptr<const RasterSurface> surface;
@@ -94,6 +97,7 @@ private:
         std::shared_ptr<const LayerEffectCache> effectCache;
         LayerMaskState mask;
         LayerId id{};
+        bool adjustment {false};
     };
     const Document* owner_ {nullptr};
     DocumentSnapshot snapshot_;
@@ -104,7 +108,8 @@ private:
     std::optional<CompositionNode> composition_;
     std::unordered_map<LayerId,std::size_t> sourceById_;
     std::vector<std::shared_ptr<const PinnedDocumentSampler>> clippingGates_;
-    [[nodiscard]] PremultipliedColor sampleComposition(Vec2d, std::span<const PremultipliedColor> = {}) const;
+    [[nodiscard]] PremultipliedColor sampleComposition(Vec2d, std::span<const PremultipliedColor> = {},
+        LayerId probe = 0, std::size_t stopBefore = 0) const;
 };
 
 struct ColorSample {
@@ -114,6 +119,12 @@ struct ColorSample {
     std::size_t texelsRead {0};
     [[nodiscard]] bool available() const noexcept { return status == ColorSampleStatus::Available; }
 };
+
+// Exact process-local key for the operator's lower input. Ignores artwork above
+// it and its own correction/strength; callers key the requested upstream stages
+// separately. Immutable parameter identities and mutable source revisions are
+// both retained, without copying source pixels.
+[[nodiscard]] std::vector<std::uint64_t> adjustmentInputKey(const Document&, LayerId);
 
 // One document pixel, evaluated at its center, independent of viewport zoom.
 // Reads <= 4 texels per contributing layer, with no snapshot/full-frame copy.

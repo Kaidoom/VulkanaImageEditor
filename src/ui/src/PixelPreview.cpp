@@ -19,7 +19,7 @@ struct Input {
 };
 bool same(const Input& a,const Input& b)
 {
-    if(a.snapshot.canvas!=b.snapshot.canvas || a.stamps!=b.stamps
+    if(a.snapshot.canvas!=b.snapshot.canvas || a.snapshot.tree!=b.snapshot.tree || a.stamps!=b.stamps
         || a.snapshot.layersBottomToTop.size()!=b.snapshot.layersBottomToTop.size())return false;
     for(std::size_t i=0;i<a.snapshot.layersBottomToTop.size();++i) {
         const auto& x=a.snapshot.layersBottomToTop[i];const auto& y=b.snapshot.layersBottomToTop[i];
@@ -28,6 +28,7 @@ bool same(const Input& a,const Input& b)
             || x.filters!=y.filters || x.effects!=y.effects || x.mask!=y.mask || x.payload.index()!=y.payload.index())return false;
         if(const auto* t=std::get_if<core::TextLayer>(&x.payload);t && *t!=std::get<core::TextLayer>(y.payload))return false;
         if(const auto* s=std::get_if<core::ShapeLayer>(&x.payload);s && *s!=std::get<core::ShapeLayer>(y.payload))return false;
+        if(const auto* s=std::get_if<core::AdjustmentLayer>(&x.payload);s && *s!=std::get<core::AdjustmentLayer>(y.payload))return false;
     }
     return true;
 }
@@ -44,9 +45,8 @@ Input capture(const core::DocumentSnapshot& snapshot)
         if(const auto* s=std::get_if<core::ShapeLayer>(&l.payload))metadata+=core::shapeMemoryCost(*s);
     }
     if(metadata>16ULL*1024*1024)throw std::runtime_error("Pixel Preview exceeds the metadata budget");
-    Input result;result.snapshot.canvas=snapshot.canvas;
+    Input result;result.snapshot.canvas=snapshot.canvas;result.snapshot.tree=snapshot.tree;
     for(const auto& l:snapshot.layersBottomToTop) {
-        if(!l.visible || l.opacity<=0)continue;
         result.snapshot.layersBottomToTop.push_back(l);
         auto& copy=result.snapshot.layersBottomToTop.back();
         copy.name.clear();copy.renderCache.reset();
@@ -88,7 +88,7 @@ PixelPreview::PixelPreview(QObject* parent):QObject(parent),state_(std::make_uni
     state_->timer.setSingleShot(true);
     connect(&state_->timer,&QTimer::timeout,this,[this]{advance();});
 }
-PixelPreview::~PixelPreview(){setEnabled(false);if(state_->worker.valid())state_->worker.wait();}
+PixelPreview::~PixelPreview(){onReady={};setEnabled(false);if(state_->worker.valid())state_->worker.wait();}
 bool PixelPreview::busy() const{return state_->job || state_->timer.isActive();}
 std::uint64_t PixelPreview::completedRenders() const{return state_->completed;}
 std::uint64_t PixelPreview::frozenBytes() const{return state_->frozen;}
@@ -176,13 +176,14 @@ void PixelPreview::advance()
         const auto started=std::chrono::steady_clock::now();
         const auto& input=*state_->pending;
         std::uint64_t bytes=0;std::set<core::SurfaceId> live;
-        for(const auto& l:input.snapshot.layersBottomToTop)if(const auto* r=std::get_if<core::RasterLayerSnapshot>(&l.payload)) {
+        for(const auto& l:input.snapshot.layersBottomToTop)if(const auto* r=std::get_if<core::RasterLayerSnapshot>(&l.payload);r && l.visible && l.opacity>0) {
             if(live.insert(r->surface->id()).second){const auto e=r->surface->extent();bytes+=std::uint64_t(e.width)*e.height*4;}
         }
         if(bytes>inputBudget)throw std::runtime_error("Pixel Preview exceeds the frozen-source budget (256 MiB)");
         std::erase_if(state_->sources,[&](const auto& entry){return !live.contains(entry.first);});
         auto job=std::make_shared<State::Job>();job->generation=state_->generation;
         job->document=std::make_unique<core::Document>(input.snapshot.canvas);
+        std::shared_ptr<core::RasterSurface> hiddenPlaceholder;
         for(std::size_t i=0;i<input.snapshot.layersBottomToTop.size();++i) {
             const auto& s=input.snapshot.layersBottomToTop[i];
             core::Layer layer;layer.id=s.id;layer.name="Pixel Preview source";
@@ -191,6 +192,12 @@ void PixelPreview::advance()
             layer.rasterOrigin=s.rasterOrigin;layer.rasterEffectFrame=s.rasterEffectFrame;
             layer.adjustments=s.adjustments;layer.filters=s.filters;layer.effects=s.effects;
             if(const auto* r=std::get_if<core::RasterLayerSnapshot>(&s.payload)) {
+                if(!s.visible || s.opacity<=0) {
+                    // Retain structural identity (notably hidden clipping bases)
+                    // without freezing pixels that this output cannot read.
+                    if(!hiddenPlaceholder)hiddenPlaceholder=std::make_shared<core::ContiguousRasterSurface>(core::Extent2u{1,1},core::Rgba8{});
+                    layer.payload=core::RasterLayer{hiddenPlaceholder};
+                } else {
                 const auto stamp=input.stamps[i];
                 if(r->surface->revision()!=stamp.revision)throw std::runtime_error("Pixel Preview source changed before capture");
                 auto it=state_->sources.find(stamp.id);
@@ -210,11 +217,15 @@ void PixelPreview::advance()
                     filtered->sourceId=it->second.surface->id();filtered->sourceRevision=it->second.surface->revision();
                     layer.filterCache=std::move(filtered);
                 }
+                }
             }else if(const auto* t=std::get_if<core::TextLayer>(&s.payload))layer.payload=*t;
-            else layer.payload=std::get<core::ShapeLayer>(s.payload);
+            else if(const auto* shape=std::get_if<core::ShapeLayer>(&s.payload))layer.payload=*shape;
+            else layer.payload=std::get<core::AdjustmentLayer>(s.payload);
             if(!job->document->insertLayer(job->document->layers().size(),std::move(layer)))
                 throw std::runtime_error("Invalid Pixel Preview layer input");
         }
+        if(job->document->tree()!=input.snapshot.tree && !job->document->replaceStructure(job->document->tree(),input.snapshot.tree))
+            throw std::runtime_error("Invalid Pixel Preview hierarchy");
         state_->frozen=bytes;
         job->profile.freezeMs=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-started).count();
         state_->worker=std::async(std::launch::async,[job]{

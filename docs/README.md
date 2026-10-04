@@ -14,6 +14,7 @@ The guides below describe the architecture, behavior and algorithms.
 - [Shortcuts](SHORTCUTS.md): bindings, focus ownership and configuration.
 - [Single instance](SINGLE_INSTANCE.md): startup arbitration and file forwarding.
 - [Adjustments](ADJUSTMENT_ALGORITHMS.md): color/alpha equations and masks.
+- [Adjustment layers](ADJUSTMENT_LAYERS.md): lower-stack operators, scope and exchange.
 - [Layer effects](LAYER_EFFECTS_V1.md): style order, bounds and compositing.
 - [Clipping groups](CLIPPING_GROUPS.md): structural membership, alpha math and baking.
 - [Spatial filters](SPATIAL_FILTER_PIPELINE.md) and [kernels](spatial-filter-kernels.md).

@@ -145,6 +145,7 @@ static FlattenedDocumentResult flattenImpl(
 
         std::uint64_t cacheBytes = 0, completed = 0;
         const auto prepareLayer = [&](core::Layer& layer) {
+            if(std::holds_alternative<core::AdjustmentLayer>(layer.payload))return;
             layer.renderCache.reset();
             // Raster filter caches are canonical source-resolution results,
             // keyed to the original surface and filter revisions. Typed filter
@@ -213,6 +214,7 @@ static FlattenedDocumentResult flattenImpl(
         if (items) {
             double left = std::numeric_limits<double>::max(), top = left, right = -left, bottom = -left;
             for (const auto& layer : layers) {
+                if(std::holds_alternative<core::AdjustmentLayer>(layer.payload))continue;
                 if (!layer.visible || layer.opacity <= 0)
                     continue;
                 const auto surface = core::renderedSurface(layer);
@@ -465,6 +467,8 @@ FlattenedDocumentResult rasterizeLayerContent(const core::Document& doc, core::L
     FlattenedDocumentProgress progress, FlattenedDocumentLimits limits)
 {
     if (!doc.layer(id)) return {{},QStringLiteral("Rasterize requires a renderable layer"),false,{}};
+    if(std::holds_alternative<core::AdjustmentLayer>(doc.layer(id)->payload))
+        return {{},QStringLiteral("An adjustment has no independent image. Include its lower content in Merge Selected, or rasterize its containing group."),false,{}};
     const std::array ids{id};
     return flattenImpl(doc,std::move(progress),limits,ids,{}, {},nullptr,true);
 }

@@ -7,5 +7,6 @@ QByteArray textRecord(const core::Layer &, QStringList *fonts = nullptr,
 QMap<QByteArray, QByteArray> shapeRecords(const core::Layer &,
                                           core::CanvasSpec);
 QByteArray effectRecord(const core::Layer &);
+QMap<QByteArray,QByteArray> adjustmentRecord(const core::Layer&);
 bool similarity(const core::AffineTransform &, double *scale = nullptr);
 } // namespace imageeditor::ui::psdwrite

@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <cmath>
 #include <mutex>
+#include <bit>
 
 namespace imageeditor::ui {
 namespace {
@@ -252,6 +253,7 @@ core::FontDescriptor resolve(const QString &requested, const PsdChoice &choice,
           found->weight, found->italic, requested.toStdString()};
 }
 struct Model {
+  core::AdjustmentState adjustment;
   std::optional<core::TextLayer> text;
   std::optional<core::ShapeLayer> shape;
   core::AffineTransform transform;
@@ -259,6 +261,27 @@ struct Model {
   QStringList substitutions;
   Map replacements;
 };
+bool isAdjustment(const Record& rec) {return rec.tags.contains("nvrt")||rec.tags.contains("expA");}
+void adjustmentModel(const PsdSource& source,const Record& rec,Model& model) {
+  if(!isAdjustment(rec))return;
+  if(rec.tags.contains("nvrt")&&rec.tags.contains("expA"))throw Unsupported("Multiple native adjustment records on one PSD layer");
+  if(rec.blend!="norm" || rec.fill!=255 || rec.tags.contains("lfx2"))throw Unsupported("Adjustment blending/fill/styles need the saved composite");
+  auto stack=std::make_shared<core::AdjustmentStack>();
+  if(rec.tags.contains("nvrt"))stack->items[9].enabled=true;
+  else {
+    Reader reader(rec.tags.value("expA"));
+    if(reader.u16()!=1)throw Unsupported("Unsupported exposure record version");
+    const auto exposure=std::bit_cast<float>(reader.u32()),offset=std::bit_cast<float>(reader.u32()),gamma=std::bit_cast<float>(reader.u32());
+    if(offset!=0 || gamma!=1 || !std::isfinite(exposure) || exposure < -20 || exposure > 20)
+      throw Unsupported("Exposure offset/gamma or range requires the saved composite");
+    stack->items[0].enabled=true;stack->items[0].parameters=core::ExposureParameters{exposure};
+  }
+  model.adjustment=std::move(stack);model.transform={};
+  if(rec.opacity!=255 || rec.mask.present)
+    model.substitutions<<"Adjustment strength uses linear-light mixing; fractional masks/opacity may differ between editors.";
+  if(source.colorSpace.isValid()&&source.colorSpace!=QColorSpace(QColorSpace::SRgb))
+    model.substitutions<<"The correction is evaluated in Vulkana's sRGB working space after profile conversion.";
+}
 void effects(const PsdSource &s, const Record &rec, Model &m) {
   const auto key =
       rec.tags.contains("lmfx") ? QByteArray("lmfx") : QByteArray("lfx2");
@@ -712,7 +735,7 @@ bool isShape(const Record &r) {
   return (r.tags.contains("vsms") || r.tags.contains("vmsk")) &&
          (r.tags.contains("SoCo") || r.tags.contains("vscg"));
 }
-QStringList restrictions(const Record &r) {
+QStringList restrictions(const Record &r, bool localAdjustmentGroup=false) {
   auto issues = r.issues;
   if (r.blendIf)
     issues << "Blend If is unsupported";
@@ -732,7 +755,7 @@ QStringList restrictions(const Record &r) {
     issues << "Bitmap plus vector masks require an explicit raster/composite "
               "choice";
   if ((r.section == 1 || r.section == 2) &&
-      (r.blend != "pass" || r.opacity != 255 || r.mask.present ||
+      ((r.blend != "pass" && !(localAdjustmentGroup&&r.blend=="norm")) || r.opacity != 255 || r.mask.present ||
        r.tags.contains("lfx2")))
     issues
         << "Isolated/styled groups cannot be converted to pass-through folders";
@@ -746,7 +769,8 @@ Model modelFor(const PsdSource &s, const Record &rec, const PsdChoice &choice,
   m.transform = translation({double(rec.bounds.x()), double(rec.bounds.y())});
   effects(s, rec, m);
   if (typed) {
-    if (rec.tags.contains("TySh"))
+    if (isAdjustment(rec))adjustmentModel(s,rec,m);
+    else if (rec.tags.contains("TySh"))
       textModel(s, rec, choice, m);
     else if (isShape(rec))
       shapeModel(s, rec, m);
@@ -908,13 +932,15 @@ PsdInspection inspectPsd(const QString &path,
       info.visible = rec.visible;
       info.container = rec.section == 1 || rec.section == 2;
       info.type = info.container              ? "Group"
+                  : isAdjustment(rec)         ? "Adjustment"
                   : rec.tags.contains("TySh") ? "Text"
                   : isShape(rec)              ? "Shape"
                                               : "Raster";
-      info.basePixels = !info.container && savedPixels(rec);
+      info.basePixels = !info.container && !isAdjustment(rec) && savedPixels(rec);
       info.savedRaster.available = info.basePixels;
       info.savedRaster.vectorShapeBaked = isShape(rec);
-      info.issues = restrictions(rec);
+      const bool localGroup=info.container&&std::ranges::any_of(s->records,[&](const auto& child){return child.parent==int(i)&&isAdjustment(child);});
+      info.issues = restrictions(rec,localGroup);
       Model model;
       bool effectsOk = true, typedOk = true;
       try {
@@ -927,7 +953,8 @@ PsdInspection inspectPsd(const QString &path,
       }
       if (!info.container)
         try {
-          if (rec.tags.contains("TySh"))
+          if (isAdjustment(rec))adjustmentModel(*s,rec,model);
+          else if (rec.tags.contains("TySh"))
             textModel(*s, rec, {}, model);
           else if (isShape(rec))
             shapeModel(*s, rec, model);
@@ -937,11 +964,11 @@ PsdInspection inspectPsd(const QString &path,
           typedOk = false;
           info.issues << QString::fromUtf8(e.what());
         }
-      const auto external = restrictions(rec);
+      const auto external = restrictions(rec,localGroup);
       info.raster = info.basePixels && external.empty() && effectsOk;
       info.editable =
           typedOk && effectsOk && external.empty() &&
-          (info.container || model.text || model.shape || info.basePixels);
+          (info.container || model.text || model.shape || model.adjustment || info.basePixels);
       for (auto it = model.replacements.begin(); it != model.replacements.end();
            ++it) {
         info.fonts << it.key();
@@ -980,7 +1007,8 @@ PsdInspection inspectPsd(const QString &path,
       const auto& rec=s->records[size_t(layer.sourceIndex)];
       if(!rec.clipping) { bases[layer.parent]=layer.sourceIndex; continue; }
       const int base=bases.value(layer.parent,-1);
-      const bool grouped=base>=0 && (!s->records[size_t(base)].tags.contains("clbl")
+      const bool operatorBase=base>=0&&isAdjustment(s->records[size_t(base)]);
+      const bool grouped=base>=0 && !operatorBase && (!s->records[size_t(base)].tags.contains("clbl")
           || (!s->records[size_t(base)].tags.value("clbl").isEmpty() && s->records[size_t(base)].tags.value("clbl").at(0)!=0));
       if(grouped) {
         layer.clippingBase=base;
@@ -992,7 +1020,7 @@ PsdInspection inspectPsd(const QString &path,
         }
       } else {
         layer.editable=layer.raster=false;layer.suggested=PsdRoute::Skip;layer.status="Review required";
-        layer.issues << (base<0 ? "Clipping chain has no base in this group" : "Blend Clipped Layers As Group is disabled; use saved composite or explicitly import base pixels only");
+        layer.issues << (base<0 ? "Clipping chain has no base in this group" : operatorBase ? "An adjustment as clipping base has no native drawable coverage; use the saved composite or review the omission." : "Blend Clipped Layers As Group is disabled; use saved composite or explicitly import base pixels only");
       }
     }
     for(const auto& layer:result.layers)if(layer.clippingBase>=0)result.report+=layer.name+": "+layer.details+'\n';
@@ -1122,7 +1150,7 @@ PsdConversion convertPsd(const PsdInspection &in, const PsdOptions &options,
             model = modelFor(s, rec, options.layers[i], route == PsdRoute::Editable);
           else
             model.transform = translation({double(rec.bounds.x()), double(rec.bounds.y())});
-          if (!model.text && !model.shape) {
+          if (!model.text && !model.shape && !model.adjustment) {
             const auto bytes = std::uint64_t(rec.bounds.width()) *
                                uint(rec.bounds.height()) * 4;
             // Decode one layer at a time, then admit its actual compact size.
@@ -1138,6 +1166,11 @@ PsdConversion convertPsd(const PsdInspection &in, const PsdOptions &options,
           derivedPreview |= bool(model.text) || bool(model.shape) ||
                             core::hasActiveLayerEffects(model.effects);
         }
+      }
+      for(size_t i=0;i<in.layers.size();++i)if(included[i]&&in.layers[i].container&&s.records[size_t(in.layers[i].sourceIndex)].blend=="norm") {
+        bool ownsDomain=false;
+        for(size_t j=0;j<in.layers.size();++j)if(included[j]&&in.layers[j].parent==in.layers[i].sourceIndex&&models[j].adjustment)ownsDomain=true;
+        if(!ownsDomain)throw Error(QStringLiteral("%1 needs an included scoped adjustment to retain its isolated composition. Include that adjustment, skip the folder, or import the saved composite.").arg(in.layers[i].name).toStdString());
       }
       activeLayer.clear();
       admitMemory(out, limits, std::uint64_t(s.bytes.size()), required,
@@ -1182,7 +1215,11 @@ PsdConversion convertPsd(const PsdInspection &in, const PsdOptions &options,
                info.savedRaster.layerOpacityBaked))
             throw Error("Unsupported saved raster baked-state contract");
           core::Layer layer;
-          if (m.text)
+          if (m.adjustment) {
+            const bool local=info.parent>=0&&s.records[size_t(info.parent)].blend=="norm";
+            layer=core::Layer::adjustment(info.name.toStdString(),local?core::AdjustmentScope::ThisGroup:core::AdjustmentScope::AllBelow);
+            layer.adjustments=m.adjustment;
+          } else if (m.text)
             layer =
                 core::Layer::text(info.name.toStdString(), std::move(*m.text));
           else if (m.shape)
@@ -1216,7 +1253,8 @@ PsdConversion convertPsd(const PsdInspection &in, const PsdOptions &options,
           layers.push_back(std::move(layer));
           out.report +=
               info.name + ": " + info.type + " → " +
-              (m.text    ? "TextLayer"
+              (m.adjustment ? "AdjustmentLayer"
+               : m.text    ? "TextLayer"
                : m.shape ? "ShapeLayer"
                          : "RasterLayer") +
               (base ? " (base pixels; unsupported composition/masks/effects "

@@ -101,6 +101,7 @@ void MainWindow::createFiltersPanel()
 bool MainWindow::beginFilterEdit(core::SpatialFilterType)
 {
     if(fileBusy_||!session().document()||!session().activeLayer())return false;
+    if(const auto* l=session().document()->layer(*session().activeLayer());l&&std::holds_alternative<core::AdjustmentLayer>(l->payload))return false;
     if(filterEdit_)return filterEdit_->active()&&filterEdit_->target()==*session().activeLayer();
     if(canvasWindow_->pointerGestureActive()||activeBrushStroke_||activeCloneStroke_||cloneProcessing_
         ||activeLocalBlurStroke_||localBlurProcessing_||activeFill_||shapeCreation_||shapeResize_
@@ -169,7 +170,7 @@ void MainWindow::refreshFiltersPanel()
 {
     if(!filtersPanel_)return;
     const auto* layer=session().document()&&session().activeLayer()?session().document()->layer(*session().activeLayer()):nullptr;
-    filtersPanel_->setTarget(layer,session().document()&&bool(session().document()->selection()));scheduleFilterPreparation();
+    filtersPanel_->setTarget(layer&&std::holds_alternative<core::AdjustmentLayer>(layer->payload)?nullptr:layer,session().document()&&bool(session().document()->selection()));scheduleFilterPreparation();
 }
 void MainWindow::scheduleFilterPreparation()
 {
