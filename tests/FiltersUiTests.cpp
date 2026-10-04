@@ -19,9 +19,12 @@
 #include <QComboBox>
 #include <QElapsedTimer>
 #include <QImage>
+#include <QLabel>
 #include <QLayout>
 #include <QPushButton>
 #include <QSettings>
+#include <QScrollArea>
+#include <QStackedWidget>
 #include <QTabWidget>
 #include <QTemporaryDir>
 #include <QStandardPaths>
@@ -107,6 +110,36 @@ void embeddedEntryPoints()
         f.adjustments->showFilter(c::SpatialFilterType::Gaussian);settle();
         check(f.adjustments->grab().save(review),"save consolidated Adjustments/Filters review image");
     }
+}
+void effectsFooterLayout()
+{
+    u::EffectsPanel panel;
+    auto* footer=panel.findChild<QStackedWidget*>("EffectFooter");
+    auto* status=panel.findChild<QLabel*>("EffectProcessingStatus");
+    auto* scroll=panel.findChild<QScrollArea*>();
+    check(footer&&status&&scroll,"effects footer and parameters exist");
+    if(!footer||!status||!scroll)return;
+    auto* hint=qobject_cast<QLabel*>(footer->widget(0));
+    check(hint&&hint->text().contains("Local pixels"),"footer starts with the local-pixel hint");
+    if(!hint)return;
+    panel.show();settle();
+    for(const int width:{320,440,800}) {
+        panel.resize(width,650);panel.setProcessing(false);settle();
+        const auto footerBounds=footer->geometry(),parameterBounds=scroll->geometry();
+        for(const double progress:{0.,.09,.5,1.}) {
+            panel.setProcessing(true,progress);settle();
+            check(status->isVisible()&&!hint->isVisible(),"preparing status replaces rather than accompanies the hint");
+            check(status->text()==QString("Preparing effects · %1%").arg(qRound(progress*100)),"effect preparation progress remains visible");
+            check(footer->geometry()==footerBounds&&scroll->geometry()==parameterBounds,"preparation progress does not shift the footer or effect controls");
+            panel.setProcessing(false);settle();
+            check(hint->isVisible()&&!status->isVisible(),"completion restores the hint");
+            check(footer->geometry()==footerBounds&&scroll->geometry()==parameterBounds,"completion preserves the shared footer space even with a wrapped hint");
+        }
+    }
+    panel.setProcessing(false,0,"Could not prepare effects");settle();
+    check(status->isVisible()&&!hint->isVisible()&&status->text()=="Could not prepare effects","processing errors use the same footer without being hidden");
+    panel.setProcessing(false);settle();
+    check(hint->isVisible()&&!status->isVisible(),"clearing processing errors restores the hint");
 }
 void layerEffectsUi()
 {
@@ -462,7 +495,7 @@ int main(int argc,char** argv)
         nativeInstance=&instance;
     }
     u::applyEditorTheme(app);
-    try{embeddedEntryPoints();layerEffectsUi();sharedHeaderScope();compactLayoutAndEnabledRouting();completeResetAndRedo();controlsAndAsync();transformedTypedFilterAdmission();groupedEditsAndMasks();pendingInvalidationAndCancellation();}
+    try{effectsFooterLayout();embeddedEntryPoints();layerEffectsUi();sharedHeaderScope();compactLayoutAndEnabledRouting();completeResetAndRedo();controlsAndAsync();transformedTypedFilterAdmission();groupedEditsAndMasks();pendingInvalidationAndCancellation();}
     catch(const std::exception& e){std::cerr<<e.what()<<'\n';++failures;}
     if(native){
         nativeInstance=nullptr;instance.destroy();settle();

@@ -50,12 +50,16 @@ private:
   QHBoxLayout *choices(std::size_t, const QString &, const QStringList &,
                        std::function<int()>, std::function<void(int)>,
                        QHBoxLayout *existingRow = nullptr);
+  QHBoxLayout *blendChoices(std::size_t, const QString &,
+                           std::function<core::BlendMode()>,
+                           std::function<void(core::BlendMode)>);
   void color(std::size_t, bool, QHBoxLayout *);
   core::LayerEffectStack working_, before_;
   std::optional<core::LayerId> target_;
   std::array<Page, core::layerEffectCount> pages_;
   QComboBox *navigation_{};
   QStackedWidget *stack_{};
+  QStackedWidget *footer_{};
   QLabel *status_{};
   bool updating_{}, editing_{}, finishing_{};
 };

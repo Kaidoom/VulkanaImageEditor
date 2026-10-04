@@ -331,6 +331,13 @@ QByteArray blend(core::BlendMode b, bool desc) {
   };
   static constexpr Mapping mappings[] = {
       {B::Normal, "norm", "Nrml"},
+      {B::Dissolve, "diss", "Dslv"},
+      {B::DarkerColor, "dkCl", "darkerColor"},
+      {B::LighterColor, "lgCl", "lighterColor"},
+      {B::VividLight, "vLit", "vividLight"},
+      {B::LinearLight, "lLit", "linearLight"},
+      {B::PinLight, "pLit", "pinLight"},
+      {B::HardMix, "hMix", "hardMix"},
       {B::Multiply, "mul ", "Mltp"},
       {B::Screen, "scrn", "Scrn"},
       {B::Overlay, "over", "Ovrl"},

@@ -330,7 +330,7 @@ void allBlendModesAndMatteIsAfterComposition()
         upper.opacity = .37F;
         upper.blendMode = mode;
         CHECK(doc.insertLayer(1, std::move(upper)));
-        const auto linear = c::compositeLayer(c::decodeColor(a), c::decodeColor(b), .37F, mode);
+        const auto linear = c::compositeLayer(c::decodeColor(a), c::decodeColor(b), .37F, mode,{1.5,1.5},doc.layers().back().blendSeed);
         const auto exported = u::renderExport(doc, settings({ 3, 2 }));
         CHECK(exported);
         if (!exported)

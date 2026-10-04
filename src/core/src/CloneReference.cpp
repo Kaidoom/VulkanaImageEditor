@@ -77,6 +77,7 @@ public:
         frozen.visible = visible;
         frozen.opacity = layer.opacity;
         frozen.blendMode = layer.blendMode;
+        frozen.blendSeed = layer.blendSeed;
         frozen.adjustments = layer.adjustments;
         frozen.filters = layer.filters;
         frozen.effects = layer.effects;

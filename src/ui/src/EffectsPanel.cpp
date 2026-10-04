@@ -1,4 +1,5 @@
 #include "imageeditor/ui/EffectsPanel.hpp"
+#include "imageeditor/ui/BlendModeCombo.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
 #include "imageeditor/ui/AdjustmentCurveEditor.hpp"
 #include "imageeditor/ui/CurrentPageStack.hpp"
@@ -40,9 +41,6 @@ EffectsPanel::EffectsPanel(QWidget *parent) : QWidget(parent) {
   stack_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
   scroll->setWidget(stack_);
   outer->addWidget(scroll, 1);
-  QStringList blends;
-  for (auto m : core::allBlendModes)
-    blends << QString::fromUtf8(core::blendModeName(m));
   for (std::size_t i = 0; i < pages_.size(); ++i) {
     navigation_->addItem(
         QString::fromUtf8(core::layerEffectName(core::LayerEffectType(i))));
@@ -62,10 +60,10 @@ EffectsPanel::EffectsPanel(QWidget *parent) : QWidget(parent) {
       change([&] { working_.items[i].enabled = v; });
     });
     if(i==7) {bevelPage();page.layout->addStretch();continue;}
-    auto *blendRow = choices(
-        i, tr("Blend"), blends,
-        [this, i] { return int(working_.items[i].blendMode); },
-        [this, i](int v) { working_.items[i].blendMode = core::BlendMode(v); });
+    auto *blendRow = blendChoices(
+        i, tr("Blend"),
+        [this, i] { return working_.items[i].blendMode; },
+        [this, i](core::BlendMode v) { working_.items[i].blendMode = v; });
     color(i, false, blendRow);
     if (i == 6)
       color(i, true, blendRow);
@@ -130,17 +128,23 @@ EffectsPanel::EffectsPanel(QWidget *parent) : QWidget(parent) {
       working_.items[i] = core::defaultLayerEffect(core::LayerEffectType(i));
     });
   });
+  // Reserve the same footer space for both pages, including a wrapped hint.
+  footer_ = new QStackedWidget;
+  footer_->setObjectName("EffectFooter");
+  footer_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
   auto *note =
       new QLabel(tr("Local pixels · effects stay independent. Enable each "
                     "effect separately."));
   note->setObjectName("MutedLabel");
   note->setWordWrap(true);
-  outer->addWidget(note);
+  note->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+  footer_->addWidget(note);
   status_ = new QLabel;
   status_->setObjectName("EffectProcessingStatus");
   status_->setWordWrap(true);
-  outer->addWidget(status_);
-  status_->hide();
+  status_->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+  footer_->addWidget(status_);
+  outer->addWidget(footer_);
   setTarget(nullptr);
 }
 void EffectsPanel::number(std::size_t i, const QString &label, double lo,
@@ -218,6 +222,26 @@ QHBoxLayout *EffectsPanel::choices(std::size_t i, const QString &label,
           [this, write](int v) { change([&] { write(v); }); });
   return row;
 }
+QHBoxLayout *EffectsPanel::blendChoices(std::size_t i, const QString &label,
+    std::function<core::BlendMode()> read, std::function<void(core::BlendMode)> write) {
+  auto *row = new QHBoxLayout;
+  row->addWidget(new QLabel(label));
+  auto *box = new QComboBox;
+  box->setObjectName(QString("Effect%1%2").arg(i).arg(label));
+  box->setAccessibleName(label);
+  populateBlendModeCombo(*box);
+  row->addWidget(box, 1);
+  pages_[i].layout->addLayout(row);
+  const auto previous = pages_[i].refresh;
+  pages_[i].refresh = [previous, box, read] {
+    if (previous) previous();
+    box->setCurrentIndex(box->findData(int(read())));
+  };
+  connect(box, &QComboBox::currentIndexChanged, this, [this, box, write](int index) {
+    if (const auto mode = blendModeAt(*box, index)) change([&] { write(*mode); });
+  });
+  return row;
+}
 void EffectsPanel::color(std::size_t i, bool second, QHBoxLayout *row) {
   auto *button = new QPushButton;
   button->setObjectName(QString("EffectColor%1%2").arg(i).arg(second));
@@ -287,10 +311,10 @@ void EffectsPanel::resetAll() {
 }
 void EffectsPanel::setProcessing(bool busy, double progress,
                                  const QString &message) {
-  status_->setVisible(busy || !message.isEmpty());
   status_->setText(
       busy ? tr("Preparing effects · %1%").arg(qRound(progress * 100))
            : message);
+  footer_->setCurrentIndex(busy || !message.isEmpty() ? 1 : 0);
 }
 void EffectsPanel::setTarget(const core::Layer *l) {
   const auto next = l ? std::optional(l->id) : std::nullopt;

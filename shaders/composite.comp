@@ -9,13 +9,18 @@
 #define bPow pow
 #define bSqrt sqrt
 #define bAbs abs
+#define bFloor floor
+#define bFma fma
+#define BUint uint
+layout(std430,set=2,binding=0) readonly buffer AdjustmentParameters { float values[]; } adjustmentParameters;
+float bDecodeByte(int i) { return adjustmentParameters.values[i]; }
+float bEncodeByte(int i) { return adjustmentParameters.values[256+i]; }
 #include "imageeditor/core/detail/BlendMath.inc"
 #include "imageeditor/core/detail/ClippingMath.inc"
 
 layout(local_size_x=16, local_size_y=16) in;
 layout(set=0,binding=0) uniform sampler2D layerTexture;
 layout(rgba32f,set=1,binding=0) uniform image2D composition;
-layout(std430,set=2,binding=0) readonly buffer AdjustmentParameters { float values[]; } adjustmentParameters;
 layout(std430,set=2,binding=1) readonly buffer AdjustmentMasks { uint words[]; } adjustmentMasks;
 layout(std430,set=2,binding=2) buffer ClippingWork { vec4 pixels[]; } clippingWork;
 layout(push_constant) uniform CompositePush {
@@ -115,10 +120,13 @@ vec4 adjustSource(vec4 source,vec2 sourceLocal)
 vec4 premultipliedTexel(ivec2 p)
 {
     vec4 c = texelFetch(layerTexture,p,0); // unassociated encoded sRGB, alpha linear
-    return vec4(vec3(bDecode(c.r),bDecode(c.g),bDecode(c.b))*c.a,c.a);
+    // Exactly enumerated canonical RGBA8 decode, identical to the CPU table.
+    float alpha=bEncodeByte(int(c.a*255+.5));
+    return vec4(vec3(bDecodeByte(int(c.r*255+.5)),bDecodeByte(int(c.g*255+.5)),bDecodeByte(int(c.b*255+.5)))*alpha,alpha);
 }
 int effectOffset;
 float effectCoverage[10];
+#define E_OUTPUT out BVec4
 #define E_INLINE precise
 #define E_PARAM(index) adjustmentParameters.values[effectOffset+(index)]
 #define E_MASK(index) effectCoverage[index]
@@ -167,6 +175,7 @@ void main()
     effectOffset=((pc.mode&0x3fffffff)>>8)-1;
     int cropMode=pc.cropEnabled&3;
     int geometry=(pc.cropEnabled>>2)-1;
+    uint blendSeed=geometry>=0?(uint(adjustmentParameters.values[geometry+3])|(uint(adjustmentParameters.values[geometry+7])<<16)):0x6d2b79f5u;
     clippingGeometry=(pc.mode&0x40000000)!=0?geometry:-1;
     int operation=clippingGeometry>=0?int(adjustmentParameters.values[clippingGeometry+20]):0;
     vec3 inverseW=vec3(0,0,1),sourceW=vec3(0,0,1);
@@ -190,13 +199,18 @@ void main()
     float denominator=dot(inverseW,vec3(p,1));
     if(abs(denominator)<1e-12)return;
     vec2 local = vec2(dot(pc.localX.xyz,vec3(p,1)),dot(pc.localY.xyz,vec3(p,1)))/denominator;
+    int styleProgram=((pc.mode&0x3fffffff)>>8)-1;
+    bool spatialBlend=(pc.mode&255)==20 || (styleProgram>=0 && adjustmentParameters.values[styleProgram+20]!=0);
+    vec2 blendLocal=spatialBlend?bGridPoint(p.x,p.y,pc.localX.xyz,pc.localY.xyz,inverseW).xy:local;
+    if(spatialBlend)local=blendLocal;
     if(operation==5) {
         vec4 original=loadTarget(0,pixel);
         if(original.a<=0)return;
         float strength=clamp(pc.opacity*layerCoverage(geometry,local),0,1);
         if(strength<=0)return;
         vec4 corrected=adjustSource(original,local);
-        storeTarget(pixel,vec4(strength==1?corrected.rgb:original.rgb+(corrected.rgb-original.rgb)*strength,original.a));
+        storeTarget(pixel,(pc.mode&255)==0?vec4(strength==1?corrected.rgb:original.rgb+(corrected.rgb-original.rgb)*strength,original.a)
+            :bAdjustmentBlend(original,corrected,strength,pc.mode&255,blendLocal.x,blendLocal.y,blendSeed));
         return;
     }
     if(any(isnan(local))||any(isinf(local)))return;
@@ -254,6 +268,8 @@ void main()
         cropCoverage=cropMode==2 ? .12+.88*coverage : coverage;
     }
     vec2 maskLocal=vec2(dot(pc.sourceToLocalX.xyz,vec3(local,1)),dot(pc.sourceToLocalY.xyz,vec3(local,1)))/dot(sourceW,vec3(local,1));
+    if(spatialBlend)blendLocal=bGridPoint(blendLocal.x,blendLocal.y,pc.sourceToLocalX.xyz,pc.sourceToLocalY.xyz,sourceW).xy;
+    else blendLocal=maskLocal;
     cropCoverage*=layerCoverage(geometry,maskLocal);
     if(operation==1){storeTarget(pixel,source);storeTargetSlot(1,pixel,vec4(cropCoverage));return;}
     if(operation==2)cropCoverage=loadTarget(3,pixel).r;
@@ -261,6 +277,6 @@ void main()
     if(effectOffset>=0) {
         vec2 point=vec2(dot(pc.sourceToLocalX.xyz,vec3(local,1)),dot(pc.sourceToLocalY.xyz,vec3(local,1)))/dot(sourceW,vec3(local,1));
         for(int i=0;i<10;++i)effectCoverage[i]=sampleStyleMask(i,point);
-        storeTarget(pixel,eComposite(backdrop,source,point.x,point.y,pc.opacity*cropCoverage,pc.mode&255));
-    }else storeTarget(pixel,bComposite(backdrop,source*cropCoverage,pc.opacity,pc.mode&255));
+        storeTarget(pixel,eComposite(backdrop,source,blendLocal.x,blendLocal.y,pc.opacity,pc.mode&255,cropCoverage,operation==2));
+    }else storeTarget(pixel,bCompositeAt(backdrop,source*cropCoverage,pc.opacity,pc.mode&255,blendLocal.x,blendLocal.y,blendSeed,operation==2));
 }

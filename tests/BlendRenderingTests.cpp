@@ -59,7 +59,10 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugReport(VkDebugReportFlagsEXT,
 }
 
 // No QWindow/surface/swapchain or desktop capture. This host owns submission
-// and reads a genuine sRGB framebuffer rendered by the shipping canvas code.
+// and reads a genuine framebuffer rendered by the shipping canvas code. The
+// optional float attachment separates compositor precision from the display's
+// fixed-function sRGB attachment blending/rounding; no shipping path changes.
+bool linearTestTarget=false;
 class OffscreenCanvas {
 public:
     explicit OffscreenCanvas(bool validation, VkExtent2D targetExtent = {96,80})
@@ -80,7 +83,9 @@ public:
         VkCommandBufferBeginInfo begin {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
         begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
         vkCheck(vkBeginCommandBuffer(command_, &begin), "begin frame");
+        if(timestamps_) {vkCmdResetQueryPool(command_,timestamps_,0,2);vkCmdWriteTimestamp(command_,VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,timestamps_,0);}
         renderer_.recordFrame(scene, {command_, framebuffer_, targetExtent_, 0});
+        if(timestamps_)vkCmdWriteTimestamp(command_,VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,timestamps_,1);
         if (readback) {
             VkBufferImageCopy copy {};
             copy.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
@@ -106,17 +111,30 @@ public:
         vkCheck(vkWaitForFences(device_, 1, &fence_, VK_TRUE, 30'000'000'000ull), "wait for frame");
         frameMilliseconds_ = std::chrono::duration<double,std::milli>(
             std::chrono::steady_clock::now()-started).count();
+        if(timestamps_) {std::array<std::uint64_t,2> ticks{};
+            vkCheck(vkGetQueryPoolResults(device_,timestamps_,0,2,sizeof(ticks),ticks.data(),sizeof(std::uint64_t),VK_QUERY_RESULT_64_BIT|VK_QUERY_RESULT_WAIT_BIT),"read GPU timestamps");
+            const auto mask=timestampBits_==64?~std::uint64_t{}:(std::uint64_t{1}<<timestampBits_)-1;
+            gpuMilliseconds_=double((ticks[1]-ticks[0])&mask)*timestampPeriod_/1000000.;}
         if (!readback) return {};
         void* bytes = nullptr;
         vkCheck(vkMapMemory(device_, readbackMemory_, 0, VK_WHOLE_SIZE, 0, &bytes), "map readback");
         const QImage view(static_cast<const uchar*>(bytes), int(targetExtent_.width), int(targetExtent_.height),
             int(targetExtent_.width) * 4, QImage::Format_RGBA8888);
         auto result = view.copy();
+        if(linearTestTarget) {
+            const auto* data=static_cast<const float*>(bytes);
+            for(int y=0;y<result.height();++y)for(int x=0;x<result.width();++x) {
+                const auto* p=data+(std::size_t(y)*targetExtent_.width+std::size_t(x))*4;
+                const auto c=c::encodeColor({p[0],p[1],p[2],p[3]});
+                result.setPixelColor(x,y,QColor(c.red,c.green,c.blue,c.alpha));
+            }
+        }
         vkUnmapMemory(device_, readbackMemory_);
         return result;
     }
     r::RendererStats stats() const { return renderer_.stats(); }
     double frameMilliseconds() const { return frameMilliseconds_; }
+    double gpuMilliseconds() const { return gpuMilliseconds_; }
 
 private:
     std::uint32_t memoryType(std::uint32_t bits, VkMemoryPropertyFlags properties)
@@ -192,14 +210,14 @@ private:
                 if ((properties[i].queueFlags & (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT))
                     == (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT)) {
                     physical_ = candidate;
-                    queueFamily_ = i;
+                    queueFamily_ = i;timestampBits_=properties[i].timestampValidBits;
                     break;
                 }
             if (physical_) break;
         }
         if (!physical_) throw std::runtime_error("No Vulkan graphics+compute queue available");
         VkPhysicalDeviceProperties properties {};
-        vkGetPhysicalDeviceProperties(physical_, &properties);
+        vkGetPhysicalDeviceProperties(physical_, &properties);timestampPeriod_=properties.limits.timestampPeriod;
         std::cout << "Offscreen Vulkan device: " << properties.deviceName << '\n';
         const float priority = 1;
         VkDeviceQueueCreateInfo queue {VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
@@ -211,6 +229,8 @@ private:
         deviceInfo.pQueueCreateInfos = &queue;
         vkCheck(vkCreateDevice(physical_, &deviceInfo, nullptr, &device_), "create logical device");
         vkGetDeviceQueue(device_, queueFamily_, 0, &queue_);
+        if(timestampBits_) {VkQueryPoolCreateInfo query{VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO};query.queryType=VK_QUERY_TYPE_TIMESTAMP;query.queryCount=2;
+            vkCheck(vkCreateQueryPool(device_,&query,nullptr,&timestamps_),"create GPU timestamp pool");}
 
         VkCommandPoolCreateInfo pool {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
         pool.queueFamilyIndex = queueFamily_;
@@ -225,7 +245,7 @@ private:
 
         VkImageCreateInfo image {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
         image.imageType = VK_IMAGE_TYPE_2D;
-        image.format = VK_FORMAT_R8G8B8A8_SRGB;
+        image.format = linearTestTarget?VK_FORMAT_R32G32B32A32_SFLOAT:VK_FORMAT_R8G8B8A8_SRGB;
         image.extent = {targetExtent_.width, targetExtent_.height, 1};
         image.mipLevels = image.arrayLayers = 1;
         image.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -289,7 +309,7 @@ private:
         vkCheck(vkCreateFramebuffer(device_, &framebuffer, nullptr, &framebuffer_), "create framebuffer");
 
         VkBufferCreateInfo buffer {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-        buffer.size = VkDeviceSize(targetExtent_.width) * targetExtent_.height * 4;
+        buffer.size = VkDeviceSize(targetExtent_.width) * targetExtent_.height * (linearTestTarget?16:4);
         buffer.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         buffer.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         vkCheck(vkCreateBuffer(device_, &buffer, nullptr, &readback_), "create readback buffer");
@@ -315,6 +335,7 @@ private:
             if (target_) vkDestroyImage(device_, target_, nullptr);
             if (targetMemory_) vkFreeMemory(device_, targetMemory_, nullptr);
             if (fence_) vkDestroyFence(device_, fence_, nullptr);
+            if(timestamps_)vkDestroyQueryPool(device_,timestamps_,nullptr);
             if (pool_) vkDestroyCommandPool(device_, pool_, nullptr);
             vkDestroyDevice(device_, nullptr);
             device_ = VK_NULL_HANDLE;
@@ -346,7 +367,9 @@ private:
     r::VulkanCanvasRenderer renderer_;
     bool rendererDevice_ {}, rendererSwapchain_ {};
     VkExtent2D targetExtent_ {};
-    double frameMilliseconds_ {};
+    double frameMilliseconds_ {},gpuMilliseconds_{},timestampPeriod_{};
+    std::uint32_t timestampBits_{};
+    VkQueryPool timestamps_{};
 };
 
 std::shared_ptr<c::ContiguousRasterSurface> patterned(c::Extent2u extent, bool source)
@@ -411,10 +434,10 @@ QImage verify(const c::Document& document, const r::CanvasScene& scene, const QI
         c::Rgba8 reference = scene.canvasBackground;
         if (inside) {
             const auto sample = documentPixelCenters
-                ? c::sampleDocumentColor(document,{},point,c::ColorSampleSource::MergedVisible).color
-                : sampler.sample(point);
+                ? c::decodeColor(c::sampleDocumentColor(document,{},point,c::ColorSampleSource::MergedVisible).color)
+                : linearTestTarget?sampler.sampleLinear(point):c::decodeColor(sampler.sample(point));
             reference = c::encodeColor(c::compositeLayer(c::decodeColor(checker),
-                c::decodeColor(sample),1,c::BlendMode::Normal));
+                sample,1,c::BlendMode::Normal));
         }
         expected.setPixelColor(x,y,qt(reference));
         // Canvas border is a deliberate overlay, not document content.
@@ -426,8 +449,8 @@ QImage verify(const c::Document& document, const r::CanvasScene& scene, const QI
         const int error = std::max({std::abs(int(gpu.red)-reference.red),std::abs(int(gpu.green)-reference.green),
             std::abs(int(gpu.blue)-reference.blue),std::abs(int(gpu.alpha)-reference.alpha)});
         if (error > worst) { worst = error; worstPoint = {x,y}; }
-        // CPU sampling returns straight RGBA8, introducing one unavoidable
-        // quantization before compositing over the checker. GPU stays float.
+        // Preserve the original RGBA8 public-sampler/display comparison. The
+        // float-attachment run also compares continuous float intermediates.
         if (error > 2) ++badPixels;
     }
     check(inspected > 5000,"GPU comparison must cover a substantial image, not a few lucky pixels");
@@ -474,6 +497,7 @@ void allModesAndCacheBehavior(OffscreenCanvas& gpu, Review& review)
     auto foreground = c::Layer::raster("Transformed alpha edges",patterned({48,48},true));
     foreground.localToDocument = {1.27,-.23,25.125,.19,1.11,4.375};
     foreground.opacity = .73f;
+    foreground.blendSeed=0x12345678U;
     const auto id = foreground.id;
     check(document.insertLayer(0,std::move(base)) && document.insertLayer(1,std::move(foreground)),"insert blend fixture");
     auto scene = sceneFor(document);
@@ -557,7 +581,9 @@ void arithmeticEndpointsAndGradients(OffscreenCanvas& gpu)
         check(document.insertLayer(0,std::move(base)) && document.insertLayer(1,std::move(source)),"insert endpoint grid");
         auto scene=sceneFor(document);
         for (const auto mode:{c::BlendMode::ColorDodge,c::BlendMode::LinearDodge,
-                 c::BlendMode::ColorBurn,c::BlendMode::LinearBurn,c::BlendMode::Subtract,c::BlendMode::Divide}) {
+                 c::BlendMode::ColorBurn,c::BlendMode::LinearBurn,c::BlendMode::Subtract,c::BlendMode::Divide,
+                 c::BlendMode::Dissolve,c::BlendMode::DarkerColor,c::BlendMode::LighterColor,
+                 c::BlendMode::VividLight,c::BlendMode::LinearLight,c::BlendMode::PinLight,c::BlendMode::HardMix}) {
             document.setLayerBlendMode(id,mode);
             for (float opacity:{0.f,.37f,1.f}) {
                 document.setLayerOpacity(id,opacity);
@@ -605,7 +631,9 @@ void whiteBackdropEndpointStacks(OffscreenCanvas& gpu)
             // white, and opaque black Color Burn preserves that overlap only.
             const double ab=alphas[std::size_t(x%8)]/255.0;
             const double as=alphas[std::size_t(y%8)]/255.0*double(.37f);
-            const int value=c::linearToSrgb(as+ab*(1-as));
+            const bool dissolve=mode==c::BlendMode::Dissolve;
+            const auto gate=c::blend_detail::bDissolve(float(as),float(x)+.5F,float(y)+.5F,document.layer(id)->blendSeed);
+            const int value=c::linearToSrgb(dissolve?(gate?1.:ab):as+ab*(1-as));
             const auto actual=image.pixelColor(x,y);
             const bool pixelCorrect=actual.alpha()==255 && std::abs(actual.red()-value)<=2
                 && std::abs(actual.green()-value)<=2 && std::abs(actual.blue()-value)<=2;
@@ -882,10 +910,11 @@ void separatedMergeMatchesConsolidatedFramebuffer(OffscreenCanvas& gpu)
     if(bad)std::cerr<<"Consolidated GPU mismatch pixels="<<bad<<" worst="<<worst<<'\n';
 }
 
-void pixelPreviewRendering(OffscreenCanvas& gpu)
+void pixelPreviewRendering(OffscreenCanvas& gpu,c::BlendMode mode=c::BlendMode::Normal)
 {
     c::Document doc({{32,24},96});
     auto layer=c::Layer::raster("Source",patterned({32,24},true));
+    layer.blendMode=mode;layer.blendSeed=12345;
     check(doc.insertLayer(0,layer),"insert Pixel Preview source");
     const auto native=u::flattenDocument(doc);check(bool(native),"native preview source prepared");if(!native)return;
     auto scene=sceneFor(doc);scene.pixelPreviewEnabled=true;scene.pixelPreview=u::surfaceFromNativeImage(native.image);
@@ -944,6 +973,8 @@ void pixelPreviewRendering(OffscreenCanvas& gpu)
 #include "AdjustmentRenderingChecks.inc"
 #include "LayerCropRenderingChecks.inc"
 
+#include "BlendV3RenderingChecks.inc"
+
 void benchmarks(bool validation)
 {
     std::cout << "Optional blend benchmark: record+submit+fence wall time; no GPU readback,"
@@ -980,14 +1011,29 @@ void benchmarks(bool validation)
         std::vector<double> modeTimes,editTimes,overlayTimes;
         for (auto mode : {c::BlendMode::Screen,c::BlendMode::Overlay,c::BlendMode::SoftLight,
                  c::BlendMode::ColorDodge,c::BlendMode::LinearDodge,c::BlendMode::ColorBurn,
-                 c::BlendMode::LinearBurn,c::BlendMode::Subtract,c::BlendMode::Divide}) {
+                 c::BlendMode::LinearBurn,c::BlendMode::Subtract,c::BlendMode::Divide,
+                 c::BlendMode::Dissolve,c::BlendMode::DarkerColor,c::BlendMode::LighterColor,
+                 c::BlendMode::VividLight,c::BlendMode::LinearLight,c::BlendMode::PinLight,c::BlendMode::HardMix}) {
             document.setLayerBlendMode(id,mode);
             scene.document = document.snapshot();
             const auto before = gpu.stats();
             gpu.render(scene,false);
             modeTimes.push_back(gpu.frameMilliseconds());
+            std::cout<<extent.width<<"x"<<extent.height<<" "<<c::blendModeName(mode)<<" ms="<<gpu.frameMilliseconds()<<" GPU_ms="<<gpu.gpuMilliseconds()<<" uploads="<<(gpu.stats().uploadedBytes-initial.uploadedBytes)<<'\n';
             check(gpu.stats().compositionPasses > before.compositionPasses,"benchmark mode change recomposes");
             check(gpu.stats().uploadedBytes == initial.uploadedBytes,"benchmark mode changes have zero image upload");
+        }
+        for(auto mode:{c::BlendMode::Dissolve,c::BlendMode::HardMix}) {
+            document.setLayerBlendMode(id,mode);
+            for(float opacity:{.2F,.4F,.6F,.8F}) {
+                document.setLayerOpacity(id,opacity);scene.document=document.snapshot();gpu.render(scene,false);
+                std::cout<<extent.width<<"x"<<extent.height<<" scrub "<<c::blendModeName(mode)<<" wall_ms="<<gpu.frameMilliseconds()<<" GPU_ms="<<gpu.gpuMilliseconds()<<'\n';
+                check(gpu.stats().uploadedBytes==initial.uploadedBytes,"opacity scrubbing uploads no source textures");
+            }
+            u::MergeProfile profile;const auto start=std::chrono::steady_clock::now();auto cpu=u::flattenDocument(document,{},{},&profile);
+            check(bool(cpu),"CPU benchmark canonical output");
+            std::cout<<extent.width<<"x"<<extent.height<<" CPU "<<c::blendModeName(mode)<<" wall_ms="
+                <<std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-start).count()<<" sample_blend_ms="<<profile.samplingBlendMs<<'\n';
         }
         std::array<std::byte,16*16*4> patch {};
         for (int edit = 0; edit < 3; ++edit) {
@@ -1279,6 +1325,7 @@ int main(int argc, char** argv)
     bool validation = false, benchmark = false, adjustments = false, crop = false, filters = false,effects=false,masks=false,clipping=false,adjustmentLayers=false;
     for (int i = 1; i < argc; ++i) {
         if (std::string_view(argv[i]) == "--validation") validation = true;
+        if (std::string_view(argv[i]) == "--linear-target") linearTestTarget = true;
         if (std::string_view(argv[i]) == "--benchmark") benchmark = true;
         if (std::string_view(argv[i]) == "--adjustments") adjustments = true;
         if (std::string_view(argv[i]) == "--crop") crop = true;
@@ -1302,7 +1349,7 @@ int main(int argc, char** argv)
             Review review(effects?c::layerEffectCount:filters?c::spatialFilterCount:adjustments?c::adjustmentCount+2:c::allBlendModes.size());
             {
                 OffscreenCanvas gpu(validation);
-                if(clipping)clippingRendering(gpu);
+                if(clipping||adjustmentLayers)clippingRendering(gpu);
                 else if(masks)layerMaskRendering(gpu);
                 else if(effects)layerEffectRendering(gpu,review);
                 else if(filters)spatialFilterRendering(gpu,review);
@@ -1315,12 +1362,14 @@ int main(int argc, char** argv)
                     adjustmentResourceLimits(gpu);
                 } else {
                     allModesAndCacheBehavior(gpu,review);
+                    blendV3Consumers(gpu);
                     arithmeticEndpointsAndGradients(gpu);
                     whiteBackdropEndpointStacks(gpu);
                     typedStacksAndPassThrough(gpu);
                     mergePreservesNativeFramebuffer(gpu);
                     separatedMergeMatchesConsolidatedFramebuffer(gpu);
                     pixelPreviewRendering(gpu);
+                    pixelPreviewRendering(gpu,c::BlendMode::Dissolve);
                     projectiveRendering(gpu);
                 }
             }

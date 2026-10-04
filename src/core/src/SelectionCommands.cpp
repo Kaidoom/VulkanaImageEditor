@@ -129,6 +129,7 @@ bool LayerViaCopyCommand::apply(Document& document)
     }
     layer.crop=selection?std::nullopt:source->crop; // Extraction bakes visible crop once; duplication retains it.
     layer.opacity = source->opacity; // sampled pixels do not include layer opacity
+    layer.blendSeed = source->blendSeed;
     layer.blendMode = source->blendMode; // Extraction retains unblended source pixels.
     layer.visible = source->visible;
     layer.colorLabel = source->colorLabel;

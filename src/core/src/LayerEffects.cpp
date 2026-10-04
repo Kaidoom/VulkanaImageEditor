@@ -271,6 +271,11 @@ bool equivalentLayerEffects(const LayerEffectState &a,
   return a == b ||
          (a ? *a : LayerEffectStack{}) == (b ? *b : LayerEffectStack{});
 }
+bool hasDissolveLayerEffects(const LayerEffectState &s) noexcept {
+  if(!s)return false;
+  for(const auto& e:s->items)if(e.enabled&&e.blendMode==BlendMode::Dissolve)return true;
+  return s->items[7].enabled&&s->items[7].bevel.shadowBlend==BlendMode::Dissolve;
+}
 bool hasActiveLayerEffects(const LayerEffectState &s) noexcept {
   if(!s)return false;
   for(std::size_t i=0;i<layerEffectCount;++i)
@@ -494,8 +499,10 @@ float sampleEffectMask(const LayerEffectMask &m, Vec2d local) noexcept {
          255;
 }
 EffectParameters compileLayerEffects(const LayerEffectState &state,
-                                     RectD frame) {
+                                     RectD frame, std::uint32_t seed) {
   EffectParameters p{};
+  p[3]=float(seed&65535U);p[19]=float(seed>>16);
+  p[20]=hasDissolveLayerEffects(state)?1.F:0.F;
   p[256] = float(frame.x);
   p[257] = float(frame.y);
   p[258] = float(frame.width);
@@ -531,13 +538,22 @@ struct Evaluation {
   static float bAbs(float v) { return std::abs(v); }
   static float bSqrt(float v) { return std::sqrt(v); }
   static float bClamp(float v, float a, float b) { return std::clamp(v, a, b); }
-  static BVec4 bComposite(BVec4 a, BVec4 b, float o, int m) {
-    return blend_detail::bComposite(a, b, o, m);
+  using BUint = std::uint32_t;
+  static float bUnassociatedLinear(float c,float a) { return blend_detail::bUnassociatedLinear(c,a); }
+  static bool bDissolve(float p,float x,float y,BUint seed) { return blend_detail::bDissolve(p,x,y,seed); }
+  static BVec4 bComposite(BVec4 a, BVec4 b, float o, int m) { return blend_detail::bComposite(a,b,o,m); }
+  static BVec4 bContribution(BVec4 a,BVec4 b,float o,int m,BVec4 e,float x,float y,BUint seed) {
+    return blend_detail::bContribution(a,b,o,m,e,x,y,seed);
   }
+  static BVec4 bCompositeAt(BVec4 a,BVec4 b,float o,int m,float x,float y,BUint seed,bool protect) {
+    return blend_detail::bCompositeAt(a,b,o,m,x,y,seed,protect);
+  }
+#define E_OUTPUT BVec4&
 #define E_INLINE inline
 #define E_PARAM(i) parameters[std::size_t(i)]
 #define E_MASK(i) masks[std::size_t(i)]
 #include "imageeditor/core/detail/LayerEffectMath.inc"
+#undef E_OUTPUT
 #undef E_INLINE
 #undef E_PARAM
 #undef E_MASK
@@ -547,7 +563,7 @@ PremultipliedColor
 compositeLayerEffects(PremultipliedColor backdrop, PremultipliedColor base,
                       const EffectParameters &p, const LayerEffectCache *cache,
                       Vec2d local, float opacity, BlendMode mode,
-                      float cropCoverage) noexcept {
+                      float cropCoverage, bool protectedCoverage) noexcept {
   Evaluation e{p, {}};
   if (cache)
     for (std::size_t i = 0; i < layerEffectMaskCount; ++i)
@@ -556,7 +572,7 @@ compositeLayerEffects(PremultipliedColor backdrop, PremultipliedColor base,
   const auto c =
       e.eComposite({backdrop[0], backdrop[1], backdrop[2], backdrop[3]},
                    {base[0], base[1], base[2], base[3]}, float(local.x),
-                   float(local.y), opacity * cropCoverage, int(mode));
+                   float(local.y), opacity, int(mode), cropCoverage, protectedCoverage);
   return {c.x, c.y, c.z, c.w};
 }
 } // namespace imageeditor::core

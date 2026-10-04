@@ -113,7 +113,9 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
     std::vector<core::LayerId> adjustmentInputCaches;
     struct Clear {std::size_t offset,bytes;core::LayerId cache;};
     std::vector<Clear> clears;
-    std::vector<float> adjustmentParameters;
+    std::vector<float> adjustmentParameters(512);
+    for(int i=0;i<256;++i) {adjustmentParameters[std::size_t(i)]=float(core::srgbToLinear(std::uint8_t(i)));
+        adjustmentParameters[std::size_t(256+i)]=float(i)/255.F;}
     if(!unavailable && !scene.pixelPreviewEnabled)prepareAdjustmentMasks(scene);
     // This replaces only composition input, never the editor's document scene.
     core::LayerSnapshot native;
@@ -132,15 +134,15 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
             const auto inverse=core::composeTransform({x.x,y.x,o.x,x.y,y.y,o.y},layer.localToDocument).inverted();
             if(!inverse)continue;
             const auto start=key.size();
-            key.insert(key.end(),{layer.id,scene.documentInstance,layer.adjustmentRevision,std::bit_cast<std::uint32_t>(layer.opacity)});
+            key.insert(key.end(),{layer.id,scene.documentInstance,layer.adjustmentRevision,std::bit_cast<std::uint32_t>(layer.opacity),std::uint64_t(layer.blendMode),layer.blendSeed});
             for(double v:{inverse->m00,inverse->m01,inverse->m02,inverse->m10,inverse->m11,inverse->m12,inverse->m20,inverse->m21,inverse->m22})
                 key.push_back(std::bit_cast<std::uint64_t>(v));
             CompositePush push{{float(inverse->m00),float(inverse->m01),float(inverse->m02),0},
                 {float(inverse->m10),float(inverse->m11),float(inverse->m12),0},
                 {float(rect[0]),float(rect[1]),float(rect[2]),float(rect[3])},
-                {clip.x,clip.y,clip.width,clip.height},layer.opacity,0,adjustmentOffset,0,{1,0,0,0},{0,1,0,0},{}};
+                {clip.x,clip.y,clip.width,clip.height},layer.opacity,int(layer.blendMode),adjustmentOffset,0,{1,0,0,0},{0,1,0,0},{}};
             const auto offset=adjustmentParameters.size();
-            adjustmentParameters.insert(adjustmentParameters.end(),{float(inverse->m20),float(inverse->m21),float(inverse->m22),0,0,0,1,0});
+            adjustmentParameters.insert(adjustmentParameters.end(),{float(inverse->m20),float(inverse->m21),float(inverse->m22),float(layer.blendSeed&65535U),0,0,1,float(layer.blendSeed>>16)});
             adjustmentParameters.resize(offset+20,0);
             const bool masked=layer.mask&&layer.mask->enabled;
             key.push_back(masked);
@@ -179,7 +181,7 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
         const auto keyStart=key.size();
         key.push_back(layer.id);
         key.push_back(surface->id()); key.push_back(surface->revision());
-        key.push_back(static_cast<std::uint32_t>(layer.blendMode));
+        key.push_back(static_cast<std::uint32_t>(layer.blendMode));key.push_back(layer.blendSeed);
         key.push_back(std::bit_cast<std::uint32_t>(layer.opacity));
         key.push_back(layer.adjustmentRevision);
         key.push_back(layer.effectRevision);key.push_back(styled);
@@ -251,7 +253,7 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
             push.mode|=offset<<8;
         }
         const auto pixelsToLocal=bypassFilters?core::intrinsicPixelsToLocal(layer):core::renderPixelsToLocal(layer);
-        if(layer.crop||styled||masked){
+        if(layer.crop||styled||masked||layer.blendMode==core::BlendMode::Dissolve){
             push.sourceToLocalX={float(pixelsToLocal.m00),float(pixelsToLocal.m01),float(pixelsToLocal.m02),0};
             push.sourceToLocalY={float(pixelsToLocal.m10),float(pixelsToLocal.m11),float(pixelsToLocal.m12),0};
         }
@@ -263,13 +265,13 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
             push.sourceToLocalX[3]=float(cuts[2]);push.sourceToLocalY[3]=float(cuts[3]);
         }
         if(scene.pixelPreviewEnabled)push.cropMode=3; // native-pixel display sampling
-        if(!inverse->isAffine()||!pixelsToLocal.isAffine()||masked) {
+        if(!inverse->isAffine()||!pixelsToLocal.isAffine()||masked||layer.blendMode==core::BlendMode::Dissolve) {
             // Bottom rows live in the existing parameter buffer, preserving
             // the guaranteed 128-byte push-constant budget. Affine dispatches
             // keep their original arithmetic and avoid the extra lookup.
             const auto offset=adjustmentParameters.size();
-            adjustmentParameters.insert(adjustmentParameters.end(),{float(inverse->m20),float(inverse->m21),float(inverse->m22),0,
-                float(pixelsToLocal.m20),float(pixelsToLocal.m21),float(pixelsToLocal.m22),0});
+            adjustmentParameters.insert(adjustmentParameters.end(),{float(inverse->m20),float(inverse->m21),float(inverse->m22),float(layer.blendSeed&65535U),
+                float(pixelsToLocal.m20),float(pixelsToLocal.m21),float(pixelsToLocal.m22),float(layer.blendSeed>>16)});
             adjustmentParameters.resize(offset+20,0);
             if(masked) {
                 const auto foundMask=std::find(adjustmentMasks_.begin(),adjustmentMasks_.end(),layer.mask->coverage);

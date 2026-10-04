@@ -47,20 +47,17 @@ void EffectsPanel::bevelPage() {
   section(tr("Lighting"));
   number(i, tr("Angle"), -180, 180, &core::LayerEffect::angle);
   value(tr("Altitude"), 0, 90, &core::BevelParameters::altitude);
-  QStringList blends;
-  for (auto m : core::allBlendModes)
-    blends << QString::fromUtf8(core::blendModeName(m));
-  auto *highlight = choices(
-      i, tr("Highlight blend"), blends,
-      [this] { return int(working_.items[7].blendMode); },
-      [this](int v) { working_.items[7].blendMode = core::BlendMode(v); });
+  auto *highlight = blendChoices(
+      i, tr("Highlight blend"),
+      [this] { return working_.items[7].blendMode; },
+      [this](core::BlendMode v) { working_.items[7].blendMode = v; });
   color(i, false, highlight);
   number(i, tr("Highlight opacity"), 0, 100, &core::LayerEffect::opacity, 100);
-  auto *shadow = choices(
-      i, tr("Shadow blend"), blends,
-      [this] { return int(working_.items[7].bevel.shadowBlend); },
-      [this](int v) {
-        working_.items[7].bevel.shadowBlend = core::BlendMode(v);
+  auto *shadow = blendChoices(
+      i, tr("Shadow blend"),
+      [this] { return working_.items[7].bevel.shadowBlend; },
+      [this](core::BlendMode v) {
+        working_.items[7].bevel.shadowBlend = v;
       });
   color(i, true, shadow);
   value(tr("Shadow opacity"), 0, 100, &core::BevelParameters::shadowOpacity,

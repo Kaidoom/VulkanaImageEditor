@@ -73,9 +73,12 @@ and transformation metadata is not applied again.
 | Adjustment layers | Native Invert and Exposure with zero offset/unit gamma; supported masks and strength. A Normal folder with a direct native adjustment becomes an explicit local domain |
 | Clipping chains | Sibling-scoped native Clipping Mask Groups when Blend Clipped Layers As Group (`clbl`) is enabled/default |
 
-The 20 blend mappings are explicit in `PsdImport.cpp`: Normal, Multiply, Screen,
+The 27 blend mappings are explicit in `PsdImport.cpp`: Normal, Multiply, Screen,
 Overlay, Soft/Hard Light, Darken/Lighten, Difference, Exclusion, Hue, Saturation,
-Color, Luminosity, Color/Linear Dodge, Color/Linear Burn, Subtract and Divide.
+Color, Luminosity, Color/Linear Dodge, Color/Linear Burn, Subtract, Divide,
+Dissolve, Darker/Lighter Color, Vivid/Linear/Pin Light and Hard Mix.
+See [blend modes](BLEND_MODES.md) for comparison ties and Dissolve's stable
+native pattern, which is not pixel-identical across editors.
 Vulkana's existing linear-light composition is unchanged. Editable style edges,
 typography and blend results can differ from the saved composition.
 

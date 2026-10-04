@@ -22,48 +22,84 @@ E_INLINE BVec4 eGradient(float x,float y)
     return BVec4(E_PARAM(i+4)*(1-t)+E_PARAM(i+8)*t,E_PARAM(i+5)*(1-t)+E_PARAM(i+9)*t,
         E_PARAM(i+6)*(1-t)+E_PARAM(i+10)*t,E_PARAM(i+7)*(1-t)+E_PARAM(i+11)*t);
 }
-E_INLINE BVec4 eInside(BVec4 base,BVec4 paint,int effect,float coverage)
+E_INLINE BUint eSeed(int contribution)
+{ return (BUint(E_PARAM(3)) | (BUint(E_PARAM(19))<<16)) ^ (BUint(contribution)*0x9e3779b9u); }
+E_INLINE BVec4 eInside(BVec4 base,BVec4 paint,int effect,float coverage,float x,float y)
 {
     int i=effect*32;
     if(E_PARAM(i)==0.0F || base.w<=0.0F)return base;
-    BVec4 opaque=BVec4(base.x/base.w,base.y/base.w,base.z/base.w,1.0F);
-    BVec4 result=bComposite(opaque,paint,E_PARAM(i+2)*bClamp(coverage,0.0F,1.0F),int(E_PARAM(i+1)));
+    BVec4 opaque=BVec4(bUnassociatedLinear(base.x,base.w),bUnassociatedLinear(base.y,base.w),bUnassociatedLinear(base.z,base.w),1.0F);
+    BVec4 result=bCompositeAt(opaque,paint,E_PARAM(i+2)*bClamp(coverage,0.0F,1.0F),int(E_PARAM(i+1)),x,y,eSeed(effect+1),false);
     return BVec4(result.x*base.w,result.y*base.w,result.z*base.w,base.w);
 }
-E_INLINE BVec4 eOutside(BVec4 backdrop,int effect,float coverage)
+E_INLINE BVec4 eOutside(BVec4 backdrop,int effect,float coverage,float x,float y)
 {
     int i=effect*32;
     if(E_PARAM(i)==0.0F)return backdrop;
-    return bComposite(backdrop,eColor(effect),E_PARAM(i+2)*bClamp(coverage,0.0F,1.0F),int(E_PARAM(i+1)));
+    return bCompositeAt(backdrop,eColor(effect),E_PARAM(i+2)*bClamp(coverage,0.0F,1.0F),int(E_PARAM(i+1)),x,y,eSeed(effect+1),false);
 }
-E_INLINE BVec4 eComposite(BVec4 backdrop,BVec4 base,float x,float y,float opacity,int mode)
+E_INLINE BVec4 eEmission(BVec4 backdrop,BVec4 emitted,int effect,float coverage,float x,float y)
 {
+    int i=effect*32;
+    if(E_PARAM(i)==0.0F)return emitted;
+    return bContribution(backdrop,eColor(effect),E_PARAM(i+2)*bClamp(coverage,0.0F,1.0F),int(E_PARAM(i+1)),emitted,x,y,eSeed(effect+1));
+}
+E_INLINE BVec4 eCompositePass(BVec4 backdrop,BVec4 base,float x,float y,int mode,E_OUTPUT emitted,bool track)
+{
+    emitted=BVec4(0,0,0,0);
     BVec4 styled=base;
-    styled=eInside(styled,eColor(5),5,1.0F);
-    styled=eInside(styled,eGradient(x,y),6,1.0F);
-    styled=eInside(styled,eColor(2),2,E_MASK(3));
-    styled=eInside(styled,eColor(4),4,E_MASK(5));
+    styled=eInside(styled,eColor(5),5,1.0F,x,y);
+    styled=eInside(styled,eGradient(x,y),6,1.0F,x,y);
+    styled=eInside(styled,eColor(2),2,E_MASK(3),x,y);
+    styled=eInside(styled,eColor(4),4,E_MASK(5),x,y);
     if(E_PARAM(224)!=0.0F && styled.w>0.0F) {
         float alpha=styled.w;
-        BVec4 opaque=BVec4(styled.x/alpha,styled.y/alpha,styled.z/alpha,1.0F);
-        opaque=bComposite(opaque,BVec4(E_PARAM(232),E_PARAM(233),E_PARAM(234),E_PARAM(235)),
-            E_PARAM(242)*E_MASK(7),int(E_PARAM(241)));
-        opaque=bComposite(opaque,eColor(7),E_PARAM(226)*E_MASK(6),int(E_PARAM(225)));
+        BVec4 opaque=BVec4(bUnassociatedLinear(styled.x,alpha),bUnassociatedLinear(styled.y,alpha),bUnassociatedLinear(styled.z,alpha),1.0F);
+        opaque=bCompositeAt(opaque,BVec4(E_PARAM(232),E_PARAM(233),E_PARAM(234),E_PARAM(235)),
+            E_PARAM(242)*E_MASK(7),int(E_PARAM(241)),x,y,eSeed(9),false);
+        opaque=bCompositeAt(opaque,eColor(7),E_PARAM(226)*E_MASK(6),int(E_PARAM(225)),x,y,eSeed(8),false);
         styled=BVec4(opaque.x*alpha,opaque.y*alpha,opaque.z*alpha,alpha);
     }
-    styled=eInside(styled,eColor(0),0,E_MASK(1));
-    BVec4 result=eOutside(backdrop,1,E_MASK(2));
-    result=eOutside(result,3,E_MASK(4));
+    styled=eInside(styled,eColor(0),0,E_MASK(1),x,y);
+    if(track)emitted=eEmission(backdrop,emitted,1,E_MASK(2),x,y);
+    BVec4 result=eOutside(backdrop,1,E_MASK(2),x,y);
+    if(track)emitted=eEmission(result,emitted,3,E_MASK(4),x,y);
+    result=eOutside(result,3,E_MASK(4),x,y);
+    if(track)emitted=bContribution(result,styled,1.0F,mode,emitted,x,y,eSeed(0));
     result=bComposite(result,styled,1.0F,mode);
     if(E_PARAM(224)!=0.0F) {
-        result=bComposite(result,BVec4(E_PARAM(232),E_PARAM(233),E_PARAM(234),E_PARAM(235)),
-            E_PARAM(242)*E_MASK(9),int(E_PARAM(241)));
-        result=bComposite(result,eColor(7),E_PARAM(226)*E_MASK(8),int(E_PARAM(225)));
+        if(track)emitted=bContribution(result,BVec4(E_PARAM(232),E_PARAM(233),E_PARAM(234),E_PARAM(235)),
+            E_PARAM(242)*E_MASK(9),int(E_PARAM(241)),emitted,x,y,eSeed(9));
+        result=bCompositeAt(result,BVec4(E_PARAM(232),E_PARAM(233),E_PARAM(234),E_PARAM(235)),
+            E_PARAM(242)*E_MASK(9),int(E_PARAM(241)),x,y,eSeed(9),false);
+        if(track)emitted=bContribution(result,eColor(7),E_PARAM(226)*E_MASK(8),int(E_PARAM(225)),emitted,x,y,eSeed(8));
+        result=bCompositeAt(result,eColor(7),E_PARAM(226)*E_MASK(8),int(E_PARAM(225)),x,y,eSeed(8),false);
     }
-    result=eOutside(result,0,E_MASK(0));
+    if(track)emitted=eEmission(result,emitted,0,E_MASK(0),x,y);
+    result=eOutside(result,0,E_MASK(0),x,y);
+    return result;
+}
+E_INLINE BVec4 eComposite(BVec4 backdrop,BVec4 base,float x,float y,float opacity,int mode,
+    float coverage,bool protectedCoverage)
+{
+    BVec4 emitted;
+    BVec4 result=eCompositePass(backdrop,base,x,y,mode==20?0:mode,emitted,mode==20&&!protectedCoverage);
+    if(mode==20) {
+        // Resolve the complete styled contribution against the actual backdrop.
+        // Track emitted color without subtracting the surviving backdrop.
+        if(protectedCoverage) {
+            if(!bDissolve(opacity,x,y,eSeed(0)))return backdrop;
+            opacity=1.0F;
+        } else {
+            float alpha=emitted.w;
+            if(alpha<=0.0F || !bDissolve(alpha*opacity*coverage,x,y,eSeed(0)))return backdrop;
+            return BVec4(emitted.x==alpha?1.0F:emitted.x/alpha,
+                emitted.y==alpha?1.0F:emitted.y/alpha,emitted.z==alpha?1.0F:emitted.z/alpha,1.0F);
+        }
+    }
     // One group-contribution opacity, not opacity applied repeatedly to each
     // generated pass. Final crop coverage uses this same contribution boundary.
-    float a=bClamp(opacity,0.0F,1.0F);
+    float a=bClamp(opacity*coverage,0.0F,1.0F);
     return BVec4(backdrop.x+(result.x-backdrop.x)*a,backdrop.y+(result.y-backdrop.y)*a,
         backdrop.z+(result.z-backdrop.z)*a,backdrop.w+(result.w-backdrop.w)*a);
 }

@@ -3,6 +3,7 @@
 #include "imageeditor/ui/LayerListModel.hpp"
 #include "imageeditor/ui/LayerListView.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
+#include "imageeditor/ui/EffectsPanel.hpp"
 #include "imageeditor/ui/Theme.hpp"
 
 #include <QAction>
@@ -10,6 +11,7 @@
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QImage>
+#include <QPushButton>
 #include <QSettings>
 #include <QScrollBar>
 #include <QStandardPaths>
@@ -30,6 +32,21 @@ void check(bool value,const char* expression,int line)
 void settle()
 {
     for (int i=0;i<3;++i) { QCoreApplication::sendPostedEvents(); QCoreApplication::processEvents(); }
+}
+void checkDisplayOrder(const QComboBox& combo)
+{
+    const QStringList expected {
+        "Normal", "Dissolve", "Darken", "Multiply", "Color Burn", "Linear Burn",
+        "Darker Color", "Lighten", "Screen", "Color Dodge", "Linear Dodge (Add)",
+        "Lighter Color", "Overlay", "Soft Light", "Hard Light", "Vivid Light",
+        "Linear Light", "Pin Light", "Hard Mix", "Difference", "Exclusion",
+        "Subtract", "Divide", "Hue", "Saturation", "Color", "Luminosity"};
+    CHECK(combo.count()==expected.size());
+    for(int row=0;row<expected.size();++row) {
+        CHECK(combo.itemText(row)==expected[row]);
+        CHECK(QString::fromUtf8(c::blendModeName(c::BlendMode(combo.itemData(row).toUInt())))==expected[row]);
+    }
+    for(auto mode:c::allBlendModes) CHECK(combo.findData(int(mode))>=0);
 }
 struct Fixture {
     QTemporaryDir assets;
@@ -68,8 +85,9 @@ struct Fixture {
     }
     void choose(c::BlendMode mode)
     {
-        combo->setCurrentIndex(int(mode));
-        CHECK(QMetaObject::invokeMethod(combo,"activated",Qt::DirectConnection,Q_ARG(int,int(mode)))); settle();
+        const int index=combo->findData(int(mode)); CHECK(index>=0);
+        combo->setCurrentIndex(index);
+        CHECK(QMetaObject::invokeMethod(combo,"activated",Qt::DirectConnection,Q_ARG(int,index))); settle();
     }
     void history(bool redo)
     {
@@ -87,8 +105,7 @@ void comboAndPrimaryHistory()
     CHECK(f.combo->isEnabled()); CHECK(f.combo->count()==int(c::allBlendModes.size()));
     CHECK(f.combo->maxVisibleItems()==f.combo->count());
     CHECK(f.combo->style()->styleHint(QStyle::SH_ComboBox_Popup,nullptr,f.combo)==0);
-    for (const auto mode:c::allBlendModes)
-        CHECK(f.combo->itemText(int(mode))==QString::fromUtf8(c::blendModeName(mode)));
+    checkDisplayOrder(*f.combo);
     f.combo->showPopup(); settle();
     auto* popup = f.combo->view();
     CHECK(popup->isVisible());
@@ -113,14 +130,14 @@ void comboAndPrimaryHistory()
     f.choose(c::BlendMode::Multiply);
     CHECK(f.session().history().undoDepth()==depth+1);
     f.history(false);
-    CHECK(f.combo->currentIndex()==int(c::BlendMode::Normal));
+    CHECK(f.combo->currentData().toInt()==int(c::BlendMode::Normal));
     CHECK(f.document().layer(secondId)->blendMode==c::BlendMode::Normal);
     const auto redoDepth=f.session().history().redoDepth();
     f.choose(c::BlendMode::Normal);
     CHECK(f.session().history().redoDepth()==redoDepth);
     CHECK(f.session().history().undoDepth()==depth);
     f.history(true);
-    CHECK(f.combo->currentIndex()==int(c::BlendMode::Multiply));
+    CHECK(f.combo->currentData().toInt()==int(c::BlendMode::Multiply));
     CHECK(f.document().layer(secondId)->blendMode==c::BlendMode::Multiply);
     CHECK(std::get<c::RasterLayer>(f.document().layer(secondId)->payload).surface==pixels);
     CHECK(pixels->revision()==revision);
@@ -131,7 +148,7 @@ void comboAndPrimaryHistory()
         QWheelEvent wheel(pos,f.combo->mapToGlobal(pos.toPoint()),{},QPoint(0,delta),
             Qt::NoButton,Qt::NoModifier,Qt::NoScrollPhase,false);
         QCoreApplication::sendEvent(f.combo,&wheel); settle();
-        CHECK(f.combo->currentIndex()==int(c::BlendMode::Multiply));
+        CHECK(f.combo->currentData().toInt()==int(c::BlendMode::Multiply));
         CHECK(f.session().history().undoDepth()==wheelDepth);
     }
 }
@@ -194,9 +211,81 @@ void blendSettlesTransformWithoutDiscardingItsActions()
     CHECK(f.document().layer(f.base)->localToDocument.m02==initial.m02);
     f.history(true); f.history(true);
     CHECK(f.document().layer(f.base)->localToDocument.m02==moved.m02);
-    CHECK(f.combo->currentIndex()==int(c::BlendMode::Screen));
+    CHECK(f.combo->currentData().toInt()==int(c::BlendMode::Screen));
     CHECK(std::get<c::RasterLayer>(f.document().layer(f.base)->payload).surface==pixels);
     CHECK(pixels->revision()==revision);
+}
+
+void adjustmentBlendControls()
+{
+    Fixture f; if (!f.valid()) return;
+    auto adjustment=c::Layer::adjustment("Correction");
+    const auto id=adjustment.id;
+    const auto seed=adjustment.blendSeed;
+    CHECK(f.session().execute(std::make_unique<c::AddLayerCommand>(std::move(adjustment),1)));
+    f.select(id);
+    CHECK(f.combo->isEnabled());
+    for (const auto mode:c::allBlendModes) {
+        f.choose(mode);
+        CHECK(f.document().layer(id)->blendMode==mode);
+        CHECK(f.combo->currentData().toInt()==int(mode));
+        f.select(f.base); f.select(id);
+        CHECK(f.combo->currentData().toInt()==int(mode));
+        CHECK(f.document().layer(id)->blendSeed==seed);
+        CHECK(f.document().layer(f.base)->blendMode==c::BlendMode::Normal);
+    }
+    f.history(false);
+    CHECK(f.combo->currentData().toInt()==int(c::BlendMode::PinLight));
+    const auto redo=f.session().history().redoDepth();
+    f.choose(c::BlendMode::PinLight);
+    CHECK(f.session().history().redoDepth()==redo);
+    f.history(true);
+    CHECK(f.combo->currentData().toInt()==int(c::BlendMode::HardMix));
+}
+
+void effectBlendBindings()
+{
+    u::EffectsPanel panel;
+    auto layer=c::Layer::shape("Styled",c::ShapeLayer{});
+    auto state=std::make_shared<c::LayerEffectStack>();
+    for(std::size_t i=0;i<c::layerEffectCount;++i)
+        state->items[i].blendMode=c::allBlendModes[i+7];
+    state->items[7].bevel.shadowBlend=c::BlendMode::DarkerColor;
+    layer.effects=state;
+    int previews=0;
+    panel.onPreview=[&](c::LayerEffectState value){layer.effects=value;++previews;};
+    panel.setTarget(&layer);
+    CHECK(previews==0);
+    auto* nav=panel.findChild<QComboBox*>("EffectNavigation");
+    CHECK(nav); if(!nav)return;
+    for(std::size_t i=0;i<c::layerEffectCount;++i) {
+        nav->setCurrentIndex(int(i));
+        for(bool shadow:{false,true}) {
+            if(shadow&&i!=7)continue;
+            const auto label=i==7?(shadow?"Shadow blend":"Highlight blend"):"Blend";
+            auto* box=panel.findChild<QComboBox*>(QString("Effect%1%2").arg(i).arg(label));
+            CHECK(box);if(!box)continue;
+            checkDisplayOrder(*box);
+            const auto current=shadow?layer.effects->items[7].bevel.shadowBlend:layer.effects->items[i].blendMode;
+            CHECK(box->currentData().toInt()==int(current));
+            for(int row=0;row<box->count();++row) {
+                auto expected=*layer.effects;
+                const auto mode=c::BlendMode(box->itemData(row).toUInt());
+                if(shadow)expected.items[7].bevel.shadowBlend=mode;
+                else expected.items[i].blendMode=mode;
+                box->setCurrentIndex(row);
+                CHECK(*layer.effects==expected);
+                const auto count=previews;
+                panel.setTarget(nullptr);panel.setTarget(&layer);
+                CHECK(previews==count);
+                CHECK(box->currentData().toInt()==int(mode));
+            }
+        }
+    }
+    panel.findChild<QPushButton*>("EffectResetCurrent")->click();
+    CHECK(layer.effects->items[7]==c::defaultLayerEffect(c::LayerEffectType::BevelEmboss));
+    CHECK(panel.findChild<QComboBox*>("Effect7Highlight blend")->currentData().toInt()==int(c::BlendMode::Screen));
+    CHECK(panel.findChild<QComboBox*>("Effect7Shadow blend")->currentData().toInt()==int(c::BlendMode::Multiply));
 }
 }
 
@@ -214,6 +303,8 @@ int main(int argc,char** argv)
     comboAndPrimaryHistory();
     containersStayPassThrough();
     blendSettlesTransformWithoutDiscardingItsActions();
+    adjustmentBlendControls();
+    effectBlendBindings();
     std::cout << (failures?"Blend UI tests FAILED\n":"Blend UI tests passed\n");
     return failures?1:0;
 }

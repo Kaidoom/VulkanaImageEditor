@@ -18,6 +18,13 @@ B_INLINE float bEncode(float c)
     return c <= 0.0031308f ? c * 12.92f : 1.055f * bPow(c, 1.0f / 2.4f) - 0.055f;
 }
 B_INLINE float bLum(BVec3 c) { return 0.30f*c.x + 0.59f*c.y + 0.11f*c.z; }
+B_INLINE float bWholeColorMetric(BVec3 c)
+{
+    int r=int(bFloor(c.x*255.0f+0.5f)),g=int(bFloor(c.y*255.0f+0.5f)),b=int(bFloor(c.z*255.0f+0.5f));
+    if(c.x==bEncodeByte(r)&&c.y==bEncodeByte(g)&&c.z==bEncodeByte(b))
+        return float(30*r+59*g+11*b)/25500.0f;
+    return bLum(c);
+}
 B_INLINE float bMin3(BVec3 c) { return bMin(c.x, bMin(c.y, c.z)); }
 B_INLINE float bMax3(BVec3 c) { return bMax(c.x, bMax(c.y, c.z)); }
 B_INLINE BVec3 bClipColor(BVec3 c)
@@ -81,6 +88,29 @@ B_INLINE float bSeparable(float b, float s, int mode)
         if (b == 0.0f) return 0.0f;
         if (s == 0.0f || b >= s) return 1.0f;
         return b/s;
+    case 23: { // Vivid Light: source endpoints take precedence over backdrop.
+        if (s == 0.0f) return 0.0f;
+        if (s == 1.0f) return 1.0f;
+        if (s < 0.5f) {
+            float n=1.0f-b, d=2.0f*s;
+            return n>=d ? 0.0f : 1.0f-n/d;
+        }
+        float d=2.0f*(1.0f-s);
+        return b>=d ? 1.0f : b/d;
+    }
+    case 24: return bClamp(b+2.0f*s-1.0f,0.0f,1.0f);
+    case 25: return s<0.5f ? bMin(b,2.0f*s) : bMax(b,2.0f*s-1.0f);
+    case 26: { // Ordinary Hard Mix; exact complement ties depend on backdrop.
+        // Exact canonical 8-bit operands represent rational n/255, not the
+        // slightly asymmetric binary approximations of complementary codes.
+        float bi=bFloor(b*255.0f+0.5f),si=bFloor(s*255.0f+0.5f);
+        if(b==bEncodeByte(int(bi)) && s==bEncodeByte(int(si)))
+            return bi+si>255.0f || (bi+si==255.0f && bi>127.5f) ? 1.0f : 0.0f;
+        float total=b+s;
+        float z=total-b;
+        float error=(b-(total-z))+(s-z); // TwoSum: do not round a neighbor into a tie.
+        return total>1.0f || (total==1.0f && (error>0.0f || (error==0.0f && b>0.5f))) ? 1.0f : 0.0f;
+    }
     default: return s;
     }
 }
@@ -91,15 +121,59 @@ B_INLINE BVec3 bBlend(BVec3 b, BVec3 s, int mode)
     else if (mode == 11) c = bSetLum(bSetSat(b,bMax3(s)-bMin3(s)),bLum(b));
     else if (mode == 12) c = bSetLum(s,bLum(b));
     else if (mode == 13) c = bSetLum(b,bLum(s));
+    else if (mode == 21) c = bWholeColorMetric(s)<bWholeColorMetric(b) ? s : b;
+    else if (mode == 22) c = bWholeColorMetric(s)>bWholeColorMetric(b) ? s : b;
     else c = BVec3(bSeparable(b.x,s.x,mode),bSeparable(b.y,s.y,mode),bSeparable(b.z,s.z,mode));
     return BVec3(bClamp(c.x,0.0f,1.0f),bClamp(c.y,0.0f,1.0f),bClamp(c.z,0.0f,1.0f));
 }
+
+B_INLINE float bGridDivide(float n,float d)
+{
+    float q=n/d;
+    // Correct the native reciprocal/division residual before choosing a cell.
+    return q+bFma(-q,d,n)/d;
+}
+B_INLINE BVec3 bGridPoint(float x,float y,BVec3 a,BVec3 b,BVec3 w)
+{
+    float d=bFma(w.x,x,bFma(w.y,y,w.z));
+    return BVec3(bGridDivide(bFma(a.x,x,bFma(a.y,y,a.z)),d),
+        bGridDivide(bFma(b.x,x,bFma(b.y,y,b.z)),d),1.0f);
+}
+// Version 1 stochastic coverage: unsigned 32-bit wraparound, top 24 bits,
+// integer layer-local unit cells. Negative cells wrap modulo 2^32. Coordinates
+// are bounded before conversion (also protecting malformed projective input).
+B_INLINE BUint bHash(BUint v)
+{
+    v ^= v >> 16; v *= 0x7feb352du;
+    v ^= v >> 15; v *= 0x846ca68bu;
+    return v ^ (v >> 16);
+}
+B_INLINE BUint bCell(float v)
+{ return BUint(int(bClamp(bFloor(v),-2147483648.0f,2147483520.0f))); }
+B_INLINE bool bDissolve(float probability,float x,float y,BUint seed)
+{
+    if (probability<=0.0f) return false;
+    if (probability>=1.0f) return true;
+    BUint h=bHash(bCell(x)^bHash(bCell(y)^seed));
+    return (h>>8)<BUint(probability*16777216.0f);
+}
+B_INLINE float bUnassociatedLinear(float channel,float alpha)
+{ return channel==alpha?1.0f:channel/alpha; }
 B_INLINE float bUnassociatedEncoded(float channel, float alpha)
 {
     // Callers guarantee positive alpha. GLSL division may round even x/x
     // slightly below one; preserve the exact associated-white identity before
     // division so the named-mode endpoint branches agree across CPU and GPU.
     return channel == alpha ? 1.0f : bEncode(channel/alpha);
+}
+B_INLINE float bCanonicalEncoded(float channel,float alpha)
+{
+    float encoded=bUnassociatedEncoded(channel,alpha);
+    int code=int(bFloor(encoded*255.0f+0.5f));
+    // Recover only an EXACT known associated canonical sample. No epsilon,
+    // color snapping or quantization of filtered/continuous intermediate data.
+    if(channel==bDecodeByte(code)*alpha)return bEncodeByte(code);
+    return encoded;
 }
 B_INLINE BVec4 bComposite(BVec4 backdrop, BVec4 source, float opacity, int mode)
 {
@@ -117,6 +191,10 @@ B_INLINE BVec4 bComposite(BVec4 backdrop, BVec4 source, float opacity, int mode)
     else {
         BVec3 cs = BVec3(bUnassociatedEncoded(source.x,source.w),bUnassociatedEncoded(source.y,source.w),bUnassociatedEncoded(source.z,source.w));
         BVec3 cb = BVec3(bUnassociatedEncoded(backdrop.x,ab),bUnassociatedEncoded(backdrop.y,ab),bUnassociatedEncoded(backdrop.z,ab));
+        if(mode==21 || mode==22 || mode==26) {
+            cb=BVec3(bCanonicalEncoded(backdrop.x,ab),bCanonicalEncoded(backdrop.y,ab),bCanonicalEncoded(backdrop.z,ab));
+            cs=BVec3(bCanonicalEncoded(source.x,source.w),bCanonicalEncoded(source.y,source.w),bCanonicalEncoded(source.z,source.w));
+        }
         BVec3 blended = bBlend(cb,cs,mode);
         BVec3 linear = BVec3(bDecode(blended.x),bDecode(blended.y),bDecode(blended.z));
         c = s*(1.0f-ab) + b*remain + linear*(a*ab);
@@ -133,4 +211,66 @@ B_INLINE BVec4 bComposite(BVec4 backdrop, BVec4 source, float opacity, int mode)
             && (a == 1.0f || backdrop.z == ab)) c.z = alpha;
     }
     return BVec4(c.x,c.y,c.z,alpha);
+}
+
+B_INLINE BVec4 bCompositeAt(BVec4 backdrop,BVec4 source,float opacity,int mode,
+    float x,float y,BUint seed,bool protectedCoverage)
+{
+    if(mode!=20) return bComposite(backdrop,source,opacity,mode);
+    float probability=bClamp(opacity,0.0f,1.0f)*(protectedCoverage?1.0f:source.w);
+    if(source.w<=0.0f || !bDissolve(probability,x,y,seed))return backdrop;
+    if(protectedCoverage)return bComposite(backdrop,source,1.0f,0);
+    return BVec4(source.x==source.w?1.0f:source.x/source.w,source.y==source.w?1.0f:source.y/source.w,source.z==source.w?1.0f:source.z/source.w,1.0f);
+}
+
+// Accumulate emitted color separately from the surviving external backdrop.
+// This is the same overlap blend, followed by Normal accumulation of its
+// effective source. It avoids subtracting nearly equal finished composites
+// when stochastic coverage needs the conditional (unassociated) source color.
+B_INLINE BVec4 bContribution(BVec4 backdrop,BVec4 source,float opacity,int mode,
+    BVec4 emitted,float x,float y,BUint seed)
+{
+    if(mode==20) {
+        if(source.w<=0.0f || !bDissolve(source.w*bClamp(opacity,0.0f,1.0f),x,y,seed))return emitted;
+        return bCompositeAt(emitted,source,opacity,mode,x,y,seed,false);
+    }
+    if(source.w<=0.0f || opacity<=0.0f)return emitted;
+    if(mode==0 || backdrop.w<=0.0f)return bComposite(emitted,source,opacity,0);
+    BVec3 b=BVec3(bUnassociatedEncoded(backdrop.x,backdrop.w),bUnassociatedEncoded(backdrop.y,backdrop.w),bUnassociatedEncoded(backdrop.z,backdrop.w));
+    BVec3 s=BVec3(bUnassociatedEncoded(source.x,source.w),bUnassociatedEncoded(source.y,source.w),bUnassociatedEncoded(source.z,source.w));
+    if(mode==21 || mode==22 || mode==26) {
+        b=BVec3(bCanonicalEncoded(backdrop.x,backdrop.w),bCanonicalEncoded(backdrop.y,backdrop.w),bCanonicalEncoded(backdrop.z,backdrop.w));
+        s=BVec3(bCanonicalEncoded(source.x,source.w),bCanonicalEncoded(source.y,source.w),bCanonicalEncoded(source.z,source.w));
+    }
+    BVec3 mixed=bBlend(b,s,mode);
+    float a=source.w,ab=backdrop.w;
+    BVec4 effective=BVec4(source.x*(1-ab)+bDecode(mixed.x)*(a*ab),
+        source.y*(1-ab)+bDecode(mixed.y)*(a*ab),source.z*(1-ab)+bDecode(mixed.z)*(a*ab),a);
+    if(mixed.x==1.0f && (ab==1.0f || source.x==a))effective.x=a;
+    if(mixed.y==1.0f && (ab==1.0f || source.y==a))effective.y=a;
+    if(mixed.z==1.0f && (ab==1.0f || source.z==a))effective.z=a;
+    return bComposite(emitted,effective,opacity,0);
+}
+
+B_INLINE BVec4 bAdjustmentBlend(BVec4 original,BVec4 corrected,float strength,int mode,
+    float x,float y,BUint seed)
+{
+    if(original.w<=0.0f || strength<=0.0f || (original.x==corrected.x&&original.y==corrected.y&&original.z==corrected.z))return original;
+    strength=bClamp(strength,0.0f,1.0f);
+    if(mode==20)return bDissolve(strength,x,y,seed)?corrected:original;
+    if(mode==0)return BVec4(original.x+(corrected.x-original.x)*strength,
+        original.y+(corrected.y-original.y)*strength,original.z+(corrected.z-original.z)*strength,original.w);
+    BVec3 b=BVec3(bUnassociatedEncoded(original.x,original.w),bUnassociatedEncoded(original.y,original.w),bUnassociatedEncoded(original.z,original.w));
+    BVec3 s=BVec3(bUnassociatedEncoded(corrected.x,original.w),bUnassociatedEncoded(corrected.y,original.w),bUnassociatedEncoded(corrected.z,original.w));
+    BVec3 c=bBlend(b,s,mode);
+    if(mode==26) {
+        // Preserve a proven exact inverse-color relation through the decode /
+        // association round trip; do not mistake roundoff for a side of a tie.
+        if(corrected.x==bDecode(1.0f-b.x)*original.w)c.x=b.x>0.5f?1.0f:0.0f;
+        if(corrected.y==bDecode(1.0f-b.y)*original.w)c.y=b.y>0.5f?1.0f:0.0f;
+        if(corrected.z==bDecode(1.0f-b.z)*original.w)c.z=b.z>0.5f?1.0f:0.0f;
+    }
+    return BVec4(original.x+(bDecode(c.x)*original.w-original.x)*strength,
+        original.y+(bDecode(c.y)*original.w-original.y)*strength,
+        original.z+(bDecode(c.z)*original.w-original.z)*strength,original.w);
 }

@@ -2,7 +2,7 @@
 B_INLINE BVec4 bClippingOpaque(BVec4 c)
 {
     if(c.w<=0.0F)return BVec4(0,0,0,0);
-    return BVec4(c.x/c.w,c.y/c.w,c.z/c.w,1);
+    return BVec4(bUnassociatedLinear(c.x,c.w),bUnassociatedLinear(c.y,c.w),bUnassociatedLinear(c.z,c.w),1);
 }
 B_INLINE BVec4 bClippingContainer(BVec4 styled,BVec4 content,BVec4 working)
 {

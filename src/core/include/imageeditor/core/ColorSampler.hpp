@@ -32,7 +32,7 @@ public:
 private:
     std::shared_ptr<const RasterSurface> surface_;
     Revision revision_ {0};
-    AffineTransform inverse_, documentToLocal_;
+    AffineTransform inverse_, documentToLocal_, pixelsToLocal_;
     std::optional<LayerCrop> crop_;
     LayerMaskState mask_;
     std::shared_ptr<const CompiledAdjustmentStack> adjustments_;
@@ -98,6 +98,16 @@ private:
         LayerMaskState mask;
         LayerId id{};
         bool adjustment {false};
+        std::uint32_t blendSeed {defaultBlendSeed};
+        AffineTransform pixelsToLocal;
+        [[nodiscard]] bool spatialBlend() const noexcept {
+            return blendMode==BlendMode::Dissolve || (effects&&(*effects)[20]!=0);
+        }
+        [[nodiscard]] Vec2d blendPoint(Vec2d p) const noexcept {
+            if(!spatialBlend())
+                return effects?documentToLocal.map(p):Vec2d{};
+            return adjustment?blendGridPoint(documentToLocal,p):blendGridPoint(pixelsToLocal,blendGridPoint(inverse,p));
+        }
     };
     const Document* owner_ {nullptr};
     DocumentSnapshot snapshot_;

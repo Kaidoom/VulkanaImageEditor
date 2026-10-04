@@ -191,7 +191,7 @@ std::int32_t VulkanCanvasRenderer::appendEffectParameters(const core::LayerSnaps
     const auto offset=values.size();
     if((offset+core::effectParameterCount+core::layerEffectMaskCount*8)*sizeof(float)>parameterBudget)
         throw std::length_error("Layer effect parameters exceed GPU budget");
-    const auto program=core::compileLayerEffects(layer.effects,core::layerEffectReferenceFrame(layer));
+    const auto program=core::compileLayerEffects(layer.effects,core::layerEffectReferenceFrame(layer),layer.blendSeed);
     values.insert(values.end(),program.begin(),program.end());values.resize(values.size()+core::layerEffectMaskCount*8,0);
     for(std::size_t i=0;i<core::layerEffectMaskCount;++i)if(const auto& mask=layer.effectCache->masks[i]) {
         const auto found=std::find(adjustmentMasks_.begin(),adjustmentMasks_.end(),mask->coverage);

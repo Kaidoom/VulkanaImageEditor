@@ -100,6 +100,7 @@ struct Layer {
     bool visible {true};
     float opacity {1.0F};
     BlendMode blendMode {BlendMode::Normal};
+    std::uint32_t blendSeed {defaultBlendSeed};
     AdjustmentState adjustments;
     Revision adjustmentRevision {1};
     SpatialFilterState filters;

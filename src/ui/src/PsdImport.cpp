@@ -114,6 +114,13 @@ std::optional<core::BlendMode> blend(QByteArray key) {
   using B = core::BlendMode;
   static const QMap<QByteArray, B> modes{
       {"norm", B::Normal},      {"Nrml", B::Normal},
+      {"diss", B::Dissolve}, {"Dslv", B::Dissolve},
+      {"dkCl", B::DarkerColor}, {"darkerColor", B::DarkerColor},
+      {"lgCl", B::LighterColor}, {"lighterColor", B::LighterColor},
+      {"vLit", B::VividLight}, {"vividLight", B::VividLight},
+      {"lLit", B::LinearLight}, {"linearLight", B::LinearLight},
+      {"pLit", B::PinLight}, {"pinLight", B::PinLight},
+      {"hMix", B::HardMix}, {"hardMix", B::HardMix},
       {"mul ", B::Multiply},    {"Mltp", B::Multiply},
       {"scrn", B::Screen},      {"Scrn", B::Screen},
       {"over", B::Overlay},     {"Ovrl", B::Overlay},
@@ -265,7 +272,7 @@ bool isAdjustment(const Record& rec) {return rec.tags.contains("nvrt")||rec.tags
 void adjustmentModel(const PsdSource& source,const Record& rec,Model& model) {
   if(!isAdjustment(rec))return;
   if(rec.tags.contains("nvrt")&&rec.tags.contains("expA"))throw Unsupported("Multiple native adjustment records on one PSD layer");
-  if(rec.blend!="norm" || rec.fill!=255 || rec.tags.contains("lfx2"))throw Unsupported("Adjustment blending/fill/styles need the saved composite");
+  if(!blend(rec.blend) || rec.fill!=255 || rec.tags.contains("lfx2"))throw Unsupported("Adjustment blending/fill/styles need the saved composite");
   auto stack=std::make_shared<core::AdjustmentStack>();
   if(rec.tags.contains("nvrt"))stack->items[9].enabled=true;
   else {
@@ -806,6 +813,9 @@ Model modelFor(const PsdSource &s, const Record &rec, const PsdChoice &choice,
   Model m;
   m.transform = translation({double(rec.bounds.x()), double(rec.bounds.y())});
   effects(s, rec, m);
+  if(rec.blend=="diss"||core::hasDissolveLayerEffects(m.effects))m.substitutions<<"Dissolve stays editable; its stable speckle pattern differs between editors.";
+  if(rec.blend=="dkCl"||rec.blend=="lgCl"||rec.blend=="hMix")
+    m.substitutions<<"Whole-color comparisons and exact blend ties may differ between editors.";
   if (typed) {
     if (isAdjustment(rec))adjustmentModel(s,rec,m);
     else if (rec.tags.contains("TySh"))

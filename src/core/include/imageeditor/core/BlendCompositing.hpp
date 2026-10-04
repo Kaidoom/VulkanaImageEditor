@@ -19,16 +19,32 @@ inline float bClamp(float v,float a,float b) { return std::clamp(v,a,b); }
 inline float bPow(float a,float b) { return std::pow(a,b); }
 inline float bSqrt(float a) { return std::sqrt(a); }
 inline float bAbs(float a) { return std::abs(a); }
+inline float bFloor(float a) { return std::floor(a); }
+inline float bFma(float a,float b,float c) { return std::fma(a,b,c); }
+inline float bDecodeByte(int i) { return float(srgbToLinear(std::uint8_t(i))); }
+inline float bEncodeByte(int i) { return float(i)/255.0F; }
+using BUint = std::uint32_t;
 #define B_INLINE inline
 #include "imageeditor/core/detail/BlendMath.inc"
 #include "imageeditor/core/detail/ClippingMath.inc"
 #undef B_INLINE
 }
-[[nodiscard]] inline PremultipliedColor compositeLayer(PremultipliedColor backdrop,
-    PremultipliedColor source, float opacity, BlendMode mode) noexcept
+// Identical float coefficients and fused arithmetic for stochastic cell lookup.
+// Geometry/filtering otherwise retains its established precision.
+[[nodiscard]] inline Vec2d blendGridPoint(const AffineTransform& t, Vec2d p) noexcept
 {
-    const auto c = blend_detail::bComposite({backdrop[0],backdrop[1],backdrop[2],backdrop[3]},
-        {source[0],source[1],source[2],source[3]},opacity,static_cast<int>(mode));
+    const auto c=blend_detail::bGridPoint(float(p.x),float(p.y),
+        {float(t.m00),float(t.m01),float(t.m02)}, {float(t.m10),float(t.m11),float(t.m12)},
+        {float(t.m20),float(t.m21),float(t.m22)});
+    return {c.x,c.y};
+}
+[[nodiscard]] inline PremultipliedColor compositeLayer(PremultipliedColor backdrop,
+    PremultipliedColor source, float opacity, BlendMode mode,
+    Vec2d local = {}, std::uint32_t seed = defaultBlendSeed, bool protectedCoverage = false) noexcept
+{
+    const auto c = blend_detail::bCompositeAt({backdrop[0],backdrop[1],backdrop[2],backdrop[3]},
+        {source[0],source[1],source[2],source[3]},opacity,static_cast<int>(mode),
+        float(local.x),float(local.y),seed,protectedCoverage);
     return {c.x,c.y,c.z,c.w};
 }
 [[nodiscard]] inline PremultipliedColor decodeColor(Rgba8 c) noexcept

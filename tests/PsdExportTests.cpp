@@ -16,6 +16,7 @@
 #include <QFile>
 #include <QFontDatabase>
 #include <QLabel>
+#include <QPainter>
 #include <QPushButton>
 #include <QTemporaryDir>
 #include <QTreeWidget>
@@ -780,6 +781,7 @@ void reference(QString path, QString output) {
   if (render)
     CHECK(render.image.save(output + ".reference.png"));
 }
+#include "BlendV3PsdChecks.inc"
 int main(int argc, char **argv) {
   QApplication app(argc, argv);
   QTemporaryDir temporary;
@@ -789,6 +791,7 @@ int main(int argc, char **argv) {
   }
   QString dir = argc > 1 ? QString::fromLocal8Bit(argv[1]) : temporary.path();
   QDir().mkpath(dir);
+  blendV3Psd(dir);
   exact(dir);
   masks(dir);
   editable(dir);

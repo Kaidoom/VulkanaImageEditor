@@ -37,10 +37,10 @@ void metadataAndHistory()
 {
     // Lock the public shader IDs and wire names independently of the live enum:
     // extending the table must not silently renumber the original 14 modes.
-    constexpr std::array<std::string_view,20> names {"normal","multiply","screen","overlay",
+    constexpr std::array<std::string_view,27> names {"normal","multiply","screen","overlay",
         "soft-light","hard-light","darken","lighten","difference","exclusion","hue",
         "saturation","color","luminosity","color-dodge","linear-dodge","color-burn",
-        "linear-burn","subtract","divide"};
+        "linear-burn","subtract","divide","dissolve","darker-color","lighter-color","vivid-light","linear-light","pin-light","hard-mix"};
     CHECK(c::allBlendModes.size() == names.size());
     for (std::size_t i=0;i<names.size();++i) {
         CHECK(std::uint32_t(c::allBlendModes[i]) == i);
@@ -65,6 +65,7 @@ void metadataAndHistory()
         CHECK(changed == (before != mode));
         CHECK(doc.layer(id)->blendMode == mode);
         CHECK(doc.snapshot().layersBottomToTop[0].blendMode == mode);
+        CHECK(doc.snapshot().layersBottomToTop[0].blendSeed == layer.blendSeed);
         CHECK(doc.revision() == revision + (changed ? 1U : 0U));
         CHECK(pixels->revision() == surfaceRevision);
         CHECK(std::get<c::RasterLayer>(doc.layer(id)->payload).surface == pixels);
@@ -80,7 +81,7 @@ void metadataAndHistory()
         }
     }
     CHECK(!c::isValidBlendMode(static_cast<c::BlendMode>(999)));
-    CHECK(!c::isValidBlendMode(static_cast<c::BlendMode>(20)));
+    CHECK(!c::isValidBlendMode(static_cast<c::BlendMode>(27)));
     CHECK(!c::blendModeFromId("future-mode"));
     CHECK(!c::blendModeFromId("Multiply"));
     CHECK(!doc.setLayerBlendMode(id, static_cast<c::BlendMode>(999)));
@@ -107,10 +108,12 @@ void copiesRetainUnblendedProperties()
         CHECK(doc.layers().size() == 2);
         const auto created = *copy.createdLayerId();
         CHECK(doc.layer(created)->blendMode == source.blendMode);
+        CHECK(doc.layer(created)->blendSeed == source.blendSeed);
         CHECK(doc.layer(created)->opacity == source.opacity);
         CHECK(copy.undo(doc));
         CHECK(copy.apply(doc));
         CHECK(doc.layer(created)->blendMode == source.blendMode);
+        CHECK(doc.layer(created)->blendSeed == source.blendSeed);
     }
 }
 
@@ -129,6 +132,10 @@ void allTypesRoundTrip()
         auto shape = c::Layer::shape("Shape", c::ShapeLayer {});
         shape.blendMode = mode;
         CHECK(doc.insertLayer(doc.layers().size(), std::move(shape)));
+        auto adjustment=c::Layer::adjustment("Correction");
+        adjustment.blendMode=mode;
+        adjustment.blendSeed=0xffffffffU;
+        CHECK(doc.insertLayer(doc.layers().size(),std::move(adjustment)));
     }
     // Keep a mixed triple inside a group nested in a folder. Containers never
     // consume/replace the leaf modes or gain a blending state of their own.
@@ -152,10 +159,12 @@ void allTypesRoundTrip()
     if (!loaded) { std::cerr << loaded.error.toStdString() << '\n'; return; }
     CHECK(loaded.metadata["required"].toArray().contains("layer-blend-modes-v1"));
     CHECK(loaded.metadata["required"].toArray().contains("layer-blend-modes-v2"));
+    CHECK(loaded.metadata["required"].toArray().contains("blend-modes-v3"));
     CHECK(loaded.document->tree() == doc.tree());
     CHECK(loaded.document->layers().size() == doc.layers().size());
     for (std::size_t i=0; i<doc.layers().size(); ++i) {
         CHECK(loaded.document->layers()[i].blendMode == doc.layers()[i].blendMode);
+        CHECK(loaded.document->layers()[i].blendSeed == doc.layers()[i].blendSeed);
         CHECK(loaded.document->layers()[i].payload.index() == doc.layers()[i].payload.index());
         CHECK(loaded.metadata["layers"].toArray()[qsizetype(i)].toObject()["blendMode"].toString()
             == QString::fromUtf8(c::blendModeId(doc.layers()[i].blendMode)));
@@ -180,6 +189,7 @@ void allTypesRoundTrip()
     if (loaded) {
         CHECK(!loaded.metadata["required"].toArray().contains("layer-blend-modes-v1"));
         CHECK(!loaded.metadata["required"].toArray().contains("layer-blend-modes-v2"));
+        CHECK(!loaded.metadata["required"].toArray().contains("blend-modes-v3"));
     }
 }
 
@@ -269,6 +279,11 @@ void compatibilityAndRejection()
         CHECK(!result);
         CHECK(result.error.contains("layer-blend-modes-v1"));
         manifest["required"] = QJsonArray {"rgba8","layer-blend-modes-v1","layer-blend-modes-v2"};
+        if(mode>=c::BlendMode::Dissolve) {
+            writeFixture(path,manifest);CHECK(!u::loadProject(path));
+            manifest["required"]=QJsonArray {"rgba8","layer-blend-modes-v1","layer-blend-modes-v2","blend-modes-v3"};
+            leaf["blendSeed"]=123456789;manifest["layers"]=QJsonArray{leaf};
+        }
         writeFixture(path,manifest);
         result = u::loadProject(path);
         CHECK(result);

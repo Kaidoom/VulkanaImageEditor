@@ -363,6 +363,7 @@ namespace {
         bool containsLabels = false;
         bool containsBlendModes = false;
         bool containsExtendedBlendModes = false;
+        bool containsBlendV3 = false;
         bool containsAdjustments = false;
         bool containsAdjustmentLayers = false;
         bool containsSpatialFilters = false;
@@ -383,12 +384,17 @@ namespace {
             require(core::isValidBlendMode(layer.blendMode), "Unsupported layer blend mode; project was not saved");
             containsBlendModes |= layer.blendMode != core::BlendMode::Normal;
             containsExtendedBlendModes |= layer.blendMode >= core::BlendMode::ColorDodge;
+            containsBlendV3 |= layer.blendMode >= core::BlendMode::Dissolve
+                || (std::holds_alternative<core::AdjustmentLayer>(layer.payload)&&layer.blendMode!=core::BlendMode::Normal);
+            if(layer.effects)for(const auto& effect:layer.effects->items)
+                containsBlendV3 |= effect.blendMode>=core::BlendMode::Dissolve || effect.bevel.shadowBlend>=core::BlendMode::Dissolve;
             if(layer.adjustments)for(const auto& a:layer.adjustments->items)containsProjective|=a.mask&&!a.mask->localToMask.isAffine();
             if(layer.filters)for(const auto& f:layer.filters->items)containsProjective|=f.mask&&!f.mask->localToMask.isAffine();
             const auto& t = layer.localToDocument;
             QJsonObject o { { "id", QString::number(layer.id) }, { "name", QString::fromStdString(layer.name) },
                 { "visible", layer.visible }, { "opacity", double(layer.opacity) },
                 { "blendMode", QString::fromUtf8(core::blendModeId(layer.blendMode)) },
+                { "blendSeed", double(layer.blendSeed) },
                 { "transform", QJsonArray { t.m00, t.m01, t.m02, t.m10, t.m11, t.m12 } } };
             if(!t.isAffine()) {
                 containsProjective=true;
@@ -405,7 +411,7 @@ namespace {
                 o["text"] = QJsonDocument::fromJson(encodeTextClipboard(*text)).object();
             } else if (const auto* adjustment=std::get_if<core::AdjustmentLayer>(&layer.payload)) {
                 require((adjustment->scope==core::AdjustmentScope::AllBelow || adjustment->scope==core::AdjustmentScope::ThisGroup)
-                    && layer.blendMode==core::BlendMode::Normal && !layer.crop && !layer.filters && !layer.effects,
+                    && !layer.crop && !layer.filters && !layer.effects,
                     "Unsupported adjustment-layer operation; project was not saved");
                 containsAdjustmentLayers=true;
                 o["type"]="adjustment";
@@ -529,6 +535,7 @@ namespace {
                 required.append("layer-blend-modes-v2");
             result["required"] = required;
         }
+        if(containsBlendV3) {auto required=result["required"].toArray();required.append("blend-modes-v3");result["required"]=required;}
         result["layers"] = layers;
         result.remove("lastSelection");
         const auto remembered = doc.selection() ? doc.selection() : doc.lastSelection();
@@ -655,7 +662,7 @@ namespace {
         for (const auto& capability : required)
             require(capability == "rgba8" || capability == "rich-text-v1" || capability == "shape-v1" || capability == "shape-stroke-v2"
                     || capability == "hierarchy-v1" || capability == "container-visibility-v1" || capability == "clipping-mask-group-v1"
-                    || capability == "layer-blend-modes-v1" || capability == "layer-blend-modes-v2"
+                    || capability == "blend-modes-v3" || capability == "layer-blend-modes-v1" || capability == "layer-blend-modes-v2"
                     || capability == "adjustments-v1" || capability == "adjustment-layer-v1" || capability == "spatial-filters-v1" || capability == "layer-crop-v1" || capability == "layer-crop-chamfer-v1"
                     || capability == "selection-recall-v1" || capability == "layer-effects-v1" || capability == "bevel-emboss-v1" || capability == "projective-transform-v1" || capability == "raster-local-frame-v1" || capability == "layer-mask-v1",
                 "Project requires unsupported capabilities");
@@ -758,6 +765,13 @@ namespace {
                 require(*mode < core::BlendMode::ColorDodge || required.contains("layer-blend-modes-v2"),
                     "Extended blend mode requires declared layer-blend-modes-v2 capability");
             }
+            if(l.contains("blendSeed")) {
+                const auto seed=number(l["blendSeed"],0,4294967295.0,"Invalid blend appearance seed");
+                require(seed==std::floor(seed),"Noninteger blend appearance seed");
+                p.layer.blendSeed=std::uint32_t(seed);
+            }
+            require(p.layer.blendMode<core::BlendMode::Dissolve || (required.contains("blend-modes-v3")&&l.contains("blendSeed")),
+                "Missing blend-modes-v3 capability or appearance seed");
             if (l.contains("transform")) {
                 const auto t = l["transform"].toArray();
                 require(t.size() == 6 || (t.size()==9 && required.contains("projective-transform-v1")), "Invalid or undeclared projective transform");
@@ -770,6 +784,9 @@ namespace {
             if(l.contains("layerEffects")) {
                 require(required.contains("layer-effects-v1")&&l["layerEffects"].isObject(),"Invalid layer-effects capability or descriptor");
                 p.layer.effects=detail::decodeLayerEffects(l["layerEffects"].toObject());
+                for(const auto& effect:p.layer.effects->items)
+                    require((effect.blendMode<core::BlendMode::Dissolve&&effect.bevel.shadowBlend<core::BlendMode::Dissolve)
+                        || (required.contains("blend-modes-v3")&&l.contains("blendSeed")),"Undeclared extended effect blending");
                 require(p.layer.effects->items[7]==core::defaultLayerEffect(core::LayerEffectType::BevelEmboss)||required.contains("bevel-emboss-v1"),"Missing bevel effect capability");
             }
             if(l.contains("spatialFilters")) {
@@ -826,8 +843,9 @@ namespace {
                 require(required.contains("adjustment-layer-v1") && a["version"]==1
                     && a["domainPolicy"]=="scope-owned-isolation-v1"
                     && (a["scope"]=="all-below" || a["scope"]=="this-group"),"Unsupported adjustment layer or scope policy");
-                require(!p.layer.filters && !p.layer.effects && !p.layer.crop && p.layer.blendMode==core::BlendMode::Normal,
-                    "Adjustment layers support tone/color corrections and Normal correction blending only");
+                require(!p.layer.filters && !p.layer.effects && !p.layer.crop,
+                    "Adjustment layers support tone/color corrections only");
+                require(p.layer.blendMode==core::BlendMode::Normal || required.contains("blend-modes-v3"),"Undeclared adjustment color blending");
                 p.layer.payload=core::AdjustmentLayer{a["scope"]=="this-group"?core::AdjustmentScope::ThisGroup:core::AdjustmentScope::AllBelow};
             } else if (l["type"] == "text") {
                 require(l["text"].isObject(), "Missing text descriptor");

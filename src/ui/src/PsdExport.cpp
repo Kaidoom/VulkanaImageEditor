@@ -463,6 +463,13 @@ PsdExportPlan planPsdExport(const PsdExportSnapshot &s,
             e.reasons << "Combined vector geometry and a bitmap mask need a "
                          "pixel conversion in PSD Export V1.";
           }
+          if(l.blendMode==core::BlendMode::Dissolve||core::hasDissolveLayerEffects(l.effects)) {
+            e.attention=true;
+            e.reasons<<"Dissolve stays live; PSD does not carry Vulkana\'s noise seed/grid. Consolidate its group or use Flattened PSD for the exact pattern.";
+          }
+          if(l.blendMode>=core::BlendMode::DarkerColor) {
+            e.attention=true;e.reasons<<"Editable blending: exact comparisons and color mixing may differ outside Vulkana.";
+          }
           if (externalStyles(l)) {
             e.pixels = false;
             e.reasons

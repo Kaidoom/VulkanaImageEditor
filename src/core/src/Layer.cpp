@@ -3,6 +3,7 @@
 
 #include <limits>
 #include <mutex>
+#include <random>
 #include <set>
 #include <stdexcept>
 #include <utility>
@@ -12,6 +13,12 @@ namespace {
 LayerId nextLayerId {1};
 std::mutex layerIdMutex;
 std::set<LayerId> importedFutureIds;
+std::uint32_t newBlendSeed()
+{
+    // Creation-only entropy. Copies retain the seed, unrelated to runtime IDs.
+    try { return std::random_device{}(); }
+    catch (...) { return defaultBlendSeed; }
+}
 }
 
 LayerId makeLayerId()
@@ -43,6 +50,7 @@ Layer Layer::raster(std::string name, std::shared_ptr<RasterSurface> surface)
         .name = std::move(name),
         .visible = true,
         .opacity = 1.0F,
+        .blendSeed = newBlendSeed(),
         .adjustments = {},
         .filters = {},
         .filterCache = {},
@@ -62,6 +70,7 @@ Layer Layer::adjustment(std::string name, AdjustmentScope scope)
     Layer layer;
     layer.id = makeLayerId();
     layer.name = std::move(name);
+    layer.blendSeed = newBlendSeed();
     layer.payload = AdjustmentLayer{scope};
     return layer;
 }
@@ -73,6 +82,7 @@ Layer Layer::text(std::string name, TextLayer textData)
         .name = std::move(name),
         .visible = true,
         .opacity = 1.0F,
+        .blendSeed = newBlendSeed(),
         .adjustments = {},
         .filters = {},
         .filterCache = {},
@@ -96,6 +106,7 @@ Layer Layer::shape(std::string name, ShapeLayer shapeData)
         .name = std::move(name),
         .visible = true,
         .opacity = 1.0F,
+        .blendSeed = newBlendSeed(),
         .adjustments = {},
         .filters = {},
         .filterCache = {},

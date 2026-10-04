@@ -4,8 +4,9 @@ An adjustment layer is a stack operator, not a raster surface. Add one through
 the Layers menu, context menu, or slider icon in the Layers footer. The existing
 Tone, Color and Monochrome controls edit its ordered correction collection.
 Filters and Effects are unavailable for this layer type. The eye bypasses the
-correction; Strength controls its contribution. Normal is the only layer blend
-mode in V1.
+correction; Strength controls its contribution. Blend modes combine corrected
+and original colors without changing input coverage; Dissolve selects between
+those colors using strength/mask probability. See [Blend modes](BLEND_MODES.md).
 
 ## Composition and scope
 
@@ -98,7 +99,7 @@ domain without applying their correction. A page with an active adjustment uses
 canonical raster rendering rather than emitting uncorrected native PDF text.
 
 PSD native mappings currently cover **Invert** and **Exposure** with zero offset
-and unit gamma, Normal blending and supported bitmap-mask geometry. A local
+and unit gamma, recognized blending and supported bitmap-mask geometry. A local
 domain is represented as a Normal PSD folder; ordinary pass-through folders
 remain pass-through. Fractional strength/masks and non-sRGB imported working
 spaces are reviewed as possible appearance differences. Unsupported correction

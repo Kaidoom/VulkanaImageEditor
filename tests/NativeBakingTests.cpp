@@ -65,7 +65,7 @@ void isolatedModes()
         for(int y=0;y<reference.height();++y)for(int x=0;x<reference.width();++x) {
             const c::Vec2d point{baked.origin.x+x+.5,baked.origin.y+y+.5};
             auto value=c::compositeLayer({},a.sample(point),low.opacity,low.blendMode);
-            value=c::compositeLayer(value,b.sample(point),top.opacity,top.blendMode);
+            value=c::compositeLayer(value,b.sample(point),top.opacity,top.blendMode,top.localToDocument.inverted()->map(point),top.blendSeed);
             auto color=c::encodeColor(value);if(color.alpha==0)color={};
             auto* pixel=reference.scanLine(y)+4*x;pixel[0]=color.red;pixel[1]=color.green;pixel[2]=color.blue;pixel[3]=color.alpha;
         }
@@ -79,7 +79,9 @@ void isolatedModes()
         CHECK(u::flattenLayerItems(doc,ids).image==baked.image);
         // A lone source over transparency is source-over, NOT B(black,source).
         const auto alone=u::flattenLayerItems(doc,std::array{upper});CHECK(alone);
-        if(alone)CHECK(alone.image.constScanLine(0)[3]==c::alphaToByte((150.0F/255)*top.opacity));
+        if(alone) {const auto aloneExpected=c::compositeLayer({},c::decodeColor({240,130,20,150}),top.opacity,mode,
+            top.localToDocument.inverted()->map(alone.origin+c::Vec2d{.5,.5}),top.blendSeed);
+        CHECK(alone.image.constScanLine(0)[3]==c::alphaToByte(aloneExpected[3]));}
     }
 }
 

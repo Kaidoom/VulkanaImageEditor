@@ -79,6 +79,7 @@ using LayerEffectState = std::shared_ptr<const LayerEffectStack>;
 [[nodiscard]] bool equivalentLayerEffects(const LayerEffectState &,
                                           const LayerEffectState &) noexcept;
 [[nodiscard]] bool hasActiveLayerEffects(const LayerEffectState &) noexcept;
+[[nodiscard]] bool hasDissolveLayerEffects(const LayerEffectState &) noexcept;
 [[nodiscard]] bool equivalentLayerEffectGeometry(const LayerEffectState &,
                                                const LayerEffectState &) noexcept;
 
@@ -134,10 +135,10 @@ inline constexpr std::size_t effectParameterCount =
     layerEffectCount * effectParameterStride + 4;
 using EffectParameters = std::array<float, effectParameterCount>;
 [[nodiscard]] EffectParameters compileLayerEffects(const LayerEffectState &,
-                                                   RectD referenceFrame);
+                                                   RectD referenceFrame, std::uint32_t seed = defaultBlendSeed);
 [[nodiscard]] PremultipliedColor
 compositeLayerEffects(PremultipliedColor backdrop, PremultipliedColor base,
                       const EffectParameters &, const LayerEffectCache *,
                       Vec2d local, float layerOpacity, BlendMode,
-                      float cropCoverage = 1) noexcept;
+                      float cropCoverage = 1, bool protectedCoverage = false) noexcept;
 } // namespace imageeditor::core

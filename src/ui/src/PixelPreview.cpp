@@ -187,7 +187,7 @@ void PixelPreview::advance()
         for(std::size_t i=0;i<input.snapshot.layersBottomToTop.size();++i) {
             const auto& s=input.snapshot.layersBottomToTop[i];
             core::Layer layer;layer.id=s.id;layer.name="Pixel Preview source";
-            layer.visible=s.visible;layer.opacity=s.opacity;layer.blendMode=s.blendMode;
+            layer.visible=s.visible;layer.opacity=s.opacity;layer.blendMode=s.blendMode;layer.blendSeed=s.blendSeed;
             layer.localToDocument=s.localToDocument;layer.crop=s.crop;layer.mask=s.mask;
             layer.rasterOrigin=s.rasterOrigin;layer.rasterEffectFrame=s.rasterEffectFrame;
             layer.adjustments=s.adjustments;layer.filters=s.filters;layer.effects=s.effects;

@@ -167,7 +167,7 @@ bool Document::replaceStructure(const LayerTree& expected, LayerTree replacement
         if (const auto* shape=std::get_if<ShapeLayer>(&l.payload); shape && !validShape(*shape)) return false;
         if (const auto* adjustment=std::get_if<AdjustmentLayer>(&l.payload); adjustment &&
             ((adjustment->scope!=AdjustmentScope::AllBelow && adjustment->scope!=AdjustmentScope::ThisGroup)
-             || l.blendMode!=BlendMode::Normal || l.crop || l.filters || l.effects)) return false;
+             || l.crop || l.filters || l.effects)) return false;
         ids.push_back(l.id);
     }
     const auto ordered = replacement.orderedLeaves(ids);
@@ -281,7 +281,6 @@ bool Document::setLayerBlendMode(LayerId id, BlendMode mode)
 {
     auto* target = layer(id);
     if (!target || !isValidBlendMode(mode) || target->blendMode == mode) return false;
-    if (std::holds_alternative<AdjustmentLayer>(target->payload) && mode!=BlendMode::Normal) return false;
     target->blendMode = mode;
     touch();
     return true;
@@ -477,6 +476,7 @@ DocumentSnapshot Document::snapshot() const
             .visible = source.visible && (tree_.containers.empty() || isEffectivelyVisible(source.id)),
             .opacity = source.opacity,
             .blendMode = source.blendMode,
+            .blendSeed = source.blendSeed,
             .adjustments = source.adjustments,
             .adjustmentRevision = source.adjustmentRevision,
             .filters = source.filters,

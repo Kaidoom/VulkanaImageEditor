@@ -1,4 +1,5 @@
 #include "imageeditor/ui/MainWindow.hpp"
+#include "imageeditor/ui/BlendModeCombo.hpp"
 #include "imageeditor/ui/MemoryStatusLabel.hpp"
 #include "imageeditor/platform/AvailableMemory.hpp"
 #include "imageeditor/ui/PdfImport.hpp"
@@ -2335,9 +2336,7 @@ void MainWindow::createDocks()
     blendModeLabel->setMinimumWidth(78);
     blendModeCombo_ = new QComboBox;
     blendModeCombo_->setObjectName(QStringLiteral("LayerBlendModeCombo"));
-    for (const auto mode : core::allBlendModes)
-        blendModeCombo_->addItem(QString::fromUtf8(core::blendModeName(mode)), int(mode));
-    blendModeCombo_->setMaxVisibleItems(blendModeCombo_->count());
+    populateBlendModeCombo(*blendModeCombo_);
     blendModeCombo_->setCurrentIndex(0);
     blendModeCombo_->setEnabled(false);
     blendModeCombo_->setToolTip(
@@ -2470,9 +2469,10 @@ void MainWindow::createDocks()
     connect(blendModeCombo_, &QComboBox::activated, this, [this](int index) {
         if (updatingUi_ || fileBusy_ || !session().activeLayer() || index < 0
             || index >= int(core::allBlendModes.size())) return;
-        const auto mode = core::allBlendModes[std::size_t(index)];
+        const auto mode = blendModeAt(*blendModeCombo_, index);
+        if (!mode) return;
         const auto* layer = session().document()->layer(*session().activeLayer());
-        if (!layer || layer->blendMode == mode) return;
+        if (!layer || layer->blendMode == *mode) return;
         // A blend change must not silently discard completed Ctrl+T gestures
         // when the general document-command boundary settles pending tools.
         if (layerTransform_ || layerCrop_ || selectionTransform_) {
@@ -2480,7 +2480,7 @@ void MainWindow::createDocks()
             if (layerTransform_ || layerCrop_ || selectionTransform_) { updateLayerControls(); return; }
         }
         if (executeDocumentCommand(std::make_unique<core::SetLayerBlendModeCommand>(
-                *session().activeLayer(), mode))) {
+                *session().activeLayer(), *mode))) {
             fileState().untouched = false;
             synchronizeUi(false, false);
         }
@@ -4259,10 +4259,10 @@ void MainWindow::updateLayerControls()
         blendModeCombo_->addItem(QStringLiteral("Pass Through"));
     else if (!container && blendModeCombo_->count() > int(core::allBlendModes.size()))
         blendModeCombo_->removeItem(int(core::allBlendModes.size()));
-    blendModeCombo_->setEnabled(active != nullptr && !fileBusy_ && !std::holds_alternative<core::AdjustmentLayer>(active->payload));
+    blendModeCombo_->setEnabled(active != nullptr && !fileBusy_);
     opacitySlider_->setPrefix(active && std::holds_alternative<core::AdjustmentLayer>(active->payload)?tr("Strength: "):tr("Opacity: "));
     blendModeCombo_->setCurrentIndex(container ? int(core::allBlendModes.size())
-        : active ? int(active->blendMode) : 0);
+        : blendModeCombo_->findData(int(active ? active->blendMode : core::BlendMode::Normal)));
     propertiesPanel_->setSelectedLayer(active, container);
     refreshAdjustmentPanel();
     refreshFiltersPanel();

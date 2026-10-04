@@ -78,12 +78,12 @@ void allModesConsumerParity()
         auto top = raster("Top",{7,5},source,mode,.37F);
         const auto id = top.id;
         CHECK(document.insertLayer(1,std::move(top)));
-        const auto expected = c::encodeColor(c::compositeLayer(c::decodeColor(base),c::decodeColor(source),.37F,mode));
         c::PinnedDocumentSampler pinned(document,id,c::ColorSampleSource::MergedVisible);
         const auto output = u::flattenDocument(document);
         CHECK(output); if (!output) continue;
         for (int y=0; y<5; ++y) for (int x=0; x<7; ++x) {
             const c::Vec2d p {x+.5,y+.5};
+            const auto expected=c::encodeColor(c::compositeLayer(c::decodeColor(base),c::decodeColor(source),.37F,mode,p,document.layer(id)->blendSeed));
             CHECK(near(c::sampleDocumentColor(document,id,p,c::ColorSampleSource::MergedVisible).color,expected,0));
             CHECK(near(pinned.sample(p),expected,0));
             CHECK(near(pixel(output.image,x,y),expected,0));
@@ -98,7 +98,7 @@ void allModesConsumerParity()
         CHECK(document.setLayerBlendMode(id,next));
         CHECK(!pinned.matches(document));
         // A pinned reference freezes metadata, and callers reject its mismatch.
-        CHECK(pinned.sample({2.5,2.5}) == expected);
+        CHECK(pinned.sample({2.5,2.5}) == pixel(output.image,2,2));
         c::PinnedDocumentSampler fresh(document,id,c::ColorSampleSource::MergedVisible);
         CHECK(fresh.matches(document));
         CHECK(fresh.sample({2.5,2.5}) == c::sampleDocumentColor(document,id,{2.5,2.5},c::ColorSampleSource::MergedVisible).color);
@@ -119,7 +119,7 @@ void alphaAwareTransformedRasterEdges()
             if (contaminated) { bytes[4]=std::byte {0}; bytes[5]=std::byte {255}; bytes[6]=std::byte {255}; }
             auto edge = c::Layer::raster("Filtered alpha edge",std::make_shared<c::ContiguousRasterSurface>(
                 c::Extent2u {2,1},std::move(bytes)));
-            edge.blendMode = mode; edge.opacity = .61F; edge.localToDocument = {4,0,0,0,4,0};
+            edge.blendSeed=12345;edge.blendMode = mode; edge.opacity = .61F; edge.localToDocument = {4,0,0,0,4,0};
             const auto id = edge.id;
             CHECK(doc.insertLayer(1,std::move(edge)));
             const auto flat = u::flattenDocument(doc);

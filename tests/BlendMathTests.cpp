@@ -219,7 +219,7 @@ void stableModesAndAddedReferences()
         "darken","lighten","difference","exclusion","hue","saturation","color","luminosity",
         "color-dodge","linear-dodge","color-burn","linear-burn","subtract","divide",
     };
-    check(modes == allBlendModes,"all mode list retains existing order and appends the six new modes");
+    check(std::equal(modes.begin(),modes.end(),allBlendModes.begin()),"old mode numeric IDs remain a stable prefix");
     for (std::size_t i = 0; i < modes.size(); ++i) {
         check(static_cast<std::uint32_t>(modes[i]) == i,"stable blend-mode numeric ID");
         check(blendModeId(modes[i]) == ids[i],"stable blend-mode serialized ID");
@@ -499,10 +499,12 @@ void deterministicSweepAndStacks()
         }
     }
 }
+#include "BlendV3Checks.inc"
 } // namespace
 
 int main()
 {
+    extendedRgbAndCoverage();
     fixedReferences();
     stableModesAndAddedReferences();
     divisionEndpointsAndGradients();
