@@ -77,6 +77,9 @@ QPixmap rasterizedGlyph(ToolGlyph glyph, const QColor& ink, const QSize& size, q
             p.drawPoint(QPointF(12, 7));
             p.drawLine(QPointF(12, 11), QPointF(12, 17));
         }
+    } else if (glyph == ToolGlyph::Plus) {
+        p.drawLine(QPointF(5, 12), QPointF(19, 12));
+        p.drawLine(QPointF(12, 5), QPointF(12, 19));
     } else if (glyph == ToolGlyph::Close) {
         p.drawLine(QPointF(5, 5), QPointF(19, 19));
         p.drawLine(QPointF(19, 5), QPointF(5, 19));

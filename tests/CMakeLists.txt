@@ -717,6 +717,13 @@ set_tests_properties(imageeditor_brush_component_golden_tests PROPERTIES
     LABELS "brush;assets;golden;deterministic;m2b6"
 )
 
+add_executable(imageeditor_color_panel_tests ColorPanelTests.cpp)
+target_link_libraries(imageeditor_color_panel_tests PRIVATE imageeditor_ui Qt6::Test)
+imageeditor_enable_warnings(imageeditor_color_panel_tests)
+add_test(NAME imageeditor_color_panel_tests COMMAND imageeditor_color_panel_tests)
+set_tests_properties(imageeditor_color_panel_tests PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30 LABELS "color;layout;widgets;preferences")
+
 add_executable(imageeditor_ui_layout_config_tests
     UiLayoutConfigTests.cpp
 )

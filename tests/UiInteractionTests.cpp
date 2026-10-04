@@ -21,6 +21,7 @@
 #include <QListView>
 #include <QListWidget>
 #include <QMainWindow>
+#include <QMap>
 #include <QMouseEvent>
 #include <QPushButton>
 #include <QScrollArea>
@@ -1097,7 +1098,7 @@ void layerControlsAndToolRailDockingStayCoherent()
         == imageeditor::ui::OverlayDockWorkspace::PanelPlacement::DockedRight);
     CHECK(workspace->dockedPanelIndex(colorPanel) == 0);
     CHECK(colorPanel->minimumHeight() == 120);
-    CHECK(colorPanel->maximumHeight() == 480);
+    CHECK(colorPanel->maximumHeight() == QWIDGETSIZE_MAX);
     CHECK(layersPanel->minimumHeight() == 260);
     CHECK(propertiesPanel->minimumHeight() == 200);
 
@@ -1150,7 +1151,7 @@ void layerControlsAndToolRailDockingStayCoherent()
     CHECK(colorPanel->parentWidget() == workspace->panelOverlay());
     CHECK(adjustmentsPanel->parentWidget() == workspace->panelOverlay());
     CHECK(colorPanel->minimumHeight() == 120);
-    CHECK(colorPanel->maximumHeight() == 480);
+    CHECK(colorPanel->maximumHeight() == QWIDGETSIZE_MAX);
     CHECK(workspace->leftPanelCard()->isHidden());
     CHECK(!workspace->rightPanelCard()->isHidden());
     CHECK(workspace->rightPanelCard()->width() == toolRail->width());
@@ -1173,7 +1174,7 @@ void layerControlsAndToolRailDockingStayCoherent()
     CHECK(workspace->dockedPanelIndex(colorPanel) == 0);
     CHECK(workspace->dockedPanelIndex(propertiesPanel) == 1);
     CHECK(colorPanel->minimumHeight() == 120);
-    CHECK(colorPanel->maximumHeight() == 480);
+    CHECK(colorPanel->maximumHeight() == QWIDGETSIZE_MAX);
 
     colorPanelAction->trigger();
     QCoreApplication::processEvents();
@@ -1290,6 +1291,117 @@ void dockedPanelSizesPersistAcrossWindows()
     }
 }
 
+void defaultPanelLayoutIsSessionOnly()
+{
+    using Window = imageeditor::ui::MainWindow;
+    using Workspace = imageeditor::ui::OverlayDockWorkspace;
+    using Panel = imageeditor::ui::WorkspacePanel;
+    QTemporaryDir directory;
+    CHECK(directory.isValid());
+    QCoreApplication::setOrganizationName(QStringLiteral("VulkanaPanelDefaultTests"));
+    QCoreApplication::setApplicationName(QStringLiteral("VulkanaPanelDefaultTests"));
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, directory.path());
+    const auto settle = [] {
+        for (int i = 0; i < 3; ++i) QCoreApplication::processEvents();
+    };
+    const auto workspace = [](Window& w) {
+        return dynamic_cast<Workspace*>(w.findChild<QWidget*>(QStringLiteral("CanvasWorkspace")));
+    };
+    const auto panel = [](Window& w, const char* name) {
+        return dynamic_cast<Panel*>(w.findChild<QWidget*>(QString::fromLatin1(name)));
+    };
+    const auto layoutSettings = [] {
+        QSettings settings;
+        QMap<QString, QVariant> result;
+        for (const auto& key : settings.allKeys()) {
+            if ((key.startsWith("window/") && key != "window/geometry")
+                || key.startsWith("view/rulers/")) result.insert(key, settings.value(key));
+        }
+        return result;
+    };
+    imageeditor::ui::UiLayoutConfig config;
+    config.color = {100, QWIDGETSIZE_MAX};
+    QSettings().setValue("editor/colors-v2/primary", QColor(14, 25, 36));
+    {
+        Window saved(nullptr, true, false, config);
+        saved.setUnsavedPromptEnabled(false);
+        saved.resize(1400, 850);
+        saved.show();settle();
+        auto* ws = workspace(saved);
+        ws->setPanelWidth(480);
+        ws->setLeftPanelWidth(350);
+        ws->floatPanel(panel(saved, "ColorPanelShell"), {380, 100, 370, 210});
+        ws->dockPanel(panel(saved, "LayersPanel"), Workspace::PanelDockSide::Right, 0);
+        ws->setPanelVisible(panel(saved, "PropertiesPanelShell"), false);
+        ws->setRulerFarEdge(Qt::Horizontal, true);
+        ws->setRulerVisible(Qt::Vertical, false);
+        saved.findChild<QAction*>(QStringLiteral("ToolRailDockTopAction"))->trigger();
+        settle();saved.close();settle();
+    }
+    const auto original = layoutSettings();
+    CHECK(!original.isEmpty());
+    QSize defaultColorSize, restoredWindowSize;
+    int defaultRightWidth = 0, defaultLeftWidth = 0;
+    {
+        Window fresh(nullptr, false, false, config);
+        fresh.setUnsavedPromptEnabled(false);
+        // Qt constrains restored geometry to the available screen, including
+        // the smaller offscreen test display. Compare the same outer size.
+        CHECK(fresh.restoreGeometry(QSettings().value("window/geometry").toByteArray()));
+        fresh.show();settle();
+        restoredWindowSize = fresh.size();
+        defaultColorSize = panel(fresh, "ColorPanelShell")->size();
+        defaultRightWidth = workspace(fresh)->panelWidth();
+        defaultLeftWidth = workspace(fresh)->leftPanelWidth();
+        fresh.close();settle();
+    }
+    {
+        Window trial(nullptr, true, false, config, nullptr, Window::PanelLayoutMode::SessionDefaults);
+        trial.setUnsavedPromptEnabled(false);
+        trial.show();settle();
+        auto* ws = workspace(trial);
+        CHECK(trial.size() == restoredWindowSize);
+        CHECK(ws->panelWidth() == defaultRightWidth && ws->leftPanelWidth() == defaultLeftWidth);
+        CHECK(ws->panelPlacement(panel(trial, "LayersPanel")) == Workspace::PanelPlacement::DockedLeft);
+        for (const auto& [name, order] : std::array{
+                 std::pair{"ColorPanelShell", 0}, std::pair{"PropertiesPanelShell", 1},
+                 std::pair{"AdjustmentsPanelShell", 2}}) {
+            auto* item = panel(trial, name);
+            CHECK(ws->panelVisible(item));
+            CHECK(ws->panelPlacement(item) == Workspace::PanelPlacement::DockedRight);
+            CHECK(ws->dockedPanelIndex(item) == order);
+        }
+        CHECK(panel(trial, "ColorPanelShell")->size() == defaultColorSize);
+        CHECK(panel(trial, "ColorPanelShell")->minimumHeight() == 100);
+        CHECK(panel(trial, "ColorPanelShell")->maximumHeight() == QWIDGETSIZE_MAX);
+        CHECK(ws->toolRailPlacement() == Workspace::ToolRailPlacement::Left);
+        CHECK(ws->rulerVisible(Qt::Vertical) && !ws->rulerFarEdge(Qt::Horizontal));
+        CHECK(trial.editorSession().colors().primary == imageeditor::core::Rgba8(14, 25, 36, 255));
+        trial.resize(1500, 940);settle();
+        CHECK(ws->panelWidth() == 556 && ws->leftPanelWidth() == 305);
+        ws->setPanelWidth(400);
+        ws->floatPanel(panel(trial, "LayersPanel"), {100, 200, 320, 310});
+        trial.findChild<QAction*>(QStringLiteral("ToolRailDockBottomAction"))->trigger();
+        settle();trial.close();settle();
+    }
+    CHECK(layoutSettings() == original);
+    {
+        Window restored(nullptr, true, false, config);
+        restored.setUnsavedPromptEnabled(false);
+        restored.show();settle();
+        auto* ws = workspace(restored);
+        CHECK(ws->panelWidth() == 480 && ws->leftPanelWidth() == 350);
+        CHECK(ws->panelPlacement(panel(restored, "ColorPanelShell")) == Workspace::PanelPlacement::Floating);
+        CHECK(ws->floatingPanelGeometry(panel(restored, "ColorPanelShell")) == QRect(380, 100, 370, 210));
+        CHECK(!ws->panelVisible(panel(restored, "PropertiesPanelShell")));
+        CHECK(ws->panelPlacement(panel(restored, "LayersPanel")) == Workspace::PanelPlacement::DockedRight);
+        CHECK(ws->toolRailPlacement() == Workspace::ToolRailPlacement::Top);
+        CHECK(!ws->rulerVisible(Qt::Vertical) && ws->rulerFarEdge(Qt::Horizontal));
+        restored.close();settle();
+    }
+}
+
 } // namespace
 
 int main(int argc, char* argv[])
@@ -1306,6 +1418,7 @@ int main(int argc, char* argv[])
     brushWorkspaceUsesOneStableTopOptionsBar();
     layerControlsAndToolRailDockingStayCoherent();
     dockedPanelSizesPersistAcrossWindows();
+    defaultPanelLayoutIsSessionOnly();
 
     if (failures != 0) {
         std::cerr << failures << " UI interaction assertion(s) failed\n";

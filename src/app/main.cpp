@@ -91,6 +91,8 @@ int main(int argc, char* argv[])
     QCommandLineOption uiConfigOption(QStringLiteral("ui-config"),
         QStringLiteral("Load developer UI layout values from an INI file."),
         QStringLiteral("path"));
+    QCommandLineOption panelDefaultOption(QStringLiteral("panel-default"),
+        QStringLiteral("Use the default panel layout for this launch without replacing the saved layout."));
     QCommandLineOption restartOption(QString::fromLatin1(imageeditor::platform::singleInstanceRestartOption),
         QStringLiteral("Internal: wait for the previous instance to finish an update restart."));
     restartOption.setFlags(QCommandLineOption::HiddenFromHelp);
@@ -100,6 +102,7 @@ int main(int argc, char* argv[])
     parser.addOption(skipNewOption);
     parser.addOption(forceUpdateOption);
     parser.addOption(uiConfigOption);
+    parser.addOption(panelDefaultOption);
     parser.addPositionalArgument(QStringLiteral("document"),
         QStringLiteral("Optional projects or images; each opens in its own tab."), QStringLiteral("[document…]"));
     parser.process(application);
@@ -111,6 +114,8 @@ int main(int argc, char* argv[])
             parser.isSet(restartOption) ? 15000 : 5000);
         if (result == imageeditor::platform::SingleInstance::Result::Forwarded) {
             qInfo() << "Launch forwarded to the running Vulkana instance.";
+            if (parser.isSet(panelDefaultOption))
+                qInfo() << "--panel-default takes effect at startup. Close Vulkana, then launch with this flag again.";
             return EXIT_SUCCESS;
         }
         if (result == imageeditor::platform::SingleInstance::Result::Error) {
@@ -218,7 +223,10 @@ int main(int argc, char* argv[])
     {
         imageeditor::ui::MainWindow window(
             &vulkanInstance, !parser.isSet(smokeTestOption),
-            parser.isSet(fpsOption), uiLayoutConfig);
+            parser.isSet(fpsOption), uiLayoutConfig, nullptr,
+            parser.isSet(panelDefaultOption)
+                ? imageeditor::ui::MainWindow::PanelLayoutMode::SessionDefaults
+                : imageeditor::ui::MainWindow::PanelLayoutMode::Saved);
         // Use the embedded artwork even when an older desktop installation is
         // present. Wayland shells may still prefer that installation's icon
         // via the stable desktop-file ID; the next package updates it too.

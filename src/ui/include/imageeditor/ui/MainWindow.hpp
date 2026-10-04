@@ -100,9 +100,11 @@ class PixelPreview;
 
 class MainWindow final : public QMainWindow {
 public:
+    enum class PanelLayoutMode { Saved, SessionDefaults };
     explicit MainWindow(QVulkanInstance* vulkanInstance,
         bool persistWindowState = true, bool showCanvasFps = false,
-        UiLayoutConfig uiLayoutConfig = {}, QWidget* parent = nullptr);
+        UiLayoutConfig uiLayoutConfig = {}, QWidget* parent = nullptr,
+        PanelLayoutMode panelLayoutMode = PanelLayoutMode::Saved);
     ~MainWindow() override;
     [[nodiscard]] const core::EditorSession& editorSession() const noexcept { return session(); }
     [[nodiscard]] std::size_t documentCount() const noexcept { return documents_.size(); }
@@ -785,6 +787,7 @@ private:
     core::Revision smokeEraserRevision_ {0};
     std::optional<BrushAssetRuntimeStats> smokeBrushAssetBaseline_;
     bool persistWindowState_ {true};
+    bool persistPanelLayout_ {true};
     bool smokeCompleted_ {false};
     bool updatingUi_ {false};
     bool colorsSynchronized_ {false};

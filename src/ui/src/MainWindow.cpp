@@ -551,13 +551,15 @@ std::vector<core::BrushPresetRecord> presentationBrushPresets(
 
 MainWindow::MainWindow(
     QVulkanInstance* vulkanInstance, bool persistWindowState,
-    bool showCanvasFps, UiLayoutConfig uiLayoutConfig, QWidget* parent)
+    bool showCanvasFps, UiLayoutConfig uiLayoutConfig, QWidget* parent,
+    PanelLayoutMode panelLayoutMode)
     : QMainWindow(parent)
     , brushAssets_(BrushAssetLibrary::createPackaged())
     , canvasWindow_(new render::CanvasWindow)
     , layerModel_(new LayerListModel(this))
     , toolActions_(new QActionGroup(this))
     , persistWindowState_(persistWindowState)
+    , persistPanelLayout_(persistWindowState && panelLayoutMode == PanelLayoutMode::Saved)
     , uiLayoutConfig_(std::move(uiLayoutConfig))
 {
     setObjectName(QStringLiteral("ImageEditorMainWindow"));
@@ -873,37 +875,39 @@ MainWindow::MainWindow(
         toolHintPosition_ = std::clamp(settings.value(
             QStringLiteral("preferences/ui/toolHintPosition"), 1).toInt(), 0, 2);
         updateStatusNotification();
-        workspace_->setRulerFarEdge(Qt::Horizontal, settings.value(QStringLiteral("view/rulers/horizontalFarEdge"), false).toBool());
-        workspace_->setRulerFarEdge(Qt::Vertical, settings.value(QStringLiteral("view/rulers/verticalFarEdge"), false).toBool());
-        workspace_->setRulerVisible(Qt::Horizontal, settings.value(QStringLiteral("view/rulers/horizontalVisible"), true).toBool());
-        workspace_->setRulerVisible(Qt::Vertical, settings.value(QStringLiteral("view/rulers/verticalVisible"), true).toBool());
         const auto geometry = settings.value(QStringLiteral("window/geometry")).toByteArray();
-        const auto shellState = settings.value(QStringLiteral("window/shell-v4")).toByteArray();
         if (!geometry.isEmpty()) {
             restoreGeometry(geometry);
         }
-        if (!shellState.isEmpty()) {
-            restoreState(shellState, 4);
-        }
-        if (settings.contains(QStringLiteral("window/overlay-panel-width-v1"))) {
-            workspace_->setPanelWidth(settings.value(
-                QStringLiteral("window/overlay-panel-width-v1")).toInt());
-        }
-        if (settings.contains(QStringLiteral("window/overlay-left-panel-width-v1"))) {
-            workspace_->setLeftPanelWidth(settings.value(
-                QStringLiteral("window/overlay-left-panel-width-v1")).toInt());
-        }
-        const auto savedToolDock = settings.value(
-            QStringLiteral("window/tool-rail-dock-v1"),
-            QStringLiteral("left")).toString();
-        if (savedToolDock == QStringLiteral("right-panel")) {
-            setToolRailDockLocation(ToolRailDockLocation::RightPanel);
-        } else if (savedToolDock == QStringLiteral("top")) {
-            setToolRailDockLocation(ToolRailDockLocation::Top);
-        } else if (savedToolDock == QStringLiteral("bottom")) {
-            setToolRailDockLocation(ToolRailDockLocation::Bottom);
-        } else {
-            setToolRailDockLocation(ToolRailDockLocation::Left);
+        if (persistPanelLayout_) {
+            workspace_->setRulerFarEdge(Qt::Horizontal, settings.value(QStringLiteral("view/rulers/horizontalFarEdge"), false).toBool());
+            workspace_->setRulerFarEdge(Qt::Vertical, settings.value(QStringLiteral("view/rulers/verticalFarEdge"), false).toBool());
+            workspace_->setRulerVisible(Qt::Horizontal, settings.value(QStringLiteral("view/rulers/horizontalVisible"), true).toBool());
+            workspace_->setRulerVisible(Qt::Vertical, settings.value(QStringLiteral("view/rulers/verticalVisible"), true).toBool());
+            const auto shellState = settings.value(QStringLiteral("window/shell-v4")).toByteArray();
+            if (!shellState.isEmpty()) {
+                restoreState(shellState, 4);
+            }
+            if (settings.contains(QStringLiteral("window/overlay-panel-width-v1"))) {
+                workspace_->setPanelWidth(settings.value(
+                    QStringLiteral("window/overlay-panel-width-v1")).toInt());
+            }
+            if (settings.contains(QStringLiteral("window/overlay-left-panel-width-v1"))) {
+                workspace_->setLeftPanelWidth(settings.value(
+                    QStringLiteral("window/overlay-left-panel-width-v1")).toInt());
+            }
+            const auto savedToolDock = settings.value(
+                QStringLiteral("window/tool-rail-dock-v1"),
+                QStringLiteral("left")).toString();
+            if (savedToolDock == QStringLiteral("right-panel")) {
+                setToolRailDockLocation(ToolRailDockLocation::RightPanel);
+            } else if (savedToolDock == QStringLiteral("top")) {
+                setToolRailDockLocation(ToolRailDockLocation::Top);
+            } else if (savedToolDock == QStringLiteral("bottom")) {
+                setToolRailDockLocation(ToolRailDockLocation::Bottom);
+            } else {
+                setToolRailDockLocation(ToolRailDockLocation::Left);
+            }
         }
 
         auto colors = session().colors();
@@ -920,95 +924,97 @@ MainWindow::MainWindow(
             ? core::ColorSlot::Secondary : core::ColorSlot::Primary;
         setColors(colors);
 
-        struct SavedPanelState {
-            WorkspacePanel* panel {nullptr};
-            QAction* action {nullptr};
-            QString placement;
-            QRect geometry;
-            bool visible {true};
-            int index {0};
-            int defaultOrder {0};
-        };
-        const auto readPanel = [this, &settings](const QString& id,
-                                   WorkspacePanel* panel, QAction* action,
-                                   int defaultOrder) {
-            const auto prefix = QStringLiteral("window/panels-v2/%1-").arg(id);
-            return SavedPanelState {
-                .panel = panel,
-                .action = action,
-                .placement = settings.value(prefix + QStringLiteral("placement"),
-                    workspace_->panelPlacement(panel) == OverlayDockWorkspace::PanelPlacement::DockedLeft
-                        ? QStringLiteral("left") : QStringLiteral("right")).toString(),
-                .geometry = settings.value(
-                    prefix + QStringLiteral("geometry")).toRect(),
-                .visible = settings.value(
-                    prefix + QStringLiteral("visible"), action->isChecked()).toBool(),
-                .index = settings.value(
-                    prefix + QStringLiteral("index"), workspace_->dockedPanelIndex(panel)).toInt(),
-                .defaultOrder = defaultOrder,
+        if (persistPanelLayout_) {
+            struct SavedPanelState {
+                WorkspacePanel* panel {nullptr};
+                QAction* action {nullptr};
+                QString placement;
+                QRect geometry;
+                bool visible {true};
+                int index {0};
+                int defaultOrder {0};
             };
-        };
-        const std::array savedPanels {
-            readPanel(QStringLiteral("color"), colorPanelShell_,
-                colorPanelAction_, 0),
-            readPanel(QStringLiteral("layers"), layersPanelShell_,
-                layersPanelAction_, 1),
-            readPanel(QStringLiteral("properties"), propertiesPanelShell_,
-                propertiesPanelAction_, 2),
-            readPanel(QStringLiteral("adjustments"), adjustmentsPanelShell_,
-                adjustmentsPanelAction_, 3),
-        };
-        const auto savedLeftPanelSizes = settings.value(
-            QStringLiteral("window/panels-v2/left-splitter-state"),
-            workspace_->saveDockedPanelSizes(OverlayDockWorkspace::PanelDockSide::Left))
-                                               .toByteArray();
-        const auto savedRightPanelSizes = settings.value(
-            QStringLiteral("window/panels-v2/right-splitter-state"),
-            workspace_->saveDockedPanelSizes(OverlayDockWorkspace::PanelDockSide::Right))
-                                                .toByteArray();
-        QTimer::singleShot(0, this,
-            [this, savedPanels, savedLeftPanelSizes, savedRightPanelSizes] {
-            for (const auto& saved : savedPanels) {
-                if (saved.placement == QStringLiteral("floating")) {
-                    workspace_->floatPanel(saved.panel, saved.geometry);
-                }
-            }
-            const auto restoreDockSide = [this, &savedPanels](
-                                             const QString& placement,
-                                             OverlayDockWorkspace::PanelDockSide side) {
-                std::vector<const SavedPanelState*> ordered;
+            const auto readPanel = [this, &settings](const QString& id,
+                                       WorkspacePanel* panel, QAction* action,
+                                       int defaultOrder) {
+                const auto prefix = QStringLiteral("window/panels-v2/%1-").arg(id);
+                return SavedPanelState {
+                    .panel = panel,
+                    .action = action,
+                    .placement = settings.value(prefix + QStringLiteral("placement"),
+                        workspace_->panelPlacement(panel) == OverlayDockWorkspace::PanelPlacement::DockedLeft
+                            ? QStringLiteral("left") : QStringLiteral("right")).toString(),
+                    .geometry = settings.value(
+                        prefix + QStringLiteral("geometry")).toRect(),
+                    .visible = settings.value(
+                        prefix + QStringLiteral("visible"), action->isChecked()).toBool(),
+                    .index = settings.value(
+                        prefix + QStringLiteral("index"), workspace_->dockedPanelIndex(panel)).toInt(),
+                    .defaultOrder = defaultOrder,
+                };
+            };
+            const std::array savedPanels {
+                readPanel(QStringLiteral("color"), colorPanelShell_,
+                    colorPanelAction_, 0),
+                readPanel(QStringLiteral("layers"), layersPanelShell_,
+                    layersPanelAction_, 1),
+                readPanel(QStringLiteral("properties"), propertiesPanelShell_,
+                    propertiesPanelAction_, 2),
+                readPanel(QStringLiteral("adjustments"), adjustmentsPanelShell_,
+                    adjustmentsPanelAction_, 3),
+            };
+            const auto savedLeftPanelSizes = settings.value(
+                QStringLiteral("window/panels-v2/left-splitter-state"),
+                workspace_->saveDockedPanelSizes(OverlayDockWorkspace::PanelDockSide::Left))
+                                                   .toByteArray();
+            const auto savedRightPanelSizes = settings.value(
+                QStringLiteral("window/panels-v2/right-splitter-state"),
+                workspace_->saveDockedPanelSizes(OverlayDockWorkspace::PanelDockSide::Right))
+                                                    .toByteArray();
+            QTimer::singleShot(0, this,
+                [this, savedPanels, savedLeftPanelSizes, savedRightPanelSizes] {
                 for (const auto& saved : savedPanels) {
-                    if (saved.placement == placement) {
-                        ordered.push_back(&saved);
+                    if (saved.placement == QStringLiteral("floating")) {
+                        workspace_->floatPanel(saved.panel, saved.geometry);
                     }
                 }
-                std::stable_sort(ordered.begin(), ordered.end(),
-                    [](const SavedPanelState* left,
-                        const SavedPanelState* right) {
-                        return std::tie(left->index, left->defaultOrder)
-                            < std::tie(right->index, right->defaultOrder);
-                    });
-                for (const auto* saved : ordered) {
-                    workspace_->dockPanel(saved->panel, side);
+                const auto restoreDockSide = [this, &savedPanels](
+                                                 const QString& placement,
+                                                 OverlayDockWorkspace::PanelDockSide side) {
+                    std::vector<const SavedPanelState*> ordered;
+                    for (const auto& saved : savedPanels) {
+                        if (saved.placement == placement) {
+                            ordered.push_back(&saved);
+                        }
+                    }
+                    std::stable_sort(ordered.begin(), ordered.end(),
+                        [](const SavedPanelState* left,
+                            const SavedPanelState* right) {
+                            return std::tie(left->index, left->defaultOrder)
+                                < std::tie(right->index, right->defaultOrder);
+                        });
+                    for (const auto* saved : ordered) {
+                        workspace_->dockPanel(saved->panel, side);
+                    }
+                };
+                restoreDockSide(QStringLiteral("left"),
+                    OverlayDockWorkspace::PanelDockSide::Left);
+                restoreDockSide(QStringLiteral("right"),
+                    OverlayDockWorkspace::PanelDockSide::Right);
+                // Placement and order define the splitters' widget sequence. Only
+                // then is their opaque size allocation meaningful to restore.
+                workspace_->restoreDockedPanelSizes(
+                    OverlayDockWorkspace::PanelDockSide::Left,
+                    savedLeftPanelSizes);
+                workspace_->restoreDockedPanelSizes(
+                    OverlayDockWorkspace::PanelDockSide::Right,
+                    savedRightPanelSizes);
+                for (const auto& saved : savedPanels) {
+                    workspace_->setPanelVisible(saved.panel, saved.visible);
+                    saved.action->setChecked(saved.visible);
                 }
-            };
-            restoreDockSide(QStringLiteral("left"),
-                OverlayDockWorkspace::PanelDockSide::Left);
-            restoreDockSide(QStringLiteral("right"),
-                OverlayDockWorkspace::PanelDockSide::Right);
-            // Placement and order define the splitters' widget sequence. Only
-            // then is their opaque size allocation meaningful to restore.
-            workspace_->restoreDockedPanelSizes(
-                OverlayDockWorkspace::PanelDockSide::Left,
-                savedLeftPanelSizes);
-            workspace_->restoreDockedPanelSizes(
-                OverlayDockWorkspace::PanelDockSide::Right,
-                savedRightPanelSizes);
-            for (const auto& saved : savedPanels) {
-                workspace_->setPanelVisible(saved.panel, saved.visible);
-                saved.action->setChecked(saved.visible);
-            }
-        });
+            });
+        }
     }
     QTimer::singleShot(0, this, [this] {
         colorPanelAction_->setChecked(
@@ -1591,16 +1597,18 @@ void MainWindow::closeEvent(QCloseEvent* event)
         settings.setValue(QStringLiteral("preferences/canvas/collapseLayerSelectionOnEmptyClick"), collapseLayerSelectionOnEmptyClick_);
         settings.setValue(QStringLiteral("preferences/canvas/shiftNudgePixels"), shiftNudgePixels_);
         settings.setValue(QStringLiteral("preferences/ui/toolHintPosition"), toolHintPosition_);
-        settings.setValue(QStringLiteral("view/rulers/horizontalFarEdge"), workspace_->rulerFarEdge(Qt::Horizontal));
-        settings.setValue(QStringLiteral("view/rulers/verticalFarEdge"), workspace_->rulerFarEdge(Qt::Vertical));
-        settings.setValue(QStringLiteral("view/rulers/horizontalVisible"), workspace_->rulerVisible(Qt::Horizontal));
-        settings.setValue(QStringLiteral("view/rulers/verticalVisible"), workspace_->rulerVisible(Qt::Vertical));
         settings.setValue(QStringLiteral("window/geometry"), saveGeometry());
-        settings.setValue(QStringLiteral("window/shell-v4"), saveState(4));
-        settings.setValue(QStringLiteral("window/overlay-panel-width-v1"),
-            workspace_->panelWidth());
-        settings.setValue(QStringLiteral("window/overlay-left-panel-width-v1"),
-            workspace_->leftPanelWidth());
+        if (persistPanelLayout_) {
+            settings.setValue(QStringLiteral("view/rulers/horizontalFarEdge"), workspace_->rulerFarEdge(Qt::Horizontal));
+            settings.setValue(QStringLiteral("view/rulers/verticalFarEdge"), workspace_->rulerFarEdge(Qt::Vertical));
+            settings.setValue(QStringLiteral("view/rulers/horizontalVisible"), workspace_->rulerVisible(Qt::Horizontal));
+            settings.setValue(QStringLiteral("view/rulers/verticalVisible"), workspace_->rulerVisible(Qt::Vertical));
+            settings.setValue(QStringLiteral("window/shell-v4"), saveState(4));
+            settings.setValue(QStringLiteral("window/overlay-panel-width-v1"),
+                workspace_->panelWidth());
+            settings.setValue(QStringLiteral("window/overlay-left-panel-width-v1"),
+                workspace_->leftPanelWidth());
+        }
         const auto saveColor = [&settings](const QString& key, core::Rgba8 color) {
             settings.setValue(key, QColor(color.red, color.green, color.blue, color.alpha));
         };
@@ -1608,58 +1616,60 @@ void MainWindow::closeEvent(QCloseEvent* event)
         saveColor(QStringLiteral("editor/colors-v2/secondary"), session().colors().secondary);
         settings.setValue(QStringLiteral("editor/colors-v2/active"),
             session().colors().active == core::ColorSlot::Secondary ? 1 : 0);
-        const auto savePanel = [&settings, this](const QString& id,
-                                   WorkspacePanel* panel) {
-            QString placement = QStringLiteral("right");
-            switch (workspace_->panelPlacement(panel)) {
-            case OverlayDockWorkspace::PanelPlacement::DockedLeft:
-                placement = QStringLiteral("left");
-                break;
-            case OverlayDockWorkspace::PanelPlacement::DockedRight:
-                break;
-            case OverlayDockWorkspace::PanelPlacement::Floating:
-                placement = QStringLiteral("floating");
+        if (persistPanelLayout_) {
+            const auto savePanel = [&settings, this](const QString& id,
+                                       WorkspacePanel* panel) {
+                QString placement = QStringLiteral("right");
+                switch (workspace_->panelPlacement(panel)) {
+                case OverlayDockWorkspace::PanelPlacement::DockedLeft:
+                    placement = QStringLiteral("left");
+                    break;
+                case OverlayDockWorkspace::PanelPlacement::DockedRight:
+                    break;
+                case OverlayDockWorkspace::PanelPlacement::Floating:
+                    placement = QStringLiteral("floating");
+                    settings.setValue(
+                        QStringLiteral("window/panels-v2/%1-geometry").arg(id),
+                        workspace_->floatingPanelGeometry(panel));
+                    break;
+                }
                 settings.setValue(
-                    QStringLiteral("window/panels-v2/%1-geometry").arg(id),
-                    workspace_->floatingPanelGeometry(panel));
+                    QStringLiteral("window/panels-v2/%1-placement").arg(id),
+                    placement);
+                settings.setValue(
+                    QStringLiteral("window/panels-v2/%1-visible").arg(id),
+                    workspace_->panelVisible(panel));
+                settings.setValue(
+                    QStringLiteral("window/panels-v2/%1-index").arg(id),
+                    workspace_->dockedPanelIndex(panel));
+            };
+            savePanel(QStringLiteral("color"), colorPanelShell_);
+            savePanel(QStringLiteral("layers"), layersPanelShell_);
+            savePanel(QStringLiteral("properties"), propertiesPanelShell_);
+            savePanel(QStringLiteral("adjustments"), adjustmentsPanelShell_);
+            settings.setValue(
+                QStringLiteral("window/panels-v2/left-splitter-state"),
+                workspace_->saveDockedPanelSizes(
+                    OverlayDockWorkspace::PanelDockSide::Left));
+            settings.setValue(
+                QStringLiteral("window/panels-v2/right-splitter-state"),
+                workspace_->saveDockedPanelSizes(
+                    OverlayDockWorkspace::PanelDockSide::Right));
+            QString toolDock = QStringLiteral("left");
+            switch (toolRailDockLocation_) {
+            case ToolRailDockLocation::Left: break;
+            case ToolRailDockLocation::RightPanel:
+                toolDock = QStringLiteral("right-panel");
+                break;
+            case ToolRailDockLocation::Top:
+                toolDock = QStringLiteral("top");
+                break;
+            case ToolRailDockLocation::Bottom:
+                toolDock = QStringLiteral("bottom");
                 break;
             }
-            settings.setValue(
-                QStringLiteral("window/panels-v2/%1-placement").arg(id),
-                placement);
-            settings.setValue(
-                QStringLiteral("window/panels-v2/%1-visible").arg(id),
-                workspace_->panelVisible(panel));
-            settings.setValue(
-                QStringLiteral("window/panels-v2/%1-index").arg(id),
-                workspace_->dockedPanelIndex(panel));
-        };
-        savePanel(QStringLiteral("color"), colorPanelShell_);
-        savePanel(QStringLiteral("layers"), layersPanelShell_);
-        savePanel(QStringLiteral("properties"), propertiesPanelShell_);
-        savePanel(QStringLiteral("adjustments"), adjustmentsPanelShell_);
-        settings.setValue(
-            QStringLiteral("window/panels-v2/left-splitter-state"),
-            workspace_->saveDockedPanelSizes(
-                OverlayDockWorkspace::PanelDockSide::Left));
-        settings.setValue(
-            QStringLiteral("window/panels-v2/right-splitter-state"),
-            workspace_->saveDockedPanelSizes(
-                OverlayDockWorkspace::PanelDockSide::Right));
-        QString toolDock = QStringLiteral("left");
-        switch (toolRailDockLocation_) {
-        case ToolRailDockLocation::Left: break;
-        case ToolRailDockLocation::RightPanel:
-            toolDock = QStringLiteral("right-panel");
-            break;
-        case ToolRailDockLocation::Top:
-            toolDock = QStringLiteral("top");
-            break;
-        case ToolRailDockLocation::Bottom:
-            toolDock = QStringLiteral("bottom");
-            break;
+            settings.setValue(QStringLiteral("window/tool-rail-dock-v1"), toolDock);
         }
-        settings.setValue(QStringLiteral("window/tool-rail-dock-v1"), toolDock);
     }
     QMainWindow::closeEvent(event);
     if (event->isAccepted()) {
