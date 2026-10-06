@@ -91,7 +91,7 @@ void MainWindow::setLayerEditingTarget(int row, bool mask) {
                                : tr("Editing layer content"),
                            4000);
 }
-void MainWindow::addLayerMask(bool fromSelection) {
+void MainWindow::addLayerMask(bool requireSelection) {
   if (fileBusy_ || !session().document() || !session().activeLayer() ||
       !settleForFileOperation())
     return;
@@ -99,10 +99,13 @@ void MainWindow::addLayerMask(bool fromSelection) {
   const auto *layer = doc.layer(*session().activeLayer());
   if (!layer || layer->mask)
     return;
+  const bool fromSelection = doc.selection() && !doc.selection()->bounds().empty();
+  if (requireSelection && !fromSelection)
+    return;
   try {
     // Masks retain a stable layer-local pixel frame, independent of view zoom
-    // and of the geometry of later text/shape edits. New content outside it is
-    // revealed.
+    // and of the geometry of later text/shape edits. Capture selection coverage
+    // when present; otherwise Reveal All also reveals future content outside it.
     // Cropping is reversible: allocate the full local source/style frame so
     // removing a crop does not expose areas that the mask cannot edit.
     auto bounds = core::hasActiveLayerEffects(layer->effects) &&
@@ -133,10 +136,7 @@ void MainWindow::addLayerMask(bool fromSelection) {
     const core::Extent2u extent{uint32_t(w), uint32_t(h)};
     auto mask = std::make_shared<core::LayerMask>();
     mask->localToMask = {1, 0, -x, 0, 1, -y};
-    mask->coverage = core::SelectionMask::filled(extent, 255);
     if (fromSelection) {
-      if (!doc.selection() || doc.selection()->bounds().empty())
-        return;
       std::vector<uint8_t> bytes(size_t(extent.width) * extent.height);
       const auto selection = std::make_shared<core::LayerMask>(
           core::LayerMask{doc.selection(), {}, 0, true});
@@ -150,7 +150,8 @@ void MainWindow::addLayerMask(bool fromSelection) {
         }
       mask->coverage = core::SelectionMask::fromR8(extent, bytes, extent.width);
       mask->outside = 0;
-    }
+    } else
+      mask->coverage = core::SelectionMask::filled(extent, 255);
     if (session().execute(std::make_unique<core::LayerMaskCommand>(
             layer->id, nullptr, mask, "Add layer mask"))) {
       session().setEditingLayerMask(true);

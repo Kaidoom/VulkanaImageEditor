@@ -2428,7 +2428,7 @@ void MainWindow::createDocks()
     buttonLayout->addWidget(folderButton);
     addMaskButton_=new QPushButton(toolGlyph(ToolGlyph::LayerMask),QString());
     addMaskButton_->setObjectName(QStringLiteral("AddLayerMaskButton"));
-    addMaskButton_->setToolTip(tr("Add layer mask · reveal all"));
+    addMaskButton_->setToolTip(tr("Add layer mask"));
     connect(addMaskButton_,&QPushButton::clicked,maskActions_[0],&QAction::trigger);
     buttonLayout->addWidget(addMaskButton_);
     auto* adjustmentButton=new QPushButton(toolGlyph(ToolGlyph::AdjustmentLayer),QString());

@@ -329,7 +329,7 @@ private:
     void mergeLayerItems();
     void rasterizeLayerItems();
     void createLayerMaskActions();
-    void addLayerMask(bool fromSelection = false);
+    void addLayerMask(bool requireSelection = false);
     void changeLayerMask(bool remove);
     void applyLayerMask();
     void layerMaskToSelection();

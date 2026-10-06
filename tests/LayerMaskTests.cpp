@@ -300,6 +300,61 @@ void uiContracts() {
     QToolTip::hideText();
   };
   noThumbnailTooltip(plainIndex,false);
+  // Both default entry points capture selection coverage, without consuming
+  // the selection or changing source pixels. An absent/empty selection is white.
+  auto *createMaskButton = window.findChild<QPushButton *>("AddLayerMaskButton");
+  CHECK(createMaskButton && createMaskButton->toolTip() == "Add layer mask");
+  const auto rasterId = *session.activeLayer();
+  const auto rasterSource =
+      std::get<c::RasterLayer>(session.document()->layer(rasterId)->payload).surface;
+  const auto rasterRevision = rasterSource->revision();
+  std::vector<uint8_t> softCoverage(32 * 24);
+  for (int y = 5; y < 17; ++y)
+    for (int x = 7; x < 21; ++x)
+      softCoverage[size_t(y * 32 + x)] = x < 10 ? 128 : 255;
+  softCoverage[10 * 32 + 15] = 0; // A hole remains hidden, not filled by bounds.
+  const std::array<c::SelectionState, 4> selections{
+      nullptr, c::SelectionMask::filled({32, 24}, 0),
+      c::SelectionMask::rectangle({32, 24}, {7, 5, 14, 12}),
+      c::SelectionMask::fromR8({32, 24}, softCoverage, 32)};
+  for (size_t i = 0; i < selections.size(); ++i) {
+    const int dx = i == 3 ? 4 : 0, dy = i == 3 ? 3 : 0;
+    session.document()->setLayerTransform(rasterId, {1, 0, double(dx), 0, 1, double(dy)});
+    session.document()->setSelection(selections[i]);
+    view->onRowSelectionRequested(model->rowForLayer(rasterId), Qt::NoModifier);
+    const auto depth = session.history().undoDepth();
+    CHECK(add->isEnabled() && createMaskButton->isEnabled());
+    if (i % 2)
+      createMaskButton->click();
+    else
+      add->trigger();
+    const auto created = session.document()->layer(rasterId)->mask;
+    CHECK(created && session.editingLayerMask());
+    if (!created)
+      return;
+    const bool selected = selections[i] && !selections[i]->bounds().empty();
+    CHECK(created->outside == (selected ? 0 : 255));
+    CHECK(created->coverage->extent() == c::Extent2u{32, 24});
+    for (int y = 0; y < 24; ++y)
+      for (int x = 0; x < 32; ++x)
+        CHECK(created->coverage->coverageAtDocumentPixel(x, y) ==
+              (selected ? selections[i]->coverageAtDocumentPixel(x + dx, y + dy) : 255));
+    CHECK(session.document()->selection() == selections[i]);
+    CHECK(rasterSource->revision() == rasterRevision);
+    CHECK(session.history().undoDepth() == depth + 1);
+    QTest::keyClick(view, Qt::Key_Z, Qt::ControlModifier);
+    CHECK(!session.document()->layer(rasterId)->mask);
+    CHECK(session.document()->selection() == selections[i]);
+    CHECK(session.history().undoDepth() == depth);
+    QTest::keyClick(view, Qt::Key_Z, Qt::ControlModifier | Qt::ShiftModifier);
+    CHECK(session.document()->layer(rasterId)->mask == created);
+    CHECK(session.document()->selection() == selections[i]);
+    QTest::keyClick(view, Qt::Key_Z, Qt::ControlModifier);
+    CHECK(!session.document()->layer(rasterId)->mask);
+  }
+  session.document()->setLayerTransform(rasterId, {});
+  session.document()->setSelection({});
+  view->onRowSelectionRequested(model->rowForLayer(rasterId), Qt::NoModifier);
   CHECK(session.document()->setLayerCrop(*session.activeLayer(),
                                          c::LayerCrop{2, 3, 20, 15}));
   add->trigger();
