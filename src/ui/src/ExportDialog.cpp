@@ -10,7 +10,7 @@
 
 #include <QButtonGroup>
 #include <QCheckBox>
-#include <QColorDialog>
+#include "imageeditor/ui/ColorDialog.hpp"
 #include <QComboBox>
 #include <QDesktopServices>
 #include <QFileDialog>
@@ -406,15 +406,10 @@ struct ExportDialog::Impl {
         QWidget* host = &owner;
         while (host->parentWidget())
             host = host->parentWidget();
-        QColorDialog picker(png ? draft.pngMatteColor : draft.jpegMatteColor, host);
+        ColorDialog picker(png ? draft.pngMatteColor : draft.jpegMatteColor, host);
         picker.setObjectName(QStringLiteral("ExportMatteDialog"));
         picker.setWindowTitle(owner.tr("Export background color"));
-        picker.setOption(QColorDialog::DontUseNativeDialog);
-        picker.setWindowFlag(Qt::Tool);
-        picker.setWindowModality(Qt::ApplicationModal);
-        (void)host->winId();
-        (void)picker.winId();
-        picker.windowHandle()->setTransientParent(host->windowHandle());
+        picker.setOption(ColorDialog::DontUseNativeDialog);
         if (picker.exec() != QDialog::Accepted || !picker.selectedColor().isValid())
             return;
         auto color = picker.selectedColor();

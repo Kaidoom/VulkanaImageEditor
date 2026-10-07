@@ -17,6 +17,9 @@ public:
     WorkspaceDialog(OverlayDockWorkspace& workspace, QWidget& host);
     ~WorkspaceDialog() override;
     int exec(QDialog& dialog);
+    void open(QDialog& dialog);
+    void finish();
+    [[nodiscard]] bool active() const noexcept { return running_; }
     void reject();
     // Opt-in for a starter card: local files dropped anywhere in its owning
     // application are open requests, not edits to the document behind it.
@@ -32,7 +35,9 @@ private:
     void focusControl(QWidget* control);
     void restoreCardFocus();
     OverlayDockWorkspace& workspace_;
+    QPointer<OverlayDockWorkspace> workspaceGuard_;
     QWidget& host_;
+    QPointer<QWidget> previousOverlay_;
     QPointer<QDialog> dialog_;
     QPointer<QWidget> previousFocus_, previousProxy_, lastFocus_;
     std::function<void(const QStringList&)> localFileDropHandler_;

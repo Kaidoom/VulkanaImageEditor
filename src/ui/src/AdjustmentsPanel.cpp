@@ -5,7 +5,7 @@
 #include "imageeditor/ui/Theme.hpp"
 #include <QApplication>
 #include <QCheckBox>
-#include <QColorDialog>
+#include "imageeditor/ui/ColorDialog.hpp"
 #include <QComboBox>
 #include <QHideEvent>
 #include <QKeyEvent>
@@ -272,6 +272,13 @@ AdjustmentsPanel::AdjustmentsPanel(QWidget* parent) : QWidget(parent)
 }
 AdjustmentsPanel::~AdjustmentsPanel() = default;
 bool AdjustmentsPanel::effectsCategoryActive() const{return effectsPanel_&&tabs_->currentWidget()==effectsPanel_;}
+void AdjustmentsPanel::showEffect(core::LayerEffectType type)
+{
+    if (!tabs_->isTabEnabled(tabs_->indexOf(effectsPanel_))) return;
+    tabs_->setCurrentWidget(effectsPanel_);
+    effectsPanel_->selectType(type);
+    tabs_->tabBar()->setFocus(Qt::OtherFocusReason);
+}
 bool AdjustmentsPanel::filtersCategoryActive() const
 {
     return filtersPanel_&&tabs_->currentWidget()==filtersPanel_;
@@ -481,11 +488,10 @@ void AdjustmentsPanel::chooseTint()
     const auto target=target_;
     const auto color=std::get<core::BlackWhiteParameters>(item(Type::BlackWhite).parameters).tintColor;
     auto* owner=window();while(owner->parentWidget())owner=owner->parentWidget()->window();
-    auto* dialog=new QColorDialog(QColor(color.red,color.green,color.blue),owner);
+    auto* dialog=new ColorDialog(QColor(color.red,color.green,color.blue),owner);
     dialog->setObjectName(QStringLiteral("AdjustmentTintDialog"));dialog->setWindowTitle(QStringLiteral("Black & White tint"));
-    dialog->setOptions(QColorDialog::DontUseNativeDialog);dialog->setAttribute(Qt::WA_DeleteOnClose);dialog->setWindowModality(Qt::ApplicationModal);
-    (void)owner->winId();(void)dialog->winId();dialog->windowHandle()->setTransientParent(owner->windowHandle());
-    connect(dialog,&QColorDialog::colorSelected,this,[this,target](QColor color){
+    dialog->setOptions(ColorDialog::DontUseNativeDialog);dialog->setAttribute(Qt::WA_DeleteOnClose);
+    connect(dialog,&ColorDialog::colorSelected,this,[this,target](QColor color){
         if(target_!=target)return;
         change(Type::BlackWhite,[color](auto& a){std::get<core::BlackWhiteParameters>(a.parameters).tintColor={std::uint8_t(color.red()),std::uint8_t(color.green()),std::uint8_t(color.blue()),255};});
     });dialog->show();

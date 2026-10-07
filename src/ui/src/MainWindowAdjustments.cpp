@@ -9,6 +9,7 @@
 #include <QScopedValueRollback>
 #include <QStatusBar>
 #include <QListView>
+#include <QAction>
 
 namespace imageeditor::ui {
 void MainWindow::addAdjustmentLayer()
@@ -31,7 +32,8 @@ void MainWindow::addAdjustmentLayer()
             session().setEditingLayerMask(false);
             fileState().untouched=false;
             synchronizeUi(true,false);
-            adjustmentsPanelShell_->show();
+            adjustmentsPanelAction_->setChecked(true);
+            workspace_->activatePanel(adjustmentsPanelShell_);
         }
     }catch(const std::exception& e){statusBar()->showMessage(QString::fromUtf8(e.what()),6000);}
 }

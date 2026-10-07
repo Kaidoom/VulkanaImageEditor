@@ -2,16 +2,23 @@
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/RulerStrip.hpp"
 #include "imageeditor/ui/WorkspacePanel.hpp"
+#include "imageeditor/ui/Theme.hpp"
+#include "imageeditor/ui/AdjustmentsPanel.hpp"
+#include "imageeditor/ui/ColorPanel.hpp"
+#include "imageeditor/ui/CrossWindowPointerRouter.hpp"
 
 #include <QApplication>
 #include <QCoreApplication>
 #include <QFocusEvent>
 #include <QLabel>
+#include <QLayout>
+#include <QKeyEvent>
 #include <QMouseEvent>
 #include <QPointer>
 #include <QSet>
 #include <QSize>
 #include <QSplitter>
+#include <QTabBar>
 #include <QToolBar>
 #include <QWheelEvent>
 #include <QWidget>
@@ -402,6 +409,9 @@ void floatingResizeUsesVisibleBottomRightGrip()
     workspace.addPanel(panel);
     workspace.resize(1000, 640);
     workspace.show();
+    settleLayout();
+    CHECK(panel->layout()->contentsMargins() == QMargins(4, 4, 4, 4));
+    CHECK(!panel->resizeGrip()->isVisible());
     workspace.floatPanel(panel, QRect {220, 90, 300, 240});
     settleLayout();
 
@@ -650,6 +660,140 @@ void workspaceMinimumContainsNativeChildren()
     CHECK(workspace.rect().contains(workspace.panelOverlay()->geometry()));
 }
 
+void tabbedPanelsRetainControlsAndMoveIndependently()
+{
+    using Side = OverlayDockWorkspace::PanelDockSide;
+    using Placement = OverlayDockWorkspace::PanelPlacement;
+    auto* canvas = new imageeditor::render::CanvasWindow;
+    OverlayDockWorkspace workspace(canvas);
+    auto* a = makePanel("Layers"); a->setObjectName("LayersPanel");
+    auto* b = makePanel("Properties"); b->setObjectName("PropertiesPanelShell");
+    auto* c = new WorkspacePanel("Adjustments", new imageeditor::ui::AdjustmentsPanel);
+    c->setObjectName("AdjustmentsPanelShell");
+    auto* d = makePanel("Color"); d->setObjectName("ColorPanelShell");
+    for (auto* panel : {a, b, c, d}) workspace.addPanel(panel);
+    workspace.resize(1300, 1000); workspace.show(); settleLayout();
+    auto* canvasHandle = canvas->handle();
+    auto* plane = workspace.panelOverlay()->windowHandle();
+    imageeditor::ui::CrossWindowPointerRouter router(&workspace, canvas, workspace.canvasContainer());
+    const auto fixedCanvas = workspace.canvasContainer()->geometry();
+    auto* content = c->contentWidget();
+    const auto send = [](QWindow* window, QEvent::Type type, QPoint global) {
+        const auto local = QPointF(window->mapFromGlobal(global));
+        const bool move = type == QEvent::MouseMove;
+        QMouseEvent event(type, local, local, QPointF(global), move ? Qt::NoButton : Qt::LeftButton,
+            type == QEvent::MouseButtonRelease ? Qt::NoButton : Qt::LeftButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(window, &event);
+    };
+    const auto drag = [&](QWidget* widget, QPoint press, QPoint target, const QString& kind, bool cancel = false) {
+        send(plane, QEvent::MouseButtonPress, press);
+        CHECK(router.captureOwner() == widget);
+        // Move/release arrives through the native canvas, not the tab's plane.
+        send(canvas, QEvent::MouseMove, target);
+        if (!kind.isEmpty()) {
+            CHECK(!workspace.panelDropIndicator()->isHidden());
+            CHECK(workspace.panelDropIndicator()->property("dropKind").toString() == kind);
+        }
+        if (cancel) {
+            QEvent cancellation(QEvent::TouchCancel);
+            QCoreApplication::sendEvent(widget, &cancellation);
+        }
+        send(canvas, QEvent::MouseButtonRelease, target);
+        settleLayout();
+        CHECK(router.captureDomain() == imageeditor::ui::CrossWindowPointerRouter::CaptureDomain::None);
+        CHECK(!canvas->pointerGestureActive());
+        CHECK(workspace.panelDropIndicator()->isHidden());
+        CHECK(workspace.canvasContainer()->geometry() == fixedCanvas);
+        CHECK(canvas->handle() == canvasHandle);
+        CHECK(workspace.panelOverlay()->windowHandle() == plane);
+    };
+    const auto header = [](WorkspacePanel* p) {
+        return p->findChild<QWidget*>("WorkspacePanelTitleBar", Qt::FindDirectChildrenOnly);
+    };
+    // Center docking creates tabs; hover/cancel leaves ownership untouched.
+    auto* title = header(b);
+    drag(title, title->mapToGlobal(title->rect().center()), a->mapToGlobal(a->rect().center()), "new-tab", true);
+    CHECK(workspace.panelTabs(a).size() == 1);
+    drag(title, title->mapToGlobal(title->rect().center()), a->mapToGlobal(a->rect().center()), "new-tab");
+    CHECK(workspace.panelTabs(a) == std::vector<WorkspacePanel*>({a, b}));
+    CHECK(workspace.panelFrame(a) == workspace.panelFrame(b));
+    CHECK(b->isVisible() && !a->isVisible());
+    workspace.tabifyPanel(c, b);
+    CHECK(workspace.panelTabs(a).size() == 3);
+    CHECK(c->contentWidget() == content);
+    CHECK(c->isVisible());
+    workspace.activatePanel(a); settleLayout();
+    CHECK(a->isVisible() && !c->isVisible());
+    workspace.setPanelVisible(c, true); // Refreshing visibility must not change active tab.
+    CHECK(a->isVisible());
+    workspace.setPanelVisible(a, false); settleLayout();
+    CHECK(!a->isVisible() && workspace.panelVisible(b));
+    workspace.activatePanel(a); settleLayout();
+    CHECK(a->isVisible());
+    // A single tab moves at the indicated gap, even if initially inactive.
+    auto* tabs = workspace.panelTabBar(a);
+    drag(tabs, tabs->mapToGlobal(tabs->tabRect(2).center()),
+        tabs->mapToGlobal(QPoint(2, tabs->height() / 2)), "tab-insertion");
+    CHECK(workspace.panelTabs(a) == std::vector<WorkspacePanel*>({c, a, b}));
+    // The header moves the complete frame; tabs are not recreated.
+    auto* frame = workspace.panelFrame(a);
+    title = header(frame);
+    drag(title, title->mapToGlobal(title->rect().center()),
+        workspace.panelOverlay()->mapToGlobal(QPoint(540, 160)), {});
+    CHECK(workspace.panelPlacement(c) == Placement::Floating);
+    CHECK(workspace.panelFrame(a) == frame && workspace.panelTabBar(a) == tabs);
+    CHECK(!frame->isWindow() && !a->isWindow() && !c->isWindow());
+    // Explicitly render the floating surface: margins above the tabs are opaque.
+    workspace.activatePanel(c); settleLayout();
+    CHECK(frame->grab().toImage().pixelColor(5, 45).alpha() == 255);
+    const auto capturePrefix = qEnvironmentVariable("VULKANA_PANEL_TEST_CAPTURE");
+    if (!capturePrefix.isEmpty()) CHECK(frame->grab().save(capturePrefix + "-tabs.png"));
+    const auto saved = workspace.savePanelTabs();
+    const auto floating = workspace.floatingPanelGeometry(a);
+    // A tab can float independently; cancelling it first leaves the frame intact.
+    drag(tabs, tabs->mapToGlobal(tabs->tabRect(2).center()),
+        workspace.panelOverlay()->mapToGlobal(QPoint(650, 750)), {}, true);
+    CHECK(workspace.panelTabs(a).size() == 3);
+    drag(tabs, tabs->mapToGlobal(tabs->tabRect(2).center()),
+        workspace.panelOverlay()->mapToGlobal(QPoint(650, 750)), {});
+    CHECK(workspace.panelTabs(b).size() == 1 && workspace.panelTabs(a).size() == 2);
+    CHECK(workspace.panelPlacement(b) == Placement::Floating);
+    CHECK(header(b)->isVisible());
+    // Last-member collapse restores the ordinary panel and its own constraints.
+    workspace.detachPanel(a); settleLayout();
+    CHECK(workspace.panelTabs(c).size() == 1 && header(c)->isVisible());
+    CHECK(c->grab().toImage().pixelColor(5, 55).alpha() == 255);
+    if (!capturePrefix.isEmpty()) CHECK(c->grab().save(capturePrefix + "-floating.png"));
+    CHECK(workspace.restorePanelTabs(saved)); settleLayout();
+    CHECK(workspace.panelTabs(a) == std::vector<WorkspacePanel*>({c, a, b}));
+    CHECK(workspace.floatingPanelGeometry(a) == floating);
+    CHECK(c->isVisible());
+    // Dropping one tab at a panel's edge splits it into the existing column.
+    tabs = workspace.panelTabBar(a);
+    drag(tabs, tabs->mapToGlobal(tabs->tabRect(1).center()),
+        d->mapToGlobal(QPoint(d->width() / 2, 3)), "dock");
+    CHECK(workspace.panelPlacement(a) == Placement::DockedRight);
+    CHECK(workspace.dockedPanelIndex(a) < workspace.dockedPanelIndex(d));
+    CHECK(workspace.panelTabs(a).size() == 1);
+    // Merge complete groups without nesting tab containers or losing controls.
+    workspace.tabifyPanel(d, a);
+    workspace.tabifyPanel(workspace.panelFrame(c), a);
+    CHECK(workspace.panelTabs(a).size() == 4);
+    CHECK(c->contentWidget() == content);
+    workspace.dockPanel(c, Side::Left); settleLayout();
+    for (auto* panel : {a, b, c, d}) CHECK(workspace.panelPlacement(panel) == Placement::DockedLeft);
+    workspace.floatPanel(c, {420, 160, 360, 420}); settleLayout();
+    const auto hiddenGeometry = workspace.floatingPanelGeometry(c);
+    workspace.setPanelVisible(a, false); workspace.setPanelVisible(b, false);
+    workspace.setPanelVisible(c, false); workspace.setPanelVisible(d, false); settleLayout();
+    CHECK(!workspace.panelFrame(c)->isVisible());
+    CHECK(workspace.floatingPanelGeometry(c) == hiddenGeometry);
+    workspace.activatePanel(c); settleLayout();
+    CHECK(c->isVisible() && !a->isVisible());
+    CHECK(workspace.canvasContainer()->geometry() == fixedCanvas);
+    CHECK(canvas->handle() == canvasHandle);
+}
+
 void internallyFloatingPanelsCloseWithTheirWorkspace()
 {
     QPointer<WorkspacePanel> guardedPanel;
@@ -669,6 +813,57 @@ void internallyFloatingPanelsCloseWithTheirWorkspace()
     }
     CHECK(guardedPanel.isNull());
     CHECK(QWidget::mouseGrabber() == nullptr);
+}
+
+void dockedFramesUseSquareCorners()
+{
+    auto* canvas = new imageeditor::render::CanvasWindow;
+    OverlayDockWorkspace workspace(canvas);
+    auto* color = new WorkspacePanel("Color", new imageeditor::ui::ColorPanel);
+    auto* swatches = makePanel("Swatches");
+    auto* lower = makePanel("Properties");
+    workspace.addPanel(color);
+    workspace.addPanel(swatches);
+    workspace.addPanel(lower);
+    workspace.tabifyPanel(swatches, color);
+    workspace.activatePanel(color);
+    workspace.setPanelWidth(551);
+    workspace.resize(1200, 720);
+    workspace.show(); settleLayout();
+    auto* card = workspace.rightPanelCard();
+    auto* frame = workspace.panelFrame(color);
+    auto image = card->grab().toImage();
+    const auto prefix = qEnvironmentVariable("VULKANA_PANEL_TEST_CAPTURE");
+    if (!prefix.isEmpty()) CHECK(image.save(prefix + "-docked-corners.png"));
+    // Docked frame corners meet the divider without exposing curved cutouts.
+    // Grouped and standalone panels retain their inset border and content.
+    const qreal dpr = image.devicePixelRatio();
+    const auto at = [&](QPoint p) {
+        return image.pixelColor(qFloor((p.x()+0.5)*dpr), qFloor((p.y()+0.5)*dpr));
+    };
+    const auto checkCorner = [&](WorkspacePanel* panel) {
+        const auto corner = panel->mapTo(card, QPoint(0, panel->height()-1));
+        const auto border = at(corner + QPoint(panel->width()/2, 0));
+        const auto background = imageeditor::ui::themeTone("#151820");
+        CHECK(at(corner) != background);
+        CHECK(border != background);
+        // Fractional-DPI borders can cover the corner and straight edge by
+        // different subpixel amounts. Both must still reach the square corner.
+        if (dpr == std::floor(dpr)) CHECK(at(corner) == border);
+    };
+    checkCorner(frame);
+    checkCorner(lower);
+    CHECK(frame->layout()->contentsMargins() == QMargins(4, 4, 4, 4));
+    const auto* grip = frame->findChild<QWidget*>("WorkspacePanelResizeGrip");
+    CHECK(grip && !grip->isVisible());
+    workspace.floatPanel(color, {200, 90, 551, frame->height()}); settleLayout();
+    CHECK(workspace.panelFrame(color) == frame && grip && grip->isVisible());
+    const auto floatingImage = frame->grab().toImage();
+    CHECK(floatingImage.pixelColor(0, 0) != floatingImage.pixelColor(floatingImage.width()/2, 0));
+    if (!prefix.isEmpty()) CHECK(floatingImage.save(prefix + "-floating-corners.png"));
+    workspace.dockPanel(color, OverlayDockWorkspace::PanelDockSide::Right, 0); settleLayout();
+    image = card->grab().toImage();
+    checkCorner(frame);
 }
 
 void panelResizeHandleTracksGlobalPointer()
@@ -1004,6 +1199,19 @@ int main(int argc, char* argv[])
 {
     QCoreApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
     QApplication application(argc, argv);
+    imageeditor::ui::applyEditorTheme(application);
+
+    if (application.arguments().contains("--panel-corners-only")) {
+        dockedFramesUseSquareCorners();
+        return failures ? EXIT_FAILURE : EXIT_SUCCESS;
+    }
+
+    if (application.arguments().contains("--tab-groups-only")) {
+        tabbedPanelsRetainControlsAndMoveIndependently();
+        std::cout << "Panel tab groups: " << (failures ? "FAILED" : "passed")
+                  << "; platform=" << application.platformName().toStdString() << '\n';
+        return failures ? EXIT_FAILURE : EXIT_SUCCESS;
+    }
 
     panelGeometryIsIndependentFromCanvas();
     passiveNotificationDoesNotCreateAnInputFootprint();
@@ -1019,6 +1227,9 @@ int main(int argc, char* argv[])
     rapidPanelWidthsCoalesceBackingStorePaints();
     rulersFollowOccupiedWorkspaceChromeWithoutChangingTheCanvas();
     rulerGripDockingCommitsOnceAndCancelsWithoutClickThrough();
+    tabbedPanelsRetainControlsAndMoveIndependently();
+
+    dockedFramesUseSquareCorners();
 
     if (failures != 0) {
         std::cerr << failures << " overlay workspace assertion(s) failed\n";

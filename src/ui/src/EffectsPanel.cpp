@@ -14,6 +14,10 @@
 #include <QStandardItemModel>
 #include <QVBoxLayout>
 namespace imageeditor::ui {
+void EffectsPanel::selectType(core::LayerEffectType type) {
+  const auto index = static_cast<int>(type);
+  if (index >= 0 && index < navigation_->count()) navigation_->setCurrentIndex(index);
+}
 EffectsPanel::EffectsPanel(QWidget *parent) : QWidget(parent) {
   setObjectName("EffectsPanelContent");
   auto *outer = new QVBoxLayout(this);

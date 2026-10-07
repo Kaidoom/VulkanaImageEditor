@@ -6,11 +6,11 @@
 
 class QPushButton;
 class QToolButton;
-class QColorDialog;
 class QVariantAnimation;
 class QHideEvent;
 
 namespace imageeditor::ui {
+class ColorDialog;
 class ColorSelector final : public QWidget {
 public:
     enum class Presentation { Detailed, Compact };
@@ -34,7 +34,7 @@ private:
     QPoint animationPrimaryStart_;
     QPoint animationSecondaryStart_;
     QVariantAnimation* selectionAnimation_ {nullptr};
-    QPointer<QColorDialog> colorDialog_;
+    QPointer<ColorDialog> colorDialog_;
     QPushButton* primary_;
     QPushButton* secondary_;
     QToolButton* swap_;

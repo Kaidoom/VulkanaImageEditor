@@ -3,7 +3,7 @@
 #include "imageeditor/ui/PopupOwnership.hpp"
 #include "imageeditor/ui/ToolOptionsNumber.hpp"
 #include <QCheckBox>
-#include <QColorDialog>
+#include "imageeditor/ui/ColorDialog.hpp"
 #include <QComboBox>
 #include <QFormLayout>
 #include <QHBoxLayout>
@@ -225,9 +225,9 @@ PdfExportPanel::PdfExportPanel(PdfExportOptions &options, QWidget *parent,
     s.notify();
   });
   connect(s.color, &QPushButton::clicked, this, [this, &s] {
-    const auto color = QColorDialog::getColor(
+    const auto color = ColorDialog::getColor(
         s.options.matteColor, popupTopLevelOwner(this),
-        tr("PDF background color"), QColorDialog::DontUseNativeDialog);
+        tr("PDF background color"), ColorDialog::DontUseNativeDialog);
     if (color.isValid()) {
       s.options.matteColor = color;
       s.options.matteColor.setAlpha(255);

@@ -17,9 +17,14 @@
 #include "imageeditor/ui/ProjectFile.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/ToolIcons.hpp"
+#include "imageeditor/ui/AdjustmentsPanel.hpp"
+#include "imageeditor/ui/EffectsPanel.hpp"
+#include "imageeditor/ui/OverlayDockWorkspace.hpp"
+#include "imageeditor/ui/WorkspacePanel.hpp"
 #include <QAction>
 #include <QApplication>
 #include <QContextMenuEvent>
+#include <QComboBox>
 #include <QHelpEvent>
 #include <QMenu>
 #include <QPushButton>
@@ -460,12 +465,12 @@ void uiContracts() {
       window.findChild<QPushButton *>("AddLayerMaskButton");
   const auto *deleteButton =
       window.findChild<QPushButton *>("DeleteLayerButton");
-  CHECK(folderButton->x() - addButton->geometry().right() == 7);
-  CHECK(maskButton->x() - folderButton->geometry().right() == 7);
+  CHECK(folderButton->x() - addButton->geometry().right() == 5);
+  CHECK(maskButton->x() - folderButton->geometry().right() == 5);
   CHECK(deleteButton->x() - maskButton->geometry().right() > 20);
   CHECK(deleteButton->parentWidget()->width() -
             deleteButton->geometry().right() ==
-        11);
+        7);
   CHECK(addButton->icon().pixmap(24, 24).toImage() ==
         u::toolGlyph(u::ToolGlyph::NewLayer).pixmap(24, 24).toImage());
   window.findChild<QAction *>("EnableLayerMaskAction")->trigger();
@@ -488,6 +493,7 @@ void uiContracts() {
   CHECK(!session.document()->selection());
   window.findChild<QAction *>("NewLayerFolderAction")->trigger();
   CHECK(!add->isEnabled());
+  CHECK(!window.findChild<QPushButton *>("LayerEffectsButton")->isEnabled());
   // Typed mask painting remains a bitmap edit without replacing the shape
   // model.
   c::ShapeLayer shape;
@@ -544,7 +550,120 @@ void uiContracts() {
   CHECK(
       std::get<c::TextLayer>(session.document()->layer(textId)->payload).utf8 ==
       text.utf8);
+  // The fx menu is navigation, not an enable/edit action. It also reveals a
+  // hidden/inactive Adjustments tab inside a grouped workspace panel.
+  u::OverlayDockWorkspace* workspace = nullptr;
+  for (auto* widget : window.findChildren<QWidget*>())
+    if (auto* candidate = dynamic_cast<u::OverlayDockWorkspace*>(widget)) workspace = candidate;
+  CHECK(workspace);
+  auto* adjustments = dynamic_cast<u::WorkspacePanel*>(window.findChild<QWidget*>("AdjustmentsPanelShell"));
+  auto* properties = dynamic_cast<u::WorkspacePanel*>(window.findChild<QWidget*>("PropertiesPanelShell"));
+  CHECK(adjustments && properties);
+  if (workspace && adjustments && properties) {
+    workspace->tabifyPanel(adjustments, properties);
+    workspace->activatePanel(properties);
+    window.findChild<QAction*>("AdjustmentsPanelVisibilityAction")->trigger();
+    CHECK(!workspace->panelVisible(adjustments));
+    const auto effectsBefore = session.document()->layer(textId)->effects;
+    const auto selectionBefore = session.document()->selection();
+    const auto depth = session.history().undoDepth();
+    auto* fx = window.findChild<QPushButton*>("LayerEffectsButton");
+    CHECK(fx && fx->isEnabled() && !fx->icon().isNull() && fx->text().isEmpty());
+    CHECK(fx->x() - maskButton->geometry().right() == 5);
+    fx->click();
+    auto* menu = window.findChild<QMenu*>("LayerEffectsMenu");
+    CHECK(menu && menu->actions().size() == int(c::layerEffectCount));
+    if (menu) {
+      CHECK(menu->parentWidget() == u::popupTopLevelOwner(fx));
+      auto* panel = dynamic_cast<u::AdjustmentsPanel*>(adjustments->contentWidget());
+      for (auto* action : menu->actions()) {
+        action->trigger();
+        CHECK(panel->effectsCategoryActive());
+        CHECK(panel->findChild<QComboBox*>("EffectNavigation")->currentIndex() == action->data().toInt());
+        CHECK(session.document()->layer(textId)->effects == effectsBefore);
+        CHECK(session.history().undoDepth() == depth);
+      }
+      menu->close();
+    }
+    CHECK(adjustments->isVisible() && !properties->isVisible());
+    CHECK(session.document()->selection() == selectionBefore);
+    CHECK(workspace->panelTabs(adjustments).size() == 2);
+  }
   window.close();
+}
+void panelLayoutPersistence() {
+  const auto workspaceFor = [](u::MainWindow& window) -> u::OverlayDockWorkspace* {
+    for (auto* widget : window.findChildren<QWidget*>())
+      if (auto* workspace = dynamic_cast<u::OverlayDockWorkspace*>(widget)) return workspace;
+    return nullptr;
+  };
+  const auto panel = [](u::MainWindow& window, const char* name) {
+    return dynamic_cast<u::WorkspacePanel*>(window.findChild<QWidget*>(name));
+  };
+  QByteArray saved;
+  QRect floating;
+  {
+    u::MainWindow window(nativeInstance);
+    window.setUnsavedPromptEnabled(false);
+    window.resize(1400, 900); window.show(); QTest::qWait(40);
+    auto* workspace = workspaceFor(window);
+    auto* layers = panel(window, "LayersPanel");
+    auto* color = panel(window, "ColorPanelShell");
+    auto* adjustments = panel(window, "AdjustmentsPanelShell");
+    auto* properties = panel(window, "PropertiesPanelShell");
+    CHECK(workspace && layers && color && adjustments && properties);
+    if (!workspace || !layers || !color || !adjustments || !properties) return;
+    auto* swatches = panel(window, "SwatchesPanelShell");
+    CHECK(swatches && workspace->panelTabs(color) == std::vector<u::WorkspacePanel*>({color, swatches}));
+    CHECK(color->isVisible() && !swatches->isVisible());
+    CHECK(workspace->panelTabs(properties) == std::vector<u::WorkspacePanel*>({properties, adjustments}));
+    CHECK(properties->isVisible() && !adjustments->isVisible());
+    workspace->tabifyPanel(color, layers);
+    workspace->tabifyPanel(properties, adjustments);
+    // Fit the small offscreen test display as well as native desktop screens.
+    workspace->floatPanel(adjustments, {320, 40, 360, 400});
+    auto* visibility = window.findChild<QAction*>("PropertiesPanelVisibilityAction");
+    CHECK(visibility && visibility->isChecked());
+    if (visibility) visibility->trigger();
+    workspace->activatePanel(adjustments);
+    QTest::qWait(40);
+    saved = workspace->savePanelTabs();
+    floating = workspace->floatingPanelGeometry(adjustments);
+    CHECK(color->isVisible() && !layers->isVisible());
+    CHECK(window.close());
+    CHECK(QSettings().value("window/panel-tabs-v1").toByteArray() == saved);
+  }
+  {
+    u::MainWindow window(nativeInstance);
+    window.setUnsavedPromptEnabled(false);
+    window.show(); QTest::qWait(60);
+    auto* workspace = workspaceFor(window);
+    auto* layers = panel(window, "LayersPanel");
+    auto* color = panel(window, "ColorPanelShell");
+    auto* adjustments = panel(window, "AdjustmentsPanelShell");
+    auto* properties = panel(window, "PropertiesPanelShell");
+    CHECK(workspace->panelTabs(layers).size() == 2);
+    CHECK(workspace->panelTabs(adjustments).size() == 2);
+    CHECK(workspace->panelPlacement(layers) == u::OverlayDockWorkspace::PanelPlacement::DockedLeft);
+    CHECK(workspace->floatingPanelGeometry(adjustments) == floating);
+    CHECK(workspace->panelVisible(layers) && !layers->isVisible() && color->isVisible());
+    CHECK(!workspace->panelVisible(properties) && adjustments->isVisible());
+    CHECK(workspace->savePanelTabs() == saved);
+    CHECK(window.close());
+  }
+  {
+    u::MainWindow window(nativeInstance, true, false, {}, nullptr,
+                         u::MainWindow::PanelLayoutMode::SessionDefaults);
+    window.setUnsavedPromptEnabled(false);
+    window.show(); QTest::qWait(40);
+    auto* workspace = workspaceFor(window);
+    CHECK(workspace->panelTabs(panel(window, "LayersPanel")).size() == 1);
+    CHECK(workspace->panelTabs(panel(window, "PropertiesPanelShell")) == std::vector<u::WorkspacePanel*>({
+        panel(window, "PropertiesPanelShell"), panel(window, "AdjustmentsPanelShell")}));
+    CHECK(workspace->panelTabs(panel(window, "ColorPanelShell")).size() == 2);
+    CHECK(window.close());
+    CHECK(QSettings().value("window/panel-tabs-v1").toByteArray() == saved);
+  }
 }
 int main(int argc, char **argv) {
   QCoreApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
@@ -583,6 +702,7 @@ int main(int argc, char **argv) {
     coreContracts();
     persistenceAndBake();
     uiContracts();
+    panelLayoutPersistence();
   } catch (const std::exception &e) {
     CHECK(false);
     std::cerr << e.what() << '\n';

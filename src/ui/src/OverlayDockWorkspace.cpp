@@ -6,12 +6,14 @@
 #include "imageeditor/ui/PopupOwnership.hpp"
 
 #include <QColor>
+#include <QCursor>
 #include <QDebug>
 #include <QEnterEvent>
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QHideEvent>
 #include <QLayout>
+#include <QKeyEvent>
 #include <QMouseEvent>
 #include <QPaintEvent>
 #include <QPainter>
@@ -176,11 +178,19 @@ public:
         std::vector<int> spacerYs, int insertionLineY,
         bool currentPosition)
     {
+        tabTarget_ = false;
+        setProperty("dropKind", QStringLiteral("dock"));
         side_ = side;
         hasDockedPeers_ = hasDockedPeers;
         spacerYs_ = std::move(spacerYs);
         insertionLineY_ = insertionLineY;
         currentPosition_ = currentPosition;
+        update();
+    }
+    void setTabTarget(int lineX) {
+        tabTarget_ = true;
+        tabLineX_ = lineX;
+        setProperty("dropKind", lineX < 0 ? QStringLiteral("new-tab") : QStringLiteral("tab-insertion"));
         update();
     }
 
@@ -190,6 +200,21 @@ protected:
         QPainter painter(this);
         painter.setClipRegion(event->region());
         painter.setRenderHint(QPainter::Antialiasing);
+        if (tabTarget_) {
+            const auto accent = palette().color(QPalette::Highlight);
+            painter.setPen(QPen(accent, 3));
+            if (tabLineX_ >= 0) {
+                painter.drawLine(tabLineX_, 2, tabLineX_, height() - 3);
+            } else {
+                painter.setBrush(translucent(accent, 30));
+                painter.drawRoundedRect(rect().adjusted(3, 3, -4, -4), 8, 8);
+                const QRect label(width() / 2 - 48, height() / 2 - 15, 96, 30);
+                painter.setBrush(accent); painter.drawRoundedRect(label, 6, 6);
+                painter.setPen(palette().color(QPalette::HighlightedText));
+                painter.drawText(label, Qt::AlignCenter, tr("New tab"));
+            }
+            return;
+        }
         const QColor accent = palette().color(currentPosition_
             ? QPalette::PlaceholderText : QPalette::Highlight);
         painter.setPen(QPen(accent, currentPosition_ ? 2.0 : 3.0));
@@ -254,6 +279,8 @@ private:
     std::vector<int> spacerYs_;
     int insertionLineY_ {-1};
     bool currentPosition_ {false};
+    bool tabTarget_ {false};
+    int tabLineX_ {-1};
 };
 
 class PanelDockColumn final : public QWidget {
@@ -568,6 +595,7 @@ OverlayDockWorkspace::OverlayDockWorkspace(
 
 OverlayDockWorkspace::~OverlayDockWorkspace()
 {
+    clearTabCallbacks();
     for (auto* ruler : rulers_) {
         ruler->onDragStarted = {}; ruler->onDragMoved = {}; ruler->onDragFinished = {};
         ruler->cancelDrag();
@@ -592,8 +620,10 @@ OverlayDockWorkspace::~OverlayDockWorkspace()
     for (auto* panel : floatingPanels_) {
         clearCallbacks(panel);
     }
+    for (auto* panel : registeredPanels_) clearCallbacks(panel);
 
     draggedPanel_ = nullptr;
+    draggedTab_ = nullptr;
     resizedPanel_ = nullptr;
     if (auto* grabber = QWidget::mouseGrabber(); grabber && panelOverlay_
         && (grabber == panelOverlay_ || panelOverlay_->isAncestorOf(grabber))) {
@@ -613,6 +643,7 @@ void OverlayDockWorkspace::addPanel(WorkspacePanel* panel, PanelDockSide side)
         return;
     }
     configurePanel(panel);
+    registeredPanels_.push_back(panel);
     hiddenPanels_.remove(panel);
     insertDockedPanel(panel, side, -1);
 }
@@ -681,12 +712,13 @@ void OverlayDockWorkspace::insertDockedPanel(
 void OverlayDockWorkspace::dockPanel(
     WorkspacePanel* panel, PanelDockSide side, int index)
 {
-    insertDockedPanel(panel, side, index);
+    insertDockedPanel(panelFrame(panel), side, index);
 }
 
 void OverlayDockWorkspace::floatPanel(
     WorkspacePanel* panel, const QRect& requestedGeometry)
 {
+    panel = panelFrame(panel);
     if (!panel) {
         return;
     }
@@ -719,6 +751,15 @@ void OverlayDockWorkspace::setPanelVisible(WorkspacePanel* panel, bool visible)
     if (!panel) {
         return;
     }
+    if (auto* group = tabGroup(panel); group && group->frame != panel) {
+        const bool wasHidden = hiddenPanels_.contains(panel);
+        if (visible == !wasHidden) return;
+        if (visible) hiddenPanels_.remove(panel);
+        else hiddenPanels_.insert(panel);
+        refreshTabGroup(*group, visible && wasHidden ? panel : nullptr);
+        updatePanelGeometry();
+        return;
+    }
     if (visible) {
         hiddenPanels_.remove(panel);
         panel->show();
@@ -740,6 +781,7 @@ bool OverlayDockWorkspace::panelVisible(const WorkspacePanel* panel) const
 OverlayDockWorkspace::PanelPlacement OverlayDockWorkspace::panelPlacement(
     const WorkspacePanel* panel) const
 {
+    panel = panelFrame(panel);
     if (std::find(leftPanels_.begin(), leftPanels_.end(), panel)
         != leftPanels_.end()) {
         return PanelPlacement::DockedLeft;
@@ -765,7 +807,7 @@ QRect OverlayDockWorkspace::floatingPanelGeometry(
     const WorkspacePanel* panel) const
 {
     return panel && panelPlacement(panel) == PanelPlacement::Floating
-        ? panel->geometry() : QRect {};
+        ? panelFrame(panel)->geometry() : QRect {};
 }
 
 QByteArray OverlayDockWorkspace::saveDockedPanelSizes(
@@ -923,6 +965,7 @@ void OverlayDockWorkspace::setViewModeOverlay(QWidget* overlay, bool visible)
 int OverlayDockWorkspace::panelIndex(
     const WorkspacePanel* panel, PanelPlacement placement) const
 {
+    panel = panelFrame(panel);
     const std::vector<WorkspacePanel*>* panels = nullptr;
     switch (placement) {
     case PanelPlacement::DockedLeft: panels = &leftPanels_; break;
@@ -947,6 +990,9 @@ bool OverlayDockWorkspace::hasVisibleDockedPanel(PanelDockSide side) const
 bool OverlayDockWorkspace::panelRequestedVisible(
     const WorkspacePanel* panel) const
 {
+    if (const auto* group = tabGroup(panel); group && group->frame == panel)
+        return std::any_of(group->panels.begin(), group->panels.end(),
+            [this](const WorkspacePanel* member) { return !hiddenPanels_.contains(member); });
     return panel && !hiddenPanels_.contains(panel);
 }
 
@@ -1004,9 +1050,9 @@ void OverlayDockWorkspace::beginPanelDrag(
     dragOriginGeometry_ = panel->geometry();
     dragOffset_ = pressOffset;
 
-    if (dragOrigin_ != PanelPlacement::Floating) {
+    if (dragOrigin_ != PanelPlacement::Floating || draggedTab_) {
         auto* proxy = static_cast<PanelDragProxy*>(panelDragProxy_);
-        proxy->setTitle(panel->title());
+        proxy->setTitle(draggedTab_ ? draggedTab_->title() : panel->title());
         const int proxyWidth = std::clamp(panel->width(), 190, 320);
         proxy->setGeometry(QRect(
             panelOverlay_->mapFromGlobal(panel->mapToGlobal(QPoint {})),
@@ -1027,7 +1073,7 @@ void OverlayDockWorkspace::movePanelDrag(
     }
     const QPoint overlayPosition = panelOverlay_->mapFromGlobal(globalPosition);
     QRect previous;
-    if (dragOrigin_ == PanelPlacement::Floating) {
+    if (dragOrigin_ == PanelPlacement::Floating && !draggedTab_) {
         const QRect moved(overlayPosition - dragOffset_, panel->size());
         previous = panel->geometry();
         panel->setGeometry(clampFloatingGeometry(panel, moved));
@@ -1049,7 +1095,7 @@ void OverlayDockWorkspace::movePanelDrag(
         panelDragProxy_->raise();
     }
     updateDropHighlights(overlayPosition);
-    const QRect current = dragOrigin_ == PanelPlacement::Floating
+    const QRect current = dragOrigin_ == PanelPlacement::Floating && !draggedTab_
         ? panel->geometry() : panelDragProxy_->geometry();
     if (previous != current) {
         updatePanelGeometry();
@@ -1065,6 +1111,10 @@ void OverlayDockWorkspace::finishPanelDrag(
     const auto origin = dragOrigin_;
     const QRect originGeometry = dragOriginGeometry_;
     const QPoint overlayPosition = panelOverlay_->mapFromGlobal(globalPosition);
+    const auto tabDrop = canceled ? TabDrop{} : tabDropAt(overlayPosition);
+    QPointer<WorkspacePanel> tabTarget(tabDrop.target);
+    QPointer<WorkspacePanel> movedPanel(draggedTab_ ? draggedTab_ : panel);
+    const bool individualTab = draggedTab_ != nullptr;
     bool dropLeft = !canceled && panelDragTouchesDropZone(
         PanelDockSide::Left, overlayPosition);
     bool dropRight = !canceled && panelDragTouchesDropZone(
@@ -1085,7 +1135,7 @@ void OverlayDockWorkspace::finishPanelDrag(
 
     const bool originWasDocked = origin != PanelPlacement::Floating;
     QRect requestedFloatingGeometry;
-    if (originWasDocked) {
+    if (originWasDocked || individualTab) {
         const QSize floatingSize {
             std::clamp(panel->width(), 310, 460),
             std::clamp(panel->height(), 220, 560),
@@ -1095,13 +1145,14 @@ void OverlayDockWorkspace::finishPanelDrag(
     }
 
     draggedPanel_ = nullptr;
+    draggedTab_ = nullptr;
     panelDragProxy_->hide();
     panelDropIndicator_->hide();
     static_cast<PanelDockColumn*>(leftColumn_)->setDropHighlighted(false);
     static_cast<PanelDockColumn*>(rightColumn_)->setDropHighlighted(false);
 
     if (canceled) {
-        if (!originWasDocked) {
+        if (!originWasDocked && !individualTab) {
             panel->setGeometry(clampFloatingGeometry(panel, originGeometry));
         }
     }
@@ -1110,21 +1161,29 @@ void OverlayDockWorkspace::finishPanelDrag(
     if (canceled) {
         return;
     }
+    if (tabTarget) {
+        QTimer::singleShot(0, this, [this, movedPanel, tabTarget, index = tabDrop.index] {
+            if (movedPanel && tabTarget) tabifyPanel(movedPanel, tabTarget, index);
+        });
+        return;
+    }
     if (currentPosition) {
         return;
     }
-    QPointer<WorkspacePanel> guardedPanel(panel);
+    QPointer<WorkspacePanel> guardedPanel(movedPanel);
     if (dropLeft || dropRight) {
         QTimer::singleShot(0, this,
-            [this, guardedPanel, dropSide, insertionIndex] {
+            [this, guardedPanel, dropSide, insertionIndex, individualTab] {
             if (guardedPanel) {
+                if (individualTab) detachPanel(guardedPanel);
                 dockPanel(guardedPanel, dropSide, insertionIndex);
             }
         });
-    } else if (originWasDocked) {
+    } else if (originWasDocked || individualTab) {
         QTimer::singleShot(0, this,
-            [this, guardedPanel, requestedFloatingGeometry] {
+            [this, guardedPanel, requestedFloatingGeometry, individualTab] {
                 if (guardedPanel) {
+                    if (individualTab) detachPanel(guardedPanel);
                     floatPanel(guardedPanel, requestedFloatingGeometry);
                 }
             });
@@ -1205,6 +1264,15 @@ void OverlayDockWorkspace::updateColumnContents()
 
 void OverlayDockWorkspace::updateDropHighlights(QPoint overlayPosition)
 {
+    if (const auto drop = tabDropAt(overlayPosition); drop.target) {
+        static_cast<PanelDockColumn*>(leftColumn_)->setDropHighlighted(false);
+        static_cast<PanelDockColumn*>(rightColumn_)->setDropHighlighted(false);
+        auto* indicator = static_cast<PanelDockDropIndicator*>(panelDropIndicator_);
+        indicator->setTabTarget(drop.lineX);
+        indicator->setGeometry(drop.area);
+        indicator->show(); indicator->raise();
+        return;
+    }
     const QRect leftDropZone = dockDropZone(PanelDockSide::Left);
     const QRect rightDropZone = dockDropZone(PanelDockSide::Right);
     bool overLeft = panelDragTouchesDropZone(
@@ -1274,7 +1342,7 @@ bool OverlayDockWorkspace::panelDragTouchesDropZone(
         return true;
     }
 
-    const QRect dragVisual = dragOrigin_ == PanelPlacement::Floating
+    const QRect dragVisual = dragOrigin_ == PanelPlacement::Floating && !draggedTab_
         ? draggedPanel_->geometry() : panelDragProxy_->geometry();
     if (!dragVisual.intersects(
             QRect(zone.left(), zone.top(), zone.width(), zone.height()))) {
@@ -1291,7 +1359,7 @@ bool OverlayDockWorkspace::hasDockedDropPeers(PanelDockSide side) const
         ? leftPanels_ : rightPanels_;
     return std::any_of(panels.begin(), panels.end(),
         [this](const WorkspacePanel* panel) {
-            return panel != draggedPanel_ && panelRequestedVisible(panel);
+            return (panel != draggedPanel_ || draggedTab_) && panelRequestedVisible(panel);
         });
 }
 
@@ -1300,7 +1368,7 @@ bool OverlayDockWorkspace::isCurrentDockPosition(
 {
     const PanelPlacement sidePlacement = side == PanelDockSide::Left
         ? PanelPlacement::DockedLeft : PanelPlacement::DockedRight;
-    return dragOrigin_ == sidePlacement
+    return !draggedTab_ && dragOrigin_ == sidePlacement
         && insertionIndex == dragOriginIndex_;
 }
 
@@ -1315,7 +1383,7 @@ int OverlayDockWorkspace::dockInsertionIndex(
     int insertionIndex = 0;
     int visibleSlot = 0;
     for (const auto* panel : panels) {
-        if (panel == draggedPanel_) {
+        if (panel == draggedPanel_ && !draggedTab_) {
             continue;
         }
         if (panelRequestedVisible(panel)) {
@@ -1353,7 +1421,7 @@ std::vector<int> OverlayDockWorkspace::dockInsertionGapYs(
     std::vector<QRect> peerRects;
     peerRects.reserve(panels.size());
     for (const auto* panel : panels) {
-        if (panel == draggedPanel_ || !panelRequestedVisible(panel)) {
+        if ((panel == draggedPanel_ && !draggedTab_) || !panelRequestedVisible(panel)) {
             continue;
         }
         peerRects.emplace_back(
@@ -1402,6 +1470,11 @@ int OverlayDockWorkspace::closestDockInsertionSlot(PanelDockSide side,
 
 bool OverlayDockWorkspace::eventFilter(QObject* watched, QEvent* event)
 {
+    if (draggedPanel_ && event && event->type() == QEvent::KeyPress
+        && static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape) {
+        finishPanelDrag(draggedPanel_, QCursor::pos(), true);
+        return true;
+    }
     if (event && event->type() == QEvent::MouseButtonPress) {
         auto* receiver = qobject_cast<QWidget*>(watched);
         const auto found = std::find_if(floatingPanels_.begin(),
@@ -1564,7 +1637,7 @@ void OverlayDockWorkspace::updateOverlayLayoutAndStacking()
         }
     }
     if (draggedPanel_) {
-        if (dragOrigin_ == PanelPlacement::Floating) {
+        if (dragOrigin_ == PanelPlacement::Floating && !draggedTab_) {
             draggedPanel_->raise();
         } else {
             panelDragProxy_->raise();

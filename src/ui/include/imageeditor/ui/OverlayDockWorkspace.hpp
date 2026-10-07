@@ -16,6 +16,8 @@ class QHideEvent;
 class QResizeEvent;
 class QShowEvent;
 class QSplitter;
+class QTabBar;
+class QStackedWidget;
 class QToolBar;
 class QWindow;
 
@@ -81,6 +83,16 @@ public:
     void dockPanel(WorkspacePanel* panel, PanelDockSide side, int index = -1);
     void floatPanel(WorkspacePanel* panel, const QRect& geometry = {});
     void setPanelVisible(WorkspacePanel* panel, bool visible);
+    void activatePanel(WorkspacePanel* panel);
+    // Group frames participate in the existing dock/float layout. Individual
+    // tabs remain the original panels; no control or native surface is rebuilt.
+    void tabifyPanel(WorkspacePanel* panel, WorkspacePanel* target, int index = -1);
+    void detachPanel(WorkspacePanel* panel);
+    [[nodiscard]] std::vector<WorkspacePanel*> panelTabs(const WorkspacePanel*) const;
+    [[nodiscard]] WorkspacePanel* panelFrame(const WorkspacePanel*) const;
+    [[nodiscard]] QTabBar* panelTabBar(const WorkspacePanel*) const;
+    [[nodiscard]] QByteArray savePanelTabs() const;
+    bool restorePanelTabs(const QByteArray&);
     [[nodiscard]] bool panelVisible(const WorkspacePanel* panel) const;
     [[nodiscard]] PanelPlacement panelPlacement(const WorkspacePanel* panel) const;
     [[nodiscard]] int dockedPanelIndex(const WorkspacePanel* panel) const;
@@ -112,6 +124,7 @@ public:
     void setViewModeOverlay(QWidget* overlay, bool visible);
     void setWelcomeOverlay(QWidget*, bool);
     void setModalOverlay(QWidget* overlay);
+    [[nodiscard]] QWidget* modalOverlay() const noexcept { return modalOverlay_.data(); }
     [[nodiscard]] bool hasModalOverlay() const noexcept { return !modalOverlay_.isNull(); }
     void setRulerVisible(Qt::Orientation axis, bool visible);
     [[nodiscard]] bool rulerVisible(Qt::Orientation axis) const;
@@ -131,6 +144,23 @@ protected:
     void showEvent(QShowEvent* event) override;
 
 private:
+    struct TabGroup {
+        WorkspacePanel* frame {};
+        QTabBar* tabs {};
+        QStackedWidget* stack {};
+        std::vector<WorkspacePanel*> panels;
+    };
+    std::vector<TabGroup> tabGroups_;
+    std::vector<WorkspacePanel*> registeredPanels_;
+    [[nodiscard]] TabGroup* tabGroup(const WorkspacePanel*);
+    [[nodiscard]] const TabGroup* tabGroup(const WorkspacePanel*) const;
+    TabGroup& createTabGroup(WorkspacePanel*);
+    void refreshTabGroup(TabGroup&, WorkspacePanel* active = nullptr);
+    void collapseTabGroup(WorkspacePanel* frame);
+    void clearTabCallbacks();
+    struct TabDrop { WorkspacePanel* target {}; int index {-1}; int lineX {-1}; QRect area; };
+    [[nodiscard]] TabDrop tabDropAt(QPoint overlayPosition) const;
+    WorkspacePanel* draggedTab_ {};
     QRegion contextInteractionRegion_;
     QPointer<QWidget> passiveOverlay_;
     bool passiveOverlayRequestedVisible_ {false};

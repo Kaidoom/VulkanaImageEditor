@@ -1,5 +1,6 @@
 #include "imageeditor/ui/CrossWindowPointerRouter.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
+#include "imageeditor/ui/ColorPicker.hpp"
 
 #include <QApplication>
 #include <QComboBox>
@@ -206,6 +207,34 @@ void widgetDragContinuesAcrossNativeWindow()
     CHECK(router.captureDomain()
         == imageeditor::ui::CrossWindowPointerRouter::CaptureDomain::None);
     CHECK(router.routedEventCount() == 2);
+}
+
+void colorPickerDragRemainsOwnedAcrossNativeCanvas()
+{
+    QWidget root;
+    imageeditor::ui::ColorPicker picker(&root);
+    picker.setGeometry(20, 20, 300, 300);
+    prepareWindow(root);
+    auto* plane = picker.findChild<QWidget*>("ColorSaturationValue");
+    CHECK(plane);
+    if (!plane) return;
+    picker.setColor(QColor(230, 50, 25, 128));
+    RecordingWindow native;
+    imageeditor::ui::CrossWindowPointerRouter router(&root, &native, nullptr);
+    const auto press = plane->mapToGlobal(plane->rect().center());
+    const auto outside = plane->mapToGlobal(QPointF(plane->width() + 80, plane->height() + 80));
+    sendMouse(root.windowHandle(), QEvent::MouseButtonPress, press, Qt::LeftButton, Qt::LeftButton);
+    CHECK(router.captureOwner() == plane);
+    sendMouse(&native, QEvent::MouseMove, outside, Qt::NoButton, Qt::LeftButton);
+    sendMouse(&native, QEvent::MouseButtonRelease, outside, Qt::LeftButton, Qt::NoButton);
+    CHECK(picker.color() == QColor(0, 0, 0, 128));
+    CHECK(native.presses == 0 && native.moves == 0 && native.releases == 0);
+    CHECK(router.captureDomain() == imageeditor::ui::CrossWindowPointerRouter::CaptureDomain::None);
+    sendMouse(root.windowHandle(), QEvent::MouseButtonPress, press, Qt::LeftButton, Qt::LeftButton);
+    QEvent deactivate(QEvent::ApplicationDeactivate);
+    QCoreApplication::sendEvent(qApp, &deactivate);
+    CHECK(picker.color() == QColor(0, 0, 0, 128));
+    CHECK(router.captureDomain() == imageeditor::ui::CrossWindowPointerRouter::CaptureDomain::None);
 }
 
 void widgetDragSurvivesButtonlessReturnToWidgetWindow()
@@ -988,7 +1017,13 @@ int main(int argc, char* argv[])
 {
     QCoreApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
     QApplication application(argc, argv);
+    if (application.arguments().contains("--color-picker-only")) {
+        colorPickerDragRemainsOwnedAcrossNativeCanvas();
+        if (!failures) std::cout << "Color picker cross-window drag and cancellation passed\n";
+        return failures ? EXIT_FAILURE : EXIT_SUCCESS;
+    }
     widgetDragContinuesAcrossNativeWindow();
+    colorPickerDragRemainsOwnedAcrossNativeCanvas();
     widgetDragSurvivesButtonlessReturnToWidgetWindow();
     nativeContainerWidgetWindowRemainsInCaptureScope();
     nativeCanvasDoesNotPromoteWidgetSiblings();

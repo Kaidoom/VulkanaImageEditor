@@ -10,7 +10,7 @@
 #include "imageeditor/ui/ShapeOptionsPage.hpp"
 #include "imageeditor/ui/TextController.hpp"
 #include "imageeditor/ui/ToolOptionsBar.hpp"
-#include <QColorDialog>
+#include "imageeditor/ui/ColorDialog.hpp"
 #include <QLabel>
 #include <QStatusBar>
 #include <QTimer>
@@ -774,16 +774,12 @@ void MainWindow::chooseShapeColor(bool fill)
     }
     const auto color = fill ? shape.fillColor : shape.strokeColor;
     auto* owner = workspace_->panelOverlay()->window();
-    auto* dialog = new QColorDialog(QColor(color.red, color.green, color.blue, color.alpha), owner);
+    auto* dialog = new ColorDialog(QColor(color.red, color.green, color.blue, color.alpha), owner);
     dialog->setObjectName(QStringLiteral("ShapeColorDialog"));
     dialog->setWindowTitle(fill ? QStringLiteral("Shape fill color") : QStringLiteral("Shape stroke color"));
-    dialog->setOptions(QColorDialog::DontUseNativeDialog | QColorDialog::ShowAlphaChannel);
+    dialog->setOptions(ColorDialog::DontUseNativeDialog | ColorDialog::ShowAlphaChannel);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->setWindowModality(Qt::ApplicationModal);
-    (void)owner->winId();
-    (void)dialog->winId();
-    dialog->windowHandle()->setTransientParent(owner->windowHandle());
-    connect(dialog, &QColorDialog::colorSelected, this, [this, fill, target, shape](QColor c) {
+    connect(dialog, &ColorDialog::colorSelected, this, [this, fill, target, shape](QColor c) {
         if (session().activeLayer() != target)
             return;
         const auto* layer = session().document() && target ? session().document()->layer(*target) : nullptr;

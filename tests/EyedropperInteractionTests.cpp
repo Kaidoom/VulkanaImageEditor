@@ -11,12 +11,13 @@
 #include "imageeditor/ui/PropertiesPanel.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/WorkspacePanel.hpp"
+#include "imageeditor/ui/WorkspaceDialog.hpp"
 
 #include <QAction>
 #include <QAbstractItemView>
 #include <QApplication>
 #include <QColor>
-#include <QColorDialog>
+#include "imageeditor/ui/ColorDialog.hpp"
 #include <QComboBox>
 #include <QCoreApplication>
 #include <QDoubleSpinBox>
@@ -36,11 +37,13 @@
 #include <QStandardPaths>
 #include <QTabletEvent>
 #include <QTest>
+#include <QTimer>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QToolBar>
 #include <QToolButton>
 #include <QVulkanInstance>
+#include <QtGui/qguiapplication_platform.h>
 #include <QVariantAnimation>
 #include <QWheelEvent>
 
@@ -596,12 +599,23 @@ void colorAnimationKeepsIdentityAndSettlesAfterRapidSwitches()
     CHECK(secondary->isChecked());
 }
 
-void colorDialogBelongsToEditorAcrossPanelPresentations()
+void colorDialogBelongsToEditorAcrossPanelPresentations(QVulkanInstance* instance = nullptr)
 {
-    ui::MainWindow window(nullptr, false, false);
+    ui::MainWindow window(instance, false, false);
     window.setUnsavedPromptEnabled(false);
     window.show();
     QCoreApplication::processEvents();
+    if (instance) CHECK(QTest::qWaitForWindowExposed(window.windowHandle()));
+    bool canRestore = true;
+#if QT_CONFIG(wayland)
+    if (instance) {
+        if (auto* wayland = qApp->nativeInterface<QNativeInterface::QWaylandApplication>();
+            wayland && !wayland->lastInputSeat()) {
+            canRestore = false;
+            std::cout << "PENDING: Wayland minimize/restore needs real compositor activation input; no input seat is available.\n";
+        }
+    }
+#endif
     const auto original = window.editorSession().colors();
     auto* workspace = dynamic_cast<ui::OverlayDockWorkspace*>(
         window.findChild<QWidget*>(QStringLiteral("CanvasWorkspace")));
@@ -618,26 +632,37 @@ void colorDialogBelongsToEditorAcrossPanelPresentations()
         if (!button) continue;
         button->click();
         QCoreApplication::processEvents();
-        QPointer<QColorDialog> dialog = window.findChild<QColorDialog*>(QStringLiteral("WorkingColorDialog"));
+        QPointer<imageeditor::ui::ColorDialog> dialog = window.findChild<imageeditor::ui::ColorDialog*>(QStringLiteral("WorkingColorDialog"));
         CHECK(dialog && dialog->isVisible());
         if (!dialog) continue;
-        CHECK(dialog->parentWidget() == &window);
-        CHECK(dialog->windowType() == Qt::Dialog);
-        CHECK(dialog->windowModality() == Qt::ApplicationModal);
-        CHECK(QApplication::activeModalWidget() == dialog);
-        CHECK(dialog->windowHandle()->transientParent() == window.windowHandle());
-        CHECK(dialog->windowHandle()->transientParent() != workspace->panelOverlay()->windowHandle());
-        CHECK(dialog->testOption(QColorDialog::DontUseNativeDialog));
+        CHECK(!dialog->isWindow() && !dialog->windowHandle());
+        CHECK(!QApplication::topLevelWidgets().contains(dialog));
+        CHECK(!QApplication::activeModalWidget());
+        CHECK(dialog->parentWidget() == workspace->modalOverlay());
+        CHECK(dialog->parentWidget()->parentWidget() == workspace->panelOverlay());
+        CHECK(dialog->minimumSize() == dialog->maximumSize());
+        const auto fixedSize = dialog->size(); dialog->resize(900, 700);
+        CHECK(dialog->size() == fixedSize);
+        CHECK(dialog->testOption(imageeditor::ui::ColorDialog::DontUseNativeDialog));
         dialog->setCurrentColor(QColor(2, 4, 6, 80));
-        dialog->reject();
+        if (canRestore) {
+            window.showMinimized(); QCoreApplication::processEvents();
+            if (instance) CHECK(QTest::qWaitFor([&] { return !window.windowHandle()->isExposed(); }, 2000));
+            CHECK(dialog && workspace->hasModalOverlay());
+            window.showNormal(); window.activateWindow(); QCoreApplication::processEvents();
+            if (instance) CHECK(QTest::qWaitForWindowExposed(window.windowHandle()));
+            CHECK(dialog->isVisible() && dialog->currentColor() == QColor(2, 4, 6, 80));
+        }
+        dialog->findChild<QPushButton*>("ColorDialogClose")->click();
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
         CHECK(!dialog);
+        CHECK(!workspace->hasModalOverlay());
         CHECK(window.editorSession().colors() == original);
     }
     auto* button = window.findChild<QPushButton*>(QStringLiteral("ForegroundColorButton"));
     button->click();
     QCoreApplication::processEvents();
-    QPointer<QColorDialog> dialog = window.findChild<QColorDialog*>(QStringLiteral("WorkingColorDialog"));
+    QPointer<imageeditor::ui::ColorDialog> dialog = window.findChild<imageeditor::ui::ColorDialog*>(QStringLiteral("WorkingColorDialog"));
     CHECK(dialog);
     if (dialog) {
         dialog->setCurrentColor(QColor(2, 4, 6, 80));
@@ -648,11 +673,48 @@ void colorDialogBelongsToEditorAcrossPanelPresentations()
     }
     button->click();
     QCoreApplication::processEvents();
-    dialog = window.findChild<QColorDialog*>(QStringLiteral("WorkingColorDialog"));
+    dialog = window.findChild<imageeditor::ui::ColorDialog*>(QStringLiteral("WorkingColorDialog"));
     CHECK(dialog);
     window.close();
     QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
     CHECK(!dialog);
+}
+
+void nestedColorCardRestoresTheOwningOverlay(QVulkanInstance* instance = nullptr)
+{
+    ui::MainWindow window(instance, false, false);
+    window.setUnsavedPromptEnabled(false); window.resize(1280, 800); window.show();
+    QCoreApplication::processEvents();
+    auto* workspace = dynamic_cast<ui::OverlayDockWorkspace*>(window.findChild<QWidget*>("CanvasWorkspace"));
+    CHECK(workspace);
+    if (!workspace) return;
+    ui::WorkspaceDialog presenter(*workspace, window);
+    QDialog parent(&presenter, Qt::SubWindow);
+    parent.setFixedSize(500, 500);
+    presenter.open(parent);
+    CHECK(workspace->modalOverlay() == &presenter && parent.isVisible());
+    const auto geometry = workspace->canvasContainer()->geometry();
+    for (const bool accept : {false, true}) {
+        ui::ColorDialog color(QColor(60, 70, 80), &window);
+        QTimer::singleShot(0, &color, [&] {
+            CHECK(!color.isWindow() && !color.windowHandle());
+            CHECK(color.parentWidget() == workspace->modalOverlay());
+            CHECK(!parent.isVisible());
+            CHECK(workspace->canvasContainer()->geometry() == geometry);
+            color.setCurrentColor(QColor(90, 100, 110));
+            if (accept) color.accept(); else color.reject();
+        });
+        CHECK(color.exec() == (accept ? QDialog::Accepted : QDialog::Rejected));
+        CHECK(parent.isVisible() && workspace->modalOverlay() == &presenter);
+        CHECK(workspace->canvasContainer()->geometry() == geometry);
+    }
+    ui::ColorDialog nested(&window);
+    nested.show();
+    CHECK(nested.isVisible() && workspace->modalOverlay() != &presenter);
+    parent.reject();
+    CHECK(!nested.isVisible());
+    CHECK(!workspace->hasModalOverlay());
+    window.close();
 }
 
 render::CanvasWindow* findCanvas()
@@ -1101,7 +1163,7 @@ int captureNativeVulkanColorPreview(const QString& output)
     render::CanvasWindow* canvas = nullptr;
     std::uint64_t beforeHoverFrames = 0;
     bool captureStarted = false;
-    QPointer<QColorDialog> reviewDialog;
+    QPointer<imageeditor::ui::ColorDialog> reviewDialog;
     bool passed = false;
     QString failure = QStringLiteral("native preview timed out");
     const auto complete = [&](bool success, const QString& detail) {
@@ -1145,9 +1207,8 @@ int captureNativeVulkanColorPreview(const QString& output)
         window.activateWindow();
         QTimer::singleShot(120, &capture, [&] {
             if (dialogPreview && (!reviewDialog || !reviewDialog->isVisible()
-                    || QApplication::activeModalWidget() != reviewDialog
-                    || reviewDialog->windowHandle()->transientParent() != window.windowHandle()
-                    || !reviewDialog->isActiveWindow())) {
+                    || reviewDialog->isWindow() || reviewDialog->windowHandle()
+                    || reviewDialog->parentWidget()->objectName() != "WorkspaceDialogShield")) {
                 complete(false, QStringLiteral("Color dialog lost editor ownership or focus after parent activation"));
                 return;
             }
@@ -1172,8 +1233,8 @@ int captureNativeVulkanColorPreview(const QString& output)
         sendMouse(*canvas, QEvent::MouseMove, {point.x, point.y}, Qt::NoButton, Qt::NoButton);
         if (dialogPreview) {
             window.findChild<QPushButton*>(QStringLiteral("RailPrimaryColor"))->click();
-            reviewDialog = window.findChild<QColorDialog*>(QStringLiteral("WorkingColorDialog"));
-            if (!reviewDialog || reviewDialog->parentWidget() != &window) {
+            reviewDialog = window.findChild<imageeditor::ui::ColorDialog*>(QStringLiteral("WorkingColorDialog"));
+            if (!reviewDialog || reviewDialog->isWindow() || reviewDialog->parentWidget()->objectName() != "WorkspaceDialogShield") {
                 complete(false, QStringLiteral("Color dialog does not belong to main editor"));
                 return;
             }
@@ -1211,6 +1272,24 @@ int main(int argc, char** argv)
     QSettings::setDefaultFormat(QSettings::IniFormat);
     QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settingsDirectory.path());
     ui::applyEditorTheme(application);
+    if (application.arguments().contains("--color-overlays-native")) {
+        QVulkanInstance instance;
+        instance.setApiVersion(QVersionNumber(1, 2));
+        instance.setLayers({"VK_LAYER_KHRONOS_validation"});
+        if (!instance.create()) return EXIT_FAILURE;
+        instance.installDebugOutputFilter([](QVulkanInstance::DebugMessageSeverityFlags severity,
+            QVulkanInstance::DebugMessageTypeFlags types, const void*) {
+            if (types.testFlag(QVulkanInstance::ValidationMessage)
+                && (severity.testFlag(QVulkanInstance::WarningSeverity) || severity.testFlag(QVulkanInstance::ErrorSeverity)))
+                ++failures;
+            return false;
+        });
+        colorDialogBelongsToEditorAcrossPanelPresentations(&instance);
+        nestedColorCardRestoresTheOwningOverlay(&instance);
+        std::cout << "Native color overlays: " << (failures ? "FAILED" : "passed")
+                  << "; platform=" << application.platformName().toStdString() << '\n';
+        return failures ? EXIT_FAILURE : EXIT_SUCCESS;
+    }
     const auto nativePreview = qEnvironmentVariable("IMAGEEDITOR_TEST_COLOR_PREVIEW_NATIVE");
     if (!nativePreview.isEmpty()) {
         return captureNativeVulkanColorPreview(nativePreview);
@@ -1226,6 +1305,7 @@ int main(int argc, char** argv)
     colorSelectorsShareSlotAndSwapSemanticsWithoutSetterFeedback();
     colorAnimationKeepsIdentityAndSettlesAfterRapidSwitches();
     colorDialogBelongsToEditorAcrossPanelPresentations();
+    nestedColorCardRestoresTheOwningOverlay();
     applicationSamplingSynchronizesTheActiveSlotWithoutHistory();
     colorPairPersistsAndNewDocumentDoesNotResetWorkingColors();
     detailedColorPanelKeepsFullSwatchesAndScrollsWhenShort();

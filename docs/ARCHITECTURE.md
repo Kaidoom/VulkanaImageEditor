@@ -89,6 +89,31 @@ owner, rebinds existing panels/models, and restores the incoming view. Switching
 must not copy all pixels, reload a project, replay history or recreate the canvas.
 Programmatic panel updates are guarded against emitting edits.
 
+Workspace panels can share a tabbed frame. A middle drop joins the target frame;
+top/bottom drops retain vertical docking, and tab-strip gaps set tab order. The
+header moves the whole frame; dragging a tab moves only its original panel.
+Ownership changes after pointer release, retaining controls and the native canvas.
+Requested visibility is separate from the active tab. Group membership, active
+tabs and floating geometry live in UI settings (`window/panel-tabs-v1`), not projects;
+`--panel-default` ignores this saved layout without overwriting it. The Layers
+`fx` shortcut reveals the selected effect's settings without enabling it.
+
+The default workspace has Layers/tools on the left (370 logical pixels), with
+Color/Swatches above Properties/Adjustments on the right (551 logical pixels).
+The two right frames share height in a 315:889 ratio, respecting panel minimums;
+Color and Properties are initially active. Saved layouts take precedence.
+Color and Swatches are separate panels, tabbed together by default. Swatches
+retain the existing `editor/custom-swatches-v1` preferences. The shared color
+picker edits sRGB through HSV (hue strip, saturation/value field). The Color panel
+shows only those interactive fields; fixed-size app-owned color cards also offer
+independent alpha and RGB/HSV/hex entry. They use the same workspace presenter as
+About, restoring the parent card when opened from Preferences or Export. No picker
+creates a separate desktop window. Acceptance/cancellation retains each caller's
+existing preview/history policy; the renderer's color math is unchanged.
+Screen picking uses the desktop PickColor portal in Wayland sessions (including
+XWayland) and Qt screen capture on X11. Custom palettes belong only to Swatches,
+not to individual dialogs.
+
 Jobs and deferred callbacks must carry their owning document, target identities,
 revisions and cancellation generation. Completion cannot infer its target from
 the currently active tab. Explicit repair work can finish on an inactive valid

@@ -1,5 +1,5 @@
 #include "imageeditor/ui/ColorSelector.hpp"
-#include <QColorDialog>
+#include "imageeditor/ui/ColorDialog.hpp"
 #include <QHBoxLayout>
 #include <QHideEvent>
 #include <QPainter>
@@ -152,7 +152,7 @@ void ColorSelector::activateOrEdit(core::ColorSlot slot)
     refresh();
     if (colorDialog_) {
         colorDialog_->raise();
-        colorDialog_->activateWindow();
+        colorDialog_->setFocus(Qt::OtherFocusReason);
         return;
     }
     const auto old = colors_.color(slot);
@@ -162,19 +162,13 @@ void ColorSelector::activateOrEdit(core::ColorSlot slot)
     while (owner->parentWidget()) {
         owner = owner->parentWidget();
     }
-    auto* dialog = new QColorDialog(QColor(old.red, old.green, old.blue, old.alpha), owner);
+    auto* dialog = new ColorDialog(QColor(old.red, old.green, old.blue, old.alpha), owner);
     colorDialog_ = dialog;
     dialog->setObjectName(QStringLiteral("WorkingColorDialog"));
     dialog->setWindowTitle(QStringLiteral("Working color"));
-    dialog->setOptions(QColorDialog::ShowAlphaChannel | QColorDialog::DontUseNativeDialog);
+    dialog->setOptions(ColorDialog::ShowAlphaChannel | ColorDialog::DontUseNativeDialog);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->setWindowModality(Qt::ApplicationModal);
-    (void)owner->winId();
-    (void)dialog->winId();
-    dialog->windowHandle()->setTransientParent(owner->windowHandle());
-    connect(owner->windowHandle(), &QWindow::visibleChanged, dialog,
-        [dialog](bool visible) { if (!visible) dialog->reject(); });
-    connect(dialog, &QColorDialog::colorSelected, this, [this, slot](const QColor& picked) {
+    connect(dialog, &ColorDialog::colorSelected, this, [this, slot](const QColor& picked) {
         colors_.setColor(slot, {static_cast<std::uint8_t>(picked.red()),
             static_cast<std::uint8_t>(picked.green()), static_cast<std::uint8_t>(picked.blue()),
             static_cast<std::uint8_t>(picked.alpha())});

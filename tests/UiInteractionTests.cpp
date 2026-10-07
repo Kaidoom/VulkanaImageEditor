@@ -1365,21 +1365,21 @@ void defaultPanelLayoutIsSessionOnly()
         CHECK(ws->panelWidth() == defaultRightWidth && ws->leftPanelWidth() == defaultLeftWidth);
         CHECK(ws->panelPlacement(panel(trial, "LayersPanel")) == Workspace::PanelPlacement::DockedLeft);
         for (const auto& [name, order] : std::array{
-                 std::pair{"ColorPanelShell", 0}, std::pair{"PropertiesPanelShell", 1},
-                 std::pair{"AdjustmentsPanelShell", 2}}) {
+                 std::pair{"ColorPanelShell", 0}, std::pair{"SwatchesPanelShell", 0},
+                 std::pair{"PropertiesPanelShell", 1}, std::pair{"AdjustmentsPanelShell", 1}}) {
             auto* item = panel(trial, name);
             CHECK(ws->panelVisible(item));
             CHECK(ws->panelPlacement(item) == Workspace::PanelPlacement::DockedRight);
             CHECK(ws->dockedPanelIndex(item) == order);
         }
         CHECK(panel(trial, "ColorPanelShell")->size() == defaultColorSize);
-        CHECK(panel(trial, "ColorPanelShell")->minimumHeight() == 100);
-        CHECK(panel(trial, "ColorPanelShell")->maximumHeight() == QWIDGETSIZE_MAX);
+        CHECK(panel(trial, "ColorPanelShell")->configuredMinimumHeight() == 100);
+        CHECK(panel(trial, "ColorPanelShell")->configuredMaximumHeight() == QWIDGETSIZE_MAX);
         CHECK(ws->toolRailPlacement() == Workspace::ToolRailPlacement::Left);
         CHECK(ws->rulerVisible(Qt::Vertical) && !ws->rulerFarEdge(Qt::Horizontal));
         CHECK(trial.editorSession().colors().primary == imageeditor::core::Rgba8(14, 25, 36, 255));
         trial.resize(1500, 940);settle();
-        CHECK(ws->panelWidth() == 556 && ws->leftPanelWidth() == 305);
+        CHECK(ws->panelWidth() == 551 && ws->leftPanelWidth() == 370);
         ws->setPanelWidth(400);
         ws->floatPanel(panel(trial, "LayersPanel"), {100, 200, 320, 310});
         trial.findChild<QAction*>(QStringLiteral("ToolRailDockBottomAction"))->trigger();
@@ -1407,6 +1407,12 @@ void defaultPanelLayoutIsSessionOnly()
 int main(int argc, char* argv[])
 {
     QApplication application(argc, argv);
+    if (application.arguments().contains(QStringLiteral("--layout-only"))) {
+        imageeditor::ui::applyEditorTheme(application);
+        defaultPanelLayoutIsSessionOnly();
+        std::cout << "Session-default layout: " << (failures ? "FAILED" : "passed") << '\n';
+        return failures ? EXIT_FAILURE : EXIT_SUCCESS;
+    }
     groovePressSetsAbsoluteValueAndContinuesDragging();
     absolutePositionHonorsInvertedAppearance();
     sliderWheelInputIsLeftForPanelScrolling();

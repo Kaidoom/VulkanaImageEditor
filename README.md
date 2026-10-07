@@ -41,7 +41,7 @@ Actively developed beta. Please keep backups of important projects.
 Requires Linux, a C++20 compiler, Ninja, pkg-config, and these development libraries:
 
 - CMake **3.28+** for the supplied presets.
-- Qt **6.8+**: Core, Gui, Widgets, Network and PDF; Qt Test for tests.
+- Qt **6.8+**: Core, Gui, Widgets, Network, DBus and PDF; Qt Test for tests.
 - qpdf **11+** development library (PDF import/export; not the command-line tool).
 - zlib-compatible development library (PSD ZIP channels).
 - Vulkan **1.2+** headers/loader, a working Vulkan driver, and `glslc`.

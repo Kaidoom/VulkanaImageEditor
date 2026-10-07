@@ -10,7 +10,7 @@
 #include "imageeditor/ui/ToolOptionsNumber.hpp"
 #include <QApplication>
 #include <QClipboard>
-#include <QColorDialog>
+#include "imageeditor/ui/ColorDialog.hpp"
 #include <QFontDatabase>
 #include <QHBoxLayout>
 #include <QInputMethod>
@@ -971,22 +971,18 @@ void TextController::showColor()
     QWidget* owner = overlay_;
     while (owner->parentWidget())
         owner = owner->parentWidget();
-    auto* dialog = new QColorDialog(qtColor(insertion_.color), owner);
+    auto* dialog = new ColorDialog(qtColor(insertion_.color), owner);
     colorDialog_ = dialog;
     dialog->setWindowTitle(QStringLiteral("Text color"));
     dialog->setObjectName(QStringLiteral("TextColorDialog"));
-    dialog->setOptions(QColorDialog::DontUseNativeDialog | QColorDialog::ShowAlphaChannel);
+    dialog->setOptions(ColorDialog::DontUseNativeDialog | ColorDialog::ShowAlphaChannel);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->setWindowModality(Qt::ApplicationModal);
-    (void)owner->winId();
-    (void)dialog->winId();
-    dialog->windowHandle()->setTransientParent(owner->windowHandle());
-    connect(dialog, &QColorDialog::colorSelected, this, [this](QColor c) {
+    connect(dialog, &ColorDialog::colorSelected, this, [this](QColor c) {
         core::TextStylePatch p;
         p.color = rgba(c);
         patchStyle(p);
     });
-    connect(dialog, &QColorDialog::finished, this, [this] {
+    connect(dialog, &ColorDialog::finished, this, [this] {
         if (active()) {
             QTimer::singleShot(0, this, [this] { returnCanvasFocus(); });
             publishOverlays();

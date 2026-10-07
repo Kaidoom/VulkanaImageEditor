@@ -21,6 +21,7 @@
 #include "imageeditor/core/RasterSurface.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/ColorPanel.hpp"
+#include "imageeditor/ui/SwatchesPanel.hpp"
 #include "imageeditor/ui/AdjustmentsPanel.hpp"
 #include "imageeditor/ui/FiltersPanel.hpp"
 #include "imageeditor/ui/ColorSelector.hpp"
@@ -104,6 +105,7 @@
 #include <QTemporaryFile>
 #include <QTimer>
 #include <QTabletEvent>
+#include <QTabBar>
 #include <QTouchEvent>
 #include <QToolBar>
 #include <QUrl>
@@ -862,6 +864,8 @@ MainWindow::MainWindow(
     workspace_->setRulerVisible(Qt::Horizontal, true);
     workspace_->setRulerVisible(Qt::Vertical, true);
 
+    const bool useDefaultPanelLayout = !persistPanelLayout_
+        || !QSettings().contains(QStringLiteral("window/panels-v2/layers-placement"));
     if (persistWindowState_) {
         QSettings settings;
         canvasWindow_->setAdvancedMeasurementReadout(settings.value(
@@ -924,7 +928,7 @@ MainWindow::MainWindow(
             ? core::ColorSlot::Secondary : core::ColorSlot::Primary;
         setColors(colors);
 
-        if (persistPanelLayout_) {
+        if (persistPanelLayout_ && !useDefaultPanelLayout) {
             struct SavedPanelState {
                 WorkspacePanel* panel {nullptr};
                 QAction* action {nullptr};
@@ -956,6 +960,8 @@ MainWindow::MainWindow(
             const std::array savedPanels {
                 readPanel(QStringLiteral("color"), colorPanelShell_,
                     colorPanelAction_, 0),
+                readPanel(QStringLiteral("swatches"), swatchesPanelShell_,
+                    swatchesPanelAction_, 4),
                 readPanel(QStringLiteral("layers"), layersPanelShell_,
                     layersPanelAction_, 1),
                 readPanel(QStringLiteral("properties"), propertiesPanelShell_,
@@ -971,8 +977,9 @@ MainWindow::MainWindow(
                 QStringLiteral("window/panels-v2/right-splitter-state"),
                 workspace_->saveDockedPanelSizes(OverlayDockWorkspace::PanelDockSide::Right))
                                                     .toByteArray();
+            const auto savedPanelTabs = settings.value(QStringLiteral("window/panel-tabs-v1")).toByteArray();
             QTimer::singleShot(0, this,
-                [this, savedPanels, savedLeftPanelSizes, savedRightPanelSizes] {
+                [this, savedPanels, savedLeftPanelSizes, savedRightPanelSizes, savedPanelTabs] {
                 for (const auto& saved : savedPanels) {
                     if (saved.placement == QStringLiteral("floating")) {
                         workspace_->floatPanel(saved.panel, saved.geometry);
@@ -1001,24 +1008,44 @@ MainWindow::MainWindow(
                     OverlayDockWorkspace::PanelDockSide::Left);
                 restoreDockSide(QStringLiteral("right"),
                     OverlayDockWorkspace::PanelDockSide::Right);
-                // Placement and order define the splitters' widget sequence. Only
-                // then is their opaque size allocation meaningful to restore.
-                workspace_->restoreDockedPanelSizes(
-                    OverlayDockWorkspace::PanelDockSide::Left,
-                    savedLeftPanelSizes);
-                workspace_->restoreDockedPanelSizes(
-                    OverlayDockWorkspace::PanelDockSide::Right,
-                    savedRightPanelSizes);
                 for (const auto& saved : savedPanels) {
                     workspace_->setPanelVisible(saved.panel, saved.visible);
                     saved.action->setChecked(saved.visible);
                 }
+                workspace_->restorePanelTabs(savedPanelTabs);
+                // Restore sizes after the first-use Swatches tab has joined
+                // Color; the splitter sequence then matches the saved layout.
+                QTimer::singleShot(0, this, [this, savedLeftPanelSizes, savedRightPanelSizes] {
+                    workspace_->restoreDockedPanelSizes(OverlayDockWorkspace::PanelDockSide::Left, savedLeftPanelSizes);
+                    workspace_->restoreDockedPanelSizes(OverlayDockWorkspace::PanelDockSide::Right, savedRightPanelSizes);
+                });
             });
         }
     }
-    QTimer::singleShot(0, this, [this] {
+    QTimer::singleShot(0, this, [this, useDefaultPanelLayout] {
+        // Existing layouts gain only the new tab; subsequent runs restore the
+        // user's independent placement. Session defaults never overwrite it.
+        if (useDefaultPanelLayout || !QSettings().contains(QStringLiteral("window/panels-v2/swatches-placement"))) {
+            const auto tabs = workspace_->panelTabs(colorPanelShell_);
+            auto* active = colorPanelShell_;
+            if (auto* bar = workspace_->panelTabBar(colorPanelShell_); bar && bar->currentIndex() >= 0)
+                active = tabs[std::size_t(bar->currentIndex())];
+            const auto position = std::find(tabs.begin(), tabs.end(), colorPanelShell_) - tabs.begin();
+            workspace_->tabifyPanel(swatchesPanelShell_, colorPanelShell_, int(position) + 1);
+            if (workspace_->panelVisible(active)) workspace_->activatePanel(active);
+        }
+        if (useDefaultPanelLayout) {
+            workspace_->tabifyPanel(adjustmentsPanelShell_, propertiesPanelShell_);
+            workspace_->activatePanel(propertiesPanelShell_);
+            // Apply after grouping so the two splitter slots are Color/Swatches
+            // and Properties/Adjustments. Relative heights scale to the window.
+            // Qt splitter state: vertical, 8px handles, heights 315/889.
+            workspace_->restoreDockedPanelSizes(OverlayDockWorkspace::PanelDockSide::Right,
+                QByteArray::fromHex("000000ff00000001000000020000013b000003790000000008010000000200"));
+        }
         colorPanelAction_->setChecked(
             workspace_->panelVisible(colorPanelShell_));
+        swatchesPanelAction_->setChecked(workspace_->panelVisible(swatchesPanelShell_));
         layersPanelAction_->setChecked(
             workspace_->panelVisible(layersPanelShell_));
         propertiesPanelAction_->setChecked(
@@ -1242,7 +1269,8 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
     // The embedded card owns editor input, including text/IME and shortcuts.
     // Its own barrier allows host-window chrome and nested file dialogs.
     if (event->type() == QEvent::ApplicationPaletteChange && canvasWindow_) refreshThemeAppearance();
-    if (workspaceDialog_) return QMainWindow::eventFilter(watched, event);
+    if (workspaceDialog_ || (workspace_ && workspace_->hasModalOverlay()))
+        return QMainWindow::eventFilter(watched, event);
     if (statusNotification_ && statusNotification_->isVisible()
         && (event->type() == QEvent::MouseMove || event->type() == QEvent::MouseButtonPress
             || event->type() == QEvent::TabletMove || event->type() == QEvent::TabletPress)) {
@@ -1644,9 +1672,11 @@ void MainWindow::closeEvent(QCloseEvent* event)
                     workspace_->dockedPanelIndex(panel));
             };
             savePanel(QStringLiteral("color"), colorPanelShell_);
+            savePanel(QStringLiteral("swatches"), swatchesPanelShell_);
             savePanel(QStringLiteral("layers"), layersPanelShell_);
             savePanel(QStringLiteral("properties"), propertiesPanelShell_);
             savePanel(QStringLiteral("adjustments"), adjustmentsPanelShell_);
+            settings.setValue(QStringLiteral("window/panel-tabs-v1"), workspace_->savePanelTabs());
             settings.setValue(
                 QStringLiteral("window/panels-v2/left-splitter-state"),
                 workspace_->saveDockedPanelSizes(
@@ -2129,6 +2159,7 @@ void MainWindow::createMenus()
     viewMenu->addSeparator();
     auto* panelsMenu = viewMenu->addMenu(QStringLiteral("Panels"));
     colorPanelAction_ = panelsMenu->addAction(QStringLiteral("Color"));
+    swatchesPanelAction_ = panelsMenu->addAction(tr("Swatches"));
     layersPanelAction_ = panelsMenu->addAction(QStringLiteral("Layers"));
     propertiesPanelAction_ = panelsMenu->addAction(QStringLiteral("Properties"));
     adjustmentsPanelAction_ = panelsMenu->addAction(QStringLiteral("Adjustments"));
@@ -2148,7 +2179,7 @@ void MainWindow::createMenus()
         action->setObjectName(QStringLiteral("FilterAction_%1").arg(int(type)));
         connect(action,&QAction::triggered,this,[this,type]{
             capturedFilterRegionActive_=true;
-            adjustmentsPanelAction_->setChecked(true);workspace_->setPanelVisible(adjustmentsPanelShell_,true);
+            adjustmentsPanelAction_->setChecked(true);workspace_->activatePanel(adjustmentsPanelShell_);
             refreshAdjustmentPanel();refreshFiltersPanel();adjustmentsPanel_->showFilter(type);
         });
     }
@@ -2166,7 +2197,15 @@ void MainWindow::createMenus()
     about->setMenuRole(QAction::AboutRole);
     colorPanelAction_->setObjectName(QStringLiteral("ColorPanelVisibilityAction"));
     colorPanelAction_->setCheckable(true);
+    swatchesPanelAction_->setObjectName(QStringLiteral("SwatchesPanelVisibilityAction"));
+    swatchesPanelAction_->setCheckable(true);
+    swatchesPanelAction_->setChecked(true);
+    connect(swatchesPanelAction_, &QAction::triggered, this, [this](bool visible) {
+        workspace_->setPanelVisible(swatchesPanelShell_, visible);
+    });
+    layersPanelAction_->setObjectName(QStringLiteral("LayersPanelVisibilityAction"));
     layersPanelAction_->setCheckable(true);
+    propertiesPanelAction_->setObjectName(QStringLiteral("PropertiesPanelVisibilityAction"));
     propertiesPanelAction_->setCheckable(true);
     colorPanelAction_->setChecked(true);
     layersPanelAction_->setChecked(true);
@@ -2327,6 +2366,14 @@ void MainWindow::createDocks()
     workspace_->addPanel(colorPanelShell_,
         OverlayDockWorkspace::PanelDockSide::Right);
 
+    swatchesPanel_ = new SwatchesPanel;
+    swatchesPanel_->setColors(session().colors());
+    swatchesPanel_->onColorsChanged = [this](core::EditorColors colors) { setColors(colors); };
+    swatchesPanelShell_ = new WorkspacePanel(tr("Swatches"), swatchesPanel_);
+    swatchesPanelShell_->setObjectName(QStringLiteral("SwatchesPanelShell"));
+    swatchesPanelShell_->setHeightRange(uiLayoutConfig_.swatches.minimum, uiLayoutConfig_.swatches.maximum);
+    workspace_->addPanel(swatchesPanelShell_, OverlayDockWorkspace::PanelDockSide::Right);
+
     auto* layersBody = new QWidget;
     auto* layersLayout = new QVBoxLayout(layersBody);
     layersLayout->setContentsMargins(0, 0, 0, 8);
@@ -2412,8 +2459,8 @@ void MainWindow::createDocks()
 
     auto* buttons = new QWidget;
     auto* buttonLayout = new QHBoxLayout(buttons);
-    buttonLayout->setContentsMargins(10, 0, 10, 0);
-    buttonLayout->setSpacing(6);
+    buttonLayout->setContentsMargins(6, 0, 6, 0);
+    buttonLayout->setSpacing(4);
     auto* addButton = new QPushButton(toolGlyph(ToolGlyph::NewLayer), QString());
     addButton->setObjectName(QStringLiteral("AddLayerButton"));
     addButton->setToolTip(tr("Add raster layer"));
@@ -2431,13 +2478,34 @@ void MainWindow::createDocks()
     addMaskButton_->setToolTip(tr("Add layer mask"));
     connect(addMaskButton_,&QPushButton::clicked,maskActions_[0],&QAction::trigger);
     buttonLayout->addWidget(addMaskButton_);
+    effectsButton_ = new QPushButton(toolGlyph(ToolGlyph::Effects), QString());
+    effectsButton_->setObjectName(QStringLiteral("LayerEffectsButton"));
+    effectsButton_->setToolTip(tr("Layer effects"));
+    buttonLayout->addWidget(effectsButton_);
+    connect(effectsButton_, &QPushButton::clicked, this, [this] {
+        auto* menu = new QMenu(this);
+        menu->setObjectName(QStringLiteral("LayerEffectsMenu"));
+        menu->setAttribute(Qt::WA_DeleteOnClose);
+        for (std::size_t i = 0; i < core::layerEffectCount; ++i) {
+            const auto type = core::LayerEffectType(i);
+            auto* action = menu->addAction(QString::fromUtf8(core::layerEffectName(type)));
+            action->setData(int(i));
+            connect(action, &QAction::triggered, this, [this, type] {
+                adjustmentsPanelAction_->setChecked(true);
+                workspace_->activatePanel(adjustmentsPanelShell_);
+                refreshAdjustmentPanel();
+                adjustmentsPanel_->showEffect(type);
+            });
+        }
+        showOwnedPopupMenu(menu, effectsButton_);
+    });
     auto* adjustmentButton=new QPushButton(toolGlyph(ToolGlyph::AdjustmentLayer),QString());
     adjustmentButton->setObjectName(QStringLiteral("AddAdjustmentLayerButton"));
     adjustmentButton->setToolTip(tr("New adjustment layer"));
     connect(adjustmentButton,&QPushButton::clicked,newAdjustmentLayerAction_,&QAction::trigger);
     connect(newAdjustmentLayerAction_,&QAction::changed,adjustmentButton,[this,adjustmentButton]{adjustmentButton->setEnabled(newAdjustmentLayerAction_->isEnabled());});
     buttonLayout->addWidget(adjustmentButton);
-    for(auto* button:{addButton,deleteLayerButton_,folderButton,addMaskButton_,adjustmentButton}) {
+    for(auto* button:{addButton,deleteLayerButton_,folderButton,addMaskButton_,effectsButton_,adjustmentButton}) {
         button->setStyleSheet(QStringLiteral("QPushButton { padding: 0; min-width: 30px; max-width: 30px; min-height: 28px; max-height: 28px; }"));
         button->setFixedSize(32,30);button->setIconSize({18,18});button->setAccessibleName(button->toolTip());
     }
@@ -2465,14 +2533,10 @@ void MainWindow::createDocks()
     createAdjustmentsPanel();
     createFiltersPanel();
     createEffectsPanel();
-    // Saved custom layout (2026-09-13): Layers/tools left; Color, Properties,
-    // Adjustments right. Existing preferences still override these defaults.
-    workspace_->setLeftPanelWidth(305);
-    workspace_->setPanelWidth(556);
-    // Qt splitter state: vertical, 8px handles, relative heights 120/470/630.
-    // Do not copy monitor-specific window geometry or obsolete Filters-panel state.
-    workspace_->restoreDockedPanelSizes(OverlayDockWorkspace::PanelDockSide::Right,
-        QByteArray::fromHex("000000ff000000010000000300000078000001d6000002760000000008010000000200"));
+    // Layers/tools left; Color/Swatches above Properties/Adjustments right.
+    // Saved preferences still override these defaults; window geometry is separate.
+    workspace_->setLeftPanelWidth(370);
+    workspace_->setPanelWidth(551);
 
     connect(layerList_->selectionModel(), &QItemSelectionModel::currentChanged, this,
         [this](const QModelIndex& current) { selectLayerFromRow(current.row()); });
@@ -2631,6 +2695,7 @@ void MainWindow::updatePanelAreaVisibility()
     }
     workspace_->setPanelVisible(
         colorPanelShell_, colorPanelAction_->isChecked());
+    workspace_->setPanelVisible(swatchesPanelShell_, swatchesPanelAction_->isChecked());
     workspace_->setPanelVisible(
         layersPanelShell_, layersPanelAction_->isChecked());
     workspace_->setPanelVisible(
@@ -3457,6 +3522,7 @@ void MainWindow::runIntegrationSmokeTest()
         checkPanelIsolation(QStringLiteral("Layers hidden"));
         propertiesPanelAction_->trigger();
         colorPanelAction_->trigger();
+        swatchesPanelAction_->trigger();
         adjustmentsPanelAction_->trigger();
     });
     QTimer::singleShot(680, this, [this, checkPanelIsolation] {
@@ -3467,6 +3533,7 @@ void MainWindow::runIntegrationSmokeTest()
         layersPanelAction_->trigger();
         propertiesPanelAction_->trigger();
         colorPanelAction_->trigger();
+        swatchesPanelAction_->trigger();
         adjustmentsPanelAction_->trigger();
     });
     QTimer::singleShot(760, this, [this, checkPanelIsolation] {
@@ -3488,12 +3555,12 @@ void MainWindow::runIntegrationSmokeTest()
             QStringLiteral("Floating panel is not owned by the overlay"));
     });
     QTimer::singleShot(940, this, [this, checkPanelIsolation] {
-        checkPanelIsolation(QStringLiteral("all four panels floating"));
+        checkPanelIsolation(QStringLiteral("all panels floating"));
         for (auto* panel : {layersPanelShell_, propertiesPanelShell_,
-                 colorPanelShell_, adjustmentsPanelShell_}) {
+                 colorPanelShell_, swatchesPanelShell_, adjustmentsPanelShell_}) {
             smokeCheck(workspace_->panelPlacement(panel)
                     == OverlayDockWorkspace::PanelPlacement::Floating
-                    && panel->isVisible() && panel->parentWidget() == workspace_->panelOverlay()
+                    && workspace_->panelVisible(panel) && workspace_->panelFrame(panel)->parentWidget() == workspace_->panelOverlay()
                     && !panel->isWindow() && panel->internalWinId() == 0,
                 QStringLiteral("Floating panel lost internal workspace ownership: %1").arg(panel->objectName()));
         }
@@ -4655,6 +4722,7 @@ void MainWindow::setColors(core::EditorColors colors)
     if (colorPanel_) {
         colorPanel_->setColors(colors);
     }
+    if (swatchesPanel_) swatchesPanel_->setColors(colors);
     if (railColors_) {
         railColors_->setColors(colors);
     }

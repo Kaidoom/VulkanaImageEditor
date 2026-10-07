@@ -6,7 +6,7 @@
 
 #include <QAction>
 #include <QApplication>
-#include <QColorDialog>
+#include "imageeditor/ui/ColorDialog.hpp"
 #include <QComboBox>
 #include <QCheckBox>
 #include <QElapsedTimer>
@@ -90,13 +90,15 @@ void pickColor(ui::PreferencesDialog& dialog, ui::ThemeColor role, QColor color)
     if (!swatch || !swatch->isEnabled()) return;
     bool picked = false;
     QTimer::singleShot(0, &dialog, [&] {
-        auto* chooser = qobject_cast<QColorDialog*>(QApplication::activeModalWidget());
+        auto* host = dialog.parentWidget();
+        while (host->parentWidget()) host = host->parentWidget();
+        auto* chooser = host->findChild<imageeditor::ui::ColorDialog*>("ThemeColorDialog");
         CHECK(chooser);
         if (!chooser) return;
         CHECK(chooser->objectName() == QStringLiteral("ThemeColorDialog"));
-        CHECK(chooser->windowHandle() && chooser->windowHandle()->transientParent());
-        CHECK(chooser->windowFlags().testFlag(Qt::Tool));
-        CHECK(!chooser->testOption(QColorDialog::ShowAlphaChannel));
+        CHECK(!chooser->isWindow() && !chooser->windowHandle());
+        CHECK(!dialog.isVisible());
+        CHECK(!chooser->testOption(imageeditor::ui::ColorDialog::ShowAlphaChannel));
         chooser->setCurrentColor(color);
         chooser->accept();
         picked = true;

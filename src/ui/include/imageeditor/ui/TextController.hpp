@@ -11,7 +11,6 @@
 
 class QComboBox;
 class QPushButton;
-class QColorDialog;
 class QInputMethodEvent;
 class QKeyEvent;
 class QMouseEvent;
@@ -19,6 +18,7 @@ namespace imageeditor::render {
 class CanvasWindow;
 }
 namespace imageeditor::ui {
+class ColorDialog;
 class OverlayDockWorkspace;
 class ToolOptionsButton;
 class ToolOptionsNumber;
@@ -120,7 +120,7 @@ private:
     ToolOptionsButton *bold_ { }, *italic_ { }, *alignLeft_ { }, *alignCenter_ { },
         *alignRight_ { };
     QPushButton* color_ { };
-    QPointer<QColorDialog> colorDialog_;
+    QPointer<ColorDialog> colorDialog_;
     core::Vec2d lastOrigin_;
     double lastZoom_ { -1 }, lastDpr_ { -1 };
     QSize lastViewport_;

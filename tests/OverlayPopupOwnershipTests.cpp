@@ -7,7 +7,7 @@
 #include "imageeditor/ui/BrushComponentPicker.hpp"
 #include "imageeditor/ui/NewDocumentDialog.hpp"
 #include <QAbstractItemView>
-#include <QColorDialog>
+#include "imageeditor/ui/ColorDialog.hpp"
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QLineEdit>
@@ -189,12 +189,12 @@ int main(int argc, char** argv)
         check(popup && popup->windowHandle()->transientParent() == host.windowHandle(), "document button opens an owned menu");
         if (popup) popup->close();
         card.hide();
-        QColorDialog color(imageeditor::ui::popupTopLevelOwner(combo));
-        color.setOption(QColorDialog::DontUseNativeDialog);
-        color.setWindowModality(Qt::WindowModal);
+        imageeditor::ui::ColorDialog color(imageeditor::ui::popupTopLevelOwner(combo));
+        color.setOption(imageeditor::ui::ColorDialog::DontUseNativeDialog);
         color.show(); QTest::qWait(30);
-        check(color.windowHandle()->transientParent() == host.windowHandle(), "color dialog has real top-level owner");
-        check(color.windowModality() == Qt::WindowModal, "color modality is preserved");
+        check(!color.isWindow() && !color.windowHandle(), "color card has no native window");
+        check(color.parentWidget() == workspace->modalOverlay(), "color card uses the workspace modal overlay");
+        check(color.minimumSize() == color.maximumSize(), "color card is fixed-size");
         color.close();
         if (app.platformName() != "offscreen")
             check(QTest::qWaitForWindowActive(host.windowHandle()), "host focus returns after color dialog");

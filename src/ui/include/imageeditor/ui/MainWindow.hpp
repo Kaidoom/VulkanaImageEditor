@@ -77,6 +77,7 @@ class BrushOptionsPage;
 class CloningOptionsPage;
 class LocalBlurOptionsPage;
 class ColorPanel;
+class SwatchesPanel;
 class AdjustmentsPanel;
 class FiltersPanel;
 class EffectsPanel;
@@ -703,6 +704,7 @@ private:
     QWidget* canvasContainer_ {nullptr};
     CrossWindowPointerRouter* pointerRouter_ {nullptr};
     ColorPanel* colorPanel_ {nullptr};
+    SwatchesPanel* swatchesPanel_ {nullptr};
     AdjustmentsPanel* adjustmentsPanel_ {nullptr};
     std::unique_ptr<core::AdjustmentEditTransaction> adjustmentEdit_;
     bool finishingAdjustmentEdit_ {false};
@@ -728,6 +730,7 @@ private:
     bool publishingOpacity_ {false};
     QPushButton* deleteLayerButton_ {nullptr};
     QPushButton* addMaskButton_ {nullptr};
+    QPushButton* effectsButton_ {nullptr};
     std::array<QAction*,7> maskActions_ {};
     PropertiesPanel* propertiesPanel_ {nullptr};
     ToolOptionsBar* toolOptionsBar_ {nullptr};
@@ -739,6 +742,7 @@ private:
     WorkspacePanel* layersPanelShell_ {nullptr};
     WorkspacePanel* propertiesPanelShell_ {nullptr};
     WorkspacePanel* colorPanelShell_ {nullptr};
+    WorkspacePanel* swatchesPanelShell_ {nullptr};
     WorkspacePanel* adjustmentsPanelShell_ {nullptr};
     QLabel* documentStatus_ {nullptr};
     QLabel* selectionStatus_ {nullptr};
@@ -768,6 +772,7 @@ private:
     QAction* layersPanelAction_ {nullptr};
     QAction* propertiesPanelAction_ {nullptr};
     QAction* colorPanelAction_ {nullptr};
+    QAction* swatchesPanelAction_ {nullptr};
     QAction* adjustmentsPanelAction_ {nullptr};
     QAction* eraserAction_ {nullptr};
     QActionGroup* toolRailDockActions_ {nullptr};

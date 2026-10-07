@@ -10,7 +10,7 @@
 #include "imageeditor/ui/FontFamilyPicker.hpp"
 #include <QApplication>
 #include <QClipboard>
-#include <QColorDialog>
+#include "imageeditor/ui/ColorDialog.hpp"
 #include <QComboBox>
 #include <QFocusEvent>
 #include <QFontDatabase>
@@ -369,9 +369,9 @@ void popupsAndIndependentColors()
 
     f.widget<QPushButton>("TextColor")->click();
     QApplication::processEvents();
-    auto* dialog = f.workspace->findChild<QColorDialog*>(QStringLiteral("TextColorDialog"));
+    auto* dialog = f.workspace->findChild<imageeditor::ui::ColorDialog*>(QStringLiteral("TextColorDialog"));
     if (!dialog)
-        dialog = f.workspace->panelOverlay()->findChild<QColorDialog*>(
+        dialog = f.workspace->panelOverlay()->findChild<imageeditor::ui::ColorDialog*>(
             QStringLiteral("TextColorDialog"));
     CHECK(dialog);
     if (dialog) {

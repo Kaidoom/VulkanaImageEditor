@@ -13,8 +13,8 @@
 namespace imageeditor::ui {
 namespace {
 
-constexpr int kTileWidth = 88;
-constexpr int kTileHeight = 94;
+constexpr int kTileWidth = 66;
+constexpr int kTileHeight = 66;
 constexpr int kIconExtent = 56;
 constexpr int kGridPaddingAllowance = 12;
 
@@ -94,11 +94,12 @@ void BrushPresetGrid::rebuild()
             ? style()->standardIcon(QStyle::SP_MessageBoxWarning)
             : QIcon(QPixmap::fromImage(preset.thumbnail));
         auto* item = new QListWidgetItem(std::move(icon),
-            preset.displayName.simplified(),
+            QString{},
             this);
         item->setData(Qt::UserRole, QString::fromStdString(preset.id));
         item->setData(Qt::UserRole + 1, preset.displayName);
         item->setData(Qt::UserRole + 2, preset.available);
+        item->setSizeHint(QSize(kTileWidth, kTileHeight));
         item->setTextAlignment(Qt::AlignHCenter | Qt::AlignTop);
         item->setToolTip(preset.available
                 ? preset.displayName
@@ -128,8 +129,6 @@ void BrushPresetGrid::updateCurrentItem()
         const auto baseName = item->data(Qt::UserRole + 1).toString();
         const auto available = item->data(Qt::UserRole + 2).toBool();
         const auto isCurrent = id == currentPresetId_;
-        item->setText(baseName.simplified()
-            + (available && isCurrent && currentPresetModified_ ? QStringLiteral(" *") : QString{}));
         if (available)
             item->setToolTip(baseName + (isCurrent && currentPresetModified_
                 ? QStringLiteral("\nModified") : QString{}));

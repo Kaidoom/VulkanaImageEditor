@@ -73,6 +73,8 @@ void MainWindow::refreshLayerMaskActions() {
   if(layer && std::holds_alternative<core::AdjustmentLayer>(layer->payload))maskActions_[4]->setEnabled(false);
   if (addMaskButton_)
     addMaskButton_->setEnabled(maskActions_[0]->isEnabled());
+  if (effectsButton_)
+    effectsButton_->setEnabled(available && !std::holds_alternative<core::AdjustmentLayer>(layer->payload));
 }
 void MainWindow::setLayerEditingTarget(int row, bool mask) {
   const auto id = layerModel_->layerIdAt(row);

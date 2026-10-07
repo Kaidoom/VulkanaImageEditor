@@ -43,12 +43,12 @@ bool isEditorInput(QEvent::Type type)
 }
 
 WorkspaceDialog::WorkspaceDialog(OverlayDockWorkspace& workspace, QWidget& host)
-    : QWidget(workspace.panelOverlay()), workspace_(workspace), host_(host)
+    : QWidget(workspace.panelOverlay()), workspace_(workspace), workspaceGuard_(&workspace), host_(host)
 {
     setObjectName(QStringLiteral("WorkspaceDialogShield"));
     setFocusPolicy(Qt::NoFocus);
     connect(qApp, &QApplication::focusChanged, this, [this](QWidget*, QWidget* now) {
-        if (running_ && now && belongsTo(now, dialog_)) {
+        if (running_ && workspace_.modalOverlay() == this && now && belongsTo(now, dialog_)) {
             lastFocus_ = now;
             workspace_.canvasContainer()->setFocusProxy(now);
         } else if (running_) {
@@ -70,17 +70,32 @@ WorkspaceDialog::~WorkspaceDialog()
 
 int WorkspaceDialog::exec(QDialog& dialog)
 {
-    Q_ASSERT(dialog.parentWidget() == this && !dialog.isWindow());
-    dialog_ = &dialog;
-    previousFocus_ = QApplication::focusWidget();
-    previousProxy_ = workspace_.canvasContainer()->focusProxy();
-    lastFocus_ = nullptr;
-    dialog.setResult(QDialog::Rejected);
     QEventLoop loop;
     bool finished = false;
-    const auto finish = [&] { finished = true; loop.quit(); };
-    connect(&dialog, &QDialog::finished, &loop, finish);
-    connect(qApp, &QCoreApplication::aboutToQuit, &loop, finish);
+    const auto quit = [&] { finished = true; loop.quit(); };
+    connect(&dialog, &QDialog::finished, &loop, quit);
+    connect(qApp, &QCoreApplication::aboutToQuit, &loop, quit);
+    open(dialog);
+    if (!finished) loop.exec();
+    finish();
+    return dialog.result();
+}
+
+void WorkspaceDialog::open(QDialog& dialog)
+{
+    if (running_) return;
+    Q_ASSERT(dialog.parentWidget() == this && !dialog.isWindow());
+    if (dialog_ != &dialog) {
+        if (dialog_) disconnect(dialog_, nullptr, this, nullptr);
+        dialog_ = &dialog;
+        connect(&dialog, &QDialog::finished, this, [this] { finish(); });
+        connect(&dialog, &QObject::destroyed, this, [this] { finish(); });
+    }
+    previousFocus_ = QApplication::focusWidget();
+    previousProxy_ = workspace_.canvasContainer()->focusProxy();
+    previousOverlay_ = workspace_.modalOverlay();
+    lastFocus_ = nullptr;
+    dialog.setResult(QDialog::Rejected);
     running_ = true;
     qApp->installEventFilter(this);
     workspace_.setModalOverlay(this);
@@ -94,17 +109,36 @@ int WorkspaceDialog::exec(QDialog& dialog)
         first = first->nextInFocusChain();
     lastFocus_ = first;
     focusControl(first);
-    if (!finished) loop.exec();
+}
+
+void WorkspaceDialog::finish()
+{
+    if (!running_) return;
+    // If an owning card closes programmatically, dismiss its nested cards
+    // first. They must not later restore a closed presenter as a modal shield.
+    while (workspaceGuard_) {
+        QPointer<WorkspaceDialog> active = dynamic_cast<WorkspaceDialog*>(workspace_.modalOverlay());
+        bool nested = false;
+        for (auto* ancestor = active.data(); ancestor && ancestor != this;
+             ancestor = dynamic_cast<WorkspaceDialog*>(ancestor->previousOverlay_.data())) {
+            if (ancestor->previousOverlay_ == this) { nested = true; break; }
+        }
+        if (!nested) break;
+        active->reject();
+        if (active && active->active()) active->finish();
+    }
     running_ = false;
     qApp->removeEventFilter(this);
-    if (auto* focus = QApplication::focusWidget(); focus && belongsTo(focus, &dialog)) focus->clearFocus();
+    if (!workspaceGuard_) return;
+    if (auto* focus = QApplication::focusWidget(); focus && belongsTo(focus, dialog_)) focus->clearFocus();
     workspace_.canvasContainer()->setFocusProxy(nullptr);
-    dialog.hide();
+    if (dialog_) dialog_->hide();
+    if (workspace_.modalOverlay() == this) workspace_.setModalOverlay(previousOverlay_);
+    hide();
     if (host_.isVisible() && !host_.isMinimized())
         focusControl(previousFocus_ ? previousFocus_.data() : workspace_.canvasContainer());
     workspace_.canvasContainer()->setFocusProxy(previousProxy_);
-    workspace_.setModalOverlay(nullptr);
-    return dialog.result();
+    previousOverlay_.clear();
 }
 
 void WorkspaceDialog::reject() { if (dialog_) dialog_->reject(); }
@@ -136,7 +170,7 @@ void WorkspaceDialog::focusControl(QWidget* control)
 void WorkspaceDialog::restoreCardFocus()
 {
     auto* nativeFocus = QGuiApplication::focusWindow();
-    if (running_ && lastFocus_ && host_.isVisible() && !host_.isMinimized()
+    if (running_ && workspace_.modalOverlay() == this && lastFocus_ && host_.isVisible() && !host_.isMinimized()
         && QGuiApplication::applicationState() == Qt::ApplicationActive
         && (nativeFocus == host_.windowHandle() || nativeFocus == workspace_.panelOverlay()->windowHandle())
         && !QApplication::activeModalWidget() && !QApplication::activePopupWidget())
@@ -145,6 +179,9 @@ void WorkspaceDialog::restoreCardFocus()
 
 bool WorkspaceDialog::eventFilter(QObject* watched, QEvent* event)
 {
+    if (running_ && watched == &host_ && event->type() == QEvent::Close) reject();
+    // A nested card owns input until it finishes, then restores this presenter.
+    if (workspace_.modalOverlay() != this) return false;
     if (!running_ || !isEditorInput(event->type())) return false;
     if (event->type() == QEvent::KeyPress)
         qCDebug(workspaceDialogLog) << "Key recipient" << watched << "focus" << QApplication::focusWidget()

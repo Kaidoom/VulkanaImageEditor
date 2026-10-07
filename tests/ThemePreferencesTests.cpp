@@ -4,7 +4,7 @@
 #include "imageeditor/ui/Theme.hpp"
 
 #include <QApplication>
-#include <QColorDialog>
+#include "imageeditor/ui/ColorDialog.hpp"
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialogButtonBox>
@@ -452,18 +452,18 @@ void pickColor(PreferencesDialog& dialog, ThemeColor role, QColor picked)
     // Supports either an asynchronous owned chooser or a synchronous getColor
     // loop, without a desktop dialog automation dependency.
     QTimer::singleShot(0, &dialog, [&] {
-        QColorDialog* chooser = dialog.findChild<QColorDialog*>();
+        imageeditor::ui::ColorDialog* chooser = dialog.findChild<imageeditor::ui::ColorDialog*>();
         if (!chooser) {
             for (auto* window : QApplication::topLevelWidgets()) {
-                chooser = qobject_cast<QColorDialog*>(window);
+                chooser = qobject_cast<imageeditor::ui::ColorDialog*>(window);
                 if (chooser && chooser->isVisible()) break;
                 chooser = nullptr;
             }
         }
         CHECK(chooser);
         if (!chooser) return;
-        CHECK(chooser->testOption(QColorDialog::DontUseNativeDialog));
-        CHECK(!chooser->testOption(QColorDialog::ShowAlphaChannel));
+        CHECK(chooser->testOption(imageeditor::ui::ColorDialog::DontUseNativeDialog));
+        CHECK(!chooser->testOption(imageeditor::ui::ColorDialog::ShowAlphaChannel));
         chooser->setCurrentColor(picked);
         chooser->accept();
         handled = true;

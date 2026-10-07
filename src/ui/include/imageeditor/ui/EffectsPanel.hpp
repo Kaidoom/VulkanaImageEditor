@@ -17,6 +17,7 @@ public:
   void setTarget(const core::Layer *);
   void finishEditing(bool commit = true);
   void resetAll();
+  void selectType(core::LayerEffectType);
   void setProcessing(bool busy, double progress = 0,
                      const QString &message = {});
   bool interactionActive() const { return editing_; }

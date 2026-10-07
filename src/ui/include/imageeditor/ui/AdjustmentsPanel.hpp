@@ -37,6 +37,7 @@ public:
     [[nodiscard]] bool effectsCategoryActive() const;
     [[nodiscard]] bool filtersCategoryActive() const;
     void showFilter(core::SpatialFilterType);
+    void showEffect(core::LayerEffectType);
     [[nodiscard]] bool interactionActive() const { return editing_; }
     [[nodiscard]] core::AdjustmentType currentType() const;
     [[nodiscard]] std::optional<core::LayerId> target() const { return target_; }

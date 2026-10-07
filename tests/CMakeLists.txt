@@ -724,6 +724,19 @@ add_test(NAME imageeditor_color_panel_tests COMMAND imageeditor_color_panel_test
 set_tests_properties(imageeditor_color_panel_tests PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30 LABELS "color;layout;widgets;preferences")
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    find_program(IMAGEEDITOR_DBUS_RUN_SESSION dbus-run-session)
+    if(IMAGEEDITOR_DBUS_RUN_SESSION)
+        add_executable(imageeditor_color_portal_tests ColorPortalTests.cpp)
+        target_link_libraries(imageeditor_color_portal_tests PRIVATE imageeditor_ui Qt6::Test Qt6::DBus)
+        imageeditor_enable_warnings(imageeditor_color_portal_tests)
+        add_test(NAME imageeditor_color_portal_tests
+            COMMAND "${IMAGEEDITOR_DBUS_RUN_SESSION}" -- $<TARGET_FILE:imageeditor_color_portal_tests>)
+        set_tests_properties(imageeditor_color_portal_tests PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;XDG_SESSION_TYPE=wayland" TIMEOUT 15 LABELS "color;portal;widgets")
+    endif()
+endif()
+
 add_executable(imageeditor_ui_layout_config_tests
     UiLayoutConfigTests.cpp
 )

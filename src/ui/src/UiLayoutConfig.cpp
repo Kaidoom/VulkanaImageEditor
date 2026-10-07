@@ -88,6 +88,8 @@ UiLayoutConfig UiLayoutConfig::loadFromIni(
     QSettings settings(filePath, QSettings::IniFormat);
     result.color = readRange(
         settings, QStringLiteral("ColorPanel"), result.color, diagnostics);
+    result.swatches = readRange(
+        settings, QStringLiteral("SwatchesPanel"), result.swatches, diagnostics);
     result.layers = readRange(
         settings, QStringLiteral("LayersPanel"), result.layers, diagnostics);
     result.properties = readRange(

@@ -55,6 +55,9 @@ struct Fixture {
     explicit Fixture(QVulkanInstance* instance=nullptr):window(instance,false,false){
         window.setUnsavedPromptEnabled(false);window.resize(1550,1080);window.show();settle();
         panel=dynamic_cast<u::AdjustmentsPanel*>(window.findChild<QWidget*>("AdjustmentsPanelContent"));
+        auto* workspace=dynamic_cast<u::OverlayDockWorkspace*>(window.findChild<QWidget*>("CanvasWorkspace"));
+        auto* shell=dynamic_cast<u::WorkspacePanel*>(window.findChild<QWidget*>("AdjustmentsPanelShell"));
+        CHECK(workspace&&shell);if(workspace&&shell)workspace->activatePanel(shell);
         view=dynamic_cast<u::LayerListView*>(window.findChild<QListView*>("LayerList"));
         model=view?dynamic_cast<u::LayerListModel*>(view->model()):nullptr;
         for(auto* candidate:QGuiApplication::allWindows())if(candidate->objectName()=="VulkanCanvasWindow")canvas=dynamic_cast<r::CanvasWindow*>(candidate);
@@ -85,15 +88,20 @@ void freshProfileUsesApprovedLayout()
     auto* left=window.findChild<QSplitter*>("LeftPanelSplitter");
     auto* right=window.findChild<QSplitter*>("RightPanelSplitter");
     CHECK(workspace&&left&&right);if(!workspace||!left||!right)return;
-    CHECK(workspace->leftPanelWidth()==305);CHECK(workspace->panelWidth()==556);
+    CHECK(workspace->leftPanelWidth()==370);CHECK(workspace->panelWidth()==551);
     CHECK(left->count()==1&&left->widget(0)->objectName()=="LayersPanel");
-    CHECK(right->count()==3);if(right->count()!=3)return;
-    CHECK(right->widget(0)->objectName()=="ColorPanelShell");
-    CHECK(right->widget(1)->objectName()=="PropertiesPanelShell");
-    CHECK(right->widget(2)->objectName()=="AdjustmentsPanelShell");
+    CHECK(right->count()==2);if(right->count()!=2)return;
+    const auto panel=[&](const char* name){return dynamic_cast<u::WorkspacePanel*>(window.findChild<QWidget*>(name));};
+    auto* color=panel("ColorPanelShell");auto* swatches=panel("SwatchesPanelShell");
+    auto* properties=panel("PropertiesPanelShell");auto* adjustments=panel("AdjustmentsPanelShell");
+    CHECK(workspace->panelTabs(color)==std::vector<u::WorkspacePanel*>({color,swatches}));
+    CHECK(workspace->panelTabs(properties)==std::vector<u::WorkspacePanel*>({properties,adjustments}));
+    CHECK(right->widget(0)==workspace->panelFrame(color));
+    CHECK(right->widget(1)==workspace->panelFrame(properties));
+    CHECK(color->isVisible()&&properties->isVisible()&&!swatches->isVisible()&&!adjustments->isVisible());
     const auto sizes=right->sizes();
-    CHECK(sizes[0]<sizes[1]&&sizes[1]<sizes[2]);
-    CHECK(std::abs(double(sizes[1])/sizes[2]-470.0/630.0)<.08);
+    CHECK(sizes[0]<sizes[1]);
+    CHECK(std::abs(double(sizes[0])/sizes[1]-315.0/889.0)<.08);
     window.close();settle();
 }
 void activePageControlsScrolling()
@@ -381,6 +389,7 @@ int main(int argc,char** argv)
     QApplication app(argc,argv);QCoreApplication::setOrganizationName("ImageEditorTests");QCoreApplication::setApplicationName("AdjustmentUiTests");
     QStandardPaths::setTestModeEnabled(true);QTemporaryDir settings;QSettings::setDefaultFormat(QSettings::IniFormat);QSettings::setPath(QSettings::IniFormat,QSettings::UserScope,settings.path());u::applyEditorTheme(app);
     if(app.arguments().contains(QStringLiteral("--wayland-validation")))return nativeValidation();
+    if(app.arguments().contains(QStringLiteral("--layout-only"))){freshProfileUsesApprovedLayout();return failures?1:0;}
     imageeditor::tests::adjustmentMaskOutlineChecks([](bool pass,std::string_view message){check(pass,message.data(),__LINE__);});
     curveStrokePreservesHistogramAndGrid();capturedRegionViewState();
     freshProfileUsesApprovedLayout();activePageControlsScrolling();navigationAndPrimary();compactCategoryLayout();groupedNumericCancelAndNoop();resetMasksAndComparison();curvesAndHistogram();containerAndStaleTarget();largeHistogramBudget();

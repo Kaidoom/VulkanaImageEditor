@@ -3,7 +3,7 @@
 
 #include <QAbstractItemView>
 #include <QApplication>
-#include <QColorDialog>
+#include "imageeditor/ui/ColorDialog.hpp"
 #include <QComboBox>
 #include <QDialog>
 #include <QImage>
@@ -234,9 +234,9 @@ void colorDialogSpinButtonsRenderAndMatchTheirHitTargets(QApplication& applicati
         ui::ThemeSettings theme;
         theme.preset = preset;
         ui::applyEditorTheme(application, theme);
-        QColorDialog dialog(QColor(80, 130, 180));
-        dialog.setOption(QColorDialog::DontUseNativeDialog);
-        dialog.setOption(QColorDialog::ShowAlphaChannel);
+        imageeditor::ui::ColorDialog dialog(QColor(80, 130, 180));
+        dialog.setOption(imageeditor::ui::ColorDialog::DontUseNativeDialog);
+        dialog.setOption(imageeditor::ui::ColorDialog::ShowAlphaChannel);
         dialog.show();
         settle();
         const auto reviewPath = qEnvironmentVariable("IMAGEEDITOR_COLOR_DIALOG_REVIEW");

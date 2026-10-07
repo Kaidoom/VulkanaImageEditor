@@ -3,6 +3,7 @@
 #include "imageeditor/ui/ColorPanel.hpp"
 #include "imageeditor/ui/BrushPresetGrid.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
+#include "imageeditor/ui/Theme.hpp"
 
 #include <QApplication>
 #include <QCoreApplication>
@@ -238,7 +239,7 @@ void brushControlsExposeTheProductionSettings()
     pressureFlow->setChecked(false);
     CHECK(grid->currentPresetId() == "builtin.preset.pressure-round.v1");
     CHECK(grid->currentItem()
-        && grid->currentItem()->text().endsWith(QStringLiteral(" *"))
+        && grid->currentItem()->text().isEmpty()
         && grid->currentItem()->toolTip().contains(QStringLiteral("Modified")));
     CHECK(changes >= 7);
     CHECK(published.sizePixels == pressurePreset.sizePixels);
@@ -355,30 +356,34 @@ void brushPresetGridReflowsAtFixedCellSize()
         return;
     }
     const auto fixedCell = grid->gridSize();
-    CHECK(fixedCell.width() > 0 && fixedCell.height() > 0);
+    CHECK(fixedCell == QSize(66, 66));
+    CHECK(grid->iconSize() == QSize(56, 56));
     CHECK(grid->horizontalScrollBarPolicy() == Qt::ScrollBarAlwaysOff);
     CHECK(grid->verticalScrollBarPolicy() == Qt::ScrollBarAlwaysOff);
     CHECK(!grid->wordWrap());
     CHECK(grid->textElideMode() == Qt::ElideRight);
     for (int row = 0; row < grid->count(); ++row) {
-        CHECK(!grid->item(row)->text().contains(QLatin1Char('\n')));
-        CHECK(grid->item(row)->toolTip().contains(grid->item(row)->text()));
+        CHECK(grid->item(row)->text().isEmpty());
+        CHECK(!grid->item(row)->toolTip().isEmpty());
+        CHECK(!grid->item(row)->data(Qt::AccessibleTextRole).toString().isEmpty());
     }
 
     panel.resize(230, 720);
     panel.show();
     QCoreApplication::processEvents();
     const auto narrowHeight = grid->height();
-    const auto narrowThird = grid->visualItemRect(grid->item(2));
-    CHECK(narrowThird.top() >= grid->gridSize().height());
+    const auto narrowFourth = grid->visualItemRect(grid->item(3));
+    CHECK(narrowFourth.top() >= grid->gridSize().height());
 
     panel.resize(380, 720);
     QCoreApplication::processEvents();
     CHECK(grid->gridSize() == fixedCell);
     CHECK(grid->height() < narrowHeight);
-    CHECK(grid->visualItemRect(grid->item(2)).top()
+    CHECK(grid->visualItemRect(grid->item(3)).top()
         < grid->gridSize().height());
     CHECK(grid->currentPresetId() == "builtin.preset.pressure-round.v1");
+    if (const auto path = qEnvironmentVariable("IMAGEEDITOR_BRUSH_GRID_REVIEW"); !path.isEmpty())
+        CHECK(grid->grab().save(path));
 }
 
 void toolPagesHaveNoDedicatedColorControls()
@@ -424,6 +429,7 @@ void colorPanelPresentsOneTopAlignedGlobalControl()
 int main(int argc, char* argv[])
 {
     QApplication application(argc, argv);
+    imageeditor::ui::applyEditorTheme(application);
     everyPageUsesSharedTopAlignedShell();
     resizingLeavesControlsAtNaturalTopPositionAndEnablesScrolling();
     brushControlsExposeTheProductionSettings();

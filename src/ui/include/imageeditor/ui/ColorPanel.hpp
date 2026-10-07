@@ -3,16 +3,12 @@
 #include "imageeditor/core/EditorColors.hpp"
 
 #include <QWidget>
-#include <QPointer>
 
 #include <functional>
 
-class QColorDialog;
-class QListWidget;
-class QPushButton;
-
 namespace imageeditor::ui {
 class ColorSelector;
+class ColorPicker;
 
 // Editor-level foreground color control. The chosen color is tool state, not
 // document data; MainWindow coordinates it with every color-consuming tool.
@@ -31,15 +27,8 @@ public:
     std::function<void(core::EditorColors)> onColorsChanged;
 
 private:
-    void chooseSwatch(QListWidget* grid);
-    void editCustomSwatch(int row = -1);
-    void saveCustomSwatches();
-    void updateDeleteButton();
     ColorSelector* selector_ {nullptr};
-    QListWidget* defaults_ {nullptr};
-    QListWidget* custom_ {nullptr};
-    QPushButton* delete_ {nullptr};
-    QPointer<QColorDialog> colorDialog_;
+    ColorPicker* picker_ {nullptr};
     core::EditorColors colors_;
 };
 

@@ -13,7 +13,7 @@ enum class ToolGlyph {
     QuickSelection, MagicWand, Cloning, CloneStamp, CloneHeal, SpotHeal, CloneSource,
     CurrentAndBelow, CloneAligned, FollowStrokeDirection, LocalBlur,
     Person, SocialX, Mail, Globe, ExternalLink, Refresh, Download, CheckCircle, InfoCircle, Close,
-    Repository, LayerMask, Trash, NewLayer, AdjustmentLayer, Plus
+    Repository, LayerMask, Trash, NewLayer, AdjustmentLayer, Plus, Effects
 };
 // Original code-native glyphs, rendered and cached at the requested size/DPR.
 QIcon toolGlyph(ToolGlyph glyph);

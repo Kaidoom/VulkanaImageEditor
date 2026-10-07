@@ -16,6 +16,8 @@ public:
         QWidget* parent = nullptr);
 
     [[nodiscard]] QString title() const { return title_; }
+    void setTitle(const QString& title);
+    void setTabbedPresentation(bool tabbed);
     [[nodiscard]] QWidget* contentWidget() const noexcept { return content_; }
     [[nodiscard]] QWidget* resizeGrip() const noexcept { return resizeGrip_; }
     [[nodiscard]] bool hasFloatingPresentation() const noexcept
@@ -53,6 +55,7 @@ private:
     int configuredMinimumHeight_ {160};
     int configuredMaximumHeight_ {QWIDGETSIZE_MAX};
     bool floatingPresentation_ {false};
+    bool tabbedPresentation_ {false};
 };
 
 } // namespace imageeditor::ui

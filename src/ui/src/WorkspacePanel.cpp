@@ -284,13 +284,14 @@ WorkspacePanel::WorkspacePanel(
 {
     Q_ASSERT(content_);
     setObjectName(QStringLiteral("WorkspacePanel"));
+    setProperty("workspacePanel", true);
     setAttribute(Qt::WA_StyledBackground);
     setMinimumWidth(228);
     setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
     applyHeightRange();
 
     auto* layout = new QVBoxLayout(this);
-    layout->setContentsMargins(1, 1, 1, 1);
+    layout->setContentsMargins(4, 4, 4, 4);
     layout->setSpacing(0);
     titleBar_ = new PanelTitleBar(*this);
     layout->addWidget(titleBar_);
@@ -308,8 +309,28 @@ void WorkspacePanel::setFloatingPresentation(bool floating)
     }
     floatingPresentation_ = floating;
     setProperty("floatingPanel", floating);
-    resizeGrip_->setVisible(floating);
+    resizeGrip_->setVisible(floating && !tabbedPresentation_);
     resizeGrip_->raise();
+    style()->unpolish(this);
+    style()->polish(this);
+    update();
+}
+
+void WorkspacePanel::setTitle(const QString& title)
+{
+    title_ = title;
+    titleBar_->update();
+}
+
+void WorkspacePanel::setTabbedPresentation(bool tabbed)
+{
+    tabbedPresentation_ = tabbed;
+    setProperty("tabbedPanel", tabbed);
+    titleBar_->setVisible(!tabbed);
+    resizeGrip_->setVisible(floatingPresentation_ && !tabbed);
+    layout()->setContentsMargins(tabbed ? 0 : 4, tabbed ? 0 : 4,
+        tabbed ? 0 : 4, tabbed ? 0 : 4);
+    applyHeightRange();
     style()->unpolish(this);
     style()->polish(this);
     update();
@@ -331,8 +352,10 @@ void WorkspacePanel::applyHeightRange()
     // range deliberately follows a panel between docked and floating modes.
     setMinimumHeight(0);
     setMaximumHeight(QWIDGETSIZE_MAX);
-    setMinimumHeight(configuredMinimumHeight_);
-    setMaximumHeight(configuredMaximumHeight_);
+    if (!tabbedPresentation_) {
+        setMinimumHeight(configuredMinimumHeight_);
+        setMaximumHeight(configuredMaximumHeight_);
+    }
     updateGeometry();
 }
 

@@ -283,31 +283,27 @@ void applyEditorTheme(QApplication& application, const ThemeSettings& settings)
         QWidget#OverlayPanelCard,
         QWidget#OverlayLeftPanelCard {
             background: #151820;
-            border: 1px solid #343A49;
-            border-radius: 9px;
+            border: 0;
+            border-radius: 0;
         }
         QWidget#OverlayPanelCard[dropTarget="true"],
         QWidget#OverlayLeftPanelCard[dropTarget="true"] {
             border: 2px solid #8D9AF8;
+            border-radius: 9px;
             background: #1B2030;
         }
         QWidget#PanelDockColumnContent {
             background: #151820;
-            border-radius: 8px;
+            border-radius: 0;
         }
-        QWidget#WorkspacePanel,
-        QWidget#ColorPanelShell,
-        QWidget#LayersPanel,
-        QWidget#PropertiesPanelShell {
+        QWidget[workspacePanel="true"] {
             background: #151820;
-            border: 1px solid #292E3B;
-            border-radius: 8px;
+            border: 1px solid #4A5369;
+            border-radius: 0;
         }
-        QWidget#WorkspacePanel[floatingPanel="true"],
-        QWidget#ColorPanelShell[floatingPanel="true"],
-        QWidget#LayersPanel[floatingPanel="true"],
-        QWidget#PropertiesPanelShell[floatingPanel="true"] {
+        QWidget[workspacePanel="true"][floatingPanel="true"] {
             border-color: #4A5369;
+            border-radius: 8px;
         }
         QMainWindow::separator {
             background: #101219;
@@ -650,7 +646,7 @@ void applyEditorTheme(QApplication& application, const ThemeSettings& settings)
             selection-background-color: #6577F3;
         }
 
-        /* Shared stepper chrome, also used by Qt's QColorDialog spin boxes. */
+        /* Shared stepper chrome, including color-picker numeric fields. */
         QSpinBox, QDoubleSpinBox { padding-right: 23px; }
         QSpinBox::up-button, QSpinBox::down-button,
         QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
@@ -850,6 +846,9 @@ void applyEditorTheme(QApplication& application, const ThemeSettings& settings)
             background: #151820; border-bottom: 2px solid transparent; }
         QTabBar::tab:selected { color: #E8EAF0; border-bottom-color: #6577F3; background: #171A22; }
         QTabBar::tab:hover { color: #E8EAF0; background: #222733; }
+        QTabBar#WorkspacePanelTabs::tab { padding: 5px 10px; margin-right: 2px; }
+        QTabBar#WorkspacePanelTabs::tab:selected { color: #E8EAF0; border-bottom: 2px solid #6577F3; background: #171A22; }
+        QWidget[workspacePanel="true"][tabbedPanel="true"] { border: 0; border-radius: 0; }
     )QSS");
     static const QRegularExpression colorExpression(QStringLiteral("#[0-9A-Fa-f]{6}"));
     QString resolved;

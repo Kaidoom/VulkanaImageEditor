@@ -6,7 +6,7 @@
 #include "imageeditor/ui/PixelPreview.hpp"
 #include "imageeditor/ui/TextController.hpp"
 #include "imageeditor/ui/WorkspaceDialog.hpp"
-#include <QColorDialog>
+#include "imageeditor/ui/ColorDialog.hpp"
 #include <QListView>
 #include <QScopedValueRollback>
 #include <QStatusBar>
@@ -153,12 +153,11 @@ void MainWindow::chooseEffectColor(core::LayerEffectType type, bool second) {
   const auto c = second ? original.items[std::size_t(type)].secondColor
                         : original.items[std::size_t(type)].color;
   WorkspaceDialog presenter(*workspace_, *this);
-  QColorDialog dialog(QColor(c.red, c.green, c.blue, c.alpha), &presenter);
-  dialog.setOptions(QColorDialog::DontUseNativeDialog |
-                    QColorDialog::ShowAlphaChannel);
-  dialog.setWindowFlags(Qt::Widget);
+  ColorDialog dialog(QColor(c.red, c.green, c.blue, c.alpha), &presenter);
+  dialog.setOptions(ColorDialog::DontUseNativeDialog |
+                    ColorDialog::ShowAlphaChannel);
   dialog.setWindowTitle(tr("Effect color"));
-  connect(&dialog, &QColorDialog::currentColorChanged, this,
+  connect(&dialog, &ColorDialog::currentColorChanged, this,
           [this, target, type, second, original](QColor color) {
             if (!effectEdit_ || effectEdit_->target() != target)
               return;

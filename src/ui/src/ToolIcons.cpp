@@ -309,6 +309,13 @@ QPixmap rasterizedGlyph(ToolGlyph glyph, const QColor& ink, const QSize& size, q
             p.setPen(Qt::NoPen); p.setBrush(soft);
             p.drawEllipse(QPointF(12, 15), ring, ring);
         }
+    } else if (glyph == ToolGlyph::Effects) {
+        QPainterPath f;
+        f.moveTo(5, 22); f.cubicTo(9, 23, 8, 18, 10, 6);
+        f.cubicTo(10.5, 2, 13, 2, 15, 3);
+        p.drawPath(f); p.drawLine(QPointF(6, 10), QPointF(14, 10));
+        p.drawLine(QPointF(15, 12), QPointF(22, 20));
+        p.drawLine(QPointF(22, 12), QPointF(15, 20));
     } else if (glyph == ToolGlyph::AdjustmentLayer) {
         for(int i=0;i<3;++i) {
             const auto x=6+i*6, y=i==1?8:15;

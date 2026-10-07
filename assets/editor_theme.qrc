@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="/theme">
+    <file alias="eyedropper.svg">icons/eyedropper.svg</file>
     <file alias="chevron-up.svg">icons/chevron-up.svg</file>
     <file alias="chevron-up-disabled.svg">icons/chevron-up-disabled.svg</file>
     <file alias="chevron-up-light.svg">icons/chevron-up-light.svg</file>

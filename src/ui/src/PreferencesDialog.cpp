@@ -1,7 +1,7 @@
 #include "imageeditor/ui/PreferencesDialog.hpp"
 #include "imageeditor/ui/ShortcutsPanel.hpp"
 #include "imageeditor/ui/ToolOptionsNumber.hpp"
-#include <QColorDialog>
+#include "imageeditor/ui/ColorDialog.hpp"
 #include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QGridLayout>
@@ -209,14 +209,10 @@ void PreferencesDialog::reject()
 void PreferencesDialog::pickColor(ThemeColor role)
 {
     QWidget* owner = this; while (owner->parentWidget()) owner = owner->parentWidget();
-    QColorDialog picker(draft_.theme.custom[static_cast<std::size_t>(role)], owner);
+    ColorDialog picker(draft_.theme.custom[static_cast<std::size_t>(role)], owner);
     picker.setObjectName(QStringLiteral("ThemeColorDialog"));
     picker.setWindowTitle(tr(themeColorLabel(role)));
-    picker.setOptions(QColorDialog::DontUseNativeDialog);
-    picker.setWindowFlag(Qt::Tool);
-    picker.setWindowModality(Qt::ApplicationModal);
-    (void)owner->winId(); (void)picker.winId();
-    picker.windowHandle()->setTransientParent(owner->windowHandle());
+    picker.setOptions(ColorDialog::DontUseNativeDialog);
     if (picker.exec() != QDialog::Accepted) return;
     auto color = picker.selectedColor(); if (!color.isValid()) return;
     color.setAlpha(255); draft_.theme.custom[static_cast<std::size_t>(role)] = color; refresh(); preview();

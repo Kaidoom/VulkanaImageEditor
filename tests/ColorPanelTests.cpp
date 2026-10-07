@@ -1,13 +1,20 @@
 #include "imageeditor/ui/ColorPanel.hpp"
+#include "imageeditor/ui/SwatchesPanel.hpp"
+#include "imageeditor/ui/ColorPicker.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/UiLayoutConfig.hpp"
 
 #include <QApplication>
-#include <QColorDialog>
+#include "imageeditor/ui/ColorDialog.hpp"
 #include <QListWidget>
+#include <QLineEdit>
+#include <QSpinBox>
+#include <QToolButton>
+#include <QMouseEvent>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QScreen>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QTemporaryDir>
@@ -30,7 +37,7 @@ void settle()
     }
 }
 struct Panel {
-    ui::ColorPanel panel;
+    ui::SwatchesPanel panel;
     QListWidget* defaults = panel.findChild<QListWidget*>("DefaultColorSwatches");
     QListWidget* custom = panel.findChild<QListWidget*>("CustomColorSwatches");
     QPushButton* add = panel.findChild<QPushButton*>("AddCustomSwatch");
@@ -42,7 +49,7 @@ struct Panel {
         settle();
         CHECK(defaults && custom && add && remove);
     }
-    QColorDialog* picker() { return panel.findChild<QColorDialog*>("CustomSwatchColorDialog"); }
+    imageeditor::ui::ColorDialog* picker() { return panel.findChild<imageeditor::ui::ColorDialog*>("CustomSwatchColorDialog"); }
     void click(QListWidget* grid, int row)
     {
         auto* scroll = panel.findChild<QScrollArea*>();
@@ -62,7 +69,8 @@ struct Panel {
         auto* dialog = picker();
         CHECK(dialog);
         if (!dialog) return;
-        CHECK(dialog->windowHandle()->transientParent() == panel.windowHandle());
+        CHECK(!dialog->isWindow() && !dialog->windowHandle());
+        CHECK(dialog->minimumSize() == dialog->maximumSize());
         dialog->setCurrentColor(color);
         dialog->accept();
         settle();
@@ -184,10 +192,137 @@ void gridsReflowAndShortPanelsScroll()
         CHECK(p.panel.grab().save(path));
     p.panel.resize(340,40);settle();
     CHECK(p.panel.height()==40);
-    CHECK(p.panel.findChild<QWidget*>("ColorPanelColors")->height()==46);
+    CHECK(!p.panel.findChild<QWidget*>("ColorPanelColors"));
     CHECK(p.panel.findChild<QScrollArea*>()->verticalScrollBar()->maximum()>0);
     CHECK(ui::UiLayoutConfig{}.color.minimum==120);
     CHECK(ui::UiLayoutConfig{}.color.maximum==QWIDGETSIZE_MAX);
+    CHECK(ui::UiLayoutConfig{}.swatches.minimum==120);
+}
+void colorPickerAndPanel()
+{
+    ui::ColorPanel panel;
+    panel.resize(360, 490); panel.show(); settle();
+    CHECK(!panel.findChild<QListWidget*>());
+    auto* picker = dynamic_cast<ui::ColorPicker*>(panel.findChild<QWidget*>("ColorPicker"));
+    CHECK(picker);
+    if (!picker) return;
+    int changes = 0;
+    panel.onColorsChanged = [&](auto) { ++changes; };
+    const core::EditorColors colors {{10, 20, 30, 255}, {30, 140, 200, 91}, core::ColorSlot::Secondary};
+    panel.setColors(colors);
+    CHECK(changes == 0 && picker->color().rgba() == QColor(30, 140, 200, 91).rgba());
+    CHECK(picker->findChild<QWidget*>("ColorManualInputs")->isHidden());
+    for (auto* spin : picker->findChildren<QSpinBox*>()) CHECK(!spin->isVisible());
+    CHECK(!picker->findChild<QLineEdit*>("ColorHex")->isVisible());
+    auto* field = picker->findChild<QWidget*>("ColorSaturationValue");
+    QTest::mouseClick(field, Qt::LeftButton, {}, {5, 5});
+    CHECK(changes == 1 && panel.colors().primary == colors.primary);
+    CHECK(panel.colors().secondary == core::Rgba8(255, 255, 255, 91));
+    panel.findChild<QToolButton*>("PanelSwapColors")->click();
+    CHECK(panel.colors().active == core::ColorSlot::Primary);
+    CHECK(picker->color().rgba() == QColor(10, 20, 30).rgba());
+    auto* plane = picker->findChild<QWidget*>("ColorSaturationValue");
+    auto* hue = picker->findChild<QWidget*>("ColorHueStrip");
+    auto* scroll = panel.findChild<QScrollArea*>(); scroll->ensureWidgetVisible(plane); settle();
+    panel.setForegroundColor({0, 0, 255, 91});
+    // Full saturation/brightness preserves the chosen hue and independent alpha.
+    QTest::mouseClick(plane, Qt::LeftButton, {}, {plane->width() - 5, 5});
+    CHECK(panel.foregroundColor() == core::Rgba8(0, 0, 255, 91));
+    QTest::mouseClick(plane, Qt::LeftButton, {}, {5, 5});
+    CHECK(panel.foregroundColor() == core::Rgba8(255, 255, 255, 91));
+    const auto white = panel.foregroundColor();
+    QTest::mousePress(plane, Qt::LeftButton, {}, plane->rect().center());
+    CHECK(panel.foregroundColor() != white);
+    QTest::keyClick(plane, Qt::Key_Escape);
+    CHECK(panel.foregroundColor() == white);
+    QTest::mouseRelease(plane, Qt::LeftButton, {}, plane->rect().center());
+    CHECK(panel.foregroundColor() == white);
+    QTest::mousePress(plane, Qt::LeftButton, {}, {plane->width() - 5, plane->height() - 5});
+    QEvent cancel(QEvent::TouchCancel); QApplication::sendEvent(plane, &cancel);
+    QTest::mouseRelease(plane, Qt::LeftButton);
+    CHECK(panel.foregroundColor() == white);
+    panel.setForegroundColor({0, 0, 0, 91});
+    QTest::mouseClick(hue, Qt::LeftButton, {}, {hue->width() / 2, 5 + (hue->height() - 10) / 3});
+    CHECK(panel.foregroundColor() == core::Rgba8(0, 0, 0, 91));
+    QTest::mouseClick(plane, Qt::LeftButton, {}, {plane->width() - 5, 5});
+    CHECK(panel.foregroundColor().blue == 255 && panel.foregroundColor().red < 10 && panel.foregroundColor().green < 10);
+    panel.setForegroundColor({38, 137, 180, 255});
+    scroll->verticalScrollBar()->setValue(0); settle();
+    if (const auto path = qEnvironmentVariable("IMAGEEDITOR_COLOR_PANEL_REVIEW"); !path.isEmpty()) CHECK(panel.grab().save(path));
+    panel.resize(228, 120); settle();
+    CHECK(panel.width() == 228 && panel.height() == 120);
+    CHECK(scroll->verticalScrollBar()->maximum() > 0);
+}
+void modernDialogContract()
+{
+    ui::ColorDialog dialog(QColor(10, 20, 30, 91));
+    dialog.setOptions(ui::ColorDialog::ShowAlphaChannel | ui::ColorDialog::DontUseNativeDialog);
+    dialog.show(); settle();
+    CHECK(dialog.currentColor() == QColor(10, 20, 30, 91));
+    CHECK(!dialog.findChild<QListWidget*>());
+    auto* button = dialog.findChild<QPushButton*>("PickScreenColor");
+    CHECK(button);
+    CHECK(button->text().isEmpty());
+    CHECK(!button->icon().isNull());
+    CHECK(button->width() == 30 && button->height() == 28);
+    CHECK(dialog.findChild<QWidget*>("ColorSaturationValue") && dialog.findChild<QWidget*>("ColorHueStrip"));
+    CHECK(dialog.minimumSize() == dialog.maximumSize());
+    CHECK(dialog.findChild<QWidget*>("ColorManualInputs")->isVisible());
+    const auto fixed = dialog.size(); dialog.resize(900, 900); CHECK(dialog.size() == fixed);
+    auto* hex = dialog.findChild<QLineEdit*>("ColorHex");
+    hex->setFocus(); hex->setText("#1234567B");
+    QMetaObject::invokeMethod(hex, "editingFinished");
+    CHECK(dialog.currentColor() == QColor(0x12, 0x34, 0x56, 0x7B));
+    hex->setText("#badvalue"); QMetaObject::invokeMethod(hex, "editingFinished");
+    CHECK(hex->text() == "#1234567B");
+    int changed = 0, selected = 0;
+    QObject::connect(&dialog, &ui::ColorDialog::currentColorChanged, [&] { ++changed; });
+    QObject::connect(&dialog, &ui::ColorDialog::colorSelected, [&](QColor c) { ++selected; CHECK(c == QColor(90, 80, 70, 60)); });
+    dialog.setCurrentColor(QColor(90, 80, 70, 60));
+    CHECK(changed == 1 && selected == 0);
+    dialog.reject(); CHECK(!dialog.selectedColor().isValid() && selected == 0);
+    dialog.show(); settle(); dialog.accept();
+    CHECK(selected == 1 && dialog.selectedColor() == QColor(90, 80, 70, 60));
+    ui::ColorDialog opaque(QColor(10, 20, 30, 91));
+    CHECK(opaque.currentColor().alpha() == 255);
+    opaque.setCurrentColor(QColor(90, 80, 70, 60)); CHECK(opaque.currentColor().alpha() == 255);
+}
+void nativeScreenPick()
+{
+    CHECK(QGuiApplication::platformName() == "xcb");
+    if (QGuiApplication::platformName() != "xcb") return;
+    if (qEnvironmentVariable("XDG_SESSION_TYPE") == "wayland") {
+        std::cout << "Direct screen capture requires an X11 session; XWayland uses the desktop portal.\n";
+        return;
+    }
+    QWidget sample;
+    sample.setStyleSheet("background-color: #3478C1;");
+    sample.setGeometry(50, 50, 140, 140); sample.show();
+    ui::ColorDialog dialog(QColor(10, 20, 30, 91));
+    dialog.setOption(ui::ColorDialog::ShowAlphaChannel);
+    dialog.move(400, 80); dialog.show();
+    QTest::qWait(250);
+    auto* button = dialog.findChild<QPushButton*>("PickScreenColor");
+    CHECK(button && button->isEnabled());
+    button->click(); settle();
+    CHECK(!button->isEnabled() && QWidget::mouseGrabber() == &dialog);
+    const QPointF global = sample.mapToGlobal(sample.rect().center());
+    const auto local = dialog.mapFromGlobal(global);
+    QMouseEvent release(QEvent::MouseButtonRelease, local, local, global, Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(&dialog, &release); settle();
+    if (dialog.currentColor() != QColor(0x34, 0x78, 0xC1, 91))
+        std::cerr << "Screen sample=" << dialog.currentColor().name(QColor::HexArgb).toStdString()
+                  << "; expected widget=" << sample.grab().toImage().pixelColor(70, 70).name().toStdString()
+                  << "; global=" << global.x() << ',' << global.y()
+                  << "; dialog=" << dialog.x() << ',' << dialog.y() << '\n';
+    CHECK(dialog.currentColor() == QColor(0x34, 0x78, 0xC1, 91));
+    CHECK(button->isEnabled() && !QWidget::mouseGrabber() && !QWidget::keyboardGrabber());
+    button->click(); QTest::keyClick(&dialog, Qt::Key_Escape); settle();
+    CHECK(dialog.isVisible() && button->isEnabled());
+    CHECK(dialog.currentColor() == QColor(0x34, 0x78, 0xC1, 91));
+    button->click(); dialog.reject(); settle();
+    CHECK(!QWidget::mouseGrabber() && !QWidget::keyboardGrabber());
+    dialog.show(); settle(); CHECK(button->isEnabled()); dialog.close();
 }
 } // namespace
 int main(int argc,char** argv)
@@ -200,7 +335,13 @@ int main(int argc,char** argv)
     QSettings::setDefaultFormat(QSettings::IniFormat);
     QSettings::setPath(QSettings::IniFormat,QSettings::UserScope,settings.path());
     ui::applyEditorTheme(app);
+    if (app.arguments().contains("--screen-pick-native")) {
+        nativeScreenPick();
+        if (!failures) std::cout << "Native XCB screen picker: sample, alpha, Escape and close/reopen passed\n";
+        return failures ? 1 : 0;
+    }
     defaultsAndWorkingColors();customLifecycle();gridsReflowAndShortPanelsScroll();
+    colorPickerAndPanel();modernDialogContract();
     if(!failures)std::cout<<"Color panel: responsive grids, working colors, custom picker/persistence passed\n";
     return failures?1:0;
 }
