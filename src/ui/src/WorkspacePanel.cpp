@@ -322,6 +322,11 @@ void WorkspacePanel::setTitle(const QString& title)
     titleBar_->update();
 }
 
+int WorkspacePanel::headerExtent() const noexcept
+{
+    return layout()->contentsMargins().top() + titleBar_->height();
+}
+
 void WorkspacePanel::setTabbedPresentation(bool tabbed)
 {
     tabbedPresentation_ = tabbed;

@@ -9,6 +9,7 @@
 
 #include <QApplication>
 #include <QCoreApplication>
+#include <QEventLoop>
 #include <QFocusEvent>
 #include <QLabel>
 #include <QLayout>
@@ -20,6 +21,7 @@
 #include <QSplitter>
 #include <QTabBar>
 #include <QToolBar>
+#include <QTimer>
 #include <QWheelEvent>
 #include <QWidget>
 #include <QWindow>
@@ -690,6 +692,15 @@ void tabbedPanelsRetainControlsAndMoveIndependently()
         CHECK(router.captureOwner() == widget);
         // Move/release arrives through the native canvas, not the tab's plane.
         send(canvas, QEvent::MouseMove, target);
+        auto* headerFrame = dynamic_cast<WorkspacePanel*>(widget->parentWidget());
+        if (qobject_cast<QTabBar*>(widget) || (headerFrame && !headerFrame->hasFloatingPresentation())) {
+            auto* proxy = workspace.panelOverlay()->findChild<QWidget*>("WorkspacePanelDragProxy");
+            CHECK(proxy && proxy->isVisible());
+            CHECK(proxy && proxy->width() <= 200 && proxy->height() <= 40);
+            CHECK(proxy && proxy->testAttribute(Qt::WA_TransparentForMouseEvents));
+            const auto prefix = qEnvironmentVariable("VULKANA_PANEL_TEST_CAPTURE");
+            if (proxy && !prefix.isEmpty()) CHECK(proxy->grab().save(prefix + "-tab-chip.png"));
+        }
         if (!kind.isEmpty()) {
             CHECK(!workspace.panelDropIndicator()->isHidden());
             CHECK(workspace.panelDropIndicator()->property("dropKind").toString() == kind);
@@ -813,6 +824,146 @@ void internallyFloatingPanelsCloseWithTheirWorkspace()
     }
     CHECK(guardedPanel.isNull());
     CHECK(QWidget::mouseGrabber() == nullptr);
+}
+
+void floatingPanelsParkByHeaderAndDockAtBottom()
+{
+    using Side = OverlayDockWorkspace::PanelDockSide;
+    using Placement = OverlayDockWorkspace::PanelPlacement;
+    auto* canvas = new imageeditor::render::CanvasWindow;
+    OverlayDockWorkspace workspace(canvas);
+    auto* first = makePanel("First");
+    auto* second = makePanel("Second");
+    auto* panel = makePanel("Floating");
+    for (auto* p : {first, second, panel}) workspace.addPanel(p);
+    workspace.resize(1200, 720); workspace.show(); settleLayout();
+    workspace.floatPanel(panel, {340, 100, 320, 420}); settleLayout();
+    auto* plane = workspace.panelOverlay()->windowHandle();
+    auto* header = panel->findChild<QWidget*>("WorkspacePanelTitleBar");
+    const auto original = panel->geometry();
+    const auto canvasGeometry = workspace.canvasContainer()->geometry();
+    imageeditor::ui::CrossWindowPointerRouter router(&workspace, canvas, workspace.canvasContainer());
+    const auto send = [](QWindow* window, QEvent::Type type, QPoint global) {
+        const auto local = QPointF(window->mapFromGlobal(global));
+        QMouseEvent event(type, local, local, QPointF(global),
+            type == QEvent::MouseMove ? Qt::NoButton : Qt::LeftButton,
+            type == QEvent::MouseButtonRelease ? Qt::NoButton : Qt::LeftButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(window, &event);
+    };
+    const auto begin = [&] {
+        send(plane, QEvent::MouseButtonPress, header->mapToGlobal(header->rect().center()));
+        CHECK(router.captureOwner() == header);
+    };
+    const auto checkParked = [&](bool atBottom = true) {
+        const int limit = workspace.height() - 10 - panel->headerExtent();
+        CHECK(panel->y() <= limit);
+        if (atBottom) CHECK(panel->y() == limit);
+        CHECK(panel->geometry().bottom() > workspace.height());
+        CHECK(workspace.rect().contains(QRect(header->mapTo(workspace.panelOverlay(), QPoint{}), header->size())));
+        CHECK(plane->mask().subtracted(QRegion(workspace.rect())).isEmpty());
+    };
+    const auto low = workspace.panelOverlay()->mapToGlobal(QPoint{500, workspace.height() + 200});
+    begin(); send(canvas, QEvent::MouseMove, low); settleLayout(); checkParked();
+    CHECK(panel->size() == original.size());
+    QEvent cancel(QEvent::TouchCancel); QCoreApplication::sendEvent(header, &cancel);
+    send(canvas, QEvent::MouseButtonRelease, low); settleLayout();
+    CHECK(panel->geometry() == original);
+
+    begin(); send(canvas, QEvent::MouseMove, low); send(canvas, QEvent::MouseButtonRelease, low);
+    settleLayout(); checkParked();
+    CHECK(workspace.panelPlacement(panel) == Placement::Floating);
+    // A resize keeps the header reachable; it does not bottom-anchor a panel
+    // when the window manager subsequently gives the workspace more room.
+    workspace.resize(1200, 640); settleLayout(); checkParked(false);
+    const auto parked = workspace.floatingPanelGeometry(panel);
+    workspace.floatPanel(panel, parked); settleLayout(); // Saved geometry remains reachable.
+    checkParked(false);
+    begin();
+    const auto up = workspace.panelOverlay()->mapToGlobal(QPoint{500, 160});
+    send(canvas, QEvent::MouseMove, up); send(canvas, QEvent::MouseButtonRelease, up); settleLayout();
+    CHECK(panel->geometry().bottom() < workspace.height());
+
+    begin();
+    const auto bottom = workspace.rightPanelCard()->mapToGlobal(QPoint{workspace.rightPanelCard()->width()/2,
+        workspace.rightPanelCard()->height()-5});
+    send(canvas, QEvent::MouseMove, bottom);
+    CHECK(!workspace.panelDropIndicator()->isHidden());
+    send(canvas, QEvent::MouseButtonRelease, bottom); settleLayout();
+    CHECK(workspace.panelPlacement(panel) == Placement::DockedRight);
+    CHECK(workspace.dockedPanelIndex(panel) == 2);
+    CHECK(workspace.panelTabs(panel).size() == 1);
+    CHECK(router.captureDomain() == imageeditor::ui::CrossWindowPointerRouter::CaptureDomain::None);
+    CHECK(!canvas->pointerGestureActive());
+    CHECK(workspace.canvasContainer()->geometry().size() == workspace.size());
+    CHECK(workspace.canvasContainer()->geometry().topLeft() == canvasGeometry.topLeft());
+    CHECK(workspace.panelOverlay()->windowHandle() == plane);
+
+    // The header limit also applies to complete tab groups.
+    workspace.tabifyPanel(second, first);
+    workspace.floatPanel(first, {340, 10000, 320, 420}); settleLayout();
+    auto* group = workspace.panelFrame(first);
+    CHECK(group->y() == workspace.height()-10-group->headerExtent());
+    CHECK(workspace.panelTabs(first).size() == 2);
+    workspace.dockPanel(first, Side::Right); settleLayout();
+    CHECK(workspace.panelTabs(first).size() == 2);
+}
+
+void dockTargetsUseProportionalThirds()
+{
+    using Side = OverlayDockWorkspace::PanelDockSide;
+    for (const bool grouped : {false, true}) {
+        auto* canvas = new imageeditor::render::CanvasWindow;
+        OverlayDockWorkspace workspace(canvas);
+        auto* source = makePanel("Source");
+        auto* target = makePanel("Target");
+        workspace.addPanel(source, Side::Left);
+        workspace.addPanel(target, Side::Right);
+        if (grouped) {
+            auto* other = makePanel("Other");
+            workspace.addPanel(other, Side::Right);
+            workspace.tabifyPanel(other, target);
+        }
+        workspace.show();
+        for (const int height : {440, 1000}) {
+            workspace.resize(1200, height); settleLayout();
+            // Native window managers acknowledge geometry asynchronously. Drain
+            // those configure events before recording drag coordinates.
+            if (QApplication::platformName() != "offscreen") {
+                QEventLoop configured;
+                QTimer::singleShot(80, &configured, &QEventLoop::quit);
+                configured.exec(); settleLayout();
+            }
+            auto* frame = workspace.panelFrame(target);
+            auto* header = source->findChild<QWidget*>("WorkspacePanelTitleBar");
+            const auto press = header->mapToGlobal(header->rect().center());
+            const auto offset = source->mapFromGlobal(press);
+            const auto sourceGeometry = source->geometry();
+            for (const auto fraction : {0.30, 0.40, 0.50, 0.60, 0.70}) {
+                const auto point = frame->mapToGlobal(QPoint(frame->width()/2, int(frame->height()*fraction)));
+                source->onDragStarted(source, press, offset);
+                source->onDragMoved(source, point);
+                auto* proxy = workspace.panelOverlay()->findChild<QWidget*>("WorkspacePanelDragProxy");
+                CHECK(proxy && proxy->isVisible() && proxy->width() <= 200 && proxy->height() <= 40);
+                const auto* indicator = workspace.panelDropIndicator();
+                CHECK(indicator->isVisible());
+                CHECK(indicator->property("dropKind").toString()
+                    == (fraction > 1.0/3.0 && fraction < 2.0/3.0 ? "new-tab" : "dock"));
+                CHECK(source->geometry() == sourceGeometry);
+                source->onDragFinished(source, point, true); settleLayout();
+                CHECK(workspace.panelTabs(target).size() == (grouped ? 2u : 1u));
+                CHECK(workspace.panelPlacement(source) == OverlayDockWorkspace::PanelPlacement::DockedLeft);
+            }
+            // The lower third must also commit as a separate panel, not a tab.
+            const auto point = frame->mapToGlobal(QPoint(frame->width()/2, frame->height()*7/10));
+            source->onDragStarted(source, press, offset);
+            source->onDragMoved(source, point);
+            source->onDragFinished(source, point, false); settleLayout();
+            CHECK(workspace.dockedPanelIndex(source) == 1);
+            CHECK(workspace.panelTabs(source).size() == 1);
+            CHECK(workspace.panelTabs(target).size() == (grouped ? 2u : 1u));
+            workspace.dockPanel(source, Side::Left); settleLayout();
+        }
+    }
 }
 
 void dockedFramesUseSquareCorners()
@@ -1201,6 +1352,15 @@ int main(int argc, char* argv[])
     QApplication application(argc, argv);
     imageeditor::ui::applyEditorTheme(application);
 
+    if (application.arguments().contains("--panel-drag-only")) {
+        tabbedPanelsRetainControlsAndMoveIndependently();
+        floatingPanelsParkByHeaderAndDockAtBottom();
+        dockTargetsUseProportionalThirds();
+        std::cout << "Panel dragging: " << (failures ? "FAILED" : "passed")
+                  << "; platform=" << application.platformName().toStdString() << '\n';
+        return failures ? EXIT_FAILURE : EXIT_SUCCESS;
+    }
+
     if (application.arguments().contains("--panel-corners-only")) {
         dockedFramesUseSquareCorners();
         return failures ? EXIT_FAILURE : EXIT_SUCCESS;
@@ -1223,6 +1383,8 @@ int main(int argc, char* argv[])
     threePanelOrderAndSharedSizingAreStable();
     workspaceMinimumContainsNativeChildren();
     internallyFloatingPanelsCloseWithTheirWorkspace();
+    floatingPanelsParkByHeaderAndDockAtBottom();
+    dockTargetsUseProportionalThirds();
     panelResizeHandleTracksGlobalPointer();
     rapidPanelWidthsCoalesceBackingStorePaints();
     rulersFollowOccupiedWorkspaceChromeWithoutChangingTheCanvas();

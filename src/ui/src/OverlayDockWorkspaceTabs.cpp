@@ -280,7 +280,8 @@ OverlayDockWorkspace::TabDrop OverlayDockWorkspace::tabDropAt(QPoint position) c
     candidates.insert(candidates.end(), rightPanels_.begin(), rightPanels_.end());
     for (auto* frame : candidates) {
         if ((frame == draggedPanel_ && !draggedTab_) || !panelRequestedVisible(frame)) continue;
-        const QRect area(frame->mapTo(panelOverlay_, QPoint{}), frame->size());
+        const QRect area = QRect(frame->mapTo(panelOverlay_, QPoint{}), frame->size())
+            .intersected(panelOverlay_->rect());
         if (!area.contains(position)) continue;
         if (const auto* group = tabGroup(frame)) {
             const auto local = group->tabs->mapFrom(panelOverlay_, position);
@@ -296,7 +297,9 @@ OverlayDockWorkspace::TabDrop OverlayDockWorkspace::tabDropAt(QPoint position) c
                 return {frame, index, std::clamp(line, 2, std::max(2, tabArea.width() - 3)), tabArea};
             }
         }
-        const int edge = std::clamp(area.height() / 4, 28, 64);
+        // Proportional thirds keep between-panel docking reachable on tall
+        // panels too. Direct tab-strip insertion remains the explicit override.
+        const int edge = area.height() / 3;
         if (position.y() >= area.top() + edge && position.y() <= area.bottom() - edge)
             return {frame, -1, -1, area};
         // A topmost floating panel occludes any panel behind it.

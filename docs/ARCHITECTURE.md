@@ -90,8 +90,10 @@ must not copy all pixels, reload a project, replay history or recreate the canva
 Programmatic panel updates are guarded against emitting edits.
 
 Workspace panels can share a tabbed frame. A middle drop joins the target frame;
-top/bottom drops retain vertical docking, and tab-strip gaps set tab order. The
+top/bottom thirds retain vertical docking, and tab-strip gaps set tab order. The
 header moves the whole frame; dragging a tab moves only its original panel.
+Tab and docked-panel drags use a compact title chip beside the pointer. Floating
+panels can be parked below the workspace while their full header stays reachable.
 Ownership changes after pointer release, retaining controls and the native canvas.
 Requested visibility is separate from the active tab. Group membership, active
 tabs and floating geometry live in UI settings (`window/panel-tabs-v1`), not projects;

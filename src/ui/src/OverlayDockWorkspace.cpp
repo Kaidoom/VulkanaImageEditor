@@ -10,6 +10,7 @@
 #include <QDebug>
 #include <QEnterEvent>
 #include <QEvent>
+#include <QFontMetrics>
 #include <QHBoxLayout>
 #include <QHideEvent>
 #include <QLayout>
@@ -134,6 +135,15 @@ public:
         update();
     }
 
+    QSize sizeHint() const override
+    {
+        QFont titleFont = font();
+        titleFont.setWeight(QFont::DemiBold);
+        const QFontMetrics metrics(titleFont);
+        return {std::clamp(metrics.horizontalAdvance(title_) + 52, 96, 200),
+            std::max(32, metrics.height() + 12)};
+    }
+
 protected:
     void paintEvent(QPaintEvent* event) override
     {
@@ -147,8 +157,9 @@ protected:
         proxyFont.setWeight(QFont::DemiBold);
         painter.setFont(proxyFont);
         painter.setPen(palette().color(QPalette::Text));
-        painter.drawText(rect().adjusted(13, 0, -36, 0),
-            Qt::AlignLeft | Qt::AlignVCenter, title_);
+        const auto textRect = rect().adjusted(13, 0, -36, 0);
+        painter.drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter,
+            painter.fontMetrics().elidedText(title_, Qt::ElideRight, textRect.width()));
         painter.setPen(Qt::NoPen);
         painter.setBrush(palette().color(QPalette::Highlight));
         const QPoint center(width() - 20, height() / 2);
@@ -1018,8 +1029,11 @@ QRect OverlayDockWorkspace::clampFloatingGeometry(
         requested.height(), minimumHeight, maximumHeight);
     const int maximumX = std::max(kPanelInset,
         available.width() - kPanelInset - panelWidth);
+    // The body may extend below the workspace, but the complete header remains
+    // available to pull it back up or dock it below another panel.
+    const int visibleHeader = std::min(panelHeight, panel ? panel->headerExtent() : 42);
     const int maximumY = std::max(kPanelInset,
-        available.height() - kPanelInset - panelHeight);
+        available.height() - kPanelInset - visibleHeader);
     return {
         std::clamp(requested.x(), kPanelInset, maximumX),
         std::clamp(requested.y(), kPanelInset, maximumY),
@@ -1053,10 +1067,9 @@ void OverlayDockWorkspace::beginPanelDrag(
     if (dragOrigin_ != PanelPlacement::Floating || draggedTab_) {
         auto* proxy = static_cast<PanelDragProxy*>(panelDragProxy_);
         proxy->setTitle(draggedTab_ ? draggedTab_->title() : panel->title());
-        const int proxyWidth = std::clamp(panel->width(), 190, 320);
         proxy->setGeometry(QRect(
             panelOverlay_->mapFromGlobal(panel->mapToGlobal(QPoint {})),
-            QSize {proxyWidth, 56}));
+            proxy->sizeHint()));
         proxy->show();
         proxy->raise();
     } else {
@@ -1079,12 +1092,10 @@ void OverlayDockWorkspace::movePanelDrag(
         panel->setGeometry(clampFloatingGeometry(panel, moved));
         panel->raise();
     } else {
-        const QPoint proxyOffset {
-            std::clamp(dragOffset_.x(), 16, panelDragProxy_->width() - 16),
-            std::clamp(dragOffset_.y(), 8, panelDragProxy_->height() - 8),
-        };
+        // Keep the drag chip beside the pointer so it does not cover the exact
+        // insertion gap or middle-drop target the user is aiming at.
         previous = panelDragProxy_->geometry();
-        QRect moved(overlayPosition - proxyOffset, panelDragProxy_->size());
+        QRect moved(overlayPosition + QPoint(12, 12), panelDragProxy_->size());
         const int maximumX = std::max(kPanelInset,
             panelOverlay_->width() - kPanelInset - moved.width());
         const int maximumY = std::max(kPanelInset,
@@ -1685,7 +1696,7 @@ QRegion OverlayDockWorkspace::calculateInteractionFootprint() const
         footprint |= QRect(toolRail_->mapTo(panelOverlay_, QPoint {}),
             toolRail_->size());
     }
-    return footprint;
+    return footprint.intersected(rect());
 }
 
 void OverlayDockWorkspace::updatePanelGeometry()

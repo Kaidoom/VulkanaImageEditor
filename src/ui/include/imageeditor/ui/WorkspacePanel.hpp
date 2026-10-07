@@ -20,6 +20,8 @@ public:
     void setTabbedPresentation(bool tabbed);
     [[nodiscard]] QWidget* contentWidget() const noexcept { return content_; }
     [[nodiscard]] QWidget* resizeGrip() const noexcept { return resizeGrip_; }
+    // Top inset plus the draggable header, kept reachable when parked low.
+    [[nodiscard]] int headerExtent() const noexcept;
     [[nodiscard]] bool hasFloatingPresentation() const noexcept
     {
         return floatingPresentation_;
