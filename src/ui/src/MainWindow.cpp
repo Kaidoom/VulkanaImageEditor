@@ -3550,9 +3550,12 @@ void MainWindow::runIntegrationSmokeTest()
             QRect {780, 300, 360, 420});
     });
     QTimer::singleShot(850, this, [this] {
-        smokeCheck(propertiesPanelShell_->parentWidget()
+        smokeCheck(workspace_->panelFrame(propertiesPanelShell_)->parentWidget()
                 == workspace_->panelOverlay(),
             QStringLiteral("Floating panel is not owned by the overlay"));
+        // A floating frame may contain several tabs; explicitly reveal the
+        // Properties page before checking its content visibility below.
+        workspace_->activatePanel(propertiesPanelShell_);
     });
     QTimer::singleShot(940, this, [this, checkPanelIsolation] {
         checkPanelIsolation(QStringLiteral("all panels floating"));
