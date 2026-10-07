@@ -142,8 +142,8 @@ public:
     void showStartupDocument();
     // Called once for the launch's primary window; extra document windows do
     // not start more requests. Transport injection keeps startup tests offline.
-    void startStartupFlow(bool showNewDocument, bool forceUpdateCheck = false,
-        QNetworkAccessManager* transport = nullptr);
+    void startStartupFlow(bool showNewDocument, QNetworkAccessManager* transport = nullptr,
+        bool testUpdate = false);
     void logRendererDiagnostics() const;
     void runIntegrationSmokeTest();
     [[nodiscard]] bool integrationSmokePassed() const noexcept;

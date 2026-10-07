@@ -3,18 +3,6 @@ const auto startupTimeKey = QStringLiteral("updates/lastStartupAttemptUtcSeconds
 
 void startupPolicyTests()
 {
-    constexpr qint64 now = 2'000'000'000, day = 86400;
-    CHECK(u::UpdateService::startupCheckDue(now, {}));
-    CHECK(u::UpdateService::startupCheckDue(now, 0));
-    CHECK(u::UpdateService::startupCheckDue(now, -1));
-    CHECK(!u::UpdateService::startupCheckDue(now, now));
-    CHECK(!u::UpdateService::startupCheckDue(now, now - day + 1));
-    CHECK(u::UpdateService::startupCheckDue(now, now - day));
-    CHECK(u::UpdateService::startupCheckDue(now, now + 1));
-    CHECK(u::UpdateService::startupCheckDue(now, now, true));
-    CHECK(u::UpdateService::startupCheckDue(std::numeric_limits<qint64>::min(), now));
-    CHECK(u::UpdateService::startupCheckDue(std::numeric_limits<qint64>::max(), 1));
-
     Network network;
     network.responses.push_back({{}, 200, QNetworkReply::NoError, true});
     u::UpdateService service("0.2.1", nullptr, &network);
@@ -35,6 +23,7 @@ void startupPresentationTests()
 {
     for (const bool fresh : {false, true}) for (const bool viewUpdate : {false, true}) {
         QSettings().setValue(startupTimeKey, QDateTime::currentSecsSinceEpoch());
+        const auto savedTimestamp = QSettings().value(startupTimeKey);
         Network network;
         network.responses.push_back({packageManifest("9.9.9")});
         u::MainWindow window(nullptr, false);
@@ -79,8 +68,8 @@ void startupPresentationTests()
         });
         responder.start(5);
         QTimer::singleShot(5000, &window, [&] { if (!completed) { CHECK(false); window.close(); } });
-        window.startStartupFlow(fresh, true, &network);
-        window.startStartupFlow(fresh, true, &network); // Idempotent per launch window.
+        window.startStartupFlow(fresh, &network);
+        window.startStartupFlow(fresh, &network); // Idempotent per launch window.
         CHECK(waitFor([&] { return completed; }, 6000));
         QTest::qWait(30);
         CHECK(notices == 1 && about == int(viewUpdate));
@@ -89,7 +78,7 @@ void startupPresentationTests()
         if (fresh) CHECK(!window.editorSession().document() && window.documentCount() == 0);
         else CHECK(window.editorSession().document()->contentState() == content);
         CHECK(window.editorSession().history().undoDepth() == depth);
-        CHECK(QSettings().value(startupTimeKey).toLongLong() <= QDateTime::currentSecsSinceEpoch());
+        CHECK(QSettings().value(startupTimeKey) == savedTimestamp);
         window.close();
     }
 }
@@ -102,11 +91,12 @@ void startupSilentTests()
         settings.remove(startupTimeKey);
         if (scenario == "cached") settings.setValue(startupTimeKey, QDateTime::currentSecsSinceEpoch());
         if (scenario == "rollback") settings.setValue(startupTimeKey, QDateTime::currentSecsSinceEpoch() + 86400);
+        const auto savedTimestamp = settings.value(startupTimeKey);
         Network network;
         if (scenario == "failure") network.responses.push_back({{}, 503});
         else if (scenario == "invalid") network.responses.push_back({"invalid JSON"});
         else if (scenario == "timeout") network.responses.push_back({{}, 200, QNetworkReply::NoError, true});
-        else if (scenario != "cached") network.responses.push_back({packageManifest(QCoreApplication::applicationVersion())});
+        else network.responses.push_back({packageManifest(QCoreApplication::applicationVersion())});
         u::MainWindow window(nullptr, false);
         window.setUnsavedPromptEnabled(false); window.show();
         bool completed = false;
@@ -122,10 +112,10 @@ void startupSilentTests()
         responder.start(10);
         QTimer::singleShot(5000, &window, [&] { if (!completed) { CHECK(false); window.close(); } });
         QElapsedTimer elapsed; elapsed.start();
-        window.startStartupFlow(true, false, &network);
+        window.startStartupFlow(true, &network);
         CHECK(waitFor([&] { return completed; }, 6000));
-        CHECK(network.requests.size() == (scenario == "cached" ? 0 : 1));
-        CHECK(QSettings().value(startupTimeKey).toLongLong() <= QDateTime::currentSecsSinceEpoch());
+        CHECK(network.requests.size() == 1);
+        CHECK(QSettings().value(startupTimeKey) == savedTimestamp);
         if (scenario == "timeout") {
             CHECK(ticks > 20); // The event loop remains responsive while waiting.
             CHECK(elapsed.elapsed() < 4000);
@@ -142,7 +132,7 @@ void startupCloseTests()
         network.responses.push_back({{}, 200, QNetworkReply::NoError, true});
         u::MainWindow window(nullptr, false);
         window.setUnsavedPromptEnabled(false); window.show();
-        window.startStartupFlow(true, true, &network);
+        window.startStartupFlow(true, &network);
         CHECK(network.last && !network.last->isFinished());
         window.close();
         CHECK(!network.last || network.last->isFinished());
@@ -157,7 +147,7 @@ void startupCloseTests()
         network.responses.push_back({{}, 200, QNetworkReply::NoError, true});
         u::MainWindow window(nullptr, false);
         window.setUnsavedPromptEnabled(false); window.show();
-        window.startStartupFlow(true, true, &network);
+        window.startStartupFlow(true, &network);
         bool sawAbout = false;
         QTimer::singleShot(10, &window, [&] {
             auto* about = window.findChild<QDialog*>("AboutVulkanaDialog");
@@ -192,5 +182,55 @@ void startupCloseTests()
         u::AboutDialog about(&owner, nullptr, u::UpdatePackage::AppImage, {}, &service);
         CHECK(about.findChild<QPushButton*>("AboutCheckUpdate")->text() == "Update AppImage");
         CHECK(network.requests.size() == 1);
+    }
+}
+
+void startupSimulationTests()
+{
+    for (const bool configured : {false, true}) for (const bool view : {false, true}) {
+        TestServiceConfig config;
+        if (!configured) CHECK(QFile::remove(config.path()));
+        QSettings().remove(startupTimeKey);
+        Network network; // No responses: even one HTTP request is a test failure.
+        u::MainWindow window(nullptr, false);
+        window.setUnsavedPromptEnabled(false); window.show();
+        const auto content = window.editorSession().document()->contentState();
+        const auto depth = window.editorSession().history().undoDepth();
+        int notices = 0, about = 0;
+        bool completed = false;
+        QTimer responder;
+        QObject::connect(&responder, &QTimer::timeout, &window, [&] {
+            if (auto* popup = window.findChild<QDialog*>("StartupUpdateNotification"); popup && popup->isVisible()) {
+                ++notices;
+                CHECK(!popup->isWindow() && !popup->windowHandle());
+                CHECK(popup->parentWidget()->objectName() == "WorkspaceDialogShield");
+                CHECK(popup->findChild<QLabel*>("StartupUpdateTestNote"));
+                auto* button = popup->findChild<QPushButton*>(view ? "StartupUpdateOpen" : "StartupUpdateDismiss");
+                CHECK(button); if (button) button->click();
+                if (!view) completed = true;
+            }
+            if (auto* popup = window.findChild<QDialog*>("AboutVulkanaDialog"); popup && popup->isVisible()) {
+                ++about;
+                CHECK(!popup->isWindow());
+                auto* button = popup->findChild<QPushButton*>("AboutCheckUpdate");
+                CHECK(button && !button->isEnabled());
+                CHECK(popup->findChild<QLabel*>("AboutUpdateDetail")->text().contains("Test update only"));
+                CHECK(popup->findChild<QLabel*>("AboutUpdateStatus")->text().contains("is available"));
+                popup->reject(); completed = true;
+            }
+        });
+        responder.start(5);
+        QTimer::singleShot(3000, &window, [&] { if (!completed) { CHECK(false); window.close(); } });
+        window.startStartupFlow(false, &network, true);
+        window.startStartupFlow(false, &network, true);
+        CHECK(waitFor([&] { return completed; }, 4000));
+        QTest::qWait(30);
+        CHECK(notices == 1 && about == int(view));
+        CHECK(network.requests.empty());
+        CHECK(!QSettings().contains(startupTimeKey));
+        CHECK(window.editorSession().document()->contentState() == content);
+        CHECK(window.editorSession().history().undoDepth() == depth);
+        CHECK(!window.findChild<QDialog*>("NewDocumentDialog"));
+        window.close();
     }
 }

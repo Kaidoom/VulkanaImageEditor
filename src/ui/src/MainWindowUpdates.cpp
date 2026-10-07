@@ -5,18 +5,16 @@
 #include "imageeditor/ui/TextController.hpp"
 
 #include <QApplication>
-#include <QDateTime>
 #include <QDialog>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
 #include <QScopedValueRollback>
-#include <QSettings>
 #include <QTimer>
 #include <QVBoxLayout>
 
 namespace imageeditor::ui {
-void MainWindow::startStartupFlow(bool showNewDocument, bool force, QNetworkAccessManager* transport)
+void MainWindow::startStartupFlow(bool showNewDocument, QNetworkAccessManager* transport, bool testUpdate)
 {
     if (startupUiTimer_) return;
     if (!externalOpenFiles_.isEmpty()) showNewDocument = false;
@@ -33,20 +31,12 @@ void MainWindow::startStartupFlow(bool showNewDocument, bool force, QNetworkAcce
     startupUiTimer_->setSingleShot(true);
     connect(startupUiTimer_, &QTimer::timeout, this, &MainWindow::presentStartupUi);
 
-    QSettings settings;
-    const auto key = QStringLiteral("updates/lastStartupAttemptUtcSeconds");
-    bool valid = false;
-    const auto previous = settings.value(key).toLongLong(&valid);
-    const auto now = QDateTime::currentSecsSinceEpoch();
-    if (!platform::ServiceConfig::load().enabled()
-        || !UpdateService::startupCheckDue(now, valid ? std::optional(previous) : std::nullopt, force)) {
+    if (!testUpdate && !platform::ServiceConfig::load().enabled()) {
         startupUiTimer_->start(0);
         return;
     }
-    // Throttle attempts, not just successes: offline launches should not retry
-    // repeatedly. Manual checks in About remain independent of this throttle.
-    settings.setValue(key, now);
-    settings.sync();
+    // One bounded, asynchronous request per launch, independent of old versions'
+    // saved timestamps. Offline startup remains silent and responsive.
     if (!updateService_) updateService_ = new UpdateService(QCoreApplication::applicationVersion(), this, transport);
     updateService_->onChanged = [this] {
         if (updateService_->busy()) return;
@@ -55,7 +45,8 @@ void MainWindow::startStartupFlow(bool showNewDocument, bool force, QNetworkAcce
         // loop inside UpdateService::finish(). Failure is deliberately silent.
         startupUiTimer_->start(0);
     };
-    updateService_->check(2500);
+    if (testUpdate) updateService_->simulateUpdate();
+    else updateService_->check(2500);
 }
 
 void MainWindow::presentStartupUi()
@@ -90,6 +81,12 @@ void MainWindow::presentStartupUi()
             version->setObjectName(QStringLiteral("StartupUpdateVersion"));
             version->setWordWrap(true);
             layout->addWidget(version);
+            if (updateService_->simulated()) {
+                auto* note = new QLabel(tr("Test update only. Downloads and installation are disabled."));
+                note->setObjectName(QStringLiteral("StartupUpdateTestNote"));
+                note->setWordWrap(true);
+                layout->addWidget(note);
+            }
             auto* buttons = new QHBoxLayout;
             buttons->addStretch();
             auto* dismiss = new QPushButton(tr("Dismiss"));

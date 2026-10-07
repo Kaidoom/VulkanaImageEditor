@@ -201,8 +201,8 @@ void serviceConfigurationTests()
     CHECK(!ServiceConfig::load().enabled());
     qputenv("VULKANA_SERVICE_CONFIG", file.path().toUtf8());
 
-    // No config: neither a manual check nor forced startup can send a request.
-    // The normal New Canvas flow still opens, without consuming the throttle.
+    // No config: neither a manual check nor startup can send a request.
+    // The normal New Canvas flow still opens, without writing update settings.
     for (bool emptyToken : {false, true}) {
         if (emptyToken) CHECK(file.write({{"version", 1}, {"domain", "https://updates.example"}, {"apiKey", ""}}));
         Network network;
@@ -226,7 +226,7 @@ void serviceConfigurationTests()
         });
         responder.start(5);
         QTimer::singleShot(2000, &window, [&] { if (!newCanvas) { CHECK(false); window.close(); } });
-        window.startStartupFlow(true, true, &network);
+        window.startStartupFlow(true, &network);
         CHECK(waitFor([&] { return newCanvas; }));
         CHECK(network.requests.empty());
         CHECK(!QSettings().contains("updates/lastStartupAttemptUtcSeconds"));
@@ -607,6 +607,53 @@ void debTests()
 
 #include "StartupUpdateChecks.inc"
 
+void simulatedUpdateTests()
+{
+    TestServiceConfig config;
+    CHECK(QFile::remove(config.path())); // Preview works in unconfigured builds too.
+    QTemporaryDir files;
+    const auto path = files.filePath("existing-package");
+    for (const auto kind : {u::UpdatePackage::Rpm, u::UpdatePackage::Deb, u::UpdatePackage::AppImage}) {
+        seedFile(path);
+        Network network;
+        u::UpdateService service("0.3.1", nullptr, &network, kind, path);
+        service.simulateUpdate();
+        CHECK(service.simulated() && !service.configured());
+        CHECK(service.state() == State::Available && !service.busy());
+        CHECK(service.release() && service.release()->version == "0.3.2");
+        CHECK(service.release()->url.isEmpty() && service.release()->sha256.isEmpty());
+        service.download(path);
+        service.downloadAppImage();
+        service.cancel();
+        service.check();
+        CHECK(service.state() == State::Available && service.downloadedPath().isEmpty());
+        CHECK(readFile(path) == "previous");
+        CHECK(!QFile::exists(path + ".update.lock"));
+        CHECK(network.requests.empty());
+        QWidget owner;
+        u::AboutDialog about(&owner, nullptr, kind, path, &service);
+        auto* button = about.findChild<QPushButton*>("AboutCheckUpdate");
+        CHECK(button && !button->isEnabled());
+        CHECK(button->text() == (kind == u::UpdatePackage::AppImage ? "Update AppImage"
+            : kind == u::UpdatePackage::Deb ? "Download DEB" : "Download RPM"));
+        button->click();
+        CHECK(network.requests.empty() && readFile(path) == "previous");
+    }
+    Network network;
+    u::UpdateService carry("0.3.999999999", nullptr, &network);
+    carry.simulateUpdate();
+    CHECK(carry.release() && carry.release()->version == "0.4.0");
+    u::UpdateService invalid("development", nullptr, &network);
+    invalid.simulateUpdate();
+    CHECK(invalid.state() == State::Error && !invalid.release());
+    u::UpdateService maximum("999999999.999999999.999999999", nullptr, &network);
+    maximum.simulateUpdate();
+    CHECK(maximum.state() == State::Error && !maximum.release());
+    CHECK(network.requests.empty());
+    u::UpdateService normal("0.3.1", nullptr, &network);
+    CHECK(!normal.simulated() && !normal.release()); // No process-wide sticky mode.
+}
+
 void liveCheck(bool download)
 {
     QTemporaryDir directory;
@@ -658,7 +705,8 @@ int main(int argc, char** argv)
     if (app.arguments().contains("--live-check") || app.arguments().contains("--live-download"))
         liveCheck(app.arguments().contains("--live-download"));
     else { TestServiceConfig services; serviceConfigurationTests(); metadataTests(); stateAndDownloadTests(); dialogTests(); appImageTests(); debTests();
-        startupPolicyTests(); startupPresentationTests(); startupSilentTests(); startupCloseTests(); }
+        startupPolicyTests(); startupPresentationTests(); startupSilentTests(); startupCloseTests();
+        simulatedUpdateTests(); startupSimulationTests(); }
     if (app.arguments().contains("--expect-deb")) CHECK(u::UpdateService::buildPackage() == u::UpdatePackage::Deb);
     std::cout << "Update checks: " << failures << " failures\n";
     return failures ? 1 : 0;

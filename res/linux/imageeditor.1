@@ -29,8 +29,13 @@ Read custom panel size defaults from an INI file once at startup.
 Start a default transparent canvas without the startup prompt.
 .TP
 .B --force-update-check
-Check for updates at startup even if an automatic check was attempted in the
-last 24 hours. No update is downloaded without user action.
+Check for updates at startup. This is now the default; the flag is retained
+for compatibility. No update is downloaded without user action.
+.TP
+.B --test-update
+Show a simulated newer release in the normal update notice and About panel.
+Works offline without service configuration. Downloads and AppImage replacement
+are disabled. Close any running instance before launching with this flag.
 .TP
 .B --smoke-test
 Run automated lifecycle checks and exit. This diagnostic requires the

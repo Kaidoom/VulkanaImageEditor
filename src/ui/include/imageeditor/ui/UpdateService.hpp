@@ -41,11 +41,14 @@ public:
     ~UpdateService() override;
 
     void check(int timeoutMs = 60000);
+    // Offline UI preview for --test-update. Never downloads or replaces files.
+    void simulateUpdate();
     void download(const QString& destination);
     void downloadAppImage();
     void cancel();
     [[nodiscard]] State state() const { return state_; }
     [[nodiscard]] bool configured() const { return config_.enabled(); }
+    [[nodiscard]] bool simulated() const { return simulated_; }
     [[nodiscard]] bool busy() const { return state_ == State::Checking || state_ == State::Downloading; }
     [[nodiscard]] const QString& message() const { return message_; }
     [[nodiscard]] const std::optional<UpdateRelease>& release() const { return release_; }
@@ -63,8 +66,6 @@ public:
     // Only published three-component numeric versions are compared. Malformed
     // values never silently turn into version zero or a lexical comparison.
     static std::optional<bool> isNewer(const QString& candidate, const QString& installed);
-    static bool startupCheckDue(qint64 nowUtcSeconds, std::optional<qint64> lastAttempt,
-        bool force = false);
 
 private:
     void startRequest(const QUrl&);
@@ -82,6 +83,7 @@ private:
     QTimer deadline_;
     int checkTimeoutMs_ {60000};
     State state_ {State::Idle};
+    bool simulated_ {false};
     QString message_;
     std::optional<UpdateRelease> release_;
     QByteArray manifest_;

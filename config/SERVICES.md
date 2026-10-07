@@ -5,6 +5,16 @@ configuration and nonempty client token, Check for Updates and Submit Feedback
 are disabled, and automatic startup checks do not run (even with
 `--force-update-check`). Editing, saving and exporting remain available.
 
+Configured builds check once on every startup, without a daily cooldown. Failed
+startup checks remain silent and have a short timeout. `--force-update-check`
+is retained for compatibility; it is no longer needed.
+
+For UI testing, close Vulkana and launch `./temp/release-test --test-update`.
+This simulates the next version locally, showing the normal update notice and
+About panel without contacting the server or needing service configuration.
+Downloads and AppImage replacement are disabled, and no update preference is
+saved. Start normally to return to real update checks.
+
 For a local developer build, copy `config/services.example.json` to
 `private/services.json`, then supply these fields:
 

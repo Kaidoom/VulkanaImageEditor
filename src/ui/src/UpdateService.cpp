@@ -78,12 +78,27 @@ std::optional<bool> UpdateService::isNewer(const QString& candidate, const QStri
         QVersionNumber::fromString(installed)) > 0;
 }
 
-bool UpdateService::startupCheckDue(qint64 now, std::optional<qint64> lastAttempt, bool force)
+void UpdateService::simulateUpdate()
 {
-    // Check on missing/invalid cache or clock rollback, then replace the future
-    // timestamp. Only subtract ordered, nonnegative times (no overflow).
-    return force || !lastAttempt || *lastAttempt <= 0 || now < *lastAttempt
-        || now - *lastAttempt >= 24 * 60 * 60;
+    stopTransfer();
+    simulated_ = true;
+    release_.reset();
+    downloadedPath_.clear();
+    if (!validVersion(currentVersion_)) {
+        fail(tr("This build has no comparable release version to simulate."));
+        return;
+    }
+    auto parts = QVersionNumber::fromString(currentVersion_).segments();
+    for (qsizetype index = parts.size(); index-- > 0;) {
+        if (parts[index] == 999999999) { parts[index] = 0; continue; }
+        ++parts[index];
+        release_ = UpdateRelease {QVersionNumber(parts).toString(), {}, {}};
+        state_ = State::Available;
+        message_ = tr("Vulkana %1 is available.").arg(release_->version);
+        notify();
+        return;
+    }
+    fail(tr("This build's version cannot be incremented for the update preview."));
 }
 
 std::optional<UpdateRelease> UpdateService::parseManifest(const QByteArray& bytes, QString& error, UpdatePackage package,
@@ -155,6 +170,7 @@ void UpdateService::fail(const QString& message)
 
 void UpdateService::check(int timeoutMs)
 {
+    if (simulated_) { simulateUpdate(); return; }
     if (!configured()) {
         fail(tr("Updates are not configured for this build."));
         return;
@@ -175,12 +191,14 @@ void UpdateService::check(int timeoutMs)
 
 void UpdateService::download(const QString& destination)
 {
+    if (simulated_) return;
     if(package_==UpdatePackage::AppImage) { fail(tr("Use the AppImage update action to replace the running image."));return; }
     beginDownload(destination);
 }
 
 void UpdateService::downloadAppImage()
 {
+    if (simulated_) return;
     if(package_!=UpdatePackage::AppImage||busy()||!release_||state_==State::RestartReady)return;
     const QFileInfo original(appImagePath_);
     // Do not guess the mount/extracted path or overwrite a different program.

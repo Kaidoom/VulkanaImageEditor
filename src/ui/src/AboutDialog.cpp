@@ -247,7 +247,7 @@ AboutDialog::AboutDialog(QWidget* parent, QNetworkAccessManager* transport, Upda
         const bool downloading = updates_->state() == UpdateService::State::Downloading;
         const bool checking = updates_->state() == UpdateService::State::Checking;
         const bool canDownload = updates_->release().has_value() && state != State::Downloaded && !restart;
-        check->setEnabled(updates_->configured() || restart);
+        check->setEnabled(!updates_->simulated() && (updates_->configured() || restart));
         // Keep keyboard focus here while checking. Disabling a focused button
         // makes Qt move focus (and its highlight) to Open Download Page.
         // Repeated checks are ignored below until the reply completes.
@@ -255,7 +255,8 @@ AboutDialog::AboutDialog(QWidget* parent, QNetworkAccessManager* transport, Upda
             : canDownload ? (appImage ? tr("Update AppImage") : tr("Download %1").arg(packageName)) : tr("Check for Updates"));
         check->setIcon(toolGlyph(downloading ? ToolGlyph::Close
             : canDownload ? ToolGlyph::Download : ToolGlyph::Refresh, primaryInk));
-        check->setToolTip(restart ? tr("Restart using the verified update. Unsaved documents are checked first.")
+        check->setToolTip(updates_->simulated() ? tr("Downloads are disabled for this simulated update.")
+            : restart ? tr("Restart using the verified update. Unsaved documents are checked first.")
             : downloading ? tr("Cancel the download without saving a partial file.")
             : canDownload ? (appImage ? tr("Download, verify and atomically replace this AppImage. Restart is a separate action.")
                 : tr("Choose where to save the %1. It will not be installed or run.").arg(packageName))
@@ -263,11 +264,12 @@ AboutDialog::AboutDialog(QWidget* parent, QNetworkAccessManager* transport, Upda
             : tr("Check for a newer release."));
         progress->setVisible(downloading);
         if (downloading) progress->setRange(0, 0);
-        status->setText(!updates_->configured() && !restart ? tr("Updates are not configured.")
+        status->setText(!updates_->configured() && !restart && !updates_->simulated() ? tr("Updates are not configured.")
             : state == State::Idle ? tr("Check for a new release.")
             : restart ? tr("Update ready to restart.") : state == State::Downloaded ? tr("Download saved and verified.")
             : state == State::Error ? tr("Could not complete the request.") : updates_->message());
-        detail->setText(state == State::Error ? updates_->message()
+        detail->setText(updates_->simulated() ? tr("Test update only. No network request, download or installation will occur.")
+            : state == State::Error ? updates_->message()
             : state == State::Checking ? tr("Contacting the update service…")
             : state == State::Downloading ? tr("Verifying the file before saving.")
             : restart ? tr("Your current session stays open until you restart.")
@@ -291,6 +293,7 @@ AboutDialog::AboutDialog(QWidget* parent, QNetworkAccessManager* transport, Upda
         }
     };
     connect(check, &QPushButton::clicked, this, [this] {
+        if (updates_->simulated()) return;
         if(updates_->state()==UpdateService::State::RestartReady) {
             if(onRestartRequested) {onRestartRequested(updates_->downloadedPath());accept();}
             return;

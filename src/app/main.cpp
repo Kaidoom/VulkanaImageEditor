@@ -87,7 +87,9 @@ int main(int argc, char* argv[])
     QCommandLineOption skipNewOption(QStringLiteral("skip-new-dialog"),
         QStringLiteral("Development: start with the default transparent canvas without prompting."));
     QCommandLineOption forceUpdateOption(QStringLiteral("force-update-check"),
-        QStringLiteral("Check for updates at startup even if checked within the last 24 hours."));
+        QStringLiteral("Check for updates at startup (now the default)."));
+    QCommandLineOption testUpdateOption(QStringLiteral("test-update"),
+        QStringLiteral("Show a simulated newer update without networking, downloads or installation."));
     QCommandLineOption uiConfigOption(QStringLiteral("ui-config"),
         QStringLiteral("Load developer UI layout values from an INI file."),
         QStringLiteral("path"));
@@ -101,6 +103,7 @@ int main(int argc, char* argv[])
     parser.addOption(fpsOption);
     parser.addOption(skipNewOption);
     parser.addOption(forceUpdateOption);
+    parser.addOption(testUpdateOption);
     parser.addOption(uiConfigOption);
     parser.addOption(panelDefaultOption);
     parser.addPositionalArgument(QStringLiteral("document"),
@@ -116,6 +119,8 @@ int main(int argc, char* argv[])
             qInfo() << "Launch forwarded to the running Vulkana instance.";
             if (parser.isSet(panelDefaultOption))
                 qInfo() << "--panel-default takes effect at startup. Close Vulkana, then launch with this flag again.";
+            if (parser.isSet(testUpdateOption))
+                qInfo() << "--test-update takes effect at startup. Close Vulkana, then launch with this flag again.";
             return EXIT_SUCCESS;
         }
         if (result == imageeditor::platform::SingleInstance::Result::Error) {
@@ -245,8 +250,8 @@ int main(int argc, char* argv[])
         if (opened) qInfo().noquote() << "Opened document argument:"
             << QFileInfo(parser.positionalArguments().front()).absoluteFilePath();
         if (!parser.isSet(smokeTestOption))
-            QTimer::singleShot(0, &window, [&window, opened, &parser, &skipNewOption, &forceUpdateOption] {
-                window.startStartupFlow(!opened && !parser.isSet(skipNewOption), parser.isSet(forceUpdateOption));
+            QTimer::singleShot(0, &window, [&window, opened, &parser, &skipNewOption, &testUpdateOption] {
+                window.startStartupFlow(!opened && !parser.isSet(skipNewOption), nullptr, parser.isSet(testUpdateOption));
             });
         // Every document argument opens in the shared workspace, regardless of
         // which package or executable received the desktop launch.
