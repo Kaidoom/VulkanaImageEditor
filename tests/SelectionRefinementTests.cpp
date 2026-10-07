@@ -314,6 +314,38 @@ int main(int argc, char **argv) {
   strokes();
   history();
   smallForegroundEvidence();
+  {
+    // Radius is a document-pixel analysis band, not a kernel-size limit.
+    // It must reach well beyond the former 64 px cap without changing pixels
+    // outside its band or defeating cancellation/preflight checks.
+    const auto input = SelectionMask::rectangle({700, 80}, {340, 20, 20, 40});
+    RefinementState state;
+    state.settings.radius = 250;
+    auto result = refineSelection(input, nullptr, state);
+    CHECK(result.coverage == input);
+    CHECK(at(result.region, 100, 40) > 0);
+    CHECK(at(result.region, 610, 40) >
+          0); // First outside boundary sample + 250.
+    CHECK(at(result.region, 611, 40) == 0);
+    state.settings.radius = 250.1;
+    bool rejected = false;
+    try {
+      (void)refineSelection(input, nullptr, state);
+    } catch (const std::invalid_argument &) {
+      rejected = true;
+    }
+    CHECK(rejected);
+    auto f = strands(800, 600);
+    state.settings.radius = 250;
+    result = refineSelection(f.input, &f.image, state);
+    CHECK(!result.cancelled && result.analyzedPixels > 200000);
+    CHECK(at(result.coverage, 150, 300) > 250);
+    CHECK(at(result.coverage, 650, 300) == 0);
+    CHECK(refineSelection(f.input, &f.image, {}).coverage == f.input);
+    RefinementOptions options;
+    options.cancelled = [] { return true; };
+    CHECK(refineSelection(f.input, &f.image, state, options).cancelled);
+  }
   if (argc > 1 && std::string_view(argv[1]) == "--profile") {
     for (auto e : {Extent2u{3840, 2160}, Extent2u{5120, 2880}}) {
       auto f = strands(int(e.width), int(e.height));

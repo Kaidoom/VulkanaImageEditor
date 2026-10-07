@@ -69,6 +69,7 @@ bool MainWindow::importPdfFromPath(const QString& filePath, bool intoCurrent)
                 reportFileError(tr("The PDF destination changed while rendering. Nothing was imported; please try again.")); return false;
             }
             auto tree = targetDocument->tree();
+            if (!guardRefinement(target->id)) return false;
             auto* siblings = tree.children(placement.parent);
             if (!siblings || placement.index > siblings->size()) return false;
             std::vector<core::Layer> layers;

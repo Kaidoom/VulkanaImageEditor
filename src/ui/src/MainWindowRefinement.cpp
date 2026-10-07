@@ -22,6 +22,8 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
+#include <QMenuBar>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QSignalBlocker>
@@ -79,6 +81,27 @@ void cancelled(const std::atomic_bool &cancel) {
   if (cancel)
     throw std::runtime_error("Cancelled");
 }
+QRect refinementPanelGeometry(const OverlayDockWorkspace &workspace) {
+  auto area = workspace.rulerContentRect();
+  if (workspace.rulerVisible(Qt::Horizontal)) {
+    const auto ruler = workspace.rulerStrip(Qt::Horizontal)->geometry();
+    if (workspace.rulerFarEdge(Qt::Horizontal))
+      area.setBottom(ruler.top() - 1);
+    else
+      area.setTop(ruler.bottom() + 1);
+  }
+  if (workspace.rulerVisible(Qt::Vertical)) {
+    const auto ruler = workspace.rulerStrip(Qt::Vertical)->geometry();
+    if (workspace.rulerFarEdge(Qt::Vertical))
+      area.setRight(ruler.left() - 1);
+    else
+      area.setLeft(ruler.right() + 1);
+  }
+  area.adjust(8, 8, -8, -8);
+  const int width = std::clamp(area.width(), 1, 316),
+            height = std::clamp(area.height(), 1, 740);
+  return {area.right() - width + 1, area.top(), width, height};
+}
 RectI mappedBounds(const AffineTransform &t, RectD b) {
   if (!t.validOver(b))
     throw std::runtime_error("The mask mapping crosses a projective horizon.");
@@ -112,10 +135,10 @@ Grid gridFor(const Document &doc, const Layer *layer, bool mask) {
                                         *layer->mask->localToMask.inverted());
     auto maskBounds =
         mappedBounds(toDoc, {0, 0, double(e.width), double(e.height)});
-    // Finite support for the largest offset + feather, beyond native storage.
+    // Radius plus subsequent offset/feather support, beyond native storage.
     // Selection-only sessions extend the canvas edge instead, so Select All
     // does not acquire an invented background border.
-    constexpr int support = 128;
+    constexpr int support = int(RefinementSettings::maximumRadius) + 128;
     maskBounds = {maskBounds.x - support, maskBounds.y - support,
                   maskBounds.width + 2 * support,
                   maskBounds.height + 2 * support};
@@ -318,8 +341,8 @@ struct RefinementWorkspace {
   std::shared_ptr<const core::RasterSurface> tintSurface =
       std::make_shared<core::ContiguousRasterSurface>(
           core::Extent2u{1, 1}, core::Rgba8{240, 55, 70, 255});
-  bool mask{}, oldMaskEditing{}, originalHeld{}, dirty{}, failed{}, closing{},
-      cancellingGesture{};
+  bool mask{}, oldMaskEditing{}, oldPanelsSuppressed{}, originalHeld{}, dirty{},
+      failed{}, closing{}, cancellingGesture{};
   core::ToolId oldTool{};
   core::BrushSettings brush;
   Grid grid;
@@ -341,7 +364,6 @@ struct RefinementWorkspace {
   CompactValueControl *brushSize{};
   std::array<CompactValueControl *, 5> settings{};
   std::vector<std::pair<QPointer<QWidget>, bool>> disabled;
-  std::vector<std::pair<QPointer<QAction>, bool>> actions;
   core::Rgba8 background, light, dark;
   std::uint64_t generation{}, runningGeneration{};
   std::shared_ptr<std::atomic_bool> cancel;
@@ -428,7 +450,6 @@ void MainWindow::beginRefinement(bool mask) {
     r->selectionRevision = doc->selectionRevision();
     r->target = layer ? layer->id : 0;
     r->mask = mask;
-    r->oldTool = session().activeTool();
     r->oldMaskEditing = session().editingLayerMask();
     r->brush = brushSettings_;
     r->brush.tip = {};
@@ -436,24 +457,13 @@ void MainWindow::beginRefinement(bool mask) {
     r->brush.flow = 1; // Strength is the visible ceiling; tablet pressure still
                        // modulates it.
     r->original = std::make_shared<const core::Document>(*doc);
-    r->background = canvasWindow_->scene().canvasBackground;
-    r->light = canvasWindow_->scene().checkerLight;
-    r->dark = canvasWindow_->scene().checkerDark;
-    setActiveTool(core::ToolId::Brush);
-    refinement_ = r;
-    // Keep the native canvas interactive. Only the existing panel plane's
-    // other controls are gated; no second window or modal canvas blocker.
-    for (auto *child : workspace_->panelOverlay()->findChildren<QWidget *>(
-             QString{}, Qt::FindDirectChildrenOnly)) {
-      r->disabled.push_back({child, child->isEnabled()});
-      child->setEnabled(false);
-    }
-    for (auto *action : findChildren<QAction *>()) {
-      if (action == undoAction_ || action == redoAction_)
-        continue;
-      r->actions.push_back({action, action->isEnabled()});
-      action->setEnabled(false);
-    }
+    activeDocument_->refinement = r;
+    // Hidden tabs retain controls, but their signals must never address the
+    // currently presented workspace of a different document.
+    const auto active = [this, weak = std::weak_ptr(r)] {
+      const auto owner = weak.lock();
+      return owner && owner == refinement_;
+    };
     r->panel = new QFrame(workspace_->panelOverlay());
     r->panel->setObjectName("RefineSelectionWorkspace");
     r->panel->setAttribute(Qt::WA_StyledBackground);
@@ -516,14 +526,14 @@ void MainWindow::beginRefinement(bool mask) {
         number(tr("Overlay opacity"), 0, 100, 50, 0, "RefineOverlayOpacity");
     auto *original = new QPushButton(tr("Hold for Original"), content);
     form->addRow(original);
-    connect(original, &QPushButton::pressed, this, [this] {
-      if (refinement_) {
+    connect(original, &QPushButton::pressed, this, [this, active] {
+      if (active()) {
         refinement_->originalHeld = true;
         publishRefinementPreview();
       }
     });
-    connect(original, &QPushButton::released, this, [this] {
-      if (refinement_) {
+    connect(original, &QPushButton::released, this, [this, active] {
+      if (active()) {
         refinement_->originalHeld = false;
         publishRefinementPreview();
       }
@@ -543,7 +553,9 @@ void MainWindow::beginRefinement(bool mask) {
     if (!layer || std::holds_alternative<core::AdjustmentLayer>(layer->payload))
       r->source->setItemData(1, 0, Qt::UserRole - 1);
     form->addRow(new QLabel(tr("Edge Refinement"), content));
-    r->settings[0] = number(tr("Radius (px)"), 0, 64, 0, 1, "RefineRadius");
+    r->settings[0] =
+        number(tr("Radius (px)"), 0, core::RefinementSettings::maximumRadius, 0,
+               1, "RefineRadius");
     form->addRow(new QLabel(tr("Global Refinement"), content));
     r->settings[1] = number(tr("Smooth"), 0, 12, 0, 1, "RefineSmooth");
     r->settings[2] = number(tr("Feather (px)"), 0, 64, 0, 1, "RefineFeather");
@@ -607,22 +619,25 @@ void MainWindow::beginRefinement(bool mask) {
     outer->addLayout(row);
     r->timer = new QTimer(r->panel);
     r->timer->setSingleShot(true);
-    connect(r->timer, &QTimer::timeout, this, &MainWindow::advanceRefinement);
+    connect(r->timer, &QTimer::timeout, this, [this, active] {
+      if (active())
+        advanceRefinement();
+    });
     for (auto *control : r->settings) {
-      control->onInteractionStarted = [this] {
-        if (refinement_)
+      control->onInteractionStarted = [this, active] {
+        if (active())
           refinement_->gesture = refinement_->state;
       };
-      control->onInteractionFinished = [this] {
-        if (refinement_ && !refinement_->cancellingGesture) {
+      control->onInteractionFinished = [this, active] {
+        if (active() && !refinement_->cancellingGesture) {
           refinement_->checkpointState();
           refinement_->gesture.reset();
           requestRefinement();
         }
       };
       connect(control, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
-              [this] {
-                if (!refinement_)
+              [this, active] {
+                if (!active())
                   return;
                 auto &r = *refinement_;
                 r.state.settings = {
@@ -635,50 +650,60 @@ void MainWindow::beginRefinement(bool mask) {
               });
     }
     connect(size, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
-            [this](double v) {
-              if (refinement_) {
+            [this, active](double v) {
+              if (active()) {
                 refinement_->brush.sizePixels = v;
                 canvasWindow_->setBrushCursor(refinement_->brush);
               }
             });
     connect(hardness, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
-            [this](double v) {
-              if (refinement_)
+            [this, active](double v) {
+              if (active())
                 refinement_->brush.hardness = v / 100;
             });
     connect(strength, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
-            [this](double v) {
-              if (refinement_)
+            [this, active](double v) {
+              if (active())
                 refinement_->brush.opacity = v / 100;
             });
     connect(brush, qOverload<int>(&QComboBox::currentIndexChanged), this,
-            [this](int i) {
-              if (refinement_)
+            [this, active](int i) {
+              if (active())
                 refinement_->brushMode = core::RefinementBrush(i);
             });
     connect(r->source, qOverload<int>(&QComboBox::currentIndexChanged), this,
-            [this] {
-              if (!refinement_)
+            [this, active] {
+              if (!active())
                 return;
               refinement_->result.reference.reset();
               refinement_->result.surface.reset();
               refinement_->result.referenceError.clear();
               requestRefinement();
             });
+    const auto preview = [this, active] {
+      if (active())
+        publishRefinementPreview();
+    };
     connect(r->view, qOverload<int>(&QComboBox::currentIndexChanged), this,
-            &MainWindow::publishRefinementPreview);
+            preview);
     connect(r->overlayOpacity, qOverload<double>(&QDoubleSpinBox::valueChanged),
-            this, &MainWindow::publishRefinementPreview);
-    connect(r->region, &QCheckBox::toggled, this,
-            &MainWindow::publishRefinementPreview);
+            this, preview);
+    connect(r->region, &QCheckBox::toggled, this, preview);
     connect(r->output, qOverload<int>(&QComboBox::currentIndexChanged), this,
-            &MainWindow::requestRefinement);
-    connect(cancel, &QPushButton::clicked, this,
-            [this] { finishRefinement(false); });
-    connect(r->apply, &QPushButton::clicked, this,
-            [this] { finishRefinement(true); });
-    connect(reset, &QPushButton::clicked, this, [this] {
-      if (!refinement_)
+            [this, active] {
+              if (active())
+                requestRefinement();
+            });
+    connect(cancel, &QPushButton::clicked, this, [this, active] {
+      if (active())
+        finishRefinement(false);
+    });
+    connect(r->apply, &QPushButton::clicked, this, [this, active] {
+      if (active())
+        finishRefinement(true);
+    });
+    connect(reset, &QPushButton::clicked, this, [this, active] {
+      if (!active())
         return;
       auto &r = *refinement_;
       r.state = {};
@@ -689,21 +714,11 @@ void MainWindow::beginRefinement(bool mask) {
       }
       requestRefinement();
     });
-    r->panel->setGeometry(
-        std::max(8, workspace_->panelOverlay()->width() - 328), 12, 316,
-        std::max(240,
-                 std::min(740, workspace_->panelOverlay()->height() - 24)));
-    r->panel->show();
-    r->panel->raise();
-    workspace_->setContextOverlayInteractionRegion(r->panel->geometry());
-    canvasWindow_->setBrushCursor(r->brush);
-    canvasWindow_->setTransformOverlay({});
-    canvasWindow_->setPixelPreview(false);
-    pixelPreview_->setEnabled(false);
+    resumeRefinement();
     requestRefinement();
     publishRefinementPreview();
   } catch (const std::exception &e) {
-    finishRefinement(false);
+    discardRefinement(activeDocumentId());
     statusBar()->showMessage(
         tr("Cannot refine: %1").arg(QString::fromUtf8(e.what())), 6000);
   }
@@ -1103,26 +1118,188 @@ void MainWindow::stepRefinementHistory(bool redo) {
   }
   requestRefinement();
 }
-void MainWindow::finishRefinement(bool apply, bool wait) {
+void MainWindow::suspendRefinement() {
   if (!refinement_)
     return;
   auto r = refinement_;
-  if (!apply && r->worker.valid()) {
-    *r->cancel = true;
-    if (wait)
-      r->worker.wait();
-    else if (r->worker.wait_for(std::chrono::milliseconds(0)) !=
-             std::future_status::ready) {
-      // Keep exactly one owned job until it cooperatively drains. UI and pan/
-      // zoom keep servicing events; no destructor waits on the UI cancel path.
-      r->closing = true;
-      r->dirty = false;
+  if (!r->closing) {
+    for (auto *control : r->settings)
+      if (control)
+        control->finishEditing();
+    if (r->path.active())
+      refinementBrush({}, 3);
+    if (r->worker.valid()) {
+      *r->cancel = true;
+      ++r->generation;
+      r->dirty = true;
       r->apply->setEnabled(false);
-      r->status->setText(tr("Cancelling…"));
-      r->timer->start(12);
-      return;
     }
   }
+  r->originalHeld = false;
+  if (r->timer)
+    r->timer->stop();
+  refinement_.reset();
+  keyboardPanelTarget_.clear();
+  canvasContainer_->setFocusProxy(nullptr);
+  pointerRouter_->cancelCapture();
+  canvasWindow_->cancelSelectionInput();
+  if (r->panel)
+    r->panel->hide();
+  workspace_->setContextOverlayInteractionRegion({});
+  workspace_->setPanelsSuppressed(r->oldPanelsSuppressed);
+  for (auto &[widget, enabled] : r->disabled)
+    if (widget)
+      widget->setEnabled(enabled);
+  r->disabled.clear();
+  refreshRefinementMenus();
+  canvasWindow_->setRepairRegion({});
+  canvasWindow_->setCanvasColors(r->background, r->light, r->dark);
+  canvasWindow_->setBrushCursor(brushSettings_);
+  setActiveTool(r->oldTool);
+  pixelPreview_->setEnabled(pixelPreviewAction_->isChecked());
+  canvasWindow_->setPixelPreview(pixelPreviewAction_->isChecked());
+}
+
+void MainWindow::resumeRefinement() {
+  if (refinement_ || !activeDocument_ || !activeDocument_->refinement)
+    return;
+  auto r = activeDocument_->refinement;
+  if (!r->current(*this)) {
+    discardRefinement(r->instance);
+    statusBar()->showMessage(
+        tr("Refinement cancelled because its target changed."), 5000);
+    return;
+  }
+  r->oldTool = session().activeTool();
+  r->background = canvasWindow_->scene().canvasBackground;
+  r->light = canvasWindow_->scene().checkerLight;
+  r->dark = canvasWindow_->scene().checkerDark;
+  r->oldPanelsSuppressed = workspace_->panelsSuppressed();
+  setActiveTool(core::ToolId::Brush);
+  refinement_ = r;
+  for (auto *child : workspace_->panelOverlay()->findChildren<QWidget *>(
+           QString{}, Qt::FindDirectChildrenOnly)) {
+    if (child->objectName() == "RefineSelectionWorkspace")
+      continue;
+    r->disabled.push_back({child, child->isEnabled()});
+    child->setEnabled(false);
+  }
+  refreshRefinementMenus();
+  workspace_->setPanelsSuppressed(true);
+  r->panel->setGeometry(refinementPanelGeometry(*workspace_));
+  r->panel->show();
+  r->panel->raise();
+  workspace_->setContextOverlayInteractionRegion(r->panel->geometry());
+  canvasWindow_->setBrushCursor(r->brush);
+  canvasWindow_->setTransformOverlay({});
+  canvasWindow_->setPixelPreview(false);
+  pixelPreview_->setEnabled(false);
+  undoAction_->setEnabled(r->checkpoint > 0);
+  redoAction_->setEnabled(r->checkpoint + 1 < r->history.size());
+  undoAction_->setText(tr("Undo refinement"));
+  redoAction_->setText(tr("Redo refinement"));
+  if (r->dirty || r->worker.valid())
+    r->timer->start(0);
+  publishRefinementPreview();
+}
+
+void MainWindow::refreshRefinementMenus() {
+  // Keep document management and Help reachable; only editing menus belong
+  // to the locked tab. No per-command enabled-state snapshots are restored.
+  for (auto *action : menuBar()->actions()) {
+    const auto *menu = action->menu();
+    action->setEnabled(!refinement_ ||
+                       (menu && menu->property("availableDuringRefinement").toBool()));
+  }
+}
+
+void MainWindow::discardRefinement(DocumentInstanceId id) {
+  auto it = std::ranges::find_if(documents_,
+                                 [id](const auto &d) { return d->id == id; });
+  if (it == documents_.end() || !(*it)->refinement)
+    return;
+  auto r = (*it)->refinement;
+  r->closing = true;
+  if (r->cancel)
+    *r->cancel = true;
+  if (r->timer)
+    r->timer->stop();
+  r->path.cancel();
+  if (refinement_ == r)
+    suspendRefinement();
+  (*it)->refinement.reset();
+  if (r->panel)
+    r->panel->deleteLater();
+  // Workers capture only immutable owned data. Retire without blocking tab or
+  // window closure; no late result can publish into any document.
+  retiredRefinements_.push_back(std::move(r));
+  drainRetiredRefinements();
+}
+
+void MainWindow::drainRetiredRefinements() {
+  std::erase_if(retiredRefinements_, [](const auto &r) {
+    return !r->worker.valid() ||
+           r->worker.wait_for(std::chrono::milliseconds(0)) ==
+               std::future_status::ready;
+  });
+  if (retiredRefinements_.empty())
+    return;
+  if (!refinementCleanupTimer_) {
+    refinementCleanupTimer_ = new QTimer(this);
+    refinementCleanupTimer_->setSingleShot(true);
+    connect(refinementCleanupTimer_, &QTimer::timeout, this,
+            &MainWindow::drainRetiredRefinements);
+  }
+  refinementCleanupTimer_->start(30);
+}
+
+void MainWindow::shutdownRefinements() {
+  for (const auto &context : documents_)
+    discardRefinement(context->id);
+  if (refinementCleanupTimer_)
+    refinementCleanupTimer_->stop();
+  // Final destruction joins cooperatively cancelled workers before UI teardown.
+  retiredRefinements_.clear();
+}
+
+bool MainWindow::guardRefinement(DocumentInstanceId id) {
+  std::vector<DocumentInstanceId> pending;
+  QStringList names;
+  for (const auto &context : documents_)
+    if ((!id || context->id == id) && context->refinement) {
+      pending.push_back(context->id);
+      names.push_back(context->displayName);
+    }
+  if (pending.empty())
+    return true;
+  bool discard;
+  if (fileInteractions_.confirmCancelRefinement)
+    discard = fileInteractions_.confirmCancelRefinement(names.join(", "));
+  else {
+    QMessageBox question(
+        QMessageBox::Question, tr("Discard refinement?"),
+        tr("Discard unfinished refinement in %1 and continue?\n"
+           "Your document content will be kept.")
+            .arg(names.join(", ")),
+        QMessageBox::Discard | QMessageBox::Cancel, this);
+    question.setTextFormat(Qt::PlainText);
+    question.button(QMessageBox::Discard)->setText(tr("Discard refinement"));
+    question.button(QMessageBox::Cancel)->setText(tr("Keep refining"));
+    question.setDefaultButton(QMessageBox::Cancel);
+    discard = question.exec() == QMessageBox::Discard;
+  }
+  if (!discard)
+    return false;
+  for (auto owner : pending)
+    discardRefinement(owner);
+  synchronizeUi(true, false);
+  return true;
+}
+
+void MainWindow::finishRefinement(bool apply) {
+  if (!refinement_)
+    return;
+  auto r = refinement_;
   if (apply && r->closing)
     return;
   if (apply) {
@@ -1165,35 +1342,13 @@ void MainWindow::finishRefinement(bool apply, bool wait) {
       return;
     }
   }
-  r->closing = true;
-  if (r->cancel)
-    *r->cancel = true;
-  r->timer->stop();
-  r->path.cancel();
-  refinement_.reset();
-  pointerRouter_->cancelCapture();
-  canvasWindow_->cancelSelectionInput();
-  r->panel->hide();
-  workspace_->setContextOverlayInteractionRegion({});
-  for (auto &[widget, enabled] : r->disabled)
-    if (widget)
-      widget->setEnabled(enabled);
-  for (auto &[action, enabled] : r->actions)
-    if (action)
-      action->setEnabled(enabled);
-  canvasWindow_->setRepairRegion({});
-  canvasWindow_->setCanvasColors(r->background, r->light, r->dark);
-  canvasWindow_->setBrushCursor(brushSettings_);
-  setActiveTool(r->oldTool);
-  pixelPreview_->setEnabled(pixelPreviewAction_->isChecked());
-  canvasWindow_->setPixelPreview(pixelPreviewAction_->isChecked());
   if (!apply && r->current(*this))
     session().setEditingLayerMask(r->oldMaskEditing);
-  r->panel->deleteLater();
+  discardRefinement(r->instance);
   synchronizeUi(true, false);
 }
 bool MainWindow::refinementEvent(QObject *watched, QEvent *event) {
-  if (!workspace_ || !canvasWindow_)
+  if (!workspace_ || !canvasWindow_ || workspaceDialog_ || workspace_->hasModalOverlay())
     return false;
   if (!refinement_) {
     if (watched == canvasWindow_ && event->type() == QEvent::ContextMenu &&
@@ -1220,11 +1375,20 @@ bool MainWindow::refinementEvent(QObject *watched, QEvent *event) {
   if (watched == workspace_->panelOverlay() &&
       event->type() == QEvent::Resize) {
     auto &r = *refinement_;
-    r.panel->setGeometry(
-        std::max(8, workspace_->panelOverlay()->width() - 328), 12, 316,
-        std::max(240,
-                 std::min(740, workspace_->panelOverlay()->height() - 24)));
+    if (!r.panel)
+      return false;
+    r.panel->setGeometry(refinementPanelGeometry(*workspace_));
     workspace_->setContextOverlayInteractionRegion(r.panel->geometry());
+    // The workspace updates rail/ruler geometry after the overlay resize
+    // event. Reposition against that final layout without moving the canvas.
+    QTimer::singleShot(0, this, [this, weak = std::weak_ptr(refinement_)] {
+      const auto current = weak.lock();
+      if (current && refinement_ == current && current->panel) {
+        current->panel->setGeometry(refinementPanelGeometry(*workspace_));
+        workspace_->setContextOverlayInteractionRegion(
+            current->panel->geometry());
+      }
+    });
   }
   if (event->type() == QEvent::ApplicationDeactivate) {
     refinement_->originalHeld = false;

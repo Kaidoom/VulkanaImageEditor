@@ -684,7 +684,8 @@ RefinementResult refineSelection(const SelectionState &input,
   const auto &s = state.settings;
   if (!std::isfinite(o.pixelsPerDocumentPixel) ||
       o.pixelsPerDocumentPixel <= 0 || o.pixelsPerDocumentPixel > 16 ||
-      !std::isfinite(s.radius) || s.radius < 0 || s.radius > 64 ||
+      !std::isfinite(s.radius) || s.radius < 0 ||
+      s.radius > RefinementSettings::maximumRadius ||
       !std::isfinite(s.smooth) || s.smooth < 0 || s.smooth > 12 ||
       !std::isfinite(s.feather) || s.feather < 0 || s.feather > 64 ||
       !std::isfinite(s.shift) || std::abs(s.shift) > 64 ||

@@ -10,6 +10,7 @@ namespace imageeditor::core {
 // Ephemeral, platform-neutral processing. The caller owns the immutable input
 // and reference. Grid centers map to document centers through gridToDocument.
 struct RefinementSettings {
+  static constexpr double maximumRadius = 250;
   double radius{}, smooth{}, feather{}, contrast{}, shift{};
   friend bool operator==(const RefinementSettings &,
                          const RefinementSettings &) = default;

@@ -1344,6 +1344,79 @@ void rulerGripDockingCommitsOnceAndCancelsWithoutClickThrough()
     }
 }
 
+void temporaryPanelSuppressionPreservesLayout()
+{
+    auto* canvas = new imageeditor::render::CanvasWindow;
+    OverlayDockWorkspace workspace(canvas);
+    using Side = OverlayDockWorkspace::PanelDockSide;
+    auto* left = makePanel("Left");
+    auto* right = makePanel("Right");
+    auto* second = makePanel("Second");
+    auto* floating = makePanel("Floating");
+    auto* floatTab = makePanel("Float tab");
+    auto* hidden = makePanel("Hidden tab");
+    for (auto* p : {left, right, second, floating, floatTab, hidden}) {
+        p->setObjectName(p->title());
+        workspace.addPanel(p, p == left ? Side::Left : Side::Right);
+    }
+    workspace.tabifyPanel(second, right);
+    workspace.tabifyPanel(hidden, right);
+    workspace.setPanelVisible(hidden, false);
+    workspace.activatePanel(second);
+    workspace.tabifyPanel(floatTab, floating);
+    workspace.resize(1400, 900);
+    workspace.floatPanel(floating, {470, 260, 310, 350});
+    auto* tools = new QToolBar;
+    tools->addAction("Tool");
+    workspace.setToolRail(tools, OverlayDockWorkspace::ToolRailPlacement::Left);
+    workspace.setRulerVisible(Qt::Horizontal, true);
+    workspace.setRulerVisible(Qt::Vertical, true);
+    workspace.show();
+    settleLayout();
+    const auto tabs = workspace.savePanelTabs();
+    const auto leftSizes = workspace.saveDockedPanelSizes(Side::Left);
+    const auto rightSizes = workspace.saveDockedPanelSizes(Side::Right);
+    const auto floatRect = workspace.floatingPanelGeometry(floating);
+    const auto canvasRect = workspace.canvasContainer()->geometry();
+    const auto dockPoint = workspace.rightPanelCard()->geometry().center();
+    const QRect context(1070, 40, 290, 100);
+    workspace.setContextOverlayInteractionRegion(context);
+    for (int repeat = 0; repeat < 2; ++repeat) {
+        workspace.setPanelsSuppressed(true);
+        settleLayout();
+        CHECK(workspace.panelsSuppressed());
+        CHECK(!left->isVisible() && !second->isVisible() && !floatTab->isVisible());
+        CHECK(workspace.panelFrame(floating)->isHidden());
+        CHECK(workspace.panelVisible(second) && workspace.panelVisible(floatTab));
+        CHECK(!workspace.panelVisible(hidden));
+        CHECK(tools->isVisible());
+        CHECK(workspace.rulerStrip(Qt::Horizontal)->isVisible());
+        CHECK(workspace.rulerStrip(Qt::Vertical)->isVisible());
+        const auto footprint = workspace.panelOverlay()->windowHandle()->mask();
+        CHECK(!footprint.contains(floatRect.center()));
+        CHECK(!footprint.contains(dockPoint));
+        CHECK(footprint.contains(context.center()));
+        CHECK(footprint.contains(tools->mapTo(workspace.panelOverlay(), tools->rect().center())));
+        CHECK(workspace.canvasContainer()->geometry() == canvasRect);
+        CHECK(workspace.savePanelTabs() == tabs);
+        CHECK(workspace.saveDockedPanelSizes(Side::Left) == leftSizes);
+        CHECK(workspace.saveDockedPanelSizes(Side::Right) == rightSizes);
+        // A deferred panel refresh must not make a floating tab group reappear.
+        workspace.activatePanel(floatTab);
+        settleLayout();
+        CHECK(!floatTab->isVisible());
+        workspace.setPanelsSuppressed(false);
+        settleLayout();
+        CHECK(left->isVisible() && second->isVisible() && floatTab->isVisible());
+        CHECK(!hidden->isVisible());
+        CHECK(workspace.savePanelTabs() == tabs);
+        CHECK(workspace.floatingPanelGeometry(floating) == floatRect);
+        CHECK(workspace.saveDockedPanelSizes(Side::Left) == leftSizes);
+        CHECK(workspace.saveDockedPanelSizes(Side::Right) == rightSizes);
+        CHECK(workspace.panelOverlay()->windowHandle()->mask().contains(floatRect.center()));
+    }
+}
+
 } // namespace
 
 int main(int argc, char* argv[])
@@ -1374,6 +1447,7 @@ int main(int argc, char* argv[])
     }
 
     panelGeometryIsIndependentFromCanvas();
+    temporaryPanelSuppressionPreservesLayout();
     passiveNotificationDoesNotCreateAnInputFootprint();
     internalFloatingPanelsRemainOwnedAndRedockable();
     toolRailStaysOverlayHostedAtEveryEdge();

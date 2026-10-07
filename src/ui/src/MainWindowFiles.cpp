@@ -27,6 +27,7 @@
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QScopedValueRollback>
+#include <QScopeGuard>
 #include <QSettings>
 #include <QStatusBar>
 #include <QTimer>
@@ -161,12 +162,9 @@ void MainWindow::updateDocumentTitle()
 
 bool MainWindow::settleForFileOperation()
 {
-    if (refinement_) {
-        statusBar()->showMessage(tr("Apply or cancel Refine Selection before continuing."), 4000);
-        return false;
-    }
     if (fileBusy_)
         return false;
+    if (refinement_ && !guardRefinement(activeDocumentId())) return false;
     finishLayerRename();
     // A held stroke/drag is not a completed user action. Do not serialize its
     // preview or silently cancel it to satisfy a keyboard save request.
@@ -237,6 +235,7 @@ bool MainWindow::saveDocument(bool saveAs)
 {
     if (fileBusy_ || !session().document())
         return false;
+    if (refinement_ && !guardRefinement(activeDocumentId())) return false;
     // Reject the pending repair before opening a destination dialog, whose
     // nested loop must not mistake a worker result for already-saved content.
     if (activeSpotHealStroke_ || spotHealBusyForActiveDocument()) {
@@ -331,6 +330,10 @@ bool MainWindow::openDocumentFromPath(const QString& filePath)
 {
     if (fileBusy_ || filePath.isEmpty())
         return false;
+    // Opening another document suspends this tab's workspace, including for
+    // PDF/PSD review. A cancelled/failed open returns to it unchanged.
+    suspendRefinement();
+    const auto restoreRefinement = qScopeGuard([this] { resumeRefinement(); });
     const auto path = QFileInfo(filePath).absoluteFilePath();
     if (isPdfFile(path)) return importPdfFromPath(path, false);
     if (isPsdFile(path)) return importPsdFromPath(path, false);

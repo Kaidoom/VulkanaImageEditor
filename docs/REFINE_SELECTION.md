@@ -5,7 +5,12 @@ thumbnail's **Refine Mask…** opens the same temporary workspace, independently
 of the document selection. Both actions are configurable in Shortcuts, with no
 default binding. Even coverage below the marching-ants threshold is eligible.
 
-The workspace overlays the existing controls without moving the canvas. Inspect
+The workspace temporarily hides docked panels and floating panel groups without
+moving the canvas. Hidden panels have no input footprint. Tools and rulers remain
+visible; the refinement card sits inside their available area. Apply/Cancel
+restores the original panel visibility, tab groups, current tabs and placements.
+This is transient workspace state, not a saved-layout or document-tab preference.
+Inspect
 Overlay, Black, White, Transparency or raw Grayscale Mask; hold Original to
 compare. These display choices do not edit paint colors or document content.
 Output and Apply/Cancel remain visible while the controls scroll.
@@ -15,7 +20,7 @@ Output and Apply/Cancel remain visible while the controls scroll.
 The platform-neutral service starts from immutable R8 input, settings and
 distance-sampled brush strokes. It evaluates in this order:
 
-1. **Image-guided refinement.** Radius defines a document-pixel band around
+1. **Image-guided refinement.** Radius (0–250 px) defines a document-pixel band around
    coverage boundaries. Refine Edge strokes union additional uncertain regions;
    they do not paint foreground. A zero Radius still permits brushed regions.
 2. **Smooth.** Relaxed 3×3 median filtering reduces boundary irregularities,
@@ -45,7 +50,8 @@ entry retains keyboard ownership; merely focusing a slider does not block them.
 Selection processing extends edge samples at the canvas boundary, rather than
 inventing a black border. Constant all-zero/all-one input therefore remains
 constant under global operations. Mask sessions include the stored mask's
-off-canvas extent, canvas and 128 document pixels of filter/offset context,
+off-canvas extent, canvas and 378 document pixels of analysis/filter context
+(250 px Radius plus the existing 64 px Shift Edge and 64 px Feather limits),
 sampling the mask's explicit outside coverage. Quantized no-ops reuse the
 original mask/selection; unchanged tiles are shared.
 
@@ -147,14 +153,25 @@ edge-color contamination are separate concerns.
 Completed parameter gestures and strokes have workspace-local Undo/Redo. Reset
 is undoable; Escape cancels the active gesture/stroke, otherwise the workspace.
 Apply publishes one normal atomic operation. Cancel/no-op leaves ordinary history,
-redo and saved checkpoints intact. File operations, tab changes and close ask
-the user to finish Apply/Cancel first, so no provisional mask is saved or exported.
+redo and saved checkpoints intact. Each document tab owns its unfinished session.
+Switching tabs pauses refinement, restores ordinary panels and controls, and
+resumes that tab's settings, brush edits and local history on return. Other tabs
+can be edited, saved, closed or refined independently. The active refinement
+tab gates editing menus and shortcuts, not File or Help. New/Open (including
+their shortcuts) suspend refinement; cancelling the dialog returns to it unchanged.
+Navigation, saving and closing remain usable.
+Save or another operation requiring completed content asks before discarding
+that tab's refinement. Closing a refining tab asks for that tab only; quitting
+asks about all unfinished sessions, then follows the normal unsaved-document
+prompts. Declining keeps the sessions. No provisional mask is saved or exported.
 
 One asynchronous coordinator and the existing bounded executor process immutable
 inputs. Runtime document identity, target/selection revisions and generations
 guard publication. Requests coalesce, cancelled/stale results are discarded, and
-Cancel keeps servicing UI events while the single worker drains. Destruction
-joins that worker before its owners disappear. Pan/zoom and inspection choices
+Cancel releases the workspace immediately while an owned, cooperatively cancelled
+worker drains without publishing. Suspended tabs stop scheduling work; returning
+reuses completed results or restarts the latest pending request. Final destruction
+joins retired workers before UI teardown. Pan/zoom and inspection choices
 do not rerun the solver.
 
 Reference pixels and typed sources are reused. Radius/Refine Edge changes rebuild
@@ -188,7 +205,7 @@ inspection sheets. Ground truth stays in the test harness. Private images and
 derived sheets are not installed or included in public source bundles.
 
 `imageeditor_refinement_quality_tests <output-directory> --flower <Flower.png>`
-reproduces a small Magic Wand selection and compares Radius 0/5/26/53 plus two
+reproduces a small Magic Wand selection and compares Radius 0/5/26/53/250 plus two
 Refine Edge sizes on black, white and as coverage. It is a visual regression
 fixture, not a ground-truth alpha reference. Generated tests separately verify
 large-radius recovery from a tiny island, disconnected details, holes, exact
@@ -216,7 +233,8 @@ In a separate core-only run, Smooth 2, Shift Edge +3 px and Feather 6 px took
 173 / 184 / 141 ms at 4K and 306 / 334 / 256 ms at 5K. Radius analysis plus
 publication took 219 / 467 ms, including the additional foreground-core analysis.
 The Flower fixture's 5–53 px radii and 75/130 px Refine Edge dabs took roughly
-30–50 ms for analysis at its native 1122×1402 resolution. Its larger recovered
+30–50 ms for analysis at its native 1122×1402 resolution; 250 px Radius took
+about 353 ms in the same fixture. Its larger recovered
 regions are still estimates: petal contamination and ambiguous mixed edges may
 need Add/Subtract correction. Large radii and repeated
 smoothing passes cost more; they remain cancellable between scanlines.

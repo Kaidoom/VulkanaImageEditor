@@ -37,6 +37,7 @@
 #include "imageeditor/ui/WorkspaceDialog.hpp"
 #include "imageeditor/ui/PreferencesDialog.hpp"
 #include <QScopedValueRollback>
+#include <QScopeGuard>
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/PropertiesPanel.hpp"
 #include "imageeditor/ui/QtRasterImageLoader.hpp"
@@ -1067,7 +1068,7 @@ MainWindow::MainWindow(
 
 MainWindow::~MainWindow()
 {
-    if (refinement_) finishRefinement(false, true);
+    shutdownRefinements();
     if (updateService_) { updateService_->onChanged = {}; updateService_->cancel(); }
     canvasWindow_->onDocumentPresentationChanged={};
     if(pixelPreview_)pixelPreview_->onReady={};
@@ -1614,6 +1615,7 @@ void MainWindow::closeEvent(QCloseEvent* event)
     if(cloneProcessing_){cloneCancelRequested_=true;event->ignore();return;}
     if(localBlurProcessing_){localBlurCancelRequested_=true;event->ignore();return;}
     if (fileBusy_) { event->ignore(); return; }
+    if (!guardRefinement()) { event->ignore(); return; }
     finishLayerRename();
     // Closing cancels unfinished pointer/fill previews (as before), but never
     // discards completed text or Ctrl+T actions before asking about content.
@@ -1949,6 +1951,8 @@ void MainWindow::showFeedback()
 void MainWindow::createMenus()
 {
     auto* fileMenu = menuBar()->addMenu(QStringLiteral("&File"));
+    fileMenu->setObjectName(QStringLiteral("FileMenu"));
+    fileMenu->setProperty("availableDuringRefinement", true);
     auto* newAction = fileMenu->addAction(QIcon::fromTheme(QStringLiteral("document-new")),
         QStringLiteral("&New Document…"), this, &MainWindow::createNewDocument);
     newAction->setShortcut(QKeySequence::New);
@@ -2196,6 +2200,7 @@ void MainWindow::createMenus()
     }
     auto* helpMenu = menuBar()->addMenu(tr("&Help"));
     helpMenu->setObjectName(QStringLiteral("HelpMenu"));
+    helpMenu->setProperty("availableDuringRefinement", true);
     // Intentionally no URL/action until the documentation site is available.
     auto* documentation = helpMenu->addAction(tr("Documentation"));
     documentation->setObjectName(QStringLiteral("DocumentationAction"));
@@ -2963,6 +2968,8 @@ void MainWindow::showStartupDocument()
 void MainWindow::createNewDocument()
 {
     if (fileBusy_ || workspaceDialog_) return;
+    suspendRefinement();
+    const auto restoreRefinement = qScopeGuard([this] { resumeRefinement(); });
     startupNewDocumentPending_ = false;
     WorkspaceDialog presenter(*workspace_, *this);
     NewDocumentDialog dialog(&presenter);
@@ -3054,6 +3061,8 @@ void MainWindow::changeCanvasSize()
 void MainWindow::openImage()
 {
     if (fileBusy_) return;
+    suspendRefinement();
+    const auto restoreRefinement = qScopeGuard([this] { resumeRefinement(); });
     const auto paths = QFileDialog::getOpenFileNames(this,
         QStringLiteral("Open document"), openDocumentDirectory(), documentOpenFilter());
     for (const auto& path : paths) openImageFromPath(path);
@@ -3076,6 +3085,7 @@ bool MainWindow::openImageFromPath(const QString& filePath)
 bool MainWindow::importImageAsLayerFromPath(const QString& filePath)
 {
     if (fileBusy_) return false;
+    if (refinement_ && !guardRefinement(activeDocumentId())) return false;
     if (isPdfFile(filePath)) return importPdfFromPath(filePath,true);
     if (isPsdFile(filePath)) return importPsdFromPath(filePath,true);
     cancelPendingEdits();
@@ -4198,6 +4208,7 @@ void MainWindow::addRasterLayer()
 
 void MainWindow::setActiveTool(core::ToolId tool)
 {
+    if (refinement_) return;
     if(tool==core::ToolId::Crop && !layerCrop_ && !startingCrop_){
         beginLayerCrop();
         if(!layerCrop_){

@@ -232,21 +232,21 @@ int main(int argc, char **argv) {
     auto input = buildMagicWand(image, {502.5, 636.5}, 12, {},
                                 SelectionOperation::Replace, cancelled)
                      .combined;
-    QImage review(360 * 6, 360 * 3 + 28, QImage::Format_RGB32);
+    QImage review(360 * 7, 360 * 3 + 28, QImage::Format_RGB32);
     review.fill(QColor(30, 30, 30));
     QPainter painter(&review);
     const QRect crop(370, 575, 180, 180);
-    for (int col = 0; col < 6; ++col) {
+    for (int col = 0; col < 7; ++col) {
       RefinementState state;
-      const std::array radii{0., 5., 26., 53., 0., 0.};
+      const std::array radii{0., 5., 26., 53., 250., 0., 0.};
       state.settings.radius = radii[std::size_t(col)];
-      if (col >= 4) {
+      if (col >= 5) {
         auto stroke = std::make_shared<RefinementStroke>();
         stroke->kind = RefinementBrush::Edge;
         stroke->hardness = 1;
         BrushDab dab;
         dab.documentCenter = {479, 655};
-        dab.diameterPixels = col == 4 ? 75 : 130;
+        dab.diameterPixels = col == 5 ? 75 : 130;
         stroke->dabs.push_back(dab);
         state.strokes.push_back(stroke);
       }
@@ -262,8 +262,8 @@ int main(int argc, char **argv) {
       painter.setPen(Qt::white);
       painter.drawText(
           col * 360 + 4, 19,
-          col < 4 ? QString("Radius %1").arg(state.settings.radius)
-                  : QString("Refine Edge %1 px").arg(col == 4 ? 75 : 130));
+          col < 5 ? QString("Radius %1").arg(state.settings.radius)
+                  : QString("Refine Edge %1 px").arg(col == 5 ? 75 : 130));
       painter.drawImage(QRect(col * 360, 28, 360, 360),
                         cutout(image, result.coverage, Qt::black), crop);
       painter.drawImage(QRect(col * 360, 388, 360, 360),

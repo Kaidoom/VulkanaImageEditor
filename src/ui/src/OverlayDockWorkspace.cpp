@@ -789,6 +789,17 @@ bool OverlayDockWorkspace::panelVisible(const WorkspacePanel* panel) const
     return panel && panelRequestedVisible(panel);
 }
 
+void OverlayDockWorkspace::setPanelsSuppressed(bool suppressed)
+{
+    if (panelsSuppressed_ == suppressed) return;
+    if (suppressed) {
+        if (draggedPanel_) finishPanelDrag(draggedPanel_, {}, true);
+        if (resizedPanel_) finishPanelResize(resizedPanel_, true);
+    }
+    panelsSuppressed_ = suppressed;
+    updateOverlayLayoutAndStacking();
+}
+
 OverlayDockWorkspace::PanelPlacement OverlayDockWorkspace::panelPlacement(
     const WorkspacePanel* panel) const
 {
@@ -990,6 +1001,7 @@ int OverlayDockWorkspace::panelIndex(
 
 bool OverlayDockWorkspace::hasVisibleDockedPanel(PanelDockSide side) const
 {
+    if (panelsSuppressed_) return false;
     const auto& panels = side == PanelDockSide::Left
         ? leftPanels_ : rightPanels_;
     return std::any_of(panels.begin(), panels.end(),
@@ -1055,7 +1067,7 @@ void OverlayDockWorkspace::clampFloatingPanels()
 void OverlayDockWorkspace::beginPanelDrag(
     WorkspacePanel* panel, QPoint, QPoint pressOffset)
 {
-    if (!panel || draggedPanel_) {
+    if (!panel || draggedPanel_ || panelsSuppressed_) {
         return;
     }
     draggedPanel_ = panel;
@@ -1205,7 +1217,7 @@ void OverlayDockWorkspace::beginPanelResize(
     WorkspacePanel* panel, QPoint pressGlobal)
 {
     if (!panel || panelPlacement(panel) != PanelPlacement::Floating
-        || resizedPanel_) {
+        || resizedPanel_ || panelsSuppressed_) {
         return;
     }
     resizedPanel_ = panel;
@@ -1248,6 +1260,10 @@ void OverlayDockWorkspace::finishPanelResize(
 
 void OverlayDockWorkspace::updateColumnContents()
 {
+    // Hide floating frames, not their individual tabs. Dock frames stay in
+    // their unchanged splitter; hiding its host preserves all saved sizes.
+    for (auto* panel : floatingPanels_)
+        panel->setVisible(!panelsSuppressed_ && panelRequestedVisible(panel));
     const bool leftHasPanels = hasVisibleDockedPanel(PanelDockSide::Left);
     const bool rightHasPanels = hasVisibleDockedPanel(PanelDockSide::Right);
     // Empty adoption shelves are drag affordances, not permanent chrome.

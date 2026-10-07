@@ -168,7 +168,7 @@ bool MainWindow::canReceiveLayerTransfer(const QMimeData* data) const
 {
     const auto* transfer = dynamic_cast<const LayerTransferMimeData*>(data);
     return transfer && transfer->source && !transfer->source->closed && !transfer->consumed
-        && activeDocument_ && transfer->source != activeDocument_ && !fileBusy_
+        && activeDocument_ && transfer->source != activeDocument_ && !fileBusy_ && !refinement_
         && (!transfer->destination || transfer->destination == activeDocumentId());
 }
 bool MainWindow::receiveLayerTransfer(const QMimeData* data, std::optional<core::Vec2d> point,
@@ -305,11 +305,8 @@ void MainWindow::captureDocumentView()
 }
 bool MainWindow::settleForDocumentSwitch()
 {
-    if (refinement_) {
-        statusBar()->showMessage(tr("Apply or cancel Refine Selection before switching documents."), 4000);
-        return false;
-    }
     if (fileBusy_ || workspaceDialog_ || cloneProcessing_ || localBlurProcessing_) return false;
+    if (refinement_) return true; // Suspended only once a switch will actually occur.
     finishLayerRename();
     opacitySlider_->finishEditing();
     activeOpacityMergeKey_ = 0;
@@ -344,6 +341,7 @@ bool MainWindow::activateDocument(DocumentInstanceId id)
     auto found = std::ranges::find_if(documents_, [id](const auto& context) { return context->id == id; });
     if (found == documents_.end() || switchingDocument_ || !settleForDocumentSwitch()) return false;
     const QScopedValueRollback switching(switchingDocument_, true);
+    suspendRefinement();
     captureDocumentView();
     auto colors = session().colors();
     auto tool = session().activeTool();
@@ -370,6 +368,7 @@ bool MainWindow::activateDocument(DocumentInstanceId id)
     refreshSpotHealOwnership();
     canvasWindow_->dismissLayerOutlines();
     refreshDocumentTabs(); updateDocumentResources();
+    resumeRefinement();
     return true;
 }
 bool MainWindow::initializeDocument(std::unique_ptr<core::Document> document, QString name, QString path, QJsonObject metadata, QString source)
@@ -396,7 +395,7 @@ bool MainWindow::publishDocuments(std::vector<std::shared_ptr<DocumentContext>> 
     documents_.reserve(documents_.size() + staged.size());
     // Only the untouched launch placeholder may be retired without a close
     // decision. Explicit New canvases and every opened document remain tabs.
-    auto placeholder = activeDocument_ && activeDocument_->untouched && !session().document()->isModified() ? activeDocument_ : nullptr;
+    auto placeholder = activeDocument_ && !activeDocument_->refinement && activeDocument_->untouched && !session().document()->isModified() ? activeDocument_ : nullptr;
     const auto oldCount = documents_.size();
     documents_.insert(documents_.end(), staged.begin(), staged.end());
     if (!activateDocument(staged.front()->id)) { documents_.resize(oldCount); return false; }
@@ -426,6 +425,7 @@ bool MainWindow::closeDocument(DocumentInstanceId id)
     auto it = std::ranges::find_if(documents_, [id](const auto& context) { return context->id == id; });
     if (it == documents_.end()) return false;
     auto closing = *it;
+    if (!guardRefinement(id)) return false;
     cancelDocumentRepair(id, true);
     const auto previous = activeDocumentId();
     const auto index = std::size_t(it - documents_.begin());
@@ -456,6 +456,7 @@ bool MainWindow::closeDocument(DocumentInstanceId id)
 }
 bool MainWindow::guardAllDocuments()
 {
+    if (!guardRefinement()) return false;
     if (!settleForDocumentSwitch()) return false;
     const auto previous = activeDocumentId();
     const auto owners = documents_; // Save dialogs may process nested UI events.

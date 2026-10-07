@@ -10,6 +10,7 @@
 
 namespace imageeditor::ui {
 using DocumentInstanceId = std::uint64_t;
+struct RefinementWorkspace;
 
 // Runtime ownership only. Neither tab order nor instance IDs enter .vulkana.
 struct DocumentContext final {
@@ -24,6 +25,8 @@ struct DocumentContext final {
     std::optional<core::MeasurementLine> measurement;
     std::vector<core::LayerId> collapsedFolders;
     std::optional<ExportSettings> exportSettings;
+    // Unpublished editing workspace, owned by this runtime tab only.
+    std::shared_ptr<RefinementWorkspace> refinement;
     std::uint64_t cancellationGeneration {0};
     std::uint64_t lastActivated {0};
 private:

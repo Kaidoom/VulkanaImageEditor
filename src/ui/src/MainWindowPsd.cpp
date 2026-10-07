@@ -53,6 +53,7 @@ bool MainWindow::importPsdFromPath(const QString &input, bool intoCurrent) {
         return false;
       }
       auto tree = doc->tree();
+      if (!guardRefinement(target->id)) return false;
       tree.containers.insert(tree.containers.end(),
                              result.document->tree().containers.begin(),
                              result.document->tree().containers.end());

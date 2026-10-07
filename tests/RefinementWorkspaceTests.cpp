@@ -6,14 +6,19 @@
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/ProjectFile.hpp"
 #include "imageeditor/ui/Theme.hpp"
+#include "imageeditor/ui/WorkspacePanel.hpp"
 #include <QAction>
 #include <QApplication>
 #include <QComboBox>
 #include <QContextMenuEvent>
+#include <QDialogButtonBox>
 #include <QElapsedTimer>
+#include <QFileDialog>
 #include <QImage>
 #include <QLabel>
 #include <QMenu>
+#include <QMenuBar>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QSettings>
 #include <QStandardPaths>
@@ -49,6 +54,7 @@ bool wait(const std::function<bool()> &predicate) {
 }
 int main(int argc, char **argv) {
   QCoreApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
+  QCoreApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
   QApplication app(argc, argv);
   QStandardPaths::setTestModeEnabled(true);
   QTemporaryDir temp;
@@ -81,6 +87,14 @@ int main(int argc, char **argv) {
   try {
     u::MainWindow w(vulkan, false, false);
     w.setUnsavedPromptEnabled(false);
+    bool discardRefinement = false;
+    int refinementPrompts = 0;
+    u::MainWindow::FileInteractions files;
+    files.confirmCancelRefinement = [&](const QString &) {
+      ++refinementPrompts;
+      return discardRefinement;
+    };
+    w.setFileInteractions(files);
     w.resize(1320, 900);
     w.show();
     spin();
@@ -96,6 +110,16 @@ int main(int argc, char **argv) {
     auto *workspace = dynamic_cast<u::OverlayDockWorkspace *>(
         w.findChild<QWidget *>("CanvasWorkspace"));
     CHECK(workspace);
+    auto *colorShell = dynamic_cast<u::WorkspacePanel *>(
+        workspace->panelOverlay()->findChild<QWidget *>("ColorPanelShell"));
+    CHECK(colorShell);
+    workspace->floatPanel(colorShell, {340, 230, 360, 300});
+    workspace->setRulerVisible(Qt::Horizontal, true);
+    workspace->setRulerVisible(Qt::Vertical, true);
+    workspace->setRulerFarEdge(Qt::Vertical, true);
+    spin();
+    const auto savedTabs = workspace->savePanelTabs();
+    const auto floatingGeometry = workspace->floatingPanelGeometry(colorShell);
     r::CanvasWindow *canvas = nullptr;
     for (auto *window : QGuiApplication::allWindows())
       if (window->objectName() == "VulkanCanvasWindow")
@@ -111,9 +135,12 @@ int main(int argc, char **argv) {
       spin();
     };
     refresh();
-    auto panel = [&] {
-      return workspace->panelOverlay()->findChild<QWidget *>(
-          "RefineSelectionWorkspace");
+    auto panel = [&]() -> QWidget * {
+      for (auto *p : workspace->panelOverlay()->findChildren<QWidget *>(
+               "RefineSelectionWorkspace"))
+        if (!p->isHidden())
+          return p;
+      return nullptr;
     };
     auto ready = [&] {
       return wait([&] {
@@ -127,6 +154,10 @@ int main(int argc, char **argv) {
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
         return !panel();
       }));
+      CHECK(!workspace->panelsSuppressed());
+      CHECK(workspace->panelFrame(colorShell)->isVisible());
+      CHECK(workspace->savePanelTabs() == savedTabs);
+      CHECK(workspace->floatingPanelGeometry(colorShell) == floatingGeometry);
     };
     auto apply = [&] {
       panel()->findChild<QPushButton *>("RefineApply")->click();
@@ -134,6 +165,8 @@ int main(int argc, char **argv) {
       QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
       spin();
       CHECK(!panel());
+      CHECK(!workspace->panelsSuppressed());
+      CHECK(workspace->panelFrame(colorShell)->isVisible());
     };
     auto set = [&](const char *name, double value) {
       panel()->findChild<QDoubleSpinBox *>(name)->setValue(value);
@@ -186,6 +219,35 @@ int main(int argc, char **argv) {
     CHECK(panel() && !panel()->isWindow());
     CHECK(canvas->geometry() == geometry);
     CHECK(doc->selection() == selection && doc->revision() == revision);
+    CHECK(workspace->panelsSuppressed());
+    CHECK(!workspace->panelFrame(colorShell)->isVisible());
+    CHECK(!workspace->rightPanelCard()->isVisible());
+    CHECK(!workspace->panelOverlay()->windowHandle()->mask().contains(
+        floatingGeometry.center()));
+    CHECK(workspace->rulerStrip(Qt::Horizontal)->isVisible());
+    CHECK(workspace->rulerStrip(Qt::Vertical)->isVisible());
+    CHECK(!panel()->geometry().intersects(
+        workspace->rulerStrip(Qt::Horizontal)->geometry()));
+    CHECK(!panel()->geometry().intersects(
+        workspace->rulerStrip(Qt::Vertical)->geometry()));
+    const auto windowSize = w.size();
+    w.resize(windowSize - QSize(70, 50));
+    spin();
+    spin();
+    CHECK(panel()->geometry().right() <
+          workspace->rulerStrip(Qt::Vertical)->geometry().left());
+    CHECK(panel()->geometry().top() >
+          workspace->rulerStrip(Qt::Horizontal)->geometry().bottom());
+    w.resize(windowSize);
+    spin();
+    spin();
+    CHECK(panel()->findChild<QDoubleSpinBox *>("RefineRadius")->maximum() ==
+          250);
+    set("RefineRadius", 250);
+    set("RefineRadius", 0);
+    cancel();
+    refine->trigger();
+    CHECK(ready());
     auto *brushSize = panel()->findChild<QDoubleSpinBox *>("RefineBrushSize");
     const double originalBrushSize = brushSize->value();
     auto brushKey = [&](QEvent::Type type, int key, bool repeat = false) {
@@ -385,9 +447,167 @@ int main(int argc, char **argv) {
     refresh();
     refine->trigger();
     CHECK(ready());
-    CHECK(!w.activateDocument(second));
+    set("RefineFeather", 5);
+    const auto firstSelection = doc->selection();
+    const auto firstHistory = session.history().undoDepth();
+    auto *firstPanel = panel();
+    CHECK(w.menuBar()->isEnabled());
+    auto *fileMenu = w.findChild<QMenu *>("FileMenu");
+    auto *newAction = w.findChild<QAction *>("NewDocumentAction");
+    auto *openAction = w.findChild<QAction *>("OpenDocumentAction");
+    CHECK(fileMenu && newAction && openAction);
+    CHECK(fileMenu->menuAction()->isEnabled());
+    CHECK(!w.findChild<QMenu *>("SelectMenu")->menuAction()->isEnabled());
+    const int promptsBeforeNew = refinementPrompts;
+    // Exercise the actual menu, not only the programmatic tab-opening API.
+    QTest::mousePress(w.menuBar(), Qt::LeftButton, Qt::NoModifier,
+                     w.menuBar()->actionGeometry(fileMenu->menuAction()).center());
+    CHECK(fileMenu->isVisible());
+    QTest::mouseRelease(w.menuBar(), Qt::LeftButton, Qt::NoModifier,
+                     w.menuBar()->actionGeometry(fileMenu->menuAction()).center());
+    spin();
+    CHECK(fileMenu->isVisible());
+    fileMenu->setActiveAction(newAction);
+    bool newShown = false;
+    QTimer::singleShot(0, &w, [&] {
+      auto *dialog = w.findChild<QDialog *>("NewDocumentDialog");
+      CHECK(dialog && dialog->isVisible());
+      if (dialog) {
+        newShown = true;
+        CHECK(!panel() && w.documentContext(first)->refinement);
+        QTest::keyClick(dialog, Qt::Key_Escape);
+      }
+    });
+    QTest::keyClick(fileMenu, Qt::Key_Return);
+    spin();
+    CHECK(newShown && ready() && panel() == firstPanel);
+    CHECK(panel()->findChild<QDoubleSpinBox *>("RefineFeather")->value() == 5);
+    QTimer::singleShot(0, &w, [&] {
+      auto *dialog = w.findChild<QDialog *>("NewDocumentDialog");
+      CHECK(dialog);
+      if (dialog)
+        dialog->findChild<QDialogButtonBox *>("CanvasDialogButtons")
+            ->button(QDialogButtonBox::Ok)->click();
+    });
+    QTest::keyClick(firstPanel, Qt::Key_N, Qt::ControlModifier);
+    const auto created = w.activeDocumentId();
+    CHECK(created != first && created != second);
+    CHECK(w.documentContext(first)->refinement && !panel());
+    CHECK(w.closeDocument(created));
+    CHECK(w.activateDocument(first) && ready());
+    bool pickerShown = false;
+    QTimer::singleShot(0, &w, [&] {
+      auto *picker = qobject_cast<QFileDialog *>(QApplication::activeModalWidget());
+      CHECK(picker);
+      if (picker) {
+        pickerShown = true;
+        picker->reject();
+      }
+    });
+    QTest::keyClick(panel(), Qt::Key_O, Qt::ControlModifier);
+    CHECK(pickerShown && ready() && panel() == firstPanel);
+    QTimer::singleShot(0, &w, [&] {
+      auto *picker = qobject_cast<QFileDialog *>(QApplication::activeModalWidget());
+      CHECK(picker);
+      if (picker) {
+        picker->selectFile(path);
+        QMetaObject::invokeMethod(picker, "accept", Qt::DirectConnection);
+      }
+    });
+    openAction->trigger();
+    const auto opened = w.activeDocumentId();
+    CHECK(opened != first && opened != second);
+    CHECK(w.documentContext(first)->refinement && !panel());
+    CHECK(w.closeDocument(opened));
+    CHECK(w.activateDocument(first) && ready() && panel() == firstPanel);
+    CHECK(refinementPrompts == promptsBeforeNew);
+    CHECK(doc->selection() == firstSelection && session.history().undoDepth() == firstHistory);
+    // Navigation is available even with numeric focus inside the workspace.
+    QTest::keyClick(firstPanel, Qt::Key_Tab, Qt::ControlModifier);
+    CHECK(w.activeDocumentId() == second);
+    CHECK(!panel() && firstPanel->isHidden());
+    CHECK(w.documentContext(first)->refinement != nullptr);
+    CHECK(w.menuBar()->isEnabled());
+    CHECK(!workspace->panelsSuppressed() &&
+          workspace->panelFrame(colorShell)->isVisible());
+    files.chooseSavePath = [&] { return temp.filePath("other-tab.vulkana"); };
+    w.setFileInteractions(files);
+    const int promptsBeforeSave = refinementPrompts;
+    CHECK(w.saveDocument());
+    CHECK(refinementPrompts == promptsBeforeSave);
+    CHECK(w.documentContext(first)->refinement != nullptr);
+    refresh();
+    auto &secondSession = const_cast<c::EditorSession &>(w.editorSession());
+    const auto secondSelection = secondSession.document()->selection();
+    refine->trigger();
+    CHECK(ready());
+    set("RefineFeather", 2);
+    auto *secondPanel = panel();
+    CHECK(secondPanel != firstPanel);
+    // A late signal from a suspended tab is never routed to this session.
+    firstPanel->findChild<QDoubleSpinBox *>("RefineFeather")->setValue(7);
+    CHECK(panel()->findChild<QDoubleSpinBox *>("RefineFeather")->value() == 2);
+    firstPanel->findChild<QDoubleSpinBox *>("RefineFeather")->setValue(5);
+    panel()->findChild<QDoubleSpinBox *>("RefineRadius")->setValue(250);
+    spin(); // May leave an in-flight worker when switching away.
+    CHECK(w.activateDocument(first));
+    CHECK(ready() && panel() == firstPanel);
+    CHECK(panel()->findChild<QDoubleSpinBox *>("RefineFeather")->value() == 5);
+    w.findChild<QAction *>("UndoAction")->trigger();
+    CHECK(ready());
+    CHECK(panel()->findChild<QDoubleSpinBox *>("RefineFeather")->value() == 0);
+    w.findChild<QAction *>("RedoAction")->trigger();
+    CHECK(ready());
+    CHECK(panel()->findChild<QDoubleSpinBox *>("RefineFeather")->value() == 5);
+    CHECK(doc->selection() == firstSelection &&
+          session.history().undoDepth() == firstHistory);
+    // Block editing shortcuts locally without disabling document navigation.
+    QTest::keyClick(panel(), Qt::Key_A, Qt::ControlModifier);
+    QTest::keyClick(panel(), Qt::Key_E);
+    CHECK(doc->selection() == firstSelection);
+    CHECK(session.activeTool() == c::ToolId::Brush);
+    CHECK(w.openImageFromPath(path));
+    const auto unrelated = w.activeDocumentId();
+    CHECK(w.activateDocument(first));
+    const int promptsBeforeClose = refinementPrompts;
+    CHECK(w.closeDocument(unrelated));
+    CHECK(refinementPrompts == promptsBeforeClose && panel() == firstPanel);
+    // Closing another refining tab asks only for that tab, without switching.
+    const int beforePrompt = refinementPrompts;
+    CHECK(!w.closeDocument(second));
+    CHECK(refinementPrompts == beforePrompt + 1 && panel() == firstPanel);
+    CHECK(w.documentContext(second)->refinement != nullptr);
+    CHECK(secondSession.document()->selection() == secondSelection);
+    // The production prompt is recoverable, with the same default as an
+    // unsaved-document question. Closing it cannot discard either session.
+    auto productionFiles = files;
+    productionFiles.confirmCancelRefinement = {};
+    w.setFileInteractions(productionFiles);
+    bool promptShown = false;
+    QTimer::singleShot(0, &w, [&] {
+      auto *question =
+          qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+      CHECK(question);
+      if (question) {
+        promptShown = true;
+        CHECK(question->defaultButton() ==
+              question->button(QMessageBox::Cancel));
+        question->reject();
+      }
+    });
+    CHECK(!w.closeDocument(first));
+    CHECK(promptShown && panel() == firstPanel);
+    w.setFileInteractions(files);
     cancel();
     CHECK(w.activateDocument(second));
+    CHECK(ready() && panel() == secondPanel);
+    CHECK(panel()->findChild<QDoubleSpinBox *>("RefineFeather")->value() == 2);
+    CHECK(w.activateDocument(first));
+    discardRefinement = true;
+    CHECK(w.closeDocument(second));
+    CHECK(w.activeDocumentId() == first && !w.documentContext(second));
+    discardRefinement = false;
+    CHECK(w.menuBar()->isEnabled() && !panel());
     CHECK(w.activateDocument(first));
     refresh();
     refine->trigger();
@@ -477,7 +697,24 @@ int main(int argc, char **argv) {
     CHECK(ready());
     CHECK(!w.close());
     CHECK(panel());
-    cancel();
+    const int closeKeyPrompts = refinementPrompts;
+    QTest::keyClick(panel(), Qt::Key_W, Qt::ControlModifier);
+    CHECK(refinementPrompts == closeKeyPrompts + 1 && panel());
+    QTest::keyClick(panel(), Qt::Key_Q, Qt::ControlModifier);
+    CHECK(refinementPrompts == closeKeyPrompts + 2 && panel());
+    // Save asks before leaving the workspace and never stores its preview.
+    CHECK(!w.saveDocument(true));
+    CHECK(panel());
+    discardRefinement = true;
+    files.chooseSavePath = [&] {
+      return temp.filePath("after-refinement.vulkana");
+    };
+    w.setFileInteractions(files);
+    const auto beforeSave = doc->selection();
+    CHECK(w.saveDocument(true));
+    CHECK(!panel() && doc->selection() == beforeSave);
+    CHECK(w.menuBar()->isEnabled());
+    discardRefinement = false;
     if (app.arguments().contains("--profile")) {
       for (auto e : {QSize(3840, 2160), QSize(5120, 2880)}) {
         QImage large(e, QImage::Format_RGBA8888);
@@ -527,7 +764,26 @@ int main(int argc, char **argv) {
         cancel();
       }
     }
-    w.close();
+    // Quit sees suspended sessions as well as the active tab. Declining keeps
+    // both; accepting closes normally, even with a pending calculation.
+    refresh();
+    refine->trigger();
+    CHECK(ready());
+    const auto suspendedOwner = w.activeDocumentId();
+    CHECK(w.openImageFromPath(path));
+    refresh();
+    refine->trigger();
+    CHECK(ready());
+    panel()->findChild<QDoubleSpinBox *>("RefineRadius")->setValue(250);
+    spin();
+    const int beforeQuit = refinementPrompts;
+    CHECK(!w.close());
+    CHECK(refinementPrompts == beforeQuit + 1);
+    CHECK(w.documentContext(suspendedOwner)->refinement && panel());
+    discardRefinement = true;
+    CHECK(w.close());
+    CHECK(!w.documentContext(suspendedOwner)->refinement);
+    CHECK(!w.documentContext(w.activeDocumentId())->refinement);
     spin();
   } catch (const std::exception &e) {
     CHECK(false);

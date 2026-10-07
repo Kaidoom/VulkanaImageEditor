@@ -136,6 +136,7 @@ public:
         std::function<bool(const QString&)> confirmReplace;
         std::function<void(const QString&)> reportError;
         ProjectProgress progress;
+        std::function<bool(const QString&)> confirmCancelRefinement;
     };
     void setFileInteractions(FileInteractions hooks) { fileInteractions_ = std::move(hooks); }
     void setUnsavedPromptEnabled(bool enabled) { unsavedPromptEnabled_ = enabled; }
@@ -168,7 +169,14 @@ private:
     void createToolOptionsBar();
     void createSelectionActions();
     void beginRefinement(bool mask);
-    void finishRefinement(bool apply, bool wait = false);
+    void finishRefinement(bool apply);
+    void suspendRefinement();
+    void resumeRefinement();
+    void refreshRefinementMenus();
+    void discardRefinement(DocumentInstanceId);
+    bool guardRefinement(DocumentInstanceId = 0);
+    void drainRetiredRefinements();
+    void shutdownRefinements();
     void advanceRefinement();
     void requestRefinement();
     void publishRefinementPreview();
@@ -178,6 +186,8 @@ private:
     bool refinementBrush(const core::NormalizedPointerSample&, int phase);
     bool refinementEvent(QObject*, QEvent*);
     std::shared_ptr<RefinementWorkspace> refinement_;
+    std::vector<std::shared_ptr<RefinementWorkspace>> retiredRefinements_;
+    QTimer* refinementCleanupTimer_{};
     QAction* refineSelectionAction_{};
     QAction* refineMaskAction_{};
     void createSelectionControls();

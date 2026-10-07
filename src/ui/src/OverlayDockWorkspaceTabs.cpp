@@ -140,7 +140,7 @@ OverlayDockWorkspace::TabGroup& OverlayDockWorkspace::createTabGroup(WorkspacePa
     });
     tabs->started = [this, frame](int index, QPoint global) {
         auto* group = tabGroup(frame);
-        if (draggedPanel_ || !group || index < 0 || index >= int(group->panels.size())) return;
+        if (panelsSuppressed_ || draggedPanel_ || !group || index < 0 || index >= int(group->panels.size())) return;
         draggedTab_ = group->panels[size_t(index)];
         beginPanelDrag(frame, global, frame->mapFromGlobal(global));
     };
@@ -176,7 +176,8 @@ void OverlayDockWorkspace::refreshTabGroup(TabGroup& group, WorkspacePanel* acti
         group.frame->setHeightRange(minimum + tabHeight,
             std::min(QWIDGETSIZE_MAX, std::max(minimum + tabHeight + 1, maximum + tabHeight)));
     } // Hiding every tab retains the frame's size for the next activation.
-    group.frame->setVisible(selected >= 0);
+    group.frame->setVisible(selected >= 0 &&
+        (!panelsSuppressed_ || panelPlacement(group.frame) != PanelPlacement::Floating));
     scheduleOverlayUpdate();
 }
 

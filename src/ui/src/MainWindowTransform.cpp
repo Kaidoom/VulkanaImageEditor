@@ -64,7 +64,9 @@ bool MainWindow::runTransformAction(const std::function<bool()>& action)
 }
 void MainWindow::cancelPendingEdits()
 {
-    if (refinement_) finishRefinement(false);
+    // Refinement is tab-owned; only Apply, Cancel or a confirmed lifecycle
+    // operation may discard it. Ordinary tool cleanup must not do so implicitly.
+    if (refinement_) return;
     finishLayerCrop(false);
     finishAdjustmentEdit(false);
     finishFilterEdit(false);
@@ -306,7 +308,7 @@ void MainWindow::stepTransformHistory(bool redo)
 
 bool MainWindow::executeDocumentCommand(std::unique_ptr<core::Command> command)
 {
-    if (fileBusy_)
+    if (fileBusy_ || refinement_)
         return false;
     cancelPendingEdits();
     return session().execute(std::move(command));

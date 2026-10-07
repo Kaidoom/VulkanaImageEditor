@@ -84,6 +84,10 @@ public:
     void floatPanel(WorkspacePanel* panel, const QRect& geometry = {});
     void setPanelVisible(WorkspacePanel* panel, bool visible);
     void activatePanel(WorkspacePanel* panel);
+    // Temporary presentation only: retain requested visibility, tab membership,
+    // current tabs and saved placement. Tools/rulers stay on the panel plane.
+    void setPanelsSuppressed(bool suppressed);
+    [[nodiscard]] bool panelsSuppressed() const noexcept { return panelsSuppressed_; }
     // Group frames participate in the existing dock/float layout. Individual
     // tabs remain the original panels; no control or native surface is rebuilt.
     void tabifyPanel(WorkspacePanel* panel, WorkspacePanel* target, int index = -1);
@@ -247,6 +251,7 @@ private:
     std::vector<WorkspacePanel*> rightPanels_;
     std::vector<WorkspacePanel*> floatingPanels_;
     QSet<const WorkspacePanel*> hiddenPanels_;
+    bool panelsSuppressed_ {false};
     QRegion transientInteractionRegion_;
     QRegion lastInteractionFootprint_;
     int requestedRightWidth_ {kDefaultPanelWidth};

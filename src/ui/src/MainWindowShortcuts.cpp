@@ -182,7 +182,8 @@ bool MainWindow::routeEditorShortcut(QObject* watched, QEvent* event)
         event->accept(); return true; // Physical release is handled before focus/modal routing.
     }
     if (event->type() != QEvent::KeyPress || key->key() == Qt::Key_Escape) return false;
-    for (const auto* id : {"CloseDocumentAction", "NextDocumentAction", "PreviousDocumentAction"}) {
+    for (const auto* id : {"CloseDocumentAction", "NextDocumentAction", "PreviousDocumentAction", "QuitAction",
+             "NewDocumentAction", "OpenDocumentAction", "ImportImageAction", "ExportImageAction", "ExportAgainAction"}) {
         if (shortcutMatches(shortcuts_, id, *key)) {
             if (!key->isAutoRepeat()) if (auto* action=shortcutActions_.value(id);action&&action->isEnabled()) action->trigger();
             event->accept();return true;
@@ -191,6 +192,16 @@ bool MainWindow::routeEditorShortcut(QObject* watched, QEvent* event)
     auto* owner = inputOwner(QApplication::focusWidget());
     const bool field = editorTextInputActive() || typingWidget(qobject_cast<QWidget*>(watched));
     if (field) return false;
+    // The active tab's temporary workspace owns editing shortcuts. Navigation,
+    // close and save retain their usual routing (with discard confirmation);
+    // panning is inspection, not a document edit.
+    if (refinement_ && !shortcutMatches(shortcuts_, "PanCanvasAction", *key)) {
+        for (const auto& definition : shortcutDefinitions())
+            if (shortcutMatches(shortcuts_, definition.id, *key)) {
+                event->accept();
+                return true;
+            }
+    }
     const bool curve = dynamic_cast<AdjustmentCurveEditor*>(owner);
     const bool layers = owner == layerList_;
     const bool control = owner && !curve && !layers;
