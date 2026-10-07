@@ -90,6 +90,9 @@ public:
     void setPointerSizeTooltip(core::Extent2d size);
     [[nodiscard]] std::array<core::Vec2d, 8> logicalTransformHandles() const;
     [[nodiscard]] bool transformDragging() const noexcept { return transforming_; }
+    // The shell's selection menu must not consume the context event belonging
+    // to a right-click that just completed an explicit canvas operation.
+    [[nodiscard]] bool finishContextMenuSuppressed() const noexcept { return suppressFinishContextMenu_; }
     void updateTransformModifiers(Qt::KeyboardModifiers modifiers);
     void setSnapGuides(core::SnapGuides);
     void cancelTransformInput();

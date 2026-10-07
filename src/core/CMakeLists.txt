@@ -27,6 +27,7 @@ add_library(imageeditor_core STATIC
     src/ColorSampler.cpp
     src/ColorSelection.cpp
     src/SmartSelectionReference.cpp
+    src/SelectionRefinement.cpp
     src/QuickSelection.cpp
     src/MagicWandSelection.cpp
     src/Document.cpp

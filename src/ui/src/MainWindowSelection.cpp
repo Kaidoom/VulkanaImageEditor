@@ -41,6 +41,14 @@ void MainWindow::createSelectionActions()
     selectionGrowAction_->setAutoRepeat(false);
     registerEditorWindowAction(selectionGrowAction_);
     connect(selectionGrowAction_, &QAction::triggered, this, &MainWindow::openSelectionAdjustments);
+    refineSelectionAction_ = new QAction(tr("Refine Selection…"), this);
+    refineSelectionAction_->setObjectName(QStringLiteral("RefineSelectionAction"));
+    registerEditorWindowAction(refineSelectionAction_);
+    connect(refineSelectionAction_, &QAction::triggered, this, [this] { beginRefinement(false); });
+    refineMaskAction_ = new QAction(tr("Refine Mask…"), this);
+    refineMaskAction_->setObjectName(QStringLiteral("RefineMaskAction"));
+    registerEditorWindowAction(refineMaskAction_);
+    connect(refineMaskAction_, &QAction::triggered, this, [this] { beginRefinement(true); });
 }
 void MainWindow::createSelectionControls()
 {
@@ -548,6 +556,7 @@ void MainWindow::refreshSelectionControls()
     refreshColorSelectionControls();
     refreshSmartSelectionControls();
     selectionGrowAction_->setEnabled(canOpenSelectionAdjustments());
+    refreshRefinementActions();
     if (!selectionAngle_ || updatingSelectionControls_)
         return;
     magneticControls_->setVisible(session().activeTool()==core::ToolId::Lasso && lassoMode_==core::LassoMode::Magnetic);

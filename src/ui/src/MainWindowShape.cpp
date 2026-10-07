@@ -168,6 +168,7 @@ void MainWindow::createShapeControls()
     });
     canvasWindow_->onShapeHit = [this](core::Vec2d p, bool active) { return hitShape(p, active).has_value(); };
     canvasWindow_->onPrepareDocumentSnapshot = [this](core::DocumentSnapshot& snapshot) {
+        if (refinement_) { prepareRefinementSnapshot(snapshot); return; }
         if (shapeResize_) {
             // Another publisher (for example text-cache density refresh) may
             // arrive before the coalesced shape rebuild. Retain the last

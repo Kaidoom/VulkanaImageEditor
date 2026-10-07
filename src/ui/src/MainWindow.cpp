@@ -671,15 +671,19 @@ MainWindow::MainWindow(
         handleDroppedImages(paths);
     };
     canvasWindow_->onBrushStrokeBegan = [this](const core::NormalizedPointerSample& sample) {
+        if (refinement_) return refinementBrush(sample, 0);
         return beginBrushStroke(sample);
     };
     canvasWindow_->onBrushStrokeMoved = [this](const core::NormalizedPointerSample& sample) {
+        if (refinement_) return refinementBrush(sample, 1);
         return moveBrushStroke(sample);
     };
     canvasWindow_->onBrushStrokeEnded = [this](const core::NormalizedPointerSample& sample) {
+        if (refinement_) return refinementBrush(sample, 2);
         return endBrushStroke(sample);
     };
     canvasWindow_->onBrushStrokeCancelled = [this] {
+        if (refinement_) { refinementBrush({}, 3); return; }
         cancelActiveBrushStroke();
     };
     canvasWindow_->onColorSampleRequested = [this](core::Vec2d position) {
@@ -1063,6 +1067,7 @@ MainWindow::MainWindow(
 
 MainWindow::~MainWindow()
 {
+    if (refinement_) finishRefinement(false, true);
     if (updateService_) { updateService_->onChanged = {}; updateService_->cancel(); }
     canvasWindow_->onDocumentPresentationChanged={};
     if(pixelPreview_)pixelPreview_->onReady={};
@@ -1214,6 +1219,7 @@ void MainWindow::finishLayerRename(bool commit)
 
 bool MainWindow::eventFilter(QObject* watched, QEvent* event)
 {
+    if (refinementEvent(watched, event)) return true;
     if (workspace_ && watched == workspace_->panelOverlay() && event->type() == QEvent::Resize)
         updateStatusNotification();
     if (layerRenameEditor_) {
@@ -1487,8 +1493,8 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
         canvasWindow_->updateShapeModifiers(modifiers);
         canvasWindow_->updateMeasureModifiers(modifiers);
     }
-    const bool temporaryPickerTool = session().activeTool() == core::ToolId::Brush
-        || session().activeTool() == core::ToolId::Eraser || session().activeTool() == core::ToolId::Fill;
+    const bool temporaryPickerTool = !refinement_ && (session().activeTool() == core::ToolId::Brush
+        || session().activeTool() == core::ToolId::Eraser || session().activeTool() == core::ToolId::Fill);
     const bool editing = editorTextInputActive() || editableWidgetOwnsInput(widget);
     const bool blocked = QApplication::activeModalWidget() || QApplication::activePopupWidget();
     if(ourTarget && smartInteractionActive() && !blocked && key->key()==Qt::Key_Escape
@@ -1769,6 +1775,7 @@ void MainWindow::createActions()
     undoAction_->setShortcut(QKeySequence::Undo);
     registerEditorWindowAction(undoAction_);
     connect(undoAction_, &QAction::triggered, this, [this] {
+        if (refinement_) { stepRefinementHistory(false); return; }
         if (fileBusy_) return;
         if(effectEdit_){finishEffectEdit(false);return;}
         if(filterEdit_){filtersPanel_->finishEditing(false);finishFilterEdit(false);return;}
@@ -1799,6 +1806,7 @@ void MainWindow::createActions()
     redoAction_->setShortcuts(redoKeys);
     registerEditorWindowAction(redoAction_);
     connect(redoAction_, &QAction::triggered, this, [this] {
+        if (refinement_) { stepRefinementHistory(true); return; }
         if (fileBusy_) return;
         if(effectEdit_){finishEffectEdit(false);return;}
         if(filterEdit_){filtersPanel_->finishEditing(false);finishFilterEdit(false);return;}
@@ -2033,6 +2041,7 @@ void MainWindow::createMenus()
     selectionMenu->addSeparator();
     selectionMenu->addAction(toolActionMap_.at(core::ToolId::SelectByColor));
     selectionMenu->addAction(selectionGrowAction_);
+    selectionMenu->addAction(refineSelectionAction_);
     selectionMenu->addSeparator();
     selectionMenu->addAction(transformSelectionAction_);
     selectionMenu->addAction(transformPixelsAction_);
@@ -2100,6 +2109,7 @@ void MainWindow::createMenus()
     workspace_->setViewModeOverlay(previewBadge, false);
     canvasWindow_->onDocumentPresentationChanged=[this](const core::DocumentSnapshot& snapshot){
         updateDocumentResources();
+        if (refinement_) return;
         if(canvasWindow_->scene().effectBypassLayer || canvasWindow_->scene().adjustmentBypassLayer){
             auto before=snapshot;
             for(auto& layer:before.layersBottomToTop) {
@@ -2110,6 +2120,7 @@ void MainWindow::createMenus()
         }else pixelPreview_->request(snapshot);
     };
     pixelPreview_->onReady=[this](auto pixels,QString error){
+        if (refinement_) return;
         if(!error.isEmpty()) {
             pixelPreviewAction_->setChecked(false);
             statusBar()->showMessage(tr("Pixel Preview unavailable: %1. Source layers are unchanged.").arg(error),8000);
@@ -4352,6 +4363,7 @@ void MainWindow::updateLayerControls()
 
 void MainWindow::updateActionState()
 {
+    if (refinement_) return;
     refreshLayerMaskActions();
     refreshCloningControls();
     refreshShapeControls();

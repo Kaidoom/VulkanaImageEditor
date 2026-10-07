@@ -35,6 +35,7 @@ public:
     [[nodiscard]] virtual std::optional<std::uint64_t> activeLayerAfter(bool) const noexcept { return {}; }
     [[nodiscard]] virtual std::optional<TextEditHint> textEditAfter(bool) const noexcept { return {}; }
     [[nodiscard]] virtual const LayerSelectionState* layerSelectionAfter(bool) const noexcept { return nullptr; }
+    [[nodiscard]] virtual std::optional<bool> maskEditingAfter(bool) const noexcept { return {}; }
 
     // Live raster transactions mutate the authoritative surface before the
     // user releases the pointer. Only commands that can validate that already-

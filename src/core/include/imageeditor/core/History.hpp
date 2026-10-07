@@ -38,6 +38,7 @@ public:
     [[nodiscard]] std::size_t redoDepth() const noexcept { return undone_.size(); }
     [[nodiscard]] std::optional<std::uint64_t> activeLayerHint() const noexcept { return activeLayerHint_; }
     [[nodiscard]] std::optional<TextEditHint> textEditHint() const noexcept { return textEditHint_; }
+    [[nodiscard]] std::optional<bool> maskEditingHint() const noexcept { return maskEditingHint_; }
     [[nodiscard]] std::size_t latestUndoMemoryCost() const noexcept
     {
         return done_.empty() ? 0 : done_.back()->memoryCost();
@@ -54,6 +55,7 @@ private:
     std::vector<std::unique_ptr<Command>> undone_;
     std::optional<std::uint64_t> activeLayerHint_;
     std::optional<TextEditHint> textEditHint_;
+    std::optional<bool> maskEditingHint_;
     const LayerSelectionState* layerSelectionHint_ {nullptr}; // Command-owned, no post-mutation allocation.
 };
 

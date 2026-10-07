@@ -8,6 +8,7 @@ The guides below describe the architecture, behavior and algorithms.
 - [Coordinates](COORDINATE_SYSTEM.md): pixel grids, transforms and input mapping.
 - [Project format](VULKANA_FORMAT.md): persistence, limits and compatibility.
 - [Document tabs](DOCUMENT_TABS.md): ownership, activation and cross-tab copying.
+- [Refine Selection](REFINE_SELECTION.md): guided edges, coverage controls, mask output and session safety.
 - [PDF import](PDF_IMPORT.md): page geometry, rasterization, destinations and limits.
 - [PSD import](PSD_IMPORT.md): editable conversion, review choices, saved-raster scope and limits.
 - [PDF export](PDF_EXPORT.md): page ordering, physical sizes, hybrid text and safety.

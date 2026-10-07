@@ -62,6 +62,8 @@ const QList<ShortcutDefinition>& shortcutDefinitions()
         add("InvertSelectionAction", "Invert selection", "Selection", "Ctrl+Shift+I");
         add("ReselectAction", "Reselect last selection", "Selection", "Ctrl+Shift+D");
         add("GrowShrinkSelectionAction", "Show Grow / Shrink controls", "Selection");
+        add("RefineSelectionAction", "Refine Selection", "Selection");
+        add("RefineMaskAction", "Refine Mask", "Layers");
         add("LayerViaCopyAction", "Layer via copy", "Selection", "Ctrl+J");
         add("ToolAction_move", "Move", "Tools", "V");
         add("ToolAction_crop", "Layer crop", "Tools", "C");

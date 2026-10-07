@@ -117,6 +117,7 @@ void MainWindow::applyShortcutBindings(const ShortcutBindings& bindings)
 }
 bool MainWindow::shortcutGestureIdle(bool allowMenuCapture) const
 {
+    if (refinement_) return false;
     // A menu's opening press briefly owns capture before its popup takes over.
     // Menu availability must not mistake that press for an editing gesture.
     const auto* owner = pointerRouter_->captureOwner();

@@ -98,6 +98,7 @@ class UpdateService;
 class FeedbackService;
 class TextController;
 class PixelPreview;
+struct RefinementWorkspace;
 
 class MainWindow final : public QMainWindow {
 public:
@@ -166,6 +167,19 @@ private:
     void createMenus();
     void createToolOptionsBar();
     void createSelectionActions();
+    void beginRefinement(bool mask);
+    void finishRefinement(bool apply, bool wait = false);
+    void advanceRefinement();
+    void requestRefinement();
+    void publishRefinementPreview();
+    void prepareRefinementSnapshot(core::DocumentSnapshot&);
+    void refreshRefinementActions();
+    void stepRefinementHistory(bool redo);
+    bool refinementBrush(const core::NormalizedPointerSample&, int phase);
+    bool refinementEvent(QObject*, QEvent*);
+    std::shared_ptr<RefinementWorkspace> refinement_;
+    QAction* refineSelectionAction_{};
+    QAction* refineMaskAction_{};
     void createSelectionControls();
     QWidget* createColorSelectionControls(QWidget* parent);
     void createColorSelectionHelp();

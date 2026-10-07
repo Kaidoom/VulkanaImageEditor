@@ -64,6 +64,7 @@ bool MainWindow::runTransformAction(const std::function<bool()>& action)
 }
 void MainWindow::cancelPendingEdits()
 {
+    if (refinement_) finishRefinement(false);
     finishLayerCrop(false);
     finishAdjustmentEdit(false);
     finishFilterEdit(false);
@@ -425,6 +426,7 @@ void MainWindow::finishLayerTransform(bool apply)
 
 bool MainWindow::finishCanvasOperation()
 {
+    if (refinement_) { finishRefinement(true); return true; }
     if (fileBusy_ || (textController_ && textController_->active()))
         return false;
     if(layerCrop_){canvasWindow_->finishPointerGestureForCommit();finishLayerCrop(true);return true;}

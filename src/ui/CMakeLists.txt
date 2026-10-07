@@ -65,6 +65,7 @@ add_library(imageeditor_ui STATIC
     src/NativeRasterBake.cpp
     src/PixelPreview.cpp
     src/MainWindowSelection.cpp
+    src/MainWindowRefinement.cpp
     src/MainWindowColorSelection.cpp
     src/MainWindowSmartSelection.cpp
     src/MainWindowLasso.cpp

@@ -305,6 +305,10 @@ void MainWindow::captureDocumentView()
 }
 bool MainWindow::settleForDocumentSwitch()
 {
+    if (refinement_) {
+        statusBar()->showMessage(tr("Apply or cancel Refine Selection before switching documents."), 4000);
+        return false;
+    }
     if (fileBusy_ || workspaceDialog_ || cloneProcessing_ || localBlurProcessing_) return false;
     finishLayerRename();
     opacitySlider_->finishEditing();

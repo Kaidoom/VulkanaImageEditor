@@ -352,6 +352,7 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
         menu.setObjectName(QStringLiteral("LayerMaskContextMenu"));
         // This thumbnail already owns a mask: offer only operations on it.
         for(size_t i=2;i<maskActions_.size();++i)menu.addAction(maskActions_[i]);
+        menu.addAction(refineMaskAction_);
         menu.exec(layerList_->viewport()->mapToGlobal(point));
         return;
     }

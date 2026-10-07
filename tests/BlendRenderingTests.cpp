@@ -4,6 +4,7 @@
 #include "imageeditor/core/SpatialFilterCache.hpp"
 #include "imageeditor/core/RichText.hpp"
 #include "imageeditor/core/SelectedPixelTransform.hpp"
+#include "imageeditor/core/SelectionRefinement.hpp"
 #include "imageeditor/render/CanvasCoordinateMapping.hpp"
 #include "imageeditor/render/VulkanCanvasRenderer.hpp"
 #include "imageeditor/ui/FlattenedDocument.hpp"
@@ -1142,6 +1143,19 @@ void layerMaskRendering(OffscreenCanvas& gpu)
     auto projective=*c::rectangleToQuad({0,0,96,80},{{{1,2},{84,8},{91,72},{5,77}}});
     effectDoc.setLayerTransform(id,projective);scene=sceneFor(effectDoc);
     verify(effectDoc,scene,gpu.render(scene),"projective layer mask");
+    // Refined coverage remains a normal mask in every compositor, with source
+    // alpha independent of coverage and no unchanged RGBA uploads.
+    const auto originalCoverage=mask->coverage;
+    const auto beforeRefine=gpu.stats().uploadedBytes;
+    c::RefinementState refine;refine.settings={0,1,4,.15,2.5};
+    mask=std::make_shared<c::LayerMask>(*mask);
+    mask->coverage=c::refineSelection(originalCoverage,nullptr,refine).coverage;
+    effectDoc.setLayerMask(id,mask);
+    auto evaluated=c::prepareSpatialFilterLayer(*effectDoc.layer(id));
+    *effectDoc.layer(id)=evaluated;
+    scene=sceneFor(effectDoc);
+    verify(effectDoc,scene,gpu.render(scene),"refined projective styled mask");
+    check(gpu.stats().uploadedBytes==beforeRefine,"refinement retains RGBA source texture");
 }
 void clippingRendering(OffscreenCanvas& gpu)
 {

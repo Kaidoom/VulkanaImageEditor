@@ -137,6 +137,7 @@ bool EditorSession::execute(std::unique_ptr<Command> command)
         return false;
     }
     applyActiveLayerHint();
+    if (auto hint=history_.maskEditingHint()) setEditingLayerMask(*hint);
     normalizeActiveLayer();
     return true;
 }
@@ -149,6 +150,7 @@ bool EditorSession::adoptApplied(std::unique_ptr<Command> command)
         return false;
     }
     applyActiveLayerHint();
+    if (auto hint=history_.maskEditingHint()) setEditingLayerMask(*hint);
     normalizeActiveLayer();
     return true;
 }
@@ -161,6 +163,7 @@ bool EditorSession::undo()
         return false;
     }
     applyActiveLayerHint();
+    if (auto hint=history_.maskEditingHint()) setEditingLayerMask(*hint);
     normalizeActiveLayer();
     return true;
 }
@@ -173,6 +176,7 @@ bool EditorSession::redo()
         return false;
     }
     applyActiveLayerHint();
+    if (auto hint=history_.maskEditingHint()) setEditingLayerMask(*hint);
     normalizeActiveLayer();
     return true;
 }

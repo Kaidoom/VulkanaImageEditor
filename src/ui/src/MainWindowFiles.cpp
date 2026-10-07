@@ -161,6 +161,10 @@ void MainWindow::updateDocumentTitle()
 
 bool MainWindow::settleForFileOperation()
 {
+    if (refinement_) {
+        statusBar()->showMessage(tr("Apply or cancel Refine Selection before continuing."), 4000);
+        return false;
+    }
     if (fileBusy_)
         return false;
     finishLayerRename();

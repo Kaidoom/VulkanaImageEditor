@@ -411,7 +411,7 @@ void uiContracts() {
       if (mask)
         CHECK(names ==
               QStringList({"DeleteLayerMaskAction", "EnableLayerMaskAction",
-                           "ApplyLayerMaskAction", "MaskToSelectionAction", "InvertLayerMaskAction"}));
+                           "ApplyLayerMaskAction", "MaskToSelectionAction", "InvertLayerMaskAction", "RefineMaskAction"}));
       else
         CHECK(names.contains("DuplicateLayersAction") &&
               names.contains("DeleteSelectedLayersAction") &&
