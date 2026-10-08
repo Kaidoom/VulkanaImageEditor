@@ -66,6 +66,8 @@ int main(int argc, char** argv)
                   view.save(output.filePath(
                       name + "-" + QString::fromUtf8(stage.data(), qsizetype(stage.size())) + ".png"));
               };
+        if (qEnvironmentVariable("IMAGEEDITOR_QUICK_DIAGNOSTICS") == "0")
+            settings.diagnostic = {};
         const auto operation = item["operation"].toString();
         const auto op = operation == "add" ? c::SelectionOperation::Add
             : operation == "subtract"      ? c::SelectionOperation::Subtract
@@ -97,6 +99,7 @@ int main(int argc, char** argv)
         QJsonObject row { { "name", name }, { "area", qint64(area) },
             { "evidence", qint64(s.evidencePixels) }, { "cut", s.boundaryCut },
             { "elapsedIncludingDiagnosticsMs", ms }, { "workspaceBytes", qint64(s.workspaceBytes) },
+            { "evaluatedPixels", qint64(s.evaluatedPixels) }, { "queuePops", qint64(s.queuePops) },
             { "workRegion",
                 QJsonArray { s.workRegion.x, s.workRegion.y, s.workRegion.width, s.workRegion.height } },
             { "dabs", int(path.dabs().size()) } };

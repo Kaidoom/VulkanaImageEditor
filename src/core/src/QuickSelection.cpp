@@ -1,5 +1,6 @@
 #include "imageeditor/core/SmartSelection.hpp"
 #include "imageeditor/core/SelectionGraphCut.hpp"
+#include "SelectionDistance.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -117,8 +118,8 @@ namespace {
         std::vector<std::uint16_t> barrier;
         std::vector<std::uint32_t> length;
     };
-    // Indexed lexicographic watershed queue. Distance within the current barrier
-    // plateau only breaks ties; it NEVER limits how far the selection can grow.
+    // Indexed lexicographic watershed queue. Plateau length only breaks ties;
+    // a separate distance-to-stroke prior controls local growth.
     class Heap {
     public:
         Heap(Distance& d, std::size_t count)
@@ -254,17 +255,16 @@ namespace {
             area += histogram[level];
             previous = level;
         }
-        return cut; // A completely flat connected region has no boundary: select it.
+        return cut; // A flat region relies on the stroke-local prior, not a color edge.
     }
     struct WindowResult {
         SelectionState incoming;
         QuickSelectionHints hints;
         SmartSelectionStats stats;
-        bool touchesArtificialEdge { };
     };
     WindowResult solveWindow(const SmartReferenceImage& image, std::span<const QuickHintDab> dabs,
         RectI region, QuickSelectionHints previous, bool subtract, const std::atomic_bool& cancelled,
-        QuickSelectionSettings settings)
+        QuickSelectionSettings settings, float localRadius)
     {
         const auto count = std::size_t(region.width) * std::size_t(region.height);
         // Includes both class maps, indexed queue, feature/model/hint/output buffers.
@@ -332,6 +332,22 @@ namespace {
         }
         if (!freshCount)
             return { };
+        // Distance from the complete sampled stroke, not its bounding rectangle
+        // or last pointer event. Reuse the exact coverage-refinement transform.
+        // The finite support is an explicit brush-local policy, never BG evidence
+        // saved into history. A later stroke can freely extend this region.
+        std::vector<float> proximity(count, 1e16F);
+        for (std::size_t i = 0; i < count; ++i)
+            if (fresh[i]) proximity[i] = 0;
+        struct CancelledDistance {};
+        try {
+            proximity = detail::selectionDistance(std::move(proximity), region.width, region.height, [&] {
+                if (cancelled) throw CancelledDistance {};
+            });
+        } catch (const CancelledDistance&) {
+            return {};
+        }
+        const float supportSquared = localRadius * localRadius;
         const auto stroke = SelectionMask::fromR8Region(image.extent, region, fresh, stride);
         const auto addHint = [&](SelectionState old) {
             return old ? combineSelection(old, stroke, SelectionOperation::Add) : stroke;
@@ -395,7 +411,8 @@ namespace {
                     return Distance { };
                 const auto u = heap.pop();
                 neighbors(u, [&](unsigned v) {
-                    if (!valid[v] || hints[v] == opposite || (target && rejected[v] >= 128)
+                    if (!valid[v] || hints[v] == opposite
+                        || (target && (rejected[v] >= 128 || proximity[v] >= supportSquared))
                         || ((colors[u][3] == 0) != (colors[v][3] == 0)))
                         return;
                     const auto first = std::min(u, v);
@@ -433,6 +450,9 @@ namespace {
             settings.diagnostic("edges", region, view);
             for (std::size_t i = 0; i < count; ++i) view[i] = std::uint8_t(std::min<unsigned>(255, target.barrier[i]));
             settings.diagnostic("barrier", region, view);
+            for (std::size_t i = 0; i < count; ++i)
+                view[i] = std::uint8_t(std::clamp(255.0f * (1 - std::sqrt(proximity[i]) / localRadius), 0.0f, 255.0f));
+            settings.diagnostic("stroke-locality", region, view);
         }
         if (cancelled)
             return { };
@@ -448,7 +468,11 @@ namespace {
                 return { };
             if (target.barrier[i] == unreachable)
                 continue;
-            float value = cut - target.barrier[i];
+            // Nearby image boundaries decide the region. Beyond half the local
+            // support, uncertainty grows quadratically until expansion stops.
+            // This is a unary inference cost, not post-hoc clipping to a box.
+            const float t = std::max(0.0f, 2 * std::sqrt(proximity[i]) / localRadius - 1);
+            float value = cut - target.barrier[i] - std::max(1.0f, cut) * t * t;
             if (competing && other.barrier[i] != unreachable) {
                 float competition = float(other.barrier[i]) - target.barrier[i];
                 if (competition == 0) {
@@ -464,7 +488,7 @@ namespace {
         // by neighbouring appearance, not by filling holes or keeping a largest
         // component. Explicit corrections remain hard constraints.
         // Only an eight-pixel native-resolution band needs regularization;
-        // region discovery above is unrestricted and is never upscaled. Fixed
+        // region discovery above is stroke-local and is never upscaled. Fixed
         // neighbours enter the energy as terminal costs, so there are no tile
         // seams or invented outside-background pixels.
         std::vector<std::uint8_t> active(count,0);
@@ -534,17 +558,8 @@ namespace {
                 }
             });
         }
-        bool touches = false;
-        for (unsigned i : frontier) {
-            const int x = int(i % stride), y = int(i / stride);
-            touches |= (x <= 1 && region.x > 0) || (y <= 1 && region.y > 0)
-                || (x + 2 >= region.width && region.right() < int(image.extent.width))
-                || (y + 2 >= region.height && region.bottom() < int(image.extent.height));
-        }
         const SmartSelectionStats stats { count, pops, count * 280 + 2 * 65536 * (sizeof(unsigned) + 1),
             region, cut, freshCount, frontier.size()*10<=freshCount*11 && count>freshCount*2 };
-        if (touches)
-            return { { }, { }, stats, true };
         std::vector<std::uint8_t> coverage(count);
         if (settings.diagnostic) {
             auto view = connected;
@@ -582,7 +597,7 @@ namespace {
             coverage[i] = std::min(coverage[i], std::uint8_t(255 - rejected[i]));
         }
         if (settings.diagnostic) settings.diagnostic("incoming", region, coverage);
-        return { SelectionMask::fromR8Region(image.extent, region, coverage, stride), updated, stats, false };
+        return { SelectionMask::fromR8Region(image.extent, region, coverage, stride), updated, stats };
     }
 } // namespace
 bool QuickSelectionPath::begin(double diameter, NormalizedPointerSample sample)
@@ -628,11 +643,13 @@ SmartSelectionResult buildQuickSelection(const SmartReferenceImage& image, std::
         throw std::length_error("Quick Selection stroke exceeds 16,384 evidence dabs");
     const RectI canvas { 0, 0, int(image.extent.width), int(image.extent.height) };
     RectI hintBounds;
+    double brushRadius = 1;
     for (const auto& dab : dabs) {
         if (!std::isfinite(dab.center.x) || !std::isfinite(dab.center.y) || !std::isfinite(dab.radius)
             || std::abs(dab.center.x) > 1e8 || std::abs(dab.center.y) > 1e8 || dab.radius < 1
             || dab.radius > 256)
             throw std::invalid_argument("Invalid Quick Selection hint");
+        brushRadius = std::max(brushRadius, dab.radius);
         const int x = int(std::floor(dab.center.x - dab.radius)),
                   y = int(std::floor(dab.center.y - dab.radius));
         hintBounds = hintBounds.united(RectI { x, y, int(std::ceil(dab.center.x + dab.radius)) - x,
@@ -643,58 +660,42 @@ SmartSelectionResult buildQuickSelection(const SmartReferenceImage& image, std::
         return { };
     if (operation == SelectionOperation::Replace || operation == SelectionOperation::Intersect)
         previous = { };
-    // Compute windows expand until the image-supported result closes. No radius
-    // or window edge is ever an inferred boundary or implicit background hint.
-    int padding = 128;
-    SmartSelectionStats aggregate;
-    for (;;) {
-        const auto region = RectI { hintBounds.x - padding, hintBounds.y - padding,
-            hintBounds.width + 2 * padding, hintBounds.height + 2 * padding }
-                                .clippedTo(canvas);
-        auto result = solveWindow(
-            image, dabs, region, previous, operation == SelectionOperation::Subtract, cancelled, settings);
-        if (cancelled)
-            return { };
-        aggregate.evaluatedPixels += result.stats.evaluatedPixels;
-        aggregate.queuePops += result.stats.queuePops;
-        aggregate.workspaceBytes = std::max(aggregate.workspaceBytes, result.stats.workspaceBytes);
-        aggregate.workRegion = region;
-        aggregate.boundaryCut = result.stats.boundaryCut;
-        aggregate.evidencePixels = result.stats.evidencePixels;
-        aggregate.limitedGrowth = result.stats.limitedGrowth;
-        if (!result.touchesArtificialEdge) {
-            if (!result.incoming)
-                return { };
-            auto combined = combineSelection(original, result.incoming, operation);
-            if (operation == SelectionOperation::Subtract) {
-                // Keep the accepted correction contour stable across later Add
-                // strokes. This inferred ceiling is NOT a hard training sample.
-                const auto bounds = result.incoming->bounds();
-                std::vector<std::uint8_t> ceiling(std::size_t(bounds.width) * std::size_t(bounds.height));
-                for (int y = 0; y < bounds.height; ++y) {
-                    if (cancelled)
-                        return { };
-                    for (int x = 0; x < bounds.width; ++x)
-                        if (result.incoming->coverageAtDocumentPixel(bounds.x + x, bounds.y + y))
-                            ceiling[std::size_t(y) * std::size_t(bounds.width) + std::size_t(x)]
-                                = std::uint8_t(
-                                    255 - combined->coverageAtDocumentPixel(bounds.x + x, bounds.y + y));
-                }
-                const auto protection
-                    = SelectionMask::fromR8Region(image.extent, bounds, ceiling, std::size_t(bounds.width));
-                result.hints.rejected = result.hints.rejected
-                    ? combineSelection(result.hints.rejected, protection, SelectionOperation::Add)
-                    : protection;
-            }
-            if (!prepareSelectionBoundary(result.incoming, cancelled)
-                || (combined != result.incoming && !prepareSelectionBoundary(combined, cancelled))
-                || (result.hints.foreground && !prepareSelectionBoundary(result.hints.foreground, cancelled))
-                || (result.hints.background && !prepareSelectionBoundary(result.hints.background, cancelled))
-                || (result.hints.rejected && !prepareSelectionBoundary(result.hints.rejected, cancelled)))
-                return { };
-            return { result.incoming, combined, result.hints, aggregate };
+    // Four brush diameters of extra support, bounded for very small/large tips.
+    // Include the regularizer/AA halo so the storage edge is never the contour.
+    // Long strokes extend support along their path, not throughout their box.
+    const float localRadius = float(std::clamp(8 * brushRadius, 96.0, 192.0));
+    const int padding = int(std::ceil(localRadius)) + 12;
+    const auto region = RectI { hintBounds.x - padding, hintBounds.y - padding,
+        hintBounds.width + 2 * padding, hintBounds.height + 2 * padding }.clippedTo(canvas);
+    auto result = solveWindow(image, dabs, region, previous, operation == SelectionOperation::Subtract,
+        cancelled, settings, localRadius);
+    if (cancelled || !result.incoming)
+        return {};
+    auto combined = combineSelection(original, result.incoming, operation);
+    if (operation == SelectionOperation::Subtract) {
+        // Keep the accepted correction contour stable across later Add
+        // strokes. This inferred ceiling is NOT a hard training sample.
+        const auto bounds = result.incoming->bounds();
+        std::vector<std::uint8_t> ceiling(std::size_t(bounds.width) * std::size_t(bounds.height));
+        for (int y = 0; y < bounds.height; ++y) {
+            if (cancelled)
+                return {};
+            for (int x = 0; x < bounds.width; ++x)
+                if (result.incoming->coverageAtDocumentPixel(bounds.x + x, bounds.y + y))
+                    ceiling[std::size_t(y) * std::size_t(bounds.width) + std::size_t(x)]
+                        = std::uint8_t(255 - combined->coverageAtDocumentPixel(bounds.x + x, bounds.y + y));
         }
-        padding *= 2;
+        const auto protection
+            = SelectionMask::fromR8Region(image.extent, bounds, ceiling, std::size_t(bounds.width));
+        result.hints.rejected = result.hints.rejected
+            ? combineSelection(result.hints.rejected, protection, SelectionOperation::Add) : protection;
     }
+    if (!prepareSelectionBoundary(result.incoming, cancelled)
+        || (combined != result.incoming && !prepareSelectionBoundary(combined, cancelled))
+        || (result.hints.foreground && !prepareSelectionBoundary(result.hints.foreground, cancelled))
+        || (result.hints.background && !prepareSelectionBoundary(result.hints.background, cancelled))
+        || (result.hints.rejected && !prepareSelectionBoundary(result.hints.rejected, cancelled)))
+        return {};
+    return {result.incoming, combined, result.hints, result.stats};
 }
 } // namespace imageeditor::core

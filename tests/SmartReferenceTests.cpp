@@ -150,6 +150,48 @@ void cropAndAlpha()
     for (const auto p : finish(zero)->pixels)
         CHECK(p == c::Rgba8({ 0, 0, 0, 0 }));
 }
+void batchedMatchesPixelSampling()
+{
+    for(int scenario=0;scenario<4;++scenario) {
+        c::Document doc({{67,49}});
+        auto base=c::Layer::raster("Base",solid({67,49},{80,130,170,128}));
+        auto top=c::Layer::raster("Top",solid({39,34},{220,70,30,191}));
+        top.localToDocument=scenario==1?c::AffineTransform{1.05,.2,5.25,-.1,.9,8.75,.002,-.001,1}
+                                      :c::AffineTransform{1,0,7,0,1,4};
+        top.opacity=.61F;top.blendMode=c::BlendMode::Dissolve;
+        top.crop=c::LayerCrop{1.25,2.75,31,26};top.crop->corners={3,4,2,5};
+        auto mask=std::make_shared<c::LayerMask>();
+        mask->coverage=c::SelectionMask::rectangle({39,34},{3,1,20,31},170);mask->outside=0;
+        top.mask=mask;
+        CHECK(doc.insertLayer(0,base));CHECK(doc.insertLayer(1,top));
+        if(scenario==2) {
+            auto tree=doc.tree();const auto group=c::makeLayerId();tree.roots={group};
+            tree.containers={{group,"Clipped",c::ContainerKind::ClippingMaskGroup,c::ColorLabel::None,{base.id,top.id}}};
+            CHECK(doc.replaceStructure(doc.tree(),tree));
+        }
+        if(scenario==3) {
+            auto op=c::Layer::adjustment("Invert");auto stack=std::make_shared<c::AdjustmentStack>();
+            stack->items[std::size_t(c::AdjustmentType::Invert)].enabled=true;
+            op.adjustments=stack;op.opacity=.4F;CHECK(doc.insertLayer(2,op));
+        }
+        for(auto source:{c::ColorSampleSource::ActiveLayer,c::ColorSampleSource::MergedVisible}) {
+            c::PinnedDocumentSampler oracle(doc,top.id,source,c::SampleFiltering::AlphaAware,{},c::ActiveReferenceAppearance::Rendered);
+            for(std::size_t budget:{1U,31U,2048U}) {
+                c::SmartSelectionReference batched(doc,top.id,source);
+                while(!batched.step(budget)){}
+                const auto image=batched.image();
+                for(int y=0;y<49;++y)for(int x=0;x<67;++x) {
+                    const c::Vec2d p{double(x)+.5,double(y)+.5};
+                    const bool valid=oracle.validSample(p);
+                    auto expected=valid?oracle.sample(p):c::Rgba8{};
+                    if(!expected.alpha)expected={0,0,0,0};
+                    CHECK(image->valid[std::size_t(y*67+x)]==valid);
+                    CHECK(image->pixels[std::size_t(y*67+x)]==expected);
+                }
+            }
+        }
+    }
+}
 void benchmark()
 {
     using Clock = std::chrono::steady_clock;
@@ -200,6 +242,7 @@ int main(int argc, char** argv)
     else {
         typedRenderedReferences();
         cropAndAlpha();
+        batchedMatchesPixelSampling();
     }
     return failures ? 1 : 0;
 }

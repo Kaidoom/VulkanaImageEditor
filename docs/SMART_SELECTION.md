@@ -8,7 +8,8 @@ images to a service. Magic Wand remains a separate contiguous color operation.
 ## Quick Selection
 
 Pointer samples use the existing distance-based brush sampler. Brush diameter
-defines evidence, not maximum region size. Positive and negative strokes persist
+defines evidence and influences nearby growth; the result is not a brush stamp.
+Positive and negative strokes persist
 with selection history; newer explicit evidence wins conflicts. Inferred negative
 corrections constrain subsequent additions without becoming appearance-training
 samples. Replace and Intersect start new evidence. Add and Subtract retain relevant
@@ -20,17 +21,35 @@ coordinates without clipping to the temporary selection. Typed content uses its
 normal prepared source cache. Adjustment layers remain composition operators.
 Invisible RGB cannot create color edges. Sampling and worker publication are
 pinned to the runtime document instance, layer, source revision and request
-generation. Pan and zoom do not invalidate reference pixels.
+generation. Pan and zoom do not invalidate reference pixels. Preparation uses
+bounded row spans through the canonical compositor, including the existing
+integer-aligned raster fast path, instead of individual virtual pixel reads.
 
 Region discovery uses competing geodesic edge barriers and learned appearance
-prototypes when both evidence classes are present. Compute windows expand when a
-region reaches an artificial boundary. Neither window edges nor the image border
-are hard background. Edges retains its original 0–100% meaning: higher values
+prototypes when both evidence classes are present. Growth follows the current
+stroke rather than following weakly connected image texture indefinitely. Neither
+window edges nor the image border become persistent background evidence.
+Edges retains its original 0–100% meaning: higher values
 strengthen monotone three-pixel boundary cues, capped relative to the fine edge.
 It is not a growth or tolerance control; 100% does not mean maximum expansion.
 
-The previous basin score could choose the brush's imposed zero-cost footprint as
-an image basin. The score now requires inferred support before considering an
+The local-growth policy uses exact Euclidean distance `d` from the complete
+rasterized evidence stroke, using the same distance transform as Refine Selection.
+Extra support is `R = clamp(4 × brush diameter, 96, 192)` document pixels. The
+inner half has no distance penalty. Beyond it, subtract
+`max(1, basinCut) × max(0, 2d/R − 1)²` from the geodesic score. Target propagation
+ends at `R`; twelve extra pixels of storage cover graph regularization and
+antialiasing. This is a prior in the solver, not cropping a finished selection to
+the stroke's rectangle. A bent path does not select the empty middle of its box.
+
+A flat or ambiguous area now stops near the input rather than selecting the
+entire image. Continue brushing or add strokes to cover more. Larger brushes
+allow broader local work; Object Selection and Magic Wand retain their distinct
+behaviors. No inferred locality boundary is stored as a negative correction.
+Completed Add strokes preserve existing selection elsewhere; only explicit
+Subtract evidence supplies lasting corrective constraints.
+
+The basin score requires inferred support before considering an
 escape boundary. A native-resolution contrast-aware Potts graph then regularizes
 an eight-pixel band around the proposed boundary. Terminal evidence comes from
 the geodesic field; pairwise costs are `3 exp(-squared RGBA difference / 392)` in
@@ -129,12 +148,14 @@ prompt or a fallback into the research directory.
 
 ## Quality comparison and limitations
 
-The private 852 × 1847 character scene reproduces the original short-stroke fault:
-4,531 evidence pixels became only 4,653 selected pixels at Edges 40%. Correcting
-the basin initialization and adding boundary regularization yields 54,763 selected
-pixels for the same sampled stroke. The knee example loses most small texture
-exclusions. This does not establish a pixel-accurate Photoshop match; reflective
-floor boundaries and low-contrast seams still sometimes need more strokes.
+The private 852 × 1847 character scene reproduces both previous failure modes:
+brush-footprint inference, and excessive expansion through weakly connected dark
+texture. The local version selects 37,646 pixels from 4,531 evidence pixels in the
+floor stroke, compared with 54,763 before locality and 4,653 before the earlier
+basin fix. The same floor click falls from about 519 ms to 42 ms, and the knee
+stroke from 206 ms to 20 ms (Release core solve, diagnostics disabled). These are
+behavior comparisons, not pixel-accurate Photoshop matches. Reflective floors,
+highlights and low-contrast seams can still require more strokes or corrections.
 
 Independent OpenCV 5.0.0 GrabCut comparisons use soft rectangle-exterior estimates,
 not a hard image-border prior. Box GrabCut included furniture and missed part of
@@ -159,13 +180,24 @@ with identical prepared tensors produced zero differing thresholded mask pixels;
 maximum image-feature error was about 1.1e-6.
 
 For a generated textured region in 4K/5K documents, the warm core Quick Selection
-solver took about 18 ms and measured process peaks were 52/83 MiB (including the
-39.6/70.3 MiB immutable reference). Actual canvas cold preparation plus selection
-took 0.92/1.50 s, with warm corrective gestures about 30 ms and the largest measured
-UI event-loop gap 7 ms. Full-canvas uniform selection remains a deliberately
-expanding solve, not a brush-sized shortcut: it measured 2.05/4.93 s with
-273/482 MiB process peak RSS at 4K/5K. Empty boundary graphs are bypassed. This
-worst-case expansion is slower than local corrections and remains cancellable.
+solver took about 13 ms and measured process peaks were 51/83 MiB (including the
+39.6/70.3 MiB immutable reference). A short input on a uniform 4K/5K image now
+evaluates 49,729 pixels in about 9 ms, instead of repeatedly expanding across
+13.9/32.2 million working pixels in 2.04/4.98 seconds. That case's peak process RSS
+falls from 273/482 MiB to 47/79 MiB. It intentionally produces a local region,
+not the previous full-canvas result.
+
+Batched cold reference preparation measured 461/813 ms for one aligned layer at
+4K/5K, down from 805/1428 ms. Two-layer transformed/blended preparation measured
+1159/2059 ms, down from 1523/2742 ms. The coherent whole-canvas reference is still
+prepared once when source content changes; subsequent strokes reuse it. This
+remaining cold cost is distinct from local solving and stays cooperatively
+sliced on the owner thread. Larger documents or complex effects can cost more.
+
+The generated 4K/5K canvas interaction test measured 513/735 ms from the cold
+gesture to idle, and 22/23 ms for the warm correction. Its longest observed UI
+event-loop gap was 7 ms. Native character-scene gestures took 277 ms on Wayland
+and 302 ms on XCB, including initial reference preparation and held-stroke preview.
 
 Fine gaps/strands absent from the model proposal can still require corrections or
 Refine Selection. Model boundaries are not recovered foreground colors, and
@@ -179,6 +211,14 @@ correction precedence, cancellation, source sampling, history and exact preview
 publication. `imageeditor_smart_selection_review image prompts.json output`
 captures source, explicit evidence, edge costs, barrier field, connected/regularized
 inference, incoming mask and published mask without application-side file writes.
+The local-growth revision additionally tests bent paths without bounding-box
+filling, distant pixels remaining unchanged, progressive extension, repeat-input
+identity, and stable local work on larger canvases. The Euclidean prior is checked
+against a brute-force distance oracle. Batched reference pixels match independent
+single-pixel sampling exactly across multiple chunk sizes, including masks,
+projective transforms, Dissolve, clipping groups and adjustment layers. The eight
+focused Release suites and native Wayland/XCB canvas checks pass; Object Selection
+masks on the private fixture are unchanged by the shared sampling optimization.
 `imageeditor_object_selection_tests --bundled image output` exercises the bundled
 native model, cached prompts, source invalidation and in-flight cancellation.
 The interaction test's `--private-quality image output` exercises actual canvas

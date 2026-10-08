@@ -3,6 +3,7 @@
 #include "imageeditor/core/RegionFinder.hpp"
 #include "imageeditor/core/SelectionCommands.hpp"
 #include "imageeditor/core/ViewportState.hpp"
+#include "../src/core/src/SelectionDistance.hpp"
 
 #include <algorithm>
 #include <array>
@@ -147,8 +148,11 @@ void shortInputOnTexturedRegion()
     // A brief mark in textured dark material must not choose its imposed
     // zero-cost footprint as the image boundary. No source-specific oracle.
     const auto result=dot(image,120.5,90.5,12);
-    CHECK(selected(result.combined)>192*140*95/100);
-    CHECK(at(result.combined,30,30)==255);
+    std::cout << "textured-local: area=" << selected(result.combined)
+              << " evidence=" << selected(result.hints.foreground) << '\n';
+    CHECK(selected(result.combined) > selected(result.hints.foreground) * 10);
+    CHECK(at(result.combined,60,90)==255); // Useful expansion, not the stamp.
+    CHECK(at(result.combined,30,30)==0); // Distant corners need more input.
     CHECK(at(result.combined,20,90)==0);
     CHECK(!result.stats.limitedGrowth);
 }
@@ -181,10 +185,12 @@ void brushFirstLocalityAndCanvasEdge()
 {
     const auto image = solid({384, 256}, {110, 110, 110, 255});
     const auto result = dot(image, 180.5, 128.5, 3);
-    // With no visible boundary the connected region is the entire valid image,
-    // not the old Reach disk. Artificial compute boundaries must disappear.
-    CHECK(selected(result.combined) == 384 * 256);
-    CHECK(result.combined->bounds() == RectI({0, 0, 384, 256}));
+    // Version 2: an ambiguous flat region stops near the stroke instead of
+    // deliberately expanding to the entire canvas. Still grows beyond the dab.
+    CHECK(selected(result.combined) > 10000 && selected(result.combined) < 384 * 256 / 2);
+    CHECK(at(result.combined,240,188)==255 && at(result.combined,260,208)==0);
+    CHECK(at(result.combined,300,128)==0 && at(result.combined,10,10)==0);
+    CHECK(result.stats.evaluatedPixels < 60'000);
     CHECK(!result.hints.background); // Unknown canvas and its border never become hard BG.
 
     auto longImage = solid({1024, 384}, {5, 20, 90, 255});
@@ -193,11 +199,18 @@ void brushFirstLocalityAndCanvasEdge()
     for (int y = 102; y < 310; ++y) for (int x = 848; x < 880; ++x)
         longImage.pixels[index(longImage, x, y)] = {230, 130, 30, 255};
     const auto longRegion = dot(longImage, 42.5, 84.5, 2);
-    CHECK(at(longRegion.combined, 870, 295) == 255);
+    CHECK(at(longRegion.combined, 90, 84) == 255);
+    CHECK(at(longRegion.combined, 870, 295) == 0);
     CHECK(at(longRegion.combined, 840, 295) == 0);
     CHECK(at(longRegion.combined, 500, 150) == 0);
-    CHECK(longRegion.stats.workRegion.width > 800);
-    CHECK(longRegion.combined->bounds() == RectI({22, 70, 858, 240}));
+    CHECK(longRegion.stats.workRegion.width < 256);
+    // A long path can deliberately extend along the same connected material.
+    auto followed = line({42.5,84.5},{864.5,84.5},6,2);
+    const auto downward = line({864.5,84.5},{864.5,295.5},6,2);
+    followed.insert(followed.end(),downward.begin(),downward.end());
+    const auto guided = run(longImage,followed);
+    CHECK(at(guided.combined,870,295)==255 && at(guided.combined,500,84)==255);
+    CHECK(at(guided.combined,500,150)==0 && at(guided.combined,840,295)==0);
 
     auto edgeImage = solid({96, 80}, {0, 0, 100, 255});
     for (int y = 0; y < 40; ++y) for (int x = 0; x < 42; ++x)
@@ -205,6 +218,68 @@ void brushFirstLocalityAndCanvasEdge()
     const auto edge = dot(edgeImage, 7.5, 8.5, 3);
     CHECK(at(edge.combined, 0, 0) == 255 && at(edge.combined, 0, 30) >= 128);
     CHECK(at(edge.combined, 31, 0) >= 128 && at(edge.combined, 70, 5) == 0);
+}
+
+void localityFollowsPathNotBoxOrPreviousResult()
+{
+    const auto image = solid({720,720},{70,80,90,255});
+    auto dabs = line({120.5,120.5},{560.5,120.5},24,3);
+    const auto side = line({560.5,120.5},{560.5,560.5},24,3);
+    dabs.insert(dabs.end(),side.begin(),side.end());
+    const auto result = run(image,dabs);
+    CHECK(at(result.combined,120,160)==255 && at(result.combined,520,520)==255);
+    CHECK(at(result.combined,330,330)==0); // Inside the stroke's box, away from its path.
+    CHECK(at(result.combined,30,600)==0);
+    CHECK(!result.hints.background);
+    std::reverse(dabs.begin(),dabs.end());
+    CHECK(same(result.combined,run(image,dabs).combined));
+    const auto repeated = dabs;
+    dabs.insert(dabs.end(),repeated.begin(),repeated.end());
+    CHECK(same(result.combined,run(image,dabs).combined));
+
+    const auto first = dot(image,120.5,120.5,12);
+    const auto larger = dot(image,120.5,120.5,24);
+    CHECK(selected(larger.combined)>selected(first.combined));
+    const auto extended = dot(image,270.5,120.5,12,first.hints,first.combined,SelectionOperation::Add);
+    CHECK(at(extended.combined,270,120)==255 && at(extended.combined,120,120)==255);
+    CHECK(at(extended.combined,470,120)==0 && !extended.hints.background);
+    const auto correction = dot(image,270.5,120.5,12,extended.hints,extended.combined,SelectionOperation::Subtract);
+    CHECK(at(correction.combined,270,120)==0 && at(correction.combined,120,120)==255);
+    const auto again = dot(image,120.5,130.5,12,correction.hints,correction.combined,SelectionOperation::Add);
+    CHECK(at(again.combined,270,120)==0);
+    const auto restored = dot(image,270.5,120.5,12,again.hints,again.combined,SelectionOperation::Add);
+    CHECK(at(restored.combined,270,120)==255); // Deliberate input wins.
+
+    // Same local pixels in a larger image produce the same local result/work.
+    const auto big = solid({2048,1536},{70,80,90,255});
+    const auto bigResult = dot(big,120.5,120.5,12);
+    CHECK(first.stats.evaluatedPixels==bigResult.stats.evaluatedPixels);
+    for(int y=0;y<360;++y)for(int x=0;x<360;++x)
+        CHECK(at(first.combined,x,y)==at(bigResult.combined,x,y));
+}
+
+void exactStrokeDistanceReference()
+{
+    // Independent brute-force oracle for the shared Euclidean transform.
+    constexpr int w=25,h=21;
+    std::vector<float> sites(w*h,1e16F);
+    for(int i:{0,39,260,432})sites[std::size_t(i)]=0;
+    const auto result=detail::selectionDistance(sites,w,h,[]{});
+    for(int y=0;y<h;++y)for(int x=0;x<w;++x) {
+        float expected=1e16F;
+        for(int py=0;py<h;++py)for(int px=0;px<w;++px)
+            if(sites[std::size_t(py*w+px)]==0)
+                expected=std::min(expected,float((px-x)*(px-x)+(py-y)*(py-y)));
+        CHECK(result[std::size_t(y*w+x)]==expected);
+    }
+    const std::vector<float> empty(w*h,1e16F),full(w*h,0);
+    CHECK(detail::selectionDistance(empty,w,h,[]{})==empty);
+    CHECK(detail::selectionDistance(full,w,h,[]{})==full);
+    int checks=0;
+    throws<std::runtime_error>([&]{(void)detail::selectionDistance(sites,w,h,[&]{
+        if(++checks==3)throw std::runtime_error("cancel");
+    });});
+    CHECK(checks==3);
 }
 
 void correctionsAndHintSnapshots()
@@ -523,13 +598,14 @@ void uniformBenchmark()
         const auto result = dot(image, double(extent.width / 2) + .5, double(extent.height / 2) + .5, 3);
         const auto elapsed = std::chrono::duration<double, std::milli>(
             std::chrono::steady_clock::now() - start).count();
-        CHECK(selected(result.combined) == std::size_t(extent.width) * extent.height);
+        CHECK(selected(result.combined) > 10000 && selected(result.combined) < 40000);
+        CHECK(result.stats.evaluatedPixels < 60000);
         long peakRssKiB = 0;
 #if defined(__linux__)
         rusage usage {};
         if (getrusage(RUSAGE_SELF, &usage) == 0) peakRssKiB = usage.ru_maxrss;
 #endif
-        std::cout << extent.width << 'x' << extent.height << " uniform_expanding_ms=" << elapsed
+        std::cout << extent.width << 'x' << extent.height << " uniform_local_ms=" << elapsed
             << " evaluated=" << result.stats.evaluatedPixels << " workspace_MiB="
             << double(result.stats.workspaceBytes) / (1024 * 1024)
             << " process_peak_RSS_MiB=" << double(peakRssKiB) / 1024 << '\n';
@@ -548,6 +624,8 @@ int main(int argc, char** argv)
         shortInputOnTexturedRegion();
         thinFeaturesHolesAndDisconnectedObjects();
         brushFirstLocalityAndCanvasEdge();
+        localityFollowsPathNotBoxOrPreviousResult();
+        exactStrokeDistanceReference();
         correctionsAndHintSnapshots();
         weakBoundaryWithBackgroundEvidence();
         transparentRgbAndValidExtents();

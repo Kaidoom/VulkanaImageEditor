@@ -92,7 +92,7 @@ QWidget* MainWindow::createSmartSelectionControls(QWidget* parent)
     smartSize_ = field(QStringLiteral("SmartSize"), QStringLiteral("Size"), 2, 512, 24, 132);
     smartSize_->setSuffix(QStringLiteral(" px"));
     smartSize_->setToolTip(QStringLiteral(
-        "Evidence brush diameter, in document pixels; pressure does not change hint strength"));
+        "Brush diameter in document pixels. Growth stays near your path; larger brushes allow a wider local region."));
     connect(smartSize_, &QDoubleSpinBox::valueChanged, this, [this] { refreshSmartSelectionControls(); });
     smartEdgeSensitivity_
         = field(QStringLiteral("SmartEdgeSensitivity"), QStringLiteral("Edges"), 0, 100, 40, 132);
@@ -127,7 +127,8 @@ void MainWindow::createSmartSelectionHelp()
     propertiesPanel_->addToolPage(core::ToolId::SmartSelect, QStringLiteral("Smart Select"),
         QStringLiteral("{{ToolAction_smartselect}} · Quick Selection, Magic Wand and Object Selection create ordinary selections."), content);
     auto* help = new QLabel(QStringLiteral(
-        "Quick Selection · Click a region or brush across it; Add grows, Subtract supplies correction hints. "
+        "Quick Selection · Brush along the region to grow nearby edges. Continue brushing to extend it; "
+        "Add grows, Subtract supplies correction hints. "
         "New strokes override conflicting hints. Edges: higher favors soft boundaries, lower favors fine contrast. "
         "Weak edges may need correction strokes.\n"
         "Magic Wand · Click a connected color region; Fuzziness refines that click.\n\n"

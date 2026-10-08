@@ -26,6 +26,8 @@ public:
 private:
     PinnedDocumentSampler sampler_;
     std::shared_ptr<SmartReferenceImage> image_;
+    std::vector<PremultipliedColor> row_;
+    std::vector<std::byte> scratch_;
 };
 struct QuickSelectionHints {
     SelectionState foreground, background;
