@@ -42,6 +42,7 @@ struct SmartSelectionStats {
     float boundaryCut { 0 };
     std::size_t evidencePixels { 0 };
     bool limitedGrowth { false };
+    std::size_t cleanedRegions { 0 }, cleanedPixels { 0 };
 };
 struct SmartSelectionResult {
     SelectionState incoming, combined;

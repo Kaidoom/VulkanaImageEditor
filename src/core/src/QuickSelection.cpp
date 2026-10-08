@@ -1,6 +1,7 @@
 #include "imageeditor/core/SmartSelection.hpp"
 #include "imageeditor/core/SelectionGraphCut.hpp"
 #include "SelectionDistance.hpp"
+#include "QuickSelectionCleanup.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -264,7 +265,7 @@ namespace {
     };
     WindowResult solveWindow(const SmartReferenceImage& image, std::span<const QuickHintDab> dabs,
         RectI region, QuickSelectionHints previous, bool subtract, const std::atomic_bool& cancelled,
-        QuickSelectionSettings settings, float localRadius)
+        QuickSelectionSettings settings, float localRadius, double brushDiameter)
     {
         const auto count = std::size_t(region.width) * std::size_t(region.height);
         // Includes both class maps, indexed queue, feature/model/hint/output buffers.
@@ -558,7 +559,7 @@ namespace {
                 }
             });
         }
-        const SmartSelectionStats stats { count, pops, count * 280 + 2 * 65536 * (sizeof(unsigned) + 1),
+        SmartSelectionStats stats { count, pops, count * 280 + 2 * 65536 * (sizeof(unsigned) + 1),
             region, cut, freshCount, frontier.size()*10<=freshCount*11 && count>freshCount*2 };
         std::vector<std::uint8_t> coverage(count);
         if (settings.diagnostic) {
@@ -595,6 +596,21 @@ namespace {
             coverage[i] = contourCoverage(
                 field[i], (at(x + 1, y) - at(x - 1, y)) * .5, (at(x, y + 1) - at(x, y - 1)) * .5);
             coverage[i] = std::min(coverage[i], std::uint8_t(255 - rejected[i]));
+        }
+        if (settings.diagnostic) settings.diagnostic("coverage-before-cleanup", region, coverage);
+        if (brushDiameter > 8) {
+            std::vector<std::uint8_t> protection(count);
+            for (std::size_t i = 0; i < count; ++i) {
+                if ((i & 4095) == 0 && cancelled) return {};
+                if (fresh[i] || hints[i] == targetClass) protection[i] |= 1;
+                if (!valid[i] || hints[i] == otherClass || rejected[i]
+                    || target.barrier[i] == unreachable || !colors[i][3]) protection[i] |= 2;
+            }
+            const auto cleanup = detail::cleanQuickSelection(coverage, protection,
+                unsigned(region.width), unsigned(region.height), brushDiameter, cancelled);
+            if (cancelled) return {};
+            stats.cleanedRegions = cleanup.regions;
+            stats.cleanedPixels = cleanup.pixels;
         }
         if (settings.diagnostic) settings.diagnostic("incoming", region, coverage);
         return { SelectionMask::fromR8Region(image.extent, region, coverage, stride), updated, stats };
@@ -668,7 +684,7 @@ SmartSelectionResult buildQuickSelection(const SmartReferenceImage& image, std::
     const auto region = RectI { hintBounds.x - padding, hintBounds.y - padding,
         hintBounds.width + 2 * padding, hintBounds.height + 2 * padding }.clippedTo(canvas);
     auto result = solveWindow(image, dabs, region, previous, operation == SelectionOperation::Subtract,
-        cancelled, settings, localRadius);
+        cancelled, settings, localRadius, brushRadius * 2);
     if (cancelled || !result.incoming)
         return {};
     auto combined = combineSelection(original, result.incoming, operation);

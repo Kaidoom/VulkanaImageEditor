@@ -4,6 +4,7 @@
 #include "imageeditor/core/SelectionCommands.hpp"
 #include "imageeditor/core/ViewportState.hpp"
 #include "../src/core/src/SelectionDistance.hpp"
+#include "../src/core/src/QuickSelectionCleanup.hpp"
 
 #include <algorithm>
 #include <array>
@@ -280,6 +281,114 @@ void exactStrokeDistanceReference()
         if(++checks==3)throw std::runtime_error("cancel");
     });});
     CHECK(checks==3);
+}
+
+void brushScaledComponentCleanup()
+{
+    constexpr unsigned w = 120, h = 96;
+    const std::atomic_bool cancelled {false};
+    std::vector<std::uint8_t> input(w * h), protection(w * h);
+    const auto i = [](int x, int y) { return std::size_t(y) * w + std::size_t(x); };
+    const auto rect = [&](RectI r, std::uint8_t value) {
+        for (int y = r.y; y < r.bottom(); ++y) for (int x = r.x; x < r.right(); ++x)
+            input[i(x, y)] = value;
+    };
+    rect({19, 11, 82, 74}, 64); // Antialiased outer boundary: must remain exact.
+    rect({20, 12, 80, 72}, 255);
+    rect({29, 23, 4, 4}, 200); rect({30, 24, 2, 2}, 0); // Tiny hole and its fringe.
+    rect({50, 24, 15, 15}, 0); // Larger meaningful hole; only a much larger brush removes it.
+    rect({75, 22, 2, 18}, 0); // Long, thin enclosed gap: retain even with a large brush.
+    rect({34, 65, 3, 20}, 0); // Open finger notches, including a thin foreground finger.
+    rect({40, 65, 3, 20}, 0);
+    rect({60, 50, 2, 2}, 0); protection[i(60, 50)] = 2; // Explicit exclusion.
+    input[i(21, 50)] = 0; input[i(20, 50)] = 200; // Hole near the real antialiased contour.
+    rect({4, 14, 5, 5}, 48); rect({5, 15, 3, 3}, 255); // Unsupported speck with AA fringe.
+    rect({6, 35, 2, 2}, 255); protection[i(6, 35)] = 1; // Explicitly selected small island.
+    rect({6, 50, 1, 16}, 255); // Narrow disconnected strand.
+    input[i(0, 5)] = 255; // A boundary component is never presumed to be noise.
+
+    auto clean = input;
+    const auto stats = detail::cleanQuickSelection(clean, protection, w, h, 24, cancelled);
+    CHECK(stats.regions == 3 && stats.pixels > 0);
+    for (int y = 0; y < int(h); ++y) for (int x = 0; x < int(w); ++x) {
+        auto expected = input[i(x, y)];
+        if (x >= 4 && x < 9 && y >= 14 && y < 19) expected = 0;
+        if (x >= 29 && x < 33 && y >= 23 && y < 27) expected = 255;
+        if (x == 21 && y == 50) expected = 255;
+        CHECK(clean[i(x, y)] == expected);
+    }
+    // In particular, shared antialias pixels are not mistaken for obsolete
+    // hole fringes, and no cleanup changes the finger's outer contour.
+    CHECK(clean[i(20, 50)] == 200 && clean[i(38, 82)] == 255 && clean[i(35, 82)] == 0);
+    auto again = clean;
+    CHECK(detail::cleanQuickSelection(again, protection, w, h, 24, cancelled).regions == 0);
+    CHECK(again == clean);
+    for (const double diameter : {2., 6., 8.}) {
+        auto precise = input;
+        CHECK(detail::cleanQuickSelection(precise, protection, w, h, diameter, cancelled).pixels == 0);
+        CHECK(precise == input);
+    }
+    auto larger = input;
+    CHECK(detail::cleanQuickSelection(larger, protection, w, h, 64, cancelled).regions == 4);
+    CHECK(larger[i(55, 30)] == 255 && larger[i(75, 30)] == 0);
+    CHECK(larger[i(60, 50)] == 0 && larger[i(6, 35)] == 255);
+    CHECK(larger[i(6, 58)] == 255 && larger[i(35, 82)] == 0);
+    const std::atomic_bool stop {true};
+    auto stopped = input;
+    CHECK(detail::cleanQuickSelection(stopped, protection, w, h, 64, stop).pixels == 0);
+    CHECK(stopped == input);
+
+    // Two-phase cleanup must not turn a removed island's hole into a new dot.
+    std::fill(input.begin(), input.end(), 0);
+    std::fill(protection.begin(), protection.end(), 0);
+    rect({40, 40, 7, 7}, 255); rect({42, 42, 3, 3}, 0);
+    CHECK(detail::cleanQuickSelection(input, protection, w, h, 24, cancelled).regions == 1);
+    CHECK(std::all_of(input.begin(), input.end(), [](auto value) { return value == 0; }));
+    // Uniform empty/full coverage and diagonally open gaps retain their topology.
+    for (const std::uint8_t value : {std::uint8_t(0), std::uint8_t(255)}) {
+        std::fill(input.begin(), input.end(), value);
+        CHECK(detail::cleanQuickSelection(input, protection, w, h, 64, cancelled).regions == 0);
+        CHECK(std::all_of(input.begin(), input.end(), [&](auto v) { return v == value; }));
+    }
+    for (int p = 0; p < 30; ++p) input[i(p, p)] = 0;
+    const auto diagonal = input;
+    CHECK(detail::cleanQuickSelection(input, protection, w, h, 64, cancelled).regions == 0);
+    CHECK(input == diagonal);
+    // An enclosed thin gap is meaningful even when rotated 45 degrees, where
+    // its axis-aligned bounds look square. The same holds for selected strands.
+    for (const bool selectedStrand : {false, true}) {
+        std::fill(input.begin(), input.end(), selectedStrand ? 0 : 255);
+        for (int p = 30; p < 45; ++p) input[i(p, p)] = selectedStrand ? 255 : 0;
+        const auto strand = input;
+        CHECK(detail::cleanQuickSelection(input, protection, w, h, 64, cancelled).regions == 0);
+        CHECK(input == strand);
+    }
+}
+
+void cleanupRespectsSourceAndCorrections()
+{
+    auto image = solid({160, 128}, {10, 30, 90, 255});
+    for (int y = 18; y < 112; ++y) for (int x = 18; x < 140; ++x)
+        image.pixels[index(image, x, y)] = {230, 140, 20, 255};
+    // Three identical tiny color gaps: ordinary texture, transparent source,
+    // and unavailable reference. Only the first is eligible for filling.
+    for (int y = 45; y < 48; ++y) for (int x : {50, 51, 52, 70, 71, 72, 90, 91, 92}) {
+        image.pixels[index(image, x, y)] = {10, 30, 90, std::uint8_t(x >= 70 && x < 73 ? 0 : 255)};
+        if (x >= 90) image.valid[index(image, x, y)] = 0;
+    }
+    const auto precise = dot(image, 78.5, 78.5, 3);
+    const auto clean = dot(image, 78.5, 78.5, 12);
+    CHECK(at(precise.combined, 51, 46) == 0 && precise.stats.cleanedRegions == 0);
+    CHECK(at(clean.combined, 51, 46) == 255 && clean.stats.cleanedRegions > 0);
+    CHECK(at(clean.combined, 71, 46) == 0 && at(clean.combined, 91, 46) == 0);
+    const auto correction = dot(image, 51.5, 46.5, 1.1, clean.hints, clean.combined,
+        SelectionOperation::Subtract);
+    CHECK(at(correction.combined, 51, 46) == 0);
+    const auto next = dot(image, 78.5, 78.5, 12, correction.hints, correction.combined,
+        SelectionOperation::Add);
+    CHECK(at(next.combined, 51, 46) == 0); // Cleanup cannot undo a negative stroke.
+    CHECK(at(next.combined, 71, 46) == 0 && at(next.combined, 91, 46) == 0);
+    CHECK(same(next.combined, combineSelection(correction.combined, next.incoming, SelectionOperation::Add)));
 }
 
 void correctionsAndHintSnapshots()
@@ -626,6 +735,8 @@ int main(int argc, char** argv)
         brushFirstLocalityAndCanvasEdge();
         localityFollowsPathNotBoxOrPreviousResult();
         exactStrokeDistanceReference();
+        brushScaledComponentCleanup();
+        cleanupRespectsSourceAndCorrections();
         correctionsAndHintSnapshots();
         weakBoundaryWithBackgroundEvidence();
         transparentRgbAndValidExtents();

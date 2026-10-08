@@ -100,6 +100,7 @@ int main(int argc, char** argv)
             { "evidence", qint64(s.evidencePixels) }, { "cut", s.boundaryCut },
             { "elapsedIncludingDiagnosticsMs", ms }, { "workspaceBytes", qint64(s.workspaceBytes) },
             { "evaluatedPixels", qint64(s.evaluatedPixels) }, { "queuePops", qint64(s.queuePops) },
+            { "cleanedRegions", qint64(s.cleanedRegions) }, { "cleanedPixels", qint64(s.cleanedPixels) },
             { "workRegion",
                 QJsonArray { s.workRegion.x, s.workRegion.y, s.workRegion.width, s.workRegion.height } },
             { "dabs", int(path.dabs().size()) } };

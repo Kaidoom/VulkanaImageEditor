@@ -58,6 +58,25 @@ constraints. Fixed neighbours enter the band graph as terminal costs. This is
 neither whole-mask hole filling nor largest-component cleanup. Every component
 connected to fresh positive evidence remains eligible.
 
+Before publication, a brush-scaled component pass removes small unsupported
+islands and fills small enclosed texture holes. It does not smooth the whole
+outline or keep only the largest component. Brushes up to eight document pixels
+bypass this pass exactly. Above that, let `s = clamp(0.75 × (diameter − 8), 0, 24)`:
+eligible components have at most `floor(s²)` pixels and a bounding span no larger
+than `ceil(2s)`. Eight-connected traversal retains diagonally open gaps. Long thin
+components are protected using both bounding-box and principal-axis elongation,
+so rotated gaps are not mistaken for round specks.
+
+Explicit positive evidence protects islands; contrary strokes and previous
+rejections protect holes. Invalid samples, fully transparent source pixels,
+the locality limit, and working/canvas borders also block filling. Cleanup runs
+on this stroke's incoming coverage, not on the complete previous selection.
+The main contour is never resampled: only removed components and their obsolete
+antialias fringe change. Shared fringe pixels belonging to retained boundaries
+are kept. Small deliberately selected islands, finger gaps and larger holes
+therefore remain available; use a small brush or a corrective stroke when a tiny
+enclosed feature needs to be kept.
+
 The native Dinic solver uses iterative path storage, paired residual edges and
 1/256 fixed-point cost units. Exhaustive independent label enumeration validates
 its energy on small graphs. The solver does not incorporate reference-library
@@ -157,6 +176,15 @@ stroke from 206 ms to 20 ms (Release core solve, diagnostics disabled). These ar
 behavior comparisons, not pixel-accurate Photoshop matches. Reflective floors,
 highlights and low-contrast seams can still require more strokes or corrections.
 
+For the subsequent floor-path noise comparison, cleanup removes 23 small regions
+with a 24-pixel brush and 61 with a 64-pixel brush. The finger silhouette and its
+antialiased coverage remain byte-identical in the inspected hand region. The
+six-pixel-brush output is unchanged across the entire image. Release core times
+are about 127/112 ms for the 24/64-pixel paths, compared with 123/109 ms before
+cleanup; the generated 4K/5K warm local test remains about 14–15 ms with process
+peaks of 51/82 MiB. These compare identical source pixels and recorded strokes,
+not screenshot masks or Photoshop ground truth.
+
 Independent OpenCV 5.0.0 GrabCut comparisons use soft rectangle-exterior estimates,
 not a hard image-border prior. Box GrabCut included furniture and missed part of
 the leg in the character scene. Brush GrabCut depended strongly on initialization
@@ -210,7 +238,11 @@ Focused Release tests cover graph energy, textured regions, thin features, holes
 correction precedence, cancellation, source sampling, history and exact preview
 publication. `imageeditor_smart_selection_review image prompts.json output`
 captures source, explicit evidence, edge costs, barrier field, connected/regularized
-inference, incoming mask and published mask without application-side file writes.
+inference, coverage before cleanup, incoming mask and published mask without
+application-side file writes. Component-cleanup fixtures check protected
+corrections, small-brush identity, open finger notches, rotated thin gaps,
+transparent/invalid source holes, retained antialiasing, cancellation and
+idempotence. The four focused core/reference/art/interaction Release suites pass.
 The local-growth revision additionally tests bent paths without bounding-box
 filling, distant pixels remaining unchanged, progressive extension, repeat-input
 identity, and stable local work on larger canvases. The Euclidean prior is checked
