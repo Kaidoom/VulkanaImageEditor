@@ -132,6 +132,7 @@ void developmentPaths()
     CHECK(QFileInfo::exists(paths::shaderPath(QStringLiteral("layer.frag.spv"))));
     CHECK(paths::defaultUiConfigPath() == QStringLiteral(VULKANA_TEST_DEVELOPMENT_UI_CONFIG));
     CHECK(QFileInfo::exists(paths::defaultUiConfigPath()));
+    CHECK(QFileInfo::exists(QDir(paths::objectSelectionBundlePath()).filePath("encoder.onnx")));
 #endif
 }
 
@@ -157,6 +158,7 @@ void relocatedChild(const QString& root)
     CHECK(paths::defaultUiConfigPath() == data + QStringLiteral("/ui-layout.ini"));
     CHECK(paths::shaderPath(QStringLiteral("layer.frag.spv"))
         == data + QStringLiteral("/shaders/layer.frag.spv"));
+    CHECK(paths::objectSelectionBundlePath()==data+QStringLiteral("/object-selection/mobilesam-v1"));
 #endif
     CHECK(QDir::setCurrent(root));
     CHECK(paths::installedDataPath(QStringLiteral("probe.txt")) == data + QStringLiteral("/probe.txt"));
@@ -175,6 +177,7 @@ void relocateAndRun(const QString& root)
     writeFile(data + QStringLiteral("/shaders/packaging-path-probe.spv"), "fixture shader\n");
     writeFile(data + QStringLiteral("/shaders/layer.frag.spv"), "fixture layer shader\n");
     writeFile(data + QStringLiteral("/ui-layout.ini"), "fixture UI configuration\n");
+    writeFile(data + QStringLiteral("/object-selection/mobilesam-v1/vulkana-mobilesam-v1.json"), "fixture bundle\n");
     const auto unrelated = root + QStringLiteral("/unrelated-working-directory");
     writeFile(unrelated + QStringLiteral("/probe.txt"), "incorrect cwd resource\n");
     writeFile(unrelated + QStringLiteral("/shaders/packaging-path-probe.spv"), "incorrect cwd shader\n");

@@ -152,6 +152,18 @@ QPixmap rasterizedGlyph(ToolGlyph glyph, const QColor& ink, const QSize& size, q
         p.setPen(QPen(ink,1.5)); p.setBrush(ink);
         p.drawEllipse(QPointF(8,8),2.5,2.5); p.drawEllipse(QPointF(16,16),2.5,2.5);
         p.setBrush(Qt::NoBrush); p.drawEllipse(QPointF(16,8),2.5,2.5);
+    } else if (glyph == ToolGlyph::ObjectSelection) {
+        // A simple figure stays recognizable inside the selection at 18px.
+        p.setPen(QPen(ink, 1.2, Qt::DashLine));
+        p.drawRect(QRectF(2, 2, 20, 20));
+        p.setPen(Qt::NoPen);
+        p.setBrush(ink);
+        p.drawEllipse(QPointF(12, 7), 1.9, 1.9);
+        p.setPen(QPen(ink, 1.6, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        p.setBrush(Qt::NoBrush);
+        p.drawPolyline(QPolygonF{{8, 12}, {12, 10.5}, {16, 12}});
+        p.drawLine(QPointF(12, 10.5), QPointF(12, 14));
+        p.drawPolyline(QPolygonF{{9, 18.5}, {12, 14}, {15, 18.5}});
     } else if (glyph == ToolGlyph::QuickSelection) {
         // A dotted selection contour opens around the diagonal brush tip.
         QPainterPath selection;

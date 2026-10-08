@@ -8,6 +8,7 @@ namespace imageeditor::platform {
 QString installedDataPath(const QString& relativePath);
 QString shaderPath(const QString& name);
 QString defaultUiConfigPath();
+QString objectSelectionBundlePath();
 QString userDataDirectory();
 QString userCacheDirectory();
 QString userPresetDirectory();

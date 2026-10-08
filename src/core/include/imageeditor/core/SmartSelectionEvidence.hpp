@@ -10,11 +10,12 @@ namespace imageeditor::core {
 class SmartSelectionEvidence final : public SelectionEvidence {
 public:
     SmartSelectionEvidence(const Document& document, std::optional<LayerId> layer, ColorSampleSource source,
-        QuickSelectionHints hints)
+        QuickSelectionHints hints, std::uint64_t documentInstance = 0)
         : revision_(document.revision())
         , layer_(layer)
         , source_(source)
         , hints_(std::move(hints))
+        , documentInstance_(documentInstance)
     {
         for (const auto& item : document.layers())
             if (const auto* raster = std::get_if<RasterLayer>(&item.payload); raster && raster->surface)
@@ -29,9 +30,10 @@ public:
     }
     [[nodiscard]] const QuickSelectionHints& hints() const noexcept { return hints_; }
     [[nodiscard]] bool matches(
-        const Document& document, std::optional<LayerId> layer, ColorSampleSource source) const noexcept
+        const Document& document, std::optional<LayerId> layer, ColorSampleSource source,
+        std::uint64_t documentInstance = 0) const noexcept
     {
-        if (revision_ != document.revision() || layer_ != layer || source_ != source)
+        if (documentInstance_ != documentInstance || revision_ != document.revision() || layer_ != layer || source_ != source)
             return false;
         for (const auto& fingerprint : pixels_) {
             const auto* item = document.layer(fingerprint.layer);
@@ -46,7 +48,7 @@ public:
     [[nodiscard]] bool equivalent(const SelectionEvidence& other) const noexcept override
     {
         const auto* evidence = dynamic_cast<const SmartSelectionEvidence*>(&other);
-        if (!evidence || revision_ != evidence->revision_ || layer_ != evidence->layer_
+        if (!evidence || documentInstance_ != evidence->documentInstance_ || revision_ != evidence->revision_ || layer_ != evidence->layer_
             || source_ != evidence->source_ || pixels_.size() != evidence->pixels_.size())
             return false;
         for (std::size_t i = 0; i < pixels_.size(); ++i) {
@@ -81,6 +83,7 @@ private:
     std::optional<LayerId> layer_;
     ColorSampleSource source_;
     QuickSelectionHints hints_;
+    std::uint64_t documentInstance_ {0};
     std::vector<PixelIdentity> pixels_;
 };
 

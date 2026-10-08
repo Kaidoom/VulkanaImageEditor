@@ -18,6 +18,7 @@
 #include <QStatusBar>
 #include <QTimer>
 #include <QVBoxLayout>
+#include <cmath>
 #include <utility>
 
 namespace imageeditor::ui {
@@ -33,15 +34,15 @@ QWidget* MainWindow::createSmartSelectionControls(QWidget* parent)
     leading->setContentsMargins(0, 0, 0, 0);
     leading->setSpacing(6);
     auto* modes = new QButtonGroup(page);
-    for (int i = 0; i < 2; ++i) {
+    for (int i = 0; i < 3; ++i) {
         auto* button
-            = new ToolOptionsButton(i ? QStringLiteral("SmartModeWand") : QStringLiteral("SmartModeQuick"),
-                i ? QStringLiteral("Magic Wand") : QStringLiteral("Quick Selection"),
-                i ? QStringLiteral("Magic Wand · click a contiguous matching color region")
+            = new ToolOptionsButton(i==2 ? QStringLiteral("SmartModeObject") : i ? QStringLiteral("SmartModeWand") : QStringLiteral("SmartModeQuick"),
+                i==2 ? tr("Object Selection") : i ? QStringLiteral("Magic Wand") : QStringLiteral("Quick Selection"),
+                i==2 ? tr("Object Selection · draw a rectangle; click to include, Alt-click to exclude. Runs locally and offline.") : i ? QStringLiteral("Magic Wand · click a contiguous matching color region")
                   : QStringLiteral("Quick Selection · brush foreground or exclusion evidence; grow along "
                                    "appearance and edges"),
                 ToolOptionsButton::Kind::Toggle, smartModeControls_, ToolOptionsButton::Presentation::Icon);
-        button->setIcon(toolGlyph(i ? ToolGlyph::MagicWand : ToolGlyph::QuickSelection));
+        button->setIcon(toolGlyph(i==2 ? ToolGlyph::ObjectSelection : i ? ToolGlyph::MagicWand : ToolGlyph::QuickSelection));
         button->setChecked(i == 0);
         modes->addButton(button, i);
         leading->addWidget(button);
@@ -49,6 +50,8 @@ QWidget* MainWindow::createSmartSelectionControls(QWidget* parent)
     connect(modes, &QButtonGroup::idClicked, this, [this](int mode) {
         cancelSmartSelection();
         smartMode_ = core::SmartSelectMode(mode);
+        if(mode==2 && !objectSelectionEngine_)
+            objectSelectionEngine_=std::make_shared<ObjectSelectionEngine>();
         refreshSelectionControls();
         updateActionState();
     });
@@ -122,12 +125,15 @@ void MainWindow::createSmartSelectionHelp()
 {
     QVBoxLayout* content { };
     propertiesPanel_->addToolPage(core::ToolId::SmartSelect, QStringLiteral("Smart Select"),
-        QStringLiteral("{{ToolAction_smartselect}} · Quick Selection and Magic Wand share ordinary selection masks."), content);
+        QStringLiteral("{{ToolAction_smartselect}} · Quick Selection, Magic Wand and Object Selection create ordinary selections."), content);
     auto* help = new QLabel(QStringLiteral(
         "Quick Selection · Click a region or brush across it; Add grows, Subtract supplies correction hints. "
         "New strokes override conflicting hints. Edges: higher favors soft boundaries, lower favors fine contrast. "
         "Weak edges may need correction strokes.\n"
         "Magic Wand · Click a connected color region; Fuzziness refines that click.\n\n"
+        "Object Selection · Draw a rough rectangle around an object. Click to include, Alt-click to exclude; "
+        "drag a new rectangle to start another object. Runs locally and offline using the bundled model. "
+        "Use Refine Selection for soft edges; the model does not recover transparency.\n\n"
         "{{DecreaseBrushSizeAction}} / {{IncreaseBrushSizeAction}} · Quick Selection brush size\n"
         "Shift · Add; Alt · Subtract; Shift+Alt · Intersect (latched at press)\n"
         "Escape · Cancel pending work\n{{SelectAllAction}} / {{DeselectAction}} · Select all / deselect\n"
@@ -145,7 +151,12 @@ bool MainWindow::beginSmartSelection(core::Vec2d point, Qt::KeyboardModifiers mo
     if (fileBusy_ || !session().document() || layerTransform_ || selectionTransform_)
         return false;
     refreshSmartSelectionControls();
+    if(smartMode_==core::SmartSelectMode::ObjectSelection&&!objectSelectionEngine_)
+        objectSelectionEngine_=std::make_shared<ObjectSelectionEngine>();
     if (smartSelectionEditing_ && smartFinishRequested_) {
+        if(smartMode_==core::SmartSelectMode::ObjectSelection) {
+            statusBar()->showMessage(tr("Finishing Object Selection — Escape cancels"),2500);return false;
+        }
         if (smartQueuedStrokes_.size() >= 8) {
             statusBar()->showMessage(
                 QStringLiteral("Finishing queued selections — please wait before the next stroke"), 2500);
@@ -186,12 +197,13 @@ bool MainWindow::beginSmartSelection(core::Vec2d point, Qt::KeyboardModifiers mo
             smartSelection_.emplace();
             auto& state = *smartSelection_;
             state.owner = doc;
+            state.documentId = activeDocumentId();
             state.layer = session().activeLayer();
             state.revision = doc->revision();
             state.expectedSelectionRevision = doc->selectionRevision();
             if (const auto evidence
                 = std::dynamic_pointer_cast<const core::SmartSelectionEvidence>(doc->selectionEvidence());
-                evidence && evidence->matches(*doc, state.layer, smartSource_))
+                evidence && evidence->matches(*doc, state.layer, smartSource_, state.documentId))
                 state.hints = evidence->hints();
             for (const auto& layer : doc->layers())
                 if (const auto* raster = std::get_if<core::RasterLayer>(&layer.payload))
@@ -210,6 +222,13 @@ bool MainWindow::beginSmartSelection(core::Vec2d point, Qt::KeyboardModifiers mo
         else if (alt)
             state.operation = core::SelectionOperation::Subtract;
         state.seed = point;
+        if(smartMode_==core::SmartSelectMode::ObjectSelection) {
+            state.objectEnd=point;state.objectCorrection=false;state.objectPrompt={};state.objectOriginal={};
+            if(const auto evidence=std::dynamic_pointer_cast<const ObjectSelectionEvidence>(doc->selectionEvidence());
+                evidence&&evidence->identity.matches(*doc,state.layer,smartSource_,state.documentId)) {
+                state.objectPrompt=evidence->prompt;state.objectOriginal=evidence->original;state.objectOperation=evidence->operation;
+            }
+        }
         state.edgeSensitivity = smartEdgeSensitivity_->value() / 100.0;
         state.hasClick = true;
         state.appliedTolerance = int(smartTolerance_->value());
@@ -237,6 +256,13 @@ bool MainWindow::beginSmartSelection(core::Vec2d point, Qt::KeyboardModifiers mo
 }
 void MainWindow::moveSmartSelection(core::Vec2d point)
 {
+    if(smartMode_==core::SmartSelectMode::ObjectSelection&&smartSelectionEditing_&&smartSelection_&&!smartFinishRequested_) {
+        auto& state=*smartSelection_;state.objectEnd=point;
+        const core::Vec2d a=state.seed,b=point;
+        auto edges=std::make_shared<std::vector<core::SelectionEdge>>(std::initializer_list<core::SelectionEdge>{
+            {a,{b.x,a.y}},{{b.x,a.y},b},{b,{a.x,b.y}},{{a.x,b.y},a}});
+        canvasWindow_->setSelectionPathPreview(edges,state.operation,0,0);return;
+    }
     if (smartQueuedInput_) {
         auto sample = smartPointerSample_;
         sample.documentPosition = point;
@@ -266,7 +292,8 @@ void MainWindow::moveSmartSelection(core::Vec2d point)
             edges->reserve(dabs.size());
             for (std::size_t i = 1; i < dabs.size(); ++i)
                 edges->push_back({ dabs[i - 1].center, dabs[i].center });
-            canvasWindow_->setSelectionPathPreview(edges, core::SelectionOperation::Add, 0, 0);
+            if (!smartPreview_.combined)
+                canvasWindow_->setSelectionPathPreview(edges, smartSelection_->operation, 0, 0);
             if (!smartTimer_->isActive())
                 smartTimer_->start(16);
         }
@@ -293,6 +320,23 @@ void MainWindow::finishSmartSelection()
     if (!smartSelectionEditing_ || !smartSelection_ || updatingSmart_ || smartFinishRequested_)
         return;
     try {
+        if(smartMode_==core::SmartSelectMode::ObjectSelection) {
+            auto& state=*smartSelection_;
+            const double dx=state.objectEnd.x-state.seed.x,dy=state.objectEnd.y-state.seed.y;
+            state.objectCorrection=std::hypot(dx,dy)<3;
+            if(state.objectCorrection) {
+                if(state.objectPrompt.box.width<=1||state.objectPrompt.box.height<=1) {
+                    cancelSmartSelection(false);statusBar()->showMessage(tr("Draw a rectangle around the intended object first"),4000);return;
+                }
+                std::erase_if(state.objectPrompt.corrections,[&](const auto& p){return std::hypot(p.position.x-state.seed.x,p.position.y-state.seed.y)<1;});
+                state.objectPrompt.corrections.push_back({state.seed,state.operation!=core::SelectionOperation::Subtract});
+                state.original=state.objectOriginal;state.operation=state.objectOperation;
+            } else {
+                state.objectPrompt={core::RectD{std::min(state.seed.x,state.objectEnd.x),std::min(state.seed.y,state.objectEnd.y),std::abs(dx),std::abs(dy)}, {}};
+                state.objectOriginal=state.original;state.objectOperation=state.operation;
+            }
+            ++smartVersion_;
+        }
         if (smartMode_ == core::SmartSelectMode::QuickSelection) {
             const auto before = smartSelection_->path.dabs().size();
             smartSelection_->path.end(smartPointerSample_);
@@ -336,18 +380,21 @@ void MainWindow::advanceSmartSelection()
                     throw;
             }
             if (smartSelectionEditing_ && smartSelection_ && !*smartCancelled_
-                && smartWorkerGeneration_ == smartGeneration_ && smartWorkerVersion_ == smartVersion_) {
+                && smartWorkerGeneration_ == smartGeneration_
+                && smartWorkerVersion_ <= smartVersion_
+                && (!smartFinishRequested_ || smartWorkerVersion_ == smartVersion_)) {
                 smartPreview_ = std::move(result);
                 smartPreviewVersion_ = smartWorkerVersion_;
-                if (smartPreview_.incoming)
+                if (smartPreview_.combined)
                     canvasWindow_->setSelectionMaskPreview(
-                        smartPreview_.incoming, smartSelection_->original, core::SelectionOperation::Add);
+                        smartPreview_.combined, {}, core::SelectionOperation::Replace);
             }
             smartCancelled_.reset();
         }
         if (!smartSelectionEditing_ || !smartSelection_)
             return;
         auto& state = *smartSelection_;
+        if(smartMode_==core::SmartSelectMode::ObjectSelection&&!smartFinishRequested_)return;
         if (!state.reference) {
             QElapsedTimer slice;
             slice.start();
@@ -357,7 +404,8 @@ void MainWindow::advanceSmartSelection()
                 const bool included
                     = (smartSource_ == core::ColorSampleSource::MergedVisible || layer.id == state.layer)
                     && session().document()->isEffectivelyVisible(layer.id) && layer.opacity > 0;
-                if (included && !std::holds_alternative<core::RasterLayer>(layer.payload)) {
+                if (included && (std::holds_alternative<core::TextLayer>(layer.payload)
+                    || std::holds_alternative<core::ShapeLayer>(layer.payload))) {
                     constexpr std::size_t budget = 64 * 1024 * 1024;
                     auto cache = prepareDocumentSampleCache(layer, budget - state.preparedPixels);
                     if (!cache || !cache->surface)
@@ -401,12 +449,22 @@ void MainWindow::advanceSmartSelection()
             const auto mode = smartMode_;
             const auto edgeSensitivity = state.edgeSensitivity;
             const auto tolerance = int(smartTolerance_->value());
+            const auto objectPrompt=state.objectPrompt;const auto objectEngine=objectSelectionEngine_;
             smartCancelled_ = std::make_shared<std::atomic_bool>(false);
             const auto cancelled = smartCancelled_;
             smartWorkerGeneration_ = smartGeneration_;
             smartWorkerVersion_ = smartVersion_;
             smartWorker_ = std::async(std::launch::async,
-                [image, original, hints, dabs, seed, operation, mode, edgeSensitivity, tolerance, cancelled] {
+                [image, original, hints, dabs, seed, operation, mode, edgeSensitivity, tolerance, cancelled,objectPrompt,objectEngine] {
+                    if(mode==core::SmartSelectMode::ObjectSelection) {
+                        core::SmartSelectionResult result;
+                        result.incoming=objectEngine->evaluate(image,objectPrompt,*cancelled);
+                        if(result.incoming) {
+                            result.combined=core::combineSelection(original,result.incoming,operation);
+                            if(!core::prepareSelectionBoundary(result.combined,*cancelled))return core::SmartSelectionResult{};
+                        }
+                        return result;
+                    }
                     return mode == core::SmartSelectMode::MagicWand
                         ? core::buildMagicWand(*image, seed, tolerance, original, operation, *cancelled)
                         : core::buildQuickSelection(*image, dabs, hints, original, operation, *cancelled,
@@ -418,13 +476,15 @@ void MainWindow::advanceSmartSelection()
         if (!smartFinishRequested_)
             return;
         const bool quick = smartMode_ == core::SmartSelectMode::QuickSelection;
-        const core::SelectionEvidenceState evidence = quick && smartPreview_.combined
+        core::SelectionEvidenceState evidence = quick && smartPreview_.combined
             ? std::make_shared<const core::SmartSelectionEvidence>(
-                  *session().document(), state.layer, smartSource_, smartPreview_.hints)
+                  *session().document(), state.layer, smartSource_, smartPreview_.hints,state.documentId)
             : core::SelectionEvidenceState { };
+        if(smartMode_==core::SmartSelectMode::ObjectSelection&&smartPreview_.combined)
+            evidence=std::make_shared<const ObjectSelectionEvidence>(*session().document(),state.layer,smartSource_,state.objectPrompt,state.objectOriginal,state.objectOperation,state.documentId);
         const bool changed = smartPreview_.combined
             && session().execute(std::make_unique<core::SetSelectionCommand>(
-                smartPreview_.combined, quick ? "Quick selection" : "Magic wand", evidence));
+                smartPreview_.combined, quick ? "Quick selection" : smartMode_==core::SmartSelectMode::ObjectSelection ? "Object selection" : "Magic wand", evidence));
         // Deliberate corrections can change evidence without changing visible
         // R8 coverage. Both are one atomic, nonpersistent history action; truly
         // equivalent masks AND hints are discarded without clearing redo.
@@ -433,13 +493,15 @@ void MainWindow::advanceSmartSelection()
         state.expectedSelectionRevision = session().document()->selectionRevision();
         state.appliedTolerance = int(smartTolerance_->value());
         smartSelectionEditing_ = false;
+        const bool limited=quick&&smartPreview_.stats.limitedGrowth;
         smartPreview_ = { };
         smartPreviewVersion_ = 0;
         canvasWindow_->setSelectionPreview({ });
         synchronizeUi(false, false);
         statusBar()->showMessage(
-            changed ? QStringLiteral("Smart selection applied") : QStringLiteral("Selection unchanged"),
-            2500);
+            limited ? tr("Only the brushed area could be resolved. Add evidence across the region or supply an exclusion stroke.")
+                    : changed ? QStringLiteral("Smart selection applied") : QStringLiteral("Selection unchanged"),
+            limited?6000:2500);
         startNextSmartStroke();
     } catch (const std::exception& error) {
         const auto message = QString::fromUtf8(error.what());
@@ -519,7 +581,7 @@ void MainWindow::refreshSmartSelectionControls()
     const auto* doc = session().document();
     if (smartSelection_) {
         auto& state = *smartSelection_;
-        if (!doc || doc != state.owner || doc->revision() != state.revision
+        if (!doc || activeDocumentId()!=state.documentId || doc != state.owner || doc->revision() != state.revision
             || (state.reference && !state.reference->matches(*doc))
             || std::ranges::any_of(
                 state.pinnedPixels, [](const auto& p) { return p.first->revision() != p.second; })
@@ -530,7 +592,7 @@ void MainWindow::refreshSmartSelectionControls()
             state.hints = { };
             if (const auto evidence
                 = std::dynamic_pointer_cast<const core::SmartSelectionEvidence>(doc->selectionEvidence());
-                evidence && evidence->matches(*doc, state.layer, smartSource_))
+                evidence && evidence->matches(*doc, state.layer, smartSource_,state.documentId))
                 state.hints = evidence->hints();
             state.startingHints = { };
             state.hasClick = false;
@@ -542,8 +604,8 @@ void MainWindow::refreshSmartSelectionControls()
     smartControls_->setVisible(session().activeTool() == core::ToolId::SmartSelect);
     smartSize_->setVisible(quick);
     smartEdgeSensitivity_->setVisible(quick);
-    smartTolerance_->setVisible(!quick);
-    smartSample_->setVisible(!quick);
+    smartTolerance_->setVisible(smartMode_==core::SmartSelectMode::MagicWand);
+    smartSample_->setVisible(smartMode_==core::SmartSelectMode::MagicWand);
     smartSize_->setEnabled(!smartSelectionEditing_);
     smartEdgeSensitivity_->setEnabled(!smartSelectionEditing_);
     std::optional<core::Rgba8> sampled;

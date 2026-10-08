@@ -1,9 +1,11 @@
 #pragma once
 #include "imageeditor/core/BasicPixelBrushEngine.hpp"
 #include "imageeditor/core/ColorSelection.hpp"
+#include <functional>
+#include <string_view>
 
 namespace imageeditor::core {
-enum class SmartSelectMode { QuickSelection, MagicWand };
+enum class SmartSelectMode { QuickSelection, MagicWand, ObjectSelection };
 struct SmartReferenceImage {
     Extent2u extent;
     std::vector<Rgba8> pixels; // Canonical visible straight RGBA8; zero alpha has zero RGB.
@@ -35,6 +37,9 @@ struct SmartSelectionStats {
     std::uint64_t evaluatedPixels { 0 }, queuePops { 0 };
     std::size_t workspaceBytes { 0 };
     RectI workRegion;
+    float boundaryCut { 0 };
+    std::size_t evidencePixels { 0 };
+    bool limitedGrowth { false };
 };
 struct SmartSelectionResult {
     SelectionState incoming, combined;
@@ -51,6 +56,9 @@ struct QuickHintDab {
 struct QuickSelectionSettings {
     // Strength of the wider, monotone edge cue; not a spatial growth radius.
     double edgeSensitivity { 0.4 };
+    // Optional synchronous development observer. Views expire on return; never
+    // used by the interactive path or retained in selection history.
+    std::function<void(std::string_view, RectI, std::span<const std::uint8_t>)> diagnostic {};
 };
 // Hint-only sink: reuses normalized samples and distance resampling, without
 // creating a raster mutation/transaction or borrowing paint-color state.

@@ -1,4 +1,5 @@
 #include "imageeditor/core/SmartSelection.hpp"
+#include "imageeditor/core/SelectionGraphCut.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -236,7 +237,8 @@ namespace {
         for (unsigned level = 1; level < histogram.size(); ++level) {
             if (!histogram[level])
                 continue;
-            if (area >= freshCount && area) {
+            // Imposed zero-cost seeds are not evidence of an image basin.
+            if (area * 5 > std::uint64_t(freshCount) * 6) {
                 const double growth = std::log1p(double(histogram[level]) / double(area));
                 const double support
                     = std::log1p(double(area) / double(std::max(std::size_t(1), freshCount)));
@@ -422,6 +424,16 @@ namespace {
         if (cancelled || target.barrier.empty())
             return { };
         const auto cut = basinCut(target, freshCount, cancelled);
+        if (settings.diagnostic) {
+            settings.diagnostic("fresh-evidence", region, fresh);
+            std::vector<std::uint8_t> view(count);
+            for (std::size_t i = 0; i < count; ++i) view[i] = std::uint8_t(hints[i] * 100);
+            settings.diagnostic("explicit-classes", region, view);
+            for (std::size_t i = 0; i < count; ++i) view[i] = std::max(edges[i][0], edges[i][1]);
+            settings.diagnostic("edges", region, view);
+            for (std::size_t i = 0; i < count; ++i) view[i] = std::uint8_t(std::min<unsigned>(255, target.barrier[i]));
+            settings.diagnostic("barrier", region, view);
+        }
         if (cancelled)
             return { };
         Distance other;
@@ -446,6 +458,61 @@ namespace {
                 value = std::min(value, competition);
             }
             field[i] = value;
+        }
+        // A native-resolution, contrast-aware binary energy regularizes the
+        // geodesic evidence. It removes texture-sized exclusions when supported
+        // by neighbouring appearance, not by filling holes or keeping a largest
+        // component. Explicit corrections remain hard constraints.
+        // Only an eight-pixel native-resolution band needs regularization;
+        // region discovery above is unrestricted and is never upscaled. Fixed
+        // neighbours enter the energy as terminal costs, so there are no tile
+        // seams or invented outside-background pixels.
+        std::vector<std::uint8_t> active(count,0);
+        std::vector<unsigned> band;
+        for(unsigned i=0;i<count;++i) {
+            if((i&4095)==0 && cancelled)return {};
+            bool boundary=false;
+            neighbors(i,[&](unsigned v){boundary|=(field[i]>0)!=(field[v]>0);});
+            if(boundary){active[i]=1;band.push_back(i);}
+        }
+        std::size_t bandStart=0;
+        for(unsigned radius=1;radius<8;++radius) {
+            const auto end=band.size();
+            for(;bandStart<end;++bandStart)neighbors(band[bandStart],[&](unsigned v){
+                if(!active[v]){active[v]=1;band.push_back(v);}
+            });
+        }
+        if(!band.empty()) {
+            // A uniform proposal has no boundary to regularize. Avoid allocating
+            // graph costs for large flat regions, and release them before R8 publication.
+            std::vector<float> foregroundCost(count), backgroundCost(count), right(count), down(count);
+            for (std::size_t i=0;i<count;++i) {
+                if((i&4095)==0 && cancelled)return {};
+                const float evidence=std::clamp(field[i]/std::max(1.0f,cut*.35f),-4.0f,4.0f);
+                foregroundCost[i]=std::max(0.0f,-evidence);
+                backgroundCost[i]=std::max(0.0f,evidence);
+                if(!valid[i] || hints[i]==otherClass || rejected[i]>=128 || target.barrier[i]==unreachable) {
+                    foregroundCost[i]=10000; backgroundCost[i]=0;
+                } else if(fresh[i]) {foregroundCost[i]=0;backgroundCost[i]=10000;}
+                const auto weight=[&](std::size_t v) {
+                    if(!valid[i] || !valid[v] || ((colors[i][3]==0)!=(colors[v][3]==0)))return 0.0f;
+                    float differenceSquared=0;
+                    for(unsigned k=0;k<4;++k) {const float delta=float(colors[i][k])-colors[v][k];differenceSquared+=delta*delta;}
+                    return 3.0f*std::exp(-differenceSquared/(2*14*14));
+                };
+                if(i%stride+1<stride)right[i]=weight(i+1);
+                if(i+stride<count)down[i]=weight(i+stride);
+            }
+            const auto optimized=selectionGraphCut(unsigned(region.width),unsigned(region.height),
+                foregroundCost,backgroundCost,right,down,cancelled,active);
+            if(cancelled)return {};
+            for(std::size_t i=0;i<count;++i)
+                if(bool(optimized[i])!=(field[i]>0))field[i]=optimized[i]?1.0f:-1.0f;
+        }
+        if(settings.diagnostic) {
+            std::vector<std::uint8_t> view(count);
+            for(std::size_t i=0;i<count;++i)view[i]=field[i]>0?255:0;
+            settings.diagnostic("regularized",region,view);
         }
         // Competition can sever a bridge. Admit only winners connected to fresh
         // seeds, not detached positive-score islands. Keep narrow paths and holes.
@@ -474,11 +541,16 @@ namespace {
                 || (x + 2 >= region.width && region.right() < int(image.extent.width))
                 || (y + 2 >= region.height && region.bottom() < int(image.extent.height));
         }
-        const SmartSelectionStats stats { count, pops, count * 38 + 2 * 65536 * (sizeof(unsigned) + 1),
-            region };
+        const SmartSelectionStats stats { count, pops, count * 280 + 2 * 65536 * (sizeof(unsigned) + 1),
+            region, cut, freshCount, frontier.size()*10<=freshCount*11 && count>freshCount*2 };
         if (touches)
             return { { }, { }, stats, true };
         std::vector<std::uint8_t> coverage(count);
+        if (settings.diagnostic) {
+            auto view = connected;
+            for (auto& c : view) c = c ? 255 : 0;
+            settings.diagnostic("connected-inference", region, view);
+        }
         for (std::size_t i = 0; i < count; ++i) {
             if (i % 4096 == 0 && cancelled)
                 return { };
@@ -509,6 +581,7 @@ namespace {
                 field[i], (at(x + 1, y) - at(x - 1, y)) * .5, (at(x, y + 1) - at(x, y - 1)) * .5);
             coverage[i] = std::min(coverage[i], std::uint8_t(255 - rejected[i]));
         }
+        if (settings.diagnostic) settings.diagnostic("incoming", region, coverage);
         return { SelectionMask::fromR8Region(image.extent, region, coverage, stride), updated, stats, false };
     }
 } // namespace
@@ -586,6 +659,9 @@ SmartSelectionResult buildQuickSelection(const SmartReferenceImage& image, std::
         aggregate.queuePops += result.stats.queuePops;
         aggregate.workspaceBytes = std::max(aggregate.workspaceBytes, result.stats.workspaceBytes);
         aggregate.workRegion = region;
+        aggregate.boundaryCut = result.stats.boundaryCut;
+        aggregate.evidencePixels = result.stats.evidencePixels;
+        aggregate.limitedGrowth = result.stats.limitedGrowth;
         if (!result.touchesArtificialEdge) {
             if (!result.incoming)
                 return { };

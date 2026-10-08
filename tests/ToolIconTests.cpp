@@ -43,14 +43,15 @@ void iconsRenderRequestedSizesAndPreserveExplicitTint()
     std::vector<QIcon> icons;
     for (const auto glyph : {ToolGlyph::LayerRaster, ToolGlyph::Folder, ToolGlyph::Group,
              ToolGlyph::ShapeRectangle, ToolGlyph::ShapeRoundedRectangle, ToolGlyph::ShapeEllipse,
-             ToolGlyph::ShapeTriangle, ToolGlyph::ShapeLine, ToolGlyph::ShapePolygon}) {
+             ToolGlyph::ShapeTriangle, ToolGlyph::ShapeLine, ToolGlyph::ShapePolygon,
+             ToolGlyph::ObjectSelection}) {
         icons.push_back(toolGlyph(glyph, ink));
     }
     icons.push_back(themedIcon(QStringLiteral(":/icons/text.svg"), ink));
     for (std::size_t i = 0; i < icons.size(); ++i) {
         const auto& icon = icons[i];
         CHECK(!icon.isNull());
-        for (const auto logicalSize : {32, 34, 40}) {
+        for (const auto logicalSize : {18, 24, 32, 34, 40}) {
             for (const auto dpr : {1.0, 1.25, 1.5, 2.0, 3.0}) {
                 const auto failuresBefore = failures;
                 const auto expectedPhysical = QSize(qRound(logicalSize * dpr), qRound(logicalSize * dpr));
@@ -115,13 +116,14 @@ void saveOptionalReviewSheet()
     const auto defaultInk = themeColor(ThemeColor::Thumbnail);
     const auto labelInk = layerLabelColor(imageeditor::core::ColorLabel::Red);
     const std::vector<QString> names {QStringLiteral("Raster"), QStringLiteral("Folder"),
-        QStringLiteral("Text"), QStringLiteral("Shape")};
+        QStringLiteral("Text"), QStringLiteral("Shape"), QStringLiteral("Object")};
     const auto icons = [](QColor ink) {
         return std::vector<QIcon> {toolGlyph(ToolGlyph::LayerRaster, ink), toolGlyph(ToolGlyph::Folder, ink),
-            themedIcon(QStringLiteral(":/icons/text.svg"), ink), toolGlyph(ToolGlyph::ShapeRectangle, ink)};
+            themedIcon(QStringLiteral(":/icons/text.svg"), ink), toolGlyph(ToolGlyph::ShapeRectangle, ink),
+            toolGlyph(ToolGlyph::ObjectSelection, ink)};
     };
     const auto defaults = icons(defaultInk), labels = icons(labelInk);
-    QImage sheet(1310, 770, QImage::Format_ARGB32_Premultiplied);
+    QImage sheet(1310, 70 + int(names.size()) * 170 + 20, QImage::Format_ARGB32_Premultiplied);
     sheet.fill(themeColor(ThemeColor::Background));
     QPainter painter(&sheet);
     painter.setPen(themeColor(ThemeColor::Text));

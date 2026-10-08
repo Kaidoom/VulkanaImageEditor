@@ -88,6 +88,11 @@ add_test(NAME imageeditor_smart_wand_tests COMMAND imageeditor_smart_wand_tests)
 set_tests_properties(imageeditor_smart_wand_tests PROPERTIES LABELS "core;selection;wand;history;deterministic")
 
 add_executable(imageeditor_quick_selection_tests QuickSelectionTests.cpp)
+add_executable(imageeditor_selection_graph_tests SelectionGraphCutTests.cpp)
+target_link_libraries(imageeditor_selection_graph_tests PRIVATE imageeditor_core)
+imageeditor_enable_warnings(imageeditor_selection_graph_tests)
+add_test(NAME imageeditor_selection_graph_tests COMMAND imageeditor_selection_graph_tests)
+set_tests_properties(imageeditor_selection_graph_tests PROPERTIES TIMEOUT 30 LABELS "core;selection;deterministic")
 add_executable(imageeditor_selection_refinement_tests SelectionRefinementTests.cpp)
 target_link_libraries(imageeditor_selection_refinement_tests PRIVATE imageeditor_core)
 imageeditor_enable_warnings(imageeditor_selection_refinement_tests)
@@ -109,6 +114,30 @@ add_test(NAME imageeditor_quick_selection_tests COMMAND imageeditor_quick_select
 set_tests_properties(imageeditor_quick_selection_tests PROPERTIES TIMEOUT 90 LABELS "core;selection;quick;deterministic")
 
 add_executable(imageeditor_smart_select_art_tests SmartSelectArtTests.cpp)
+add_executable(imageeditor_smart_selection_review SmartSelectionReview.cpp)
+add_executable(imageeditor_object_selection_tests ObjectSelectionTests.cpp)
+target_link_libraries(imageeditor_object_selection_tests PRIVATE imageeditor_ui)
+imageeditor_enable_warnings(imageeditor_object_selection_tests)
+add_test(NAME imageeditor_object_selection_tests COMMAND imageeditor_object_selection_tests)
+set_tests_properties(imageeditor_object_selection_tests PROPERTIES TIMEOUT 30 LABELS "selection;object;offline")
+add_executable(imageeditor_bundled_object_selection_tests ObjectSelectionTests.cpp
+    "${PROJECT_SOURCE_DIR}/src/platform/src/ApplicationPaths.cpp")
+target_link_libraries(imageeditor_bundled_object_selection_tests PRIVATE imageeditor_ui)
+target_compile_definitions(imageeditor_bundled_object_selection_tests PRIVATE VULKANA_RELOCATABLE_BUNDLE=1)
+imageeditor_enable_warnings(imageeditor_bundled_object_selection_tests)
+add_test(NAME imageeditor_bundled_object_selection_tests COMMAND "${CMAKE_COMMAND}"
+    "-DPROBE=$<TARGET_FILE:imageeditor_bundled_object_selection_tests>"
+    "-DBUNDLE=${VULKANA_OBJECT_SELECTION_BUNDLE}"
+    "-DSTAGE=${CMAKE_CURRENT_BINARY_DIR}/bundled-object-selection"
+    -P "${CMAKE_CURRENT_SOURCE_DIR}/BundledObjectSelection.cmake")
+set_tests_properties(imageeditor_bundled_object_selection_tests PROPERTIES TIMEOUT 60 LABELS "packaging;selection;object;offline")
+add_executable(imageeditor_object_runtime_probe ObjectSelectionRuntimeProbe.cpp)
+target_link_libraries(imageeditor_object_runtime_probe PRIVATE ${CMAKE_DL_LIBS})
+imageeditor_enable_warnings(imageeditor_object_runtime_probe)
+add_test(NAME imageeditor_object_runtime_probe COMMAND imageeditor_object_runtime_probe "${VULKANA_OBJECT_SELECTION_BUNDLE}")
+set_tests_properties(imageeditor_object_runtime_probe PROPERTIES TIMEOUT 30 LABELS "packaging;object;offline")
+target_link_libraries(imageeditor_smart_selection_review PRIVATE imageeditor_core Qt6::Gui)
+imageeditor_enable_warnings(imageeditor_smart_selection_review)
 target_link_libraries(imageeditor_smart_select_art_tests PRIVATE imageeditor_core Qt6::Gui)
 target_compile_definitions(imageeditor_smart_select_art_tests PRIVATE IMAGEEDITOR_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
 imageeditor_enable_warnings(imageeditor_smart_select_art_tests)

@@ -32,10 +32,12 @@
 #include "imageeditor/ui/RecentFiles.hpp"
 #include "imageeditor/ui/EditorShortcuts.hpp"
 #include "imageeditor/ui/DocumentContext.hpp"
+#include "imageeditor/ui/ObjectSelection.hpp"
 
 #include <QMainWindow>
 #include <QPointer>
 #include <QStringList>
+#include <QToolButton>
 
 #include <cstdint>
 #include <array>
@@ -589,6 +591,7 @@ private:
     QLabel* colorSelectionSample_ {nullptr};
     struct SmartSelectionContext {
         const core::Document* owner {nullptr};
+        DocumentInstanceId documentId {0};
         std::optional<core::LayerId> layer;
         core::Revision revision {}, expectedSelectionRevision {};
         std::unique_ptr<core::SmartSelectionReference> reference;
@@ -600,11 +603,17 @@ private:
         core::SelectionOperation operation {core::SelectionOperation::Add};
         core::Vec2d seed;
         core::QuickSelectionPath path;
+        ObjectSelectionPrompt objectPrompt;
+        core::Vec2d objectEnd;
+        bool objectCorrection {false};
+        core::SelectionState objectOriginal;
+        core::SelectionOperation objectOperation {core::SelectionOperation::Replace};
         double edgeSensitivity {0.4};
         int appliedTolerance {16};
         bool hasClick {false};
     };
     std::optional<SmartSelectionContext> smartSelection_;
+    std::shared_ptr<ObjectSelectionEngine> objectSelectionEngine_;
     core::SmartSelectMode smartMode_ {core::SmartSelectMode::QuickSelection};
     core::ColorSampleSource smartSource_ {core::ColorSampleSource::MergedVisible};
     bool smartSelectionEditing_ {false}, smartFinishRequested_ {false}, updatingSmart_ {false};

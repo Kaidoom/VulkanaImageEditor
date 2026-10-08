@@ -16,6 +16,7 @@ if(IMAGEEDITOR_DEVELOPMENT_RESOURCES)
     target_compile_definitions(imageeditor_platform PRIVATE
         VULKANA_DEVELOPMENT_SHADER_DIR="${PROJECT_BINARY_DIR}/src/render/shaders"
         VULKANA_DEVELOPMENT_UI_CONFIG="${PROJECT_SOURCE_DIR}/config/ui-layout.ini"
+        VULKANA_DEVELOPMENT_OBJECT_SELECTION="${VULKANA_OBJECT_SELECTION_BUNDLE}"
         VULKANA_DEVELOPMENT_SERVICE_CONFIG="${PROJECT_SOURCE_DIR}/private/services.json")
 endif()
 imageeditor_enable_warnings(imageeditor_platform)

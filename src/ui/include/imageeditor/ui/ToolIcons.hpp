@@ -10,7 +10,7 @@ enum class ToolGlyph {
     SelectRectangle, SelectEllipse, ShapeRectangle, ShapeRoundedRectangle,
     ShapeEllipse, ShapeTriangle, ShapeLine, ShapePolygon, ShapeFill, ShapeStroke, Folder, Group, ClippingGroup, LayerRaster,
     SelectByColor, Crop, ShowSource, Chamfer, ResetCrop, AspectLock, FlipHorizontal, FlipVertical,
-    QuickSelection, MagicWand, Cloning, CloneStamp, CloneHeal, SpotHeal, CloneSource,
+    QuickSelection, MagicWand, ObjectSelection, Cloning, CloneStamp, CloneHeal, SpotHeal, CloneSource,
     CurrentAndBelow, CloneAligned, FollowStrokeDirection, LocalBlur,
     Person, SocialX, Mail, Globe, ExternalLink, Refresh, Download, CheckCircle, InfoCircle, Close,
     Repository, LayerMask, Trash, NewLayer, AdjustmentLayer, Plus, Effects

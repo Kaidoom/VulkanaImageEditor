@@ -48,6 +48,15 @@ QString userDataDirectory()
         .filePath(QStringLiteral("vulkanaEditor"));
 }
 
+QString objectSelectionBundlePath()
+{
+#ifdef VULKANA_DEVELOPMENT_OBJECT_SELECTION
+    return QStringLiteral(VULKANA_DEVELOPMENT_OBJECT_SELECTION);
+#else
+    return installedDataPath(QStringLiteral("object-selection/mobilesam-v1"));
+#endif
+}
+
 QString userCacheDirectory()
 {
     return QDir(QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation))

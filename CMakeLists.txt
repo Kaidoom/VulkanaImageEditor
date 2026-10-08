@@ -65,6 +65,7 @@ function(imageeditor_enable_warnings target)
     )
 endfunction()
 
+include(cmake/ObjectSelectionBundle.cmake)
 add_subdirectory(src/platform)
 add_subdirectory(src/core)
 add_subdirectory(src/render)

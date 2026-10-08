@@ -306,11 +306,15 @@ void wandIsContiguousAndModifiersLatchWhileOriginalAntsRemain()
     CHECK(pixel(f.selection(), 3, 10) == 255 && pixel(f.selection(), 27, 10) == 0);
     CHECK(pixel(f.selection(), 12, 10) == 0);
     const auto red = f.selection();
-    const auto edges = red->boundaryEdges();
     f.press({12.5, 10.5}, Qt::ShiftModifier); CHECK(f.idle());
     CHECK(f.find<QToolButton>("SelectionModeAdd")->isChecked());
     CHECK(same(f.selection(), red));
-    CHECK(f.canvas->scene().selectionRetainedEdges && *f.canvas->scene().selectionRetainedEdges == edges);
+    CHECK(!f.canvas->scene().selectionRetainedEdges);
+    core::SmartSelectionReference reference(f.document(),f.session().activeLayer(),core::ColorSampleSource::MergedVisible);
+    while(!reference.step()){}
+    const std::atomic_bool cancelled{false};
+    const auto proposed=core::buildMagicWand(*reference.image(),{12.5,10.5},16,red,core::SelectionOperation::Add,cancelled);
+    CHECK(f.canvas->scene().selectionEdges&&*f.canvas->scene().selectionEdges==proposed.combined->boundaryEdges());
     f.move({18.5, 30.5}, Qt::AltModifier); f.release({18.5, 30.5}); CHECK(f.idle());
     CHECK(pixel(f.selection(), 3, 10) == 255 && pixel(f.selection(), 12, 10) == 255);
     CHECK(pixel(f.selection(), 18, 30) == 0); // Wand retains its pressed seed.
@@ -327,8 +331,9 @@ void wandIsContiguousAndModifiersLatchWhileOriginalAntsRemain()
     const auto original = f.selection();
     f.press({27.5, 10.5}); CHECK(f.idle());
     CHECK(same(f.selection(), original));
-    CHECK(f.canvas->scene().selectionRetainedEdges
-        && *f.canvas->scene().selectionRetainedEdges == original->boundaryEdges());
+    CHECK(!f.canvas->scene().selectionRetainedEdges);
+    const auto replacement=core::buildMagicWand(*reference.image(),{27.5,10.5},16,original,core::SelectionOperation::Replace,cancelled);
+    CHECK(f.canvas->scene().selectionEdges&&*f.canvas->scene().selectionEdges==replacement.combined->boundaryEdges());
     f.release({27.5, 10.5}); CHECK(f.idle());
     CHECK(pixel(f.selection(), 27, 10) == 255 && pixel(f.selection(), 12, 10) == 0);
 }
@@ -354,7 +359,14 @@ void toleranceRefinementsUseOriginalClickBaseline()
             control->setValue(value); CHECK(f.idle());
             CHECK(same(f.selection(), narrow));
             CHECK(f.session().history().undoDepth() == adjustingDepth);
-            CHECK(f.canvas->scene().selectionRetainedEdges);
+            CHECK(!f.canvas->scene().selectionRetainedEdges);
+            core::SmartSelectionReference reference(f.document(),f.session().activeLayer(),core::ColorSampleSource::MergedVisible);
+            while(!reference.step()){}
+            const std::atomic_bool cancelled{false};
+            const auto op=QString::fromLatin1(operation)=="Add"?core::SelectionOperation::Add:
+                QString::fromLatin1(operation)=="Subtract"?core::SelectionOperation::Subtract:core::SelectionOperation::Intersect;
+            const auto expected=core::buildMagicWand(*reference.image(),{3.5,10.5},value,baseline,op,cancelled);
+            CHECK(f.canvas->scene().selectionEdges&&*f.canvas->scene().selectionEdges==expected.combined->boundaryEdges());
         }
         f.endRefinement(*control); CHECK(f.idle()); CHECK(same(f.selection(), wider));
         CHECK(f.session().history().undoDepth() == adjustingDepth + 1);
@@ -527,7 +539,7 @@ void queuedHeldStrokeStartsLiveRefinementAfterPrecedingCommit()
         CHECK(pixel(f.selection(), 3, 10) == 255 && pixel(f.selection(), 27, 30) == 0);
         CHECK(f.canvas->scene().selectionPathPreview);
         CHECK(f.canvas->scene().selectionEdges && !f.canvas->scene().selectionEdges->empty());
-        CHECK(f.canvas->scene().selectionRetainedEdges && !f.canvas->scene().selectionRetainedEdges->empty());
+        CHECK(!f.canvas->scene().selectionRetainedEdges);
         f.move({27.5, 35.5}); CHECK(f.idle());
         CHECK(f.session().history().undoDepth() == depth + 1);
         if (cancel) {
@@ -601,7 +613,7 @@ void highResolutionResponsiveness()
         QObject::connect(&heartbeat,&QTimer::timeout,[&]{++heartbeats;maxGap=std::max(maxGap,gap.restart());});
         heartbeat.start(1);
         QElapsedTimer total;total.start();QElapsedTimer press;press.start();
-        f.press({double(cx-105)+.5,double(cy)+.5});const auto pressMs=press.nsecsElapsed()/1e6;
+        f.press({double(cx-105)+.5,double(cy)+.5});const auto pressMs=double(press.nsecsElapsed())/1e6;
         f.move({double(cx+105)+.5,double(cy)+.5});f.release({double(cx+105)+.5,double(cy)+.5});
         auto* timer=f.find<QTimer>("SmartSelectionTimer");CHECK(waitFor([&]{return !timer->isActive();},30000));
         const auto cold=total.elapsed();CHECK(f.session().history().undoDepth()==1);
@@ -616,9 +628,67 @@ void highResolutionResponsiveness()
     }
 }
 
+int privateQuality(const QString& sourcePath,const QString& outputPath)
+{
+    QVulkanInstance instance;
+    const bool native=QGuiApplication::platformName()=="wayland"||QGuiApplication::platformName()=="xcb";
+    if(native){instance.setApiVersion(QVersionNumber(1,2));instance.setLayers({"VK_LAYER_KHRONOS_validation"});CHECK(instance.create());}
+    Fixture f(native?&instance:nullptr);CHECK(f.valid());
+    CHECK(f.window.openImageFromPath(sourcePath));f.action("ToolAction_smartselect");f.quick();f.mode("Replace");
+    f.find<ui::CompactValueControl>("SmartSize")->setValue(24);
+    auto* timer=f.find<QTimer>("SmartSelectionTimer");
+    const auto idle=[&]{return waitFor([&]{return !timer->isActive();},30000);};
+    const auto save=[&](const QString& name) {
+        const auto extent=f.document().canvas().extent;QImage mask(int(extent.width),int(extent.height),QImage::Format_Grayscale8);
+        for(int y=0;y<mask.height();++y)for(int x=0;x<mask.width();++x)mask.scanLine(y)[x]=std::uint8_t(std::max(0,pixel(f.selection(),x,y)));
+        CHECK(QDir().mkpath(outputPath));CHECK(mask.save(QDir(outputPath).filePath(name+"-mask.png")));
+        CHECK(f.window.grab().save(QDir(outputPath).filePath(name+"-window.png")));
+        if(native&&qEnvironmentVariableIsSet("IMAGEEDITOR_SMART_SELECTION_REVIEW")) {
+            f.window.activateWindow();QTest::qWait(200);
+            QProcess capture;capture.start(QStringLiteral("spectacle"),{QStringLiteral("--background"),QStringLiteral("--nonotify"),
+                QStringLiteral("--activewindow"),QStringLiteral("--output"),QDir(outputPath).filePath(name+"-native.png")});
+            CHECK(capture.waitForFinished(5000)&&capture.exitCode()==0);
+        }
+    };
+    const auto document=f.window.activeDocumentId(),revision=f.document().revision(),pixels=f.surface().revision();
+    const auto depth=f.session().history().undoDepth();QElapsedTimer elapsed;elapsed.start();
+    f.press({693,1756});f.move({735,1685});QTest::qWait(30);f.move({782,1610});
+    CHECK(idle());CHECK(!f.selection());CHECK(f.session().history().undoDepth()==depth);
+    const auto displayed=*f.canvas->scene().selectionEdges;
+    f.release({782,1610});CHECK(idle());
+    std::cout<<"private_quick_gesture_ms="<<elapsed.elapsed()<<'\n';save("quick-floor");
+    CHECK(f.selection()&&f.selection()->bounds().width>200);
+    CHECK(displayed==f.selection()->boundaryEdges()); // Actual displayed proposal is the publication.
+    CHECK(f.session().history().undoDepth()==depth+1);
+    f.shortcut("Ctrl+Z");CHECK(!f.selection());f.shortcut("Ctrl+Shift+Z");
+    f.mode("Subtract");f.press({748,1690});CHECK(idle());const auto subtract=*f.canvas->scene().selectionEdges;
+    f.release({748,1690});CHECK(idle());CHECK(subtract==f.selection()->boundaryEdges());
+    f.shortcut("Ctrl+Z");f.action("DeselectAction");f.button("SmartModeObject");f.mode("Replace");
+    CHECK(!f.window.findChild<QToolButton*>("ObjectModelSetup"));
+    elapsed.restart();f.press({80,400});f.move({770,1847});f.release({770,1847});CHECK(idle());
+    std::cout<<"private_object_gesture_ms="<<elapsed.elapsed()<<'\n';save("object-box");
+    CHECK(pixel(f.selection(),450,650)==255&&pixel(f.selection(),800,300)==0);
+    const auto box=f.selection();const auto objectDepth=f.session().history().undoDepth();
+    f.click({787,1270},Qt::AltModifier);CHECK(idle());save("object-corrected");
+    const auto corrected=f.selection();CHECK(pixel(corrected,787,1270)==0);
+    CHECK(f.session().history().undoDepth()==objectDepth+1);
+    f.shortcut("Ctrl+Z");CHECK(same(f.selection(),box));
+    f.shortcut("Ctrl+Shift+Z");CHECK(same(f.selection(),corrected));
+    f.press({500,1500});f.release({500,1500});f.escape();CHECK(idle());CHECK(same(f.selection(),corrected));
+    // Leaving a tab during work cannot publish into a new document, including
+    // another import whose local layer IDs begin at the same value.
+    f.press({80,400});f.move({770,1847});f.release({770,1847});
+    CHECK(f.window.openImageFromPath(sourcePath));const auto second=f.window.activeDocumentId();CHECK(second!=document);
+    CHECK(idle());CHECK(!f.selection());
+    CHECK(f.window.activateDocument(document));CHECK(same(f.selection(),corrected));
+    CHECK(f.document().revision()==revision&&f.surface().revision()==pixels);
+    f.window.close();settle();
+    return failures?1:0;
+}
+
 int nativeValidation()
 {
-    if (QGuiApplication::platformName() != QStringLiteral("wayland")) return 77;
+    if (QGuiApplication::platformName() != QStringLiteral("wayland") && QGuiApplication::platformName()!=QStringLiteral("xcb")) return 77;
     std::atomic_uint64_t warnings {0}, errors {0};
     QVulkanInstance instance; instance.setApiVersion(QVersionNumber(1, 2));
     if (!instance.supportedLayers().contains(QByteArrayLiteral("VK_LAYER_KHRONOS_validation"))) return EXIT_FAILURE;
@@ -656,7 +726,7 @@ int nativeValidation()
         };
         nativeCapture(QStringLiteral("-quick"));
         f.mode("Replace"); f.press({27.5, 10.5}); CHECK(f.idle());
-        CHECK(f.canvas->scene().selectionRetainedEdges && !f.canvas->scene().selectionRetainedEdges->empty());
+        CHECK(!f.canvas->scene().selectionRetainedEdges);
         for (int i = 0; i < 4; ++i) {
             const auto frame = f.canvas->rendererStats().framesSubmitted;
             f.canvas->scheduleFrame();
@@ -692,6 +762,8 @@ int main(int argc, char** argv)
     QSettings::setDefaultFormat(QSettings::IniFormat);
     QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settings.path());
     ui::applyEditorTheme(application);
+    if(const auto i=application.arguments().indexOf("--private-quality");i>=0&&application.arguments().size()>i+2)
+        return privateQuality(application.arguments()[i+1],application.arguments()[i+2]);
     if(application.arguments().contains(QStringLiteral("--large-reference"))){highResolutionResponsiveness();return failures?EXIT_FAILURE:EXIT_SUCCESS;}
     if (application.arguments().contains(QStringLiteral("--wayland-validation"))) return nativeValidation();
     controlsAndTypedShortcutOwnership();

@@ -1,0 +1,28 @@
+Vulkana Object Selection attribution and modifications
+
+MobileSAM, by Chaoning Zhang and the MobileSAM authors and contributors
+https://github.com/ChaoningZhang/MobileSAM
+Revision f706ad9c4eb7f219c00d9050e46328518ffb65d2, vit_t checkpoint.
+Distributed under the accompanying Apache License 2.0.
+
+Upstream source attribution retained for the exported model architecture:
+SAM portions: Copyright (c) Meta Platforms, Inc. and affiliates.
+All rights reserved.
+TinyViT Model Architecture: Copyright (c) 2022 Microsoft.
+Adapted from LeViT and Swin Transformer.
+
+Vulkana exports the complete image encoder and prompt decoder to ONNX opset 17
+using the upstream model and checkpoint. The trained weights are not fine-tuned.
+The exported graphs are derived artifacts, not the original .pt checkpoint.
+Vulkana's preprocessing, boundary recovery and selection integration are separate
+application code. Python, PyTorch and the development environment are not shipped.
+
+ONNX Runtime CPU 1.30.0: Copyright (c) Microsoft Corporation.
+The Linux x86-64 shared library is redistributed without modification from the
+official onnxruntime 1.30.0 cp314 manylinux_2_28_x86_64 distribution.
+The MIT license and complete upstream ThirdPartyNotices.txt accompany it.
+The ONNX Runtime 1.20.1 C API header is used without modification under MIT.
+
+These components run locally and offline. No model download or image upload is
+performed by Object Selection. Third-party terms remain separate from Vulkana's
+own MIT license; no endorsement by upstream authors is implied.

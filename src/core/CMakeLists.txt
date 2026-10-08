@@ -29,6 +29,8 @@ add_library(imageeditor_core STATIC
     src/SmartSelectionReference.cpp
     src/SelectionRefinement.cpp
     src/QuickSelection.cpp
+    src/SelectionGraphCut.cpp
+    src/ObjectSelectionBoundary.cpp
     src/MagicWandSelection.cpp
     src/Document.cpp
     src/DocumentCommands.cpp

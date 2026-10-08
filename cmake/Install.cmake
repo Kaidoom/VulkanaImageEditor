@@ -1,5 +1,8 @@
-# One install manifest for local staging and CPack; no dependencies or tests
-# bundled into the runtime package. Qt resources stay immutable in the binary.
+# One install manifest for local staging and CPack. The reviewed CPU inference
+# bundle is installed unchanged; development/test runtimes are never included.
+install(DIRECTORY "${VULKANA_OBJECT_SELECTION_BUNDLE}/"
+    DESTINATION "${VULKANA_DATA_DIR}/object-selection/mobilesam-v1"
+    FILES_MATCHING PATTERN "*.onnx" PATTERN "*.so" PATTERN "*.json" PATTERN "*.txt")
 install(FILES config/ui-layout.ini DESTINATION "${VULKANA_DATA_DIR}")
 # Only this optional public/extractable client configuration is distributed.
 # Never install the private directory or separate signing files as a whole.

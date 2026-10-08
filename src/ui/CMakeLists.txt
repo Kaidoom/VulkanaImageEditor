@@ -68,6 +68,7 @@ add_library(imageeditor_ui STATIC
     src/MainWindowRefinement.cpp
     src/MainWindowColorSelection.cpp
     src/MainWindowSmartSelection.cpp
+    src/ObjectSelection.cpp
     src/MainWindowLasso.cpp
     src/MainWindowSelectionTransform.cpp
     src/MainWindowFill.cpp

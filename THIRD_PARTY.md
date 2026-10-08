@@ -25,6 +25,18 @@ application fonts.
 
 ## External dependencies
 
+Object Selection includes the unmodified ONNX Runtime
+1.20.1 C API header at `src/ui/third_party/onnxruntime/onnxruntime_c_api.h`
+(SHA-256 `573a117ae6b83ead7f53da6cedaa0d7b7d9cdb45c0ba4726bac9081e67696a82`).
+Copyright Microsoft Corporation, [MIT license](src/ui/third_party/onnxruntime/LICENSE).
+The default Linux x86-64 build bundles the tested ONNX Runtime CPU 1.30.0 library
+and MobileSAM vit_t ONNX encoder/decoder in `assets/object-selection/mobilesam-v1`.
+MobileSAM uses Apache-2.0; the ONNX Runtime library retains its MIT license and
+complete upstream third-party notices. The bundle includes all license copies
+and attribution/modification notes. It needs no Python installation, model
+download or network connection. See [exact input provenance](assets/object-selection/README.md)
+and [Object Selection behavior](docs/SMART_SELECTION.md).
+
 The source build finds these libraries on the developer's system. Their library
 source and binaries are not vendored in the application source tree.
 
@@ -55,6 +67,8 @@ build inputs; MIT covers Vulkana-owned code, not the dependency code.
 The healing, selection, filtering and blending implementations are project code.
 Their mathematical references are documented in the [developer guides](docs/README.md).
 Optional comparison scripts obtain reference programs and photographs separately
-under ignored `research/`; those inputs are not part of this source distribution.
+under ignored `research/` or `private/`; those inputs are not part of this source distribution.
+OpenCV, PyMaxflow and Python/PyTorch were used only for selection comparisons.
+Their implementation code is not incorporated in the native graph-cut solver.
 License copies for the direct dependencies are in `res/notices/licenses/`.
 They belong to their named components, not to Vulkana's MIT grant.

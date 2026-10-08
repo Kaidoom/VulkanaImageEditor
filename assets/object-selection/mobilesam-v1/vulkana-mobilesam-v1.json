@@ -1,0 +1,9 @@
+{
+  "format": 1,
+  "model": "MobileSAM vit_t",
+  "sourceCommit": "f706ad9c4eb7f219c00d9050e46328518ffb65d2",
+  "runtimeVersion": "1.30.0",
+  "encoder.onnx": "ab709cf1e7e70db9f09f76691ef761386c5f355c09e4541e6c1d793b1302ed6f",
+  "decoder.onnx": "f326153ab6436cd6f10cf900343c19ed1537ed86d0e537b9571e99ba9778745d",
+  "libonnxruntime.so": "c902c70b3003c0e99fada202f37478c515ae9bba7944c2b2abd0017bae0c82ed"
+}

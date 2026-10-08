@@ -137,6 +137,22 @@ void multicolorAndFloodFillComparison()
         << flood.pixelCount() << " leaked=" << leaked << '\n';
 }
 
+void shortInputOnTexturedRegion()
+{
+    auto image=solid({240,180},{190,60,80,255});
+    for(int y=20;y<160;++y)for(int x=24;x<216;++x) {
+        const auto noise=std::uint8_t((unsigned(x)*1664525u+unsigned(y)*1013904223u)%5);
+        image.pixels[index(image,x,y)]={std::uint8_t(8+noise),std::uint8_t(16+noise),std::uint8_t(22+noise),255};
+    }
+    // A brief mark in textured dark material must not choose its imposed
+    // zero-cost footprint as the image boundary. No source-specific oracle.
+    const auto result=dot(image,120.5,90.5,12);
+    CHECK(selected(result.combined)>192*140*95/100);
+    CHECK(at(result.combined,30,30)==255);
+    CHECK(at(result.combined,20,90)==0);
+    CHECK(!result.stats.limitedGrowth);
+}
+
 void thinFeaturesHolesAndDisconnectedObjects()
 {
     auto image = solid({224, 144}, {4, 25, 90, 255});
@@ -529,6 +545,7 @@ int main(int argc, char** argv)
         persistentBasinsAndThinEdgeRefinement();
         rejectedBridgeCannotSeedDisconnectedIsland();
         multicolorAndFloodFillComparison();
+        shortInputOnTexturedRegion();
         thinFeaturesHolesAndDisconnectedObjects();
         brushFirstLocalityAndCanvasEdge();
         correctionsAndHintSnapshots();
