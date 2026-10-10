@@ -103,12 +103,15 @@ bool MainWindow::beginLayerMove(core::Vec2d position, Qt::KeyboardModifiers modi
     auto* document = session().document();
     if (!document || session().activeTool() != core::ToolId::Move)
         return false;
-    const auto extent = document->canvas().extent;
-    if (position.x < 0 || position.y < 0 || position.x >= extent.width || position.y >= extent.height) {
+    if (!std::isfinite(position.x) || !std::isfinite(position.y)) {
         canvasWindow_->dismissLayerOutlines();
         return false;
     }
     const auto hit = hitMoveLayer(position);
+    const auto extent = document->canvas().extent;
+    if (!hit && !moveActiveOnly_ && (position.x < 0 || position.y < 0
+        || position.x >= extent.width || position.y >= extent.height))
+        collapseLayerSelectionOnEmptyClick();
     if (!hit) canvasWindow_->dismissLayerOutlines();
     const auto id = moveActiveOnly_ ? session().activeLayer() : hit;
     if (!id)

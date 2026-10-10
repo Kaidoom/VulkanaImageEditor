@@ -444,6 +444,50 @@ void colorsAndPickingDoNotTouchDocumentHistoryOrClearRedo()
     CHECK(session.colors() == colors);
 }
 
+void retainedOffCanvasPixelsCanBePickedWithoutExpandingColorSampling()
+{
+    Document document(CanvasSpec {.extent = {32, 24}});
+    const auto lower = addRaster(document, solidSurface({8, 8}, {90, 40, 10, 255}));
+    const auto upper = addRaster(document, std::make_shared<CountingSurface>(Extent2u {8, 8},
+        [](int x, int) { return Rgba8 {20, 80, 170, static_cast<std::uint8_t>(x < 4 ? 0 : 255)}; }));
+    for (const auto offset : {Vec2d {-12, 0}, Vec2d {0, -12}, Vec2d {40, 0}, Vec2d {0, 32}}) {
+        const AffineTransform transform {.m02 = offset.x, .m12 = offset.y};
+        CHECK(document.setLayerTransform(lower, transform));
+        CHECK(document.setLayerTransform(upper, transform));
+        const Vec2d opaque {offset.x + 6.5, offset.y + 4.5};
+        const Vec2d transparent {offset.x + 1.5, offset.y + 4.5};
+        CHECK(hitTestRasterLayer(document, opaque) == upper);
+        CHECK(hitTestRasterLayer(document, transparent) == lower);
+        CHECK(!hitTestRasterLayer(document, {offset.x - 1, offset.y - 1}));
+        CHECK(!activeSample(document, upper, opaque).available());
+        CHECK(!mergedSample(document, opaque).available());
+        CHECK(document.setLayerVisibility(upper, false));
+        CHECK(hitTestRasterLayer(document, opaque) == lower);
+        CHECK(document.setLayerVisibility(upper, true));
+        CHECK(document.setLayerOpacity(upper, 0));
+        CHECK(hitTestRasterLayer(document, opaque) == lower);
+        CHECK(document.setLayerOpacity(upper, 1));
+    }
+    // The same inverse mapping/crop/mask semantics apply on the pasteboard,
+    // including projective and flipped layers, rather than rectangle picking.
+    const AffineTransform distorted {.m00 = -1.2, .m01 = .2, .m02 = -20,
+        .m10 = .1, .m11 = .9, .m12 = -18, .m20 = .015, .m21 = -.01};
+    CHECK(document.setLayerTransform(upper, distorted));
+    const auto point = distorted.map({6.5, 4.5});
+    CHECK(hitTestRasterLayer(document, point) == upper);
+    CHECK(document.setLayerCrop(upper, RectD {0, 0, 3, 8}));
+    CHECK(!hitTestRasterLayer(document, point));
+    CHECK(document.setLayerCrop(upper, {}));
+    auto blackMask = std::make_shared<LayerMask>(LayerMask {SelectionMask::filled({8, 8}, 0), {}, 0});
+    CHECK(document.setLayerMask(upper, blackMask));
+    CHECK(!hitTestRasterLayer(document, point));
+    auto disabledMask = std::make_shared<LayerMask>(*blackMask);
+    disabledMask->enabled = false;
+    CHECK(document.setLayerMask(upper, disabledMask));
+    CHECK(hitTestRasterLayer(document, point) == upper);
+    CHECK(!hitTestRasterLayer(document, {std::numeric_limits<double>::quiet_NaN(), 0}));
+}
+
 void boundedLargeDocumentDiagnostics()
 {
     constexpr std::size_t layerCount = 8;
@@ -512,6 +556,7 @@ int main()
     unavailableAndUnsupportedSourcesAreExplicit();
     viewportZoomAndPanDoNotChangeTheDocumentSample();
     colorsAndPickingDoNotTouchDocumentHistoryOrClearRedo();
+    retainedOffCanvasPixelsCanBePickedWithoutExpandingColorSampling();
     boundedLargeDocumentDiagnostics();
     if (failures != 0) {
         std::cerr << failures << " color sampler assertion(s) failed\n";

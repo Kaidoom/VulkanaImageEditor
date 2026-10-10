@@ -309,7 +309,7 @@ double peakResidentMiB()
 }
 struct PerformanceCase {
     int width{5120},height{2880};double brush{14},length{},x{-1},y{-1};bool retouch{};
-    QString photo,dump;int repeat{1};bool cancelCheck{true},profile{};unsigned workers{};
+    QString photo,dump;int repeat{1};bool cancelCheck{true},profile{},originalPhoto{};unsigned workers{};
 };
 #ifndef SPOT_HEAL_FROZEN_BASELINE
 void printCounters(const SpotHealCounters& c)
@@ -329,7 +329,8 @@ void printProfile(const SpotHealSolved& solved)
         std::cout<<"level="<<l.level<<",width="<<l.width<<",height="<<l.height<<",radius="<<l.radius
             <<",thickness="<<l.thickness<<",unknown="<<l.unknownPixels<<",active="<<l.activePixels
             <<",valid_donors="<<l.validDonors<<",initialization_ms="<<l.initializationMilliseconds
-            <<",initialization_unknown_ms="<<l.initializationUnknownMilliseconds<<",initialization_context_ms="<<l.initializationContextMilliseconds;
+            <<",initialization_unknown_ms="<<l.initializationUnknownMilliseconds<<",initialization_context_ms="<<l.initializationContextMilliseconds
+            <<",initialization_waves="<<l.initializationWaves<<",initialization_workers="<<l.initializationWorkers;
         printCounters(l.initialization);std::cout<<'\n';
         for(const auto& i:l.iterations){
             std::cout<<"level="<<l.level<<",iteration="<<i.iteration<<",search_ms="<<i.searchMilliseconds
@@ -369,14 +370,16 @@ int performance(PerformanceCase test)
         auto red=std::uint8_t(std::clamp(136.+grain,0.,255.));
         auto green=std::uint8_t(std::clamp(111.+grain*.7,0.,255.));
         auto blue=std::uint8_t(std::clamp(89.+grain*.4,0.,255.));
+        std::uint8_t alpha=255;
         if(!photograph.isNull()){
             const auto* original=photograph.constScanLine(y)+x*4;
             red=original[0];green=original[1];blue=original[2];
+            if(test.originalPhoto)alpha=original[3];
         }
         const bool damage=longStroke?(x>=sx&&x<=sx+length&&std::abs(y-curve(x))<2.):std::hypot(x-sx,y-sy)<3.;
-        if(damage){red=244;green=22;blue=98;}
+        if(damage&&!test.originalPhoto){red=244;green=22;blue=98;}
         const auto i=(std::size_t(y)*std::size_t(w)+std::size_t(x))*4;
-        storage[i]=std::byte(red);storage[i+1]=std::byte(green);storage[i+2]=std::byte(blue);storage[i+3]=std::byte{255};
+        storage[i]=std::byte(red);storage[i+1]=std::byte(green);storage[i+2]=std::byte(blue);storage[i+3]=std::byte{alpha};
     }
     auto surface=std::make_shared<ContiguousRasterSurface>(extent,std::move(storage));
     auto layer=Layer::raster("Spot Heal performance",surface);auto id=layer.id;
@@ -426,6 +429,7 @@ int performance(PerformanceCase test)
     const auto ms=[](auto a,auto b){return std::chrono::duration<double,std::milli>(b-a).count();};
     std::cout<<std::fixed<<std::setprecision(3)<<w<<'x'<<h<<','<<(longStroke?"curved-stroke":"small-spot")<<','<<(retouch?"retouch":"raw")
         <<",brush_px="<<test.brush<<",length_px="<<length<<",fixture="<<(photograph.isNull()?"synthetic-texture":QFileInfo(test.photo).fileName().toStdString())
+        <<",original_photo="<<test.originalPhoto
         <<",capture_ms="<<ms(start,frozen)<<",mark_ms="<<ms(frozen,marked)<<",solve_ms="<<ms(marked,finished)
         <<",solve_cpu_ms="<<cpuEnd-cpuStart<<",solve_cpu_cores="<<(cpuEnd-cpuStart)/std::max(.001,ms(marked,finished))
         <<",publish_ms="<<ms(finished,published)<<",total_ms="<<ms(start,published)
@@ -468,7 +472,8 @@ int performance(PerformanceCase test)
                 const auto truth=decodeColor({pixel[0],pixel[1],pixel[2],pixel[3]});
                 for(std::size_t c=0;c<3;++c){error+=std::abs(candidate[c]/std::max(candidate[3],1e-20F)-truth[c]/std::max(truth[3],1e-20F));++count;}
             }
-            std::cout<<"photographic_unknown_linear_mae="<<error/double(std::max(std::size_t(1),count))<<'\n';
+            std::cout<<(test.originalPhoto?"masked_source_change_linear_mae=":"photographic_unknown_linear_mae=")
+                <<error/double(std::max(std::size_t(1),count))<<'\n';
         }
     }
     for(int repeat=1;repeat<test.repeat;++repeat){
@@ -498,6 +503,7 @@ int main(int argc,char** argv)
 #if !defined(SPOT_HEAL_REFERENCE_ONLY) && !defined(SPOT_HEAL_CORE_ONLY)
     if(args.contains("--perf-child")){
         PerformanceCase test;test.retouch=args.contains("--retouch");test.photo=option("--photo");test.dump=option("--dump");
+        test.originalPhoto=args.contains("--original-photo");
         if(!option("--width").isEmpty())test.width=option("--width").toInt();
         if(!option("--height").isEmpty())test.height=option("--height").toInt();
         test.length=args.contains("--long")?1000.:0.;test.brush=args.contains("--long")?20.:14.;

@@ -23,6 +23,12 @@ constexpr double infinity = std::numeric_limits<double>::infinity();
 constexpr std::uint64_t randomIncrement = 0x9e3779b97f4a7c15ULL;
 using Texture = std::array<float, 2>;
 
+struct DonorSample {
+    std::array<double, 3> color {};
+    float alpha {};
+    Texture texture {};
+};
+
 struct Interrupted { };
 struct WorkLimit { };
 struct NoContext { };
@@ -45,11 +51,12 @@ struct Level {
     int width {}, height {}, radius {3};
     std::vector<PremultipliedColor> original, image;
     std::vector<Texture> originalTexture, texture;
+    // donorValid: 0 invalid, 1 valid, 2 valid with wholly opaque patch support.
     std::vector<std::uint8_t> unknown, known, featureValid, donorValid, filled;
     std::vector<int> donors, active, repairOrder, field;
     std::vector<std::uint16_t> depth;
-    std::vector<double> cost;
-    std::vector<std::array<double, 3>> originalColor;
+    std::vector<double> cost, locality;
+    std::vector<DonorSample> originalSamples;
     std::vector<int> contextActive;
     DiagonalWavefront activeSchedule, contextSchedule;
     std::vector<PremultipliedColor> nextImage;
@@ -71,6 +78,7 @@ struct TargetSample {
     float alpha {};
     Texture texture {};
     double factor {};
+    double opaqueWeight {}, opaqueAlphaPenalty {};
     bool compareTexture {};
 };
 
@@ -85,6 +93,7 @@ struct TargetPatch {
 struct alignas(64) SearchContext {
     TargetPatch target;
     std::uint64_t random {};
+    std::uint64_t comparisons {};
     SpotHealCounters workCounters;
     SpotHealCounters* counters {};
     unsigned rank {};
@@ -147,10 +156,11 @@ public:
         if (sizeof(SearchContext) > options_.maxWorkingBytes
             - result_.diagnostics.estimatedPeakWorkingBytes) throw WorkLimit {};
         result_.diagnostics.estimatedPeakWorkingBytes += sizeof(SearchContext);
-        // An optional immutable double-color cache removes repeated divisions.
+        // An optional immutable descriptor cache removes repeated divisions and
+        // keeps color, alpha and texture in one read instead of three arrays.
         // If the existing context leaves too little room, retain the exact
         // uncached calculation, never narrow the donor domain to fit a cache.
-        const auto cacheAllowance = count * 40U;
+        const auto cacheAllowance = count * 64U;
         cacheOriginalColor_ = cacheAllowance <= options_.maxWorkingBytes
             - result_.diagnostics.estimatedPeakWorkingBytes;
         if (cacheOriginalColor_) result_.diagnostics.estimatedPeakWorkingBytes += cacheAllowance;
@@ -172,6 +182,18 @@ public:
         contexts_.resize(requestedWorkers);
         result_.diagnostics.estimatedPeakWorkingBytes += std::size_t(requestedWorkers - 1) * sizeof(SearchContext);
         if (requestedWorkers > 1) result_.diagnostics.estimatedPeakWorkingBytes += scheduleAllowance;
+        // Optional exact displacement costs, including all pyramid levels.
+        // Never trade reference/search support for cache space.
+        const auto localityAllowance = count * 16U;
+        cacheLocality_ = localityAllowance <= options_.maxWorkingBytes
+            - result_.diagnostics.estimatedPeakWorkingBytes;
+        if (cacheLocality_) result_.diagnostics.estimatedPeakWorkingBytes += localityAllowance;
+        // Build and discard one radius-aware initialization schedule at a time.
+        // If it does not fit, keep serial initialization, not a smaller repair.
+        const auto initializationAllowance = count * 40U;
+        parallelInitialization_ = requestedWorkers > 1 && initializationAllowance
+            <= options_.maxWorkingBytes - result_.diagnostics.estimatedPeakWorkingBytes;
+        if (parallelInitialization_) result_.diagnostics.estimatedPeakWorkingBytes += initializationAllowance;
         base.radius = std::clamp(std::min(base.width, base.height) / 16, 1, 4);
         computeFeatures(base);
         prepare(base);
@@ -303,11 +325,14 @@ private:
     Clock::time_point started_;
     SpotHealCounters* counters_ {};
     bool cacheOriginalColor_ {};
+    bool cacheLocality_ {};
     bool keepReconstructionScratch_ {};
     std::vector<SearchContext> contexts_;
     std::atomic<std::uint64_t> parallelComparisons_ {0};
     std::atomic<bool> parallelCancelled_ {false};
     bool parallelSearching_ {false};
+    bool parallelBudgetPreapproved_ {false};
+    bool parallelInitialization_ {false};
 
     Clock::time_point tick() const { return options_.captureProfile ? Clock::now() : Clock::time_point{}; }
     double elapsed(Clock::time_point start) const
@@ -427,18 +452,20 @@ private:
         level.cost.assign(size, infinity);
         level.donorValid.assign(size, 0);
         level.depth.assign(size, std::numeric_limits<std::uint16_t>::max());
-        if (cacheOriginalColor_ && level.originalColor.empty()) {
-            level.originalColor.resize(size);
+        if (cacheOriginalColor_ && level.originalSamples.empty()) {
+            level.originalSamples.resize(size);
             for (std::size_t p = 0; p < size; ++p) {
                 if ((p & 4095U) == 0) check();
                 if (!level.known[p]) continue;
                 const auto& color = level.original[p];
                 if (!usable(color)) {
-                    level.originalColor[p][0] = std::numeric_limits<double>::quiet_NaN();
+                    level.originalSamples[p].color[0] = std::numeric_limits<double>::quiet_NaN();
                     continue;
                 }
                 for (std::size_t c = 0; c < 3; ++c)
-                    level.originalColor[p][c] = double(color[c]) / color[3];
+                    level.originalSamples[p].color[c] = double(color[c]) / color[3];
+                level.originalSamples[p].alpha = color[3];
+                level.originalSamples[p].texture = level.originalTexture[p];
             }
         }
         // Integral invalid count makes whole-patch plus inherited descriptor
@@ -473,6 +500,36 @@ private:
                     }
             }
             if (!level.donors.empty()) { level.radius = radius; break; }
+        }
+        // Reuse the integral scratch to classify opaque support per donor, not
+        // per image: one antialiased edge must not disable the fast path for
+        // all of the image's interior patches. No extra per-pixel allocation.
+        if (!level.originalSamples.empty()) {
+            for (int y = 0; y < level.height; ++y) {
+                check();
+                std::uint32_t row = 0;
+                for (int x = 0; x < level.width; ++x) {
+                    row += level.original[std::size_t(level.index(x, y))][3] != 1;
+                    invalid[std::size_t(y + 1) * std::size_t(stride) + std::size_t(x + 1)]
+                        = invalid[std::size_t(y) * std::size_t(stride) + std::size_t(x + 1)] + row;
+                }
+            }
+            for (std::size_t i = 0; i < level.donors.size(); ++i) {
+                if ((i & 4095U) == 0) check();
+                const int p = level.donors[i];
+                if (rangeInvalid(p % level.width, p / level.width, level.radius) == 0)
+                    level.donorValid[std::size_t(p)] = 2;
+            }
+        }
+        if (cacheLocality_) {
+            level.locality.resize(size);
+            for (int dy = 0; dy < level.height; ++dy) {
+                check();
+                for (int dx = 0; dx < level.width; ++dx)
+                    level.locality[std::size_t(level.index(dx, dy))] = 1.0e-7
+                        * std::log1p((double(dx) * dx + double(dy) * dy)
+                            / double(level.radius * level.radius + 1));
+            }
         }
         // Eight-connected distance from trusted original context, with a
         // bounded integer metric. Invalid pixels are not trusted boundary.
@@ -549,6 +606,9 @@ private:
                 sample.alpha = color[3];
                 sample.texture = level.texture[p];
                 sample.factor = level.known[p] ? 1.0 : provisionalWeight;
+                sample.opaqueWeight = sample.factor * sample.alpha;
+                const double da = sample.alpha - 1.0F;
+                sample.opaqueAlphaPenalty = .15 * da * da;
                 sample.compareTexture = level.featureValid[p] || !level.known[p];
                 targetPatch.maximumWeight += sample.factor * sample.alpha;
             }
@@ -556,9 +616,11 @@ private:
 
     double distance(Level& level, int target, int donor, double /*provisionalWeight*/, SearchContext& context)
     {
-        const auto comparison = parallelSearching_ ? parallelComparisons_.fetch_add(1, std::memory_order_relaxed) + 1
-                                                  : ++result_.diagnostics.comparisons;
-        if (comparison > options_.maxComparisons) throw WorkLimit {};
+        const auto comparison = !parallelSearching_ ? ++result_.diagnostics.comparisons
+            : parallelBudgetPreapproved_ ? ++context.comparisons
+            : parallelComparisons_.fetch_add(1, std::memory_order_relaxed) + 1;
+        if ((!parallelSearching_ || !parallelBudgetPreapproved_) && comparison > options_.maxComparisons)
+            throw WorkLimit {};
         if ((comparison & 1023U) == 0) {
             if (!parallelSearching_) check();
             else {
@@ -574,6 +636,58 @@ private:
         const double incumbent = level.cost[std::size_t(target)];
         const auto& targetPatch = context.target;
         auto* counters = context.counters;
+        const double deltaX = double(tx - sx), deltaY = double(ty - sy);
+        const double locality = level.locality.empty()
+            ? 1.0e-7 * std::log1p((deltaX * deltaX + deltaY * deltaY)
+                / double(level.radius * level.radius + 1))
+            : level.locality[std::size_t(level.index(std::abs(tx - sx), std::abs(ty - sy)))];
+        // This existing nonnegative term alone can already lose. Including it
+        // in the lower bound never excludes an equal/better candidate or tie.
+        if (locality > incumbent) {
+            if (counters) ++counters->earlyRejectedCandidates;
+            return infinity;
+        }
+        if (!level.originalSamples.empty()) {
+            // Whole-patch donor validation guarantees usable original pixels.
+            // With donor alpha exactly one, weights equal the target's already
+            // accumulated maximumWeight (same order/products, not an estimate).
+            // Keep RGB/texture arithmetic and sample summation order unchanged.
+            const auto cachedDistance = [&]<bool Opaque>() {
+                for (std::size_t i = 0; i < targetPatch.size; ++i) {
+                    const auto& a = targetPatch.samples[i];
+                    const auto& b = level.originalSamples[std::size_t(donor + a.offset)];
+                    if (counters) ++counters->patchSamples;
+                    double sum = 0;
+                    for (std::size_t c = 0; c < 3; ++c) {
+                        const double difference = a.color[c] - b.color[c];
+                        sum += difference * difference;
+                    }
+                    double weight, d;
+                    if constexpr (Opaque) {
+                        weight = a.opaqueWeight;
+                        d = sum / 3 + a.opaqueAlphaPenalty;
+                    } else {
+                        weight = a.factor * std::min(a.alpha, b.alpha);
+                        const double da = a.alpha - b.alpha; // Float subtraction before promotion.
+                        d = sum / 3 + .15 * da * da;
+                        weights += weight;
+                    }
+                    if (a.compareTexture) for (std::size_t c = 0; c < 2; ++c) {
+                        const double gradient = a.texture[c] - b.texture[c];
+                        d += .65 * gradient * gradient;
+                    }
+                    cost += weight * d;
+                    if ((i & 3U) == 3U && cost / targetPatch.maximumWeight + locality > incumbent) {
+                        if (counters) ++counters->earlyRejectedCandidates;
+                        return infinity;
+                    }
+                }
+                const double denominator = Opaque ? targetPatch.maximumWeight : weights;
+                return denominator < .25 ? infinity : cost / denominator + locality;
+            };
+            return level.donorValid[std::size_t(donor)] == 2
+                ? cachedDistance.template operator()<true>() : cachedDistance.template operator()<false>();
+        }
         for (std::size_t i = 0; i < targetPatch.size; ++i) {
                 const auto& a = targetPatch.samples[i];
                 const auto q = std::size_t(donor + a.offset);
@@ -581,10 +695,10 @@ private:
                 if (counters) ++counters->patchSamples;
                 const double weight = a.factor * std::min(a.alpha, b[3]);
                 double d = 1;
-                if (level.originalColor.empty() ? usable(b) : std::isfinite(level.originalColor[q][0])) {
+                if (usable(b)) {
                     double sum = 0;
                     for (std::size_t c = 0; c < 3; ++c) {
-                        const double color = level.originalColor.empty() ? double(b[c]) / b[3] : level.originalColor[q][c];
+                        const double color = double(b[c]) / b[3];
                         const double difference = a.color[c] - color;
                         sum += difference * difference;
                     }
@@ -603,11 +717,11 @@ private:
                 // Every term is nonnegative. In the SAME accumulation order,
                 // min(targetAlpha, donorAlpha) <= targetAlpha, so the final
                 // denominator cannot exceed maximumWeight, even with rounded
-                // partial-alpha sums. The omitted locality penalty is >= 0.
+                // partial-alpha sums. Include the exact locality penalty too.
                 // Strict > retains all equal-score/lower-donor-ID ties; no
                 // epsilon or generic unnormalized SSD cutoff is involved.
-                if ((i & 7U) == 7U && std::isfinite(incumbent)
-                    && cost / targetPatch.maximumWeight > incumbent) {
+                if ((i & 3U) == 3U && std::isfinite(incumbent)
+                    && cost / targetPatch.maximumWeight + locality > incumbent) {
                     if (counters) ++counters->earlyRejectedCandidates;
                     return infinity;
                 }
@@ -615,9 +729,6 @@ private:
         if (weights < .25) return infinity;
         // A very weak, continuous local preference breaks near-equivalent
         // matches without cutting off a better distant structural exemplar.
-        const double deltaX = double(tx - sx), deltaY = double(ty - sy);
-        const double locality = 1.0e-7 * std::log1p((deltaX * deltaX + deltaY * deltaY)
-            / double(level.radius * level.radius + 1));
         return cost / weights + locality;
     }
 
@@ -691,6 +802,76 @@ private:
         }
     }
 
+    template<class Function>
+    void parallelSearch(Level& level, const DiagonalWavefront& schedule, unsigned workers,
+        bool reverse, bool initial, unsigned extraProposals, const Function& function)
+    {
+        result_.diagnostics.profile.workersUsed = std::max(result_.diagnostics.profile.workersUsed, workers);
+        std::uint64_t draws = initial ? 13 : 3;
+        for (int radius = std::max(level.width, level.height); radius >= 1; radius /= 2) draws += 4;
+        // Most passes fit wholly inside the remaining comparison budget.
+        // Prove that using ALL possible proposals (including invalid ones)
+        // before entering the pool, then count privately instead of bouncing
+        // a shared atomic cache line on every candidate. Near the limit keep
+        // the original exact per-comparison admission path.
+        const auto strataStride = std::max(std::size_t(1), level.donors.size() / 128);
+        const auto strata = (level.donors.size() + strataStride - 1) / strataStride;
+        const std::uint64_t maximumPerPixel = extraProposals + (initial
+            ? 96U + strata + (draws - 13U) / 2U : 6U + (draws - 3U) / 2U);
+        const auto remaining = options_.maxComparisons - std::min(options_.maxComparisons,
+            result_.diagnostics.comparisons);
+        parallelBudgetPreapproved_ = schedule.size() <= remaining / maximumPerPixel;
+        // Every search consumes this fixed count, regardless of candidate
+        // validity or early rejection. Reassign the serial stream slice by
+        // original active ordinal, not by thread or diagonal visit order.
+        const auto firstRandom = random_;
+        for (unsigned rank = 0; rank < workers; ++rank) {
+            auto& context = contexts_[rank];
+            context.rank = rank;
+            context.comparisons = 0;
+            context.workCounters = {};
+            context.counters = counters_ ? &context.workCounters : nullptr;
+        }
+        parallelComparisons_.store(result_.diagnostics.comparisons, std::memory_order_relaxed);
+        parallelCancelled_.store(false, std::memory_order_relaxed);
+        parallelSearching_ = true;
+        bool completed = false;
+        std::exception_ptr error;
+        try {
+            completed = schedule.run(workers, reverse, [&](int p, std::size_t ordinal, unsigned rank) {
+                auto& context = contexts_[rank];
+                context.random = firstRandom + std::uint64_t(ordinal) * draws * randomIncrement;
+                function(p, context);
+            }, [&] {
+                if (options_.cancelled && options_.cancelled()) parallelCancelled_.store(true, std::memory_order_relaxed);
+                return parallelCancelled_.load(std::memory_order_relaxed);
+            });
+        } catch (...) { error = std::current_exception(); }
+        parallelSearching_ = false;
+        if (parallelBudgetPreapproved_) {
+            for (unsigned rank = 0; rank < workers; ++rank)
+                result_.diagnostics.comparisons += contexts_[rank].comparisons;
+        } else result_.diagnostics.comparisons = parallelComparisons_.load(std::memory_order_relaxed);
+        if (result_.diagnostics.comparisons > options_.maxComparisons)
+            result_.diagnostics.comparisons = options_.maxComparisons + 1;
+        if (counters_) {
+            for (unsigned rank = 0; rank < workers; ++rank) {
+                const auto& source = contexts_[rank].workCounters;
+                counters_->proposals += source.proposals;
+                counters_->invalidProposals += source.invalidProposals;
+                counters_->duplicateProposals += source.duplicateProposals;
+                counters_->scoredCandidates += source.scoredCandidates;
+                counters_->earlyRejectedCandidates += source.earlyRejectedCandidates;
+                counters_->acceptedCandidates += source.acceptedCandidates;
+                counters_->patchSamples += source.patchSamples;
+                counters_->acceptedImprovement += source.acceptedImprovement;
+            }
+        }
+        if (error) std::rethrow_exception(error);
+        if (!completed) throw Interrupted {};
+        random_ = firstRandom + std::uint64_t(schedule.size()) * draws * randomIncrement;
+    }
+
     void searchPass(Level& level, const std::vector<int>& pixels, const DiagonalWavefront& schedule,
         bool reverse, bool initial, double provisionalWeight, SpotHealIterationProfile* profile = nullptr)
     {
@@ -713,54 +894,9 @@ private:
             }
             random_ = context.random;
         } else {
-            result_.diagnostics.profile.workersUsed = std::max(result_.diagnostics.profile.workersUsed, workers);
-            std::uint64_t draws = initial ? 13 : 3;
-            for (int radius = std::max(level.width, level.height); radius >= 1; radius /= 2) draws += 4;
-            // Every search consumes this fixed count, regardless of candidate
-            // validity or early rejection. Reassign the serial stream slice by
-            // original active ordinal, not by thread or diagonal visit order.
-            const auto firstRandom = random_;
-            for (unsigned rank = 0; rank < workers; ++rank) {
-                auto& context = contexts_[rank];
-                context.rank = rank;
-                context.workCounters = {};
-                context.counters = counters_ ? &context.workCounters : nullptr;
-            }
-            parallelComparisons_.store(result_.diagnostics.comparisons, std::memory_order_relaxed);
-            parallelCancelled_.store(false, std::memory_order_relaxed);
-            parallelSearching_ = true;
-            bool completed = false;
-            std::exception_ptr error;
-            try {
-                completed = schedule.run(workers, reverse, [&](int p, std::size_t ordinal, unsigned rank) {
-                    auto& context = contexts_[rank];
-                    context.random = firstRandom + std::uint64_t(ordinal) * draws * randomIncrement;
-                    search(level, p, reverse, initial, provisionalWeight, context);
-                }, [&] {
-                    if (options_.cancelled && options_.cancelled()) parallelCancelled_.store(true, std::memory_order_relaxed);
-                    return parallelCancelled_.load(std::memory_order_relaxed);
-                });
-            } catch (...) { error = std::current_exception(); }
-            parallelSearching_ = false;
-            result_.diagnostics.comparisons = parallelComparisons_.load(std::memory_order_relaxed);
-            if (result_.diagnostics.comparisons > options_.maxComparisons)
-                result_.diagnostics.comparisons = options_.maxComparisons + 1;
-            if (counters_) {
-                for (unsigned rank = 0; rank < workers; ++rank) {
-                    const auto& source = contexts_[rank].workCounters;
-                    counters_->proposals += source.proposals;
-                    counters_->invalidProposals += source.invalidProposals;
-                    counters_->duplicateProposals += source.duplicateProposals;
-                    counters_->scoredCandidates += source.scoredCandidates;
-                    counters_->earlyRejectedCandidates += source.earlyRejectedCandidates;
-                    counters_->acceptedCandidates += source.acceptedCandidates;
-                    counters_->patchSamples += source.patchSamples;
-                    counters_->acceptedImprovement += source.acceptedImprovement;
-                }
-            }
-            if (error) std::rethrow_exception(error);
-            if (!completed) throw Interrupted {};
-            random_ = firstRandom + std::uint64_t(pixels.size()) * draws * randomIncrement;
+            parallelSearch(level, schedule, workers, reverse, initial, 0, [&](int p, SearchContext& context) {
+                search(level, p, reverse, initial, provisionalWeight, context);
+            });
         }
         if (profile) {
             // Preserve the original summation order for reported objective
@@ -798,9 +934,7 @@ private:
                 level.filled[std::size_t(p)] = 1;
             }
         }
-        for (std::size_t ordinal = 0; ordinal < level.repairOrder.size(); ++ordinal) {
-            if ((ordinal & 31U) == 0) check();
-            const int p = level.repairOrder[ordinal];
+        const auto initializePixel = [&](int p, SearchContext& context) {
             const int x = p % level.width, y = p / level.width;
             prepareTarget(level, p, .25, context);
             // All four neighbors help an inward front regardless of scan order.
@@ -813,8 +947,28 @@ private:
             level.image[std::size_t(p)] = level.original[std::size_t(donor)];
             level.texture[std::size_t(p)] = level.originalTexture[std::size_t(donor)];
             level.filled[std::size_t(p)] = 1;
+        };
+        std::optional<DiagonalWavefront> schedule;
+        unsigned workers = 1;
+        if (parallelInitialization_ && level.repairOrder.size() >= 256) {
+            schedule = DiagonalWavefront::orderedNeighborhood(level.repairOrder,
+                level.width, level.height, level.radius, options_.cancelled);
+            if (!schedule) throw Interrupted {};
+            workers = static_cast<unsigned>(std::min(contexts_.size(),
+                std::max(std::size_t(1), schedule->size() / schedule->diagonalCount())));
+            if (profile) profile->initializationWaves = schedule->diagonalCount();
         }
-        random_ = context.random;
+        if (profile) profile->initializationWorkers = workers;
+        if (workers > 1) {
+            parallelSearch(level, *schedule, workers, false, true, 2, initializePixel);
+        } else {
+            for (std::size_t ordinal = 0; ordinal < level.repairOrder.size(); ++ordinal) {
+                if ((ordinal & 31U) == 0) check();
+                initializePixel(level.repairOrder[ordinal], context);
+            }
+            random_ = context.random;
+        }
+        schedule.reset();
         if (profile) profile->initializationUnknownMilliseconds = elapsed(unknownStart);
         const auto contextStart = tick();
         searchPass(level, level.contextActive, level.contextSchedule, false, true, .25);

@@ -574,9 +574,9 @@ Rgba8 PreparedRasterSampler::sample(Vec2d point) const
 
 std::optional<LayerId> hitTestRasterLayer(const Document& document, Vec2d point)
 {
-    const auto extent = document.canvas().extent;
-    if (!std::isfinite(point.x) || !std::isfinite(point.y) || point.x < 0 || point.y < 0
-        || point.x >= extent.width || point.y >= extent.height)
+    // Picking follows retained layer geometry, including the pasteboard.
+    // Color/reference sampling remains explicitly clipped to the document.
+    if (!std::isfinite(point.x) || !std::isfinite(point.y))
         return {};
     const auto& layers = document.layers();
     for (auto it = layers.rbegin(); it != layers.rend(); ++it) {

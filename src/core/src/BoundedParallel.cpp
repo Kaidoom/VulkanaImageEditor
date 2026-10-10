@@ -220,6 +220,44 @@ DiagonalWavefront::DiagonalWavefront(std::span<const int> pixels, int width)
     }
 }
 
+std::optional<DiagonalWavefront> DiagonalWavefront::orderedNeighborhood(
+    std::span<const int> pixels, int width, int height, int radius,
+    const std::function<bool()>& cancelled)
+{
+    if (width <= 0 || height <= 0 || radius < 0 || radius > std::max(width, height)
+        || std::uint64_t(width) * std::uint64_t(height) > std::uint64_t(std::numeric_limits<int>::max()))
+        throw std::invalid_argument("Invalid ordered neighborhood geometry");
+    if (cancelled && cancelled()) return std::nullopt;
+    DiagonalWavefront result;
+    if (pixels.empty()) return result;
+    std::vector<std::uint32_t> waveAt(std::size_t(width) * std::size_t(height));
+    std::uint32_t last = 0;
+    for (std::size_t ordinal = 0; ordinal < pixels.size(); ++ordinal) {
+        if ((ordinal & 255U) == 0 && cancelled && cancelled()) return std::nullopt;
+        const int p = pixels[ordinal];
+        if (p < 0 || std::size_t(p) >= waveAt.size() || waveAt[std::size_t(p)])
+            throw std::invalid_argument("Ordered neighborhood pixels must be unique and in bounds");
+        const int x = p % width, y = p / width;
+        std::uint32_t wave = 0;
+        for (int ny = std::max(0, y - radius); ny <= y + std::min(radius, height - 1 - y); ++ny)
+            for (int nx = std::max(0, x - radius); nx <= x + std::min(radius, width - 1 - x); ++nx)
+                wave = std::max(wave, waveAt[std::size_t(ny * width + nx)]);
+        waveAt[std::size_t(p)] = wave + 1;
+        last = std::max(last, wave + 1);
+    }
+    result.offsets_.resize(std::size_t(last) + 1);
+    for (int p : pixels) ++result.offsets_[waveAt[std::size_t(p)]];
+    for (std::size_t i = 1; i < result.offsets_.size(); ++i) result.offsets_[i] += result.offsets_[i - 1];
+    auto cursor = result.offsets_;
+    result.entries_.resize(pixels.size());
+    for (std::size_t ordinal = 0; ordinal < pixels.size(); ++ordinal) {
+        if ((ordinal & 4095U) == 0 && cancelled && cancelled()) return std::nullopt;
+        const int p = pixels[ordinal];
+        result.entries_[cursor[waveAt[std::size_t(p)] - 1]++] = {p, ordinal};
+    }
+    return result;
+}
+
 bool DiagonalWavefront::run(unsigned workers, bool reverse,
     const std::function<void(int, std::size_t, unsigned)>& function,
     const std::function<bool()>& cancelled) const

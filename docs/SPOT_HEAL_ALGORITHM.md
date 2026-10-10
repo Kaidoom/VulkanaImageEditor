@@ -153,7 +153,7 @@ of supplied input, 768 MiB estimated working memory and 256 million patch
 comparisons. Conservative base memory is 256 bytes per input pixel, or 288
 when diagnostic maps are requested, plus explicitly counted mandatory fixed
 search scratch, including the first target-descriptor workspace. Optional
-immutable color caches, extra worker contexts and parallel schedules are
+immutable color/displacement caches, extra worker contexts and parallel schedules are
 admitted only within the remaining budget. A cache that does not fit uses the
 same uncached arithmetic; parallel work that does not fit runs serially. Neither
 fallback reduces the donor domain. Inputs without unknown pixels need no search
@@ -172,6 +172,41 @@ donor centers and the pre-adaptation candidate, plus support/level/iteration,
 work and conservative memory counters. These are development tools, not extra
 end-user controls.
 
+### Exact matching optimizations
+
+Candidate rejection includes the objective's existing nonnegative locality
+penalty. After every four samples, accumulated cost divided by the maximum
+possible final weight, plus that penalty, is a lower bound on the completed
+score. Only a strictly worse bound is rejected; equal scores still follow the
+original donor-ID tie rule. Sample summation order, candidate order, random
+streams, patch support, pyramid levels and seven refinement iterations remain
+unchanged.
+
+Donor validation also classifies wholly opaque patches using the existing
+integral scratch. Those patches reuse exact target weights and alpha penalties,
+without repeating alpha minima and denominator accumulation for every candidate.
+Mixed-alpha patches retain the general calculation. Cached RGB, alpha and
+texture descriptors are packed together to avoid three separate memory reads.
+A transparent image edge therefore does not disable the opaque path throughout
+the image. An optional
+displacement table caches the same double-precision logarithmic penalty at the
+final admitted patch radius; it neither quantizes nor approximates distances.
+
+Parallel passes use private comparison counters only when an upper bound on
+every possible proposal fits within the remaining work budget. Near the limit,
+the original per-candidate atomic admission remains in force. Cancellation and
+failure still publish no pixels. Auxiliary caches fit within the existing
+memory budget and fall back to identical uncached arithmetic when necessary.
+
+Boundary-first initialization also uses the bounded worker pool. An ordered
+neighborhood schedule groups independent targets into waves. Every pair within
+the matching radius retains its original order, including reads of later pixels
+that still contain their initial coarse estimate. Each target receives exactly
+its original random-stream slice. This preserves both earlier-write and
+later-write dependencies; an ordinary row/diagonal split is not sufficient.
+The schedule is cancellable, budgeted and discarded after each level. Small or
+insufficiently parallel fronts, and memory-constrained solves, remain serial.
+
 ## Limits and tests
 
 Spot Heal reconstructs from nearby visible texture. Strong perspective,
@@ -184,3 +219,45 @@ partial alpha, true-edge context, multiscale behavior, the validated smooth
 model versus fine texture, budget failures and cancellation. Integration tests
 must additionally cover selection/crop writes, target identity/revisions,
 retouch alpha, exact undo/redo, export and installed-package operation.
+
+`SpotHealEquivalenceTests.cpp` compares final floating-point pixels, pre-adaptation
+pixels and donor assignments against the frozen V1 implementation. It covers
+opaque, fractional and mixed-alpha patches, reduced patch support, large
+multi-scale repairs, one through eight workers, uncached execution and exact
+comparison-budget exhaustion. Performance comparisons must also match final
+stored RGBA8 bytes; faster approximate results are not accepted by these tests.
+
+For existing damage in an image, `imageeditor_spot_heal_benchmark --perf-child
+--original-photo --photo PATH` preserves the input RGBA instead of adding the
+synthetic blemish or making its background opaque. Use `--x`, `--y`,
+`--brush-size`, `--length`, `--repeat` and `--dump` to reproduce a stroke.
+`--profile` reports internal work separately from uninstrumented wall-clock
+measurements. Source-change error is not a repair-quality ground truth.
+
+### Frequency panel measurements
+
+Release measurements on 10 October 2026, Ryzen 9 9900X, eight-worker limit,
+using the private 1672×941 frequency-panel PNG with its original alpha. A
+350-pixel curved stroke starts at (540, 470), across the frequency numbers.
+Times are median solve times from three uninstrumented runs; RSS is the cold
+process peak and includes reference/benchmark storage.
+
+| Brush diameter | Before | After | Cold peak RSS before → after |
+| --- | ---: | ---: | ---: |
+| 100 px | 2.31 s | 0.86 s | 196 → 215 MiB |
+| 283 px | 8.87 s | 2.99 s | 285 → 315 MiB |
+
+Both full floating-point candidates and committed RGBA8 regions are byte-exact
+against the pre-change solver, with unchanged donor-comparison counts. The
+large stroke still performs 80.6 million comparisons. Parallel initialization
+alone reduces its finest-level initialization from 2.95 s to 0.79 s compared
+with the optimized serial-initialization path. Mean CPU utilization during the
+full solve increases from 2.6 to 5.4 cores; no additional worker pool is created.
+The 25 ms cancellation check returns in 25–27 ms in these final runs.
+
+The focused Release suite passes, including native Wayland/Vulkan Spot Heal
+and group-transform checks. Off-canvas Move tests also pass on XCB and Wayland.
+A broader XCB transform-interaction run reports two rotation-cursor assertions
+after synthetic pointer release; those are not marked as passing by the focused
+off-canvas checks. Private input, comparison images and logs remain outside
+release packages.

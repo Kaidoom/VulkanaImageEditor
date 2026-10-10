@@ -660,8 +660,10 @@ void CanvasWindow::notifyOutsideDocumentPress(QPointF position)
 {
     // Never retarget during a latched gesture, multi-click construction, pan,
     // measurement or explicit transform (whose handles can be off canvas).
+    // Move performs its own empty-pasteboard handling after hit testing, so an
+    // off-canvas hit does not collapse the selected group before dragging it.
     if (!onOutsideDocumentPressed || pointerGestureActive() || spaceHeld_
-        || measureActive() || scene_.transformOverlay)
+        || measureActive() || scene_.transformOverlay || scene_.activeTool == core::ToolId::Move)
         return;
     const auto point = documentPositionForLogical(position);
     const auto extent = scene_.document.canvas.extent;

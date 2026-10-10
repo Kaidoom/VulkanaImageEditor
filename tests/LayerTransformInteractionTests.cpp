@@ -1439,6 +1439,64 @@ void ordinaryMoveSelectsRenderedLayerAndCreatesOnlyOneDragCommand()
     CHECK(fixture.window.editorSession().history().undoDepth() == depth + 2);
 }
 
+void ordinaryMoveRecoversOffCanvasLayersAndRetainsGroupSelection()
+{
+    RasterFixture f;
+    CHECK(f.valid()); if (!f.valid()) return;
+    auto& session = const_cast<core::EditorSession&>(f.window.editorSession());
+    auto& document = *session.document();
+    auto* move = f.window.findChild<QAction*>(QStringLiteral("ToolAction_move"));
+    auto* underMouse = f.window.findChild<QAbstractButton*>(QStringLiteral("MoveSelectUnderMouse"));
+    auto* activeOnly = f.window.findChild<QAbstractButton*>(QStringLiteral("MoveActiveLayerOnly"));
+    auto* undo = actionWithShortcut(f.window, QKeySequence::Undo);
+    auto* redo = actionWithShortcut(f.window, QKeySequence::Redo);
+    CHECK(move && underMouse && activeOnly && undo && redo);
+    if (!move || !underMouse || !activeOnly || !undo || !redo) return;
+    move->trigger(); underMouse->click(); settleEvents();
+    const auto bytes = rasterBytes(*document.layer(f.upperId));
+    const auto lower = f.geometry(f.lowerId);
+    for (const auto offset : {core::Vec2d {-140, 0}, core::Vec2d {0, -110},
+             core::Vec2d {270, 0}, core::Vec2d {0, 210}}) {
+        const core::AffineTransform original {.m02 = offset.x, .m12 = offset.y};
+        CHECK(document.setLayerTransform(f.upperId, original));
+        clickLayerRow(f, f.lowerId);
+        const auto depth = session.history().undoDepth();
+        const core::Vec2d point {offset.x + 96, offset.y + 40};
+        dragOnCanvas(*f.canvas, logicalPoint(f, point), logicalPoint(f, {96, 40}));
+        CHECK(session.activeLayer() == f.upperId);
+        CHECK(near(f.geometry(f.upperId).m02, 0));
+        CHECK(near(f.geometry(f.upperId).m12, 0));
+        CHECK(sameTransform(f.geometry(f.lowerId), lower));
+        CHECK(session.history().undoDepth() == depth + 1);
+        CHECK(rasterBytes(*document.layer(f.upperId)) == bytes);
+        undo->trigger(); settleEvents();
+        CHECK(sameTransform(f.geometry(f.upperId), original));
+        redo->trigger(); settleEvents();
+        CHECK(near(f.geometry(f.upperId).m02, 0));
+        CHECK(near(f.geometry(f.upperId).m12, 0));
+    }
+    CHECK(document.setLayerTransform(f.upperId, {.m02 = -140}));
+    clickLayerRow(f, f.lowerId);
+    clickLayerRow(f, f.upperId, Qt::ControlModifier);
+    CHECK(session.selectedLayers().size() == 2);
+    dragOnCanvas(*f.canvas, logicalPoint(f, {-44, 40}), logicalPoint(f, {-24, 50}));
+    CHECK(session.selectedLayers().size() == 2);
+    CHECK(near(f.geometry(f.upperId).m02, -120));
+    CHECK(near(f.geometry(f.lowerId).m02, lower.m02 + 20));
+    CHECK(near(f.geometry(f.lowerId).m12, lower.m12 + 10));
+
+    // A panel-selected layer can also be recovered from empty pasteboard in
+    // Active Layer Only mode; ordinary auto-picking still needs actual pixels.
+    clickLayerRow(f, f.upperId);
+    activeOnly->click();
+    const auto original = f.geometry(f.upperId);
+    dragOnCanvas(*f.canvas, logicalPoint(f, {-60, -40}), logicalPoint(f, {-50, -32}));
+    CHECK(near(f.geometry(f.upperId).m02, original.m02 + 10));
+    CHECK(near(f.geometry(f.upperId).m12, original.m12 + 8));
+    CHECK(rasterBytes(*document.layer(f.upperId)) == bytes);
+    underMouse->click();
+}
+
 void spacePanRoutesFromWidgetKeyRecipientsWithoutEditingTheLayer()
 {
     RasterFixture fixture;
@@ -3750,6 +3808,11 @@ int main(int argc, char** argv)
     if (!nativePreview.isEmpty()) {
         return captureNativeTransformPreview(nativePreview);
     }
+    if (application.arguments().contains(QStringLiteral("--off-canvas-only"))) {
+        ordinaryMoveRecoversOffCanvasLayersAndRetainsGroupSelection();
+        std::cout << "Off-canvas Move interactions: " << failures << " failures\n";
+        return failures ? EXIT_FAILURE : EXIT_SUCCESS;
+    }
     if (application.arguments().contains(QStringLiteral("--distorted-handles-only"))) {
         distortedSideHandlesRemainHoverableAndDraggable();
         nearCollapsedPerspectiveShiftResizeDoesNotJump();
@@ -3765,6 +3828,7 @@ int main(int argc, char** argv)
     moveOptionsDoNotClaimTypingFocusBeforeTheUserEditsAField();
     movePendingTextFinishesBeforeToolbarAndLayerListTargetChanges();
     ordinaryMoveSelectsRenderedLayerAndCreatesOnlyOneDragCommand();
+    ordinaryMoveRecoversOffCanvasLayersAndRetainsGroupSelection();
     altDragDuplicatesOnceAndMovesCopiesWithAtomicHistory();
     altDragMixedSelectionSupportsCrossPanelReleaseAndFocusCancellation();
     movementSnappingModifiersPreferencesAndGuideCleanup();

@@ -132,12 +132,55 @@ void wavefrontTests()
     check(bad, "duplicate target IDs cannot cause concurrent writes");
     check(DiagonalWavefront().run(8, false, [](int, std::size_t, unsigned) {}), "empty schedule succeeds without work");
 }
+void orderedNeighborhoodTests()
+{
+    constexpr int width = 47, height = 39;
+    std::vector<int> pixels;
+    for (int p = 0; p < width * height; ++p)
+        if ((p * 17) % 23 > 3) pixels.push_back(p);
+    // An inward fill front deliberately differs from row-major order. Every
+    // task reads both already-written and not-yet-written neighbor values.
+    std::stable_sort(pixels.begin(), pixels.end(), [](int a, int b) {
+        const auto depth = [](int p) { return std::min({p % width, width - 1 - p % width,
+            p / width, height - 1 - p / width}); };
+        return depth(a) < depth(b);
+    });
+    for (const int radius : {1, 3, 7}) {
+        const auto schedule = DiagonalWavefront::orderedNeighborhood(pixels, width, height, radius);
+        check(schedule && schedule->size() == pixels.size(), "neighborhood retains each target exactly once");
+        if (!schedule) continue;
+        auto update = [&](auto& values, int p, std::size_t ordinal) {
+            std::uint64_t sum = 0x11225577ULL + ordinal * 13;
+            const int x = p % width, y = p / width;
+            for (int ny = std::max(0, y - radius); ny <= std::min(height - 1, y + radius); ++ny)
+                for (int nx = std::max(0, x - radius); nx <= std::min(width - 1, x + radius); ++nx)
+                    sum = sum * 113 + values[std::size_t(ny * width + nx)];
+            values[std::size_t(p)] = sum;
+        };
+        std::vector<std::uint64_t> reference(width * height, 71);
+        for (std::size_t i = 0; i < pixels.size(); ++i) update(reference, pixels[i], i);
+        for (unsigned workers : {1U, 2U, 4U, 8U}) {
+            std::vector<std::uint64_t> actual(width * height, 71);
+            check(schedule->run(workers, false, [&](int p, std::size_t i, unsigned) { update(actual, p, i); }),
+                "ordered neighborhood completes");
+            check(actual == reference, "all prior AND future neighborhood reads preserve serial values");
+        }
+    }
+    unsigned polls = 0;
+    check(!DiagonalWavefront::orderedNeighborhood(pixels, width, height, 7, [&] { return ++polls >= 3; }),
+        "dependency construction is cancellable");
+    bool duplicate = false;
+    try { const std::array bad {1, 7, 1}; (void)DiagonalWavefront::orderedNeighborhood(bad, width, height, 3); }
+    catch (const std::invalid_argument&) { duplicate = true; }
+    check(duplicate, "unordered duplicate targets cannot race");
+}
 } // namespace
 
 int main()
 {
     executorTests();
     wavefrontTests();
+    orderedNeighborhoodTests();
     if (failures) return 1;
     std::cout << "Bounded executor and exact diagonal dependency tests passed\n";
 }

@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <functional>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -37,6 +38,16 @@ class DiagonalWavefront {
 public:
     DiagonalWavefront() = default;
     DiagonalWavefront(std::span<const int> pixels, int width);
+
+    // Alternative wave construction for an arbitrary ORIGINAL pixel order.
+    // A task reads the square radius-neighborhood and writes only its center.
+    // Preserve both read-after-write and write-after-read dependencies: nearby
+    // later tasks cannot overwrite the initial values an earlier task reads.
+    // The resulting waves need not be geometric diagonals. Scratch is linear
+    // in grid/target size; nullopt denotes cancellation while building.
+    [[nodiscard]] static std::optional<DiagonalWavefront> orderedNeighborhood(
+        std::span<const int> pixels, int width, int height, int radius,
+        const std::function<bool()>& cancelled = {});
 
     [[nodiscard]] std::size_t size() const noexcept { return entries_.size(); }
     [[nodiscard]] std::size_t diagonalCount() const noexcept { return offsets_.empty() ? 0 : offsets_.size() - 1; }

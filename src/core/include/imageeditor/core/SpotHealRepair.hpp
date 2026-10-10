@@ -83,6 +83,8 @@ struct SpotHealLevelProfile {
     std::size_t unknownPixels {}, activePixels {}, validDonors {};
     double initializationMilliseconds {};
     double initializationUnknownMilliseconds {}, initializationContextMilliseconds {};
+    std::size_t initializationWaves {};
+    unsigned initializationWorkers {1};
     SpotHealCounters initialization;
     std::vector<SpotHealIterationProfile> iterations;
 };
