@@ -38,6 +38,11 @@ foreach(_index RANGE ${_language_last})
 endforeach()
 # Planned catalogs are editable in the repository, not advertised/installed as
 # empty language packs. Their Qt names can differ from our public BCP-47 IDs.
+# All package formats stage through this install manifest. Revalidate/recompile
+# here as well: cmake --install and direct CPack do not build dependencies first.
+configure_file("${CMAKE_CURRENT_LIST_DIR}/CompileLanguagePacks.cmake.in"
+    "${PROJECT_BINARY_DIR}/CompileLanguagePacks.cmake" @ONLY)
+install(SCRIPT "${PROJECT_BINARY_DIR}/CompileLanguagePacks.cmake")
 install(FILES ${_shipping_qms} "${PROJECT_SOURCE_DIR}/localization/languages.json"
     DESTINATION "${VULKANA_DATA_DIR}/translations")
 # Qt's native dialogs/buttons use its own catalogs, never copied into ours.

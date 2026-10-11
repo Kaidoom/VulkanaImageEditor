@@ -17,6 +17,10 @@ add_test(NAME imageeditor_localization_catalogs COMMAND "${Python3_EXECUTABLE}" 
 add_test(NAME imageeditor_localization_tools COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/LocalizationToolTests.py"
     "$<TARGET_FILE:imageeditor_localization_tests>" "${VULKANA_LRELEASE}")
 set_tests_properties(imageeditor_localization_tools PROPERTIES TIMEOUT 90 LABELS "localization;catalogs")
+add_test(NAME imageeditor_localization_packaging COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/LocalizationPackagingTests.py"
+    "${CMAKE_COMMAND}" "${VULKANA_LRELEASE}" "${_qmake}")
+set_tests_properties(imageeditor_localization_packaging PROPERTIES TIMEOUT 90 LABELS "localization;install")
 add_executable(imageeditor_localization_installed_probe LocalizationInstalledProbe.cpp
     "${PROJECT_SOURCE_DIR}/src/ui/src/Localization.cpp"
     "${PROJECT_SOURCE_DIR}/src/ui/include/imageeditor/ui/Localization.hpp"

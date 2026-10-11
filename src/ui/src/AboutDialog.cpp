@@ -205,7 +205,10 @@ AboutDialog::AboutDialog(QWidget* parent, QNetworkAccessManager* transport, Upda
     check->setObjectName(QStringLiteral("AboutCheckUpdate"));
     i18n::setToolTip(check, i18n::text("about.dialog.check.for.a.newer.release"));
     check->setAutoDefault(false);
-    check->setFixedWidth(174);
+    // Keep the compact English width, but let Qt reserve the full translated
+    // label, icon and themed padding instead of clipping longer languages.
+    check->setMinimumWidth(174);
+    check->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
     check->setMinimumHeight(28);
     check->setIconSize({18, 18});
     updateRow->addWidget(check, 0, Qt::AlignVCenter);
@@ -327,8 +330,8 @@ AboutDialog::AboutDialog(QWidget* parent, QNetworkAccessManager* transport, Upda
 
 void AboutDialog::refreshLayout()
 {
-    // Let wrapped status/detail text determine its true height; there is no
-    // reserved blank progress row and no horizontal jump between action roles.
+    // Let wrapped status/detail text determine its true height while the action
+    // reserves enough width for its translation. No blank progress row is kept.
     layout()->invalidate();
     const int preferredHeight = layout()->hasHeightForWidth() ? layout()->totalHeightForWidth(width())
         : layout()->sizeHint().height();

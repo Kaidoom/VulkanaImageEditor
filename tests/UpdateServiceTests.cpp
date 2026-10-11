@@ -471,13 +471,25 @@ void reopenedAboutLanguageTests()
     network.responses.push_back({manifest("0.2.1")}); service.check();
     CHECK(waitFor([&] { return !service.busy(); }));
     QWidget host;
-    for (const auto* locale : {"ar", "fr", "en"}) {
+    host.resize(760, 900); host.show();
+    for (const auto* locale : {"ar", "fr", "es", "de", "it", "pt-BR", "pl", "tr",
+             "ru", "uk", "hi", "zh-Hans", "zh-Hant", "ja", "ko", "en"}) {
         CHECK(language.setLanguage(locale));
         u::AboutDialog about(&host, nullptr, u::UpdatePackage::Rpm, {}, &service);
         about.show(); QTest::qWait(20);
         CHECK(about.findChild<QLabel*>("AboutUpdateStatus")->text()
             == u::i18n::text("update.service.you.have.the.latest.version"));
         CHECK(network.requests.size() == 1);
+        const auto* check = about.findChild<QPushButton*>("AboutCheckUpdate");
+        const auto* status = about.findChild<QLabel*>("AboutUpdateStatus");
+        const auto* detail = about.findChild<QLabel*>("AboutUpdateDetail");
+        CHECK(check->width() >= check->sizeHint().width());
+        CHECK(check->height() >= check->sizeHint().height());
+        CHECK(check->parentWidget()->rect().contains(check->geometry()));
+        CHECK(!check->geometry().intersects(status->geometry()));
+        CHECK(!check->geometry().intersects(detail->geometry()));
+        CHECK(status->height() >= status->heightForWidth(status->width()));
+        CHECK(detail->height() >= detail->heightForWidth(detail->width()));
         for (const auto* name : {"AboutVulkanaDeveloper", "AboutVulkanaSocial", "AboutVulkanaGitHub", "AboutVulkanaEmail"}) {
             const auto* contact = about.findChild<QLabel*>(name);
             CHECK(contact && contact->height() >= contact->sizeHint().height());

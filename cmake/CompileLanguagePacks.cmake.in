@@ -1,0 +1,9 @@
+# Build-time staging only; never installed or executed on an end user's system.
+message(STATUS "Validating and compiling Vulkana language packs before staging")
+execute_process(
+    COMMAND "@Python3_EXECUTABLE@" "@PROJECT_SOURCE_DIR@/tools/localization.py" compile
+        --output "@VULKANA_TRANSLATIONS_DIR@" --lrelease "@VULKANA_LRELEASE@"
+    RESULT_VARIABLE _language_pack_result)
+if(NOT _language_pack_result STREQUAL "0")
+    message(FATAL_ERROR "Language pack compilation failed; package staging stopped (${_language_pack_result})")
+endif()

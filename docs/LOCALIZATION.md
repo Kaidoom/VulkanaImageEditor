@@ -38,6 +38,13 @@ cmake --build build/release --target vulkana_language_packs
 ./temp/release-test --language qps
 ```
 
+RPM, DEB and AppImage staging automatically validates and recompiles the packs
+through the shared CMake install step, including direct `cmake --install` or
+CPack use. You do not need to compile packs manually before packaging. Invalid
+catalogs or compiler failures stop staging instead of packaging stale packs.
+After changing English wording, still run `sync` and review affected translations
+before packaging; staging deliberately does not edit the source catalogs.
+
 `qps` is an expanded pseudo-language for clipping/width tests, not a supported
 language advertised in Preferences. `--language` is a launch-only override.
 `--language system` uses the system UI language with English fallback.
