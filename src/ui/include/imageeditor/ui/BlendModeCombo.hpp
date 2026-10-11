@@ -1,5 +1,6 @@
 #pragma once
 #include "imageeditor/core/BlendMode.hpp"
+#include "imageeditor/ui/LocalizedNames.hpp"
 #include <QComboBox>
 
 namespace imageeditor::ui {
@@ -30,7 +31,7 @@ static_assert([] {
 inline void populateBlendModeCombo(QComboBox& combo)
 {
     for (auto mode : blendModeDisplayOrder)
-        combo.addItem(QString::fromUtf8(core::blendModeName(mode)), int(mode));
+        i18n::addItem(&combo, i18n::blendName(mode), int(mode));
     combo.setMaxVisibleItems(combo.count());
 }
 

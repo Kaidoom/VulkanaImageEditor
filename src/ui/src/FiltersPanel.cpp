@@ -1,3 +1,5 @@
+#include "imageeditor/ui/LocalizedNames.hpp"
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/FiltersPanel.hpp"
 #include <algorithm>
 #include "imageeditor/ui/CompactValueControl.hpp"
@@ -21,9 +23,9 @@ namespace imageeditor::ui {
 namespace {
 using Type = core::SpatialFilterType;
 constexpr std::size_t slot(Type type) { return std::size_t(type); }
-QLabel* note(QVBoxLayout* layout, const QString& text)
+QLabel* note(QVBoxLayout* layout, const i18n::Message& text)
 {
-    auto* label = new QLabel(text);
+    auto* label = i18n::make<QLabel>(text);
     label->setObjectName(QStringLiteral("MutedLabel"));
     label->setTextFormat(Qt::PlainText); label->setWordWrap(true);
     layout->addWidget(label); return label;
@@ -38,9 +40,9 @@ FiltersPanel::FiltersPanel(QWidget* parent) : QWidget(parent)
     targetLabel_->setObjectName(QStringLiteral("FilterTarget"));
     targetLabel_->setTextFormat(Qt::PlainText); targetLabel_->setWordWrap(true);
     outer->addWidget(targetLabel_);
-    compare_ = new QPushButton(tr("Hold for Before"));
+    compare_ = i18n::make<QPushButton>(i18n::text("filters.panel.hold.for.before"));
     compare_->setObjectName(QStringLiteral("FilterCompare"));
-    compare_->setToolTip(tr("Bypass this layer's spatial filters on canvas only. Color adjustments remain applied. Release to return to After."));
+    i18n::setToolTip(compare_, i18n::text("filters.panel.bypass.this.layer.s.spatial.filters.on.canvas.only"));
     outer->addWidget(compare_);
     connect(compare_,&QPushButton::pressed,this,[this]{finishEditing();if(onComparison)onComparison(true);});
     connect(compare_,&QPushButton::released,this,[this]{if(onComparison)onComparison(false);});
@@ -48,7 +50,7 @@ FiltersPanel::FiltersPanel(QWidget* parent) : QWidget(parent)
     navigation_ = new QComboBox;
     navigation_->setObjectName(QStringLiteral("FilterNavigation"));
     for (auto type : core::allSpatialFilterTypes)
-        navigation_->addItem(QString::fromUtf8(core::spatialFilterName(type)),int(type));
+        i18n::addItem(navigation_, i18n::filterName(type),int(type));
     navigation_->setMaxVisibleItems(int(core::spatialFilterCount));
     auto* modeRow=new QHBoxLayout;modeRow->setSpacing(8);
     modeRow->addWidget(navigation_,1);
@@ -67,45 +69,45 @@ FiltersPanel::FiltersPanel(QWidget* parent) : QWidget(parent)
         finishEditing(); stack_->setCurrentIndex(index);enabledStack->setCurrentIndex(index);refresh();
     });
     auto& gaussian = pages_[slot(Type::Gaussian)];
-    linkedControl_ = new QCheckBox(tr("Link horizontal / vertical"));
+    linkedControl_ = i18n::make<QCheckBox>(i18n::text("filters.panel.link.horizontal.vertical"));
     linkedControl_->setObjectName(QStringLiteral("FilterGaussianLinked"));
     linkedControl_->setChecked(true); gaussian.optionsRow->addWidget(linkedControl_);
     connect(linkedControl_,&QCheckBox::toggled,this,[this](bool value){if(!updating_){finishEditing();linked_=value;}});
-    number(gaussian,"FilterGaussianRadiusX",tr("Horizontal"),core::maximumSpatialRadius,1,tr(" px"),
+    number(gaussian,"FilterGaussianRadiusX",i18n::text("filters.panel.horizontal"),core::maximumSpatialRadius,1,i18n::text("filters.panel.px"),
         [this]{return std::get<core::GaussianBlurParameters>(item(Type::Gaussian).parameters).radiusX;},
         [this](double value){auto& p=std::get<core::GaussianBlurParameters>(item(Type::Gaussian).parameters);p.radiusX=value;if(linked_)p.radiusY=value;});
-    number(gaussian,"FilterGaussianRadiusY",tr("Vertical"),core::maximumSpatialRadius,1,tr(" px"),
+    number(gaussian,"FilterGaussianRadiusY",i18n::text("filters.panel.vertical"),core::maximumSpatialRadius,1,i18n::text("filters.panel.px"),
         [this]{return std::get<core::GaussianBlurParameters>(item(Type::Gaussian).parameters).radiusY;},
         [this](double value){auto& p=std::get<core::GaussianBlurParameters>(item(Type::Gaussian).parameters);p.radiusY=value;if(linked_)p.radiusX=value;});
-    note(gaussian.layout,tr("Smooth, separable Gaussian. Radius = 3σ; zero is unchanged. Amounts use layer-local pixels, so transforms carry the effect with the layer."));
+    note(gaussian.layout,i18n::text("filters.panel.smooth.separable.gaussian.radius.3.zero.is.unchanged.amounts"));
     auto& motion = pages_[slot(Type::Motion)];
-    number(motion,"FilterMotionDistance",tr("Distance"),core::maximumMotionDistance,1,tr(" px"),
+    number(motion,"FilterMotionDistance",i18n::text("filters.panel.distance"),core::maximumMotionDistance,1,i18n::text("filters.panel.px"),
         [this]{return std::get<core::MotionBlurParameters>(item(Type::Motion).parameters).distance;},
         [this](double value){std::get<core::MotionBlurParameters>(item(Type::Motion).parameters).distance=value;});
-    number(motion,"FilterMotionAngle",tr("Angle"),180,1,QStringLiteral("°"),
+    number(motion,"FilterMotionAngle",i18n::text("filters.panel.angle"),180,1,QStringLiteral("°"),
         [this]{return std::get<core::MotionBlurParameters>(item(Type::Motion).parameters).angle;},
         [this](double value){std::get<core::MotionBlurParameters>(item(Type::Motion).parameters).angle=value;},-180);
-    note(motion.layout,tr("Distance is the full centered trail length in local pixels. 0° runs horizontally; 90° vertically. The layer origin does not move."));
+    note(motion.layout,i18n::text("filters.panel.distance.is.the.full.centered.trail.length.in.local"));
     auto& lens = pages_[slot(Type::Lens)];
-    number(lens,"FilterLensRadius",tr("Radius"),core::maximumSpatialRadius,1,tr(" px"),
+    number(lens,"FilterLensRadius",i18n::text("filters.panel.radius"),core::maximumSpatialRadius,1,i18n::text("filters.panel.px"),
         [this]{return std::get<core::LensBlurParameters>(item(Type::Lens).parameters).radius;},
         [this](double value){std::get<core::LensBlurParameters>(item(Type::Lens).parameters).radius=value;});
     aperture_ = new QComboBox;
     aperture_->setObjectName(QStringLiteral("FilterLensAperture"));
-    aperture_->addItem(tr("Circular aperture"),0);
-    for(int blades=3;blades<=12;++blades)aperture_->addItem(tr("%1 blades").arg(blades),blades);
+    i18n::addItem(aperture_, i18n::text("filters.panel.circular.aperture"), 0);
+    for(int blades=3;blades<=12;++blades)i18n::addItem(aperture_, i18n::text("filters.panel.1.blades").arg(blades), blades);
     aperture_->setMaxVisibleItems(aperture_->count()); lens.layout->addWidget(aperture_);
     connect(aperture_,&QComboBox::currentIndexChanged,this,[this](int index){
         if(updating_)return;
         change(Type::Lens,[this,index](auto& filter){std::get<core::LensBlurParameters>(filter.parameters).blades=std::uint32_t(aperture_->itemData(index).toUInt());},true);
     });
-    number(lens,"FilterLensRotation",tr("Aperture rotation"),180,1,QStringLiteral("°"),
+    number(lens,"FilterLensRotation",i18n::text("filters.panel.aperture.rotation"),180,1,QStringLiteral("°"),
         [this]{return std::get<core::LensBlurParameters>(item(Type::Lens).parameters).rotation;},
         [this](double value){std::get<core::LensBlurParameters>(item(Type::Lens).parameters).rotation=value;},-180);
-    note(lens.layout,tr("Uniform aperture-shaped defocus, not depth-aware lens simulation. Radius is the aperture's outer radius; polygon rotation is clockwise."));
+    note(lens.layout,i18n::text("filters.panel.uniform.aperture.shaped.defocus.not.depth.aware.lens.simulation"));
     for (auto& page : pages_) {
         page.optionsRow->addStretch();
-        note(page.layout,tr("Transparent outside the source. Captured masks restrict the result, not the input neighborhood. Order: adjustments → Gaussian → Motion → Lens → effects → final crop/opacity."));
+        note(page.layout,i18n::text("filters.panel.transparent.outside.the.source.captured.masks.restrict.the.result"));
         page.layout->addStretch();
     }
     progressRow_=new QWidget;
@@ -113,7 +115,7 @@ FiltersPanel::FiltersPanel(QWidget* parent) : QWidget(parent)
     progressText_=new QLabel;progressText_->setObjectName(QStringLiteral("FilterProcessingStatus"));
     progressText_->setTextFormat(Qt::PlainText);progressText_->setWordWrap(true);progressLayout->addWidget(progressText_);
     progress_=new QProgressBar;progress_->setRange(0,100);progress_->setTextVisible(false);progressLayout->addWidget(progress_);
-    auto* cancel=new QPushButton(tr("Cancel processing"));cancel->setObjectName(QStringLiteral("FilterCancelProcessing"));progressLayout->addWidget(cancel);
+    auto* cancel=i18n::make<QPushButton>(i18n::text("filters.panel.cancel.processing"));cancel->setObjectName(QStringLiteral("FilterCancelProcessing"));progressLayout->addWidget(cancel);
     connect(cancel,&QPushButton::clicked,this,[this]{if(onCancelProcessing)onCancelProcessing();});
     outer->addWidget(progressRow_);progressRow_->hide();
     setTarget(nullptr,false);
@@ -122,22 +124,22 @@ FiltersPanel::Page& FiltersPanel::makePage(Type type)
 {
     auto& page=pages_[slot(type)];page.widget=new QWidget;page.layout=new QVBoxLayout(page.widget);
     page.layout->setContentsMargins(0,0,0,8);page.layout->setSpacing(8);
-    page.enabled=new QCheckBox(tr("Enabled"));page.enabled->setObjectName(QStringLiteral("FilterEnabled%1").arg(slot(type)));
-    auto* reset=new QPushButton(tr("Reset"));reset->setObjectName(QStringLiteral("FilterReset%1").arg(slot(type)));
+    page.enabled=i18n::make<QCheckBox>(i18n::text("filters.panel.enabled"));page.enabled->setObjectName(QStringLiteral("FilterEnabled%1").arg(slot(type)));
+    auto* reset=i18n::make<QPushButton>(i18n::text("filters.panel.reset"));reset->setObjectName(QStringLiteral("FilterReset%1").arg(slot(type)));
     connect(page.enabled,&QCheckBox::toggled,this,[this,type](bool value){change(type,[value](auto& filter){filter.enabled=value;});});
-    reset->setToolTip(tr("Disable this filter and reset its settings and captured selection."));
+    i18n::setToolTip(reset, i18n::text("filters.panel.disable.this.filter.and.reset.its.settings.and.captured"));
     connect(reset,&QPushButton::clicked,this,[this,type]{change(type,[type](auto& filter){filter=core::defaultSpatialFilter(type);});});
-    page.preserveAlpha=new QCheckBox(tr("Preserve Alpha"));
+    page.preserveAlpha=i18n::make<QCheckBox>(i18n::text("filters.panel.preserve.alpha"));
     page.preserveAlpha->setObjectName(QStringLiteral("FilterPreserveAlpha%1").arg(slot(type)));
-    page.preserveAlpha->setToolTip(tr("Keep original transparency; soften only color detail using alpha-weighted neighbors. Off allows silhouettes and trails to spread into transparency."));
+    i18n::setToolTip(page.preserveAlpha, i18n::text("filters.panel.keep.original.transparency.soften.only.color.detail.using.alpha"));
     connect(page.preserveAlpha,&QCheckBox::toggled,this,[this,type](bool value){change(type,[value](auto& filter){filter.preserveAlpha=value;});});
     auto* scope=new QHBoxLayout;scope->setSpacing(6);
-    page.scope=new QComboBox;page.scope->addItems({tr("Whole Layer"),tr("Captured Selection")});
+    page.scope=new QComboBox;i18n::addItems(page.scope, {i18n::text("filters.panel.whole.layer"),i18n::text("filters.panel.captured.selection")});
     page.scope->setObjectName(QStringLiteral("FilterScope%1").arg(slot(type)));page.scope->setMaxVisibleItems(2);
-    page.capture=new QPushButton(tr("Capture"));page.capture->setObjectName(QStringLiteral("FilterCapture%1").arg(slot(type)));
+    page.capture=i18n::make<QPushButton>(i18n::text("filters.panel.capture"));page.capture->setObjectName(QStringLiteral("FilterCapture%1").arg(slot(type)));
     scope->addWidget(page.scope,1);scope->addWidget(page.capture);scope->addWidget(reset);page.layout->addLayout(scope);
     page.maskStatus=note(page.layout,{});
-    page.showRegion=new QCheckBox(tr("Show captured region"));page.showRegion->setObjectName(QStringLiteral("FilterShowRegion%1").arg(slot(type)));page.layout->addWidget(page.showRegion);
+    page.showRegion=i18n::make<QCheckBox>(i18n::text("filters.panel.show.captured.region"));page.showRegion->setObjectName(QStringLiteral("FilterShowRegion%1").arg(slot(type)));page.layout->addWidget(page.showRegion);
     page.optionsRow=new QHBoxLayout;page.optionsRow->setSpacing(8);
     page.optionsRow->addWidget(page.preserveAlpha);page.layout->addLayout(page.optionsRow);
     connect(page.showRegion,&QCheckBox::toggled,this,[this](bool show){if(!updating_){showCaptured_=show;refresh();}});
@@ -151,13 +153,13 @@ FiltersPanel::Page& FiltersPanel::makePage(Type type)
     connect(page.capture,&QPushButton::clicked,this,[this,type]{finishEditing();if(onCaptureSelection)onCaptureSelection(type);});
     stack_->addWidget(page.widget);return page;
 }
-void FiltersPanel::number(Page& page,const char* name,const QString& label,double maximum,int decimals,
+void FiltersPanel::number(Page& page,const char* name,const i18n::Message& label,double maximum,int decimals,
     const QString& suffix,std::function<double()> read,std::function<void(double)> write,double minimum)
 {
     auto* control=new CompactValueControl;
-    control->setObjectName(QString::fromLatin1(name));control->setPrefix(label+QStringLiteral(": "));control->setSuffix(suffix);
+    control->setObjectName(QString::fromLatin1(name));i18n::setPrefix(control,label+QStringLiteral(": "));control->setSuffix(suffix);
     control->setDecimals(decimals);control->setRange(minimum,maximum);control->setSingleStep(1);
-    control->setFixedHeight(30);control->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);control->setAccessibleName(label);
+    control->setFixedHeight(30);control->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);i18n::setAccessibleName(control,label);
     page.layout->addWidget(control);page.numbers.push_back(control);
     const auto type=Type(&page-pages_.data());const auto previous=page.refresh;
     page.refresh=[previous,control,read]{if(previous)previous();if(!control->interactionActive()){const QSignalBlocker guard(control);control->setValue(read());}};
@@ -227,7 +229,7 @@ void FiltersPanel::setTarget(const core::Layer* layer,bool hasSelection)
     if(next!=target_){finishEditing(false);if(onComparison)onComparison(false);}
     target_=next;hasSelection_=hasSelection;
     working_=layer&&layer->filters?*layer->filters:core::SpatialFilterStack{};
-    targetLabel_->setText(layer?tr("%1 · primary layer").arg(QString::fromStdString(layer->name)):tr("Select a raster, text, or shape layer"));
+    i18n::setText(targetLabel_, layer?i18n::text("filters.panel.1.primary.layer").arg(QString::fromStdString(layer->name)):i18n::text("filters.panel.select.a.raster.text.or.shape.layer"));
     navigation_->setEnabled(layer);stack_->setEnabled(layer);compare_->setEnabled(layer);refresh();
 }
 void FiltersPanel::refresh()
@@ -238,7 +240,7 @@ void FiltersPanel::refresh()
         page.enabled->setEnabled(target_.has_value());
         page.enabled->setChecked(filter.enabled);page.preserveAlpha->setChecked(filter.preserveAlpha);
         page.scope->setCurrentIndex(filter.mask?1:0);page.capture->setEnabled(target_&&hasSelection_);
-        page.maskStatus->setText(filter.mask?(filter.mask->coverage->bounds().empty()?tr("Captured empty mask · no affected pixels"):tr("Captured mask · follows this layer")):QString{});
+        i18n::setText(page.maskStatus, filter.mask?(filter.mask->coverage->bounds().empty()?i18n::text("filters.panel.captured.empty.mask.no.affected.pixels"):i18n::text("filters.panel.captured.mask.follows.this.layer")):QString{});
         page.maskStatus->setVisible(filter.mask.has_value());page.showRegion->setVisible(filter.mask.has_value());
         page.showRegion->setChecked(showCaptured_);page.showRegion->setEnabled(filter.mask&&!filter.mask->coverage->bounds().empty());
         if(page.refresh)page.refresh();
@@ -251,7 +253,7 @@ void FiltersPanel::setProcessing(bool busy,double progress,const QString& messag
 {
     progressRow_->setVisible(busy||!message.isEmpty());progress_->setVisible(busy);
     progress_->setValue(qRound(std::clamp(progress,0.0,1.0)*100));
-    progressText_->setText(message.isEmpty()?tr("Preparing layer filters…"):message);
+    i18n::setText(progressText_, message.isEmpty()?i18n::text("filters.panel.preparing.layer.filters"):message);
     progressRow_->findChild<QPushButton*>()->setVisible(busy);
 }
 bool FiltersPanel::eventFilter(QObject* watched,QEvent* event)

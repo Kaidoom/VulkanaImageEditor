@@ -1,5 +1,6 @@
 #pragma once
 #include "imageeditor/ui/FlattenedDocument.hpp"
+#include "imageeditor/ui/PsdReviewTypes.hpp"
 #include <QMap>
 #include <QStringList>
 #include <atomic>
@@ -27,6 +28,7 @@ struct PsdExportSnapshot {
 struct PsdExportEntry {
   core::LayerId id{}, parent{};
   QString name, type;
+  PsdContentKind kind{PsdContentKind::Raster};
   QStringList reasons, fonts;
   bool editable{true}, pixels{true}, attention{false}, container{false};
   PsdExportAction action{PsdExportAction::Editable};
@@ -38,6 +40,8 @@ struct PsdExportPlan {
   std::vector<PsdExportEntry> entries; // Top to bottom, including containers.
   QStringList notes;
   QString error;
+  PsdExportProblem problem{PsdExportProblem::None};
+  QString problemLayer;
   bool cancelled{false}, needsReview{false};
   explicit operator bool() const { return error.isEmpty() && !cancelled; }
 };

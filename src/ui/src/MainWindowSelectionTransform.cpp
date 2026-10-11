@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/SelectionCommands.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/CrossWindowPointerRouter.hpp"
@@ -62,7 +63,7 @@ void MainWindow::beginSelectionTransform()
     const auto *document = session().document();
     const auto mask = document ? document->selection() : core::SelectionState{};
     if (!mask || mask->bounds().empty()) {
-        statusBar()->showMessage(QStringLiteral("Select some coverage before transforming the selection"),
+        statusBar()->showMessage(i18n::text("main.window.selection.transform.select.some.coverage.before.transforming.the.selection"),
                                  3000);
         return;
     }
@@ -82,15 +83,14 @@ void MainWindow::beginSelectionTransform()
     refreshSelectionTransform();
     updateActionState();
     statusBar()->showMessage(
-        QStringLiteral(
-            "Transform selection only · handles scale · outside corners rotate · %1 applies · Escape cancels")
+        i18n::text("main.window.selection.transform.transform.selection.only.handles.scale.outside.corners.rotate.1")
             .arg(shortcutLabel(shortcuts_, "FinishOperationAction")));
     canvasWindow_->requestActivate();
 }
 
 void MainWindow::beginSelectedPixelTransform()
 {
-    if(session().editingLayerMask()){statusBar()->showMessage(tr("Click the content thumbnail before transforming selected pixels."),3500);return;}
+    if(session().editingLayerMask()){statusBar()->showMessage(i18n::text("main.window.selection.transform.click.the.content.thumbnail.before.transforming.selected.pixels"),3500);return;}
     if (selectionTransform_ || fileBusy_ || !session().document())
         return;
     cancelPendingEdits();
@@ -105,8 +105,7 @@ void MainWindow::beginSelectedPixelTransform()
         selectionTransform_->pixels = std::move(pixels);
         refreshSelectionTransform();
         updateActionState();
-        statusBar()->showMessage(tr("Transform selected pixels · Ctrl+corner distorts · Enter applies · "
-                                    "Escape restores the original"),
+        statusBar()->showMessage(i18n::text("main.window.selection.transform.transform.selected.pixels.ctrl.corner.distorts.enter.applies.escape"),
                                  5000);
     } catch (const std::exception &error) {
         statusBar()->showMessage(QString::fromUtf8(error.what()), 5000);
@@ -129,7 +128,7 @@ void MainWindow::flushSelectedPixelPreview()
             core::transformFromValues(values, edit.extent()),
             core::ProjectiveTransform{1, 0, -double(edit.bounds.x), 0, 1, -double(edit.bounds.y)});
         if (!edit.pixels->preview(mapping)) {
-            statusBar()->showMessage(tr("Invalid pixel transform — last valid preview retained"), 3000);
+            statusBar()->showMessage(i18n::text("main.window.selection.transform.invalid.pixel.transform.last.valid.preview.retained"), 3000);
             return;
         }
         edit.values = values;
@@ -157,7 +156,7 @@ void MainWindow::refreshSelectionTransform()
     canvasWindow_->setTransformOverlay(
         render::TransformOverlay{edit.matrix(), edit.extent(), edit.values.rotationDegrees});
     transformOptionsPage_->setValues(edit.values);
-    toolOptionsBar_->setContextLabel(edit.pixels ? tr("Selected pixels") : tr("Selection"));
+    toolOptionsBar_->setContextLabel(edit.pixels ? i18n::text("main.window.selection.transform.selected.pixels") : i18n::text("main.window.selection.transform.selection"));
 }
 
 void MainWindow::setSelectionTransformValues(core::TransformValues values)
@@ -266,7 +265,7 @@ void MainWindow::finishSelectionTransform(bool apply)
                 const auto result = pending.pixels->commit(session().history());
                 if (result == core::TransformCommitResult::TargetUnavailable) {
                     statusBar()->showMessage(
-                        tr("Transform target changed; cancel or restore the target before applying"), 5000);
+                        i18n::text("main.window.selection.transform.transform.target.changed.cancel.or.restore.the.target.before"), 5000);
                     return;
                 }
                 if (result == core::TransformCommitResult::Committed)
@@ -288,7 +287,7 @@ void MainWindow::finishSelectionTransform(bool apply)
                 session().execute(std::make_unique<core::SetSelectionCommand>(
                     edit.before->transformed(edit.mapping()), "Transform selection"));
         } catch (const std::exception &error) {
-            QMessageBox::warning(this, QStringLiteral("Unable to transform selection"),
+            QMessageBox::warning(this, i18n::text("main.window.selection.transform.unable.to.transform.selection"),
                                  QString::fromUtf8(error.what()));
         }
     }
@@ -297,9 +296,9 @@ void MainWindow::finishSelectionTransform(bool apply)
     canvasWindow_->setTransformOverlay({});
     setActiveTool(toolBeforeTransform_);
     synchronizeUi(false, false);
-    statusBar()->showMessage(apply ? (edit.pixels ? tr("Selected-pixel transform applied")
-                                                  : QStringLiteral("Selection transform applied"))
-                                   : QStringLiteral("Selection transform cancelled"),
+    statusBar()->showMessage(apply ? (edit.pixels ? i18n::text("main.window.selection.transform.selected.pixel.transform.applied")
+                                                  : i18n::text("main.window.selection.transform.selection.transform.applied"))
+                                   : i18n::text("main.window.selection.transform.selection.transform.cancelled"),
                              2500);
 }
 } // namespace imageeditor::ui

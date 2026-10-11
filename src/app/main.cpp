@@ -1,4 +1,5 @@
 #include "imageeditor/ui/MainWindow.hpp"
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/UiLayoutConfig.hpp"
 #include "imageeditor/platform/ApplicationPaths.hpp"
@@ -95,6 +96,10 @@ int main(int argc, char* argv[])
         QStringLiteral("path"));
     QCommandLineOption panelDefaultOption(QStringLiteral("panel-default"),
         QStringLiteral("Use the default panel layout for this launch without replacing the saved layout."));
+    QCommandLineOption languageOption(QStringLiteral("language"),
+        QStringLiteral("Preview a UI language for this launch: en, fr, ar, qps or system."), QStringLiteral("id"));
+    QCommandLineOption languagePackOption(QStringLiteral("language-pack-dir"),
+        QStringLiteral("Load compiled catalogs from a trusted local directory."), QStringLiteral("directory"));
     QCommandLineOption restartOption(QString::fromLatin1(imageeditor::platform::singleInstanceRestartOption),
         QStringLiteral("Internal: wait for the previous instance to finish an update restart."));
     restartOption.setFlags(QCommandLineOption::HiddenFromHelp);
@@ -106,9 +111,16 @@ int main(int argc, char* argv[])
     parser.addOption(testUpdateOption);
     parser.addOption(uiConfigOption);
     parser.addOption(panelDefaultOption);
+    parser.addOption(languageOption);
+    parser.addOption(languagePackOption);
     parser.addPositionalArgument(QStringLiteral("document"),
         QStringLiteral("Optional projects or images; each opens in its own tab."), QStringLiteral("[document…]"));
     parser.process(application);
+    auto& localization = imageeditor::ui::i18n::Localization::instance();
+    localization.initialize(parser.value(languagePackOption));
+    if (parser.isSet(languageOption)) localization.setLanguage(parser.value(languageOption));
+    application.setProperty("vulkanaOfferLanguageChoice", !parser.isSet(languageOption)
+        && !parser.isSet(smokeTestOption) && !parser.isSet(skipNewOption));
     // Share one user-scoped owner across installed RPMs, AppImage mounts and
     // versions. Explicit integration smoke probes are deliberately isolated.
     imageeditor::platform::SingleInstance instance;

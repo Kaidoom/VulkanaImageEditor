@@ -1,4 +1,5 @@
 #include "imageeditor/ui/WorkspaceDialog.hpp"
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/PopupOwnership.hpp"
 
@@ -88,6 +89,7 @@ void WorkspaceDialog::open(QDialog& dialog)
     if (dialog_ != &dialog) {
         if (dialog_) disconnect(dialog_, nullptr, this, nullptr);
         dialog_ = &dialog;
+        i18n::Localization::instance().direction(&dialog);
         connect(&dialog, &QDialog::finished, this, [this] { finish(); });
         connect(&dialog, &QObject::destroyed, this, [this] { finish(); });
     }

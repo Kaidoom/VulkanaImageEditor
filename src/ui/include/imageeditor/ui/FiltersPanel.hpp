@@ -1,4 +1,5 @@
 #pragma once
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/Layer.hpp"
 #include "imageeditor/core/SpatialFilters.hpp"
 #include <QWidget>
@@ -54,7 +55,7 @@ private:
         std::function<void()> refresh;
     };
     Page& makePage(core::SpatialFilterType);
-    void number(Page&, const char*, const QString&, double maximum, int decimals,
+    void number(Page&, const char*, const i18n::Message&, double maximum, int decimals,
         const QString& suffix, std::function<double()>, std::function<void(double)>, double minimum = 0);
     bool begin(core::SpatialFilterType);
     void change(core::SpatialFilterType, const std::function<void(core::LayerSpatialFilter&)>&, bool enable = false);

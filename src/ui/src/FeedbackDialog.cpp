@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/FeedbackDialog.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/ToolIcons.hpp"
@@ -72,7 +73,7 @@ QString oneLine(QString value)
 QString FeedbackDialog::basicSystemInfo(const QString& rendererDeviceName)
 {
     QString cpu = QSysInfo::currentCpuArchitecture();
-    QString ram = tr("Unavailable");
+    QString ram = i18n::text("feedback.dialog.unavailable");
 #ifdef Q_OS_LINUX
     // Read only the first model-name field; never expose the raw cpuinfo file
     // (some architectures include serial numbers there).
@@ -94,21 +95,21 @@ QString FeedbackDialog::basicSystemInfo(const QString& rendererDeviceName)
     struct sysinfo memory {};
     if (::sysinfo(&memory) == 0) {
         const double gib = double(memory.totalram) * double(memory.mem_unit) / (1024.0 * 1024.0 * 1024.0);
-        ram = tr("%1 GiB").arg(QLocale().toString(gib, 'f', 1));
+        ram = i18n::text("feedback.dialog.1.gib").arg(QLocale().toString(gib, 'f', 1));
     }
 #endif
     const auto os = QSysInfo::prettyProductName();
-    return tr("OS: %1\nGPU: %2\nCPU: %3\nRAM: %4")
+    return i18n::text("feedback.dialog.os.1.gpu.2.cpu.3.ram.4")
         .arg(oneLine(os.isEmpty() ? QSysInfo::productType() : os),
-            rendererDeviceName.isEmpty() ? tr("Unavailable") : oneLine(rendererDeviceName),
-            cpu.isEmpty() ? tr("Unavailable") : oneLine(cpu), ram);
+            rendererDeviceName.isEmpty() ? i18n::text("feedback.dialog.unavailable") : oneLine(rendererDeviceName),
+            cpu.isEmpty() ? i18n::text("feedback.dialog.unavailable") : oneLine(cpu), ram);
 }
 
 FeedbackDialog::FeedbackDialog(QWidget* parent, const QString& systemPreview, FeedbackService* service)
     : QDialog(parent, Qt::SubWindow), service_(service ? service : new FeedbackService(this))
 {
     setObjectName(QStringLiteral("FeedbackDialog"));
-    setWindowTitle(tr("Submit feedback / bug report"));
+    i18n::setWindowTitle(this, i18n::text("feedback.dialog.submit.feedback.bug.report"));
     setAttribute(Qt::WA_ShowWithoutActivating);
     setFixedWidth(580);
     auto* shell = new QVBoxLayout(this);
@@ -125,31 +126,31 @@ FeedbackDialog::FeedbackDialog(QWidget* parent, const QString& systemPreview, Fe
     logo->setPixmap(QApplication::windowIcon().pixmap(QSize(64, 64), devicePixelRatioF()));
     header->addWidget(logo, 0, Qt::AlignTop);
     auto* greeting = new QVBoxLayout;
-    auto* title = new QLabel(tr("We appreciate your feedback"), this);
+    auto* title = i18n::make<QLabel>(i18n::text("feedback.dialog.we.appreciate.your.feedback"), this);
     auto font = title->font(); font.setPointSizeF(font.pointSizeF() + 2); font.setBold(true); title->setFont(font);
     greeting->addWidget(title);
-    auto* intro = new QLabel(tr("Share an idea or tell us what went wrong. For bugs, include the steps and what you expected."), this);
+    auto* intro = i18n::make<QLabel>(i18n::text("feedback.dialog.share.an.idea.or.tell.us.what.went.wrong"), this);
     intro->setWordWrap(true);
     greeting->addWidget(intro);
     header->addLayout(greeting, 1);
     layout->addLayout(header);
 
     auto* categoryRow = new QHBoxLayout;
-    auto* categoryLabel = new QLabel(tr("Category"), this);
+    auto* categoryLabel = i18n::make<QLabel>(i18n::text("feedback.dialog.category"), this);
     categoryRow->addWidget(categoryLabel);
     category_ = new QComboBox(this);
     category_->setObjectName(QStringLiteral("FeedbackCategory"));
     category_->setFocusPolicy(Qt::ClickFocus); // Initial card focus belongs to the message editor.
-    category_->addItem(tr("Bug report"),QStringLiteral("bug"));
-    category_->addItem(tr("Feature request"),QStringLiteral("feature"));
-    category_->addItem(tr("Improvement"),QStringLiteral("improvement"));
-    category_->addItem(tr("Other"),QStringLiteral("other"));
+    i18n::addItem(category_, i18n::text("feedback.dialog.bug.report"), QStringLiteral("bug"));
+    i18n::addItem(category_, i18n::text("feedback.dialog.feature.request"), QStringLiteral("feature"));
+    i18n::addItem(category_, i18n::text("feedback.dialog.improvement"), QStringLiteral("improvement"));
+    i18n::addItem(category_, i18n::text("feedback.dialog.other"), QStringLiteral("other"));
     categoryLabel->setBuddy(category_);
     categoryRow->addWidget(category_,1);
     layout->addLayout(categoryRow);
 
     auto* feedbackRow = new QHBoxLayout;
-    auto* feedbackLabel = new QLabel(tr("Feedback or bug report"), this);
+    auto* feedbackLabel = i18n::make<QLabel>(i18n::text("feedback.dialog.feedback.or.bug.report"), this);
     feedbackRow->addWidget(feedbackLabel);
     feedbackRow->addStretch();
     auto* count = new QLabel(this);
@@ -158,34 +159,34 @@ FeedbackDialog::FeedbackDialog(QWidget* parent, const QString& systemPreview, Fe
     layout->addLayout(feedbackRow);
     feedback_ = new FeedbackEditor(this);
     feedback_->setObjectName(QStringLiteral("FeedbackText"));
-    feedback_->setAccessibleName(tr("Feedback or bug report"));
-    feedback_->setPlaceholderText(tr("Describe your feedback here…"));
+    i18n::setAccessibleName(feedback_, i18n::text("feedback.dialog.feedback.or.bug.report"));
+    i18n::setPlaceholderText(feedback_, i18n::text("feedback.dialog.describe.your.feedback.here"));
     feedback_->setFixedHeight(150);
     feedbackLabel->setBuddy(feedback_);
     layout->addWidget(feedback_);
     const auto updateCount = [this, count] {
-        count->setText(tr("%1 / %2").arg(characterCount(feedback())).arg(maximumCharacters));
+        i18n::setText(count, i18n::text("feedback.dialog.1.2").arg(characterCount(feedback())).arg(maximumCharacters));
     };
     connect(feedback_, &QPlainTextEdit::textChanged, this, updateCount);
     updateCount();
 
-    auto* emailLabel = new QLabel(tr("Email (optional, for follow-up)"), this);
+    auto* emailLabel = i18n::make<QLabel>(i18n::text("feedback.dialog.email.optional.for.follow.up"), this);
     layout->addWidget(emailLabel);
     email_ = new QLineEdit(this);
     email_->setObjectName(QStringLiteral("FeedbackEmail"));
     email_->setMaxLength(254);
-    email_->setPlaceholderText(tr("you@example.com"));
+    i18n::setPlaceholderText(email_, i18n::text("feedback.dialog.you.example.com"));
     email_->setAccessibleName(emailLabel->text());
     emailLabel->setBuddy(email_);
     layout->addWidget(email_);
 
-    includeSystem_ = new QCheckBox(tr("Submit system info"), this);
+    includeSystem_ = i18n::make<QCheckBox>(i18n::text("feedback.dialog.submit.system.info"), this);
     includeSystem_->setObjectName(QStringLiteral("FeedbackIncludeSystem"));
     includeSystem_->setChecked(false);
     layout->addWidget(includeSystem_);
     system_ = new QPlainTextEdit(this);
     system_->setObjectName(QStringLiteral("FeedbackSystemPreview"));
-    system_->setAccessibleName(tr("System info preview"));
+    i18n::setAccessibleName(system_, i18n::text("feedback.dialog.system.info.preview"));
     system_->setReadOnly(true);
     system_->setPlainText(systemPreview);
     system_->setFixedHeight(system_->fontMetrics().lineSpacing() * 4 + 18);
@@ -199,7 +200,7 @@ FeedbackDialog::FeedbackDialog(QWidget* parent, const QString& systemPreview, Fe
         }
         system_->setEnabled(included);
     });
-    auto* privacy = new QLabel(tr("System details are included only if checked. Your message and optional email are sent to Vulkana; avoid sharing sensitive information."), this);
+    auto* privacy = i18n::make<QLabel>(i18n::text("feedback.dialog.system.details.are.included.only.if.checked.your.message"), this);
     privacy->setWordWrap(true);
     layout->addWidget(privacy);
 
@@ -211,12 +212,12 @@ FeedbackDialog::FeedbackDialog(QWidget* parent, const QString& systemPreview, Fe
     layout->addWidget(status_);
     auto* footer = new QHBoxLayout;
     footer->addStretch();
-    auto* cancel = new QPushButton(tr("Cancel"), this);
+    auto* cancel = i18n::make<QPushButton>(i18n::text("feedback.dialog.cancel"), this);
     cancel->setObjectName(QStringLiteral("FeedbackCancel"));
     cancel->setAutoDefault(false);
     connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
     footer->addWidget(cancel);
-    submit_ = new QPushButton(tr("Submit"), this);
+    submit_ = i18n::make<QPushButton>(i18n::text("feedback.dialog.submit"), this);
     submit_->setObjectName(QStringLiteral("FeedbackSubmit"));
     submit_->setAutoDefault(false);
     connect(submit_, &QPushButton::clicked, this, [this] {
@@ -259,9 +260,9 @@ void FeedbackDialog::refreshSubmission()
     feedback_->setReadOnly(busy);email_->setReadOnly(busy);
     category_->setEnabled(!busy);includeSystem_->setEnabled(!busy);
     submit_->setEnabled(!thanks_ && service_->canSubmit() && !feedback().trimmed().isEmpty());
-    submit_->setText(busy?tr("Sending…"):tr("Submit"));
-    status_->setText(service_->configured() ? service_->message() : tr("Feedback is not configured for this build."));
-    submit_->setToolTip(service_->configured() ? QString{} : tr("Feedback is not configured for this build."));
+    i18n::setText(submit_, busy?i18n::text("feedback.dialog.sending"):i18n::text("feedback.dialog.submit"));
+    i18n::setText(status_, service_->configured() ? service_->message() : i18n::text("feedback.dialog.feedback.is.not.configured.for.this.build"));
+    i18n::setToolTip(submit_, service_->configured() ? QString{} : i18n::text("feedback.dialog.feedback.is.not.configured.for.this.build"));
     if(service_->state()==FeedbackService::State::Succeeded && !thanks_)showThanks();
 }
 void FeedbackDialog::showThanks()
@@ -286,13 +287,13 @@ void FeedbackDialog::showThanks()
     auto* icon=new QLabel(card);icon->setAlignment(Qt::AlignCenter);
     icon->setPixmap(toolGlyph(ToolGlyph::CheckCircle,accent).pixmap(QSize(36,36),devicePixelRatioF()));
     content->addWidget(icon);
-    auto* title=new QLabel(tr("Thank you for your feedback!"),card);title->setAlignment(Qt::AlignCenter);
+    auto* title=i18n::make<QLabel>(i18n::text("feedback.dialog.thank.you.for.your.feedback"), card);title->setAlignment(Qt::AlignCenter);
     auto font=title->font();font.setBold(true);title->setFont(font);
     auto ink=title->palette();ink.setColor(QPalette::WindowText,accent);title->setPalette(ink);
     content->addWidget(title);
-    auto* detail=new QLabel(tr("Your report has been submitted. Thank you for helping improve Vulkana."),card);
+    auto* detail=i18n::make<QLabel>(i18n::text("feedback.dialog.your.report.has.been.submitted.thank.you.for.helping"), card);
     detail->setWordWrap(true);detail->setAlignment(Qt::AlignCenter);content->addWidget(detail);
-    auto* ok=new QPushButton(tr("OK"),card);ok->setObjectName(QStringLiteral("FeedbackThanksOk"));
+    auto* ok=i18n::make<QPushButton>(i18n::text("feedback.dialog.ok"), card);ok->setObjectName(QStringLiteral("FeedbackThanksOk"));
     ok->setAutoDefault(false);content->addWidget(ok,0,Qt::AlignHCenter);
     connect(ok,&QPushButton::clicked,this,&QDialog::accept);
     outer->addWidget(card);outer->addStretch();

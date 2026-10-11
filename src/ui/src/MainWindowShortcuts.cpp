@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/AdjustmentCurveEditor.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
@@ -63,7 +64,7 @@ void MainWindow::initializeShortcuts()
     for (const auto& d : shortcutDefinitions()) {
         auto* action = findChild<QAction*>(d.id);
         if (!action) {
-            action = new QAction(d.label, this); action->setObjectName(d.id);
+            action = i18n::make<QAction>(d.label, this); action->setObjectName(d.id);
             if (d.id == "ErasePixelsAction") connect(action, &QAction::triggered, this, [this] {
                 if (shortcutGestureIdle()) startFill(false, true, {}, true);
             });
@@ -97,10 +98,10 @@ void MainWindow::applyShortcutBindings(const ShortcutBindings& bindings)
         action->setAutoRepeat(d.repeat);
         auto hint = d.label + " · " + shortcutLabel(shortcuts_, d.id);
         if (!action->property("shortcutDescription").toString().isEmpty())
-            hint += "\n" + action->property("shortcutDescription").toString();
+            hint = hint + "\n" + action->property("shortcutDescription").toString();
         if (d.id == "LayerTransformAction")
-            hint += tr("\n%1 applies · Escape cancels").arg(shortcutLabel(shortcuts_, "FinishOperationAction"));
-        action->setToolTip(hint);
+            hint = hint + i18n::text("main.window.shortcuts.1.applies.escape.cancels").arg(shortcutLabel(shortcuts_, "FinishOperationAction"));
+        i18n::setToolTip(action, hint);
     }
     if (textController_) textController_->setShortcutBindings(shortcuts_);
     updateShortcutHints(this, shortcuts_);
@@ -109,11 +110,11 @@ void MainWindow::applyShortcutBindings(const ShortcutBindings& bindings)
     for (auto* w : workspace_->panelOverlay()->findChildren<QWidget*>())
         if (auto* curve = dynamic_cast<AdjustmentCurveEditor*>(w)) curve->setShortcutBindings(shortcuts_);
     if (auto* label = workspace_->panelOverlay()->findChild<QLabel*>("PixelPreviewBadgeLabel"))
-        label->setText(tr("Pixel Preview · %1").arg(shortcutLabel(shortcuts_, "PixelPreviewAction")));
+        i18n::setText(label, i18n::text("main.window.shortcuts.pixel.preview.1").arg(shortcutLabel(shortcuts_, "PixelPreviewAction")));
     if (auto* exit = workspace_->panelOverlay()->findChild<QWidget*>("ExitPixelPreview"))
-        exit->setToolTip(tr("Exit Pixel Preview · %1").arg(shortcutLabel(shortcuts_, "PixelPreviewAction")));
+        i18n::setToolTip(exit, i18n::text("main.window.shortcuts.exit.pixel.preview.1").arg(shortcutLabel(shortcuts_, "PixelPreviewAction")));
     if (deleteLayerButton_ && deleteLayerButton_->isEnabled())
-        deleteLayerButton_->setToolTip(tr("Delete selected layers · %1").arg(shortcutLabel(shortcuts_, "DeleteSelectedLayersAction")));
+        i18n::setToolTip(deleteLayerButton_, i18n::text("main.window.shortcuts.delete.selected.layers.1").arg(shortcutLabel(shortcuts_, "DeleteSelectedLayersAction")));
 }
 bool MainWindow::shortcutGestureIdle(bool allowMenuCapture) const
 {

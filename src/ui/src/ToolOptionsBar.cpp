@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/ToolOptionsBar.hpp"
 
 #include <QHBoxLayout>
@@ -24,7 +25,7 @@ public:
 }
 
 ToolOptionsBar::ToolOptionsBar(QWidget* parent)
-    : QToolBar(QStringLiteral("Tool Options"), parent)
+    : QToolBar(i18n::text("tool.options.bar.tool.options"), parent)
 {
     setObjectName(QStringLiteral("ToolOptionsBar"));
     setAllowedAreas(Qt::TopToolBarArea);
@@ -72,19 +73,19 @@ ToolOptionsBar::ToolOptionsBar(QWidget* parent)
     leftLayout->addStretch(1);
 
     const auto overflowButton = [](Qt::ArrowType arrow, const QString& name,
-                                   const QString& label, QWidget* parent) {
+                                   const i18n::Message& label, QWidget* parent) {
         auto* button = new QToolButton(parent);
         button->setObjectName(name);
         button->setArrowType(arrow);
         button->setFixedSize(24, 28);
-        button->setToolTip(label);
-        button->setAccessibleName(label);
+        i18n::setToolTip(button, label);
+        i18n::setAccessibleName(button, label);
         button->setAutoRepeat(true);
         button->hide();
         return button;
     };
     previousOptions_ = overflowButton(Qt::LeftArrow,
-        QStringLiteral("PreviousToolOptions"), QStringLiteral("Previous tool settings"), leftSlot);
+        QStringLiteral("PreviousToolOptions"), i18n::text("tool.options.bar.previous.tool.settings"), leftSlot);
     leftLayout->addWidget(previousOptions_);
 
     pageViewport_ = new QScrollArea(root);
@@ -116,7 +117,7 @@ ToolOptionsBar::ToolOptionsBar(QWidget* parent)
     auto* rightLayout = new QHBoxLayout(rightBalance);
     rightLayout->setContentsMargins(0, 0, 0, 0);
     nextOptions_ = overflowButton(Qt::RightArrow,
-        QStringLiteral("NextToolOptions"), QStringLiteral("More tool settings"), rightBalance);
+        QStringLiteral("NextToolOptions"), i18n::text("tool.options.bar.more.tool.settings"), rightBalance);
     rightLayout->addWidget(nextOptions_);
     rightLayout->addStretch(1);
 
@@ -183,7 +184,7 @@ bool ToolOptionsBar::event(QEvent* event)
 }
 
 void ToolOptionsBar::registerToolPage(
-    core::ToolId tool, const QString& label, QWidget* page)
+    core::ToolId tool, const i18n::Message& label, QWidget* page)
 {
     if (!page) {
         return;
@@ -206,9 +207,9 @@ void ToolOptionsBar::registerToolPage(
     }
 }
 
-void ToolOptionsBar::setContextLabel(const QString& label)
+void ToolOptionsBar::setContextLabel(const i18n::Message& label)
 {
-    contextLabel_->setText(label.toUpper());
+    i18n::setText(contextLabel_, label.toUpper());
     updateSideSlots();
 }
 
@@ -243,7 +244,7 @@ void ToolOptionsBar::setActiveTool(core::ToolId tool)
         updateOverflowControls();
         return;
     }
-    contextLabel_->setText(found->second.label.toUpper());
+    i18n::setText(contextLabel_, found->second.label.toUpper());
     pageStack_->setCurrentWidget(found->second.page);
     updateOverflowControls();
 }

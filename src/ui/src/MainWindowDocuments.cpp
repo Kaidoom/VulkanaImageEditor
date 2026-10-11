@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/LayerListModel.hpp"
@@ -137,12 +138,12 @@ void MainWindow::createDocumentTabs()
     welcome_->setObjectName("DocumentWelcome");
     welcome_->setAcceptDrops(true);
     auto* layout = new QVBoxLayout(welcome_);
-    auto* title = new QLabel(tr("Open an image or start a new canvas"), welcome_);
+    auto* title = i18n::make<QLabel>(i18n::text("main.window.documents.open.an.image.or.start.a.new.canvas"), welcome_);
     title->setAlignment(Qt::AlignCenter);
     layout->addWidget(title);
     auto* row = new QHBoxLayout;
-    auto* create = new QPushButton(tr("New Canvas"), welcome_);
-    auto* open = new QPushButton(tr("Open Document…"), welcome_);
+    auto* create = i18n::make<QPushButton>(i18n::text("main.window.documents.new.canvas"), welcome_);
+    auto* open = i18n::make<QPushButton>(i18n::text("main.window.documents.open.document"), welcome_);
     connect(create, &QPushButton::clicked, this, &MainWindow::createNewDocument);
     connect(open, &QPushButton::clicked, this, &MainWindow::openImage);
     row->addWidget(create); row->addWidget(open); layout->addLayout(row);
@@ -160,7 +161,7 @@ QMimeData* MainWindow::captureLayerTransfer(std::span<const core::LayerId> ids, 
         transfer->setData("application/x-vulkana-layer-transfer", "1");
         return transfer.release();
     } catch (const std::exception& e) {
-        statusBar()->showMessage(tr("Unable to copy layers: %1").arg(QString::fromUtf8(e.what())), 6000);
+        statusBar()->showMessage(i18n::text("main.window.documents.unable.to.copy.layers.1").arg(QString::fromUtf8(e.what())), 6000);
         return nullptr;
     }
 }
@@ -192,7 +193,7 @@ bool MainWindow::receiveLayerTransfer(const QMimeData* data, std::optional<core:
         synchronizeUi(true, false);
         return true;
     } catch (const std::exception& e) {
-        statusBar()->showMessage(tr("Unable to copy layers: %1").arg(QString::fromUtf8(e.what())), 6000);
+        statusBar()->showMessage(i18n::text("main.window.documents.unable.to.copy.layers.1").arg(QString::fromUtf8(e.what())), 6000);
         return false;
     }
 }
@@ -284,7 +285,7 @@ void MainWindow::refreshDocumentTabs()
         if (i == documentTabs_->count()) documentTabs_->addTab(label);
         else documentTabs_->setTabText(i, label);
         documentTabs_->setTabData(i, qulonglong(context->id));
-        documentTabs_->setTabToolTip(i, path.isEmpty() ? tr("Unsaved document") : path);
+        documentTabs_->setTabToolTip(i, path.isEmpty() ? i18n::text("main.window.documents.unsaved.document") : path);
         if (context == activeDocument_) documentTabs_->setCurrentIndex(i);
     }
     for (const auto* name : {"CloseDocumentAction", "NextDocumentAction", "PreviousDocumentAction"})

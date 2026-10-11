@@ -1,4 +1,5 @@
 #pragma once
+#include "imageeditor/ui/Localization.hpp"
 
 #include "imageeditor/core/EditorSession.hpp"
 #include "imageeditor/core/BrushEngine.hpp"
@@ -37,8 +38,8 @@ public:
     void setActiveTool(core::ToolId tool);
     void setSelectedLayer(const core::Layer* layer, const core::LayerContainer* container = nullptr);
     // Cached contextual pages use the same scrolling/top-aligned shell.
-    QWidget* addToolPage(core::ToolId tool, const QString& title,
-        const QString& description, QVBoxLayout*& content);
+    QWidget* addToolPage(core::ToolId tool, const i18n::Message& title,
+        const i18n::Message& description, QVBoxLayout*& content);
     void setBrushSettings(const core::BrushSettings& settings);
     void setBrushPresets(std::vector<core::BrushPresetRecord> presets);
     [[nodiscard]] bool selectBrushComponent(core::BrushAssetType type,
@@ -54,12 +55,12 @@ public:
 private:
     QWidget* createMovePage();
     QWidget* createSelectionTransformPage();
-    QWidget* createSelectionPage(const QString& title, const QString& description);
-    QWidget* createBrushPage(const QString& title);
+    QWidget* createSelectionPage(core::ToolId tool, const i18n::Message& title, const i18n::Message& description);
+    QWidget* createBrushPage(const i18n::Message& title);
     QWidget* createFillPage();
     QWidget* createEyedropperPage();
     QWidget* createTextPage();
-    QWidget* createPageShell(const QString& title, const QString& description,
+    QWidget* createPageShell(const i18n::Message& title, const i18n::Message& description,
         QVBoxLayout*& contentLayout);
     void publishBrushSettings(CompactValueControl* source = nullptr);
     void applyPresetById(std::string_view id);

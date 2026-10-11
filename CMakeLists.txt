@@ -58,6 +58,7 @@ find_package(Vulkan 1.2 REQUIRED)
 find_program(GLSLC_EXECUTABLE NAMES glslc REQUIRED)
 
 qt_standard_project_setup()
+include(cmake/Localization.cmake)
 
 function(imageeditor_enable_warnings target)
     target_compile_options(${target} PRIVATE

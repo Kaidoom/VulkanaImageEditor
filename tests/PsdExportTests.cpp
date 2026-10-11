@@ -388,6 +388,8 @@ void safety(QString dir) {
   auto invalid = u::planPsdExport(styled, bakeStyle, cancel);
   CHECK(!invalid);
   CHECK(invalid.error.contains("backdrop"));
+  CHECK(invalid.problem == u::PsdExportProblem::NeedsGroup);
+  CHECK(invalid.problemLayer == QString::fromStdString(original->name));
   o.mode = u::PsdExportMode::Flattened;
   CHECK(u::planPsdExport(styled, o, cancel));
   c::Document empty({{8, 8}, 72});
@@ -711,6 +713,7 @@ void review(QString dir) {
   invalid.actions[clip->children.front()] = u::PsdExportAction::Omit;
   const auto blocked = u::planPsdExport(source, invalid, cancel);
   CHECK(!blocked);
+  CHECK(blocked.problem == u::PsdExportProblem::MissingBase);
   dialog.setPsdPlan(blocked, {});
   CHECK(!button->isEnabled());
   auto *previewToggle = dialog.findChild<QCheckBox *>("PsdExportPreview");

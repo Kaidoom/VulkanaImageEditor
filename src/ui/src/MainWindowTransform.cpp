@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/ColorSampler.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/core/SelectionCommands.hpp"
@@ -58,7 +59,7 @@ bool MainWindow::runTransformAction(const std::function<bool()>& action)
     try {
         return action();
     } catch (const std::exception&) {
-        statusBar()->showMessage(QStringLiteral("Could not finish the transform action. Your preview is retained; retry or cancel."), 5000);
+        statusBar()->showMessage(i18n::text("main.window.transform.could.not.finish.the.transform.action.your.preview.is"), 5000);
         return false;
     }
 }
@@ -161,7 +162,7 @@ bool MainWindow::prepareDuplicateMove()
         canvasWindow_->setLayerOutlineTargets(doc.expandedLayers(session().selectedLayers()), true);
         return true;
     } catch (const std::exception& e) {
-        statusBar()->showMessage(tr("Could not duplicate layers: %1").arg(QString::fromUtf8(e.what())), 5000);
+        statusBar()->showMessage(i18n::text("main.window.transform.could.not.duplicate.layers.1").arg(QString::fromUtf8(e.what())), 5000);
         return false;
     }
 }
@@ -263,7 +264,7 @@ void MainWindow::finishLayerMove(bool apply)
                 activeLayerMove_ = std::move(move);
                 duplicateMove_ = std::move(duplicate);
             }
-            statusBar()->showMessage(tr("Could not finish duplicate move: %1").arg(QString::fromUtf8(e.what())), 5000);
+            statusBar()->showMessage(i18n::text("main.window.transform.could.not.finish.duplicate.move.1").arg(QString::fromUtf8(e.what())), 5000);
         }
         synchronizeUi(true, false);
         return;
@@ -284,7 +285,7 @@ void MainWindow::finishLayerMove(bool apply)
                 fileState().untouched = false;
         } catch (const std::exception&) {
             activeLayerMove_ = std::move(move);
-            statusBar()->showMessage(QStringLiteral("Could not finish the move. Your edits are retained; retry or cancel."), 5000);
+            statusBar()->showMessage(i18n::text("main.window.transform.could.not.finish.the.move.your.edits.are.retained"), 5000);
             return;
         }
     }
@@ -350,7 +351,7 @@ try {
         *session().document(), session().selectedLayers());
     if (!transaction->active()) {
         statusBar()->showMessage(
-            QStringLiteral("Transform requires available, invertible layer geometry"), 3500);
+            i18n::text("main.window.transform.transform.requires.available.invertible.layer.geometry"), 3500);
         return;
     }
     toolBeforeTransform_ = session().activeTool();
@@ -361,11 +362,10 @@ try {
     refreshLayerTransform();
     updateActionState();
     statusBar()->showMessage(
-        QStringLiteral("Transform · drag inside to move, handles to scale, outside corners to "
-                       "rotate · %1 applies · Escape cancels").arg(shortcutLabel(shortcuts_, "FinishOperationAction")));
+        i18n::text("main.window.transform.transform.drag.inside.to.move.handles.to.scale.outside").arg(shortcutLabel(shortcuts_, "FinishOperationAction")));
     canvasWindow_->requestActivate();
 } catch (const std::exception&) {
-    statusBar()->showMessage(QStringLiteral("Could not start the transform. No group edit was applied."), 5000);
+    statusBar()->showMessage(i18n::text("main.window.transform.could.not.start.the.transform.no.group.edit.was"), 5000);
 }
 
 void MainWindow::refreshLayerTransform()
@@ -408,7 +408,7 @@ void MainWindow::finishLayerTransform(bool apply)
             }
         } catch (const std::exception&) {
             layerTransform_ = std::move(transaction);
-            statusBar()->showMessage(QStringLiteral("Could not apply the transform. Your edits are retained; retry or cancel."), 5000);
+            statusBar()->showMessage(i18n::text("main.window.transform.could.not.apply.the.transform.your.edits.are.retained"), 5000);
             return;
         }
     } else
@@ -421,11 +421,11 @@ void MainWindow::finishLayerTransform(bool apply)
         fileState().untouched = false;
     synchronizeUi(false, false);
     statusBar()->showMessage(apply ? result == core::TransformCommitResult::Committed
-                ? QStringLiteral("Layer transform applied")
+                ? i18n::text("main.window.transform.layer.transform.applied")
                 : result == core::TransformCommitResult::NoChange
-                ? QStringLiteral("Transform unchanged")
-                : QStringLiteral("Transform target is no longer available")
-                                   : QStringLiteral("Layer transform cancelled"),
+                ? i18n::text("main.window.transform.transform.unchanged")
+                : i18n::text("main.window.transform.transform.target.is.no.longer.available")
+                                   : i18n::text("main.window.transform.layer.transform.cancelled"),
         2500);
 }
 

@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/WorkspacePanel.hpp"
 
 #include <QApplication>
@@ -27,7 +28,7 @@ public:
         setObjectName(QStringLiteral("WorkspacePanelTitleBar"));
         setFixedHeight(38);
         setCursor(Qt::OpenHandCursor);
-        setToolTip(QStringLiteral("Drag to move or dock this panel"));
+        i18n::setToolTip(this, i18n::text("workspace.panel.drag.to.move.or.dock.this.panel"));
         setAttribute(Qt::WA_Hover);
     }
 
@@ -167,7 +168,7 @@ public:
         setObjectName(QStringLiteral("WorkspacePanelResizeGrip"));
         setFixedSize(24, 24);
         setCursor(Qt::SizeFDiagCursor);
-        setToolTip(QStringLiteral("Drag to resize panel"));
+        i18n::setToolTip(this, i18n::text("workspace.panel.drag.to.resize.panel"));
         setAttribute(Qt::WA_Hover);
     }
 
@@ -277,9 +278,9 @@ private:
 } // namespace
 
 WorkspacePanel::WorkspacePanel(
-    QString title, QWidget* content, QWidget* parent)
+    i18n::Message title, QWidget* content, QWidget* parent)
     : QWidget(parent)
-    , title_(std::move(title))
+    , title_(title)
     , content_(content)
 {
     Q_ASSERT(content_);
@@ -300,6 +301,8 @@ WorkspacePanel::WorkspacePanel(
 
     resizeGrip_ = new PanelResizeGrip(*this);
     resizeGrip_->hide();
+    if (title.localized()) connect(&i18n::Localization::instance(), &i18n::Localization::languageChanged,
+        this, [this, title] { setTitle(title.resolved()); });
 }
 
 void WorkspacePanel::setFloatingPresentation(bool floating)

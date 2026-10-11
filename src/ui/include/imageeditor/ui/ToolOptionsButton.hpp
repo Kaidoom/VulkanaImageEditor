@@ -1,4 +1,5 @@
 #pragma once
+#include "imageeditor/ui/Localization.hpp"
 
 #include <QToolButton>
 
@@ -11,7 +12,7 @@ public:
     enum class Kind { Action, Toggle };
     enum class Presentation { Text, Icon, Status };
 
-    ToolOptionsButton(const QString& name, const QString& label, const QString& hint,
+    ToolOptionsButton(const QString& name, const i18n::Message& label, const i18n::Message& hint,
         Kind kind, QWidget* parent = nullptr, Presentation presentation = Presentation::Text);
 };
 

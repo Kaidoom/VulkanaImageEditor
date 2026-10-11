@@ -419,6 +419,26 @@ void dialogTests()
     CHECK((dialog.geometry().center() - host.rect().center()).manhattanLength() <= 2);
     if (const auto path = qEnvironmentVariable("VULKANA_ABOUT_CAPTURE"); !path.isEmpty())
         CHECK(dialog.grab().save(path));
+    // A cached update result must retranslate without another network check.
+    const auto requestCount = network.requests.size();
+    auto& language = u::i18n::Localization::instance();
+    for (const auto* locale : {"ar", "fr", "en", "ar", "en"}) {
+        CHECK(language.setLanguage(locale));
+        QCoreApplication::processEvents();
+        CHECK(status->text() == u::i18n::text("update.service.you.have.the.latest.version"));
+        CHECK(network.requests.size() == requestCount);
+        const auto* detail = dialog.findChild<QLabel*>("AboutUpdateDetail");
+        CHECK(detail->text() == u::i18n::text("about.dialog.you.re.running.version.1").arg(u::i18n::ltrToken("0.2.1")));
+        CHECK(dialog.findChild<QLabel*>("AboutCopyright")->text() == u::i18n::text("about.dialog.2026.kaidoomdev.licensed.under.the.mit.license"));
+        CHECK(dialog.findChild<QLabel*>("AboutVulkanaGitHub")->text().contains(u::i18n::text("about.dialog.view.on.github")));
+        if (QString(locale) == "ar") {
+            CHECK(detail->text().contains(QStringLiteral("\u20660.2.1\u2069")));
+            CHECK(!detail->text().contains("0.2.1."));
+            CHECK(dialog.findChild<QLabel*>("AboutCopyright")->text().contains(QStringLiteral("\u2066MIT\u2069")));
+        }
+        if (const auto directory = qEnvironmentVariable("VULKANA_LOCALIZATION_SCREENSHOTS"); !directory.isEmpty())
+            CHECK(dialog.grab().save(directory + "/about-update-" + locale + ".png"));
+    }
     network.responses.push_back({manifest()});
     check->click();
     CHECK(waitFor([&] { return check->text() == "Download RPM"; }));
@@ -438,6 +458,33 @@ void dialogTests()
     check->click();
     CHECK(check->text() == "Download RPM" && !QFile::exists(cancelledPath));
     CHECK(progress->isHidden());
+}
+
+void reopenedAboutLanguageTests()
+{
+    // Real workflow: the startup check finishes, Preferences changes language,
+    // then a fresh About panel presents the same cached service result.
+    auto& language = u::i18n::Localization::instance();
+    language.setLanguage("en");
+    Network network;
+    u::UpdateService service("0.2.1", nullptr, &network, u::UpdatePackage::Rpm);
+    network.responses.push_back({manifest("0.2.1")}); service.check();
+    CHECK(waitFor([&] { return !service.busy(); }));
+    QWidget host;
+    for (const auto* locale : {"ar", "fr", "en"}) {
+        CHECK(language.setLanguage(locale));
+        u::AboutDialog about(&host, nullptr, u::UpdatePackage::Rpm, {}, &service);
+        about.show(); QTest::qWait(20);
+        CHECK(about.findChild<QLabel*>("AboutUpdateStatus")->text()
+            == u::i18n::text("update.service.you.have.the.latest.version"));
+        CHECK(network.requests.size() == 1);
+        for (const auto* name : {"AboutVulkanaDeveloper", "AboutVulkanaSocial", "AboutVulkanaGitHub", "AboutVulkanaEmail"}) {
+            const auto* contact = about.findChild<QLabel*>(name);
+            CHECK(contact && contact->height() >= contact->sizeHint().height());
+        }
+        if (const auto directory = qEnvironmentVariable("VULKANA_LOCALIZATION_SCREENSHOTS"); !directory.isEmpty())
+            CHECK(about.grab().save(directory + "/about-reopened-" + locale + ".png"));
+    }
 }
 
 QByteArray appImageBytes(char body)
@@ -704,7 +751,7 @@ int main(int argc, char** argv)
     u::applyEditorTheme(app);
     if (app.arguments().contains("--live-check") || app.arguments().contains("--live-download"))
         liveCheck(app.arguments().contains("--live-download"));
-    else { TestServiceConfig services; serviceConfigurationTests(); metadataTests(); stateAndDownloadTests(); dialogTests(); appImageTests(); debTests();
+    else { TestServiceConfig services; serviceConfigurationTests(); metadataTests(); stateAndDownloadTests(); dialogTests(); reopenedAboutLanguageTests(); appImageTests(); debTests();
         startupPolicyTests(); startupPresentationTests(); startupSilentTests(); startupCloseTests();
         simulatedUpdateTests(); startupSimulationTests(); }
     if (app.arguments().contains("--expect-deb")) CHECK(u::UpdateService::buildPackage() == u::UpdatePackage::Deb);

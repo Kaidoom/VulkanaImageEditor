@@ -12,6 +12,16 @@
   "components": [
     {
       "notice": {
+        "name": "Qt community translation catalogs",
+        "version": "Build-selected qtbase catalogs for enabled UI languages; tested 6.11.2",
+        "scope": "Unmodified optional Qt dialog/control translation data installed with language packs; see provenance notice",
+        "license": "Tested Fedora package: GPL-3.0-only WITH Qt-GPL-exception-1.0; upstream per-file options and distribution obligations are recorded in the notice",
+        "copyright": "The Qt Company Ltd. and Qt translation contributors"
+      },
+      "texts": ["QtTranslations-NOTICE.txt", "GPL-3.0.txt", "Qt-GPL-exception-1.0.txt"]
+    },
+    {
+      "notice": {
         "name": "ONNX Runtime C API header",
         "version": "1.20.1",
         "scope": "C API declarations compiled into the application; paired with the bundled 1.30.0 runtime",

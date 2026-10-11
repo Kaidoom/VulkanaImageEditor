@@ -1,4 +1,5 @@
 #pragma once
+#include "imageeditor/ui/Localization.hpp"
 
 #include "imageeditor/core/EditorSession.hpp"
 
@@ -20,12 +21,12 @@ public:
     explicit ToolOptionsBar(QWidget* parent = nullptr);
     ~ToolOptionsBar() override;
 
-    void registerToolPage(core::ToolId tool, const QString& label, QWidget* page);
+    void registerToolPage(core::ToolId tool, const i18n::Message& label, QWidget* page);
     // Optional cached mode controls beside the tool name, outside the centered
     // options page. Mirrored side widths keep the options truly centered.
     void registerToolLeadingWidget(core::ToolId tool, QWidget* widget);
     void setActiveTool(core::ToolId tool);
-    void setContextLabel(const QString& label);
+    void setContextLabel(const i18n::Message& label);
     [[nodiscard]] QWidget* pageForTool(core::ToolId tool) const noexcept;
     [[nodiscard]] QWidget* leadingWidgetForTool(core::ToolId tool) const noexcept;
     [[nodiscard]] core::ToolId activeTool() const noexcept { return activeTool_; }
@@ -38,7 +39,7 @@ private:
     void updateSideSlots();
 
     struct PageRecord {
-        QString label;
+        i18n::Message label;
         QWidget* page {nullptr};
     };
 

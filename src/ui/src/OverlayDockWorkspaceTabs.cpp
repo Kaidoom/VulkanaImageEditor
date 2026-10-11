@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/WorkspacePanel.hpp"
 #include <QApplication>
@@ -27,7 +28,7 @@ public:
         setUsesScrollButtons(true);
         setElideMode(Qt::ElideRight);
         setFocusPolicy(Qt::StrongFocus);
-        setToolTip(tr("Drag a tab to reorder, dock or float its panel"));
+        i18n::setToolTip(this, i18n::text("overlay.dock.workspace.tabs.drag.a.tab.to.reorder.dock.or.float.its"));
     }
     std::function<void(int, QPoint)> started;
     std::function<void(QPoint)> moved;
@@ -146,6 +147,15 @@ OverlayDockWorkspace::TabGroup& OverlayDockWorkspace::createTabGroup(WorkspacePa
     };
     tabs->moved = [this, frame](QPoint global) { movePanelDrag(frame, global); };
     tabs->finished = [this, frame](QPoint global, bool cancel) { finishPanelDrag(frame, global, cancel); };
+    connect(&i18n::Localization::instance(), &i18n::Localization::languageChanged, frame, [this, frame] {
+        if (auto* group = tabGroup(frame)) {
+            const QSignalBlocker blocker(group->tabs);
+            for (int i = 0; i < int(group->panels.size()); ++i)
+                group->tabs->setTabText(i, group->panels[size_t(i)]->title());
+            if (auto* active = dynamic_cast<WorkspacePanel*>(group->stack->currentWidget()))
+                frame->setTitle(active->title());
+        }
+    });
     refreshTabGroup(tabGroups_.back(), target);
     return tabGroups_.back();
 }

@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/CropOptionsPage.hpp"
 #include "imageeditor/ui/ToolIcons.hpp"
 #include "imageeditor/ui/ToolOptionsButton.hpp"
@@ -20,7 +21,7 @@ CropOptionsPage::CropOptionsPage(QWidget* parent)
         numbers_[i] = n;
         n->setObjectName(QStringLiteral("Crop%1Control").arg(labels[i]));
         n->setPrefix(QString::fromLatin1(labels[i]) + ": ");
-        n->setSuffix(" px");
+        i18n::setSuffix(n, i18n::text("crop.options.page.px"));
         n->setDecimals(2);
         n->setRange(i < 2 ? -1e9 : .0001, 1e9);
         n->setSingleStep(1);

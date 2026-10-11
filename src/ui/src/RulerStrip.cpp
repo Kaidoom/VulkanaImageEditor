@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/RulerStrip.hpp"
 
 #include "imageeditor/core/RulerTicks.hpp"
@@ -34,8 +35,8 @@ RulerStrip::RulerStrip(Axis axis, QWidget* parent)
 {
     setObjectName(axis == Axis::Horizontal ? QStringLiteral("HorizontalRuler")
                                           : QStringLiteral("VerticalRuler"));
-    setAccessibleName(axis == Axis::Horizontal ? QStringLiteral("Horizontal ruler")
-                                              : QStringLiteral("Vertical ruler"));
+    setAccessibleName(axis == Axis::Horizontal ? i18n::text("ruler.strip.horizontal.ruler")
+                                              : i18n::text("ruler.strip.vertical.ruler"));
     setFocusPolicy(Qt::NoFocus);
     setMouseTracking(true);
     setAttribute(Qt::WA_OpaquePaintEvent);
@@ -214,7 +215,7 @@ void RulerStrip::refreshCursor(QPoint local)
     const bool hovered = gripRect().contains(local);
     if (gripHovered_ != hovered) { gripHovered_ = hovered; update(gripRect()); }
     setCursor(pressed_ ? Qt::ClosedHandCursor : hovered ? Qt::OpenHandCursor : Qt::ArrowCursor);
-    setToolTip(hovered ? QStringLiteral("Drag ruler to its opposite workspace edge") : QString());
+    setToolTip(hovered ? i18n::text("ruler.strip.drag.ruler.to.its.opposite.workspace.edge") : QString());
 }
 
 void RulerStrip::mousePressEvent(QMouseEvent* event)

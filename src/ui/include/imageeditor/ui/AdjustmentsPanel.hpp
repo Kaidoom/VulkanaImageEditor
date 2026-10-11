@@ -1,4 +1,5 @@
 #pragma once
+#include "imageeditor/ui/Localization.hpp"
 
 #include "imageeditor/core/Adjustments.hpp"
 #include "imageeditor/core/Layer.hpp"
@@ -58,6 +59,7 @@ protected:
     void showEvent(QShowEvent*) override;
 
 private:
+    void refreshCategoryHints();
     struct Page {
         QWidget* widget {nullptr};
         QVBoxLayout* layout {nullptr};
@@ -88,11 +90,11 @@ private:
         std::size_t stage {0}, cursor {0}, columns {0}, rows {0}, step {1};
     };
     Page& makePage(core::AdjustmentType, QStackedWidget*);
-    CompactValueControl* number(Page&, const char* objectName, const QString& label,
+    CompactValueControl* number(Page&, const char* objectName, const i18n::Message& label,
         double min, double max, int decimals,
         std::function<double()> read, std::function<void(double)> write,
         const QString& suffix = {});
-    QComboBox* choices(Page&, const char* name, const QStringList&, std::function<void(int)>);
+    QComboBox* choices(Page&, const char* name, const QList<i18n::Message>&, std::function<void(int)>);
     void change(core::AdjustmentType, const std::function<void(core::Adjustment&)>&, bool autoEnable = true);
     bool begin(core::AdjustmentType);
     void refresh();

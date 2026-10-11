@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/LocalBlurOptionsPage.hpp"
 #include "imageeditor/ui/ToolOptionsBar.hpp"
@@ -36,7 +37,7 @@ void MainWindow::flushDeferredLocalBlurInput()
 void MainWindow::createLocalBlurControls()
 {
     localBlurOptionsPage_ = new LocalBlurOptionsPage;
-    toolOptionsBar_->registerToolPage(core::ToolId::LocalBlur, tr("Local Blur"), localBlurOptionsPage_);
+    toolOptionsBar_->registerToolPage(core::ToolId::LocalBlur, i18n::text("main.window.blur.local.blur"), localBlurOptionsPage_);
     localBlurOptionsPage_->setBrushSettings(brushSettings_);
     localBlurOptionsPage_->setBlurSettings(localBlurSettings_);
     localBlurOptionsPage_->onBrushSettingsChanged = [this](const core::BrushSettings& settings) {
@@ -56,7 +57,7 @@ bool MainWindow::beginLocalBlurStroke(const core::NormalizedPointerSample& sampl
     const auto target = session().activeLayer();
     const auto* layer = document && target ? document->layer(*target) : nullptr;
     if (!layer || !std::holds_alternative<core::RasterLayer>(layer->payload)) {
-        statusBar()->showMessage(tr("Local Blur edits raster source colors. Select a raster layer first."), 4500);
+        statusBar()->showMessage(i18n::text("main.window.blur.local.blur.edits.raster.source.colors.select.a.raster"), 4500);
         return false;
     }
     const auto unavailable = brushAssets_->unavailableMessage(brushSettings_);
@@ -68,7 +69,7 @@ bool MainWindow::beginLocalBlurStroke(const core::NormalizedPointerSample& sampl
     {
         QScopedValueRollback processing(localBlurProcessing_, true);
         QElapsedTimer cadence; cadence.start();
-        statusBar()->showMessage(tr("Local Blur · preparing original source and neighborhood…"));
+        statusBar()->showMessage(i18n::text("main.window.blur.local.blur.preparing.original.source.and.neighborhood"));
         started = activeLocalBlurStroke_->begin(sample, [&] {
             // Shared routing defers the trace until this handler returns and
             // installs capture; Escape remains responsive during convolution.
@@ -83,12 +84,12 @@ bool MainWindow::beginLocalBlurStroke(const core::NormalizedPointerSample& sampl
     if (!started) {
         const auto detail = QString::fromStdString(activeLocalBlurStroke_->diagnostic());
         activeLocalBlurStroke_.reset();
-        statusBar()->showMessage(detail.isEmpty() ? tr("Unable to start Local Blur at this target scale.") : detail, 5500);
+        statusBar()->showMessage(detail.isEmpty() ? i18n::text("main.window.blur.unable.to.start.local.blur.at.this.target.scale") : detail, 5500);
         return false;
     }
     canvasWindow_->setResolvedBrushCursorAngle(activeLocalBlurStroke_->brush().lastResolvedTipAngleDegrees().value_or(0));
     canvasWindow_->setConstrainedBrushPosition(activeLocalBlurStroke_->brush().constrainedPosition());
-    statusBar()->showMessage(tr("Local Blur · source colors, alpha preserved · Escape cancels"));
+    statusBar()->showMessage(i18n::text("main.window.blur.local.blur.source.colors.alpha.preserved.escape.cancels"));
     canvasWindow_->scheduleFrame();
     return true;
 }
@@ -140,9 +141,9 @@ bool MainWindow::endLocalBlurStroke(const core::NormalizedPointerSample& sample)
     const bool completed = result == core::RasterEditCommitResult::Committed || result == core::RasterEditCommitResult::NoChanges;
     if (result == core::RasterEditCommitResult::Committed) fileState().untouched = false;
     synchronizeUi(false, false);
-    statusBar()->showMessage(!detail.isEmpty() ? detail : !completed ? tr("Local Blur cancelled")
-        : result == core::RasterEditCommitResult::NoChanges ? tr("Local Blur · no changed pixels")
-        : tr("Local Blur applied"), 3500);
+    statusBar()->showMessage(!detail.isEmpty() ? detail : !completed ? i18n::text("main.window.blur.local.blur.cancelled")
+        : result == core::RasterEditCommitResult::NoChanges ? i18n::text("main.window.blur.local.blur.no.changed.pixels")
+        : i18n::text("main.window.blur.local.blur.applied"), 3500);
     return completed;
 }
 
@@ -155,6 +156,6 @@ void MainWindow::cancelLocalBlurStroke()
     activeLocalBlurStroke_.reset();
     canvasWindow_->setConstrainedBrushPosition({});
     canvasWindow_->scheduleFrame();
-    statusBar()->showMessage(detail.isEmpty() ? tr("Local Blur cancelled") : detail, 3000);
+    statusBar()->showMessage(detail.isEmpty() ? i18n::text("main.window.blur.local.blur.cancelled") : detail, 3000);
 }
 }

@@ -550,6 +550,26 @@ void inputMethodReplacementNeverSplitsScalars()
     CHECK(f.errors.empty());
 }
 
+void cjkComposition()
+{
+    for (const auto& value : {QString::fromUtf8("中文"), QString::fromUtf8("日本語"), QString::fromUtf8("한국어")}) {
+        Fixture f;
+        f.add(text(bytes(u8"A😀B")));
+        f.begin(); f.key(Qt::Key_Home, Qt::ControlModifier); f.key(Qt::Key_Right); f.key(Qt::Key_Right);
+        const auto original = f.content();
+        f.preedit(value, {{QInputMethodEvent::Cursor, 1, 1, {}}});
+        CHECK(f.controller->composing());
+        CHECK(f.content() == original && f.session.history().undoDepth() == 0);
+        const auto candidate = f.query(Qt::ImCursorRectangle).toRectF();
+        CHECK(candidate.isValid() && std::isfinite(candidate.x()) && std::isfinite(candidate.y()));
+        f.commit(value, -2, 2);
+        CHECK(!f.controller->composing());
+        CHECK(QString::fromUtf8(f.content().utf8) == "A" + value + "B");
+        f.controller->history(false); CHECK(f.content() == original);
+        f.controller->history(true); CHECK(QString::fromUtf8(f.content().utf8) == "A" + value + "B");
+    }
+}
+
 void transformedTargetingAndOverlayCacheReuse()
 {
     Fixture f;
@@ -1277,6 +1297,7 @@ int main(int argc, char** argv)
         unicodeClipboardAndInputOwnership();
         compositionQueriesAndFocusLoss();
         inputMethodReplacementNeverSplitsScalars();
+        cjkComposition();
         transformedTargetingAndOverlayCacheReuse();
         documentGridCacheTracksTransformAndFilterSource();
         editOnlyClickMarginAndOutsideCompletion();

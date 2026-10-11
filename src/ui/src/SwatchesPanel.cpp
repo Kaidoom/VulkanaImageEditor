@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/SwatchesPanel.hpp"
 #include "imageeditor/ui/PopupOwnership.hpp"
 #include "imageeditor/ui/ToolIcons.hpp"
@@ -145,24 +146,24 @@ SwatchesPanel::SwatchesPanel(QWidget* parent) : QWidget(parent)
     auto* body = new QWidget;
     auto* content = new QVBoxLayout(body);
     content->setContentsMargins(12, 12, 12, 12);
-    content->addWidget(new QLabel(tr("Swatches"), body));
+    content->addWidget(i18n::make<QLabel>(i18n::text("swatches.panel.swatches"), body));
     defaults_ = new SwatchGrid(body);
     defaults_->setObjectName(QStringLiteral("DefaultColorSwatches"));
-    defaults_->setAccessibleName(tr("Default color swatches"));
+    i18n::setAccessibleName(defaults_, i18n::text("swatches.panel.default.color.swatches"));
     for (const auto rgb : defaultSwatches)
         setSwatchColor(new QListWidgetItem(defaults_), QColor::fromRgba(rgb));
     content->addWidget(defaults_);
 
     auto* customRow = new QHBoxLayout;
     customRow->setSpacing(6);
-    customRow->addWidget(new QLabel(tr("Custom"), body));
+    customRow->addWidget(i18n::make<QLabel>(i18n::text("swatches.panel.custom"), body));
     customRow->addStretch();
     auto* add = new QPushButton(toolGlyph(ToolGlyph::Plus), QString(), body);
     add->setObjectName(QStringLiteral("AddCustomSwatch"));
-    add->setToolTip(tr("Add custom color"));
+    i18n::setToolTip(add, i18n::text("swatches.panel.add.custom.color"));
     delete_ = new QPushButton(toolGlyph(ToolGlyph::Trash), QString(), body);
     delete_->setObjectName(QStringLiteral("DeleteCustomSwatch"));
-    delete_->setToolTip(tr("Delete selected custom color"));
+    i18n::setToolTip(delete_, i18n::text("swatches.panel.delete.selected.custom.color"));
     for (auto* button : {add, delete_}) {
         button->setStyleSheet(QStringLiteral("QPushButton { padding: 0; min-width: 0; min-height: 0; }"));
         button->setFixedSize(28, 26);
@@ -173,7 +174,7 @@ SwatchesPanel::SwatchesPanel(QWidget* parent) : QWidget(parent)
     content->addLayout(customRow);
     custom_ = new SwatchGrid(body);
     custom_->setObjectName(QStringLiteral("CustomColorSwatches"));
-    custom_->setAccessibleName(tr("Custom color swatches"));
+    i18n::setAccessibleName(custom_, i18n::text("swatches.panel.custom.color.swatches"));
     QSettings settings;
     for (const auto& stored : settings.value(customSwatchesKey).toStringList()) {
         const QColor color(stored);
@@ -266,7 +267,7 @@ void SwatchesPanel::editCustomSwatch(int row)
     auto* dialog = new ColorDialog(initial, owner);
     colorDialog_ = dialog;
     dialog->setObjectName(QStringLiteral("CustomSwatchColorDialog"));
-    dialog->setWindowTitle(row >= 0 ? tr("Edit custom color") : tr("Add custom color"));
+    i18n::setWindowTitle(dialog, row >= 0 ? i18n::text("swatches.panel.edit.custom.color") : i18n::text("swatches.panel.add.custom.color"));
     dialog->setOptions(ColorDialog::ShowAlphaChannel | ColorDialog::DontUseNativeDialog);
     dialog->setCurrentColor(initial);
     dialog->setAttribute(Qt::WA_DeleteOnClose);

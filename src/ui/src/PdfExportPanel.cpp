@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/PdfExportPanel.hpp"
 #include "imageeditor/ui/PdfImport.hpp"
 #include "imageeditor/ui/PopupOwnership.hpp"
@@ -92,14 +93,14 @@ PdfExportPanel::PdfExportPanel(PdfExportOptions &options, QWidget *parent,
     return field;
   };
   s.mode = combo("PdfExportMode",
-                 {tr("Single Composite"), tr("Layers as Pages")}, this);
+                 {i18n::text("pdf.export.panel.single.composite"), i18n::text("pdf.export.panel.layers.as.pages")}, this);
   form->addWidget(s.mode);
   s.pageSize =
       combo("PdfExportPageSize",
-            {tr("Canvas page size"), tr("Fit Each Layer / Group")}, this);
+            {i18n::text("pdf.export.panel.canvas.page.size"), i18n::text("pdf.export.panel.fit.each.layer.group")}, this);
   form->addWidget(s.pageSize);
   s.text = combo("PdfExportText",
-                 {tr("Preserve text where possible"), tr("Rasterize all text")},
+                 {i18n::text("pdf.export.panel.preserve.text.where.possible"), i18n::text("pdf.export.panel.rasterize.all.text")},
                  this);
   form->addWidget(s.text);
   auto *density = new QHBoxLayout;
@@ -107,10 +108,10 @@ PdfExportPanel::PdfExportPanel(PdfExportOptions &options, QWidget *parent,
   s.ppi->setObjectName(QStringLiteral("PdfExportPpi"));
   s.ppi->setRange(1, 2400);
   s.ppi->setDecimals(2);
-  s.ppi->setSuffix(tr(" PPI"));
+  i18n::setSuffix(s.ppi, i18n::text("pdf.export.panel.ppi"));
   density->addWidget(s.ppi, 1);
   auto *presets = combo("PdfExportPpiPresets",
-                        {tr("PPI…"), "72", "150", "300", "600"}, this);
+                        {i18n::text("pdf.export.panel.ppi.2"), "72", "150", "300", "600"}, this);
   density->addWidget(presets);
   form->addLayout(density);
   connect(presets, &QComboBox::activated, this, [&s, presets](int index) {
@@ -119,24 +120,20 @@ PdfExportPanel::PdfExportPanel(PdfExportOptions &options, QWidget *parent,
       presets->setCurrentIndex(0);
     }
   });
-  s.hidden = new QCheckBox(tr("Ignore Hidden Layers"), this);
+  s.hidden = i18n::make<QCheckBox>(i18n::text("pdf.export.panel.ignore.hidden.layers"), this);
   s.hidden->setObjectName(QStringLiteral("PdfExportIgnoreHidden"));
   form->addWidget(s.hidden);
-  s.reverse = new QCheckBox(tr("Reverse Order"), this);
+  s.reverse = i18n::make<QCheckBox>(i18n::text("pdf.export.panel.reverse.order"), this);
   s.reverse->setObjectName(QStringLiteral("PdfExportReverse"));
   form->addWidget(s.reverse);
-  s.matte = new QCheckBox(tr("Replace Transparency with Color"), this);
+  s.matte = i18n::make<QCheckBox>(i18n::text("pdf.export.panel.replace.transparency.with.color"), this);
   s.matte->setObjectName(QStringLiteral("PdfExportMatte"));
   form->addWidget(s.matte);
   s.color = new QPushButton(this);
   s.color->setAutoDefault(false);
   s.color->setObjectName(QStringLiteral("PdfExportMatteColor"));
   form->addWidget(s.color);
-  auto *help = new QLabel(
-      tr("Pages are independent composites over transparency. Raster images "
-         "and supported text only; no editable PDF layers. PPI changes raster "
-         "detail, not physical page size."),
-      this);
+  auto *help = i18n::make<QLabel>(i18n::text("pdf.export.panel.pages.are.independent.composites.over.transparency.raster.images.and"), this);
   help->setWordWrap(true);
   help->setObjectName(QStringLiteral("MutedLabel"));
   form->addWidget(help);
@@ -144,7 +141,7 @@ PdfExportPanel::PdfExportPanel(PdfExportOptions &options, QWidget *parent,
   s.summary->setObjectName(QStringLiteral("PdfExportSummary"));
   s.summary->setWordWrap(true);
   form->addWidget(s.summary);
-  auto *details = new QPushButton(tr("Text details"), this);
+  auto *details = i18n::make<QPushButton>(i18n::text("pdf.export.panel.text.details"), this);
   details->setObjectName(QStringLiteral("PdfExportTextDetails"));
   details->setAutoDefault(false);
   details->setCheckable(true);
@@ -164,14 +161,13 @@ PdfExportPanel::PdfExportPanel(PdfExportOptions &options, QWidget *parent,
   auto *selectRow = new QHBoxLayout;
   s.selection = combo(
       "PdfExportSelection",
-      {tr("All items"), tr("Current layer selection"), tr("Custom selection")},
+      {i18n::text("pdf.export.panel.all.items"), i18n::text("pdf.export.panel.current.layer.selection"), i18n::text("pdf.export.panel.custom.selection")},
       s.items);
   selectRow->addWidget(s.selection);
   s.range = new QLineEdit(s.items);
   s.range->setObjectName(QStringLiteral("PdfExportRange"));
-  s.range->setPlaceholderText(tr("1-3, 6, 9-12"));
-  s.range->setToolTip(
-      tr("Stable source-entry numbers, before hidden filtering or reversal"));
+  i18n::setPlaceholderText(s.range, i18n::text("pdf.export.panel.1.3.6.9.12"));
+  i18n::setToolTip(s.range, i18n::text("pdf.export.panel.stable.source.entry.numbers.before.hidden.filtering.or.reversal"));
   selectRow->addWidget(s.range, 1);
   itemLayout->addLayout(selectRow);
   s.list = new QListWidget(s.items);
@@ -227,7 +223,7 @@ PdfExportPanel::PdfExportPanel(PdfExportOptions &options, QWidget *parent,
   connect(s.color, &QPushButton::clicked, this, [this, &s] {
     const auto color = ColorDialog::getColor(
         s.options.matteColor, popupTopLevelOwner(this),
-        tr("PDF background color"), ColorDialog::DontUseNativeDialog);
+        i18n::text("pdf.export.panel.pdf.background.color"), ColorDialog::DontUseNativeDialog);
     if (color.isValid()) {
       s.options.matteColor = color;
       s.options.matteColor.setAlpha(255);
@@ -305,8 +301,8 @@ void PdfExportPanel::setSource(const PdfExportSnapshot &source) {
     auto *item = new QListWidgetItem(
         QStringLiteral("%1 · %2%3\n%4")
             .arg(entry.number)
-            .arg(entry.name, entry.visible ? QString() : tr(" (hidden)"),
-                 entry.folder.isEmpty() ? tr("Document") : entry.folder),
+            .arg(entry.name, entry.visible ? QString() : i18n::text("pdf.export.panel.hidden"),
+                 entry.folder.isEmpty() ? i18n::text("pdf.export.panel.document") : entry.folder),
         s.list);
     item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
     item->setData(Qt::UserRole, QVariant::fromValue<qulonglong>(entry.id));
@@ -352,7 +348,7 @@ void PdfExportPanel::setPlan(const PdfExportPlan &plan) {
   QStringList reasons;
   for (std::size_t i = 0; i < plan.pages.size(); ++i) {
     const auto &p = plan.pages[i];
-    s.page->addItem(tr("Page %1 · %2 · %3 × %4 px")
+    i18n::addItem(s.page, i18n::text("pdf.export.panel.page.1.2.3.4.px")
                         .arg(i + 1)
                         .arg(p.name)
                         .arg(p.pixels.width())
@@ -362,19 +358,15 @@ void PdfExportPanel::setPlan(const PdfExportPlan &plan) {
   s.page->setCurrentIndex(
       std::clamp(selected, 0, std::max(0, s.page->count() - 1)));
   s.updating = false;
-  s.summary->setText(
-      tr("%1 page(s) · %2 MiB raster data\nEstimated peak working memory: %3 "
-         "MiB\nText: %4 preserved / %5 rasterized")
+  i18n::setText(s.summary, i18n::text("pdf.export.panel.1.page.s.2.mib.raster.data.estimated.peak")
           .arg(plan.pages.size())
           .arg(double(plan.rasterBytes) / (1024 * 1024), 0, 'f', 1)
           .arg(double(plan.peakWorkingBytes) / (1024 * 1024), 0, 'f', 0)
           .arg(plan.preserved)
           .arg(plan.rasterized));
   reasons.removeDuplicates();
-  s.reasons->setText(
-      reasons.isEmpty()
-          ? tr("Eligible text uses its resolved fonts and existing layout. "
-               "Imported PDF page images remain images.")
+  i18n::setText(s.reasons, reasons.isEmpty()
+          ? i18n::text("pdf.export.panel.eligible.text.uses.its.resolved.fonts.and.existing.layout")
           : reasons.join('\n'));
 }
 int PdfExportPanel::previewPage() const {

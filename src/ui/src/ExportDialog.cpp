@@ -1,3 +1,5 @@
+#include "imageeditor/ui/Localization.hpp"
+#include "imageeditor/ui/PsdReviewText.hpp"
 #include "imageeditor/ui/ExportDialog.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
 #include "imageeditor/ui/Theme.hpp"
@@ -92,7 +94,7 @@ namespace {
             setAttribute(Qt::WA_OpaquePaintEvent);
         }
         QImage decoded;
-        QString placeholder{tr("The encoded image preview will appear here.")};
+        QString placeholder{i18n::text("export.dialog.the.encoded.image.preview.will.appear.here")};
         bool fit { true };
 
     protected:
@@ -276,13 +278,13 @@ struct ExportDialog::Impl {
         draft.jpegMatteColor.setAlpha(255);
         ratio = double(draft.size.width()) / draft.size.height();
     }
-    CompactValueControl* number(QWidget* parent, const char* name, const QString& label, double minimum,
+    CompactValueControl* number(QWidget* parent, const char* name, const i18n::Message& label, double minimum,
         double maximum, double initial, int decimals = 0)
     {
         auto* field = new CompactValueControl(parent);
         field->setObjectName(QString::fromLatin1(name));
-        field->setAccessibleName(label);
-        field->setPrefix(label + QStringLiteral(": "));
+        i18n::setAccessibleName(field, label);
+        i18n::setPrefix(field, label + QStringLiteral(": "));
         field->setDecimals(decimals);
         field->setRange(minimum, maximum);
         field->setSingleStep(1);
@@ -290,7 +292,7 @@ struct ExportDialog::Impl {
         field->setMinimumHeight(32);
         return field;
     }
-    ToolOptionsNumber* editableNumber(QWidget* parent, const char* name, const QString& label, double minimum,
+    ToolOptionsNumber* editableNumber(QWidget* parent, const char* name, const i18n::Message& label, double minimum,
         double maximum, double initial, int decimals = 0)
     {
         // Same direct-entry/hold-to-step control as New Document. Keyboard
@@ -298,8 +300,8 @@ struct ExportDialog::Impl {
         // input, resize its paired dimension, or launch expensive previews.
         auto* field = new ToolOptionsNumber(parent);
         field->setObjectName(QString::fromLatin1(name));
-        field->setAccessibleName(label);
-        field->setPrefix(label + QStringLiteral(": "));
+        i18n::setAccessibleName(field, label);
+        i18n::setPrefix(field, label + QStringLiteral(": "));
         field->setDecimals(decimals);
         field->setRange(minimum, maximum);
         field->setValue(initial);
@@ -314,7 +316,7 @@ struct ExportDialog::Impl {
         exportedPath.clear();
         location->hide();
         status->setForegroundRole(QPalette::Text);
-        status->setText(owner.tr("Updating encoded preview…"));
+        i18n::setText(status, i18n::text("export.dialog.updating.encoded.preview"));
         updatePath();
         if (owner.onSettingsChanged)
             owner.onSettingsChanged();
@@ -322,8 +324,8 @@ struct ExportDialog::Impl {
     void updatePath()
     {
         const auto proposed = exportPathForFormat(draft.destination, draft.format);
-        const auto text = proposed.isEmpty() ? owner.tr("Choose a destination for the exported image.")
-                                             : owner.tr("Output: %1").arg(QDir::toNativeSeparators(proposed));
+        const auto text = proposed.isEmpty() ? i18n::text("export.dialog.choose.a.destination.for.the.exported.image")
+                                             : i18n::text("export.dialog.output.1").arg(QDir::toNativeSeparators(proposed));
         proposedPath->setText(text);
         proposedPath->setToolTip(text);
     }
@@ -335,10 +337,10 @@ struct ExportDialog::Impl {
         scale->setValue(100.0 * draft.size.width() / canvas.width());
         const double x = double(draft.size.width()) / canvas.width();
         const double y = double(draft.size.height()) / canvas.height();
-        dimensionsHint->setText(owner.tr("Original: %1 × %2 px%3")
+        i18n::setText(dimensionsHint, i18n::text("export.dialog.original.1.2.px.3")
                 .arg(canvas.width())
                 .arg(canvas.height())
-                .arg(std::abs(x - y) > .001 ? owner.tr(" · custom proportions") : QString()));
+                .arg(std::abs(x - y) > .001 ? i18n::text("export.dialog.custom.proportions") : QString()));
     }
     void updateFormat()
     {
@@ -352,11 +354,11 @@ struct ExportDialog::Impl {
         psdOptions->setVisible(isPsd);
         psdPreview->setVisible(isPsd);
         preview->setPlaceholder(isPsd && !psdPreview->isChecked()
-            ? owner.tr("Preview disabled.") : owner.tr("The preview will appear here."));
-        previewTitle->setText(isPdf?owner.tr("Page preview"):isPsd?owner.tr("Composite preview"):owner.tr("Encoded preview"));
-        previewHint->setText(isPdf?owner.tr("Canonical page preview · checkerboard is never exported. PDF viewers may rasterize text edges differently.")
-            :isPsd?owner.tr("Composite preview · Checkerboard is not exported.")
-            :owner.tr("Decoded from the encoded file · checkerboard is preview-only."));
+            ? i18n::text("export.dialog.preview.disabled") : i18n::text("export.dialog.the.preview.will.appear.here"));
+        i18n::setText(previewTitle, isPdf?i18n::text("export.dialog.page.preview"):isPsd?i18n::text("export.dialog.composite.preview"):i18n::text("export.dialog.encoded.preview"));
+        i18n::setText(previewHint, isPdf?i18n::text("export.dialog.canonical.page.preview.checkerboard.is.never.exported.pdf.viewers")
+            :isPsd?i18n::text("export.dialog.composite.preview.checkerboard.is.not.exported")
+            :i18n::text("export.dialog.decoded.from.the.encoded.file.checkerboard.is.preview.only"));
     }
     void setBusy(bool isWriting, bool previewReady = false)
     {
@@ -408,7 +410,7 @@ struct ExportDialog::Impl {
             host = host->parentWidget();
         ColorDialog picker(png ? draft.pngMatteColor : draft.jpegMatteColor, host);
         picker.setObjectName(QStringLiteral("ExportMatteDialog"));
-        picker.setWindowTitle(owner.tr("Export background color"));
+        i18n::setWindowTitle(&picker, i18n::text("export.dialog.export.background.color"));
         picker.setOption(ColorDialog::DontUseNativeDialog);
         if (picker.exec() != QDialog::Accepted || !picker.selectedColor().isValid())
             return;
@@ -428,7 +430,7 @@ ExportDialog::ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* pa
 {
     auto& d = *impl_;
     setObjectName(QStringLiteral("ExportDialog"));
-    setWindowTitle(tr("Export"));
+    i18n::setWindowTitle(this, i18n::text("export.dialog.export"));
     if (parent)
         setAttribute(Qt::WA_ShowWithoutActivating);
     setSizeGripEnabled(false);
@@ -443,14 +445,14 @@ ExportDialog::ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* pa
         toolGlyph(ToolGlyph::ExternalLink, themeColor(ThemeColor::Accent)))
         .pixmap(QSize(20, 20), devicePixelRatioF()));
     header->addWidget(icon);
-    auto* title = new QLabel(tr("Export"), this);
+    auto* title = i18n::make<QLabel>(i18n::text("export.dialog.export"), this);
     title->setObjectName(QStringLiteral("ToolTitle"));
     header->addWidget(title);
     header->addStretch();
     auto* close = new QPushButton(toolGlyph(ToolGlyph::Close, themeColor(ThemeColor::SecondaryText)), {}, this);
     close->setObjectName(QStringLiteral("ExportHeaderClose"));
-    close->setAccessibleName(tr("Close Export"));
-    close->setToolTip(tr("Close"));
+    i18n::setAccessibleName(close, i18n::text("export.dialog.close.export"));
+    i18n::setToolTip(close, i18n::text("export.dialog.close"));
     close->setAutoDefault(false);
     close->setFixedSize(30, 30);
     close->setIconSize({18, 18});
@@ -469,18 +471,18 @@ ExportDialog::ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* pa
     fileRow->setSpacing(8);
     d.format = new ExportCombo(d.controls);
     d.format->setObjectName(QStringLiteral("ExportFormat"));
-    d.format->setAccessibleName(tr("Export format"));
-    d.format->addItems({ tr("PNG"), tr("JPEG"), tr("WebP"), tr("PDF"), tr("PSD") });
+    i18n::setAccessibleName(d.format, i18n::text("export.dialog.export.format"));
+    i18n::addItems(d.format, { i18n::text("export.dialog.png"), i18n::text("export.dialog.jpeg"), i18n::text("export.dialog.webp"), i18n::text("export.dialog.pdf"), i18n::text("export.dialog.psd") });
     d.format->setCurrentIndex(int(d.draft.format));
     d.format->setMinimumWidth(115);
     fileRow->addWidget(d.format);
     d.destination = new QLineEdit(d.draft.destination, d.controls);
     d.destination->setObjectName(QStringLiteral("ExportDestination"));
-    d.destination->setAccessibleName(tr("Destination"));
-    d.destination->setPlaceholderText(tr("Choose an export destination…"));
+    i18n::setAccessibleName(d.destination, i18n::text("export.dialog.destination"));
+    i18n::setPlaceholderText(d.destination, i18n::text("export.dialog.choose.an.export.destination"));
     d.destination->setMinimumWidth(0);
     fileRow->addWidget(d.destination, 1);
-    auto* browse = new QPushButton(tr("Browse…"), d.controls);
+    auto* browse = i18n::make<QPushButton>(i18n::text("export.dialog.browse"), d.controls);
     browse->setObjectName(QStringLiteral("ExportBrowse"));
     browse->setAutoDefault(false);
     fileRow->addWidget(browse);
@@ -512,31 +514,28 @@ ExportDialog::ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* pa
     form->setContentsMargins(0, 0, 8, 0);
     form->setSpacing(10);
     settingsScroll->setWidget(settings);
-    auto* sizeTitle = new QLabel(tr("Output size"), settings);
+    auto* sizeTitle = i18n::make<QLabel>(i18n::text("export.dialog.output.size"), settings);
     sizeTitle->setObjectName(QStringLiteral("SectionLabel"));
     form->addWidget(sizeTitle);
     d.width = d.editableNumber(
-        settings, "ExportWidth", tr("Width"), 1, kMaximumExportDimension, d.draft.size.width());
+        settings, "ExportWidth", i18n::text("export.dialog.width"), 1, kMaximumExportDimension, d.draft.size.width());
     d.height = d.editableNumber(
-        settings, "ExportHeight", tr("Height"), 1, kMaximumExportDimension, d.draft.size.height());
-    d.width->setSuffix(tr(" px"));
-    d.height->setSuffix(tr(" px"));
+        settings, "ExportHeight", i18n::text("export.dialog.height"), 1, kMaximumExportDimension, d.draft.size.height());
+    i18n::setSuffix(d.width, i18n::text("export.dialog.px"));
+    i18n::setSuffix(d.height, i18n::text("export.dialog.px"));
     for (auto* field : { d.width, d.height })
-        field->setToolTip(tr("Type an exact pixel dimension. Press Enter or leave the field to apply."));
+        i18n::setToolTip(field, i18n::text("export.dialog.type.an.exact.pixel.dimension.press.enter.or.leave"));
     form->addWidget(d.width);
     form->addWidget(d.height);
     auto* scaleRow = new QHBoxLayout;
     scaleRow->setSpacing(8);
-    d.scale = d.editableNumber(settings, "ExportScale", tr("Scale"), .01,
+    d.scale = d.editableNumber(settings, "ExportScale", i18n::text("export.dialog.scale"), .01,
         100.0 * kMaximumExportDimension / std::max(d.canvas.width(), d.canvas.height()), 100, 2);
     d.scale->setSuffix(QStringLiteral("%"));
-    d.scale->setToolTip(tr("Type a percentage and press Enter or leave the field to apply. "
-                           "Scale both original document dimensions together. "
-                           "Unlock aspect and edit Width/Height for custom proportions."));
+    i18n::setToolTip(d.scale, i18n::text("export.dialog.type.a.percentage.and.press.enter.or.leave.the"));
     scaleRow->addWidget(d.scale, 1);
-    d.aspect = new ToolOptionsButton(QStringLiteral("ExportAspectLock"), tr("Lock aspect ratio"),
-        tr("Preserve the current width-to-height "
-           "ratio when editing either dimension"),
+    d.aspect = new ToolOptionsButton(QStringLiteral("ExportAspectLock"), i18n::text("export.dialog.lock.aspect.ratio"),
+        i18n::text("export.dialog.preserve.the.current.width.to.height.ratio.when.editing"),
         ToolOptionsButton::Kind::Toggle, settings, ToolOptionsButton::Presentation::Icon);
     d.aspect->setIcon(toolGlyph(ToolGlyph::AspectLock));
     d.aspect->setChecked(d.draft.aspectLocked);
@@ -548,7 +547,7 @@ ExportDialog::ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* pa
     d.dimensionsHint->setWordWrap(true);
     form->addWidget(d.dimensionsHint);
     d.sizeControls={sizeTitle,d.width,d.height,d.scale,d.aspect,d.dimensionsHint};
-    auto* optionsTitle = new QLabel(tr("Format options"), settings);
+    auto* optionsTitle = i18n::make<QLabel>(i18n::text("export.dialog.format.options"), settings);
     optionsTitle->setObjectName(QStringLiteral("SectionLabel"));
     form->addWidget(optionsTitle);
     d.options = new QStackedWidget(settings);
@@ -562,60 +561,53 @@ ExportDialog::ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* pa
         d.options->addWidget(widget);
         return std::pair(widget, layout);
     };
-    const auto help = [&](QVBoxLayout* layout, const QString& text) {
-        auto* label = new QLabel(text, settings);
+    const auto help = [&](QVBoxLayout* layout, const i18n::Message& text) {
+        auto* label = i18n::make<QLabel>(text, settings);
         label->setWordWrap(true);
         label->setObjectName(QStringLiteral("MutedLabel"));
         layout->addWidget(label);
     };
     const auto [png, pngLayout] = page();
-    d.pngEffort = d.number(png, "ExportPngEffort", tr("Compression effort"), 0, 9, d.draft.pngEffort);
+    d.pngEffort = d.number(png, "ExportPngEffort", i18n::text("export.dialog.compression.effort"), 0, 9, d.draft.pngEffort);
     pngLayout->addWidget(d.pngEffort);
-    d.pngFlatten = new QCheckBox(tr("Flatten transparency over a color"), png);
+    d.pngFlatten = i18n::make<QCheckBox>(i18n::text("export.dialog.flatten.transparency.over.a.color"), png);
     d.pngFlatten->setObjectName(QStringLiteral("ExportPngMatte"));
     d.pngFlatten->setChecked(d.draft.pngMatte);
     pngLayout->addWidget(d.pngFlatten);
     d.pngColor = new MatteButton(png);
     d.pngColor->setObjectName(QStringLiteral("ExportPngMatteColor"));
-    d.pngColor->setAccessibleName(tr("PNG background color"));
+    i18n::setAccessibleName(d.pngColor, i18n::text("export.dialog.png.background.color"));
     d.pngColor->color = d.draft.pngMatteColor;
     d.pngColor->setEnabled(d.draft.pngMatte);
     pngLayout->addWidget(d.pngColor);
     help(pngLayout,
-        tr("Lossless RGB/RGBA · transparency is preserved unless "
-           "flattened. Compression changes encoding "
-           "effort and file size, never visual quality."));
+        i18n::text("export.dialog.lossless.rgb.rgba.transparency.is.preserved.unless.flattened.compression"));
     pngLayout->addStretch();
     const auto [jpeg, jpegLayout] = page();
-    d.jpegQuality = d.number(jpeg, "ExportJpegQuality", tr("Quality"), 1, 100, d.draft.jpegQuality);
+    d.jpegQuality = d.number(jpeg, "ExportJpegQuality", i18n::text("export.dialog.quality"), 1, 100, d.draft.jpegQuality);
     jpegLayout->addWidget(d.jpegQuality);
     d.jpegColor = new MatteButton(jpeg);
     d.jpegColor->setObjectName(QStringLiteral("ExportJpegMatteColor"));
-    d.jpegColor->setAccessibleName(tr("JPEG matte color"));
+    i18n::setAccessibleName(d.jpegColor, i18n::text("export.dialog.jpeg.matte.color"));
     d.jpegColor->color = d.draft.jpegMatteColor;
     jpegLayout->addWidget(d.jpegColor);
     help(jpegLayout,
-        tr("JPEG has no transparency. The finished document is "
-           "flattened over this color. Inspect colored "
-           "edges at 100%. Quality 91–100 uses 4:4:4 color; lower "
-           "values use 4:2:0. Maximum quality is still lossy."));
+        i18n::text("export.dialog.jpeg.has.no.transparency.the.finished.document.is.flattened"));
     jpegLayout->addStretch();
     const auto [webp, webpLayout] = page();
     d.webpMode = new ExportCombo(webp);
     d.webpMode->setObjectName(QStringLiteral("ExportWebpMode"));
-    d.webpMode->setAccessibleName(tr("WebP compression mode"));
-    d.webpMode->addItems({ tr("Lossy"), tr("Lossless") });
+    i18n::setAccessibleName(d.webpMode, i18n::text("export.dialog.webp.compression.mode"));
+    i18n::addItems(d.webpMode, { i18n::text("export.dialog.lossy"), i18n::text("export.dialog.lossless") });
     d.webpMode->setCurrentIndex(d.draft.webpLossless ? 1 : 0);
     webpLayout->addWidget(d.webpMode);
-    d.webpQuality = d.number(webp, "ExportWebpQuality", tr("Quality"), 0, 100, d.draft.webpQuality);
+    d.webpQuality = d.number(webp, "ExportWebpQuality", i18n::text("export.dialog.quality"), 0, 100, d.draft.webpQuality);
     d.webpQuality->setEnabled(!d.draft.webpLossless);
     webpLayout->addWidget(d.webpQuality);
-    d.webpEffort = d.number(webp, "ExportWebpEffort", tr("Encoding effort"), 0, 6, d.draft.webpEffort);
+    d.webpEffort = d.number(webp, "ExportWebpEffort", i18n::text("export.dialog.encoding.effort"), 0, 6, d.draft.webpEffort);
     webpLayout->addWidget(d.webpEffort);
     help(webpLayout,
-        tr("Lossless is an explicit encoding mode, not Quality 100. "
-           "Alpha is encoded losslessly. Maximum "
-           "output: 16383 × 16383 px."));
+        i18n::text("export.dialog.lossless.is.an.explicit.encoding.mode.not.quality.100"));
     webpLayout->addStretch();
     d.pdf=new PdfExportPanel(d.draft.pdf,d.options,d.controls);
     d.options->addWidget(d.pdf);
@@ -625,7 +617,7 @@ ExportDialog::ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* pa
     d.psdOptions = new QWidget(d.controls);
     auto* psdOptionsLayout = new QVBoxLayout(d.psdOptions);
     psdOptionsLayout->setContentsMargins(0, 0, 0, 0);
-    auto* psdOptionsTitle = new QLabel(tr("Format options"), d.psdOptions);
+    auto* psdOptionsTitle = i18n::make<QLabel>(i18n::text("export.dialog.format.options"), d.psdOptions);
     psdOptionsTitle->setObjectName(QStringLiteral("SectionLabel"));
     psdOptionsLayout->addWidget(psdOptionsTitle);
     d.psd=new PsdExportPanel(d.draft.psd,d.psdOptions,d.controls);
@@ -639,21 +631,20 @@ ExportDialog::ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* pa
     body->addLayout(previewColumn, 2);
     previewColumn->addWidget(d.pdf->itemsWidget());
     auto* previewHeader = new QHBoxLayout;
-    auto* previewTitle = new QLabel(tr("Encoded preview"), d.controls);
+    auto* previewTitle = i18n::make<QLabel>(i18n::text("export.dialog.encoded.preview"), d.controls);
     previewTitle->setObjectName(QStringLiteral("SectionLabel"));
     d.previewTitle=previewTitle;
     previewHeader->addWidget(previewTitle);
     previewHeader->addStretch();
-    d.psdPreview = new QCheckBox(tr("Enable preview"), d.controls);
+    d.psdPreview = i18n::make<QCheckBox>(i18n::text("export.dialog.enable.preview"), d.controls);
     d.psdPreview->setObjectName(QStringLiteral("PsdExportPreview"));
     d.psdPreview->setChecked(true);
     previewHeader->addWidget(d.psdPreview);
-    auto* fit = new ToolOptionsButton(QStringLiteral("ExportPreviewFit"), tr("Fit"),
-        tr("Fit the encoded result in the preview without enlarging it"), ToolOptionsButton::Kind::Toggle,
+    auto* fit = new ToolOptionsButton(QStringLiteral("ExportPreviewFit"), i18n::text("export.dialog.fit"),
+        i18n::text("export.dialog.fit.the.encoded.result.in.the.preview.without.enlarging"), ToolOptionsButton::Kind::Toggle,
         d.controls);
     auto* actual = new ToolOptionsButton(QStringLiteral("ExportPreview100"), QStringLiteral("100%"),
-        tr("One output pixel per display pixel; use the scroll bars to inspect "
-           "larger images"),
+        i18n::text("export.dialog.one.output.pixel.per.display.pixel.use.the.scroll"),
         ToolOptionsButton::Kind::Toggle, d.controls);
     auto* zoom = new QButtonGroup(this);
     zoom->addButton(fit);
@@ -666,13 +657,13 @@ ExportDialog::ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* pa
     previewColumn->addWidget(d.preview, 1);
     previewColumn->addWidget(d.pdf->navigationWidget());
     auto* previewHint
-        = new QLabel(tr("Decoded from the encoded file · checkerboard is preview-only."), d.controls);
+        = i18n::make<QLabel>(i18n::text("export.dialog.decoded.from.the.encoded.file.checkerboard.is.preview.only"), d.controls);
     previewHint->setObjectName(QStringLiteral("MutedLabel"));
     d.previewHint=previewHint;
     previewHint->setWordWrap(true);
     previewColumn->addWidget(previewHint);
     root->addWidget(d.controls, 1);
-    d.status = new QLabel(tr("Preparing export preview…"), this);
+    d.status = i18n::make<QLabel>(i18n::text("export.dialog.preparing.export.preview"), this);
     d.status->setObjectName(QStringLiteral("ExportStatus"));
     d.status->setTextFormat(Qt::PlainText);
     d.status->setWordWrap(true);
@@ -681,24 +672,23 @@ ExportDialog::ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* pa
     d.status->setTextInteractionFlags(Qt::TextSelectableByMouse);
     root->addWidget(d.status);
     auto* buttons = new QHBoxLayout;
-    d.resetButton = new QPushButton(tr("Reset Settings"), this);
+    d.resetButton = i18n::make<QPushButton>(i18n::text("export.dialog.reset.settings"), this);
     d.resetButton->setObjectName(QStringLiteral("ExportReset"));
     d.resetButton->setAutoDefault(false);
-    d.resetButton->setToolTip(tr("Restore original dimensions (100%), aspect lock, and default encoding "
-                                 "options and background colors. Keep the current format and filename."));
+    i18n::setToolTip(d.resetButton, i18n::text("export.dialog.restore.original.dimensions.100.aspect.lock.and.default.encoding"));
     buttons->addWidget(d.resetButton);
-    d.location = new QPushButton(tr("Open location"), this);
+    d.location = i18n::make<QPushButton>(i18n::text("export.dialog.open.location"), this);
     d.location->setObjectName(QStringLiteral("ExportOpenLocation"));
     d.location->setAutoDefault(false);
     d.location->hide();
     buttons->addWidget(d.location);
     buttons->addStretch();
-    d.cancelButton = new QPushButton(tr("Cancel"), this);
+    d.cancelButton = i18n::make<QPushButton>(i18n::text("export.dialog.cancel"), this);
     d.cancelButton->setObjectName(QStringLiteral("ExportCancel"));
     d.cancelButton->setAutoDefault(false);
-    d.cancelButton->setToolTip(tr("Cancel this export and keep the export panel open."));
+    i18n::setToolTip(d.cancelButton, i18n::text("export.dialog.cancel.this.export.and.keep.the.export.panel.open"));
     d.cancelButton->hide();
-    d.exportButton = new QPushButton(tr("Export"), this);
+    d.exportButton = i18n::make<QPushButton>(i18n::text("export.dialog.export"), this);
     d.exportButton->setObjectName(QStringLiteral("ExportWrite"));
     d.exportButton->setAutoDefault(false);
     d.exportButton->setEnabled(false);
@@ -708,7 +698,7 @@ ExportDialog::ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* pa
     d.pdf->changed=[this]{impl_->notify();};
     d.psd->changed=[this]{impl_->notify();};
     connect(d.psdPreview, &QCheckBox::toggled, this, [this](bool enabled) {
-        impl_->preview->setPlaceholder(enabled ? tr("Preparing preview…") : tr("Preview disabled."));
+        impl_->preview->setPlaceholder(enabled ? i18n::text("export.dialog.preparing.preview") : i18n::text("export.dialog.preview.disabled"));
         if (!enabled) impl_->preview->setImage({});
         impl_->exportButton->setEnabled(false);
         if (onPsdPreviewChanged) onPsdPreviewChanged();
@@ -739,7 +729,7 @@ ExportDialog::ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* pa
         impl_->notify();
     });
     connect(browse, &QPushButton::clicked, this, [this] {
-        const auto path = QFileDialog::getSaveFileName(popupTopLevelOwner(this), tr("Export destination"),
+        const auto path = QFileDialog::getSaveFileName(popupTopLevelOwner(this), i18n::text("export.dialog.export.destination"),
             exportPathForFormat(impl_->draft.destination, impl_->draft.format),
             imageFilter(impl_->draft.format), nullptr, QFileDialog::DontConfirmOverwrite);
         if (!path.isEmpty())
@@ -901,8 +891,8 @@ void ExportDialog::setPreview(const QImage& decoded, qint64 actualBytes)
     impl_->setBusy(false, ready);
     impl_->preview->setImage(decoded);
     impl_->status->setForegroundRole(QPalette::Text);
-    impl_->status->setText(!ready ? tr("No current encoded preview is available.")
-                                  : tr("%1 × %2 px · actual encoded size: %3")
+    i18n::setText(impl_->status, !ready ? i18n::text("export.dialog.no.current.encoded.preview.is.available")
+                                  : i18n::text("export.dialog.1.2.px.actual.encoded.size.3")
                                         .arg(decoded.width())
                                         .arg(decoded.height())
                                         .arg(bytesLabel(actualBytes)));
@@ -917,7 +907,7 @@ void ExportDialog::setCancelled(bool previewReady)
 {
     impl_->setBusy(false, previewReady);
     impl_->status->setForegroundRole(QPalette::Text);
-    impl_->status->setText(tr("Export cancelled. You can adjust the settings and try again."));
+    i18n::setText(impl_->status, i18n::text("export.dialog.export.cancelled.you.can.adjust.the.settings.and.try"));
 }
 void ExportDialog::configurePdf(const PdfExportSnapshot& source){impl_->pdf->setSource(source);}
 void ExportDialog::setPdfPlan(const PdfExportPlan& plan){impl_->pdfPages=int(plan.pages.size());impl_->pdf->setPlan(plan);}
@@ -925,12 +915,12 @@ void ExportDialog::setPsdPlan(const PsdExportPlan& plan,const QImage& image)
 {
     impl_->psd->setPlan(plan);
     impl_->preview->setImage(psdPreviewEnabled() ? image : QImage{});
-    if(!plan){setError(plan.error);return;}
+    if(!plan){setError(plan.error);i18n::setText(impl_->status, i18n::psdExportProblem(plan));return;}
     const auto error=validateExportDestination(impl_->draft.destination);
     if(!error.isEmpty()){setError(error);return;}
     impl_->setBusy(false,!psdPreviewEnabled() || !image.isNull());
     impl_->status->setForegroundRole(QPalette::Text);
-    impl_->status->setText(tr("PSD · %1 × %2 px").arg(impl_->canvas.width()).arg(impl_->canvas.height()));
+    i18n::setText(impl_->status, i18n::text("export.dialog.psd.1.2.px").arg(impl_->canvas.width()).arg(impl_->canvas.height()));
 }
 bool ExportDialog::psdPreviewEnabled() const { return impl_->psdPreview->isChecked(); }
 int ExportDialog::pdfPreviewPage()const{return impl_->pdf->previewPage();}
@@ -945,9 +935,9 @@ void ExportDialog::setPdfPreview(const PdfExportPlan& plan,int page,const QImage
     const auto& p=plan.pages[std::size_t(page)];
     impl_->setBusy(false,pdfInputError().isEmpty());impl_->preview->setImage(image);
     impl_->status->setForegroundRole(QPalette::Text);
-    impl_->status->setText(tr("Page %1 of %2 · %3 × %4 pt · %5 × %6 px%7")
+    i18n::setText(impl_->status, i18n::text("export.dialog.page.1.of.2.3.4.pt.5.6")
         .arg(page+1).arg(plan.pages.size()).arg(p.points.width(),0,'f',2).arg(p.points.height(),0,'f',2)
-        .arg(p.pixels.width()).arg(p.pixels.height()).arg(p.blankFallback?tr(" · empty bounds: canvas-size blank page"):QString()));
+        .arg(p.pixels.width()).arg(p.pixels.height()).arg(p.blankFallback?i18n::text("export.dialog.empty.bounds.canvas.size.blank.page"):QString()));
 }
 void ExportDialog::setExported(const QString& destination, QSize size, qint64 bytes)
 {
@@ -957,7 +947,7 @@ void ExportDialog::setExported(const QString& destination, QSize size, qint64 by
     impl_->setBusy(false, (pdf||psd||size == impl_->draft.size) && bytes > 0);
     impl_->exportedPath = destination;
     impl_->status->setForegroundRole(QPalette::Text);
-    impl_->status->setText(pdf?tr("Exported %1 · %2 page(s) · %3").arg(QFileInfo(destination).fileName()).arg(impl_->pdfPages).arg(bytesLabel(bytes)):tr("Exported %1 · %2 × %3 px · %4")
+    i18n::setText(impl_->status, pdf?i18n::text("export.dialog.exported.1.2.page.s.3").arg(QFileInfo(destination).fileName()).arg(impl_->pdfPages).arg(bytesLabel(bytes)):i18n::text("export.dialog.exported.1.2.3.px.4")
             .arg(QFileInfo(destination).fileName())
             .arg(size.width())
             .arg(size.height())
@@ -1001,17 +991,17 @@ void ExportDialog::setExported(const QString& destination, QSize size, qint64 by
     icon->setPixmap(toolGlyph(ToolGlyph::CheckCircle, accent).pixmap(QSize(32, 32), devicePixelRatioF()));
     heading->addWidget(icon);
     auto* title = new QLabel(QStringLiteral("<b style=\"color:%1\">%2</b>")
-            .arg(accent.name(), tr("Successfully exported").toHtmlEscaped()));
+            .arg(accent.name(), i18n::text("export.dialog.successfully.exported").toHtmlEscaped()));
     heading->addWidget(title, 1);
     auto* close = new QPushButton(toolGlyph(ToolGlyph::Close), QString(), card);
     close->setObjectName(QStringLiteral("ExportSuccessClose"));
-    close->setToolTip(tr("Close"));
-    close->setAccessibleName(tr("Close export confirmation"));
+    i18n::setToolTip(close, i18n::text("export.dialog.close"));
+    i18n::setAccessibleName(close, i18n::text("export.dialog.close.export.confirmation"));
     close->setAutoDefault(false);
     close->setFixedSize(28, 28);
     heading->addWidget(close);
     content->addLayout(heading);
-    auto* detail = new QLabel(pdf?tr("%1\n%2 page(s) · %3").arg(QFileInfo(destination).fileName()).arg(impl_->pdfPages).arg(bytesLabel(bytes)):tr("%1\n%2 × %3 px · %4")
+    auto* detail = i18n::make<QLabel>(pdf?i18n::text("export.dialog.1.2.page.s.3").arg(QFileInfo(destination).fileName()).arg(impl_->pdfPages).arg(bytesLabel(bytes)):i18n::text("export.dialog.1.2.3.px.4")
             .arg(QFileInfo(destination).fileName())
             .arg(size.width()).arg(size.height()).arg(bytesLabel(bytes)), card);
     detail->setTextFormat(Qt::PlainText);
@@ -1019,10 +1009,10 @@ void ExportDialog::setExported(const QString& destination, QSize size, qint64 by
     detail->setToolTip(QDir::toNativeSeparators(destination));
     content->addWidget(detail);
     auto* buttons = new QHBoxLayout;
-    auto* openImage = new QPushButton(pdf?tr("Open PDF"):psd?tr("Open PSD"):tr("Open image"), card);
+    auto* openImage = i18n::make<QPushButton>(pdf?i18n::text("export.dialog.open.pdf"):psd?i18n::text("export.dialog.open.psd"):i18n::text("export.dialog.open.image"), card);
     openImage->setObjectName(QStringLiteral("ExportSuccessOpenImage"));
     openImage->setAutoDefault(false);
-    auto* browse = new QPushButton(tr("Browse location"), card);
+    auto* browse = i18n::make<QPushButton>(i18n::text("export.dialog.browse.location"), card);
     browse->setObjectName(QStringLiteral("ExportSuccessBrowse"));
     browse->setAutoDefault(false);
     buttons->addWidget(openImage);
@@ -1071,7 +1061,7 @@ void ExportDialog::openExportedLocation(bool image)
     // the activation parent. QUrl handles spaces and non-ASCII filenames.
     QTimer::singleShot(0, this, [this, path] {
         if (!QFileInfo::exists(path) || !QDesktopServices::openUrl(QUrl::fromLocalFile(path)))
-            impl_->status->setText(tr("Export succeeded. Could not open %1.")
+            i18n::setText(impl_->status, i18n::text("export.dialog.export.succeeded.could.not.open.1")
                                       .arg(QDir::toNativeSeparators(path)));
     });
 }

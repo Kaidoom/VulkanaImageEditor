@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/ColorDialog.hpp"
 #include "imageeditor/ui/ColorPicker.hpp"
 #include "imageeditor/ui/ToolIcons.hpp"
@@ -33,7 +34,7 @@ class ColorPreview final : public QWidget {
 public:
     ColorPreview(ColorDialog& dialog, QColor initial) : QWidget(&dialog), dialog_(dialog), initial_(initial) {
         setMinimumHeight(26); setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        setToolTip(tr("Original color / New color"));
+        i18n::setToolTip(this, i18n::text("color.dialog.original.color.new.color"));
     }
 protected:
     void paintEvent(QPaintEvent*) override {
@@ -66,7 +67,7 @@ public:
             auto sender = bus.baseService(); sender.remove(0, 1); sender.replace('.', '_');
             const auto token = "vulkana_color_" + QUuid::createUuid().toString(QUuid::Id128);
             path_ = "/org/freedesktop/portal/desktop/request/" + sender + '/' + token;
-            if (!bus.isConnected() || !subscribe()) { stop(); emit finished({}, tr("Desktop color picking is unavailable.")); return; }
+            if (!bus.isConnected() || !subscribe()) { stop(); emit finished({}, i18n::text("color.dialog.desktop.color.picking.is.unavailable")); return; }
             const auto expected = path_;
             auto request = QDBusMessage::createMethodCall("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop",
                                                         "org.freedesktop.portal.Screenshot", "PickColor");
@@ -78,10 +79,10 @@ public:
                 const QDBusPendingReply<QDBusObjectPath> reply = *watcher;
                 watcher->deleteLater();
                 if (path_ != expected) return;
-                if (reply.isError()) { stop(); emit finished({}, tr("Desktop color picking is unavailable.")); return; }
+                if (reply.isError()) { stop(); emit finished({}, i18n::text("color.dialog.desktop.color.picking.is.unavailable")); return; }
                 if (reply.value().path() != path_) {
                     unsubscribe(); path_ = reply.value().path();
-                    if (!subscribe()) { stop(); emit finished({}, tr("Could not start desktop color picking.")); }
+                    if (!subscribe()) { stop(); emit finished({}, i18n::text("color.dialog.could.not.start.desktop.color.picking")); }
                 }
             });
             return;
@@ -135,7 +136,7 @@ protected:
                 const auto image = screen->grabWindow(0, local.x(), local.y(), 1, 1).toImage();
                 if (!image.isNull()) color = image.pixelColor(0, 0);
             }
-            stop(); emit finished(color, color.isValid() ? QString{} : tr("Could not sample this screen."));
+            stop(); emit finished(color, color.isValid() ? QString{} : i18n::text("color.dialog.could.not.sample.this.screen"));
             return true;
         }
         return event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseMove
@@ -148,13 +149,13 @@ private slots:
         unsubscribe(); path_.clear();
         if (result == 1) { emit finished({}, {}); return; }
         const auto color = values.value("color");
-        if (result != 0 || !color.canConvert<QDBusArgument>()) { emit finished({}, tr("Could not sample this screen.")); return; }
+        if (result != 0 || !color.canConvert<QDBusArgument>()) { emit finished({}, i18n::text("color.dialog.could.not.sample.this.screen")); return; }
         const auto argument = color.value<QDBusArgument>();
-        if (argument.currentSignature() != "(ddd)") { emit finished({}, tr("Invalid desktop color response.")); return; }
+        if (argument.currentSignature() != "(ddd)") { emit finished({}, i18n::text("color.dialog.invalid.desktop.color.response")); return; }
         double r = 0, g = 0, b = 0;
         argument.beginStructure(); argument >> r >> g >> b; argument.endStructure();
         if (!std::isfinite(r) || !std::isfinite(g) || !std::isfinite(b) || r < 0 || g < 0 || b < 0 || r > 1 || g > 1 || b > 1) {
-            emit finished({}, tr("Invalid desktop color response.")); return;
+            emit finished({}, i18n::text("color.dialog.invalid.desktop.color.response")); return;
         }
         emit finished(QColor::fromRgbF(float(r), float(g), float(b)), {});
     }
@@ -194,7 +195,7 @@ ColorDialog::ColorDialog(const QColor& color, QWidget* parent) : QDialog(parent,
             setParent(presenter_, Qt::SubWindow);
         }
     }
-    setWindowTitle(tr("Select color"));
+    i18n::setWindowTitle(this, i18n::text("color.dialog.select.color"));
     setSizeGripEnabled(false);
     setFixedSize(360, 470);
     setProperty("workspacePreferredSize", size());
@@ -206,8 +207,8 @@ ColorDialog::ColorDialog(const QColor& color, QWidget* parent) : QDialog(parent,
     connect(this, &QWidget::windowTitleChanged, title, &QLabel::setText);
     header->addWidget(title, 1);
     auto* close = new QPushButton(toolGlyph(ToolGlyph::Close), {}, this);
-    close->setObjectName("ColorDialogClose"); close->setToolTip(tr("Close"));
-    close->setAccessibleName(tr("Close color picker")); close->setAutoDefault(false);
+    close->setObjectName("ColorDialogClose"); i18n::setToolTip(close, i18n::text("color.dialog.close"));
+    i18n::setAccessibleName(close, i18n::text("color.dialog.close.color.picker")); close->setAutoDefault(false);
     close->setStyleSheet("QPushButton { padding: 0; min-width: 26px; max-width: 26px; min-height: 26px; max-height: 26px; background: transparent; }");
     close->setFixedSize(28, 28); close->setIconSize({18, 18});
     connect(close, &QPushButton::clicked, this, &QDialog::reject);
@@ -217,20 +218,20 @@ ColorDialog::ColorDialog(const QColor& color, QWidget* parent) : QDialog(parent,
     auto* row = new QHBoxLayout;
     preview_ = new ColorPreview(*this, color); row->addWidget(preview_, 1);
     screenButton_ = new QPushButton(themedIcon(QStringLiteral(":/theme/eyedropper.svg")), QString(), this);
-    screenButton_->setObjectName("PickScreenColor"); screenButton_->setToolTip(tr("Pick screen color"));
+    screenButton_->setObjectName("PickScreenColor"); i18n::setToolTip(screenButton_, i18n::text("color.dialog.pick.screen.color"));
     screenButton_->setAccessibleName(screenButton_->toolTip());
     screenButton_->setStyleSheet("QPushButton { padding: 0; min-width: 28px; max-width: 28px; min-height: 26px; max-height: 26px; }");
     screenButton_->setFixedSize(30, 28); screenButton_->setIconSize({18, 18});
     screenButton_->setEnabled(QGuiApplication::platformName() != "offscreen" && QGuiApplication::platformName() != "minimal");
     row->addWidget(screenButton_); layout->addLayout(row);
     status_ = new QLabel(this); status_->setWordWrap(true); status_->hide(); layout->addWidget(status_);
-    buttons_ = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this); layout->addWidget(buttons_);
+    buttons_ = new i18n::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this); layout->addWidget(buttons_);
     connect(buttons_, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons_, &QDialogButtonBox::rejected, this, &QDialog::reject);
     picker_->onColorChanged = [this](QColor color) { preview_->update(); emit currentColorChanged(color); };
     auto* screen = new ScreenColorPick(this); screenPicker_ = screen;
     connect(screenButton_, &QPushButton::clicked, this, [this, screen] {
-        screenButton_->setEnabled(false); status_->setText(tr("Select a screen color; Escape cancels.")); status_->show(); screen->start();
+        screenButton_->setEnabled(false); i18n::setText(status_, i18n::text("color.dialog.select.a.screen.color.escape.cancels")); status_->show(); screen->start();
     });
     connect(screen, &ScreenColorPick::finished, this, [this](QColor color, const QString& error) {
         screenButton_->setEnabled(true); status_->setText(error); status_->setVisible(!error.isEmpty());

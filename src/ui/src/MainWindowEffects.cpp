@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/AdjustmentsPanel.hpp"
 #include "imageeditor/ui/EffectsPanel.hpp"
@@ -117,7 +118,7 @@ void MainWindow::previewEffectEdit(core::LayerEffectState state) {
       finishEffectEdit(false);
   } catch (const std::exception &e) {
     statusBar()->showMessage(
-        tr("Effects preview failed: %1").arg(QString::fromUtf8(e.what())),
+        i18n::text("main.window.effects.effects.preview.failed.1").arg(QString::fromUtf8(e.what())),
         6000);
     finishEffectEdit(false);
   }
@@ -139,7 +140,7 @@ void MainWindow::finishEffectEdit(bool commit) {
       synchronizeUi(false, false);
   } catch (const std::exception &e) {
     statusBar()->showMessage(
-        tr("Could not finish effects: %1").arg(QString::fromUtf8(e.what())),
+        i18n::text("main.window.effects.could.not.finish.effects.1").arg(QString::fromUtf8(e.what())),
         6000);
   }
 }
@@ -156,7 +157,7 @@ void MainWindow::chooseEffectColor(core::LayerEffectType type, bool second) {
   ColorDialog dialog(QColor(c.red, c.green, c.blue, c.alpha), &presenter);
   dialog.setOptions(ColorDialog::DontUseNativeDialog |
                     ColorDialog::ShowAlphaChannel);
-  dialog.setWindowTitle(tr("Effect color"));
+  i18n::setWindowTitle(&dialog, i18n::text("main.window.effects.effect.color"));
   connect(&dialog, &ColorDialog::currentColorChanged, this,
           [this, target, type, second, original](QColor color) {
             if (!effectEdit_ || effectEdit_->target() != target)

@@ -1,4 +1,5 @@
 #pragma once
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/Layer.hpp"
 #include <QWidget>
 #include <functional>
@@ -40,18 +41,18 @@ private:
   bool begin();
   void refresh();
   void change(const std::function<void()> &);
-  void number(std::size_t, const QString &, double, double,
+  void number(std::size_t, const char* identity, const i18n::Message &, double, double,
               double core::LayerEffect::*, double factor = 1);
-  CompactValueControl* number(std::size_t, const QString&, double, double,
+  CompactValueControl* number(std::size_t, const char* identity, const i18n::Message&, double, double,
                               std::function<double()>,std::function<void(double)>);
   void bevelPage();
   AdjustmentCurveEditor* contourEditor_{};
   bool glossSelected_{};
   core::EffectContour& selectedContour();
-  QHBoxLayout *choices(std::size_t, const QString &, const QStringList &,
+  QHBoxLayout *choices(std::size_t, const i18n::Message &, const QList<i18n::Message> &,
                        std::function<int()>, std::function<void(int)>,
                        QHBoxLayout *existingRow = nullptr);
-  QHBoxLayout *blendChoices(std::size_t, const QString &,
+  QHBoxLayout *blendChoices(std::size_t, const char* identity, const i18n::Message &,
                            std::function<core::BlendMode()>,
                            std::function<void(core::BlendMode)>);
   void color(std::size_t, bool, QHBoxLayout *);

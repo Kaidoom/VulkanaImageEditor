@@ -1,4 +1,7 @@
 add_library(imageeditor_ui STATIC
+    src/Localization.cpp
+    include/imageeditor/ui/Localization.hpp
+    ${PROJECT_BINARY_DIR}/qrc_localization.cpp
     src/AboutDialog.cpp
     src/FeedbackDialog.cpp
     src/FeedbackService.cpp
@@ -111,6 +114,13 @@ add_library(imageeditor_ui STATIC
 )
 
 set_target_properties(imageeditor_ui PROPERTIES AUTORCC ON)
+add_custom_command(OUTPUT "${PROJECT_BINARY_DIR}/qrc_localization.cpp"
+    COMMAND Qt6::rcc -name localization "${PROJECT_BINARY_DIR}/localization.qrc" -o "${PROJECT_BINARY_DIR}/qrc_localization.cpp"
+    DEPENDS ${_qm_files} "${VULKANA_TRANSLATIONS_DIR}/history-ids.json" "${PROJECT_BINARY_DIR}/localization.qrc" "${PROJECT_SOURCE_DIR}/localization/languages.json" VERBATIM)
+add_dependencies(imageeditor_ui vulkana_language_packs)
+if(IMAGEEDITOR_DEVELOPMENT_RESOURCES)
+    target_compile_definitions(imageeditor_ui PRIVATE VULKANA_DEVELOPMENT_TRANSLATIONS="${VULKANA_TRANSLATIONS_DIR}")
+endif()
 
 target_include_directories(imageeditor_ui
     PUBLIC

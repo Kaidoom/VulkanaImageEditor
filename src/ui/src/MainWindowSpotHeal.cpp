@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/CloningOptionsPage.hpp"
 #include "imageeditor/ui/CrossWindowPointerRouter.hpp"
@@ -57,7 +58,7 @@ bool MainWindow::beginSpotHealStroke(const core::NormalizedPointerSample& sample
     const auto target = session().activeLayer();
     const auto* layer = document && target ? document->layer(*target) : nullptr;
     if (!layer || !std::holds_alternative<core::RasterLayer>(layer->payload)) {
-        statusBar()->showMessage(tr("Spot Heal needs a raster layer. Text and shapes remain editable."), 5000);
+        statusBar()->showMessage(i18n::text("main.window.spot.heal.spot.heal.needs.a.raster.layer.text.and.shapes"), 5000);
         return false;
     }
     if (const auto diagnostic = core::spotHealTargetDiagnostic(*document, *target, cloneSettings_.source);
@@ -66,7 +67,7 @@ bool MainWindow::beginSpotHealStroke(const core::NormalizedPointerSample& sample
         return false;
     }
     if (document->selection() && document->selection()->bounds().empty()) {
-        statusBar()->showMessage(tr("Spot Heal · the active selection is empty."), 4000);
+        statusBar()->showMessage(i18n::text("main.window.spot.heal.spot.heal.the.active.selection.is.empty"), 4000);
         return false;
     }
     const auto unavailable = brushAssets_->unavailableMessage(brushSettings_);
@@ -120,7 +121,7 @@ bool MainWindow::beginSpotHealStroke(const core::NormalizedPointerSample& sample
     if (profileSpotHeal())
         spotHealReferenceCaptureMilliseconds_ = profileMilliseconds(captureStarted, ProfileClock::now());
     if (!reference || cloneCancelRequested_) {
-        statusBar()->showMessage(error.empty() ? tr("Spot Heal capture cancelled")
+        statusBar()->showMessage(error.empty() ? i18n::text("main.window.spot.heal.spot.heal.capture.cancelled")
                                               : QString::fromStdString(error), 6000);
         return false;
     }
@@ -130,12 +131,12 @@ bool MainWindow::beginSpotHealStroke(const core::NormalizedPointerSample& sample
         if (!activeSpotHealStroke_->begin(sample)) {
             const auto detail = QString::fromStdString(activeSpotHealStroke_->diagnostic());
             activeSpotHealStroke_.reset();
-            statusBar()->showMessage(detail.isEmpty() ? tr("Unable to mark a repair at this target scale.") : detail, 6000);
+            statusBar()->showMessage(detail.isEmpty() ? i18n::text("main.window.spot.heal.unable.to.mark.a.repair.at.this.target.scale") : detail, 6000);
             return false;
         }
     } catch (const std::exception& exception) {
         activeSpotHealStroke_.reset();
-        statusBar()->showMessage(tr("Unable to start Spot Heal: %1").arg(QString::fromUtf8(exception.what())), 6000);
+        statusBar()->showMessage(i18n::text("main.window.spot.heal.unable.to.start.spot.heal.1").arg(QString::fromUtf8(exception.what())), 6000);
         return false;
     }
     if (!spotHealTimer_) {
@@ -148,7 +149,7 @@ bool MainWindow::beginSpotHealStroke(const core::NormalizedPointerSample& sample
     if (!activeSpotHealStroke_) return false;
     spotHealTimer_->start();
     updateActionState();
-    statusBar()->showMessage(tr("Mark the whole blemish · release to repair · Escape cancels"));
+    statusBar()->showMessage(i18n::text("main.window.spot.heal.mark.the.whole.blemish.release.to.repair.escape.cancels"));
     return true;
 }
 
@@ -174,7 +175,7 @@ void MainWindow::refreshSpotHealPreview()
             ? std::make_shared<const std::vector<core::SelectionEdge>>(mask->boundaryEdges()) : nullptr);
     } catch (const std::exception&) {
         cancelSpotHeal();
-        statusBar()->showMessage(tr("Spot Heal mark exceeds the preview memory budget. Try a smaller repair."), 6000);
+        statusBar()->showMessage(i18n::text("main.window.spot.heal.spot.heal.mark.exceeds.the.preview.memory.budget.try"), 6000);
     }
 }
 
@@ -189,7 +190,7 @@ bool MainWindow::endSpotHealStroke(const core::NormalizedPointerSample& sample)
             const auto result = detail.isEmpty() ? activeSpotHealStroke_->commitNoop(session().history())
                                                 : core::RasterEditCommitResult::NoChanges;
             cancelSpotHeal();
-            statusBar()->showMessage(detail.isEmpty() ? tr("Spot Heal · no writable pixels") : detail, 6000);
+            statusBar()->showMessage(detail.isEmpty() ? i18n::text("main.window.spot.heal.spot.heal.no.writable.pixels") : detail, 6000);
             return detail.isEmpty() && result == core::RasterEditCommitResult::NoChanges;
         }
         spotHealPreviewDirty_ = true;
@@ -208,7 +209,7 @@ bool MainWindow::endSpotHealStroke(const core::NormalizedPointerSample& sample)
         job->elapsed.start();
         spotHealJob_ = job;
         canvasWindow_->setRepairProcessing(true);
-        cloningOptionsPage_->setProcessing(true, 0, tr("Reconstructing Spot Heal…"));
+        cloningOptionsPage_->setProcessing(true, 0, i18n::text("main.window.spot.heal.reconstructing.spot.heal"));
         updateActionState();
         statusBar()->clearMessage();
         // A single in-flight task, with no UI event pumping inside the solver.
@@ -228,7 +229,7 @@ bool MainWindow::endSpotHealStroke(const core::NormalizedPointerSample& sample)
         return true;
     } catch (const std::exception& e) {
         cancelSpotHeal(true);
-        statusBar()->showMessage(tr("Unable to prepare Spot Heal: %1").arg(QString::fromUtf8(e.what())), 6000);
+        statusBar()->showMessage(i18n::text("main.window.spot.heal.unable.to.prepare.spot.heal.1").arg(QString::fromUtf8(e.what())), 6000);
         return false;
     }
 }
@@ -244,7 +245,7 @@ void MainWindow::pollSpotHeal()
     if (!spotHealFuture_.valid()
         || spotHealFuture_.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
         if (foreground) cloningOptionsPage_->setProcessing(true, job->progress.load(std::memory_order_relaxed),
-            job->cancelled ? tr("Cancelling Spot Heal…") : tr("Reconstructing Spot Heal…"));
+            job->cancelled ? i18n::text("main.window.spot.heal.cancelling.spot.heal") : i18n::text("main.window.spot.heal.reconstructing.spot.heal"));
         return;
     }
     spotHealFuture_.get();
@@ -257,8 +258,8 @@ void MainWindow::pollSpotHeal()
         if (!job->stroke->diagnostic().empty())
             detail = QString::fromStdString(job->stroke->diagnostic());
         else if (result != core::RasterEditCommitResult::Committed)
-            detail = result == core::RasterEditCommitResult::NoChanges ? tr("Spot Heal · no changed pixels")
-                : tr("Spot Heal could not publish the repair; no changes were kept.");
+            detail = result == core::RasterEditCommitResult::NoChanges ? i18n::text("main.window.spot.heal.spot.heal.no.changed.pixels")
+                : i18n::text("main.window.spot.heal.spot.heal.could.not.publish.the.repair.no.changes");
     }
     const auto publicationFinished = profileSpotHeal() ? ProfileClock::now() : ProfileClock::time_point{};
     if (job->stroke) job->stroke->cancel();
@@ -271,10 +272,10 @@ void MainWindow::pollSpotHeal()
         refreshSpotHealOwnership();
         canvasWindow_->setConstrainedBrushPosition({});
         synchronizeUi(false, false);
-        statusBar()->showMessage(cancelled ? tr("Spot Heal cancelled · no pixels changed")
+        statusBar()->showMessage(cancelled ? i18n::text("main.window.spot.heal.spot.heal.cancelled.no.pixels.changed")
         : result == core::RasterEditCommitResult::Committed
-        ? tr("Spot Heal · %1 ms").arg(job->elapsed.elapsed())
-        : !detail.isEmpty() ? detail : tr("Spot Heal · no changed pixels"), 6500);
+        ? i18n::text("main.window.spot.heal.spot.heal.1.ms").arg(job->elapsed.elapsed())
+        : !detail.isEmpty() ? detail : i18n::text("main.window.spot.heal.spot.heal.no.changed.pixels"), 6500);
     }
     if (profileSpotHeal()) {
         qInfo().nospace() << "spot_heal_ui_profile status=" << (cancelled ? "cancelled" : "finished")
@@ -313,7 +314,7 @@ void MainWindow::cancelSpotHeal(bool wait)
     if (cloningOptionsPage_) cloningOptionsPage_->setProcessing(false);
     if (!wait) {
         updateActionState();
-        statusBar()->showMessage(tr("Spot Heal cancelled · no pixels changed"), 2000);
+        statusBar()->showMessage(i18n::text("main.window.spot.heal.spot.heal.cancelled.no.pixels.changed"), 2000);
     }
 }
 
@@ -376,7 +377,7 @@ void MainWindow::refreshSpotHealOwnership()
     const bool busy = spotHealBusyForActiveDocument();
     canvasWindow_->setRepairProcessing(busy);
     canvasWindow_->setRepairRegion({});
-    cloningOptionsPage_->setProcessing(busy, busy ? spotHealJob_->progress.load() : 0, tr("Reconstructing Spot Heal…"));
+    cloningOptionsPage_->setProcessing(busy, busy ? spotHealJob_->progress.load() : 0, i18n::text("main.window.spot.heal.reconstructing.spot.heal"));
     if (busy && spotHealJob_->stroke) {
         const auto mask = spotHealJob_->stroke->previewMask();
         if (mask) canvasWindow_->setRepairRegion(std::make_shared<const std::vector<core::SelectionEdge>>(mask->boundaryEdges()));

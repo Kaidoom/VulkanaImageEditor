@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/SelectionCommands.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/CrossWindowPointerRouter.hpp"
@@ -23,10 +24,10 @@ void MainWindow::createSelectionActions()
 {
     const std::array names { "SelectAllAction", "DeselectAction", "InvertSelectionAction",
         "LayerViaCopyAction", "ReselectAction" };
-    const std::array labels { "Select All", "Deselect", "Invert Selection", "Layer via Copy", "Reselect Last Selection" };
+    const std::array labels { i18n::text("main.window.selection.select.all"), i18n::text("main.window.selection.deselect"), i18n::text("main.window.selection.invert.selection"), i18n::text("main.window.selection.layer.via.copy"), i18n::text("main.window.selection.reselect.last.selection") };
     const std::array shortcuts { "Ctrl+A", "Ctrl+D", "Ctrl+Shift+I", "Ctrl+J", "Ctrl+Shift+D" };
     for (std::size_t i = 0; i < selectionActions_.size(); ++i) {
-        auto* action = new QAction(QString::fromLatin1(labels[i]), this);
+        auto* action = i18n::make<QAction>(labels[i], this);
         action->setObjectName(QString::fromLatin1(names[i]));
         action->setShortcut(QKeySequence(QString::fromLatin1(shortcuts[i])));
         action->setToolTip(QStringLiteral("%1 · %2").arg(action->text(), action->shortcut().toString()));
@@ -35,17 +36,17 @@ void MainWindow::createSelectionActions()
         registerEditorWindowAction(action);
         connect(action, &QAction::triggered, this, [this, i] { runSelectionAction(int(i)); });
     }
-    selectionGrowAction_ = new QAction(tr("Grow / Shrink"), this);
+    selectionGrowAction_ = i18n::make<QAction>(i18n::text("main.window.selection.grow.shrink"), this);
     selectionGrowAction_->setObjectName(QStringLiteral("GrowShrinkSelectionAction"));
-    selectionGrowAction_->setToolTip(tr("Show selection adjustments in the top toolbar"));
+    i18n::setToolTip(selectionGrowAction_, i18n::text("main.window.selection.show.selection.adjustments.in.the.top.toolbar"));
     selectionGrowAction_->setAutoRepeat(false);
     registerEditorWindowAction(selectionGrowAction_);
     connect(selectionGrowAction_, &QAction::triggered, this, &MainWindow::openSelectionAdjustments);
-    refineSelectionAction_ = new QAction(tr("Refine Selection…"), this);
+    refineSelectionAction_ = i18n::make<QAction>(i18n::text("main.window.selection.refine.selection"), this);
     refineSelectionAction_->setObjectName(QStringLiteral("RefineSelectionAction"));
     registerEditorWindowAction(refineSelectionAction_);
     connect(refineSelectionAction_, &QAction::triggered, this, [this] { beginRefinement(false); });
-    refineMaskAction_ = new QAction(tr("Refine Mask…"), this);
+    refineMaskAction_ = i18n::make<QAction>(i18n::text("main.window.selection.refine.mask"), this);
     refineMaskAction_->setObjectName(QStringLiteral("RefineMaskAction"));
     registerEditorWindowAction(refineMaskAction_);
     connect(refineMaskAction_, &QAction::triggered, this, [this] { beginRefinement(true); });
@@ -66,8 +67,8 @@ void MainWindow::createSelectionControls()
     for(int i=0;i<2;++i) {
         auto* button=new ToolOptionsButton(i?QStringLiteral("SelectModeEllipse"):QStringLiteral("SelectModeRectangle"),
             i?QStringLiteral("Ellipse"):QStringLiteral("Rectangle"),
-            i?QStringLiteral("Ellipse selection · Shift constrains a circle; see Properties for adding to an existing selection")
-                :QStringLiteral("Rectangle selection · Shift constrains a square; see Properties for adding to an existing selection"),
+            i?i18n::text("main.window.selection.ellipse.selection.shift.constrains.a.circle.see.properties.for")
+                :i18n::text("main.window.selection.rectangle.selection.shift.constrains.a.square.see.properties.for"),
             ToolOptionsButton::Kind::Toggle,shapeControls,ToolOptionsButton::Presentation::Icon);
         button->setIcon(toolGlyph(i?ToolGlyph::SelectEllipse:ToolGlyph::SelectRectangle));
         button->setChecked(i==0); shapes->addButton(button,i); shapeRow->addWidget(button);
@@ -120,9 +121,9 @@ void MainWindow::createSelectionControls()
     magneticRow->setContentsMargins(0,0,0,0); magneticRow->setSpacing(6);
     auto* radius=new ToolOptionsNumber(magneticControls_);
     radius->setObjectName(QStringLiteral("MagneticRadiusControl"));
-    radius->setPrefix(QStringLiteral("Radius: ")); radius->setSuffix(QStringLiteral(" px"));
+    i18n::setPrefix(radius, i18n::text("main.window.selection.radius")); i18n::setSuffix(radius, i18n::text("main.window.selection.px"));
     radius->setDecimals(0); radius->setRange(2,32); radius->setValue(magneticRadius_); radius->setFixedWidth(120);
-    radius->setToolTip(QStringLiteral("Maximum edge search distance from your trace, in document pixels"));
+    i18n::setToolTip(radius, i18n::text("main.window.selection.maximum.edge.search.distance.from.your.trace.in.document"));
     connect(radius,&QDoubleSpinBox::valueChanged,this,[this](double value) {
         cancelPendingEdits(); magneticRadius_=value;
     });
@@ -130,9 +131,9 @@ void MainWindow::createSelectionControls()
     auto* references=new QButtonGroup(page);
     for (int i=0;i<2;++i) {
         auto* button=new ToolOptionsButton(i==0?QStringLiteral("MagneticSourceMergedVisible"):QStringLiteral("MagneticSourceActiveLayer"),
-            i==0?QStringLiteral("Merged Visible"):QStringLiteral("Active Layer"),
-            i==0?QStringLiteral("Follow edges in the visible document (pinned when construction begins)")
-                :QStringLiteral("Follow the active raster layer, ignoring its opacity/visibility"),
+            i==0?i18n::text("main.window.selection.merged.visible"):i18n::text("main.window.selection.active.layer"),
+            i==0?i18n::text("main.window.selection.follow.edges.in.the.visible.document.pinned.when.construction")
+                :i18n::text("main.window.selection.follow.the.active.raster.layer.ignoring.its.opacity.visibility"),
             ToolOptionsButton::Kind::Toggle,magneticControls_,ToolOptionsButton::Presentation::Icon);
         button->setIcon(toolGlyph(i==0?ToolGlyph::MergedVisible:ToolGlyph::ActiveLayer));
         button->setChecked(i==0); references->addButton(button,i); magneticRow->addWidget(button);
@@ -153,8 +154,8 @@ void MainWindow::createSelectionControls()
         row->addWidget(button);
     }
     selectionAdjustmentsButton_ = new ToolOptionsButton(QStringLiteral("SelectionTransform"),
-        QStringLiteral("Selection adjustments"),
-        QStringLiteral("Selection adjustments · Show/hide Grow / Shrink and Rotate by · {{LayerTransformAction}} opens transform handles"),
+        i18n::text("main.window.selection.selection.adjustments"),
+        i18n::text("main.window.selection.selection.adjustments.show.hide.grow.shrink.and.rotate.by"),
         ToolOptionsButton::Kind::Toggle, page, ToolOptionsButton::Presentation::Icon);
     selectionAdjustmentsButton_->setIcon(toolGlyph(ToolGlyph::SelectionAdjustments));
     row->addWidget(selectionAdjustmentsButton_);
@@ -180,33 +181,30 @@ void MainWindow::createSelectionControls()
         control->setObjectName(
             i == 0 ? QStringLiteral("SelectionGrowHorizontal") : QStringLiteral("SelectionGrowVertical"));
         control->setPrefix(i == 0 ? QStringLiteral("X: ") : QStringLiteral("Y: "));
-        control->setSuffix(QStringLiteral(" px"));
+        i18n::setSuffix(control, i18n::text("main.window.selection.px"));
         control->setDecimals(0);
         control->setRange(-32768, 32768);
         control->setValue(1);
         control->setFixedWidth(108);
-        control->setToolTip(i == 0
-                ? QStringLiteral("Grow/shrink per left and right side, in document pixels")
-                : QStringLiteral("Grow/shrink per top and bottom side, in document pixels"));
+        i18n::setToolTip(control, i == 0
+                ? i18n::text("main.window.selection.grow.shrink.per.left.and.right.side.in.document")
+                : i18n::text("main.window.selection.grow.shrink.per.top.and.bottom.side.in.document"));
         control->setAccessibleName(control->toolTip());
         pair->addWidget(control);
     }
     adjustments->addWidget(growthPair);
     selectionGrowButton_
-        = new ToolOptionsButton(QStringLiteral("SelectionGrowApply"), QStringLiteral("Grow / Shrink"),
-            QStringLiteral("Apply signed X/Y amounts per side to the actual mask"),
-            ToolOptionsButton::Kind::Action, selectionAdjustmentControls_);
+        = new ToolOptionsButton(QStringLiteral("SelectionGrowApply"), i18n::text("main.window.selection.grow.shrink"), i18n::text("main.window.selection.apply.signed.x.y.amounts.per.side.to.the"), ToolOptionsButton::Kind::Action, selectionAdjustmentControls_);
     adjustments->addWidget(selectionGrowButton_);
     connect(selectionGrowButton_, &QToolButton::clicked, this, &MainWindow::growSelection);
     selectionAngle_ = new ToolOptionsNumber(selectionAdjustmentControls_);
     selectionAngle_->setObjectName(QStringLiteral("SelectionAngleControl"));
-    selectionAngle_->setPrefix(QStringLiteral("Rotate by: "));
+    i18n::setPrefix(selectionAngle_, i18n::text("main.window.selection.rotate.by"));
     selectionAngle_->setSuffix(QStringLiteral("°"));
     selectionAngle_->setRange(-36000, 36000);
     selectionAngle_->setDecimals(2);
     selectionAngle_->setFixedWidth(154);
-    selectionAngle_->setToolTip(QStringLiteral(
-        "Clockwise around selection bounds center. One action per hold/edit; resets after applying."));
+    i18n::setToolTip(selectionAngle_, i18n::text("main.window.selection.clockwise.around.selection.bounds.center.one.action.per.hold"));
     selectionAngle_->setAccessibleName(selectionAngle_->toolTip());
     selectionAngle_->onInteractionFinished = [this] {
         if (!updatingSelectionControls_)
@@ -220,10 +218,10 @@ void MainWindow::createSelectionControls()
     });
     adjustments->addWidget(selectionAngle_);
     row->addStretch();
-    toolOptionsBar_->registerToolPage(core::ToolId::Marquee, QStringLiteral("Select"), page);
-    toolOptionsBar_->registerToolPage(core::ToolId::Lasso, QStringLiteral("Lasso"), page);
-    toolOptionsBar_->registerToolPage(core::ToolId::SelectByColor, QStringLiteral("Select by Color"), page);
-    toolOptionsBar_->registerToolPage(core::ToolId::SmartSelect, QStringLiteral("Smart Select"), page);
+    toolOptionsBar_->registerToolPage(core::ToolId::Marquee, i18n::text("main.window.selection.select"), page);
+    toolOptionsBar_->registerToolPage(core::ToolId::Lasso, i18n::text("main.window.selection.lasso"), page);
+    toolOptionsBar_->registerToolPage(core::ToolId::SelectByColor, i18n::text("main.window.selection.select.by.color"), page);
+    toolOptionsBar_->registerToolPage(core::ToolId::SmartSelect, i18n::text("main.window.selection.smart.select"), page);
     toolOptionsBar_->registerToolLeadingWidget(core::ToolId::SmartSelect,smartModeControls_);
     toolOptionsBar_->registerToolLeadingWidget(core::ToolId::Marquee,shapeControls);
     toolOptionsBar_->registerToolLeadingWidget(core::ToolId::Lasso, lassoModeControls_);
@@ -292,7 +290,7 @@ bool MainWindow::beginSelectionGesture(core::Vec2d point, Qt::KeyboardModifiers 
         try { beginAnchoredLasso(point); }
         catch (const std::exception& error) {
             finishSelectionGesture(true);
-            statusBar()->showMessage(QStringLiteral("Lasso cancelled: %1").arg(QString::fromUtf8(error.what())),6000);
+            statusBar()->showMessage(i18n::text("main.window.selection.lasso.cancelled.1").arg(QString::fromUtf8(error.what())),6000);
         }
         updateActionState(); return selectionGesture_.has_value();
     }
@@ -329,7 +327,7 @@ void MainWindow::moveSelectionGesture(core::Vec2d point)
             canvasWindow_->setSelectionPathPreview(gesture.pathEdges,gesture.operation);
         } catch (const std::exception& error) {
             finishSelectionGesture(true);
-            statusBar()->showMessage(QStringLiteral("Lasso cancelled: %1").arg(QString::fromUtf8(error.what())), 6000);
+            statusBar()->showMessage(i18n::text("main.window.selection.lasso.cancelled.1").arg(QString::fromUtf8(error.what())), 6000);
         }
         return;
     }
@@ -359,7 +357,7 @@ void MainWindow::moveSelectionGesture(core::Vec2d point)
         canvasWindow_->setSelectionPreview(
             std::make_shared<const std::vector<core::SelectionEdge>>(std::move(edges)));
         statusBar()->showMessage(
-            QStringLiteral("Move selection · X %1 px · Y %2 px").arg(offset.x).arg(offset.y));
+            i18n::text("main.window.selection.move.selection.x.1.px.y.2.px").arg(offset.x).arg(offset.y));
         return;
     }
     if (gesture.ellipseMode) {
@@ -371,12 +369,12 @@ void MainWindow::moveSelectionGesture(core::Vec2d point)
             canvasWindow_->setSelectionPathPreview(std::move(edges),gesture.operation,0,0);
             const auto size=ellipse.maximum()-ellipse.minimum();
             canvasWindow_->setPointerSizeTooltip({size.x,size.y});
-            statusBar()->showMessage(QStringLiteral("%1 selection · %2 × %3 px")
+            statusBar()->showMessage(i18n::text("main.window.selection.1.selection.2.3.px")
                 .arg(gesture.circleConstrained?QStringLiteral("Circle"):QStringLiteral("Ellipse"))
                 .arg(size.x,0,'f',1).arg(size.y,0,'f',1));
         } catch(const std::exception& error) {
             finishSelectionGesture(true);
-            statusBar()->showMessage(QStringLiteral("Ellipse cancelled: %1").arg(QString::fromUtf8(error.what())),6000);
+            statusBar()->showMessage(i18n::text("main.window.selection.ellipse.cancelled.1").arg(QString::fromUtf8(error.what())),6000);
         }
         return;
     }
@@ -408,7 +406,7 @@ void MainWindow::moveSelectionGesture(core::Vec2d point)
     }
     canvasWindow_->setSelectionPathPreview(edges,gesture.operation,0,0);
     statusBar()->showMessage(
-        QStringLiteral("Selection · %1 × %2 px").arg(rectangle.width).arg(rectangle.height));
+        i18n::text("main.window.selection.selection.1.2.px").arg(rectangle.width).arg(rectangle.height));
 }
 void MainWindow::finishSelectionGesture(bool cancel)
 {
@@ -429,13 +427,13 @@ void MainWindow::finishSelectionGesture(bool cancel)
                     session().document()->canvas().extent,*selectionGesture_->ellipse);
             else selectionRasterizer_ = std::make_unique<core::PolygonCoverageRasterizer>(
                     session().document()->canvas().extent, selectionGesture_->path.points());
-            statusBar()->showMessage(QStringLiteral("Creating selection… · Escape cancels"));
+            statusBar()->showMessage(i18n::text("main.window.selection.creating.selection.escape.cancels"));
             selectionRasterTimer_->start();
             updateActionState();
             return;
         } catch (const std::exception& error) {
             finishSelectionGesture(true);
-            statusBar()->showMessage(QStringLiteral("Selection cancelled: %1").arg(QString::fromUtf8(error.what())), 6000);
+            statusBar()->showMessage(i18n::text("main.window.selection.selection.cancelled.1").arg(QString::fromUtf8(error.what())), 6000);
             return;
         }
     }
@@ -460,7 +458,7 @@ void MainWindow::finishSelectionGesture(bool cancel)
             session().execute(std::make_unique<core::SetSelectionCommand>(
                 std::move(mask), gesture.moving ? "Move selection" : "Rectangle selection"));
         } catch (const std::exception& error) {
-            QMessageBox::warning(this, QStringLiteral("Unable to select"), QString::fromUtf8(error.what()));
+            QMessageBox::warning(this, i18n::text("main.window.selection.unable.to.select"), QString::fromUtf8(error.what()));
         }
     }
     canvasWindow_->setSelectionPreview({ });
@@ -499,7 +497,7 @@ void MainWindow::advanceSelectionRasterization()
         synchronizeUi(false, false);
     } catch (const std::exception& error) {
         finishSelectionGesture(true);
-        statusBar()->showMessage(QStringLiteral("Selection cancelled: %1").arg(QString::fromUtf8(error.what())), 6000);
+        statusBar()->showMessage(i18n::text("main.window.selection.selection.cancelled.1").arg(QString::fromUtf8(error.what())), 6000);
     }
 }
 void MainWindow::runSelectionAction(int action)
@@ -511,7 +509,7 @@ void MainWindow::runSelectionAction(int action)
     auto* document = session().document();
     try {
         if (action == 3) {
-            if(session().editingLayerMask()){statusBar()->showMessage(tr("Click the content thumbnail before copying pixels to a new layer."),3500);return;}
+            if(session().editingLayerMask()){statusBar()->showMessage(i18n::text("main.window.selection.click.the.content.thumbnail.before.copying.pixels.to.a"),3500);return;}
             if (!session().activeLayer())
                 return;
             if (session().execute(std::make_unique<core::LayerViaCopyCommand>(
@@ -519,7 +517,7 @@ void MainWindow::runSelectionAction(int action)
                 fileState().untouched = false;
                 synchronizeUi(true, false);
             } else
-                statusBar()->showMessage(QStringLiteral("Nothing selected to copy from this layer"), 2500);
+                statusBar()->showMessage(i18n::text("main.window.selection.nothing.selected.to.copy.from.this.layer"), 2500);
             return;
         }
         core::SelectionState after;
@@ -537,7 +535,7 @@ void MainWindow::runSelectionAction(int action)
         synchronizeUi(false, false);
     } catch (const std::exception& error) {
         QMessageBox::warning(
-            this, QStringLiteral("Unable to complete selection action"), QString::fromUtf8(error.what()));
+            this, i18n::text("main.window.selection.unable.to.complete.selection.action"), QString::fromUtf8(error.what()));
     }
 }
 
@@ -646,7 +644,7 @@ void MainWindow::growSelection()
         synchronizeUi(false, false);
     } catch (const std::exception& error) {
         QMessageBox::warning(
-            this, QStringLiteral("Unable to adjust selection"), QString::fromUtf8(error.what()));
+            this, i18n::text("main.window.selection.unable.to.adjust.selection"), QString::fromUtf8(error.what()));
     }
 }
 void MainWindow::previewSelectionRotation(double angle)
@@ -671,7 +669,7 @@ void MainWindow::previewSelectionRotation(double angle)
     } catch (const std::exception& error) {
         finishSelectionRotation(false);
         QMessageBox::warning(
-            this, QStringLiteral("Unable to rotate selection"), QString::fromUtf8(error.what()));
+            this, i18n::text("main.window.selection.unable.to.rotate.selection"), QString::fromUtf8(error.what()));
     }
 }
 void MainWindow::finishSelectionRotation(bool commit)
@@ -698,7 +696,7 @@ void MainWindow::finishSelectionRotation(bool commit)
             session().execute(std::make_unique<core::SetSelectionCommand>(edit->preview, "Rotate selection"));
         } catch (const std::exception& error) {
             QMessageBox::warning(
-                this, QStringLiteral("Unable to rotate selection"), QString::fromUtf8(error.what()));
+                this, i18n::text("main.window.selection.unable.to.rotate.selection"), QString::fromUtf8(error.what()));
         }
     }
     canvasWindow_->setSelectionPreview({ });

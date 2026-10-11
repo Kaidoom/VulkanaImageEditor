@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/CropOptionsPage.hpp"
 #include "imageeditor/ui/CrossWindowPointerRouter.hpp"
@@ -11,20 +12,11 @@ namespace imageeditor::ui {
 void MainWindow::createCropControls()
 {
     cropOptionsPage_ = new CropOptionsPage;
-    toolOptionsBar_->registerToolPage(
-        core::ToolId::Crop, QStringLiteral("Layer Crop"), cropOptionsPage_);
+    toolOptionsBar_->registerToolPage(core::ToolId::Crop, i18n::text("main.window.crop.layer.crop"), cropOptionsPage_);
     QVBoxLayout* content = nullptr;
     propertiesPanel_->addToolPage(
-        core::ToolId::Crop, QStringLiteral("Layer Crop"),
-        QStringLiteral(
-            "{{ToolAction_crop}} · Crop the primary layer, without deleting pixels\n"
-            "Handles · Resize crop; drag inside · Move crop frame\n"
-            "Shift · Toggle ratio lock; Alt · Resize from center\n"
-            "{{FinishOperationAction}} / Apply / right-click · Finish\nEscape · Cancel whole crop session\n"
-            "{{UndoAction}} / {{RedoAction}} · Undo / redo\n\n"
-            "Chamfer: pull corners inward; Alt also changes the opposite corner. Side handles resize. "
-            "Turning Chamfer off keeps existing cuts. Reset crop reveals the full source; the eye previews it. "
-            "Dimensions use layer-local pixels. {{LayerTransformAction}} transforms the layer, not the crop frame."),
+        core::ToolId::Crop, i18n::text("main.window.crop.layer.crop"),
+        i18n::text("main.window.crop.toolaction.crop.crop.the.primary.layer.without.deleting.pixels"),
         content);
     cropOptionsPage_->onChanged = [this](core::RectD r) {
         if (layerCrop_ && runTransformAction([&] { return layerCrop_->setRect(r); }))
@@ -62,9 +54,7 @@ try {
         *session().activeLayer());
     if (!edit->active()) {
         statusBar()->showMessage(
-            QStringLiteral("Layer Crop needs a primary raster, text or shape layer "
-                           "with available, invertible content. Select a child "
-                           "instead of a folder/group."),
+            i18n::text("main.window.crop.layer.crop.needs.a.primary.raster.text.or.shape"),
             5000);
         return;
     }
@@ -83,7 +73,7 @@ try {
     canvasWindow_->requestActivate();
 } catch (const std::exception& e) {
     statusBar()->showMessage(
-        QStringLiteral("Could not start layer crop: %1").arg(e.what()), 5000);
+        i18n::text("main.window.crop.could.not.start.layer.crop.1").arg(e.what()), 5000);
 }
 void MainWindow::refreshLayerCrop()
 {

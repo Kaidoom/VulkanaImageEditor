@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/PdfImportDialog.hpp"
 #include "imageeditor/ui/FileDialogLocations.hpp"
@@ -66,7 +67,7 @@ bool MainWindow::importPdfFromPath(const QString& filePath, bool intoCurrent)
             if (!target || target->closed || target != activeDocument_ || target->session.document() != targetDocument
                 || target->cancellationGeneration != targetGeneration || targetDocument->revision() != targetRevision
                 || target->session.layerSelectionState() != selection) {
-                reportFileError(tr("The PDF destination changed while rendering. Nothing was imported; please try again.")); return false;
+                reportFileError(i18n::text("main.window.pdf.the.pdf.destination.changed.while.rendering.nothing.was.imported")); return false;
             }
             auto tree = targetDocument->tree();
             if (!guardRefinement(target->id)) return false;
@@ -82,7 +83,7 @@ bool MainWindow::importPdfFromPath(const QString& filePath, bool intoCurrent)
             auto command = std::make_unique<core::LayerStructureCommand>("Import PDF pages", *targetDocument, std::move(tree),
                 std::vector<core::LayerId>{}, std::move(layers), selection, core::LayerSelectionState{ids,ids.back(),ids.back()});
             if (command->memoryCost() > target->session.history().memoryBudget()) {
-                reportFileError(tr("PDF pages exceed the history budget. Choose fewer pages or lower the PPI.")); return false;
+                reportFileError(i18n::text("main.window.pdf.pdf.pages.exceed.the.history.budget.choose.fewer.pages")); return false;
             }
             if (!executeDocumentCommand(std::move(command))) return false;
             target->untouched = false; synchronizeUi(true,false);
@@ -120,10 +121,10 @@ bool MainWindow::importPdfFromPath(const QString& filePath, bool intoCurrent)
         qInfo() << "PDF import pixels MiB" << double(plan.rasterBytes)/1048576
             << "estimated working MiB" << double(plan.estimatedWorkingBytes)/1048576 << "render/normalize ms" << total;
         updateDocumentTitle();
-        statusBar()->showMessage(tr("Imported %1 PDF page(s) at %2 PPI").arg(options.pages.size()).arg(options.ppi),4000);
+        statusBar()->showMessage(i18n::text("main.window.pdf.imported.1.pdf.page.s.at.2.ppi").arg(options.pages.size()).arg(options.ppi),4000);
         return true;
     } catch (const std::exception&) {
-        reportFileError(tr("Unable to prepare PDF layers. Check available memory and try fewer pages or a lower PPI."));
+        reportFileError(i18n::text("main.window.pdf.unable.to.prepare.pdf.layers.check.available.memory.and"));
         return false;
     }
 }

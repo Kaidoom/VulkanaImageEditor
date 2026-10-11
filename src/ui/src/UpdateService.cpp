@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/UpdateService.hpp"
 
 #include <QFileInfo>
@@ -60,12 +61,12 @@ UpdateService::UpdateService(QString currentVersion, QObject* parent, QNetworkAc
     deadline_.setSingleShot(true);
     deadline_.setTimerType(Qt::PreciseTimer);
     connect(&deadline_, &QTimer::timeout, this, [this] {
-        fail(tr("The request timed out. Please try again."));
+        fail(i18n::text("update.service.the.request.timed.out.please.try.again"));
     });
     const auto pending=QCoreApplication::instance()->property("vulkanaPendingRestart").toString();
     if(package_==UpdatePackage::AppImage&&!pending.isEmpty()&&pending==QFileInfo(appImagePath_).canonicalFilePath()) {
         downloadedPath_=pending;state_=State::RestartReady;
-        message_=tr("Update verified and ready. Restart when you're ready.");
+        message_=i18n::text("update.service.update.verified.and.ready.restart.when.you.re.ready");
     }
 }
 
@@ -85,7 +86,7 @@ void UpdateService::simulateUpdate()
     release_.reset();
     downloadedPath_.clear();
     if (!validVersion(currentVersion_)) {
-        fail(tr("This build has no comparable release version to simulate."));
+        fail(i18n::text("update.service.this.build.has.no.comparable.release.version.to.simulate"));
         return;
     }
     auto parts = QVersionNumber::fromString(currentVersion_).segments();
@@ -94,11 +95,11 @@ void UpdateService::simulateUpdate()
         ++parts[index];
         release_ = UpdateRelease {QVersionNumber(parts).toString(), {}, {}};
         state_ = State::Available;
-        message_ = tr("Vulkana %1 is available.").arg(release_->version);
+        message_ = i18n::text("update.service.vulkana.1.is.available").arg(i18n::ltrToken(release_->version));
         notify();
         return;
     }
-    fail(tr("This build's version cannot be incremented for the update preview."));
+    fail(i18n::text("update.service.this.build.s.version.cannot.be.incremented.for.the"));
 }
 
 std::optional<UpdateRelease> UpdateService::parseManifest(const QByteArray& bytes, QString& error, UpdatePackage package,
@@ -106,7 +107,7 @@ std::optional<UpdateRelease> UpdateService::parseManifest(const QByteArray& byte
 {
     error.clear();
     if (bytes.size() > manifestLimit) {
-        error = tr("The update information exceeds the size limit.");
+        error = i18n::text("update.service.the.update.information.exceeds.the.size.limit");
         return std::nullopt;
     }
     const auto document = QJsonDocument::fromJson(bytes);
@@ -134,7 +135,7 @@ std::optional<UpdateRelease> UpdateService::parseManifest(const QByteArray& byte
         && filename.match(QFileInfo(url.path()).fileName()).hasMatch();
     if (!document.isObject() || !validVersion(result.version)
         || !digest.match(QString::fromLatin1(result.sha256)).hasMatch() || !safeUrl) {
-        error = tr("The update information is invalid. Try again or open the download page.");
+        error = i18n::text("update.service.the.update.information.is.invalid.try.again.or.open");
         return std::nullopt;
     }
     result.sha256 = result.sha256.toLower();
@@ -160,7 +161,7 @@ void UpdateService::stopTransfer()
     manifest_.clear();
 }
 
-void UpdateService::fail(const QString& message)
+void UpdateService::fail(const i18n::Message& message)
 {
     stopTransfer();
     state_ = State::Error;
@@ -172,7 +173,7 @@ void UpdateService::check(int timeoutMs)
 {
     if (simulated_) { simulateUpdate(); return; }
     if (!configured()) {
-        fail(tr("Updates are not configured for this build."));
+        fail(i18n::text("update.service.updates.are.not.configured.for.this.build"));
         return;
     }
     if (busy() || state_==State::RestartReady) return;
@@ -180,11 +181,11 @@ void UpdateService::check(int timeoutMs)
     release_.reset();
     downloadedPath_.clear();
     if (!validVersion(currentVersion_)) {
-        fail(tr("This build has no comparable release version. Please use the download page."));
+        fail(i18n::text("update.service.this.build.has.no.comparable.release.version.please.use"));
         return;
     }
     state_ = State::Checking;
-    message_ = tr("Checking for updates…");
+    message_ = i18n::text("update.service.checking.for.updates");
     startRequest(manifestUrl(config_));
     notify();
 }
@@ -192,7 +193,7 @@ void UpdateService::check(int timeoutMs)
 void UpdateService::download(const QString& destination)
 {
     if (simulated_) return;
-    if(package_==UpdatePackage::AppImage) { fail(tr("Use the AppImage update action to replace the running image."));return; }
+    if(package_==UpdatePackage::AppImage) { fail(i18n::text("update.service.use.the.appimage.update.action.to.replace.the.running"));return; }
     beginDownload(destination);
 }
 
@@ -204,17 +205,17 @@ void UpdateService::downloadAppImage()
     // Do not guess the mount/extracted path or overwrite a different program.
     if(!original.isAbsolute()||!original.isFile()||original.isSymLink()
         ||original.ownerId()!=static_cast<uint>(::getuid())) {
-        fail(tr("Run a user-owned AppImage from a writable folder to update it. Extracted builds can use the download page."));return;
+        fail(i18n::text("update.service.run.a.user.owned.appimage.from.a.writable.folder"));return;
     }
     const auto path=original.canonicalFilePath();
     updateLock_=std::make_unique<QLockFile>(path+QStringLiteral(".update.lock"));
     if(!updateLock_->tryLock(0)) {
-        fail(tr("Cannot lock the AppImage for update. Check folder permissions or finish the other update."));return;
+        fail(i18n::text("update.service.cannot.lock.the.appimage.for.update.check.folder.permissions"));return;
     }
     struct stat st {};
     QFile old(path);
     if(::stat(QFile::encodeName(path).constData(),&st)!=0||!old.open(QIODevice::ReadOnly)||!isAppImageHeader(old.read(64))) {
-        fail(tr("The running AppImage file could not be verified. Use the download page."));return;
+        fail(i18n::text("update.service.the.running.appimage.file.could.not.be.verified.use"));return;
     }
     originalDevice_=st.st_dev;originalInode_=st.st_ino;originalSize_=st.st_size;
     originalMtime_=st.st_mtim.tv_sec;originalMtimeNsec_=st.st_mtim.tv_nsec;
@@ -228,14 +229,14 @@ void UpdateService::beginDownload(const QString& destination)
     file_ = std::make_unique<QSaveFile>(destination);
     file_->setDirectWriteFallback(false);
     if (!file_->open(QIODevice::WriteOnly)) {
-        fail(tr("Failed to write the download. Check the folder permissions and free space."));
+        fail(i18n::text("update.service.failed.to.write.the.download.check.the.folder.permissions"));
         return;
     }
     destination_ = QFileInfo(destination).absoluteFilePath();
     hash_.reset();
     header_.clear();
     state_ = State::Downloading;
-    message_ = tr("Downloading Vulkana %1…").arg(release_->version);
+    message_ = i18n::text("update.service.downloading.vulkana.1").arg(i18n::ltrToken(release_->version));
     startRequest(release_->url);
     notify();
 }
@@ -245,7 +246,7 @@ void UpdateService::cancel()
     if (!busy()) return;
     stopTransfer();
     state_ = release_ ? State::Available : State::Idle;
-    message_ = tr("Cancelled. No download was saved.");
+    message_ = i18n::text("update.service.cancelled.no.download.was.saved");
     notify();
 }
 
@@ -270,12 +271,12 @@ void UpdateService::startRequest(const QUrl& url)
         if (!reply_) return;
         const auto http = reply_->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         if (http >= 400) {
-            fail(tr("The server returned HTTP %1. Please try again.").arg(http));
+            fail(i18n::text("update.service.the.server.returned.http.1.please.try.again").arg(http));
             return;
         }
         const auto limit = state_ == State::Checking ? manifestLimit : packageLimit;
         if (reply_->header(QNetworkRequest::ContentLengthHeader).toLongLong() > limit)
-            fail(tr("The server response exceeds the download size limit."));
+            fail(i18n::text("update.service.the.server.response.exceeds.the.download.size.limit"));
     });
     connect(reply_, &QNetworkReply::downloadProgress, this, [this](qint64 received, qint64 total) {
         if (state_ == State::Downloading && onProgress) onProgress(received, total);
@@ -292,13 +293,13 @@ void UpdateService::readAvailable()
         if (bytes.isEmpty()) break;
         received_ += bytes.size();
         if (received_ > (state_ == State::Checking ? manifestLimit : packageLimit)) {
-            fail(tr("The server response exceeds the download size limit."));
+            fail(i18n::text("update.service.the.server.response.exceeds.the.download.size.limit"));
             return;
         }
         if (state_ == State::Checking) manifest_ += bytes;
         else if (state_ == State::Downloading) {
             if (file_->write(bytes) != bytes.size()) {
-                fail(tr("Failed to write the download. Check the folder permissions and free space."));
+                fail(i18n::text("update.service.failed.to.write.the.download.check.the.folder.permissions"));
                 return;
             }
             hash_.addData(bytes);
@@ -312,12 +313,12 @@ void UpdateService::finish()
     readAvailable();
     if (!reply_) return; // A streaming error already completed the operation.
     if (reply_->error() != QNetworkReply::NoError) {
-        fail(tr("Could not complete the request: %1").arg(reply_->errorString()));
+        fail(i18n::text("update.service.could.not.complete.the.request.1").arg(reply_->errorString()));
         return;
     }
     const int http = reply_->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
     if (http != 200) {
-        fail(tr("The server returned HTTP %1. Please try again.").arg(http));
+        fail(i18n::text("update.service.the.server.returned.http.1.please.try.again").arg(http));
         return;
     }
     if (state_ == State::Checking) {
@@ -328,14 +329,14 @@ void UpdateService::finish()
         if (*isNewer(release->version, currentVersion_)) {
             release_ = std::move(release);
             state_ = State::Available;
-            message_ = tr("Vulkana %1 is available.").arg(release_->version);
+            message_ = i18n::text("update.service.vulkana.1.is.available").arg(i18n::ltrToken(release_->version));
         } else {
             state_ = State::Current;
-            message_ = tr("You have the latest version.");
+            message_ = i18n::text("update.service.you.have.the.latest.version");
         }
     } else if (state_ == State::Downloading) {
         if (received_ == 0 || hash_.result().toHex() != release_->sha256) {
-            fail(tr("Checksum verification failed. No download was saved. Please try again."));
+            fail(i18n::text("update.service.checksum.verification.failed.no.download.was.saved.please.try"));
             return;
         }
         if (package_ == UpdatePackage::Deb) {
@@ -346,33 +347,33 @@ void UpdateService::finish()
                 || (member != "debian-binary" && member != "debian-binary/")
                 || header_.mid(56, 10).trimmed() != "4"
                 || header_.mid(66, 6) != "`\n2.0\n") {
-                fail(tr("The verified download is not a supported DEB package. No download was saved."));
+                fail(i18n::text("update.service.the.verified.download.is.not.a.supported.deb.package"));
                 return;
             }
         }
         if(package_==UpdatePackage::AppImage) {
             struct stat st {};
-            if(!isAppImageHeader(header_)) {fail(tr("The verified download is not an x86-64 Type 2 AppImage. The current image is unchanged."));return;}
+            if(!isAppImageHeader(header_)) {fail(i18n::text("update.service.the.verified.download.is.not.an.x86.64.type"));return;}
             if(::lstat(QFile::encodeName(destination_).constData(),&st)!=0||!S_ISREG(st.st_mode)
                 ||st.st_dev!=originalDevice_||st.st_ino!=originalInode_||st.st_size!=originalSize_
                 ||st.st_mtim.tv_sec!=originalMtime_||st.st_mtim.tv_nsec!=originalMtimeNsec_) {
-                fail(tr("The AppImage changed during download. It was not replaced. Check for updates again."));return;
+                fail(i18n::text("update.service.the.appimage.changed.during.download.it.was.not.replaced"));return;
             }
             if(!file_->setPermissions(QFileDevice::ReadOwner|QFileDevice::WriteOwner|QFileDevice::ExeOwner
                 |QFileDevice::ReadGroup|QFileDevice::ExeGroup|QFileDevice::ReadOther|QFileDevice::ExeOther)) {
-                fail(tr("Failed to make the update executable. The current image is unchanged."));return;
+                fail(i18n::text("update.service.failed.to.make.the.update.executable.the.current.image"));return;
             }
         }
         if (!file_->commit()) {
-            fail(tr("Failed to save the download. Check the folder permissions and free space."));
+            fail(i18n::text("update.service.failed.to.save.the.download.check.the.folder.permissions"));
             return;
         }
         downloadedPath_ = destination_;
         stopTransfer();
         state_ = package_==UpdatePackage::AppImage ? State::RestartReady : State::Downloaded;
         message_ = package_==UpdatePackage::AppImage
-            ? tr("AppImage replaced and SHA-256 verified. Restart when you're ready.")
-            : tr("Download saved and SHA-256 verified. Install the %1 manually when ready; Vulkana will not run it.")
+            ? i18n::text("update.service.appimage.replaced.and.sha.256.verified.restart.when.you")
+            : i18n::text("update.service.download.saved.and.sha.256.verified.install.the.1")
                 .arg(package_ == UpdatePackage::Deb ? QStringLiteral("DEB") : QStringLiteral("RPM"));
         if(package_==UpdatePackage::AppImage)
             QCoreApplication::instance()->setProperty("vulkanaPendingRestart",downloadedPath_);

@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/ThirdPartyNoticesDialog.hpp"
 #include "imageeditor/platform/ApplicationPaths.hpp"
 #include "imageeditor/platform/BuildInfo.hpp"
@@ -31,16 +32,16 @@ ThirdPartyNoticesDialog::ThirdPartyNoticesDialog(QWidget* parent, const QString&
     : QDialog(parent, Qt::SubWindow)
 {
     setObjectName(QStringLiteral("ThirdPartyNoticesDialog"));
-    setWindowTitle(tr("Third-party Notices"));
+    i18n::setWindowTitle(this, i18n::text("third.party.notices.dialog.third.party.notices"));
     setAttribute(Qt::WA_ShowWithoutActivating);
     resize(720, 540);
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(20, 16, 20, 16);
     layout->setSpacing(10);
     auto* header = new QHBoxLayout;
-    header->addWidget(new QLabel(tr("Third-party Notices"), this));
+    header->addWidget(i18n::make<QLabel>(i18n::text("third.party.notices.dialog.third.party.notices"), this));
     header->addStretch();
-    auto* close = new QPushButton(tr("Close"), this);
+    auto* close = i18n::make<QPushButton>(i18n::text("third.party.notices.dialog.close"), this);
     close->setAutoDefault(false);
     connect(close, &QPushButton::clicked, this, &QDialog::accept);
     header->addWidget(close);
@@ -52,7 +53,7 @@ ThirdPartyNoticesDialog::ThirdPartyNoticesDialog(QWidget* parent, const QString&
     layout->addWidget(info);
     auto* search = new QLineEdit(this);
     search->setObjectName(QStringLiteral("NoticesSearch"));
-    search->setPlaceholderText(tr("Search components or license text…"));
+    i18n::setPlaceholderText(search, i18n::text("third.party.notices.dialog.search.components.or.license.text"));
     search->setClearButtonEnabled(true);
     layout->addWidget(search);
     pages_ = new QStackedWidget(this);
@@ -77,17 +78,17 @@ ThirdPartyNoticesDialog::ThirdPartyNoticesDialog(QWidget* parent, const QString&
     pages_->addWidget(body_);
     layout->addWidget(pages_, 1);
     auto* footer = new QHBoxLayout;
-    auto* details = new QPushButton(tr("Open full local notices"), this);
+    auto* details = i18n::make<QPushButton>(i18n::text("third.party.notices.dialog.open.full.local.notices"), this);
     details->setObjectName(QStringLiteral("NoticesDetails"));
     details->setAutoDefault(false);
     details->setCheckable(true);
     connect(details, &QPushButton::toggled, this, [this, details](bool on) {
         pages_->setCurrentIndex(on ? 1 : 0);
-        details->setText(on ? tr("Back to components") : tr("Open full local notices"));
+        i18n::setText(details, on ? i18n::text("third.party.notices.dialog.back.to.components") : i18n::text("third.party.notices.dialog.open.full.local.notices"));
     });
     footer->addWidget(details);
     footer->addStretch();
-    auto* online = new QPushButton(tr("Sources && details online"), this);
+    auto* online = i18n::make<QPushButton>(i18n::text("third.party.notices.dialog.sources.details.online"), this);
     online->setObjectName(QStringLiteral("NoticesSource"));
     online->setAutoDefault(false);
     footer->addWidget(online);
@@ -100,13 +101,13 @@ ThirdPartyNoticesDialog::ThirdPartyNoticesDialog(QWidget* parent, const QString&
         && !manifest_.value("components").toArray().isEmpty()
         && manifest_.value("texts").isObject() && manifest_.value("notice_text_keys").isArray();
     if (!loaded_) {
-        info->setText(tr("The local notices could not be opened."));
+        i18n::setText(info, i18n::text("third.party.notices.dialog.the.local.notices.could.not.be.opened"));
         search->setEnabled(false);
         details->setEnabled(false);
         online->setEnabled(false);
         return;
     }
-    info->setText(tr("Vulkana %1 · Qt uses LGPL v3; full license copies are available below.")
+    i18n::setText(info, i18n::text("third.party.notices.dialog.vulkana.1.qt.uses.lgpl.v3.full.license.copies")
         .arg(QString::fromLatin1(platform::buildVersion)));
     info->setProperty("noticeProfile", manifest_.value("profile").toString());
     const QUrl url(manifest_.value("source_url").toString());
@@ -167,6 +168,6 @@ ThirdPartyNoticesDialog::ThirdPartyNoticesDialog(QWidget* parent, const QString&
 void ThirdPartyNoticesDialog::showEntry(int row)
 {
     summary_->setPlainText(row >= 0 && row < entrySummaries_.size()
-        ? entrySummaries_[row] : tr("No matching components."));
+        ? entrySummaries_[row] : i18n::text("third.party.notices.dialog.no.matching.components"));
 }
 } // namespace imageeditor::ui

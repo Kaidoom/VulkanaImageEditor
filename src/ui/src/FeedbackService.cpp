@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/FeedbackService.hpp"
 
 #include <QCoreApplication>
@@ -26,7 +27,7 @@ FeedbackService::FeedbackService(QObject* parent, QNetworkAccessManager* transpo
     cooldown_.setTimerType(Qt::PreciseTimer); // Never release the two-second gate early.
     connect(&cooldown_, &QTimer::timeout, this, [this] { notify(); });
     connect(&deadline_, &QTimer::timeout, this, [this] {
-        fail(tr("Submission could not be confirmed. Check your connection before trying again."));
+        fail(i18n::text("feedback.service.submission.could.not.be.confirmed.check.your.connection.before"));
     });
 }
 FeedbackService::~FeedbackService() { onChanged={}; stopRequest(); }
@@ -40,7 +41,7 @@ bool FeedbackService::submit(const FeedbackSubmission& value)
     if (message.isEmpty() || characterCount(value.message)>maximumCharacters
         || value.contact.size()>254 || value.systemInfo.size()>2048
         || (value.category!="bug" && value.category!="feature" && value.category!="improvement" && value.category!="other")) {
-        fail(tr("Choose a category and enter feedback (up to 2,000 characters)."));
+        fail(i18n::text("feedback.service.choose.a.category.and.enter.feedback.up.to.2"));
         return false;
     }
     const auto body=QJsonDocument(QJsonObject {
@@ -61,7 +62,7 @@ bool FeedbackService::submit(const FeedbackSubmission& value)
     request.setAttribute(QNetworkRequest::CacheSaveControlAttribute,false);
     request.setTransferTimeout(timeoutMs_);
     state_=State::Submitting;
-    message_=tr("Sending feedback…");
+    message_=i18n::text("feedback.service.sending.feedback");
     response_.clear();
     cooldown_.start(cooldownMs);
     deadline_.start(timeoutMs_);
@@ -79,7 +80,7 @@ void FeedbackService::readResponse()
     // display arbitrary HTML/server diagnostics or log response/report contents.
     response_+=reply_->read(maximumResponseBytes-response_.size()+1);
     if(response_.size()>maximumResponseBytes)
-        fail(tr("The feedback service returned an unexpected response. Please try again later."));
+        fail(i18n::text("feedback.service.the.feedback.service.returned.an.unexpected.response.please.try"));
 }
 void FeedbackService::finish()
 {
@@ -90,13 +91,13 @@ void FeedbackService::finish()
         bool ok=false;
         const auto seconds=reply_->rawHeader("Retry-After").toLongLong(&ok);
         if(ok && seconds>0)cooldown_.start(std::max(cooldown_.remainingTime(),int(std::min(seconds,qint64(300)))*1000));
-        fail(tr("Too many reports. Please wait before trying again."));
+        fail(i18n::text("feedback.service.too.many.reports.please.wait.before.trying.again"));
     } else if(reply_->error()!=QNetworkReply::NoError || status<200 || status>=300) {
         fail(status==400 || status==413 || status==422
-            ? tr("The report was not accepted. Check its contents and try again.")
-            : tr("Could not send feedback. Please try again later."));
+            ? i18n::text("feedback.service.the.report.was.not.accepted.check.its.contents.and")
+            : i18n::text("feedback.service.could.not.send.feedback.please.try.again.later"));
     } else if (status!=204 && !QJsonDocument::fromJson(response_).object().value("ok").toBool()) {
-        fail(tr("Submission could not be confirmed. Please try again later."));
+        fail(i18n::text("feedback.service.submission.could.not.be.confirmed.please.try.again.later"));
     } else {
         stopRequest();
         state_=State::Succeeded;

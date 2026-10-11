@@ -456,6 +456,7 @@ parse(QByteArray bytes, const std::shared_ptr<PsdJob> &job, PsdLimits limits) {
     if(id==1037)s->globalLightAngle=data.i32();
     if(id==1049)s->globalLightAltitude=data.i32();
     if (id == 1039) {
+      s->embeddedProfile = true;
       s->colorSpace = QColorSpace::fromIccProfile(data.data.toByteArray());
       if (!s->colorSpace.isValid() ||
           s->colorSpace.colorModel() != QColorSpace::ColorModel::Rgb)

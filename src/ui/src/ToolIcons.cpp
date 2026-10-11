@@ -77,6 +77,22 @@ QPixmap rasterizedGlyph(ToolGlyph glyph, const QColor& ink, const QSize& size, q
             p.drawPoint(QPointF(12, 7));
             p.drawLine(QPointF(12, 11), QPointF(12, 17));
         }
+    } else if (glyph == ToolGlyph::Preferences) {
+        // An original eight-tooth gear in the shared 24-unit line style.
+        QPainterPath gear;
+        for (int tooth = 0; tooth < 8; ++tooth) {
+            for (int corner = 0; corner < 4; ++corner) {
+                constexpr double offsets[] = {-16, -10, 10, 16};
+                const double angle = (tooth * 45 + offsets[corner]) * 3.141592653589793 / 180;
+                const double radius = corner == 0 || corner == 3 ? 7.3 : 9.5;
+                const QPointF point(12 + radius * std::cos(angle), 12 + radius * std::sin(angle));
+                if (tooth == 0 && corner == 0) gear.moveTo(point);
+                else gear.lineTo(point);
+            }
+        }
+        gear.closeSubpath();
+        p.drawPath(gear);
+        p.drawEllipse(QPointF(12, 12), 3, 3);
     } else if (glyph == ToolGlyph::Plus) {
         p.drawLine(QPointF(5, 12), QPointF(19, 12));
         p.drawLine(QPointF(12, 5), QPointF(12, 19));

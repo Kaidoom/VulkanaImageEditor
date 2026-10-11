@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/AdjustmentsPanel.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
@@ -40,7 +41,7 @@ void MainWindow::addAdjustmentLayer()
 void MainWindow::createAdjustmentsPanel()
 {
     adjustmentsPanel_=new AdjustmentsPanel;
-    adjustmentsPanelShell_=new WorkspacePanel(QStringLiteral("Adjustments"),adjustmentsPanel_);
+    adjustmentsPanelShell_=new WorkspacePanel(i18n::text("main.window.adjustments.adjustments"),adjustmentsPanel_);
     adjustmentsPanelShell_->setObjectName(QStringLiteral("AdjustmentsPanelShell"));
     adjustmentsPanelShell_->setHeightRange(uiLayoutConfig_.adjustments.minimum,uiLayoutConfig_.adjustments.maximum);
     workspace_->addPanel(adjustmentsPanelShell_,OverlayDockWorkspace::PanelDockSide::Right);
@@ -96,7 +97,7 @@ bool MainWindow::beginAdjustmentEdit(core::AdjustmentType)
         auto transaction=std::make_unique<core::AdjustmentEditTransaction>(*session().document(),*session().activeLayer());
         if(!transaction->active())return false;
         adjustmentEdit_=std::move(transaction);capturedFilterRegionActive_=false;updateActionState();return true;
-    }catch(const std::exception& e){statusBar()->showMessage(QStringLiteral("Could not begin adjustment: %1").arg(QString::fromUtf8(e.what())),5000);return false;}
+    }catch(const std::exception& e){statusBar()->showMessage(i18n::text("main.window.adjustments.could.not.begin.adjustment.1").arg(QString::fromUtf8(e.what())),5000);return false;}
 }
 void MainWindow::previewAdjustmentEdit(core::AdjustmentState state)
 {
@@ -109,7 +110,7 @@ void MainWindow::previewAdjustmentEdit(core::AdjustmentState state)
             refreshAdjustmentPanel();
             if(layerList_)layerList_->viewport()->update();
         }else if(!adjustmentEdit_->active())finishAdjustmentEdit(false);
-    }catch(const std::exception& e){statusBar()->showMessage(QStringLiteral("Adjustment preview failed: %1").arg(QString::fromUtf8(e.what())),5000);finishAdjustmentEdit(false);}
+    }catch(const std::exception& e){statusBar()->showMessage(i18n::text("main.window.adjustments.adjustment.preview.failed.1").arg(QString::fromUtf8(e.what())),5000);finishAdjustmentEdit(false);}
 }
 void MainWindow::finishAdjustmentEdit(bool commit)
 {
@@ -119,12 +120,12 @@ void MainWindow::finishAdjustmentEdit(bool commit)
     try{
         if(commit) {
             if(!adjustmentEdit_->commit(session().history())&&adjustmentEdit_->active()){
-                statusBar()->showMessage(QStringLiteral("Could not record the adjustment. Preview retained; retry or Escape to cancel."),5000);return;
+                statusBar()->showMessage(i18n::text("main.window.adjustments.could.not.record.the.adjustment.preview.retained.retry.or"),5000);return;
             }
         }else (void)adjustmentEdit_->cancel();
         adjustmentEdit_.reset();
         if(session().document())synchronizeUi(false,false);
-    }catch(const std::exception& e){statusBar()->showMessage(QStringLiteral("Could not finish adjustment: %1").arg(QString::fromUtf8(e.what())),5000);}
+    }catch(const std::exception& e){statusBar()->showMessage(i18n::text("main.window.adjustments.could.not.finish.adjustment.1").arg(QString::fromUtf8(e.what())),5000);}
 }
 void MainWindow::captureAdjustmentSelection(core::AdjustmentType type)
 {
@@ -137,7 +138,7 @@ void MainWindow::captureAdjustmentSelection(core::AdjustmentType type)
         state.items[std::size_t(type)].mask=core::captureAdjustmentMask(session().document()->selection(),layer->localToDocument);
         previewAdjustmentEdit(std::make_shared<const core::AdjustmentStack>(std::move(state)));
         finishAdjustmentEdit(true);
-    }catch(const std::exception& e){statusBar()->showMessage(QStringLiteral("Could not capture adjustment mask: %1").arg(QString::fromUtf8(e.what())),5000);finishAdjustmentEdit(false);}
+    }catch(const std::exception& e){statusBar()->showMessage(i18n::text("main.window.adjustments.could.not.capture.adjustment.mask.1").arg(QString::fromUtf8(e.what())),5000);finishAdjustmentEdit(false);}
 }
 void MainWindow::refreshAdjustmentPanel()
 {

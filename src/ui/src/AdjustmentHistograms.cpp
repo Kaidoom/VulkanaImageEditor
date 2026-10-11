@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/AdjustmentsPanel.hpp"
 #include <QElapsedTimer>
 #include <QLabel>
@@ -21,7 +22,7 @@ void AdjustmentsPanel::requestHistogram(const core::Layer* layer)
     const auto cacheIndex=type==core::AdjustmentType::Levels?0U:1U;
     const bool composite=std::holds_alternative<core::AdjustmentLayer>(layer->payload)&&document_;
     if(!composite && (!surface||surface->extent().empty())){
-        histogramLabels_[cacheIndex]->setText(QStringLiteral("No rendered source pixels"));return;
+        i18n::setText(histogramLabels_[cacheIndex], i18n::text("adjustment.histograms.no.rendered.source.pixels"));return;
     }
     auto upstream=layer->adjustments?*layer->adjustments:core::AdjustmentStack{};
     const auto stage=std::size_t(type);
@@ -51,7 +52,7 @@ void AdjustmentsPanel::requestHistogram(const core::Layer* layer)
         job.composite=std::make_shared<core::PinnedDocumentSampler>(*document_,std::nullopt,core::ColorSampleSource::MergedVisible,
             core::SampleFiltering::AlphaAware,std::span<const core::SampleCacheOverride>{},core::ActiveReferenceAppearance::Intrinsic,layer->id);
     }catch(const std::exception&) {
-        histogramJob_.reset();histogramTimer_->stop();histogramLabels_[cacheIndex]->setText(QStringLiteral("Preparing input histogram…"));return;
+        histogramJob_.reset();histogramTimer_->stop();i18n::setText(histogramLabels_[cacheIndex], i18n::text("adjustment.histograms.preparing.input.histogram"));return;
     }
     constexpr std::size_t maximumSamples=262144;
     job.step=std::max<std::size_t>(1,std::size_t(std::ceil(std::sqrt(double(extent.width)*extent.height/maximumSamples))));
@@ -59,7 +60,7 @@ void AdjustmentsPanel::requestHistogram(const core::Layer* layer)
     // Extreme aspect ratios need a larger stride than sqrt(area / budget).
     while(job.columns*job.rows>maximumSamples){++job.step;job.columns=(extent.width+job.step-1)/job.step;job.rows=(extent.height+job.step-1)/job.step;}
     histogramJob_=std::move(job);
-    histogramLabels_[cacheIndex]->setText(QStringLiteral("Updating input histogram…"));
+    i18n::setText(histogramLabels_[cacheIndex], i18n::text("adjustment.histograms.updating.input.histogram"));
     histogramTimer_->start(0);
 }
 void AdjustmentsPanel::advanceHistogram()
@@ -113,7 +114,7 @@ void AdjustmentsPanel::updateHistogramDisplay()
         plot->setHistogram(cache.bins,i==0?levelsChannel_->currentIndex():curvesChannel_->currentIndex());
         const auto extent=cache.extent;
         const bool sampled=cache.sampled<std::uint64_t(extent.width)*extent.height;
-        histogramLabels_[i]->setText(QStringLiteral("%1 input · %2 texels · alpha-weighted sRGB")
+        i18n::setText(histogramLabels_[i], i18n::text("adjustment.histograms.1.input.2.texels.alpha.weighted.srgb")
             .arg(sampled?QStringLiteral("Sampled"):QStringLiteral("Source")).arg(cache.sampled));
     }
 }

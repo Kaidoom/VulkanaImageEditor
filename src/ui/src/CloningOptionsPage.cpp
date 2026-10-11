@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/CloningOptionsPage.hpp"
 
 #include "imageeditor/ui/CompactValueControl.hpp"
@@ -19,18 +20,18 @@ namespace imageeditor::ui {
 namespace {
 
 CompactValueControl* valueControl(const QString& objectName,
-    const QString& label, double minimum, double maximum,
+    const i18n::Message& label, double minimum, double maximum,
     const QString& suffix, int decimals, int width, QWidget* parent)
 {
     auto* control = new CompactValueControl(parent);
     control->setObjectName(objectName);
     control->setRange(minimum, maximum);
-    control->setPrefix(label + QStringLiteral(": "));
+    i18n::setPrefix(control, label + QStringLiteral(": "));
     control->setSuffix(suffix);
     control->setDecimals(decimals);
     control->setSingleStep(1.0);
     control->setFixedSize(width, 30);
-    control->setAccessibleName(label);
+    i18n::setAccessibleName(control, label);
     return control;
 }
 
@@ -53,10 +54,10 @@ CloningOptionsPage::CloningOptionsPage(QWidget* parent)
         const bool spot = mode == core::CloneMode::SpotHeal;
         auto* button = new ToolOptionsButton(
             spot ? QStringLiteral("CloneModeSpotHeal") : heal ? QStringLiteral("CloneModeHeal") : QStringLiteral("CloneModeStamp"),
-            spot ? QStringLiteral("Spot Heal") : heal ? QStringLiteral("Heal") : QStringLiteral("Stamp"),
-            spot ? QStringLiteral("Spot Heal · mark a blemish or scratch; reconstruct from unmarked surrounding texture on release. No source anchor needed.")
-                 : heal ? QStringLiteral("Heal · transfer source texture and adapt it to destination tone and illumination")
-                 : QStringLiteral("Stamp · copy corresponding source pixels through the brush footprint"),
+            spot ? i18n::text("cloning.options.page.spot.heal") : heal ? QStringLiteral("Heal") : QStringLiteral("Stamp"),
+            spot ? i18n::text("cloning.options.page.spot.heal.mark.a.blemish.or.scratch.reconstruct.from")
+                 : heal ? i18n::text("cloning.options.page.heal.transfer.source.texture.and.adapt.it.to.destination")
+                 : i18n::text("cloning.options.page.stamp.copy.corresponding.source.pixels.through.the.brush.footprint"),
             ToolOptionsButton::Kind::Toggle, modes_, ToolOptionsButton::Presentation::Icon);
         button->setIcon(toolGlyph(spot ? ToolGlyph::SpotHeal : heal ? ToolGlyph::CloneHeal : ToolGlyph::CloneStamp));
         modeGroup_->addButton(button, static_cast<int>(mode));
@@ -72,32 +73,27 @@ CloningOptionsPage::CloningOptionsPage(QWidget* parent)
     row->addStretch();
 
     sourceModes_->setObjectName(QStringLiteral("CloneSourceModes"));
-    sourceModes_->setAccessibleName(QStringLiteral("Cloning sample source"));
+    i18n::setAccessibleName(sourceModes_, i18n::text("cloning.options.page.cloning.sample.source"));
     auto* sourceRow = new QHBoxLayout(sourceModes_);
     sourceRow->setContentsMargins(0, 0, 0, 0);
     sourceRow->setSpacing(4);
-    rawSourceHint_ = QStringLiteral(
-        "Source Layer (Raw)\nSample the identified source layer before its adjustments and opacity. "
-        "Changing the destination layer does not redirect this source.");
-    const auto renderedHint = QStringLiteral(
-        "Rendered sampling captures appearance, including adjustments, opacity, blending and visibility. "
-        "For retouching, paint onto a clean Normal raster layer at 100% opacity with no adjustments; "
-        "additional destination effects will change the sampled appearance.");
+    rawSourceHint_ = i18n::text("cloning.options.page.source.layer.raw.sample.the.identified.source.layer.before");
+    const auto renderedHint = i18n::text("cloning.options.page.rendered.sampling.captures.appearance.including.adjustments.opacity.blending.and");
     struct SourceMode {
         core::CloneSampleSource source;
         const char* name;
-        QString label;
-        QString hint;
+        i18n::Message label;
+        i18n::Message hint;
         ToolGlyph glyph;
     };
     const SourceMode sources[] = {
-        {core::CloneSampleSource::SourceLayer, "CloneSourceLayer", QStringLiteral("Source Layer (Raw)"),
+        {core::CloneSampleSource::SourceLayer, "CloneSourceLayer", i18n::text("cloning.options.page.source.layer.raw"),
             rawSourceHint_, ToolGlyph::ActiveLayer},
-        {core::CloneSampleSource::CurrentAndBelow, "CloneSourceCurrentBelow", QStringLiteral("Current & Below"),
-            QStringLiteral("Current & Below\nThe destination layer and visible content beneath it.\n")
+        {core::CloneSampleSource::CurrentAndBelow, "CloneSourceCurrentBelow", i18n::text("cloning.options.page.current.and.below"),
+            i18n::text("cloning.options.page.current.below.the.destination.layer.and.visible.content.beneath")
                 + renderedHint, ToolGlyph::CurrentAndBelow},
-        {core::CloneSampleSource::AllVisible, "CloneSourceAllVisible", QStringLiteral("All Visible"),
-            QStringLiteral("All Visible\nRendered visible document content.\n")
+        {core::CloneSampleSource::AllVisible, "CloneSourceAllVisible", i18n::text("cloning.options.page.all.visible"),
+            i18n::text("cloning.options.page.all.visible.rendered.visible.document.content")
                 + renderedHint, ToolGlyph::MergedVisible},
     };
     for (const auto& source : sources) {
@@ -110,40 +106,25 @@ CloningOptionsPage::CloningOptionsPage(QWidget* parent)
     }
     row->addWidget(sourceModes_);
 
-    sizeControl_ = valueControl(QStringLiteral("CloneSizeControl"),
-        QStringLiteral("Size"), 1.0, 1000.0, QStringLiteral(" px"), 1, 132, this);
-    opacityControl_ = valueControl(QStringLiteral("CloneOpacityControl"),
-        QStringLiteral("Opacity"), 1.0, 100.0, QStringLiteral("%"), 0, 132, this);
-    hardnessControl_ = valueControl(QStringLiteral("CloneHardnessControl"),
-        QStringLiteral("Hardness"), 0.0, 100.0, QStringLiteral("%"), 0, 134, this);
-    hardnessControl_->setToolTip(QStringLiteral(
-        "Brush edge coverage in Stamp and Heal. Lower values soften the footprint; "
-        "healing adaptation is controlled separately."));
-    flowControl_ = valueControl(QStringLiteral("CloneFlowControl"),
-        QStringLiteral("Flow"), 1.0, 100.0, QStringLiteral("%"), 0, 116, this);
-    flowControl_->setToolTip(QStringLiteral(
-        "Coverage added by each dab, up to the stroke's Opacity ceiling"));
-    spacingControl_ = valueControl(QStringLiteral("CloneSpacingControl"),
-        QStringLiteral("Spacing"), 1.0, 200.0, QStringLiteral("%"), 0, 132, this);
-    spacingControl_->setToolTip(QStringLiteral("Dab spacing as a percentage of brush diameter"));
+    sizeControl_ = valueControl(QStringLiteral("CloneSizeControl"), i18n::text("cloning.options.page.size"), 1.0, 1000.0, QStringLiteral(" px"), 1, 132, this);
+    opacityControl_ = valueControl(QStringLiteral("CloneOpacityControl"), i18n::text("cloning.options.page.opacity"), 1.0, 100.0, QStringLiteral("%"), 0, 132, this);
+    hardnessControl_ = valueControl(QStringLiteral("CloneHardnessControl"), i18n::text("cloning.options.page.hardness"), 0.0, 100.0, QStringLiteral("%"), 0, 134, this);
+    i18n::setToolTip(hardnessControl_, i18n::text("cloning.options.page.brush.edge.coverage.in.stamp.and.heal.lower.values"));
+    flowControl_ = valueControl(QStringLiteral("CloneFlowControl"), i18n::text("cloning.options.page.flow"), 1.0, 100.0, QStringLiteral("%"), 0, 116, this);
+    i18n::setToolTip(flowControl_, i18n::text("cloning.options.page.coverage.added.by.each.dab.up.to.the.stroke"));
+    spacingControl_ = valueControl(QStringLiteral("CloneSpacingControl"), i18n::text("cloning.options.page.spacing"), 1.0, 200.0, QStringLiteral("%"), 0, 132, this);
+    i18n::setToolTip(spacingControl_, i18n::text("cloning.options.page.dab.spacing.as.a.percentage.of.brush.diameter"));
     for (auto* control : {sizeControl_, opacityControl_, hardnessControl_, flowControl_, spacingControl_}) {
         row->addWidget(control);
         connect(control, &QDoubleSpinBox::valueChanged, this,
             [this, control] { publishBrushSettings(control); });
     }
 
-    alignedButton_ = new ToolOptionsButton(QStringLiteral("CloneAlignedButton"),
-        QStringLiteral("Aligned"), QStringLiteral(
-            "Aligned sampling\nOn: preserve the source-to-destination offset between strokes.\n"
-            "Off: each stroke starts at the original source anchor.\nAlt+click sets a new source anchor."),
-        ToolOptionsButton::Kind::Toggle, this, ToolOptionsButton::Presentation::Icon);
+    alignedButton_ = new ToolOptionsButton(QStringLiteral("CloneAlignedButton"), i18n::text("cloning.options.page.aligned"), i18n::text("cloning.options.page.aligned.sampling.on.preserve.the.source.to.destination.offset"), ToolOptionsButton::Kind::Toggle, this, ToolOptionsButton::Presentation::Icon);
     alignedButton_->setIcon(toolGlyph(ToolGlyph::CloneAligned));
 
-    adaptationControl_ = valueControl(QStringLiteral("CloneAdaptationControl"),
-        QStringLiteral("Adaptation"), 0.0, 100.0, QStringLiteral("%"), 0, 148, this);
-    adaptationControl_->setToolTip(QStringLiteral(
-        "Heal adaptation\nHigher values fit transferred texture more strongly to surrounding "
-        "destination tone and illumination. This does not change brush edge softness."));
+    adaptationControl_ = valueControl(QStringLiteral("CloneAdaptationControl"), i18n::text("cloning.options.page.adaptation"), 0.0, 100.0, QStringLiteral("%"), 0, 148, this);
+    i18n::setToolTip(adaptationControl_, i18n::text("cloning.options.page.heal.adaptation.higher.values.fit.transferred.texture.more.strongly"));
     row->addWidget(adaptationControl_);
     row->addWidget(alignedButton_);
     row->addStretch();
@@ -158,7 +139,7 @@ CloningOptionsPage::CloningOptionsPage(QWidget* parent)
     progressLabel_->setObjectName(QStringLiteral("SpotHealProgressLabel"));progressLayout->addWidget(progressLabel_);
     progress_=new QProgressBar;progress_->setRange(0,1000);progress_->setFixedWidth(180);
     progress_->setTextVisible(false);progressLayout->addWidget(progress_);
-    auto* cancel=new QPushButton(tr("Cancel"));cancel->setObjectName(QStringLiteral("SpotHealCancelProcessing"));
+    auto* cancel=i18n::make<QPushButton>(i18n::text("cloning.options.page.cancel"));cancel->setObjectName(QStringLiteral("SpotHealCancelProcessing"));
     progressLayout->addWidget(cancel);progressLayout->addStretch();
     outer->addWidget(progressRow_);progressRow_->hide();
     connect(cancel,&QPushButton::clicked,this,[this]{if(onCancelProcessing)onCancelProcessing();});
@@ -264,22 +245,22 @@ void CloningOptionsPage::setAdaptation(double adaptation)
 void CloningOptionsPage::setSourceLayerLabel(const QString& label, bool valid)
 {
     if(cloneSettings_.mode==core::CloneMode::SpotHeal){
-        sourceModes_->setAccessibleDescription(tr("Automatic repair; no source anchor required"));
+        sourceModes_->setAccessibleDescription(i18n::text("cloning.options.page.automatic.repair.no.source.anchor.required"));
         if(auto* button=sourceGroup_->button(int(core::CloneSampleSource::SourceLayer)))
-            button->setToolTip(tr("Source Layer (Raw)\nRepair the primary raster layer before its adjustments, filters, opacity and blending. No source anchor required."));
+            i18n::setToolTip(button, i18n::text("cloning.options.page.source.layer.raw.repair.the.primary.raster.layer.before"));
         return;
     }
     const auto fullText = valid
-        ? QStringLiteral("Source: %1").arg(label)
-        : QStringLiteral("Alt+click to set source");
+        ? i18n::text("cloning.options.page.source.1").arg(label)
+        : i18n::text("cloning.options.page.alt.click.to.set.source");
     // The bottom information bar owns the visible source readout. Keep the
     // same identity available here without reserving a wide toolbar label.
     sourceModes_->setAccessibleDescription(fullText);
     if (auto* button = sourceGroup_->button(static_cast<int>(core::CloneSampleSource::SourceLayer))) {
         button->setAccessibleDescription(fullText);
-        button->setToolTip(rawSourceHint_ + QStringLiteral("\n\n") + (valid
-            ? fullText + QStringLiteral("\nAlt+click establishes a new source anchor.")
-            : QStringLiteral("No valid source. Alt+click the image to set a source point, then paint to clone.")));
+        i18n::setToolTip(button, rawSourceHint_ + QStringLiteral("\n\n") + (valid
+            ? fullText + i18n::text("cloning.options.page.alt.click.establishes.a.new.source.anchor")
+            : i18n::text("cloning.options.page.no.valid.source.alt.click.the.image.to.set")));
     }
 }
 

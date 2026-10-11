@@ -421,11 +421,15 @@ void semanticFixtures() {
   out = convert(in);
   CHECK(out.document && !out.document->layers()[0].visible &&
         out.document->layers()[0].opacity == float(83) / 255);
+  CHECK(in.colorHandling == u::PsdColorHandling::AssumedSRgb);
+  CHECK(in.layers[0].kind == u::PsdContentKind::Raster);
   leaf.hidden = false;
   leaf.opacity = 255;
   const QColorSpace source(QColorSpace::DisplayP3);
   in = inspect(f::file({leaf}, {96, 96}, 72, source.iccProfile()));
   CHECK(in.error.isEmpty());
+  CHECK(in.colorHandling == u::PsdColorHandling::ConvertedToSRgb);
+  CHECK(in.sourceProfile == source.description());
   out = convert(in);
   if (out.document) {
     auto image = u::flattenDocument(*out.document);

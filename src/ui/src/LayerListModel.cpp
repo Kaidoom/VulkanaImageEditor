@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/LayerListModel.hpp"
 #include "imageeditor/ui/LayerTransferMimeData.hpp"
 #include "imageeditor/core/ColorSampler.hpp"
@@ -266,12 +267,12 @@ QVariant LayerListModel::data(const QModelIndex& index, int role) const
         return layerThumbnail(*l);
     }
     case Qt::ToolTipRole:
-        if(c&&c->kind==core::ContainerKind::ClippingMaskGroup)return tr("Clipping mask group · Bottommost child is the base · Reorder to change the base");
-        if(l&&l->mask)return tr("Content thumbnail: edit layer · Mask thumbnail: edit coverage\nWhite reveals · Black hides · Gray is partial · Right-click for mask actions");
+        if(c&&c->kind==core::ContainerKind::ClippingMaskGroup)return i18n::text("layer.list.model.clipping.mask.group.bottommost.child.is.the.base.reorder");
+        if(l&&l->mask)return i18n::text("layer.list.model.content.thumbnail.edit.layer.mask.thumbnail.edit.coverage.white");
         if (c)
-            return QStringLiteral("%1 · %2 immediate items\n%3").arg(c->kind == core::ContainerKind::Folder ? "Folder" : "Pass-through group").arg(c->children.size()).arg(c->kind == core::ContainerKind::Folder ? "Organizes content; no opacity or transform. Drop inside to reparent." : "Move/Transform moves all members, including hidden layers. Ungroup keeps editable content.");
-        return QStringLiteral("%1\nF2 to rename · right-click for organization").arg(std::holds_alternative<core::RasterLayer>(l->payload) ? "Raster layer" : std::holds_alternative<core::TextLayer>(l->payload) ? "Editable text layer"
-                                                                                                                                                                                                                  : "Editable shape layer");
+            return i18n::text("layer.list.model.1.2.immediate.items.3").arg(c->kind == core::ContainerKind::Folder ? i18n::text("layer.list.model.folder") : i18n::text("layer.list.model.pass.through.group")).arg(c->children.size()).arg(c->kind == core::ContainerKind::Folder ? i18n::text("layer.list.model.organizes.content.no.opacity.or.transform.drop.inside.to") : i18n::text("layer.list.model.move.transform.moves.all.members.including.hidden.layers.ungroup"));
+        return i18n::text("layer.list.model.1.f2.to.rename.right.click.for.organization").arg(std::holds_alternative<core::RasterLayer>(l->payload) ? i18n::text("layer.list.model.raster.layer") : std::holds_alternative<core::TextLayer>(l->payload) ? i18n::text("layer.list.model.editable.text.layer")
+                                                                                                                                                                                                                  : i18n::text("layer.list.model.editable.shape.layer"));
     case Qt::UserRole:
         return QVariant::fromValue<qulonglong>(*id);
     case Qt::UserRole + 1:

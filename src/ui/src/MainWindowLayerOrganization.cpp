@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/LayerStructureCommands.hpp"
 #include "imageeditor/core/LayerCommands.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
@@ -52,35 +53,35 @@ namespace {
 void MainWindow::createLayerOrganizationActions()
 {
     createLayerMaskActions();
-    const auto action = [&](QString name, QString object, ToolGlyph glyph, const auto& callback) {
-        auto* a = new QAction(toolGlyph(glyph), name, this);
+    const auto action = [&](i18n::Message name, QString object, ToolGlyph glyph, const auto& callback) {
+        auto* a = i18n::make<QAction>(toolGlyph(glyph), std::move(name), this);
         a->setObjectName(object);
         connect(a, &QAction::triggered, this, callback);
         registerEditorWindowAction(a);
         return a;
     };
-    newFolderAction_ = action(tr("New Folder"), "NewLayerFolderAction", ToolGlyph::Folder, [this] { createLayerFolder(); });
-    groupLayersAction_ = action(tr("Group Selected Items"), "GroupLayersAction", ToolGlyph::Group, [this] { groupLayerItems(); });
-    clippingGroupAction_ = action(tr("Add to Clipping Mask Group"), "ClippingGroupAction", ToolGlyph::ClippingGroup, [this] { clippingGroupItems(); });
-    ungroupLayersAction_ = action(tr("Ungroup"), "UngroupLayersAction", ToolGlyph::Group, [this] {if(session().activeLayer())dissolveLayerItem(*session().activeLayer()); });
-    mergeLayersAction_ = action(tr("Merge Layers…"), "MergeLayersAction", ToolGlyph::MergedVisible, [this] { mergeLayerItems(); });
-    mergeLayersAction_->setToolTip(tr("Bake selected content together over transparency; unselected backdrop layers are not included."));
-    rasterizeLayersAction_ = action(tr("Rasterize Layer"), "RasterizeLayersAction", ToolGlyph::ActiveLayer, [this] { rasterizeLayerItems(); });
-    rasterizeLayersAction_->setToolTip(tr("Commit selected layers to native document pixels separately, retaining their opacity and blend modes."));
-    duplicateLayersAction_ = action(tr("Duplicate Selected Layers"), "DuplicateLayersAction", ToolGlyph::ActiveLayer, [this] { duplicateLayerItems(); });
+    newFolderAction_ = action(i18n::text("main.window.layer.organization.new.folder"), "NewLayerFolderAction", ToolGlyph::Folder, [this] { createLayerFolder(); });
+    groupLayersAction_ = action(i18n::text("main.window.layer.organization.group.selected.items"), "GroupLayersAction", ToolGlyph::Group, [this] { groupLayerItems(); });
+    clippingGroupAction_ = action(i18n::text("main.window.layer.organization.add.to.clipping.mask.group"), "ClippingGroupAction", ToolGlyph::ClippingGroup, [this] { clippingGroupItems(); });
+    ungroupLayersAction_ = action(i18n::text("main.window.layer.organization.ungroup"), "UngroupLayersAction", ToolGlyph::Group, [this] {if(session().activeLayer())dissolveLayerItem(*session().activeLayer()); });
+    mergeLayersAction_ = action(i18n::text("main.window.layer.organization.merge.layers"), "MergeLayersAction", ToolGlyph::MergedVisible, [this] { mergeLayerItems(); });
+    i18n::setToolTip(mergeLayersAction_, i18n::text("main.window.layer.organization.bake.selected.content.together.over.transparency.unselected.backdrop.layers"));
+    rasterizeLayersAction_ = action(i18n::text("main.window.layer.organization.rasterize.layer"), "RasterizeLayersAction", ToolGlyph::ActiveLayer, [this] { rasterizeLayerItems(); });
+    i18n::setToolTip(rasterizeLayersAction_, i18n::text("main.window.layer.organization.commit.selected.layers.to.native.document.pixels.separately.retaining"));
+    duplicateLayersAction_ = action(i18n::text("main.window.layer.organization.duplicate.selected.layers"), "DuplicateLayersAction", ToolGlyph::ActiveLayer, [this] { duplicateLayerItems(); });
     duplicateLayersAction_->setShortcut(QKeySequence(Qt::ShiftModifier | Qt::Key_D));
     duplicateLayersAction_->setAutoRepeat(false);
-    renameLayerAction_ = action(tr("Rename"), "RenameLayerItemAction", ToolGlyph::ActiveLayer, [this] {
+    renameLayerAction_ = action(i18n::text("main.window.layer.organization.rename"), "RenameLayerItemAction", ToolGlyph::ActiveLayer, [this] {
         if (session().activeLayer() && !editorTextInputActive() && !(textController_ && textController_->active()))
             renameLayerItem(*session().activeLayer());
     });
     renameLayerAction_->setShortcut(QKeySequence(Qt::Key_F2));
     const std::array names { "HideSelectedLayersAction", "ShowSelectedLayersAction", "IsolateSelectedLayersAction", "ShowAllLayersAction" };
-    const std::array titles { tr("Hide Selected"), tr("Reveal Selected"), tr("Isolate Selected"), tr("Show All Layers") };
+    const std::array titles { i18n::text("main.window.layer.organization.hide.selected"), i18n::text("main.window.layer.organization.reveal.selected"), i18n::text("main.window.layer.organization.isolate.selected"), i18n::text("main.window.layer.organization.show.all.layers") };
     const std::array shortcuts { QKeySequence(Qt::Key_H), QKeySequence(Qt::AltModifier | Qt::Key_H),
         QKeySequence(Qt::ShiftModifier | Qt::Key_H), QKeySequence(Qt::ShiftModifier | Qt::AltModifier | Qt::Key_H) };
     for (std::size_t i = 0; i < layerVisibilityActions_.size(); ++i) {
-        auto* a = new QAction(titles[i], this);
+        auto* a = i18n::make<QAction>(titles[i], this);
         a->setObjectName(QString::fromLatin1(names[i]));
         a->setShortcut(shortcuts[i]);
         a->setAutoRepeat(false);
@@ -101,10 +102,10 @@ void MainWindow::changeLayerVisibility(core::VisibilityOperation operation)
             canvasWindow_->refreshColorSample();
         }
     } catch (const std::exception& error) {
-        statusBar()->showMessage(tr("Could not change layer visibility: %1").arg(QString::fromUtf8(error.what())), 5000);
+        statusBar()->showMessage(i18n::text("main.window.layer.organization.could.not.change.layer.visibility.1").arg(QString::fromUtf8(error.what())), 5000);
     }
 }
-bool MainWindow::commitLayerStructure(const QString& label, core::LayerTree after,
+bool MainWindow::commitLayerStructure(const i18n::Message& label, core::LayerTree after,
     std::vector<core::LayerId> removed, std::vector<core::Layer> added, core::LayerSelectionState afterSelection,
     std::vector<core::ItemVisibilityUpdate> retainedLeafVisibility)
 {
@@ -112,7 +113,7 @@ bool MainWindow::commitLayerStructure(const QString& label, core::LayerTree afte
         return false;
     bool applied = false;
     try {
-        auto command = std::make_unique<core::LayerStructureCommand>(label.toStdString(), *session().document(),
+        auto command = std::make_unique<core::LayerStructureCommand>(label.source().toStdString(), *session().document(),
             std::move(after), std::move(removed), std::move(added), session().layerSelectionState(), std::move(afterSelection), std::move(retainedLeafVisibility));
         if (!session().execute(std::move(command)))
             return false;
@@ -121,8 +122,8 @@ bool MainWindow::commitLayerStructure(const QString& label, core::LayerTree afte
         synchronizeUi(true, false);
         return true;
     } catch (const std::exception& e) {
-        statusBar()->showMessage((applied ? tr("Layers updated, but display refresh failed: %1")
-                                         : tr("Layer organization failed; document unchanged: %1"))
+        statusBar()->showMessage((applied ? i18n::text("main.window.layer.organization.layers.updated.but.display.refresh.failed.1")
+                                         : i18n::text("main.window.layer.organization.layer.organization.failed.document.unchanged.1"))
                                      .arg(QString::fromUtf8(e.what())), 6000);
         return applied;
     }
@@ -146,7 +147,7 @@ void MainWindow::createLayerFolder(std::optional<core::LayerId> contextItem)
     tree.containers.push_back({ id, "Folder", core::ContainerKind::Folder, core::ColorLabel::None, { } });
     auto& siblings = *tree.children(placement.parent);
     siblings.insert(siblings.begin() + std::ptrdiff_t(placement.index), id);
-    commitLayerStructure(tr("New folder"), std::move(tree), { }, { }, selected({ id }));
+    commitLayerStructure(i18n::text("main.window.layer.organization.new.folder.2"), std::move(tree), { }, { }, selected({ id }));
 }
 void MainWindow::addSelectionToNewFolder()
 {
@@ -166,7 +167,7 @@ void MainWindow::addSelectionToNewFolder()
     siblings.insert(siblings.begin() + std::ptrdiff_t(top.index + 1), folder);
     if (!tree.reparent(ids, { folder, 0 }))
         return;
-    commitLayerStructure(tr("Add to new folder"), std::move(tree), { }, { }, selected({ folder }));
+    commitLayerStructure(i18n::text("main.window.layer.organization.add.to.new.folder"), std::move(tree), { }, { }, selected({ folder }));
 }
 void MainWindow::groupLayerItems()
 {
@@ -175,7 +176,7 @@ void MainWindow::groupLayerItems()
     auto tree = session().document()->tree();
     const auto ids = tree.normalize(session().selectedLayers());
     if (!tree.consecutiveSiblings(ids)) {
-        statusBar()->showMessage(tr("Group requires consecutive items in the same folder. Reorder or reparent them first."), 6000);
+        statusBar()->showMessage(i18n::text("main.window.layer.organization.group.requires.consecutive.items.in.the.same.folder.reorder"), 6000);
         return;
     }
     const auto p = *tree.placement(ids.front());
@@ -184,7 +185,7 @@ void MainWindow::groupLayerItems()
     auto& siblings = *tree.children(p.parent);
     siblings.erase(siblings.begin() + std::ptrdiff_t(p.index), siblings.begin() + std::ptrdiff_t(p.index + ids.size()));
     siblings.insert(siblings.begin() + std::ptrdiff_t(p.index), id);
-    commitLayerStructure(tr("Group layers"), std::move(tree), { }, { }, selected({ id }));
+    commitLayerStructure(i18n::text("main.window.layer.organization.group.layers"), std::move(tree), { }, { }, selected({ id }));
 }
 void MainWindow::clippingGroupItems()
 {
@@ -195,7 +196,7 @@ void MainWindow::clippingGroupItems()
     if(ids.size()==1)if(auto* c=tree.container(ids.front()); c && core::isGroup(c->kind)) {
         const bool release=c->kind==core::ContainerKind::ClippingMaskGroup;
         c->kind=release?core::ContainerKind::Group:core::ContainerKind::ClippingMaskGroup;
-        commitLayerStructure(release?tr("Release clipping"):tr("Convert to clipping mask group"),std::move(tree),{},{},selected(ids));
+        commitLayerStructure(release?i18n::text("main.window.layer.organization.release.clipping"):i18n::text("main.window.layer.organization.convert.to.clipping.mask.group"),std::move(tree),{},{},selected(ids));
         return;
     }
     const auto top=*tree.placement(ids.back());
@@ -203,7 +204,7 @@ void MainWindow::clippingGroupItems()
     tree.containers.push_back({id,"Clipping Mask Group",core::ContainerKind::ClippingMaskGroup,core::ColorLabel::None,{}});
     auto& siblings=*tree.children(top.parent);
     siblings.insert(siblings.begin()+std::ptrdiff_t(top.index+1),id);
-    if(tree.reparent(ids,{id,0}))commitLayerStructure(tr("Add to clipping mask group"),std::move(tree),{},{},selected({id}));
+    if(tree.reparent(ids,{id,0}))commitLayerStructure(i18n::text("main.window.layer.organization.add.to.clipping.mask.group.2"),std::move(tree),{},{},selected({id}));
 }
 void MainWindow::dissolveLayerItem(core::LayerId id)
 {
@@ -225,7 +226,7 @@ void MainWindow::dissolveLayerItem(core::LayerId id)
         selection.primary = replacement;
     if (selection.anchor == id)
         selection.anchor = replacement;
-    const auto label = core::isGroup(c->kind) ? tr("Ungroup") : tr("Remove folder, keep contents");
+    const auto label = core::isGroup(c->kind) ? i18n::text("main.window.layer.organization.ungroup") : i18n::text("main.window.layer.organization.remove.folder.keep.contents");
     std::vector<core::ItemVisibilityUpdate> hiddenLeaves;
     if (!c->visible) {
         // Removing a hidden gate must not suddenly reveal its contents. Carry
@@ -251,7 +252,7 @@ void MainWindow::duplicateLayerItems()
             synchronizeUi(true, false);
         }
     } catch (const std::exception& error) {
-        statusBar()->showMessage(tr("Could not duplicate layers: %1").arg(QString::fromUtf8(error.what())), 5000);
+        statusBar()->showMessage(i18n::text("main.window.layer.organization.could.not.duplicate.layers.1").arg(QString::fromUtf8(error.what())), 5000);
     }
 }
 void MainWindow::deleteActiveLayer()
@@ -263,14 +264,14 @@ void MainWindow::deleteActiveLayer()
     if (ids.empty()) return;
     const auto leaves = doc.expandedLayers(ids);
     if (leaves.size() >= doc.layers().size()) {
-        statusBar()->showMessage(tr("A document must keep at least one content layer."), 4000); return;
+        statusBar()->showMessage(i18n::text("main.window.layer.organization.a.document.must.keep.at.least.one.content.layer"), 4000); return;
     }
     if (std::ranges::any_of(ids, [&](auto id) { const auto* c=doc.tree().container(id); return c && !c->children.empty(); })
-        && !confirmLayerChange(tr("Delete selected items?"), tr("Delete the selected containers and layers, including their contents? This can be undone."))) return;
+        && !confirmLayerChange(i18n::text("main.window.layer.organization.delete.selected.items"), i18n::text("main.window.layer.organization.delete.the.selected.containers.and.layers.including.their.contents"))) return;
     auto tree = doc.tree();
     for (auto id : ids) eraseSubtree(tree, id);
     auto afterSelection = selected({ tree.roots.back() });
-    commitLayerStructure(tr("Delete selected layers"), std::move(tree), leaves, {},
+    commitLayerStructure(i18n::text("main.window.layer.organization.delete.selected.layers"), std::move(tree), leaves, {},
         std::move(afterSelection));
 }
 void MainWindow::removeLayerItem(core::LayerId id, bool contents)
@@ -284,11 +285,11 @@ void MainWindow::removeLayerItem(core::LayerId id, bool contents)
     }
     const auto leaves = doc.tree().descendants(id);
     if (leaves.size() >= doc.layers().size()) {
-        statusBar()->showMessage(tr("A document must keep at least one content layer."), 4000);
+        statusBar()->showMessage(i18n::text("main.window.layer.organization.a.document.must.keep.at.least.one.content.layer"), 4000);
         return;
     }
     if (contents && !leaves.empty()) {
-        if (!confirmLayerChange(tr("Delete contents?"), tr("Delete this container and its %1 content layers? This can be undone.").arg(leaves.size())))
+        if (!confirmLayerChange(i18n::text("main.window.layer.organization.delete.contents"), i18n::text("main.window.layer.organization.delete.this.container.and.its.1.content.layers.this").arg(leaves.size())))
             return;
     }
     auto tree = doc.tree();
@@ -301,7 +302,7 @@ void MainWindow::removeLayerItem(core::LayerId id, bool contents)
         state.primary = state.ids.empty() ? std::nullopt : std::optional(state.ids.back());
     if (state.anchor && !tree.placement(*state.anchor))
         state.anchor = state.primary;
-    commitLayerStructure(contents ? tr("Delete container and contents") : tr("Delete layer"), std::move(tree), leaves, { }, std::move(state));
+    commitLayerStructure(contents ? i18n::text("main.window.layer.organization.delete.container.and.contents") : i18n::text("main.window.layer.organization.delete.layer"), std::move(tree), leaves, { }, std::move(state));
 }
 bool MainWindow::setLayerItemName(core::LayerId id, const QString& name)
 {
@@ -359,12 +360,12 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
     menu.setObjectName(QStringLiteral("LayerContextMenu"));
     menu.addAction(newAdjustmentLayerAction_);
     if(layer && std::holds_alternative<core::AdjustmentLayer>(layer->payload)) {
-        auto* scopeMenu=menu.addMenu(tr("Adjustment Scope"));
+        auto* scopeMenu=menu.addMenu(i18n::text("main.window.layer.organization.adjustment.scope"));
         const auto scope=std::get<core::AdjustmentLayer>(layer->payload).scope;
         const auto position=session().document()->tree().placement(layer->id);
         for(auto value:{core::AdjustmentScope::AllBelow,core::AdjustmentScope::ThisGroup}) {
             if(value==core::AdjustmentScope::ThisGroup && (!position || !position->parent))continue;
-            auto* action=scopeMenu->addAction(value==core::AdjustmentScope::AllBelow?tr("All Below"):tr("This Group"));
+            auto* action=i18n::addAction(scopeMenu, value==core::AdjustmentScope::AllBelow?i18n::text("main.window.layer.organization.all.below"):i18n::text("main.window.layer.organization.this.group"));
             action->setCheckable(true);action->setChecked(value==scope || ((!position||!position->parent)&&value==core::AdjustmentScope::AllBelow));
             connect(action,&QAction::triggered,this,[this,id=*id,scope,value,instance=activeDocumentId()]{
                 if(activeDocumentId()!=instance)return;
@@ -372,18 +373,18 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
             });
         }
     }
-    auto* newFolder = menu.addAction(toolGlyph(ToolGlyph::Folder), tr("New Folder"),
+    auto* newFolder = menu.addAction(toolGlyph(ToolGlyph::Folder), i18n::text("main.window.layer.organization.new.folder"),
         this, [this, id] { createLayerFolder(id); });
     newFolder->setObjectName(QStringLiteral("ContextNewLayerFolderAction"));
     if (!session().document()->tree().normalize(session().selectedLayers()).empty()) {
-        auto* gather = menu.addAction(toolGlyph(ToolGlyph::Folder), tr("Add to New Folder"),
+        auto* gather = menu.addAction(toolGlyph(ToolGlyph::Folder), i18n::text("main.window.layer.organization.add.to.new.folder.2"),
             this, [this] { addSelectionToNewFolder(); });
         gather->setObjectName(QStringLiteral("AddToNewLayerFolderAction"));
     }
     if (id) {
-        menu.addAction(tr("Rename"), this, [this, id] { renameLayerItem(*id); });
-        auto* labels = menu.addMenu(tr("Color label"));
-        const QStringList names { tr("None"), tr("Red"), tr("Orange"), tr("Yellow"), tr("Green"), tr("Blue"), tr("Purple") };
+        menu.addAction(i18n::text("main.window.layer.organization.rename"), this, [this, id] { renameLayerItem(*id); });
+        auto* labels = menu.addMenu(i18n::text("main.window.layer.organization.color.label"));
+        const QStringList names { i18n::text("main.window.layer.organization.none"), i18n::text("main.window.layer.organization.red"), i18n::text("main.window.layer.organization.orange"), i18n::text("main.window.layer.organization.yellow"), i18n::text("main.window.layer.organization.green"), i18n::text("main.window.layer.organization.blue"), i18n::text("main.window.layer.organization.purple") };
         const auto current = metadata(*session().document(), *id).second;
         for (int i = 0; i < names.size(); ++i) {
             auto* action = labels->addAction(names[i], this, [this, id, i] { setLayerItemLabel(*id, core::ColorLabel(i)); });
@@ -393,17 +394,17 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
         if (const auto* c = session().document()->tree().container(*id)) {
             menu.addSeparator();
             for (bool immediate : { true, false })
-                menu.addAction(immediate ? tr("Select Immediate Layers") : tr("Select All Descendant Layers"), this, [this, id, immediate] {
+                menu.addAction(immediate ? i18n::text("main.window.layer.organization.select.immediate.layers") : i18n::text("main.window.layer.organization.select.all.descendant.layers"), this, [this, id, immediate] {
                     cancelPendingEdits();
                     const auto ids = session().document()->tree().descendants(*id, immediate);
                     session().setLayerSelection(ids, ids.empty() ? std::nullopt : std::optional(ids.back()));
                     synchronizeUi(false, false);
                 });
-            menu.addAction(core::isGroup(c->kind) ? tr("Ungroup") : c->children.empty() ? tr("Remove empty folder")
-                                                                                                       : tr("Remove folder, keep contents"),
+            menu.addAction(core::isGroup(c->kind) ? i18n::text("main.window.layer.organization.ungroup") : c->children.empty() ? i18n::text("main.window.layer.organization.remove.empty.folder")
+                                                                                                       : i18n::text("main.window.layer.organization.remove.folder.keep.contents"),
                 this, [this, id] { dissolveLayerItem(*id); });
             if (!c->children.empty())
-                menu.addAction(tr("Delete container and contents…"), this, [this, id] { removeLayerItem(*id, true); });
+                menu.addAction(i18n::text("main.window.layer.organization.delete.container.and.contents.2"), this, [this, id] { removeLayerItem(*id, true); });
         }
     }
     menu.addAction(duplicateLayersAction_);
@@ -428,12 +429,12 @@ void MainWindow::mergeLayerItems()
     const auto ids = doc.tree().normalize(selection.ids);
     if (ids.empty()) return;
     if (ids.size() == 1 && doc.layer(ids.front())) {
-        statusBar()->showMessage(tr("Select at least two layers, or one folder or group, to merge."), 5000);
+        statusBar()->showMessage(i18n::text("main.window.layer.organization.select.at.least.two.layers.or.one.folder.or"), 5000);
         return;
     }
     const auto leaves = doc.expandedLayers(ids);
     const auto hidden = std::ranges::count_if(leaves, [&](auto id) { return !doc.isEffectivelyVisible(id); });
-    if (hidden && !confirmLayerChange(tr("Merge discards hidden content"), tr("%1 hidden layers will be discarded by this merge. Undo can restore them, but saved merge results are rasterized. Continue?").arg(hidden)))
+    if (hidden && !confirmLayerChange(i18n::text("main.window.layer.organization.merge.discards.hidden.content"), i18n::text("main.window.layer.organization.1.hidden.layers.will.be.discarded.by.this.merge").arg(hidden)))
         return;
     try {
         const auto budget = session().history().memoryBudget();
@@ -444,7 +445,7 @@ void MainWindow::mergeLayerItems()
             throw std::runtime_error("Original layers exceed the merge undo budget (256 MiB). No layers were changed.");
         FlattenedDocumentLimits limits;
         limits.outputPixels = std::min<std::uint64_t>(limits.outputPixels, (budget - retained) / 4);
-        QProgressDialog progress(tr("Merging authoritative layer content…"), tr("Cancel"), 0, 1000, this);
+        QProgressDialog progress(i18n::text("main.window.layer.organization.merging.authoritative.layer.content"), i18n::text("main.window.layer.organization.cancel"), 0, 1000, this);
         progress.setWindowModality(Qt::WindowModal);
         progress.setMinimumDuration(180);
         progress.setAutoClose(false);
@@ -478,7 +479,7 @@ void MainWindow::mergeLayerItems()
             synchronizeUi(true, false);
         }
     } catch (const std::exception& e) {
-        statusBar()->showMessage(tr("Merge failed: %1").arg(QString::fromUtf8(e.what())), 7000);
+        statusBar()->showMessage(i18n::text("main.window.layer.organization.merge.failed.1").arg(QString::fromUtf8(e.what())), 7000);
     }
 }
 void MainWindow::rasterizeLayerItems()
@@ -486,7 +487,7 @@ void MainWindow::rasterizeLayerItems()
     if(fileBusy_ || !session().document() || !settleForFileOperation())return;
     auto& doc=*session().document();
     const auto selection=session().layerSelectionState();
-    QProgressDialog progress(tr("Rasterizing authoritative layer content…"),tr("Cancel"),0,1000,this);
+    QProgressDialog progress(i18n::text("main.window.layer.organization.rasterizing.authoritative.layer.content"),i18n::text("main.window.layer.organization.cancel"),0,1000,this);
     progress.setWindowModality(Qt::WindowModal);progress.setMinimumDuration(180);progress.setAutoClose(false);
     QElapsedTimer timer;timer.start();
     RasterizeResult result;
@@ -499,7 +500,7 @@ void MainWindow::rasterizeLayerItems()
         });
     }
     progress.close();
-    if(!result.error.isEmpty()){statusBar()->showMessage(tr("Rasterize failed: %1").arg(result.error),7000);return;}
+    if(!result.error.isEmpty()){statusBar()->showMessage(i18n::text("main.window.layer.organization.rasterize.failed.1").arg(result.error),7000);return;}
     if(result.command) {
         try {if(session().execute(std::move(result.command))){fileState().untouched=false;synchronizeUi(true,false);}}
         catch(const std::exception& e){statusBar()->showMessage(QString::fromUtf8(e.what()),7000);}

@@ -31,6 +31,7 @@ public:
     void setSession(core::EditorSession&);
     void forgetSession(core::EditorSession&);
     [[nodiscard]] bool active() const noexcept { return id_ != 0; }
+    [[nodiscard]] bool composing() const noexcept { return !preedit_.isEmpty(); }
     [[nodiscard]] core::LayerId layerId() const noexcept { return id_; }
     bool press(core::Vec2d, Qt::KeyboardModifiers, bool doubleClick);
     bool editLayer(core::LayerId);

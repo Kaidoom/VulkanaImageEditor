@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/CrossWindowPointerRouter.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
@@ -88,7 +89,7 @@ void MainWindow::beginAnchoredLasso(core::Vec2d point)
     canvasWindow_->setSelectionConstructionActive(true);
     publishLassoPreview();
     statusBar()->showMessage(
-        QStringLiteral("Click anchors · %1 removes · %2/double-click closes · Escape cancels")
+        i18n::text("main.window.lasso.click.anchors.1.removes.2.double.click.closes.escape")
             .arg(shortcutLabel(shortcuts_, "RemovePointAction"), shortcutLabel(shortcuts_, "FinishOperationAction")));
 }
 void MainWindow::moveAnchoredLasso(core::Vec2d point)
@@ -125,7 +126,7 @@ void MainWindow::moveAnchoredLasso(core::Vec2d point)
     } catch (const std::exception& error) {
         finishSelectionGesture(true);
         statusBar()->showMessage(
-            QStringLiteral("Lasso cancelled: %1").arg(QString::fromUtf8(error.what())), 6000);
+            i18n::text("main.window.lasso.lasso.cancelled.1").arg(QString::fromUtf8(error.what())), 6000);
     }
 }
 void MainWindow::anchorLasso(core::Vec2d point, bool manual)
@@ -140,7 +141,7 @@ void MainWindow::anchorLasso(core::Vec2d point, bool manual)
             g.queuedAnchors.push_back({ point, manual, false });
         else
             statusBar()->showMessage(
-                QStringLiteral("Magnetic is catching up; wait before placing more anchors"), 3000);
+                i18n::text("main.window.lasso.magnetic.is.catching.up.wait.before.placing.more.anchors"), 3000);
         return;
     }
     const auto points = g.anchored.points();
@@ -174,7 +175,7 @@ void MainWindow::anchorLasso(core::Vec2d point, bool manual)
     } catch (const std::exception& error) {
         finishSelectionGesture(true);
         statusBar()->showMessage(
-            QStringLiteral("Lasso cancelled: %1").arg(QString::fromUtf8(error.what())), 6000);
+            i18n::text("main.window.lasso.lasso.cancelled.1").arg(QString::fromUtf8(error.what())), 6000);
     }
 }
 void MainWindow::closeLasso(core::Vec2d point)
@@ -188,7 +189,7 @@ void MainWindow::closeLasso(core::Vec2d point)
         if (queued.size() < 32)
             queued.push_back({ point, false, true });
         else
-            statusBar()->showMessage(QStringLiteral("Magnetic is catching up; wait before closing"), 3000);
+            statusBar()->showMessage(i18n::text("main.window.lasso.magnetic.is.catching.up.wait.before.closing"), 3000);
         magneticTimer_->start();
         return;
     }
@@ -315,10 +316,8 @@ void MainWindow::advanceMagneticLasso()
             const bool fallback = g.search->result() == core::LiveWireSearch::Result::ManualFallback;
             g.search.reset();
             statusBar()->showMessage(fallback
-                    ? QStringLiteral(
-                          "Magnetic: manual segment (weak/outside/large search) · Ctrl+click forces straight")
-                    : QStringLiteral("Magnetic: edge following · Click anchors · Ctrl+click straight · "
-                                     "%1 removes · %2 closes")
+                    ? i18n::text("main.window.lasso.magnetic.manual.segment.weak.outside.large.search.ctrl.click")
+                    : i18n::text("main.window.lasso.magnetic.edge.following.click.anchors.ctrl.click.straight.1")
                         .arg(shortcutLabel(shortcuts_, "RemovePointAction"), shortcutLabel(shortcuts_, "FinishOperationAction")));
             g.closing = { g.pointer, g.anchored.points().front() };
             const double gap = length(g.pointer - g.anchored.points().front());
@@ -368,7 +367,7 @@ void MainWindow::advanceMagneticLasso()
     } catch (const std::exception& error) {
         finishSelectionGesture(true);
         statusBar()->showMessage(
-            QStringLiteral("Lasso cancelled: %1").arg(QString::fromUtf8(error.what())), 6000);
+            i18n::text("main.window.lasso.lasso.cancelled.1").arg(QString::fromUtf8(error.what())), 6000);
     }
 }
 void MainWindow::commitAnchoredLasso()
@@ -400,7 +399,7 @@ void MainWindow::commitAnchoredLasso()
     } catch (const std::exception& error) {
         finishSelectionGesture(true);
         statusBar()->showMessage(
-            QStringLiteral("Lasso cancelled: %1").arg(QString::fromUtf8(error.what())), 6000);
+            i18n::text("main.window.lasso.lasso.cancelled.1").arg(QString::fromUtf8(error.what())), 6000);
     }
 }
 }

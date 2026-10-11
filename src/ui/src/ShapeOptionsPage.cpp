@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/ShapeOptionsPage.hpp"
 #include "imageeditor/ui/ToolIcons.hpp"
 #include "imageeditor/ui/ToolOptionsButton.hpp"
@@ -39,7 +40,7 @@ ShapeOptionsPage::ShapeOptionsPage(QWidget* parent)
     const std::array labels { "Rectangle", "Rounded rectangle", "Ellipse", "Triangle", "Line", "Polygon" };
     for (std::size_t i = 0; i < labels.size(); ++i) {
         auto* b = new ToolOptionsButton(QStringLiteral("ShapeMode%1").arg(i), QString::fromLatin1(labels[i]),
-            QStringLiteral("%1 — create a new editable shape").arg(QString::fromLatin1(labels[i])),
+            i18n::text("shape.options.page.1.create.a.new.editable.shape").arg(QString::fromLatin1(labels[i])),
             ToolOptionsButton::Kind::Toggle, modes_, ToolOptionsButton::Presentation::Icon);
         b->setIcon(toolGlyph(static_cast<ToolGlyph>(static_cast<int>(ToolGlyph::ShapeRectangle) + static_cast<int>(i))));
         modeGroup_->addButton(b, static_cast<int>(i));
@@ -63,16 +64,16 @@ ShapeOptionsPage::ShapeOptionsPage(QWidget* parent)
         return b;
     };
     fill_ = toggle("ShapeFillEnabled", "Fill — disable for a hollow shape", ToolGlyph::ShapeFill);
-    fillColor_ = new ToolOptionsButton(QStringLiteral("ShapeFillColor"), QStringLiteral("Fill color"), QStringLiteral("Independent shape fill color and alpha"), ToolOptionsButton::Kind::Action, this, ToolOptionsButton::Presentation::Icon);
+    fillColor_ = new ToolOptionsButton(QStringLiteral("ShapeFillColor"), i18n::text("shape.options.page.fill.color"), i18n::text("shape.options.page.independent.shape.fill.color.and.alpha"), ToolOptionsButton::Kind::Action, this, ToolOptionsButton::Presentation::Icon);
     row->addWidget(fillColor_);
     stroke_ = toggle("ShapeStrokeEnabled", "Stroke — centered outline", ToolGlyph::ShapeStroke);
-    strokeColor_ = new ToolOptionsButton(QStringLiteral("ShapeStrokeColor"), QStringLiteral("Stroke color"), QStringLiteral("Independent shape stroke color and alpha"), ToolOptionsButton::Kind::Action, this, ToolOptionsButton::Presentation::Icon);
+    strokeColor_ = new ToolOptionsButton(QStringLiteral("ShapeStrokeColor"), i18n::text("shape.options.page.stroke.color"), i18n::text("shape.options.page.independent.shape.stroke.color.and.alpha"), ToolOptionsButton::Kind::Action, this, ToolOptionsButton::Presentation::Icon);
     row->addWidget(strokeColor_);
     auto number = [this, row](const char* name, const char* label, double maximum) {
         auto* n = new ToolOptionsNumber(this);
         n->setObjectName(QString::fromLatin1(name));
         n->setPrefix(QString::fromLatin1(label) + QStringLiteral(": "));
-        n->setSuffix(QStringLiteral(" px"));
+        i18n::setSuffix(n, i18n::text("shape.options.page.px"));
         n->setRange(0, maximum);
         n->setDecimals(2);
         n->setFixedWidth(145);
@@ -83,9 +84,7 @@ ShapeOptionsPage::ShapeOptionsPage(QWidget* parent)
     };
     width_ = number("ShapeStrokeWidth", "Stroke", core::maximumShapeStyleDimension);
     radius_ = number("ShapeCornerRadius", "Radius", core::maximumShapeStyleDimension);
-    auto* transform = new ToolOptionsButton(QStringLiteral("ShapeTransform"), QStringLiteral("Transform"),
-        QStringLiteral("Explicit transform session · {{LayerTransformAction}} · {{FinishOperationAction}} applies · Escape cancels the session"),
-        ToolOptionsButton::Kind::Action, this, ToolOptionsButton::Presentation::Icon);
+    auto* transform = new ToolOptionsButton(QStringLiteral("ShapeTransform"), i18n::text("shape.options.page.transform"), i18n::text("shape.options.page.explicit.transform.session.layertransformaction.finishoperationaction.applies.escape.cancels.the"), ToolOptionsButton::Kind::Action, this, ToolOptionsButton::Presentation::Icon);
     transform->setIcon(toolGlyph(ToolGlyph::Transform));
     row->addWidget(transform);
     row->addStretch();
@@ -102,7 +101,7 @@ ShapeOptionsPage::ShapeOptionsPage(QWidget* parent)
 }
 void ShapeOptionsPage::populateProperties(QVBoxLayout* layout)
 {
-    auto* title = new QLabel(QStringLiteral("LOCAL GEOMETRY"));
+    auto* title = i18n::make<QLabel>(i18n::text("shape.options.page.local.geometry"));
     title->setObjectName(QStringLiteral("SectionLabel"));
     layout->addWidget(title);
     auto make = [this, layout](const char* name, const char* prefix) {
@@ -119,8 +118,8 @@ void ShapeOptionsPage::populateProperties(QVBoxLayout* layout)
     geometryWidth_ = make("ShapeGeometryWidth", "Width: ");
     geometryHeight_ = make("ShapeGeometryHeight", "Height: ");
     for (auto* n : { geometryWidth_, geometryHeight_ }) {
-        n->setSuffix(QStringLiteral(" px"));
-        n->setToolTip(QStringLiteral("Intrinsic geometry before layer transforms. Changes geometry, not stroke width; {{LayerTransformAction}} scales both together."));
+        i18n::setSuffix(n, i18n::text("shape.options.page.px"));
+        i18n::setToolTip(n, i18n::text("shape.options.page.intrinsic.geometry.before.layer.transforms.changes.geometry.not.stroke"));
     }
     auto resizeGeometry = [this](ToolOptionsNumber* n, bool x) {
         if (updating_ || !editable_)
@@ -142,15 +141,15 @@ void ShapeOptionsPage::populateProperties(QVBoxLayout* layout)
     };
     connect(geometryWidth_, &QDoubleSpinBox::valueChanged, this, [this, resizeGeometry] { resizeGeometry(geometryWidth_, true); });
     connect(geometryHeight_, &QDoubleSpinBox::valueChanged, this, [this, resizeGeometry] { resizeGeometry(geometryHeight_, false); });
-    auto* verticesTitle = new QLabel(QStringLiteral("VERTICES"));
+    auto* verticesTitle = i18n::make<QLabel>(i18n::text("shape.options.page.vertices"));
     verticesTitle->setObjectName(QStringLiteral("SectionLabel"));
     layout->addWidget(verticesTitle);
     vertex_ = make("ShapeVertexIndex", "Vertex: ");
     vertex_->setDecimals(0);
     vertexX_ = make("ShapeVertexX", "X: ");
     vertexY_ = make("ShapeVertexY", "Y: ");
-    vertexX_->setSuffix(QStringLiteral(" px"));
-    vertexY_->setSuffix(QStringLiteral(" px"));
+    i18n::setSuffix(vertexX_, i18n::text("shape.options.page.px"));
+    i18n::setSuffix(vertexY_, i18n::text("shape.options.page.px"));
     numbers_[2] = vertex_;
     numbers_[3] = vertexX_;
     numbers_[4] = vertexY_;
@@ -168,7 +167,7 @@ void ShapeOptionsPage::populateProperties(QVBoxLayout* layout)
     };
     connect(vertexX_, &QDoubleSpinBox::valueChanged, this, [this, change] { change(vertexX_, true); });
     connect(vertexY_, &QDoubleSpinBox::valueChanged, this, [this, change] { change(vertexY_, false); });
-    auto* help = new QLabel(QStringLiteral("Line and polygon vertices use the local geometry frame. X points right; Y points down. Enlarge Width/Height to extend this frame. Whole-layer transforms preserve these coordinates."));
+    auto* help = i18n::make<QLabel>(i18n::text("shape.options.page.line.and.polygon.vertices.use.the.local.geometry.frame"));
     help->setWordWrap(true);
     help->setObjectName(QStringLiteral("MutedLabel"));
     layout->addWidget(help);

@@ -1,3 +1,5 @@
+#include "imageeditor/ui/LocalizedNames.hpp"
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/AdjustmentsPanel.hpp"
 #include "imageeditor/ui/EffectsPanel.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
@@ -30,10 +32,10 @@ namespace imageeditor::ui {
 namespace {
 using Type = core::AdjustmentType;
 constexpr std::size_t index(Type type) { return static_cast<std::size_t>(type); }
-QString displayName(Type type) { return QString::fromUtf8(core::adjustmentName(type)); }
-QLabel* explanation(QVBoxLayout* layout, const QString& text)
+i18n::Message displayName(Type type) { return i18n::adjustmentName(type); }
+QLabel* explanation(QVBoxLayout* layout, const i18n::Message& text)
 {
-    auto* label = new QLabel(text);
+    auto* label = i18n::make<QLabel>(text);
     label->setObjectName(QStringLiteral("MutedLabel"));
     label->setWordWrap(true);
     label->setTextFormat(Qt::PlainText);
@@ -56,10 +58,10 @@ AdjustmentsPanel::AdjustmentsPanel(QWidget* parent) : QWidget(parent)
     outer->addWidget(scopeLabel_);
     auto* actions = new QHBoxLayout;
     actions->setSpacing(6);
-    compare_ = new QPushButton(QStringLiteral("Hold for Before"));
+    compare_ = i18n::make<QPushButton>(i18n::text("adjustments.panel.hold.for.before"));
     compare_->setObjectName(QStringLiteral("AdjustmentCompare"));
-    compare_->setToolTip(QStringLiteral("Temporarily bypass this layer's adjustments on the canvas only. Release to return to After."));
-    resetAll_ = new QPushButton(QStringLiteral("Reset All"));
+    i18n::setToolTip(compare_, i18n::text("adjustments.panel.temporarily.bypass.this.layer.s.adjustments.on.the.canvas"));
+    resetAll_ = i18n::make<QPushButton>(i18n::text("adjustments.panel.reset.all"));
     resetAll_->setObjectName(QStringLiteral("AdjustmentResetAll"));
     actions->addWidget(compare_,1);actions->addWidget(resetAll_);
     outer->addLayout(actions);
@@ -88,7 +90,7 @@ AdjustmentsPanel::AdjustmentsPanel(QWidget* parent) : QWidget(parent)
     tabs_ = new QTabWidget;
     tabs_->setObjectName(QStringLiteral("AdjustmentTabs"));
     outer->addWidget(tabs_,1);
-    const std::array<QString,3> groupNames {QStringLiteral("Tone"),QStringLiteral("Color"),QStringLiteral("Monochrome")};
+    const std::array<i18n::Message,3> groupNames {i18n::text("adjustments.panel.tone"),i18n::text("adjustments.panel.color"),i18n::text("adjustments.panel.monochrome")};
     const std::array<std::vector<Type>,3> groups {{
         {Type::Exposure,Type::BrightnessContrast,Type::Levels,Type::Curves},
         {Type::HueSaturation,Type::Vibrance,Type::ColorBalance,Type::WarmthTint},
@@ -99,7 +101,7 @@ AdjustmentsPanel::AdjustmentsPanel(QWidget* parent) : QWidget(parent)
         auto* modeRow=new QHBoxLayout;modeRow->setSpacing(8);
         navigation_[i]=new QComboBox;
         navigation_[i]->setObjectName(QStringLiteral("AdjustmentNavigation%1").arg(i));
-        for(const auto type:groups[i])navigation_[i]->addItem(displayName(type),int(type));
+        for(const auto type:groups[i])i18n::addItem(navigation_[i], displayName(type),int(type));
         navigation_[i]->setMaxVisibleItems(int(groups[i].size()));
         modeRow->addWidget(navigation_[i],1);
         auto* enabledStack=new QStackedWidget;
@@ -113,35 +115,29 @@ AdjustmentsPanel::AdjustmentsPanel(QWidget* parent) : QWidget(parent)
         stacks_[i]->setSizePolicy(QSizePolicy::Ignored,QSizePolicy::Preferred);
         scroll->setWidget(stacks_[i]);layout->addWidget(scroll,1);
         for(const auto type:groups[i])enabledStack->addWidget(makePage(type,stacks_[i]).enabled);
-        tabs_->addTab(tab,groupNames[i]);
+        i18n::addTab(tabs_, tab,groupNames[i]);
         connect(navigation_[i],&QComboBox::currentIndexChanged,this,[this,i,enabledStack](int row){
             finishEditing();stacks_[i]->setCurrentIndex(row);enabledStack->setCurrentIndex(row);navigate();
         });
     }
     auto& exposure=pages_[index(Type::Exposure)];
-    number(exposure,"AdjustmentExposure","Exposure",-20,20,2,
-        [this]{return std::get<core::ExposureParameters>(item(Type::Exposure).parameters).stops;},
-        [this](double v){std::get<core::ExposureParameters>(item(Type::Exposure).parameters).stops=v;},QStringLiteral(" EV"));
-    explanation(exposure.layout,QStringLiteral("Linear-light exposure in stops. +1 EV doubles light; 0 EV is neutral. Original content is preserved."));
+    number(exposure, "AdjustmentExposure", i18n::text("adjustments.panel.exposure"), -20, 20, 2, [this]{return std::get<core::ExposureParameters>(item(Type::Exposure).parameters).stops;}, [this](double v){std::get<core::ExposureParameters>(item(Type::Exposure).parameters).stops=v;}, QStringLiteral(" EV"));
+    explanation(exposure.layout, i18n::text("adjustments.panel.linear.light.exposure.in.stops.1.ev.doubles.light"));
 
     auto& brightness=pages_[index(Type::BrightnessContrast)];
-    number(brightness,"AdjustmentBrightness","Brightness",-100,100,0,
-        [this]{return std::get<core::BrightnessContrastParameters>(item(Type::BrightnessContrast).parameters).brightness*100;},
-        [this](double v){std::get<core::BrightnessContrastParameters>(item(Type::BrightnessContrast).parameters).brightness=v/100;});
-    number(brightness,"AdjustmentContrast","Contrast",-100,100,0,
-        [this]{return std::get<core::BrightnessContrastParameters>(item(Type::BrightnessContrast).parameters).contrast*100;},
-        [this](double v){std::get<core::BrightnessContrastParameters>(item(Type::BrightnessContrast).parameters).contrast=v/100;});
-    explanation(brightness.layout,QStringLiteral("Brightness and contrast are independent sRGB tone controls. Contrast pivots at 50%; zero is exactly neutral."));
+    number(brightness, "AdjustmentBrightness", i18n::text("adjustments.panel.brightness"), -100, 100, 0, [this]{return std::get<core::BrightnessContrastParameters>(item(Type::BrightnessContrast).parameters).brightness*100;}, [this](double v){std::get<core::BrightnessContrastParameters>(item(Type::BrightnessContrast).parameters).brightness=v/100;});
+    number(brightness, "AdjustmentContrast", i18n::text("adjustments.panel.contrast"), -100, 100, 0, [this]{return std::get<core::BrightnessContrastParameters>(item(Type::BrightnessContrast).parameters).contrast*100;}, [this](double v){std::get<core::BrightnessContrastParameters>(item(Type::BrightnessContrast).parameters).contrast=v/100;});
+    explanation(brightness.layout, i18n::text("adjustments.panel.brightness.and.contrast.are.independent.srgb.tone.controls.contrast"));
 
     auto& levels=pages_[index(Type::Levels)];
-    const QStringList channels {QStringLiteral("Composite RGB"),QStringLiteral("Red"),QStringLiteral("Green"),QStringLiteral("Blue")};
+    const QList<i18n::Message> channels {i18n::text("adjustments.panel.composite.rgb"),i18n::text("adjustments.panel.red"),i18n::text("adjustments.panel.green"),i18n::text("adjustments.panel.blue")};
     levelsChannel_=choices(levels,"AdjustmentLevelsChannel",channels,[this](int){refresh();updateHistogramDisplay();});
     levelsHistogram_=new AdjustmentCurveEditor;
     levelsHistogram_->setObjectName(QStringLiteral("AdjustmentLevelsHistogram"));levelsHistogram_->setHistogramOnly(true);
     levels.layout->addWidget(levelsHistogram_);
-    histogramLabels_[0]=explanation(levels.layout,QStringLiteral("Input histogram · alpha-weighted sRGB"));
+    histogramLabels_[0]=explanation(levels.layout, i18n::text("adjustments.panel.input.histogram.alpha.weighted.srgb"));
     using LevelField=double core::LevelsChannel::*;
-    const auto levelNumber=[this,&levels](const char* name,const QString& label,LevelField field,bool gamma=false){
+    const auto levelNumber=[this,&levels](const char* name,const i18n::Message& label,LevelField field,bool gamma=false){
         number(levels,name,label,gamma?.1:0,gamma?10:255,gamma?2:1,
             [this,field,gamma]{const auto& c=std::get<core::LevelsParameters>(item(Type::Levels).parameters).channels[std::size_t(levelsChannel_->currentIndex())];return (c.*field)*(gamma?1:255);},
             [this,field,gamma](double v){auto& c=std::get<core::LevelsParameters>(item(Type::Levels).parameters).channels[std::size_t(levelsChannel_->currentIndex())];
@@ -150,19 +146,19 @@ AdjustmentsPanel::AdjustmentsPanel(QWidget* parent) : QWidget(parent)
                 if(field==&core::LevelsChannel::inputWhite)value=std::max(value,c.inputBlack);
                 c.*field=value;});
     };
-    levelNumber("AdjustmentLevelsInputBlack","Input black",&core::LevelsChannel::inputBlack);
-    levelNumber("AdjustmentLevelsGamma","Gamma",&core::LevelsChannel::gamma,true);
-    levelNumber("AdjustmentLevelsInputWhite","Input white",&core::LevelsChannel::inputWhite);
-    levelNumber("AdjustmentLevelsOutputBlack","Output black",&core::LevelsChannel::outputBlack);
-    levelNumber("AdjustmentLevelsOutputWhite","Output white",&core::LevelsChannel::outputWhite);
-    explanation(levels.layout,QStringLiteral("Composite is evaluated first, then R/G/B. Input black/white cannot cross; coincident points form a defined threshold, never a divide-by-zero."));
+    levelNumber("AdjustmentLevelsInputBlack", i18n::text("adjustments.panel.input.black"), &core::LevelsChannel::inputBlack);
+    levelNumber("AdjustmentLevelsGamma", i18n::text("adjustments.panel.gamma"), &core::LevelsChannel::gamma, true);
+    levelNumber("AdjustmentLevelsInputWhite", i18n::text("adjustments.panel.input.white"), &core::LevelsChannel::inputWhite);
+    levelNumber("AdjustmentLevelsOutputBlack", i18n::text("adjustments.panel.output.black"), &core::LevelsChannel::outputBlack);
+    levelNumber("AdjustmentLevelsOutputWhite", i18n::text("adjustments.panel.output.white"), &core::LevelsChannel::outputWhite);
+    explanation(levels.layout, i18n::text("adjustments.panel.composite.is.evaluated.first.then.r.g.b.input"));
 
     auto& curves=pages_[index(Type::Curves)];
     curvesChannel_=choices(curves,"AdjustmentCurvesChannel",channels,[this](int){refresh();updateHistogramDisplay();});
     curve_=new AdjustmentCurveEditor;
     curves.layout->addWidget(curve_);
-    explanation(curves.layout,QStringLiteral("Left-click: Add · Drag: Move · Right-click / {{RemovePointAction}}: Delete"));
-    histogramLabels_[1]=explanation(curves.layout,QStringLiteral("Input histogram · alpha-weighted sRGB"));
+    explanation(curves.layout, i18n::text("adjustments.panel.left.click.add.drag.move.right.click.removepointaction.delete"));
+    histogramLabels_[1]=explanation(curves.layout, i18n::text("adjustments.panel.input.histogram.alpha.weighted.srgb"));
     curve_->evaluate=[this](double input){return core::evaluateCurve(std::get<core::CurvesParameters>(item(Type::Curves).parameters).channels[std::size_t(curvesChannel_->currentIndex())],float(input));};
     curve_->onInteractionStarted=[this]{return begin(Type::Curves);};
     curve_->onPointsChanged=[this](const std::vector<core::Vec2d>& points){
@@ -176,44 +172,38 @@ AdjustmentsPanel::AdjustmentsPanel(QWidget* parent) : QWidget(parent)
     };
     curve_->onInteractionFinished=[this](bool commit){finishEditing(commit);};
     curve_->onPointSelected=[this](int){refreshCurvePoint();};
-    const auto pointNumber=[this,&curves](const char* name,const char* label,bool input){
-        return number(curves,name,QString::fromLatin1(label),0,255,1,
+    const auto pointNumber=[this,&curves](const char* name,const i18n::Message& label,bool input){
+        return number(curves,name,label,0,255,1,
             [this,input]{const auto& p=curve_->points()[std::size_t(curve_->selectedIndex())];return (input?p.x:p.y)*255;},
             [this,input](double value){auto p=curve_->points()[std::size_t(curve_->selectedIndex())];(input?p.x:p.y)=value/255;curve_->setSelectedPoint(p);});
     };
-    curveInput_=pointNumber("AdjustmentCurveInput","Input",true);
-    curveOutput_=pointNumber("AdjustmentCurveOutput","Output",false);
-    removePoint_=new QPushButton(QStringLiteral("Remove point"));
+    curveInput_=pointNumber("AdjustmentCurveInput", i18n::text("adjustments.panel.input"), true);
+    curveOutput_=pointNumber("AdjustmentCurveOutput", i18n::text("adjustments.panel.output"), false);
+    removePoint_=i18n::make<QPushButton>(i18n::text("adjustments.panel.remove.point"));
     removePoint_->setObjectName(QStringLiteral("AdjustmentCurveRemove"));curves.layout->addWidget(removePoint_);
     connect(removePoint_,&QPushButton::clicked,curve_,&AdjustmentCurveEditor::removeSelectedPoint);
 
     auto& hue=pages_[index(Type::HueSaturation)];
-    const QStringList hues{QStringLiteral("Master"),QStringLiteral("Reds"),QStringLiteral("Yellows"),QStringLiteral("Greens"),QStringLiteral("Cyans"),QStringLiteral("Blues"),QStringLiteral("Magentas")};
+    const QList<i18n::Message> hues{i18n::text("adjustments.panel.master"),i18n::text("adjustments.panel.reds"),i18n::text("adjustments.panel.yellows"),i18n::text("adjustments.panel.greens"),i18n::text("adjustments.panel.cyans"),i18n::text("adjustments.panel.blues"),i18n::text("adjustments.panel.magentas")};
     hueRange_=choices(hue,"AdjustmentHueRange",hues,[this](int){refresh();});
     using HueField=double core::HueRangeParameters::*;
-    const auto hueNumber=[this,&hue](const char* name,const char* label,HueField field,bool degrees){
-        number(hue,name,QString::fromLatin1(label),degrees?-180:-100,degrees?180:100,0,
+    const auto hueNumber=[this,&hue](const char* name,const i18n::Message& label,HueField field,bool degrees){
+        number(hue,name,label,degrees?-180:-100,degrees?180:100,0,
             [this,field,degrees]{return (std::get<core::HueSaturationParameters>(item(Type::HueSaturation).parameters).ranges[std::size_t(hueRange_->currentIndex())].*field)*(degrees?1:100);},
             [this,field,degrees](double v){std::get<core::HueSaturationParameters>(item(Type::HueSaturation).parameters).ranges[std::size_t(hueRange_->currentIndex())].*field=v/(degrees?1:100);},degrees?QStringLiteral("°"):QString());
     };
-    hueNumber("AdjustmentHue","Hue",&core::HueRangeParameters::hue,true);
-    hueNumber("AdjustmentSaturation","Saturation",&core::HueRangeParameters::saturation,false);
-    hueNumber("AdjustmentLightness","Lightness",&core::HueRangeParameters::lightness,false);
-    colorize_=new QCheckBox(QStringLiteral("Colorize"));colorize_->setObjectName(QStringLiteral("AdjustmentColorize"));hue.layout->addWidget(colorize_);
+    hueNumber("AdjustmentHue", i18n::text("adjustments.panel.hue"), &core::HueRangeParameters::hue, true);
+    hueNumber("AdjustmentSaturation", i18n::text("adjustments.panel.saturation"), &core::HueRangeParameters::saturation, false);
+    hueNumber("AdjustmentLightness", i18n::text("adjustments.panel.lightness"), &core::HueRangeParameters::lightness, false);
+    colorize_=i18n::make<QCheckBox>(i18n::text("adjustments.panel.colorize"));colorize_->setObjectName(QStringLiteral("AdjustmentColorize"));hue.layout->addWidget(colorize_);
     connect(colorize_,&QCheckBox::toggled,this,[this](bool value){if(!updating_)change(Type::HueSaturation,[value](auto& a){std::get<core::HueSaturationParameters>(a.parameters).colorize=value;});});
-    number(hue,"AdjustmentColorizeHue","Colorize hue",0,360,0,
-        [this]{return std::get<core::HueSaturationParameters>(item(Type::HueSaturation).parameters).colorizeHue;},
-        [this](double v){std::get<core::HueSaturationParameters>(item(Type::HueSaturation).parameters).colorizeHue=v;},QStringLiteral("°"));
-    number(hue,"AdjustmentColorizeSaturation","Colorize saturation",0,100,0,
-        [this]{return std::get<core::HueSaturationParameters>(item(Type::HueSaturation).parameters).colorizeSaturation*100;},
-        [this](double v){std::get<core::HueSaturationParameters>(item(Type::HueSaturation).parameters).colorizeSaturation=v/100;},QStringLiteral("%"));
-    explanation(hue.layout,QStringLiteral("Master and six overlapping smooth hue ranges remain active together. Changing the displayed range is navigation only."));
+    number(hue, "AdjustmentColorizeHue", i18n::text("adjustments.panel.colorize.hue"), 0, 360, 0, [this]{return std::get<core::HueSaturationParameters>(item(Type::HueSaturation).parameters).colorizeHue;}, [this](double v){std::get<core::HueSaturationParameters>(item(Type::HueSaturation).parameters).colorizeHue=v;}, QStringLiteral("°"));
+    number(hue, "AdjustmentColorizeSaturation", i18n::text("adjustments.panel.colorize.saturation"), 0, 100, 0, [this]{return std::get<core::HueSaturationParameters>(item(Type::HueSaturation).parameters).colorizeSaturation*100;}, [this](double v){std::get<core::HueSaturationParameters>(item(Type::HueSaturation).parameters).colorizeSaturation=v/100;}, QStringLiteral("%"));
+    explanation(hue.layout, i18n::text("adjustments.panel.master.and.six.overlapping.smooth.hue.ranges.remain.active"));
 
     auto& vibrance=pages_[index(Type::Vibrance)];
-    number(vibrance,"AdjustmentVibrance","Vibrance",-100,100,0,
-        [this]{return std::get<core::VibranceParameters>(item(Type::Vibrance).parameters).amount*100;},
-        [this](double v){std::get<core::VibranceParameters>(item(Type::Vibrance).parameters).amount=v/100;});
-    explanation(vibrance.layout,QStringLiteral("Saturation-aware enhancement: muted colors respond more than saturated colors. Neutral gray is preserved; no skin-tone detection is implied."));
+    number(vibrance, "AdjustmentVibrance", i18n::text("adjustments.panel.vibrance"), -100, 100, 0, [this]{return std::get<core::VibranceParameters>(item(Type::Vibrance).parameters).amount*100;}, [this](double v){std::get<core::VibranceParameters>(item(Type::Vibrance).parameters).amount=v/100;});
+    explanation(vibrance.layout, i18n::text("adjustments.panel.saturation.aware.enhancement.muted.colors.respond.more.than.saturated"));
 
     auto& balance=pages_[index(Type::ColorBalance)];
     balanceRange_=choices(balance,"AdjustmentBalanceRange",{QStringLiteral("Shadows"),QStringLiteral("Midtones"),QStringLiteral("Highlights")},[this](int){refresh();});
@@ -224,18 +214,14 @@ AdjustmentsPanel::AdjustmentsPanel(QWidget* parent) : QWidget(parent)
             [this,c]{return std::get<core::ColorBalanceParameters>(item(Type::ColorBalance).parameters).tones[std::size_t(balanceRange_->currentIndex())][c]*100;},
             [this,c](double v){std::get<core::ColorBalanceParameters>(item(Type::ColorBalance).parameters).tones[std::size_t(balanceRange_->currentIndex())][c]=v/100;});
     }
-    preserveLuminosity_=new QCheckBox(QStringLiteral("Preserve luminosity"));preserveLuminosity_->setObjectName(QStringLiteral("AdjustmentPreserveLuminosity"));balance.layout->addWidget(preserveLuminosity_);
+    preserveLuminosity_=i18n::make<QCheckBox>(i18n::text("adjustments.panel.preserve.luminosity"));preserveLuminosity_->setObjectName(QStringLiteral("AdjustmentPreserveLuminosity"));balance.layout->addWidget(preserveLuminosity_);
     connect(preserveLuminosity_,&QCheckBox::toggled,this,[this](bool value){if(!updating_)change(Type::ColorBalance,[value](auto& a){std::get<core::ColorBalanceParameters>(a.parameters).preserveLuminosity=value;});});
-    explanation(balance.layout,QStringLiteral("Smooth tonal weighting combines all three ranges. Preserve luminosity retains the defined sRGB luminosity while correcting color."));
+    explanation(balance.layout, i18n::text("adjustments.panel.smooth.tonal.weighting.combines.all.three.ranges.preserve.luminosity"));
 
     auto& warmth=pages_[index(Type::WarmthTint)];
-    number(warmth,"AdjustmentWarmth","Warmth",-100,100,0,
-        [this]{return std::get<core::WarmthTintParameters>(item(Type::WarmthTint).parameters).warmth*100;},
-        [this](double v){std::get<core::WarmthTintParameters>(item(Type::WarmthTint).parameters).warmth=v/100;});
-    number(warmth,"AdjustmentTint","Tint",-100,100,0,
-        [this]{return std::get<core::WarmthTintParameters>(item(Type::WarmthTint).parameters).tint*100;},
-        [this](double v){std::get<core::WarmthTintParameters>(item(Type::WarmthTint).parameters).tint=v/100;});
-    explanation(warmth.layout,QStringLiteral("Relative warm/cool and green/magenta correction for rendered sRGB. Zero is neutral; these are not RAW-camera Kelvin values."));
+    number(warmth, "AdjustmentWarmth", i18n::text("adjustments.panel.warmth"), -100, 100, 0, [this]{return std::get<core::WarmthTintParameters>(item(Type::WarmthTint).parameters).warmth*100;}, [this](double v){std::get<core::WarmthTintParameters>(item(Type::WarmthTint).parameters).warmth=v/100;});
+    number(warmth, "AdjustmentTint", i18n::text("adjustments.panel.tint"), -100, 100, 0, [this]{return std::get<core::WarmthTintParameters>(item(Type::WarmthTint).parameters).tint*100;}, [this](double v){std::get<core::WarmthTintParameters>(item(Type::WarmthTint).parameters).tint=v/100;});
+    explanation(warmth.layout, i18n::text("adjustments.panel.relative.warm.cool.and.green.magenta.correction.for.rendered"));
 
     auto& mono=pages_[index(Type::BlackWhite)];
     for(std::size_t c=0;c<6;++c){
@@ -246,17 +232,16 @@ AdjustmentsPanel::AdjustmentsPanel(QWidget* parent) : QWidget(parent)
     }
     tint_=new QPushButton; tint_->setObjectName(QStringLiteral("AdjustmentMonoTintColor"));mono.layout->addWidget(tint_);
     connect(tint_,&QPushButton::clicked,this,&AdjustmentsPanel::chooseTint);
-    number(mono,"AdjustmentMonoTintStrength","Tint strength",0,100,0,
-        [this]{return std::get<core::BlackWhiteParameters>(item(Type::BlackWhite).parameters).tintStrength*100;},
-        [this](double v){std::get<core::BlackWhiteParameters>(item(Type::BlackWhite).parameters).tintStrength=v/100;},QStringLiteral("%"));
-    explanation(mono.layout,QStringLiteral("Hue-weighted luminance offsets preserve neutral-gray stability. Tint color is independent of the global colors; source alpha is unchanged."));
-    explanation(pages_[index(Type::Invert)].layout,QStringLiteral("Invert unassociated sRGB color channels while keeping alpha unchanged. Enable to apply; disabled by default."));
+    number(mono, "AdjustmentMonoTintStrength", i18n::text("adjustments.panel.tint.strength"), 0, 100, 0, [this]{return std::get<core::BlackWhiteParameters>(item(Type::BlackWhite).parameters).tintStrength*100;}, [this](double v){std::get<core::BlackWhiteParameters>(item(Type::BlackWhite).parameters).tintStrength=v/100;}, QStringLiteral("%"));
+    explanation(mono.layout, i18n::text("adjustments.panel.hue.weighted.luminance.offsets.preserve.neutral.gray.stability.tint"));
+    explanation(pages_[index(Type::Invert)].layout, i18n::text("adjustments.panel.invert.unassociated.srgb.color.channels.while.keeping.alpha.unchanged"));
 
     for(auto& page:pages_)page.layout->addStretch(1);
     filtersPanel_=new FiltersPanel;
     filtersPanel_->setEmbedded();
-    tabs_->addTab(filtersPanel_,tr("Filters"));
-    effectsPanel_=new EffectsPanel;tabs_->addTab(effectsPanel_,tr("Effects"));
+    i18n::addTab(tabs_, filtersPanel_, i18n::text("adjustments.panel.filters"));
+    effectsPanel_=new EffectsPanel;i18n::addTab(tabs_, effectsPanel_, i18n::text("adjustments.panel.effects"));
+    connect(&i18n::Localization::instance(), &i18n::Localization::languageChanged, this, &AdjustmentsPanel::refreshCategoryHints);
     connect(tabs_,&QTabWidget::currentChanged,this,[this](int){
         finishEditing();filtersPanel_->finishEditing();effectsPanel_->finishEditing();
         compare_->setDown(false);
@@ -296,23 +281,23 @@ AdjustmentsPanel::Page& AdjustmentsPanel::makePage(Type type,QStackedWidget* sta
     auto& page=pages_[index(type)];
     page.widget=new QWidget;page.widget->setObjectName(QStringLiteral("AdjustmentPage%1").arg(int(type)));
     page.layout=new QVBoxLayout(page.widget);page.layout->setContentsMargins(0,0,0,8);page.layout->setSpacing(8);
-    page.enabled=new QCheckBox(QStringLiteral("Enabled"));page.enabled->setObjectName(QStringLiteral("AdjustmentEnabled%1").arg(int(type)));
-    auto* reset=new QPushButton(QStringLiteral("Reset"));reset->setObjectName(QStringLiteral("AdjustmentReset%1").arg(int(type)));
+    page.enabled=i18n::make<QCheckBox>(i18n::text("adjustments.panel.enabled"));page.enabled->setObjectName(QStringLiteral("AdjustmentEnabled%1").arg(int(type)));
+    auto* reset=i18n::make<QPushButton>(i18n::text("adjustments.panel.reset"));reset->setObjectName(QStringLiteral("AdjustmentReset%1").arg(int(type)));
     connect(page.enabled,&QCheckBox::toggled,this,[this,type](bool enabled){if(!updating_)change(type,[enabled](auto& a){a.enabled=enabled;},false);});
     connect(reset,&QPushButton::clicked,this,[this,type]{change(type,[type](auto& a){a=core::defaultAdjustment(type);},false);});
     page.scope=new QComboBox;page.scope->setObjectName(QStringLiteral("AdjustmentScope%1").arg(int(type)));
-    page.scope->addItems({QStringLiteral("Whole Layer"),QStringLiteral("Captured Selection")});
+    i18n::addItems(page.scope, {i18n::text("adjustments.panel.whole.layer"),i18n::text("adjustments.panel.captured.selection")});
     auto* scopeRow=new QHBoxLayout;scopeRow->setSpacing(6);
     page.scope->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);
     scopeRow->addWidget(page.scope,1);
-    page.capture=new QPushButton(QStringLiteral("Capture"));
+    page.capture=i18n::make<QPushButton>(i18n::text("adjustments.panel.capture"));
     page.capture->setObjectName(QStringLiteral("AdjustmentCapture%1").arg(int(type)));
-    page.capture->setToolTip(QStringLiteral("Own a snapshot of the current selection in this layer's local coordinates. Later selection changes do not alter it."));
+    i18n::setToolTip(page.capture, i18n::text("adjustments.panel.own.a.snapshot.of.the.current.selection.in.this"));
     scopeRow->addWidget(page.capture);scopeRow->addWidget(reset);page.layout->addLayout(scopeRow);
     page.maskStatus=explanation(page.layout,QString());
-    page.showRegion=new QCheckBox(QStringLiteral("Show captured region"));
+    page.showRegion=i18n::make<QCheckBox>(i18n::text("adjustments.panel.show.captured.region"));
     page.showRegion->setObjectName(QStringLiteral("AdjustmentShowRegion%1").arg(int(type)));
-    page.showRegion->setToolTip(QStringLiteral("Show a static accent outline of this adjustment's captured coverage. It follows the layer, not the live selection; this changes only the view."));
+    i18n::setToolTip(page.showRegion, i18n::text("adjustments.panel.show.a.static.accent.outline.of.this.adjustment.s"));
     page.layout->addWidget(page.showRegion);
     connect(page.showRegion,&QCheckBox::toggled,this,[this](bool visible){
         if(updating_)return;
@@ -327,14 +312,14 @@ AdjustmentsPanel::Page& AdjustmentsPanel::makePage(Type type,QStackedWidget* sta
     connect(page.capture,&QPushButton::clicked,this,[this,type]{finishEditing();if(onCaptureSelection)onCaptureSelection(type);});
     stack->addWidget(page.widget);return page;
 }
-CompactValueControl* AdjustmentsPanel::number(Page& page,const char* name,const QString& label,
+CompactValueControl* AdjustmentsPanel::number(Page& page,const char* name,const i18n::Message& label,
     double min,double max,int decimals,std::function<double()> read,std::function<void(double)> write,const QString& suffix)
 {
     auto* control=new CompactValueControl;
-    control->setObjectName(QString::fromLatin1(name));control->setPrefix(label+QStringLiteral(": "));control->setSuffix(suffix);
+    control->setObjectName(QString::fromLatin1(name));i18n::setPrefix(control, label+QStringLiteral(": "));control->setSuffix(suffix);
     control->setDecimals(decimals);control->setRange(min,max);control->setSingleStep(decimals>0?.1:1);
     control->setFixedHeight(30);control->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);
-    control->setAccessibleName(label);page.layout->addWidget(control);page.numbers.push_back(control);
+    i18n::setAccessibleName(control, label);page.layout->addWidget(control);page.numbers.push_back(control);
     const auto type=Type(&page-pages_.data());
     const auto previous=page.refresh;
     page.refresh=[previous,control,read]{if(previous)previous();if(!control->interactionActive()) {const QSignalBlocker guard(control);control->setValue(read());}};
@@ -351,9 +336,9 @@ CompactValueControl* AdjustmentsPanel::number(Page& page,const char* name,const 
     control->installEventFilter(this);for(auto* child:control->findChildren<QLineEdit*>())child->installEventFilter(this);
     return control;
 }
-QComboBox* AdjustmentsPanel::choices(Page& page,const char* name,const QStringList& labels,std::function<void(int)> callback)
+QComboBox* AdjustmentsPanel::choices(Page& page,const char* name,const QList<i18n::Message>& labels,std::function<void(int)> callback)
 {
-    auto* combo=new QComboBox;combo->setObjectName(QString::fromLatin1(name));combo->addItems(labels);
+    auto* combo=new QComboBox;combo->setObjectName(QString::fromLatin1(name));i18n::addItems(combo, labels);
     combo->setMaxVisibleItems(int(labels.size()));page.layout->addWidget(combo);
     connect(combo,&QComboBox::currentIndexChanged,this,[this,callback](int value){if(!updating_){finishEditing();callback(value);}});
     return combo;
@@ -403,19 +388,25 @@ void AdjustmentsPanel::setTarget(const core::Layer* layer,bool hasSelection,cons
     document_=document;documentInstance_=instance;
     target_=next;hasSelection_=hasSelection;
     working_=layer&&layer->adjustments?*layer->adjustments:core::AdjustmentStack{};
-    targetLabel_->setText(layer?QStringLiteral("%1 · primary layer").arg(QString::fromStdString(layer->name)):QStringLiteral("Select a raster, text, or shape layer"));
+    i18n::setText(targetLabel_, layer?i18n::text("adjustments.panel.1.primary.layer").arg(QString::fromStdString(layer->name)):i18n::text("adjustments.panel.select.a.raster.text.or.shape.layer"));
     targetLabel_->setToolTip(layer?QString::fromStdString(layer->name):QString());
     const auto* adjustment=layer?std::get_if<core::AdjustmentLayer>(&layer->payload):nullptr;
     const auto placement=document&&layer?document->tree().placement(layer->id):std::nullopt;
     scopeLabel_->setVisible(adjustment);
-    if(adjustment)scopeLabel_->setText(adjustment->scope==core::AdjustmentScope::ThisGroup&&placement&&placement->parent
-        ?tr("This Group · lower content, including nested groups. This group composites locally, even while the correction is bypassed.")
-        :tr("All Below · accumulated content in the current compositing domain."));
+    if(adjustment)i18n::setText(scopeLabel_, adjustment->scope==core::AdjustmentScope::ThisGroup&&placement&&placement->parent
+        ?i18n::text("adjustments.panel.this.group.lower.content.including.nested.groups.this.group")
+        :i18n::text("adjustments.panel.all.below.accumulated.content.in.the.current.compositing.domain"));
     filtersPanel_->setTarget(adjustment?nullptr:layer,hasSelection);
     effectsPanel_->setTarget(adjustment?nullptr:layer);
     tabs_->setTabEnabled(3,!adjustment);tabs_->setTabEnabled(4,!adjustment);
     if(adjustment && tabs_->currentIndex()>2)tabs_->setCurrentIndex(0);
-    tabs_->setEnabled(layer);resetAll_->setEnabled(layer);compare_->setEnabled(layer);refresh();
+    tabs_->setEnabled(layer);resetAll_->setEnabled(layer);compare_->setEnabled(layer);refreshCategoryHints();refresh();
+}
+void AdjustmentsPanel::refreshCategoryHints()
+{
+    const auto hint = !tabs_->isEnabled() ? i18n::text("adjustments.panel.select.a.raster.text.or.shape.layer")
+        : !tabs_->isTabEnabled(3) ? i18n::text("adjustments.panel.operator.no.filters.effects") : i18n::Message{};
+    for (int tab : {3, 4}) tabs_->setTabToolTip(tab, hint);
 }
 Type AdjustmentsPanel::currentType() const
 {
@@ -429,15 +420,15 @@ void AdjustmentsPanel::refresh()
         auto& page=pages_[i];const auto& adjustment=working_.items[i];
         page.enabled->setChecked(adjustment.enabled);page.scope->setCurrentIndex(adjustment.mask?1:0);
         page.capture->setEnabled(target_&&hasSelection_);
-        page.maskStatus->setText(adjustment.mask
-            ? (adjustment.mask->coverage->bounds().empty()?QStringLiteral("Captured empty mask · affects no pixels"):QStringLiteral("Owned mask · follows this layer"))
-            :QStringLiteral("All source pixels · selection is not implicit"));
+        i18n::setText(page.maskStatus, adjustment.mask
+            ? (adjustment.mask->coverage->bounds().empty()?i18n::text("adjustments.panel.captured.empty.mask.affects.no.pixels"):i18n::text("adjustments.panel.owned.mask.follows.this.layer"))
+            :i18n::text("adjustments.panel.all.source.pixels.selection.is.not.implicit"));
         page.maskStatus->setVisible(adjustment.mask.has_value());
         page.showRegion->setVisible(adjustment.mask.has_value());
         page.showRegion->setChecked(showCapturedRegion_);
         page.showRegion->setEnabled(adjustment.mask && !adjustment.mask->coverage->bounds().empty());
-        page.scope->setToolTip(adjustment.mask?QStringLiteral("This owned selection mask follows the layer, independent of later selection changes.")
-            :QStringLiteral("Whole layer: all source pixels. Capture explicitly to use the current selection."));
+        i18n::setToolTip(page.scope, adjustment.mask?i18n::text("adjustments.panel.this.owned.selection.mask.follows.the.layer.independent.of")
+            :i18n::text("adjustments.panel.whole.layer.all.source.pixels.capture.explicitly.to.use"));
     }
     if(curve_){
         std::vector<core::Vec2d> points;for(const auto& p:std::get<core::CurvesParameters>(item(Type::Curves).parameters).channels[std::size_t(curvesChannel_->currentIndex())].points)points.push_back({p.input,p.output});
@@ -449,7 +440,7 @@ void AdjustmentsPanel::refresh()
     if(tint_){
         const auto color=std::get<core::BlackWhiteParameters>(item(Type::BlackWhite).parameters).tintColor;
         const QColor qt(color.red,color.green,color.blue);
-        tint_->setText(QStringLiteral("Tint color  %1").arg(qt.name(QColor::HexRgb).toUpper()));
+        i18n::setText(tint_, i18n::text("adjustments.panel.tint.color.1").arg(qt.name(QColor::HexRgb).toUpper()));
         const auto dpr=tint_->devicePixelRatioF();QPixmap swatch(QSize(24,16)*dpr);swatch.setDevicePixelRatio(dpr);swatch.fill(qt);tint_->setIcon(QIcon(swatch));
     }
     refreshCurvePoint();
@@ -468,18 +459,18 @@ void AdjustmentsPanel::refreshCurvePoint()
 }
 void AdjustmentsPanel::navigate()
 {
-    resetAll_->setText(effectsCategoryActive()?tr("Reset Effects"):tr("Reset All"));
+    i18n::setText(resetAll_, effectsCategoryActive()?i18n::text("adjustments.panel.reset.effects"):i18n::text("adjustments.panel.reset.all"));
     if(effectsCategoryActive()) {
-        compare_->setToolTip(tr("Temporarily bypass only this layer's effects on canvas. Adjustments and filters remain applied."));
-        resetAll_->setToolTip(tr("Disable and reset all seven effects. Adjustments and filters are unchanged."));
+        i18n::setToolTip(compare_, i18n::text("adjustments.panel.temporarily.bypass.only.this.layer.s.effects.on.canvas"));
+        i18n::setToolTip(resetAll_, i18n::text("adjustments.panel.disable.and.reset.all.seven.effects.adjustments.and.filters"));
         refresh();return;
     }
-    compare_->setToolTip(filtersCategoryActive()
-        ? tr("Temporarily bypass this layer's spatial filters on canvas only. Color adjustments remain applied. Release to return to After.")
-        : tr("Temporarily bypass this layer's color adjustments on canvas only. Release to return to After."));
-    resetAll_->setToolTip(filtersCategoryActive()
-        ? tr("Reset all spatial filters and their captured masks. Color adjustments are unchanged.")
-        : tr("Reset all Tone, Color and Monochrome adjustments. Spatial filters are unchanged."));
+    i18n::setToolTip(compare_, filtersCategoryActive()
+        ? i18n::text("adjustments.panel.temporarily.bypass.this.layer.s.spatial.filters.on.canvas")
+        : i18n::text("adjustments.panel.temporarily.bypass.this.layer.s.color.adjustments.on.canvas"));
+    i18n::setToolTip(resetAll_, filtersCategoryActive()
+        ? i18n::text("adjustments.panel.reset.all.spatial.filters.and.their.captured.masks.color")
+        : i18n::text("adjustments.panel.reset.all.tone.color.and.monochrome.adjustments.spatial.filters"));
     refresh();if(onHistogramRequested)onHistogramRequested();
 }
 void AdjustmentsPanel::chooseTint()
@@ -489,7 +480,7 @@ void AdjustmentsPanel::chooseTint()
     const auto color=std::get<core::BlackWhiteParameters>(item(Type::BlackWhite).parameters).tintColor;
     auto* owner=window();while(owner->parentWidget())owner=owner->parentWidget()->window();
     auto* dialog=new ColorDialog(QColor(color.red,color.green,color.blue),owner);
-    dialog->setObjectName(QStringLiteral("AdjustmentTintDialog"));dialog->setWindowTitle(QStringLiteral("Black & White tint"));
+    dialog->setObjectName(QStringLiteral("AdjustmentTintDialog"));i18n::setWindowTitle(dialog, i18n::text("adjustments.panel.black.white.tint"));
     dialog->setOptions(ColorDialog::DontUseNativeDialog);dialog->setAttribute(Qt::WA_DeleteOnClose);
     connect(dialog,&ColorDialog::colorSelected,this,[this,target](QColor color){
         if(target_!=target)return;

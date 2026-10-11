@@ -1,3 +1,5 @@
+#include "imageeditor/ui/Localization.hpp"
+#include "imageeditor/ui/PsdReviewText.hpp"
 #include "imageeditor/ui/PsdImportDialog.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include <QCheckBox>
@@ -57,9 +59,9 @@ public:
     source = displayPreview(image);
     fit();
   }
-  void message(const QString &text) {
+  void message(const i18n::Message &text) {
     source = {};
-    setText(text);
+    i18n::setText(this, text);
   }
 };
 } // namespace
@@ -93,33 +95,31 @@ struct PsdImportDialog::State {
         PsdLimits budget)
       : owner(dialog), limits(budget) {
     owner.setObjectName("PsdImportDialog");
-    owner.setWindowTitle("Import PSD");
+        i18n::setWindowTitle(&owner, i18n::text("psd.import.dialog.import.psd"));
     owner.setWindowFlags(Qt::SubWindow);
     owner.resize(880, 660);
     owner.setProperty("workspacePreferredSize", QSize(880, 660));
     auto *layout = new QVBoxLayout(&owner);
     layout->setContentsMargins(18, 18, 18, 18);
     layout->setSpacing(8);
-    auto *title = new QLabel(
-        QStringLiteral("Import PSD · %1").arg(QFileInfo(path).fileName()),
-        &owner);
+    auto *title = i18n::make<QLabel>(i18n::text("psd.import.dialog.import.psd.1").arg(QFileInfo(path).fileName()), &owner);
     title->setTextFormat(Qt::PlainText);
     title->setWordWrap(true);
     layout->addWidget(title);
-    summary = new QLabel("Inspecting document…", &owner);
+    summary = i18n::make<QLabel>(i18n::text("psd.import.dialog.inspecting.document"), &owner);
     summary->setTextFormat(Qt::PlainText);
     summary->setWordWrap(true);
     layout->addWidget(summary);
     auto *policies = new QHBoxLayout;
-    attention = new QCheckBox("Attention needed only", &owner);
+    attention = i18n::make<QCheckBox>(i18n::text("psd.import.dialog.attention.needed.only"), &owner);
     attention->setObjectName("PsdAttention");
     attention->setChecked(true);
     policies->addWidget(attention);
-    hideGroups = new QCheckBox("Hide groups", &owner);
+    hideGroups = i18n::make<QCheckBox>(i18n::text("psd.import.dialog.hide.groups"), &owner);
     hideGroups->setObjectName("PsdHideGroups");
     hideGroups->setChecked(true);
     policies->addWidget(hideGroups);
-    allRaster = new QCheckBox("Import all text as raster", &owner);
+    allRaster = i18n::make<QCheckBox>(i18n::text("psd.import.dialog.import.all.text.as.raster"), &owner);
     allRaster->setObjectName("PsdRasterText");
     policies->addWidget(allRaster);
     policies->addStretch();
@@ -131,7 +131,19 @@ struct PsdImportDialog::State {
     list->setContentsMargins(0, 0, 0, 0);
     tree = new QTreeWidget(conversions);
     tree->setObjectName("PsdLayers");
-    tree->setHeaderLabels({"Layer / detected type", "Conversion"});
+    tree->setHeaderLabels({i18n::text("psd.import.dialog.layer.detected.type"), i18n::text("psd.import.dialog.conversion")});
+    QObject::connect(&i18n::Localization::instance(), &i18n::Localization::languageChanged, &owner, [this] {
+    tree->setHeaderLabels({i18n::text("psd.import.dialog.layer.detected.type"), i18n::text("psd.import.dialog.conversion")});
+      for (size_t i = 0; i < rows.size(); ++i) {
+        if (auto* row = rows[i]) {
+          row->setText(0, inspection.layers[i].name + " · " + i18n::psdContentName(inspection.layers[i].kind));
+          row->setText(1, excluded(i)
+            ? i18n::text("psd.import.dialog.ancestor.excluded") : missingClippingBase(i)
+            ? i18n::text("psd.import.dialog.clipping.base.omitted") : statusFor(i));
+        }
+      }
+      selectionChanged();
+    });
     tree->setRootIsDecorated(true);
     tree->setMinimumWidth(475);
     tree->header()->setSectionResizeMode(0, QHeaderView::Stretch);
@@ -154,12 +166,12 @@ struct PsdImportDialog::State {
     previewColumn->setMaximumWidth(310);
     auto *previewLayout = new QVBoxLayout(previewColumn);
     previewLayout->setContentsMargins(0, 0, 0, 0);
-    previewEnabled = new QCheckBox("Enable preview", previewColumn);
+    previewEnabled = i18n::make<QCheckBox>(i18n::text("psd.import.dialog.enable.preview"), previewColumn);
     previewEnabled->setObjectName("PsdImportPreview");
     previewEnabled->setChecked(true);
     previewLayout->addWidget(previewEnabled);
     preview = new PreviewLabel(previewColumn);
-    preview->message("Choose settings, then validate to preview the import.");
+    preview->message(i18n::text("psd.import.dialog.choose.settings.then.validate.to.preview.the.import"));
     preview->setObjectName("PsdPreview");
     preview->setAlignment(Qt::AlignCenter);
     preview->setMinimumSize(220, 120);
@@ -180,17 +192,17 @@ struct PsdImportDialog::State {
     auto *output = new QHBoxLayout;
     mode = new QComboBox(&owner);
     mode->setObjectName("PsdMode");
-    mode->addItem("Editable conversion", false);
+    i18n::addItem(mode, i18n::text("psd.import.dialog.editable.conversion"), false);
     output->addWidget(mode, 2);
     destination = new QComboBox(&owner);
     destination->setObjectName("PsdDestination");
-    destination->addItem("New document tab", false);
+    i18n::addItem(destination, i18n::text("psd.import.dialog.new.document.tab"), false);
     if (available)
-      destination->addItem("Layers in the current document", true);
+      i18n::addItem(destination, i18n::text("psd.import.dialog.layers.in.the.current.document"), true);
     destination->setCurrentIndex(available && current ? 1 : 0);
     output->addWidget(destination, 2);
     layout->addLayout(output);
-    auto *detailButton = new QPushButton("Technical report", &owner);
+    auto *detailButton = i18n::make<QPushButton>(i18n::text("psd.import.dialog.technical.report"), &owner);
     detailButton->setObjectName("PsdReport");
     detailButton->setCheckable(true);
     detailButton->setAutoDefault(false);
@@ -202,8 +214,7 @@ struct PsdImportDialog::State {
     layout->addWidget(details);
     QObject::connect(detailButton, &QPushButton::toggled, details,
                      &QWidget::setVisible);
-    status = new QLabel(
-        "Reading metadata and checking saved raster availability…", &owner);
+    status = i18n::make<QLabel>(i18n::text("psd.import.dialog.reading.metadata.and.checking.saved.raster.availability"), &owner);
     status->setTextFormat(Qt::PlainText);
     status->setWordWrap(true);
     layout->addWidget(status);
@@ -212,10 +223,10 @@ struct PsdImportDialog::State {
     layout->addWidget(progress);
     auto *footer = new QHBoxLayout;
     footer->addStretch();
-    auto *cancel = new QPushButton("Cancel", &owner);
+    auto *cancel = i18n::make<QPushButton>(i18n::text("psd.import.dialog.cancel"), &owner);
     cancel->setAutoDefault(false);
     footer->addWidget(cancel);
-    import = new QPushButton("Validate Import", &owner);
+    import = i18n::make<QPushButton>(i18n::text("psd.import.dialog.validate.import"), &owner);
     import->setObjectName("PsdImport");
     import->setEnabled(false);
     import->setAutoDefault(false);
@@ -232,7 +243,7 @@ struct PsdImportDialog::State {
     QObject::connect(previewEnabled, &QCheckBox::toggled, &owner, [this](bool on) {
       if (!on) {
         if (previewWork && render) render->cancelled = true;
-        preview->message("Preview disabled.");
+        preview->message(i18n::text("psd.import.dialog.preview.disabled"));
         if (result.document && !renderJob.valid() && !result.error.isEmpty()) {
           result.error.clear();
           prepared();
@@ -240,8 +251,8 @@ struct PsdImportDialog::State {
       } else if (!result.preview.isNull()) {
         preview->setImage(result.preview);
       } else {
-        preview->message(renderJob.valid() ? "Preparing preview…"
-            : "Choose settings, then validate to preview the import.");
+        preview->message(renderJob.valid() ? i18n::text("psd.import.dialog.preparing.preview")
+            : i18n::text("psd.import.dialog.choose.settings.then.validate.to.preview.the.import"));
         if (!renderJob.valid())
           prepare(false); // An explicit request; ordinary option edits stay lazy.
       }
@@ -254,7 +265,7 @@ struct PsdImportDialog::State {
     });
     QObject::connect(allRaster, &QCheckBox::toggled, &owner, [this](bool on) {
       for (size_t i = 0; i < inspection.layers.size(); ++i)
-        if (inspection.layers[i].type == "Text") {
+        if (inspection.layers[i].kind == PsdContentKind::Text) {
           auto route = on ? PsdRoute::Raster : inspection.layers[i].suggested;
           if (this->available(i, route)) {
             choices[i] = int(route);
@@ -328,7 +339,7 @@ struct PsdImportDialog::State {
     const auto &info = inspection.layers[i];
     switch (route) {
     case PsdRoute::Editable: return info.editable;
-    case PsdRoute::Raster: return info.raster && info.type != "Raster";
+    case PsdRoute::Raster: return info.raster && info.kind != PsdContentKind::Raster;
     case PsdRoute::BasePixels: return info.basePixels && (!info.raster || info.clippingBase >= 0);
     case PsdRoute::Skip: return true;
     }
@@ -359,42 +370,42 @@ struct PsdImportDialog::State {
     if (info.container && info.editable)
       return;
     if (info.suggested == PsdRoute::Skip && info.visible)
-      action->addItem("Choose action…", -1);
+      i18n::addItem(action, i18n::text("psd.import.dialog.choose.action"), -1);
     if (available(i, PsdRoute::Editable))
-      action->addItem("Import editable", int(PsdRoute::Editable));
+      i18n::addItem(action, i18n::text("psd.import.dialog.import.editable"), int(PsdRoute::Editable));
     if (available(i, PsdRoute::Raster))
-      action->addItem("Import as raster", int(PsdRoute::Raster));
+      i18n::addItem(action, i18n::text("psd.import.dialog.import.as.raster"), int(PsdRoute::Raster));
     if (available(i, PsdRoute::BasePixels))
-      action->addItem("Base pixels only", int(PsdRoute::BasePixels));
-    action->addItem("Don’t import", int(PsdRoute::Skip));
+      i18n::addItem(action, i18n::text("psd.import.dialog.base.pixels.only"), int(PsdRoute::BasePixels));
+    i18n::addItem(action, i18n::text("psd.import.dialog.don.t.import"), int(PsdRoute::Skip));
     action->setCurrentIndex(action->findData(choices[i]));
     action->setEnabled(!excluded(i));
     action->show();
-    QString text;
+    i18n::Message text;
     if (excluded(i))
-      text = "This layer is excluded with its group.";
+      text = i18n::text("psd.import.dialog.this.layer.is.excluded.with.its.group");
     else if (choices[i] < 0)
-      text = "Choose how to bring this content into Vulkana.";
+      text = i18n::text("psd.import.dialog.choose.how.to.bring.this.content.into.vulkana");
     else switch (PsdRoute(choices[i])) {
     case PsdRoute::Editable:
-      text = "Keep this layer editable in Vulkana.";
+      text = i18n::text("psd.import.dialog.keep.this.layer.editable.in.vulkana");
       if (!info.issues.empty())
-        text += " Its appearance may differ from the original.";
+        text += i18n::text("psd.import.dialog.its.appearance.may.differ.from.the.original");
       break;
     case PsdRoute::Raster:
-      text = "Import the saved layer image as pixels instead of editable text or shapes.";
+      text = i18n::text("psd.import.dialog.import.the.saved.layer.image.as.pixels.instead.of");
       break;
     case PsdRoute::BasePixels:
-      text = "Import only the original pixels, without unsupported effects or clipping.";
+      text = i18n::text("psd.import.dialog.import.only.the.original.pixels.without.unsupported.effects.or");
       break;
     case PsdRoute::Skip:
-      text = info.container ? "Leave this group and its layers out of the import."
-                            : "Leave this layer out of the import.";
+      text = info.container ? i18n::text("psd.import.dialog.leave.this.group.and.its.layers.out.of.the")
+                            : i18n::text("psd.import.dialog.leave.this.layer.out.of.the.import");
       break;
     }
     if (!excluded(i) && missingClippingBase(i))
-      text += " Include the clipping base, or choose Base pixels only or Don’t import.";
-    description->setText(text);
+      text += i18n::text("psd.import.dialog.include.the.clipping.base.or.choose.base.pixels.only");
+    i18n::setText(description, text);
     description->show();
   }
   void filter() {
@@ -419,9 +430,9 @@ struct PsdImportDialog::State {
       row->setData(0, Qt::UserRole + 1, choices[i]);
       row->setData(0, Qt::UserRole + 2,
           !info.issues.empty() || choices[i] < 0 || missingClippingBase(i));
-      row->setText(0, info.name + " · " + info.type);
-      row->setText(1, excluded(i) ? "Ancestor excluded" : missingClippingBase(i)
-          ? "Clipping base omitted" : statusFor(i));
+      row->setText(0, info.name + " · " + i18n::psdContentName(info.kind));
+      row->setText(1, excluded(i) ? i18n::text("psd.import.dialog.ancestor.excluded") : missingClippingBase(i)
+          ? i18n::text("psd.import.dialog.clipping.base.omitted") : statusFor(i));
       if (info.container)
         for (int column = 0; column < tree->columnCount(); ++column)
           row->setForeground(column, themeColor(ThemeColor::SecondaryText));
@@ -457,10 +468,10 @@ struct PsdImportDialog::State {
       render->cancelled = true;
     result = {};
     preview->message(previewEnabled->isChecked()
-        ? "Choose settings, then validate to preview the import." : "Preview disabled.");
+        ? i18n::text("psd.import.dialog.choose.settings.then.validate.to.preview.the.import") : i18n::text("psd.import.dialog.preview.disabled"));
     details->setPlainText(inspection.report);
-    status->setText(reviewed() ? "Ready to validate your import settings."
-                              : "Choose an action for each unsupported layer or group.");
+    i18n::setText(status, reviewed() ? i18n::text("psd.import.dialog.ready.to.validate.your.import.settings")
+                              : i18n::text("psd.import.dialog.choose.an.action.for.each.unsupported.layer.or.group"));
     updateValidationButton();
   }
   void updateValidationButton() {
@@ -486,8 +497,8 @@ struct PsdImportDialog::State {
     renderGeneration = generation;
     progress->show();
     progress->setRange(0, 0);
-    status->setText("Validating and preparing proposed import…");
-    if (previewEnabled->isChecked()) preview->message("Preparing preview…");
+    i18n::setText(status, i18n::text("psd.import.dialog.validating.and.preparing.proposed.import"));
+    if (previewEnabled->isChecked()) preview->message(i18n::text("psd.import.dialog.preparing.preview"));
     previewWork = false;
     renderJob = convertPsdAsync(inspection, options, render, limits, false);
     updateValidationButton();
@@ -499,24 +510,26 @@ struct PsdImportDialog::State {
     previewWork = true;
     progress->show();
     progress->setRange(0, 0);
-    status->setText("Rendering proposed preview…");
-    preview->message("Preparing preview…");
+    i18n::setText(status, i18n::text("psd.import.dialog.rendering.proposed.preview"));
+    preview->message(i18n::text("psd.import.dialog.preparing.preview"));
     renderJob = previewPsdImportAsync(std::move(result), render, limits);
     updateValidationButton();
     timer.start(60);
+  }
+  i18n::Message preparedStatus() const {
+    return i18n::text("psd.import.dialog.1.layers.ready.2.mib.layer.mask.pixels.3")
+        .arg(result.document->layers().size())
+        .arg(double(result.rasterBytes) / 1048576, 0, 'f', 1)
+        .arg(double(result.estimatedWorkingBytes) / 1048576, 0, 'f', 0)
+        + (options.composite ? i18n::text("psd.import.dialog.one.saved.image.layer.choices.are.ignored") : "");
   }
   void prepared() {
     if (previewEnabled->isChecked() && !result.preview.isNull())
       preview->setImage(result.preview);
     else
-      preview->message("Preview disabled.");
+      preview->message(i18n::text("psd.import.dialog.preview.disabled"));
     details->setPlainText(inspection.report + "\nProposed conversion\n" + result.report);
-    status->setText(QStringLiteral(
-        "%1 layers ready · %2 MiB layer/mask pixels · %3 MiB estimated working memory.")
-        .arg(result.document->layers().size())
-        .arg(double(result.rasterBytes) / 1048576, 0, 'f', 1)
-        .arg(double(result.estimatedWorkingBytes) / 1048576, 0, 'f', 0)
-        + (options.composite ? "\nOne saved image; layer choices are ignored." : ""));
+    i18n::setText(status, preparedStatus());
     progress->hide();
     updateValidationButton();
     if (confirmWhenReady) {
@@ -564,7 +577,7 @@ struct PsdImportDialog::State {
     auto *content = new QVBoxLayout(card);
     content->setContentsMargins(20, 18, 20, 18);
     content->setSpacing(12);
-    auto *heading = new QLabel("Import ready", card);
+    auto *heading = i18n::make<QLabel>(i18n::text("psd.import.dialog.import.ready"), card);
     auto font = heading->font();
     font.setBold(true);
     heading->setFont(font);
@@ -576,17 +589,18 @@ struct PsdImportDialog::State {
           380, 180, Qt::KeepAspectRatio, Qt::SmoothTransformation));
       content->addWidget(image);
     }
-    auto *stats = new QLabel(status->text() + "\n\n" + destination->currentText(), card);
+    auto *stats = i18n::make<QLabel>(preparedStatus() + "\n\n" + i18n::text(destination->currentData().toBool()
+        ? "psd.import.dialog.layers.in.the.current.document" : "psd.import.dialog.new.document.tab"), card);
     stats->setObjectName("PsdConfirmationStats");
     stats->setTextFormat(Qt::PlainText);
     stats->setWordWrap(true);
     content->addWidget(stats);
     auto *buttons = new QHBoxLayout;
     buttons->addStretch();
-    auto *back = new QPushButton("Cancel", card);
+    auto *back = i18n::make<QPushButton>(i18n::text("psd.import.dialog.cancel"), card);
     back->setObjectName("PsdConfirmationCancel");
     back->setAutoDefault(false);
-    auto *confirm = new QPushButton("Confirm", card);
+    auto *confirm = i18n::make<QPushButton>(i18n::text("psd.import.dialog.confirm"), card);
     confirm->setObjectName("PsdConfirmImport");
     confirm->setAutoDefault(false);
     buttons->addWidget(back);
@@ -618,24 +632,22 @@ struct PsdImportDialog::State {
     const auto base=std::ranges::find_if(inspection.layers,[&](const auto& l){return l.sourceIndex==inspection.layers[i].clippingBase;});
     return base==inspection.layers.end() || options.layers[size_t(base-inspection.layers.begin())].route==PsdRoute::Skip;
   }
-  QString statusFor(size_t i) const {
+  i18n::Message statusFor(size_t i) const {
     const auto &info = inspection.layers[i];
     if (choices[i] < 0)
-      return "Choose action";
+      return i18n::text("psd.import.dialog.choose.action.2");
     if (options.layers[i].route == PsdRoute::Skip)
-      return "Don’t import";
+      return i18n::text("psd.import.dialog.don.t.import");
     if (options.layers[i].route == PsdRoute::BasePixels)
-      return "Base pixels only";
+      return i18n::text("psd.import.dialog.base.pixels.only");
     if (options.layers[i].route == PsdRoute::Raster)
-      return "Raster";
+      return i18n::text("psd.import.dialog.raster");
     if (info.container && info.editable)
-      return "Automatic";
-    return info.editable && !info.issues.empty()
-               ? QStringLiteral("Substitution")
-               : info.status;
+      return i18n::text("psd.import.dialog.automatic");
+    return i18n::psdImportStatus(info);
   }
   void populate() {
-    summary->setText(inspection.summary);
+    i18n::setText(summary, i18n::psdSourceSummary(inspection));
     details->setPlainText(inspection.report);
     options = defaultPsdOptions(inspection);
     choices.resize(inspection.layers.size());
@@ -647,7 +659,7 @@ struct PsdImportDialog::State {
           ? -1 : int(info.suggested);
     }
     if (inspection.savedComposite)
-      mode->addItem("Saved composite as one image", true);
+      i18n::addItem(mode, i18n::text("psd.import.dialog.saved.composite.as.one.image"), true);
     changed();
   }
   void poll() {
@@ -691,7 +703,7 @@ struct PsdImportDialog::State {
     }
     if (renderJob.valid() && render && renderGeneration == generation) {
       if (render->renderingPreview) {
-        status->setText("Rendering proposed preview…");
+        i18n::setText(status, i18n::text("psd.import.dialog.rendering.proposed.preview"));
         progress->setRange(0, 100);
         progress->setValue(render->previewPercent);
       } else if (render->total > 0) {

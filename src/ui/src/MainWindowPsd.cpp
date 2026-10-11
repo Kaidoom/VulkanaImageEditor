@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/LayerStructureCommands.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/FileDialogLocations.hpp"
@@ -48,8 +49,7 @@ bool MainWindow::importPsdFromPath(const QString &input, bool intoCurrent) {
           target->cancellationGeneration != generation ||
           doc->revision() != revision ||
           target->session.layerSelectionState() != selection) {
-        reportFileError(tr("The PSD destination changed. Nothing was imported; "
-                           "please try again."));
+        reportFileError(i18n::text("main.window.psd.the.psd.destination.changed.nothing.was.imported.please.try"));
         return false;
       }
       auto tree = doc->tree();
@@ -90,11 +90,11 @@ bool MainWindow::importPsdFromPath(const QString &input, bool intoCurrent) {
     }
     updateDocumentTitle();
     statusBar()->showMessage(
-        tr("Imported PSD as independent editable Vulkana content"), 4000);
+        i18n::text("main.window.psd.imported.psd.as.independent.editable.vulkana.content"), 4000);
     return true;
   } catch (const std::exception &) {
     reportFileError(
-        tr("Unable to insert PSD content safely. No partial import was kept."));
+        i18n::text("main.window.psd.unable.to.insert.psd.content.safely.no.partial.import"));
     return false;
   }
 }

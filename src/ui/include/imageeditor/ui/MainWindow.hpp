@@ -1,4 +1,5 @@
 #pragma once
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/LayerMaskEdit.hpp"
 #include "imageeditor/core/ShapeResize.hpp"
 #include "imageeditor/core/LayerStructureCommands.hpp"
@@ -364,7 +365,7 @@ private:
     void setLayerEditingTarget(int row, bool mask);
     void refreshLayerMaskActions();
     bool confirmLayerChange(const QString& title,const QString& question);
-    bool commitLayerStructure(const QString&, core::LayerTree,
+    bool commitLayerStructure(const i18n::Message&, core::LayerTree,
         std::vector<core::LayerId> removed, std::vector<core::Layer> added,
         core::LayerSelectionState afterSelection,
         std::vector<core::ItemVisibilityUpdate> retainedLeafVisibility = {});
@@ -440,7 +441,7 @@ private:
     void setColors(core::EditorColors colors);
     void registerEditorWindowAction(QAction* action);
     void smokeCheck(bool condition, const QString& failure);
-    QAction* toolAction(core::ToolId tool, const QString& name,
+    QAction* toolAction(core::ToolId tool, const i18n::Message& name,
         const QString& iconName, const QKeySequence& shortcut);
 
     core::EditorSession& session() noexcept { return fileState().session; }

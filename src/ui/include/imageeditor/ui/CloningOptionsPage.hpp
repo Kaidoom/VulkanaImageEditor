@@ -1,5 +1,6 @@
 #pragma once
 
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/BrushEngine.hpp"
 #include "imageeditor/core/CloneSettings.hpp"
 
@@ -64,7 +65,7 @@ private:
     CompactValueControl* flowControl_ {nullptr};
     CompactValueControl* spacingControl_ {nullptr};
     QToolButton* alignedButton_ {nullptr};
-    QString rawSourceHint_;
+    i18n::Message rawSourceHint_;
     CompactValueControl* adaptationControl_ {nullptr};
     CompactValueControl* publishingControl_ {nullptr};
     core::BrushSettings brushSettings_;

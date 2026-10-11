@@ -845,7 +845,8 @@ void applyEditorTheme(QApplication& application, const ThemeSettings& settings)
         QTabBar::tab { padding: 9px 18px; margin-right: 4px; color: #9299AA;
             background: #151820; border-bottom: 2px solid transparent; }
         QTabBar::tab:selected { color: #E8EAF0; border-bottom-color: #6577F3; background: #171A22; }
-        QTabBar::tab:hover { color: #E8EAF0; background: #222733; }
+        QTabBar::tab:hover:enabled { color: #E8EAF0; background: #222733; }
+        QTabBar::tab:disabled { color: #666C79; background: #1B1E26; border-bottom-color: transparent; }
         QTabBar#WorkspacePanelTabs::tab { padding: 5px 10px; margin-right: 2px; }
         QTabBar#WorkspacePanelTabs::tab:selected { color: #E8EAF0; border-bottom: 2px solid #6577F3; background: #171A22; }
         QWidget[workspacePanel="true"][tabbedPanel="true"] { border: 0; border-radius: 0; }

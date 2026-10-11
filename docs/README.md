@@ -14,6 +14,7 @@ The guides below describe the architecture, behavior and algorithms.
 - [PSD import](PSD_IMPORT.md): editable conversion, review choices, saved-raster scope and limits.
 - [PDF export](PDF_EXPORT.md): page ordering, physical sizes, hybrid text and safety.
 - [Shortcuts](SHORTCUTS.md): bindings, focus ownership and configuration.
+- [Localization](LOCALIZATION.md): catalogs, language packs, contributor workflow and first-language review.
 - [Single instance](SINGLE_INSTANCE.md): startup arbitration and file forwarding.
 - [Adjustments](ADJUSTMENT_ALGORITHMS.md): color/alpha equations and masks.
 - [Adjustment layers](ADJUSTMENT_LAYERS.md): lower-stack operators, scope and exchange.

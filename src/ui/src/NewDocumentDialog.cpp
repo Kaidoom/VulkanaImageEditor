@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/NewDocumentDialog.hpp"
 #include <QDragEnterEvent>
 #include <QDropEvent>
@@ -87,7 +88,7 @@ NewDocumentDialog::NewDocumentDialog(Mode mode, core::CanvasSpec initialSpec, QW
     // This form is born on the panel plane, never converted from a toplevel:
     // reparenting an active dialog corrupts Qt's native-widget focus chain.
     if (parent) setAttribute(Qt::WA_ShowWithoutActivating);
-    setWindowTitle(changingCanvas ? QStringLiteral("Change canvas size") : QStringLiteral("New document"));
+    i18n::setWindowTitle(this, changingCanvas ? i18n::text("new.document.dialog.change.canvas.size") : i18n::text("new.document.dialog.new.document"));
     setSizeGripEnabled(false);
     setFixedWidth(changingCanvas ? 500 : 820);
 
@@ -95,13 +96,12 @@ NewDocumentDialog::NewDocumentDialog(Mode mode, core::CanvasSpec initialSpec, QW
     layout->setContentsMargins(22, 20, 22, 20);
     layout->setSpacing(15);
     layout->setSizeConstraint(QLayout::SetFixedSize);
-    auto* heading = new QLabel(changingCanvas ? QStringLiteral("Change the canvas boundary")
-                                              : QStringLiteral("Create a new canvas"));
+    auto* heading = i18n::make<QLabel>(changingCanvas ? i18n::text("new.document.dialog.change.the.canvas.boundary")
+                                              : i18n::text("new.document.dialog.create.a.new.canvas"));
     heading->setObjectName(QStringLiteral("ToolTitle"));
-    auto* help = new QLabel(changingCanvas
-            ? QStringLiteral("The top-left document origin stays fixed. Layers keep their pixels and "
-                             "transforms; content outside the new boundary is clipped, not deleted.")
-            : QStringLiteral("V1 documents use 8-bit RGBA in the sRGB color space."));
+    auto* help = i18n::make<QLabel>(changingCanvas
+            ? i18n::text("new.document.dialog.the.top.left.document.origin.stays.fixed.layers.keep")
+            : i18n::text("new.document.dialog.v1.documents.use.8.bit.rgba.in.the.srgb"));
     help->setObjectName(QStringLiteral("MutedLabel"));
     help->setWordWrap(true);
     layout->addWidget(heading);
@@ -122,7 +122,7 @@ NewDocumentDialog::NewDocumentDialog(Mode mode, core::CanvasSpec initialSpec, QW
     auto* presets = new QComboBox(this);
     presets->setObjectName(QStringLiteral("CanvasPresetCombo"));
     presets->setItemDelegate(new QStyledItemDelegate(presets));
-    presets->addItem(QStringLiteral("Custom"));
+    i18n::addItem(presets, i18n::text("new.document.dialog.custom"));
     for (const auto& preset : canvasPresets) presets->addItem(QString::fromUtf8(preset.name));
     presets->setMaxVisibleItems(14);
     if (changingCanvas) {
@@ -135,31 +135,30 @@ NewDocumentDialog::NewDocumentDialog(Mode mode, core::CanvasSpec initialSpec, QW
             }
         }
     }
-    form->addRow(QStringLiteral("Preset"), presets);
+    i18n::addRow(form, i18n::text("new.document.dialog.preset"), presets);
     width_->setDecimals(0);
     height_->setDecimals(0);
     width_->setRange(1, static_cast<int>(kMaximumRasterDimension));
     width_->setObjectName(QStringLiteral("CanvasWidthSpinBox"));
     width_->setValue(static_cast<int>(initialSpec.extent.width));
-    width_->setSuffix(QStringLiteral(" px"));
+    i18n::setSuffix(width_, i18n::text("new.document.dialog.px"));
     height_->setRange(1, static_cast<int>(kMaximumRasterDimension));
     height_->setObjectName(QStringLiteral("CanvasHeightSpinBox"));
     height_->setValue(static_cast<int>(initialSpec.extent.height));
-    height_->setSuffix(QStringLiteral(" px"));
+    i18n::setSuffix(height_, i18n::text("new.document.dialog.px"));
     dpi_->setRange(1.0, 1200.0);
     dpi_->setObjectName(QStringLiteral("CanvasDpiSpinBox"));
     dpi_->setValue(initialSpec.dotsPerInch);
-    dpi_->setSuffix(QStringLiteral(" ppi"));
-    form->addRow(QStringLiteral("Width"), width_);
-    form->addRow(QStringLiteral("Height"), height_);
-    form->addRow(QStringLiteral("Resolution"), dpi_);
+    i18n::setSuffix(dpi_, i18n::text("new.document.dialog.ppi"));
+    i18n::addRow(form, i18n::text("new.document.dialog.width"), width_);
+    i18n::addRow(form, i18n::text("new.document.dialog.height"), height_);
+    i18n::addRow(form, i18n::text("new.document.dialog.resolution"), dpi_);
     if (!changingCanvas) {
         background_ = new QComboBox(this);
         background_->setObjectName(QStringLiteral("CanvasBackgroundCombo"));
         background_->setItemDelegate(new QStyledItemDelegate(background_));
-        background_->addItems(
-            { QStringLiteral("Transparent"), QStringLiteral("White"), QStringLiteral("Black") });
-        form->addRow(QStringLiteral("Background"), background_);
+        i18n::addItems(background_, { i18n::text("new.document.dialog.transparent"), i18n::text("new.document.dialog.white"), i18n::text("new.document.dialog.black") });
+        i18n::addRow(form, i18n::text("new.document.dialog.background"), background_);
     }
     settings->addLayout(form);
 
@@ -176,13 +175,13 @@ NewDocumentDialog::NewDocumentDialog(Mode mode, core::CanvasSpec initialSpec, QW
         recentLayout->setContentsMargins(0, 0, 0, 0);
         recentLayout->setSpacing(6);
         auto* recentHeader = new QHBoxLayout;
-        auto* recentTitle = new QLabel(QStringLiteral("Recent files"), recentSection_);
+        auto* recentTitle = i18n::make<QLabel>(i18n::text("new.document.dialog.recent.files"), recentSection_);
         recentTitle->setObjectName(QStringLiteral("SectionLabel"));
         recentHeader->addWidget(recentTitle);
         recentHeader->addStretch();
-        clearRecentButton_ = new QPushButton(QStringLiteral("Clear recent"), recentSection_);
+        clearRecentButton_ = i18n::make<QPushButton>(i18n::text("new.document.dialog.clear.recent"), recentSection_);
         clearRecentButton_->setObjectName(QStringLiteral("ClearRecentFilesButton"));
-        clearRecentButton_->setToolTip(QStringLiteral("Remove the recent list. Files are not deleted."));
+        i18n::setToolTip(clearRecentButton_, i18n::text("new.document.dialog.remove.the.recent.list.files.are.not.deleted"));
         clearRecentButton_->setAutoDefault(false);
         recentHeader->addWidget(clearRecentButton_);
         recentLayout->addLayout(recentHeader);
@@ -196,9 +195,9 @@ NewDocumentDialog::NewDocumentDialog(Mode mode, core::CanvasSpec initialSpec, QW
         recentList_->setWordWrap(false);
         recentList_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         recentList_->setContextMenuPolicy(Qt::CustomContextMenu);
-        recentList_->setToolTip(QStringLiteral("Activate a file or double-click to open. Right-click to remove it from this list."));
+        i18n::setToolTip(recentList_, i18n::text("new.document.dialog.activate.a.file.or.double.click.to.open.right"));
         recentLayout->addWidget(recentList_);
-        recentEmptyLabel_ = new QLabel(QStringLiteral("No recent files yet."), recentSection_);
+        recentEmptyLabel_ = i18n::make<QLabel>(i18n::text("new.document.dialog.no.recent.files.yet"), recentSection_);
         recentEmptyLabel_->setObjectName(QStringLiteral("MutedLabel"));
         recentLayout->addWidget(recentEmptyLabel_);
         recentLayout->addStretch();
@@ -207,7 +206,7 @@ NewDocumentDialog::NewDocumentDialog(Mode mode, core::CanvasSpec initialSpec, QW
 
         auto* recentMenu = new QMenu(recentList_);
         recentMenu->setObjectName(QStringLiteral("RecentFileContextMenu"));
-        auto* remove = recentMenu->addAction(QStringLiteral("Remove from recent files"));
+        auto* remove = i18n::addAction(recentMenu, i18n::text("new.document.dialog.remove.from.recent.files"));
         remove->setObjectName(QStringLiteral("RemoveRecentFileAction"));
         connect(recentList_, &QListWidget::customContextMenuRequested, this,
             [this, recentMenu, remove](const QPoint& position) {
@@ -234,19 +233,19 @@ NewDocumentDialog::NewDocumentDialog(Mode mode, core::CanvasSpec initialSpec, QW
         body->addWidget(recentSection_, 1);
     }
 
-    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Ok);
+    auto* buttons = new i18n::ButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Ok);
     buttons->setObjectName(QStringLiteral("CanvasDialogButtons"));
-    buttons->button(QDialogButtonBox::Ok)
-        ->setText(changingCanvas ? QStringLiteral("Apply") : QStringLiteral("Create"));
+    i18n::setText(buttons->button(QDialogButtonBox::Ok),
+        changingCanvas ? i18n::text("dialog.button.apply") : i18n::text("dialog.button.create"));
     if (!changingCanvas) {
-        auto* open = new DocumentMenuButton(QStringLiteral("Open document…"), buttons);
+        auto* open = i18n::make<DocumentMenuButton>(i18n::text("new.document.dialog.open.document"), buttons);
         buttons->addButton(open, QDialogButtonBox::ActionRole);
         open->setObjectName(QStringLiteral("OpenDocumentButton"));
         auto* menu = new QMenu(open);
-        auto* image = menu->addAction(QStringLiteral("Open image…"));
+        auto* image = i18n::addAction(menu, i18n::text("new.document.dialog.open.image"));
         image->setObjectName(QStringLiteral("OpenImageFromNewAction"));
         connect(image, &QAction::triggered, this, [this] { done(OpenImage); });
-        auto* project = menu->addAction(QStringLiteral("Open project…"));
+        auto* project = i18n::addAction(menu, i18n::text("new.document.dialog.open.project"));
         project->setObjectName(QStringLiteral("OpenProjectFromNewAction"));
         connect(project, &QAction::triggered, this, [this] { done(OpenProject); });
         connect(open, &QPushButton::clicked, menu, [open, menu] { showOwnedPopupMenu(menu, open); });
@@ -264,16 +263,15 @@ NewDocumentDialog::NewDocumentDialog(Mode mode, core::CanvasSpec initialSpec, QW
         buttons->button(QDialogButtonBox::Ok)->setEnabled(valid);
         if (valid) {
             if (changingCanvas) {
-                sizeHint->setText(QStringLiteral("Existing layer storage will not be resized or resampled."));
+                i18n::setText(sizeHint, i18n::text("new.document.dialog.existing.layer.storage.will.not.be.resized.or.resampled"));
             } else {
                 const auto mebibytes
                     = static_cast<double>(width) * static_cast<double>(height) * 4.0 / (1024.0 * 1024.0);
-                sizeHint->setText(
-                    QStringLiteral("Base layer memory: approximately %1 MiB").arg(mebibytes, 0, 'f', 1));
+                i18n::setText(sizeHint, i18n::text("new.document.dialog.base.layer.memory.approximately.1.mib").arg(mebibytes, 0, 'f', 1));
             }
             sizeHint->setObjectName(QStringLiteral("MutedLabel"));
         } else {
-            sizeHint->setText(QStringLiteral("Canvas must not exceed 40 megapixels."));
+            i18n::setText(sizeHint, i18n::text("new.document.dialog.canvas.must.not.exceed.40.megapixels"));
             sizeHint->setObjectName(QStringLiteral("ErrorLabel"));
         }
         sizeHint->style()->unpolish(sizeHint);

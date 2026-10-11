@@ -973,6 +973,10 @@ PsdInspection inspectPsd(const QString &path,
     result.source = s;
     result.size = s->size;
     result.ppi = s->ppi;
+    result.sourceProfile = s->colorDescription;
+    result.colorHandling = !s->embeddedProfile ? PsdColorHandling::AssumedSRgb
+        : s->colorSpace == QColorSpace(QColorSpace::SRgb) ? PsdColorHandling::SRgb
+                                                       : PsdColorHandling::ConvertedToSRgb;
     result.summary = QStringLiteral("%1 × %2 px · %3 PPI · 8-bit RGB · %4")
                          .arg(s->size.width())
                          .arg(s->size.height())
@@ -994,6 +998,10 @@ PsdInspection inspectPsd(const QString &path,
       info.name = rec.name;
       info.visible = rec.visible;
       info.container = rec.section == 1 || rec.section == 2;
+      info.kind = info.container ? PsdContentKind::Group
+          : isAdjustment(rec) ? PsdContentKind::Adjustment
+          : rec.tags.contains("TySh") ? PsdContentKind::Text
+          : isShape(rec) ? PsdContentKind::Shape : PsdContentKind::Raster;
       info.type = info.container              ? "Group"
                   : isAdjustment(rec)         ? "Adjustment"
                   : rec.tags.contains("TySh") ? "Text"

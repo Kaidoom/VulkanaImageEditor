@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/MemoryStatusLabel.hpp"
 #include <QHideEvent>
 #include <QPainter>
@@ -18,7 +19,7 @@ QString memorySize(std::uint64_t bytes) {
 MemoryStatusLabel::MemoryStatusLabel(Sampler sampler, QWidget* parent)
     : QLabel(parent), sampler_(std::move(sampler)) {
     setObjectName(QStringLiteral("MemoryStatus"));
-    setAccessibleName(tr("Application memory usage"));
+    i18n::setAccessibleName(this, i18n::text("memory.status.label.application.memory.usage"));
     setTextFormat(Qt::PlainText);
     setTextInteractionFlags(Qt::NoTextInteraction);
     setFocusPolicy(Qt::NoFocus);
@@ -33,20 +34,17 @@ MemoryStatusLabel::MemoryStatusLabel(Sampler sampler, QWidget* parent)
 }
 void MemoryStatusLabel::sample() {
     const auto value = sampler_();
-    const auto ram = value.residentBytes ? memorySize(*value.residentBytes) : tr("unavailable");
-    ramText_ = tr("RAM %1").arg(ram);
-    const auto text = tr("%1 · GPU cache %2").arg(ramText_, memorySize(value.textureCacheBytes));
+    const auto ram = value.residentBytes ? memorySize(*value.residentBytes) : i18n::text("memory.status.label.unavailable");
+    ramText_ = i18n::text("memory.status.label.ram.1").arg(ram);
+    const auto text = i18n::text("memory.status.label.1.gpu.cache.2").arg(ramText_, memorySize(value.textureCacheBytes));
     if (text != this->text()) setText(text);
-    const auto detail = tr("RAM: %1 — OS-reported resident memory for the entire application, including all open tabs, history and CPU caches. Not virtual memory or compressed project size.\n"
-                           "GPU texture cache: %2 — cached layer textures, not total VRAM usage.\n"
-                           "Upload staging: %3 — reserved transfer buffers; may overlap RAM accounting. These numbers should not be added together.\n"
-                           "Updated once per second while visible.")
+    const auto detail = i18n::text("memory.status.label.ram.1.os.reported.resident.memory.for.the.entire")
         .arg(ram, memorySize(value.textureCacheBytes), memorySize(value.stagingBytes));
     if (toolTip() != detail) setToolTip(detail);
 }
 QSize MemoryStatusLabel::sizeHint() const {
     // Stable width prevents changing measurements from shifting adjacent zoom.
-    return {fontMetrics().horizontalAdvance(tr("RAM 999.9 MiB · GPU cache 999.9 MiB")) + 16,
+    return {fontMetrics().horizontalAdvance(i18n::text("memory.status.label.ram.999.9.mib.gpu.cache.999.9.mib")) + 16,
             QLabel::sizeHint().height()};
 }
 QSize MemoryStatusLabel::minimumSizeHint() const { return {0, sizeHint().height()}; }

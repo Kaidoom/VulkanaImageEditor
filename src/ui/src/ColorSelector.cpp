@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/ColorSelector.hpp"
 #include "imageeditor/ui/ColorDialog.hpp"
 #include <QHBoxLayout>
@@ -79,8 +80,8 @@ ColorSelector::ColorSelector(Presentation presentation, QWidget* parent)
     swap_ = new QToolButton(this);
     swap_->setObjectName(compact ? QStringLiteral("RailSwapColors") : QStringLiteral("PanelSwapColors"));
     swap_->setText(QStringLiteral("⇄"));
-    swap_->setToolTip(QStringLiteral("Switch active color (X)"));
-    swap_->setAccessibleName(QStringLiteral("Switch active color"));
+    i18n::setToolTip(swap_, i18n::text("color.selector.switch.active.color.x"));
+    i18n::setAccessibleName(swap_, i18n::text("color.selector.switch.active.color"));
     if (compact) {
         setFixedSize(40, 40);
         primary_->setGeometry(QRect(primaryHome, QSize(24, 24)));
@@ -165,7 +166,7 @@ void ColorSelector::activateOrEdit(core::ColorSlot slot)
     auto* dialog = new ColorDialog(QColor(old.red, old.green, old.blue, old.alpha), owner);
     colorDialog_ = dialog;
     dialog->setObjectName(QStringLiteral("WorkingColorDialog"));
-    dialog->setWindowTitle(QStringLiteral("Working color"));
+    i18n::setWindowTitle(dialog, i18n::text("color.selector.working.color"));
     dialog->setOptions(ColorDialog::ShowAlphaChannel | ColorDialog::DontUseNativeDialog);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     connect(dialog, &ColorDialog::colorSelected, this, [this, slot](const QColor& picked) {
@@ -227,8 +228,8 @@ void ColorSelector::refresh()
         const auto hex = colorHex(color);
         button->setText(hex);
         button->setAccessibleName(name + QStringLiteral(" color ") + hex);
-        button->setToolTip(name + QStringLiteral(" · ") + hex
-            + QStringLiteral("\nClick to activate; click the active swatch to edit.\nRGBA includes sampled alpha."));
+        i18n::setToolTip(button, name + QStringLiteral(" · ") + hex
+            + i18n::text("color.selector.click.to.activate.click.the.active.swatch.to.edit"));
         button->update();
     };
     update(primary_, core::ColorSlot::Primary, QStringLiteral("Primary"));

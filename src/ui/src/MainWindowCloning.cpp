@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/LayerCrop.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
@@ -15,7 +16,7 @@ namespace imageeditor::ui {
 void MainWindow::createCloningControls()
 {
     cloningOptionsPage_ = new CloningOptionsPage;
-    toolOptionsBar_->registerToolPage(core::ToolId::Cloning, tr("Cloning"), cloningOptionsPage_);
+    toolOptionsBar_->registerToolPage(core::ToolId::Cloning, i18n::text("main.window.cloning.cloning"), cloningOptionsPage_);
     toolOptionsBar_->registerToolLeadingWidget(core::ToolId::Cloning, cloningOptionsPage_->modeWidget());
     cloningOptionsPage_->setBrushSettings(brushSettings_);
     cloningOptionsPage_->setCloneSettings(cloneSettings_);
@@ -82,7 +83,7 @@ void MainWindow::pickCloneSource(core::Vec2d point)
     const auto* layer = doc.layer(*session().activeLayer());
     if (!layer || !std::isfinite(point.x) || !std::isfinite(point.y) || point.x < 0 || point.y < 0
         || point.x >= doc.canvas().extent.width || point.y >= doc.canvas().extent.height) {
-        statusBar()->showMessage(tr("Alt-click inside the canvas with a source layer selected."), 4500);
+        statusBar()->showMessage(i18n::text("main.window.cloning.alt.click.inside.the.canvas.with.a.source.layer"), 4500);
         return;
     }
     prepareShapeCaches();
@@ -96,7 +97,7 @@ void MainWindow::pickCloneSource(core::Vec2d point)
             || local.x < 0 || local.y < 0 || local.x >= surface->extent().width
             || local.y >= surface->extent().height) {
             statusBar()->showMessage(
-                tr("Alt-click within the visible bounds of the selected source layer."), 4500);
+                i18n::text("main.window.cloning.alt.click.within.the.visible.bounds.of.the.selected"), 4500);
             return;
         }
     }
@@ -114,7 +115,7 @@ bool MainWindow::beginCloneStroke(const core::NormalizedPointerSample& sample)
     refreshCloningControls();
     if (!cloneAnchor_) {
         statusBar()->showMessage(
-            tr("Set a cloning source first: Alt-click on the selected source layer."), 5000);
+            i18n::text("main.window.cloning.set.a.cloning.source.first.alt.click.on.the"), 5000);
         return false;
     }
     auto* doc = session().document();
@@ -122,7 +123,7 @@ bool MainWindow::beginCloneStroke(const core::NormalizedPointerSample& sample)
     const auto* layer = doc && target ? doc->layer(*target) : nullptr;
     if (!layer || !std::holds_alternative<core::RasterLayer>(layer->payload)) {
         statusBar()->showMessage(
-            tr("Cloning writes to raster layers. Select or create a raster retouch layer."), 5000);
+            i18n::text("main.window.cloning.cloning.writes.to.raster.layers.select.or.create.a"), 5000);
         return false;
     }
     const auto unavailable = brushAssets_->unavailableMessage(brushSettings_);
@@ -138,7 +139,7 @@ bool MainWindow::beginCloneStroke(const core::NormalizedPointerSample& sample)
         QScopedValueRollback processing(cloneProcessing_, true);
         QElapsedTimer cadence;
         cadence.start();
-        statusBar()->showMessage(tr("Preparing immutable clone reference… · Escape cancels"));
+        statusBar()->showMessage(i18n::text("main.window.cloning.preparing.immutable.clone.reference.escape.cancels"));
         auto cancelled = [&] {
             // The press handler has not installed canvas capture yet.
             // Keep releases queued until it returns; consuming one here
@@ -190,7 +191,7 @@ bool MainWindow::beginCloneStroke(const core::NormalizedPointerSample& sample)
     }
     if (!reference || cloneCancelRequested_) {
         statusBar()->showMessage(
-            cloneCancelRequested_ ? tr("Clone stroke cancelled") : QString::fromStdString(error), 5500);
+            cloneCancelRequested_ ? i18n::text("main.window.cloning.clone.stroke.cancelled") : QString::fromStdString(error), 5500);
         return false;
     }
     const auto offset = cloneAnchor_->offsetFor(sample.documentPosition, cloneSettings_.aligned);
@@ -200,7 +201,7 @@ bool MainWindow::beginCloneStroke(const core::NormalizedPointerSample& sample)
         const auto detail = QString::fromStdString(activeCloneStroke_->diagnostic());
         activeCloneStroke_.reset();
         statusBar()->showMessage(
-            detail.isEmpty() ? tr("Unable to start clone stroke at this target scale.") : detail, 5500);
+            detail.isEmpty() ? i18n::text("main.window.cloning.unable.to.start.clone.stroke.at.this.target.scale") : detail, 5500);
         return false;
     }
     refreshCloningControls();
@@ -213,11 +214,10 @@ bool MainWindow::beginCloneStroke(const core::NormalizedPointerSample& sample)
         || core::hasActiveLayerEffects(layer->effects)
         || (layer->adjustments && core::compileAdjustmentStack(layer->adjustments).active);
     statusBar()->showMessage(rendered && effects
-            ? tr("Destination effects will be applied again. For matching appearance use a Normal, 100%, "
-                 "unadjusted retouch layer.")
+            ? i18n::text("main.window.cloning.destination.effects.will.be.applied.again.for.matching.appearance")
             : cloneSettings_.mode == core::CloneMode::Heal
-            ? tr("Healing region · release to reconstruct · Escape cancels")
-            : tr("Clone stamp · Escape cancels"));
+            ? i18n::text("main.window.cloning.healing.region.release.to.reconstruct.escape.cancels")
+            : i18n::text("main.window.cloning.clone.stamp.escape.cancels"));
     canvasWindow_->scheduleFrame();
     return true;
 }
@@ -249,7 +249,7 @@ bool MainWindow::endCloneStroke(const core::NormalizedPointerSample& sample)
         QElapsedTimer cadence;
         cadence.start();
         if (cloneSettings_.mode == core::CloneMode::Heal)
-            statusBar()->showMessage(tr("Reconstructing Heal… · Escape cancels"));
+            statusBar()->showMessage(i18n::text("main.window.cloning.reconstructing.heal.escape.cancels"));
         result = activeCloneStroke_->end(sample, session().history(), [&] {
             if (cadence.elapsed() >= 8) {
                 QApplication::processEvents(QEventLoop::AllEvents, 4);
@@ -268,11 +268,11 @@ bool MainWindow::endCloneStroke(const core::NormalizedPointerSample& sample)
         fileState().untouched = false;
     synchronizeUi(false, false);
     statusBar()->showMessage(!detail.isEmpty() ? detail
-            : !completed                       ? tr("Clone stroke cancelled")
+            : !completed                       ? i18n::text("main.window.cloning.clone.stroke.cancelled")
             : result == core::RasterEditCommitResult::NoChanges
-            ? tr("Clone stroke · no changed pixels")
-            : tr("%1 stroke · %2 ms")
-                  .arg(cloneSettings_.mode == core::CloneMode::Heal ? tr("Heal") : tr("Stamp"))
+            ? i18n::text("main.window.cloning.clone.stroke.no.changed.pixels")
+            : i18n::text("main.window.cloning.1.stroke.2.ms")
+                  .arg(cloneSettings_.mode == core::CloneMode::Heal ? i18n::text("main.window.cloning.heal") : i18n::text("main.window.cloning.stamp"))
                   .arg(elapsed.elapsed()),
         6000);
     return completed;
@@ -291,6 +291,6 @@ void MainWindow::cancelCloneStroke()
     canvasWindow_->setConstrainedBrushPosition({ });
     refreshCloningControls();
     canvasWindow_->scheduleFrame();
-    statusBar()->showMessage(tr("Clone stroke cancelled"), 2000);
+    statusBar()->showMessage(i18n::text("main.window.cloning.clone.stroke.cancelled"), 2000);
 }
 }

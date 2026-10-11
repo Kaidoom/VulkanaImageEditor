@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/FontFamilyPicker.hpp"
 #include "imageeditor/ui/PopupOwnership.hpp"
 
@@ -143,8 +144,8 @@ void FontFamilyPicker::filter(const QString& query)
     candidate_
         = query.simplified().isEmpty() || filtered.isEmpty() ? QString { } : filtered.front();
     lineEdit()->setToolTip(candidate_.isEmpty()
-            ? tr("No font selected. Click back into text to keep its existing font.")
-            : tr("Best match: %1. Select a result or click back into text to apply.")
+            ? i18n::text("font.family.picker.no.font.selected.click.back.into.text.to.keep")
+            : i18n::text("font.family.picker.best.match.1.select.a.result.or.click.back")
                   .arg(candidate_));
     // Present synchronously, before QLineEdit's automatic completion can assign
     // a native popup anchor relative to our logical (subsurface) overlay window.
@@ -154,7 +155,7 @@ void FontFamilyPicker::setDisplayedFamily(const QString& family, bool mixed)
 {
     if (searching_)
         return;
-    displayed_ = mixed ? tr("Mixed fonts") : family;
+    displayed_ = mixed ? i18n::text("font.family.picker.mixed.fonts") : family;
     restoreDisplay();
 }
 void FontFamilyPicker::restoreDisplay()
@@ -164,7 +165,7 @@ void FontFamilyPicker::restoreDisplay()
         matches_->setStringList(allFamilies_);
     setCurrentIndex(int(allFamilies_.indexOf(displayed_)));
     lineEdit()->setText(displayed_);
-    lineEdit()->setToolTip(tr("Search fonts by name fragments in any order."));
+    i18n::setToolTip(lineEdit(), i18n::text("font.family.picker.search.fonts.by.name.fragments.in.any.order"));
 }
 void FontFamilyPicker::choose(const QString& family)
 {

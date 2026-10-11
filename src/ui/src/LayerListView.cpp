@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/LayerListView.hpp"
 #include "imageeditor/ui/LayerListModel.hpp"
 #include "imageeditor/ui/ToolIcons.hpp"
@@ -189,8 +190,8 @@ bool LayerListView::beginRename(core::LayerId id)
     renameOriginal_ = index.data(Qt::EditRole).toString();
     editor->setObjectName(QStringLiteral("LayerNameEditor"));
     editor->setProperty("layerId", QVariant::fromValue<qulonglong>(id));
-    editor->setAccessibleName(tr("Layer name"));
-    editor->setToolTip(tr("Enter to rename · Escape to cancel · click elsewhere to confirm"));
+    i18n::setAccessibleName(editor, i18n::text("layer.list.view.layer.name"));
+    i18n::setToolTip(editor, i18n::text("layer.list.view.enter.to.rename.escape.to.cancel.click.elsewhere.to"));
     itemDelegate()->setEditorData(editor, index);
     updateRenameGeometry();
     editor->installEventFilter(this);
@@ -575,7 +576,7 @@ void LayerListView::startDrag(Qt::DropActions)
     preview.fill(palette().color(QPalette::AlternateBase));
     QPainter p(&preview);
     p.setPen(palette().text().color());
-    p.drawText(preview.rect().adjusted(10, 0, -6, 0), Qt::AlignVCenter, indexes.size() == 1 ? indexes.front().data().toString() : tr("%1 selected items").arg(indexes.size()));
+    p.drawText(preview.rect().adjusted(10, 0, -6, 0), Qt::AlignVCenter, indexes.size() == 1 ? indexes.front().data().toString() : i18n::text("layer.list.view.1.selected.items").arg(indexes.size()));
     p.end();
     drag->setPixmap(preview);
     drag->setHotSpot({ 12, 18 });

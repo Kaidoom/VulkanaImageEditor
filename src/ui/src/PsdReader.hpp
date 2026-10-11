@@ -83,6 +83,7 @@ struct PsdSource {
   qsizetype compositeOffset{};
   bool realComposite{true}, compositeAlpha{};
   QColorSpace colorSpace;
+  bool embeddedProfile{};
   QString colorDescription, fingerprint;
   std::vector<psd::Record> records;
 };

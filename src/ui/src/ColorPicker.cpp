@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/ColorPicker.hpp"
 #include <QEvent>
 #include <QGridLayout>
@@ -19,8 +20,8 @@ public:
     ColorField(ColorPicker& picker, bool hue, QWidget* parent)
         : QWidget(parent), picker_(picker), hue_(hue) {
         setObjectName(hue ? "ColorHueStrip" : "ColorSaturationValue");
-        setAccessibleName(hue ? tr("Hue") : tr("Saturation and brightness"));
-        setToolTip(hue ? tr("Hue") : tr("Saturation left to right; brightness bottom to top"));
+        setAccessibleName(hue ? i18n::text("color.picker.hue") : i18n::text("color.picker.saturation.and.brightness"));
+        setToolTip(hue ? i18n::text("color.picker.hue") : i18n::text("color.picker.saturation.left.to.right.brightness.bottom.to.top"));
         setFocusPolicy(Qt::StrongFocus);
         setCursor(Qt::CrossCursor);
         if (hue) setFixedWidth(30);
@@ -143,8 +144,8 @@ ColorPicker::ColorPicker(QWidget* parent) : QWidget(parent) {
         const auto label = QString(row ? "HSV" : "RGB").mid(i, 1);
         auto* spin = new QSpinBox(this);
         spin->setObjectName("Color" + label);
-        spin->setAccessibleName(row ? QStringList{tr("Hue"), tr("Saturation"), tr("Brightness")}[i]
-                                   : QStringList{tr("Red"), tr("Green"), tr("Blue")}[i]);
+        i18n::setAccessibleName(spin, row ? QStringList{i18n::text("color.picker.hue"), i18n::text("color.picker.saturation"), i18n::text("color.picker.brightness")}[i]
+                                   : QStringList{i18n::text("color.picker.red"), i18n::text("color.picker.green"), i18n::text("color.picker.blue")}[i]);
         spin->setRange(0, row ? (i == 0 ? 360 : 100) : 255);
         spin->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
         (row ? hsv_ : rgb_)[size_t(i)] = spin;
@@ -162,15 +163,15 @@ ColorPicker::ColorPicker(QWidget* parent) : QWidget(parent) {
     }
     manualLayout->addLayout(numbers);
     auto* last = new QHBoxLayout; last->setSpacing(4);
-    hex_ = new QLineEdit(this); hex_->setObjectName("ColorHex"); hex_->setAccessibleName(tr("Hex color"));
-    hex_->setToolTip(tr("#RRGGBB or #RRGGBBAA"));
+    hex_ = new QLineEdit(this); hex_->setObjectName("ColorHex"); i18n::setAccessibleName(hex_, i18n::text("color.picker.hex.color"));
+    i18n::setToolTip(hex_, i18n::text("color.picker.rrggbb.or.rrggbbaa"));
     hex_->setMaxLength(9); hex_->setMinimumWidth(0);
     last->addWidget(hex_, 1);
     alphaRow_ = new QWidget(this);
     auto* alphaLayout = new QHBoxLayout(alphaRow_); alphaLayout->setContentsMargins(0, 0, 0, 0); alphaLayout->setSpacing(4);
-    alpha_ = new QSpinBox(alphaRow_); alpha_->setObjectName("ColorAlpha"); alpha_->setAccessibleName(tr("Alpha"));
+    alpha_ = new QSpinBox(alphaRow_); alpha_->setObjectName("ColorAlpha"); i18n::setAccessibleName(alpha_, i18n::text("color.picker.alpha"));
     alpha_->setRange(0, 255);
-    alphaLayout->addWidget(new QLabel(tr("A"), alphaRow_)); alphaLayout->addWidget(alpha_);
+    alphaLayout->addWidget(i18n::make<QLabel>(i18n::text("color.picker.a"), alphaRow_)); alphaLayout->addWidget(alpha_);
     last->addWidget(alphaRow_); manualLayout->addLayout(last);
     layout->addWidget(manualInputs_);
     connect(alpha_, &QSpinBox::valueChanged, this, [this](int alpha) {
@@ -206,7 +207,7 @@ void ColorPicker::setColor(QColor color) {
 void ColorPicker::setAlphaEnabled(bool enabled) {
     alphaEnabled_ = enabled;
     alphaRow_->setVisible(enabled);
-    hex_->setToolTip(enabled ? tr("#RRGGBB or #RRGGBBAA") : tr("#RRGGBB"));
+    i18n::setToolTip(hex_, enabled ? i18n::text("color.picker.rrggbb.or.rrggbbaa") : i18n::text("color.picker.rrggbb"));
     auto color = color_; if (!enabled) color.setAlpha(255); setColor(color); refreshControls();
 }
 void ColorPicker::setManualInputsVisible(bool visible) { manualInputs_->setVisible(visible); }

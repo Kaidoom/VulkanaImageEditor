@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/PropertiesPanel.hpp"
 
 #include "imageeditor/core/Layer.hpp"
@@ -59,9 +60,9 @@ protected:
     }
 };
 
-QLabel* sectionLabel(const QString& text)
+QLabel* sectionLabel(const i18n::Message& text)
 {
-    auto* label = new QLabel(text.toUpper());
+    auto* label = i18n::make<QLabel>(text.toUpper());
     label->setObjectName(QStringLiteral("SectionLabel"));
     return label;
 }
@@ -85,7 +86,7 @@ bool sameBrushBehavior(const core::BrushSettings& left,
 }
 
 CompactValueControl* grainValueControl(const QString& objectName,
-    const QString& label, double minimum, double maximum, double value,
+    const i18n::Message& label, double minimum, double maximum, double value,
     const QString& suffix)
 {
     auto* control = new CompactValueControl;
@@ -93,16 +94,16 @@ CompactValueControl* grainValueControl(const QString& objectName,
     control->setRange(minimum, maximum);
     control->setDecimals(1);
     control->setValue(value);
-    control->setPrefix(label + QStringLiteral(": "));
+    i18n::setPrefix(control, label + QStringLiteral(": "));
     control->setSuffix(suffix);
     control->setSingleStep(1.0);
     control->setFixedHeight(30);
     control->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    control->setAccessibleName(label);
+    i18n::setAccessibleName(control, label);
     return control;
 }
 
-QWidget* collapsibleSection(const QString& title,
+QWidget* collapsibleSection(const i18n::Message& title,
     const QString& objectName, QVBoxLayout*& sectionLayout)
 {
     auto* container = new QWidget;
@@ -113,7 +114,7 @@ QWidget* collapsibleSection(const QString& title,
 
     auto* header = new QToolButton(container);
     header->setObjectName(objectName + QStringLiteral("SectionHeader"));
-    header->setText(title);
+    i18n::setText(header, title);
     header->setCheckable(true);
     header->setChecked(true);
     header->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
@@ -150,13 +151,9 @@ PropertiesPanel::PropertiesPanel(
 
     pages_[core::ToolId::Move] = createMovePage();
     pages_[core::ToolId::Transform] = createSelectionTransformPage();
-    pages_[core::ToolId::Marquee] = createSelectionPage(
-        QStringLiteral("Select"),
-        QStringLiteral("Create and combine selections. {{LayerTransformAction}} transforms the selection mask, not the layer."));
-    pages_[core::ToolId::Lasso] = createSelectionPage(
-        QStringLiteral("Lasso"),
-        QStringLiteral("Freehand, Polygonal and Magnetic share one selection mask. {{LayerTransformAction}} transforms the mask, not the layer."));
-    pages_[core::ToolId::Brush] = createBrushPage(QStringLiteral("Brush"));
+    pages_[core::ToolId::Marquee] = createSelectionPage(core::ToolId::Marquee, i18n::text("properties.panel.select"), i18n::text("properties.panel.create.and.combine.selections.layertransformaction.transforms.the.selection.mask"));
+    pages_[core::ToolId::Lasso] = createSelectionPage(core::ToolId::Lasso, i18n::text("properties.panel.lasso"), i18n::text("properties.panel.freehand.polygonal.and.magnetic.share.one.selection.mask.layertransformaction"));
+    pages_[core::ToolId::Brush] = createBrushPage(i18n::text("properties.panel.brush"));
     pages_[core::ToolId::Fill] = createFillPage();
     pages_[core::ToolId::Eyedropper] = createEyedropperPage();
     pages_[core::ToolId::Text] = createTextPage();
@@ -199,22 +196,22 @@ void PropertiesPanel::setSelectedLayer(const core::Layer* layer, const core::Lay
     if (!layer) {
         if (container) {
             selectedLayerName_->setText(QString::fromUtf8(container->name));
-            selectedLayerType_->setText(container->kind == core::ContainerKind::ClippingMaskGroup
-                ? tr("Clipping mask group · The bottommost child is the base. Upper members share its coverage.")
+            i18n::setText(selectedLayerType_, container->kind == core::ContainerKind::ClippingMaskGroup
+                ? i18n::text("properties.panel.clipping.mask.group.the.bottommost.child.is.the.base")
                 : container->kind == core::ContainerKind::Group
-                ? tr("Pass-through group · Move/Transform affects every member, including hidden layers.")
-                : tr("Organizational folder · select its layers to move or transform content."));
+                ? i18n::text("properties.panel.pass.through.group.move.transform.affects.every.member.including")
+                : i18n::text("properties.panel.organizational.folder.select.its.layers.to.move.or.transform"));
             return;
         }
-        selectedLayerName_->setText(QStringLiteral("No layer selected"));
+        i18n::setText(selectedLayerName_, i18n::text("properties.panel.no.layer.selected"));
         selectedLayerType_->clear();
         return;
     }
     selectedLayerName_->setText(QString::fromUtf8(layer->name));
-    selectedLayerType_->setText(std::holds_alternative<core::RasterLayer>(layer->payload)
-        ? QStringLiteral("Raster layer") : std::holds_alternative<core::ShapeLayer>(layer->payload)
-        ? QStringLiteral("Editable shape layer") : std::holds_alternative<core::AdjustmentLayer>(layer->payload)
-        ? tr("Adjustment layer · edits the lower composite. Select its mask thumbnail to paint coverage.") : QStringLiteral("Editable text layer"));
+    i18n::setText(selectedLayerType_, std::holds_alternative<core::RasterLayer>(layer->payload)
+        ? i18n::text("properties.panel.raster.layer") : std::holds_alternative<core::ShapeLayer>(layer->payload)
+        ? i18n::text("properties.panel.editable.shape.layer") : std::holds_alternative<core::AdjustmentLayer>(layer->payload)
+        ? i18n::text("properties.panel.adjustment.layer.edits.the.lower.composite.select.its.mask") : i18n::text("properties.panel.editable.text.layer"));
 }
 
 void PropertiesPanel::setBrushSettings(const core::BrushSettings& settings)
@@ -269,17 +266,8 @@ void PropertiesPanel::setBrushPresets(
 QWidget* PropertiesPanel::createSelectionTransformPage()
 {
     QVBoxLayout* content = nullptr;
-    auto* page = createPageShell(QStringLiteral("Transform"),
-        QStringLiteral("Selection boundary, selected pixels, or layer geometry — according to the command used."), content);
-    auto* help = new QLabel(QStringLiteral(
-        "{{LayerTransformAction}} · Transform the selection mask\n"
-        "{{TransformSelectedPixelsAction}} · Cut and transform primary-layer pixels\n"
-        "{{NudgeLeftAction}} / {{NudgeRightAction}} / {{NudgeUpAction}} / {{NudgeDownAction}} · Move 1 px; Shift + nudge · Larger step (Preferences)\n"
-        "Drag inside · Move; handles · Scale; outside corners · Rotate\n"
-        "Ctrl + corner · Distort; Ctrl while moving · Bypass snapping\n"
-        "Shift · Toggle ratio lock / snap rotation to 15°\nAlt · Scale from center\n"
-        "{{UndoAction}} / {{RedoAction}} · Undo / redo preview changes\n"
-        "{{FinishOperationAction}} / right-click · Apply\nEscape · Cancel session"));
+    auto* page = createPageShell(i18n::text("properties.panel.transform"), i18n::text("properties.panel.selection.boundary.selected.pixels.or.layer.geometry.according.to"), content);
+    auto* help = i18n::make<QLabel>(i18n::text("properties.panel.layertransformaction.transform.the.selection.mask.transformselectedpixelsaction.cut.and.transform"));
     help->setObjectName(QStringLiteral("MutedLabel"));
     help->setWordWrap(true);
     content->addWidget(help);
@@ -289,10 +277,9 @@ QWidget* PropertiesPanel::createSelectionTransformPage()
 QWidget* PropertiesPanel::createMovePage()
 {
     QVBoxLayout* content = nullptr;
-    auto* page = createPageShell(QStringLiteral("Move"),
-        QStringLiteral("Under mouse picks a layer; Active layer keeps the current target."), content);
-    content->addWidget(sectionLabel(QStringLiteral("Target")));
-    selectedLayerName_ = new QLabel(QStringLiteral("No layer selected"));
+    auto* page = createPageShell(i18n::text("properties.panel.move"), i18n::text("properties.panel.under.mouse.picks.a.layer.active.layer.keeps.the"), content);
+    content->addWidget(sectionLabel(i18n::text("properties.panel.target")));
+    selectedLayerName_ = i18n::make<QLabel>(i18n::text("properties.panel.no.layer.selected"));
     selectedLayerName_->setObjectName(QStringLiteral("PropertiesTargetName"));
     selectedLayerName_->setStyleSheet(QStringLiteral("font-weight: 600;"));
     selectedLayerType_ = new QLabel;
@@ -301,24 +288,8 @@ QWidget* PropertiesPanel::createMovePage()
     content->addWidget(selectedLayerName_);
     content->addWidget(selectedLayerType_);
     content->addSpacing(kSectionBreak);
-    content->addWidget(sectionLabel(QStringLiteral("Controls & shortcuts")));
-    auto* help = new QLabel(QStringLiteral(
-        "{{ToolAction_move}} · Move\nClick · Select layer; drag · Move selected layers\n"
-        "Alt+drag · Duplicate and move selected layers\n"
-        "Ctrl while dragging · Bypass snapping (View → Snapping / Snap To)\n"
-        "{{NudgeLeftAction}} / {{NudgeRightAction}} / {{NudgeUpAction}} / {{NudgeDownAction}} · Move 1 px; Shift + nudge · Larger step (Preferences)\n"
-        "Shift-click canvas · Add/remove layer\n"
-        "Layers panel: Ctrl-click · Toggle; Shift-click · Range; arrows · Navigate\n"
-        "Click canvas · Return arrows to movement\n"
-        "{{RenameLayerItemAction}} · Rename\nH / {{ShowSelectedLayersAction}} · Hide / show selected\n"
-        "{{DuplicateLayersAction}} · Duplicate selected; {{DeleteSelectedLayersAction}} · Delete selected layers\n"
-        "{{IsolateSelectedLayersAction}} · Isolate; {{ShowAllLayersAction}} · Show all\nO · Toggle selected-layer outlines\n\n"
-        "{{LayerTransformAction}} · Transform selected layers\nHandles · Scale; outside corners · Rotate\n"
-        "Ctrl + corner · Distort (keeps text/shapes editable)\n"
-        "Shift · Toggle ratio lock / snap rotation to 15°\nAlt · Scale from center\n"
-        "{{FinishOperationAction}} / right-click · Apply transform\nEscape · Cancel drag or transform session\n"
-        "{{UndoAction}} / {{RedoAction}} · Undo / redo\n\n"
-        "{{PanCanvasAction}} + left-drag / middle-drag · Pan\nWheel · Zoom; {{FitCanvasAction}} · Fit; {{ActualSizeAction}} · 100%"));
+    content->addWidget(sectionLabel(i18n::text("properties.panel.controls.shortcuts")));
+    auto* help = i18n::make<QLabel>(i18n::text("properties.panel.toolaction.move.move.click.select.layer.drag.move.selected"));
     help->setObjectName(QStringLiteral("MutedLabel"));
     help->setWordWrap(true);
     content->addWidget(help);
@@ -326,56 +297,28 @@ QWidget* PropertiesPanel::createMovePage()
 }
 
 QWidget* PropertiesPanel::createSelectionPage(
-    const QString& title, const QString& description)
+    core::ToolId tool, const i18n::Message& title, const i18n::Message& description)
 {
     QVBoxLayout* content = nullptr;
     auto* page = createPageShell(title, description, content);
-    const auto intro = title == QStringLiteral("Lasso")
-        ? QStringLiteral("{{ToolAction_lasso}} · Lasso\nFreehand · Drag to trace; release to close\n"
-            "Polygonal · Click vertices\nMagnetic · Follow edges; click to anchor\n"
-            "Ctrl-click (Magnetic) · Straight segment\n"
-            "Polygonal / Magnetic: {{FinishOperationAction}}, right-click, double-click or click start · Close\n"
-            "{{RemovePointAction}} · Remove last anchor\n\n")
-        : QStringLiteral("{{ToolAction_marquee}} · Select; choose Rectangle or Ellipse beside the tool name\n"
-            "Drag · Draw selection\nShift · Constrain square/circle\n"
-            "With an existing selection, starting with Shift adds instead. Release and press Shift again while dragging to constrain.\n\n");
-    auto* hints = new QLabel(intro + QStringLiteral(
-        "At press: Shift · Add; Alt · Subtract; Shift+Alt · Intersect\n"
-        "Replace mode: drag selected coverage · Move mask\nEscape · Cancel\n"
-        "{{NudgeLeftAction}} / {{NudgeRightAction}} / {{NudgeUpAction}} / {{NudgeDownAction}} · Move mask 1 px; Shift + nudge · Larger step (Preferences)\n"
-        "{{ErasePixelsAction}} · Erase selected pixels; without a selection, clear the primary raster layer\n"
-        "{{ReselectAction}} · Reselect last selection (also saved in projects)\n"
-        "{{SelectAllAction}} · Select all; {{DeselectAction}} · Deselect\n{{InvertSelectionAction}} · Invert; {{LayerViaCopyAction}} · Layer via Copy\n"
-        "{{LayerTransformAction}} · Transform mask; {{FinishOperationAction}} / right-click · Apply\n"
-        "Adjustment icon · Grow/shrink per side or rotate mask\n"
-        "{{UndoAction}} / {{RedoAction}} · Undo / redo\n"
-        "{{FillForegroundAction}} / {{FillBackgroundAction}} · Foreground / background fill\n\n"
-        "{{PanCanvasAction}} + left-drag / middle-drag · Pan\nWheel · Zoom; {{FitCanvasAction}} · Fit; {{ActualSizeAction}} · 100%"));
+    const auto intro = tool == core::ToolId::Lasso
+        ? i18n::text("properties.panel.toolaction.lasso.lasso.freehand.drag.to.trace.release.to")
+        : i18n::text("properties.panel.toolaction.marquee.select.choose.rectangle.or.ellipse.beside.the");
+    auto* hints = i18n::make<QLabel>(intro + i18n::text("properties.panel.at.press.shift.add.alt.subtract.shift.alt.intersect"));
     hints->setWordWrap(true);
     content->addWidget(hints);
     return page;
 }
 
-QWidget* PropertiesPanel::createBrushPage(const QString& title)
+QWidget* PropertiesPanel::createBrushPage(const i18n::Message& title)
 {
     QVBoxLayout* content = nullptr;
     auto* page = createPageShell(title, QString {}, content);
 
-    cloningHelp_=new QLabel(QStringLiteral(
-        "{{ToolAction_cloning}} · Cloning\nAlt-click · Set Stamp/Heal source; drag · Paint\n"
-        "Stamp copies; Heal blends texture with surrounding tone.\n"
-        "Spot Heal · Mark the whole defect; release to repair (no source anchor)\n"
-        "{{DecreaseBrushSizeAction}} / {{IncreaseBrushSizeAction}} · Size; Shift · Constrain direction\nEscape / Cancel · Cancel repair\n"
-        "Aligned keeps the source offset; off restarts at the anchor.\n"
-        "Raw preserves intrinsic colors/alpha. Rendered repair: use a clean Normal, 100%-opacity retouch layer over opaque content.\n"
-        "Adaptation adjusts tone, not coverage. Brush controls below are shared."));
+    cloningHelp_=i18n::make<QLabel>(i18n::text("properties.panel.toolaction.cloning.cloning.alt.click.set.stamp.heal.source"));
     cloningHelp_->setObjectName(QStringLiteral("CloningHelp"));
     cloningHelp_->setWordWrap(true);cloningHelp_->hide();content->addWidget(cloningHelp_);
-    localBlurHelp_=new QLabel(QStringLiteral(
-        "{{ToolAction_local_blur}} · Local Blur\nDrag · Soften raster colors; alpha stays unchanged\n"
-        "{{DecreaseBrushSizeAction}} / {{IncreaseBrushSizeAction}} · Size; Shift · Constrain direction\nEscape · Cancel stroke\n"
-        "Strength limits the effect; Flow controls buildup; Radius sets the blur neighborhood in document pixels.\n"
-        "Displayed adjustments/filters are not baked in. Brush controls below are shared."));
+    localBlurHelp_=i18n::make<QLabel>(i18n::text("properties.panel.toolaction.local.blur.local.blur.drag.soften.raster.colors"));
     localBlurHelp_->setObjectName(QStringLiteral("LocalBlurHelp"));
     localBlurHelp_->setWordWrap(true);localBlurHelp_->hide();content->addWidget(localBlurHelp_);
 
@@ -386,10 +329,10 @@ QWidget* PropertiesPanel::createBrushPage(const QString& title)
     auto* presetActionLayout = new QHBoxLayout(presetActions);
     presetActionLayout->setContentsMargins(0, 0, 0, 0);
     presetActionLayout->setSpacing(6);
-    brushPresetResetButton_ = new QPushButton(QStringLiteral("Reset"));
+    brushPresetResetButton_ = i18n::make<QPushButton>(i18n::text("properties.panel.reset"));
     brushPresetResetButton_->setObjectName(
         QStringLiteral("BrushPresetResetButton"));
-    brushPresetSaveCopyButton_ = new QPushButton(QStringLiteral("Save Copy"));
+    brushPresetSaveCopyButton_ = i18n::make<QPushButton>(i18n::text("properties.panel.save.copy"));
     brushPresetSaveCopyButton_->setObjectName(
         QStringLiteral("BrushPresetSaveCopyButton"));
     presetActionLayout->addStretch(1);
@@ -397,16 +340,16 @@ QWidget* PropertiesPanel::createBrushPage(const QString& title)
     presetActionLayout->addWidget(brushPresetSaveCopyButton_);
     content->addWidget(presetActions);
 
-    content->addWidget(sectionLabel(QStringLiteral("Smoothing")));
+    content->addWidget(sectionLabel(i18n::text("properties.panel.smoothing")));
     brushSmoothingCombo_ = new QComboBox;
     brushSmoothingCombo_->setObjectName(QStringLiteral("BrushSmoothingCombo"));
-    brushSmoothingCombo_->addItems({QStringLiteral("None"),
-        QStringLiteral("Light weighted")});
+    i18n::addItems(brushSmoothingCombo_, {i18n::text("properties.panel.none"),
+        i18n::text("properties.panel.light.weighted")});
     content->addWidget(brushSmoothingCombo_);
 
-    content->addWidget(sectionLabel(QStringLiteral("Pressure")));
-    brushPressureSize_ = new QCheckBox(QStringLiteral("Pressure controls size"));
-    brushPressureFlow_ = new QCheckBox(QStringLiteral("Pressure controls flow"));
+    content->addWidget(sectionLabel(i18n::text("properties.panel.pressure")));
+    brushPressureSize_ = i18n::make<QCheckBox>(i18n::text("properties.panel.pressure.controls.size"));
+    brushPressureFlow_ = i18n::make<QCheckBox>(i18n::text("properties.panel.pressure.controls.flow"));
     brushPressureSize_->setObjectName(QStringLiteral("BrushPressureSize"));
     brushPressureFlow_->setObjectName(QStringLiteral("BrushPressureFlow"));
     brushPressureSize_->setChecked(true);
@@ -421,12 +364,12 @@ QWidget* PropertiesPanel::createBrushPage(const QString& title)
     seed->setObjectName(QStringLiteral("BrushVariationSeed"));
     seed->setMaxLength(20); // full uint64, without lossy floating-point spinbox conversion
     seed->setText(QString::number(brushSettings_.deterministicSeed));
-    seed->setToolTip(QStringLiteral("Repeatable stamp variation and grain placement. Saved by Save Copy."));
-    seed->setAccessibleName(QStringLiteral("Variation seed"));
+    i18n::setToolTip(seed, i18n::text("properties.panel.repeatable.stamp.variation.and.grain.placement.saved.by.save"));
+    i18n::setAccessibleName(seed, i18n::text("properties.panel.variation.seed"));
     seed->restore = [this] { brushSeed_->setText(QString::number(brushSettings_.deterministicSeed)); };
-    auto* reseed = new QPushButton(QStringLiteral("Reseed"));
+    auto* reseed = i18n::make<QPushButton>(i18n::text("properties.panel.reseed"));
     reseed->setObjectName(QStringLiteral("BrushReseedButton"));
-    variation->addWidget(new QLabel(QStringLiteral("Seed")));
+    variation->addWidget(i18n::make<QLabel>(i18n::text("properties.panel.seed")));
     variation->addWidget(seed, 1); variation->addWidget(reseed);
     content->addLayout(variation);
     connect(seed, &QLineEdit::editingFinished, this, [this] {
@@ -446,32 +389,21 @@ QWidget* PropertiesPanel::createBrushPage(const QString& title)
     });
 
     QVBoxLayout* grainLayout = nullptr;
-    auto* grainSection = collapsibleSection(
-        QStringLiteral("Texture / Grain"), QStringLiteral("BrushGrain"),
-        grainLayout);
+    auto* grainSection = collapsibleSection(i18n::text("properties.panel.texture.grain"), QStringLiteral("BrushGrain"), grainLayout);
     brushGrainPicker_ = new BrushComponentPicker(core::BrushAssetType::Grain);
     brushGrainPicker_->setItems(
         brushAssets_->components(core::BrushAssetType::Grain));
     grainLayout->addWidget(brushGrainPicker_);
-    brushGrainStrengthControl_ = grainValueControl(
-        QStringLiteral("BrushGrainStrengthControl"), QStringLiteral("Strength"),
-        0.0, 100.0, 0.0, QStringLiteral("%"));
-    brushGrainScaleControl_ = grainValueControl(
-        QStringLiteral("BrushGrainScaleControl"), QStringLiteral("Scale"),
-        8.0, 512.0, 96.0, QStringLiteral(" px"));
-    brushGrainAngleControl_ = grainValueControl(
-        QStringLiteral("BrushGrainAngleControl"), QStringLiteral("Rotation"),
-        -180.0, 180.0, 0.0, QStringLiteral("°"));
+    brushGrainStrengthControl_ = grainValueControl(QStringLiteral("BrushGrainStrengthControl"), i18n::text("properties.panel.strength"), 0.0, 100.0, 0.0, QStringLiteral("%"));
+    brushGrainScaleControl_ = grainValueControl(QStringLiteral("BrushGrainScaleControl"), i18n::text("properties.panel.scale"), 8.0, 512.0, 96.0, QStringLiteral(" px"));
+    brushGrainAngleControl_ = grainValueControl(QStringLiteral("BrushGrainAngleControl"), i18n::text("properties.panel.rotation"), -180.0, 180.0, 0.0, QStringLiteral("°"));
     grainLayout->addWidget(brushGrainStrengthControl_);
     grainLayout->addWidget(brushGrainScaleControl_);
     grainLayout->addWidget(brushGrainAngleControl_);
     content->addWidget(grainSection);
     QVBoxLayout* shortcutLayout=nullptr;
-    auto* shortcuts=collapsibleSection(QStringLiteral("Shortcuts"),QStringLiteral("BrushShortcuts"),shortcutLayout);
-    auto* help=new QLabel(QStringLiteral("{{ToolAction_brush}} selects Brush · {{ToolAction_eraser}} toggles Erase\n{{DecreaseBrushSizeAction}} / {{IncreaseBrushSizeAction}} change size\n"
-        "Hold Shift to lock a straight 45°-increment direction; release for freehand\n"
-        "Alt temporarily samples color · {{SwapColorsAction}} switches the active swatch\nEscape cancels a stroke\n"
-        "{{UndoAction}} / {{RedoAction}} undo / redo\n{{PanCanvasAction}}-drag or middle-drag pans; wheel zooms\n{{FitCanvasAction}} fits · {{ActualSizeAction}} shows 100%"));
+    auto* shortcuts=collapsibleSection(i18n::text("properties.panel.shortcuts"), QStringLiteral("BrushShortcuts"), shortcutLayout);
+    auto* help=i18n::make<QLabel>(i18n::text("properties.panel.toolaction.brush.selects.brush.toolaction.eraser.toggles.erase.decreasebrushsizeaction"));
     help->setWordWrap(true);shortcutLayout->addWidget(help);content->addWidget(shortcuts);
     shortcuts->findChild<QToolButton*>(QStringLiteral("BrushShortcutsSectionHeader"))->setChecked(false);
 
@@ -499,11 +431,11 @@ QWidget* PropertiesPanel::createBrushPage(const QString& title)
             const auto suggested = preset
                 ? QString::fromStdString(preset->displayName)
                     + QStringLiteral(" Copy")
-                : QStringLiteral("Custom Brush");
+                : i18n::text("properties.panel.custom.brush");
             bool accepted = false;
             const auto name = QInputDialog::getText(this,
-                QStringLiteral("Save Brush Preset Copy"),
-                QStringLiteral("Preset name"), QLineEdit::Normal,
+                i18n::text("properties.panel.save.brush.preset.copy"),
+                i18n::text("properties.panel.preset.name"), QLineEdit::Normal,
                 suggested, &accepted);
             if (!accepted) {
                 return;
@@ -511,14 +443,14 @@ QWidget* PropertiesPanel::createBrushPage(const QString& title)
             const auto result = saveBrushCopy(name);
             if (!result.preset) {
                 QMessageBox::warning(this,
-                    QStringLiteral("Unable to Save Brush Preset"),
+                    i18n::text("properties.panel.unable.to.save.brush.preset"),
                     result.error);
             }
         });
     brushGrainPicker_->onAssetSelected = [this](const std::string& id) {
         QString error;
         if (!selectBrushComponent(core::BrushAssetType::Grain, id, &error)) {
-            QMessageBox::warning(this, QStringLiteral("Brush Grain Unavailable"),
+            QMessageBox::warning(this, i18n::text("properties.panel.brush.grain.unavailable"),
                 error);
         }
     };
@@ -555,7 +487,7 @@ bool PropertiesPanel::selectBrushComponent(core::BrushAssetType type,
     const auto* item = brushAssets_->component(assetId);
     if (!item) {
         if (error) {
-            *error = QStringLiteral("Unknown brush asset: %1")
+            *error = i18n::text("properties.panel.unknown.brush.asset.1")
                 .arg(QString::fromUtf8(assetId));
         }
         return false;
@@ -612,7 +544,7 @@ void PropertiesPanel::applyPresetById(std::string_view id)
     }
     QString error;
     if (!brushAssets_->prepareSettings(found->settings, &error)) {
-        QMessageBox::warning(this, QStringLiteral("Brush Preset Unavailable"),
+        QMessageBox::warning(this, i18n::text("properties.panel.brush.preset.unavailable"),
             error);
         rebuildPresetGrid();
         return;
@@ -719,7 +651,7 @@ bool PropertiesPanel::resetBrushPreset()
 BrushPresetSaveResult PropertiesPanel::saveBrushCopy(const QString& name)
 {
     if (!onSaveBrushCopyRequested) {
-        return {{}, QStringLiteral("Brush preset storage is unavailable.")};
+        return {{}, i18n::text("properties.panel.brush.preset.storage.is.unavailable")};
     }
     auto result = onSaveBrushCopyRequested(name, brushSettings_);
     if (!result.preset) {
@@ -751,17 +683,8 @@ void PropertiesPanel::updateComponentControlState()
 QWidget* PropertiesPanel::createFillPage()
 {
     QVBoxLayout* content = nullptr;
-    auto* page = createPageShell(QStringLiteral("Fill"),
-        QStringLiteral("Fill the active layer or current selection."), content);
-    auto* help = new QLabel(QStringLiteral(
-        "{{ToolAction_fill}} · Fill; click · Apply the highlighted color\nAlt · Temporary eyedropper\n"
-        "{{SwapColorsAction}} · Switch color swatch\n"
-        "{{FillForegroundAction}} / {{FillBackgroundAction}} · Fill with foreground / background\n"
-        "Escape · Cancel pending fill\n{{UndoAction}} / {{RedoAction}} · Undo / redo\n\n"
-        "Selection / Layer fills every selected region; no selection fills the layer inside the canvas. "
-        "An empty selection does nothing. Contiguous fills connected matching pixels; tolerance 0 is exact, 255 accepts all colors. "
-        "Both respect selection coverage and use the top-bar opacity.\n\n"
-        "{{PanCanvasAction}} + left-drag / middle-drag · Pan\nWheel · Zoom; {{FitCanvasAction}} · Fit; {{ActualSizeAction}} · 100%"));
+    auto* page = createPageShell(i18n::text("properties.panel.fill"), i18n::text("properties.panel.fill.the.active.layer.or.current.selection"), content);
+    auto* help = i18n::make<QLabel>(i18n::text("properties.panel.toolaction.fill.fill.click.apply.the.highlighted.color.alt"));
     help->setWordWrap(true); content->addWidget(help);
     return page;
 }
@@ -769,14 +692,8 @@ QWidget* PropertiesPanel::createFillPage()
 QWidget* PropertiesPanel::createEyedropperPage()
 {
     QVBoxLayout* content = nullptr;
-    auto* page = createPageShell(QStringLiteral("Eyedropper"),
-        QStringLiteral("Pick the document color, including alpha. Hold Alt with Brush, Eraser or Fill for temporary picking."), content);
-    auto* help = new QLabel(QStringLiteral(
-        "{{ToolAction_eyedropper}} · Eyedropper; click / drag · Sample\nAlt in Brush / Eraser / Fill · Temporary picker\n"
-        "{{SwapColorsAction}} · Switch color swatch\nEscape · End picking\n\n"
-        "Merged Visible samples the visible document. Active Layer ignores its visibility and opacity. "
-        "Samples retain alpha. The ring shows hovered color above, current color below.\n\n"
-        "{{PanCanvasAction}} + left-drag / middle-drag · Pan\nWheel · Zoom; {{FitCanvasAction}} · Fit; {{ActualSizeAction}} · 100%"));
+    auto* page = createPageShell(i18n::text("properties.panel.eyedropper"), i18n::text("properties.panel.pick.the.document.color.including.alpha.hold.alt.with"), content);
+    auto* help = i18n::make<QLabel>(i18n::text("properties.panel.toolaction.eyedropper.eyedropper.click.drag.sample.alt.in.brush"));
     help->setWordWrap(true);
     content->addWidget(help);
     return page;
@@ -785,23 +702,14 @@ QWidget* PropertiesPanel::createEyedropperPage()
 QWidget* PropertiesPanel::createTextPage()
 {
     QVBoxLayout* content = nullptr;
-    auto* page = createPageShell(QStringLiteral("Text"),
-        QStringLiteral("Create editable text without baking it into pixels."),
-        content);
-    auto* help=new QLabel(QStringLiteral("{{ToolAction_text}} · Click to create / edit; Move double-click · Edit text\n"
-        "Edit text button · Reopen selected text, including empty layers\n\n"
-        "Select characters to format them. With no selection, controls change only what you type next. Font sizes are document pixels.\n\n"
-        "Enter · New line\n{{FinishTextAction}} / Done · Finish\nEscape · Cancel composition first, otherwise finish (keep edits)\n"
-        "Ctrl+A/C/X/V · Select all / Copy / Cut / Paste\n{{UndoAction}} / {{RedoAction}} · Undo / Redo\n"
-        "Shift+arrows · Select\nCtrl+arrows · Navigate words\n\n"
-        "Click outside the edit area · Finish, without creating new text\n\n"
-        "After editing: {{ToolAction_move}} · Move; {{LayerTransformAction}} · Transform\nText color stays independent of the paint colors."));
+    auto* page = createPageShell(i18n::text("properties.panel.text"), i18n::text("properties.panel.create.editable.text.without.baking.it.into.pixels"), content);
+    auto* help=i18n::make<QLabel>(i18n::text("properties.panel.toolaction.text.click.to.create.edit.move.double.click"));
     help->setWordWrap(true);help->setObjectName(QStringLiteral("MutedLabel"));content->addWidget(help);
     return page;
 }
 
-QWidget* PropertiesPanel::addToolPage(core::ToolId tool, const QString& title,
-    const QString& description, QVBoxLayout*& content)
+QWidget* PropertiesPanel::addToolPage(core::ToolId tool, const i18n::Message& title,
+    const i18n::Message& description, QVBoxLayout*& content)
 {
     auto* page = createPageShell(title, description, content);
     pages_[tool] = page;
@@ -809,8 +717,8 @@ QWidget* PropertiesPanel::addToolPage(core::ToolId tool, const QString& title,
     return page;
 }
 
-QWidget* PropertiesPanel::createPageShell(const QString& title,
-    const QString& description, QVBoxLayout*& contentLayout)
+QWidget* PropertiesPanel::createPageShell(const i18n::Message& title,
+    const i18n::Message& description, QVBoxLayout*& contentLayout)
 {
     auto* scroll = new QScrollArea;
     scroll->setObjectName(QStringLiteral("PropertiesPageScroll"));
@@ -835,11 +743,11 @@ QWidget* PropertiesPanel::createPageShell(const QString& title,
     bodyLayout->addWidget(controls, 0, Qt::AlignTop);
     bodyLayout->addStretch(1);
 
-    auto* titleLabel = new QLabel(title);
+    auto* titleLabel = i18n::make<QLabel>(title);
     titleLabel->setObjectName(QStringLiteral("ToolTitle"));
     contentLayout->addWidget(titleLabel);
     if (!description.isEmpty()) {
-        auto* descriptionLabel = new QLabel(description);
+        auto* descriptionLabel = i18n::make<QLabel>(description);
         descriptionLabel->setObjectName(QStringLiteral("MutedLabel"));
         descriptionLabel->setWordWrap(true);
         contentLayout->addWidget(descriptionLabel);

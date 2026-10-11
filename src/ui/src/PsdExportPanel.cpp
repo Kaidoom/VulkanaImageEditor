@@ -1,3 +1,5 @@
+#include "imageeditor/ui/Localization.hpp"
+#include "imageeditor/ui/PsdReviewText.hpp"
 #include "imageeditor/ui/PsdExportPanel.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include <QCheckBox>
@@ -12,6 +14,14 @@
 #include <algorithm>
 
 namespace imageeditor::ui {
+namespace {
+i18n::Message outputName(const PsdExportEntry& entry) {
+  if (entry.action == PsdExportAction::Omit) return i18n::text("psd.export.panel.omit");
+  if (entry.action == PsdExportAction::Pixels)
+    return i18n::text(entry.container ? "psd.export.panel.consolidate" : "psd.export.panel.pixels");
+  return i18n::psdContentName(entry.kind, true);
+}
+}
 PsdExportPanel::PsdExportPanel(PsdExportOptions &options, QWidget *parent,
                                QWidget *itemsParent)
     : QWidget(parent), options_(options), items_(new QWidget(itemsParent)) {
@@ -28,12 +38,11 @@ PsdExportPanel::PsdExportPanel(PsdExportOptions &options, QWidget *parent,
     return c;
   };
   mode_ = combo("PsdExportMode");
-  mode_->addItems({tr("Layered PSD"), tr("Flattened PSD")});
+  i18n::addItems(mode_, {i18n::text("psd.export.panel.layered.psd"), i18n::text("psd.export.panel.flattened.psd")});
   mode_->setCurrentIndex(int(options.mode));
   formats->addWidget(mode_, 1);
   text_ = combo("PsdExportText");
-  text_->addItems(
-      {tr("Preserve editable text where supported"), tr("Rasterize all text")});
+  i18n::addItems(text_, {i18n::text("psd.export.panel.preserve.editable.text.where.supported"), i18n::text("psd.export.panel.rasterize.all.text")});
   text_->setCurrentIndex(options.preserveText ? 0 : 1);
   formats->addWidget(text_, 1);
   summary_ = new QLabel(this);
@@ -45,23 +54,35 @@ PsdExportPanel::PsdExportPanel(PsdExportOptions &options, QWidget *parent,
   listLayout->setContentsMargins(0, 0, 0, 0);
   listLayout->setSpacing(8);
   auto *listHeader = new QHBoxLayout;
-  auto *title = new QLabel(tr("Layer conversion"), items_);
+  auto *title = i18n::make<QLabel>(i18n::text("psd.export.panel.layer.conversion"), items_);
   title->setObjectName("SectionLabel");
   title->setMinimumHeight(32);
   listHeader->addWidget(title);
   listHeader->addStretch();
-  attention_ = new QCheckBox(tr("Attention needed only"), items_);
+  attention_ = i18n::make<QCheckBox>(i18n::text("psd.export.panel.attention.needed.only"), items_);
   attention_->setObjectName("PsdExportAttention");
   attention_->setChecked(true);
   listHeader->addWidget(attention_);
-  hideGroups_ = new QCheckBox(tr("Hide groups"), items_);
+  hideGroups_ = i18n::make<QCheckBox>(i18n::text("psd.export.panel.hide.groups"), items_);
   hideGroups_->setObjectName("PsdExportHideGroups");
   hideGroups_->setChecked(true);
   listHeader->addWidget(hideGroups_);
   listLayout->addLayout(listHeader);
   tree_ = new QTreeWidget(items_);
   tree_->setObjectName("PsdExportItems");
-  tree_->setHeaderLabels({tr("Layer"), tr("Output")});
+  tree_->setHeaderLabels({i18n::text("psd.export.panel.layer"), i18n::text("psd.export.panel.output")});
+  connect(&i18n::Localization::instance(), &i18n::Localization::languageChanged, this, [this] {
+    QScopedValueRollback guard(updating_, true);
+    tree_->setHeaderLabels({i18n::text("psd.export.panel.layer"), i18n::text("psd.export.panel.output")});
+    // Keep selection, scroll position and expanded groups. No replanning or
+    // rendering is needed to refresh the accepted plan's display labels.
+    for (QTreeWidgetItemIterator row(tree_); *row; ++row) {
+      const auto id = (*row)->data(0, Qt::UserRole).toULongLong();
+      const auto entry = std::ranges::find_if(plan_.entries, [id](const auto& e) { return e.id == id; });
+      if (entry != plan_.entries.end()) (*row)->setText(1, outputName(*entry));
+    }
+    selectionChanged();
+  });
   tree_->setRootIsDecorated(true);
   tree_->setMinimumHeight(120);
   tree_->setUniformRowHeights(true);
@@ -128,10 +149,9 @@ void PsdExportPanel::setPlan(const PsdExportPlan &p) {
     else
       ++omitted;
   }
-  summary_->setText(
-      p.options.mode == PsdExportMode::Flattened
-          ? tr("One visible-composite pixel layer; no hidden copies.")
-          : tr("%1 editable · %2 pixel/consolidation choices · %3 omitted")
+  i18n::setText(summary_, p.options.mode == PsdExportMode::Flattened
+          ? i18n::text("psd.export.panel.one.visible.composite.pixel.layer.no.hidden.copies")
+          : i18n::text("psd.export.panel.1.editable.2.pixel.consolidation.choices.3.omitted")
                 .arg(editable)
                 .arg(pixels)
                 .arg(omitted));
@@ -180,15 +200,13 @@ void PsdExportPanel::selectionChanged() {
   if (!conversion)
     return;
   action_->show();
-  action_->addItem(tr("Recommended conversion"),
-                   int(PsdExportAction::Automatic));
+  i18n::addItem(action_, i18n::text("psd.export.panel.recommended.conversion"), int(PsdExportAction::Automatic));
   if (e.editable)
-    action_->addItem(tr("Keep editable"), int(PsdExportAction::Editable));
+    i18n::addItem(action_, i18n::text("psd.export.panel.keep.editable"), int(PsdExportAction::Editable));
   if (e.pixels)
-    action_->addItem(e.container ? tr("Consolidate this subtree into pixels")
-                                 : tr("Bake this layer into pixels"),
-                     int(PsdExportAction::Pixels));
-  action_->addItem(tr("Omit from this export"), int(PsdExportAction::Omit));
+    i18n::addItem(action_, e.container ? i18n::text("psd.export.panel.consolidate.this.subtree.into.pixels")
+                                 : i18n::text("psd.export.panel.bake.this.layer.into.pixels"), int(PsdExportAction::Pixels));
+  i18n::addItem(action_, i18n::text("psd.export.panel.omit.from.this.export"), int(PsdExportAction::Omit));
   action_->setCurrentIndex(action_->findData(
       int(options_.actions.value(id, PsdExportAction::Automatic))));
   updateDescription();
@@ -203,29 +221,28 @@ void PsdExportPanel::updateDescription() {
   if (entry == plan_.entries.end())
     return;
   const auto &e = *entry;
-  QString text;
+  i18n::Message text;
   switch (PsdExportAction(action_->currentData().toInt())) {
   case PsdExportAction::Automatic:
-    text = e.container ? tr("Use the recommended conversion for this group.")
-                       : tr("Keep this layer editable where possible; "
-                            "otherwise export it as pixels.");
+    text = e.container ? i18n::text("psd.export.panel.use.the.recommended.conversion.for.this.group")
+                       : i18n::text("psd.export.panel.keep.this.layer.editable.where.possible.otherwise.export.it");
     break;
   case PsdExportAction::Editable:
-    text = e.container ? tr("Keep this group and its layers editable.")
-                       : tr("Keep this layer editable.");
-    text += tr(" Its appearance may differ outside Vulkana.");
+    text = e.container ? i18n::text("psd.export.panel.keep.this.group.and.its.layers.editable")
+                       : i18n::text("psd.export.panel.keep.this.layer.editable");
+    text += i18n::text("psd.export.panel.its.appearance.may.differ.outside.vulkana");
     break;
   case PsdExportAction::Pixels:
     text = e.container
-               ? tr("Combine this group into one pixel layer in the PSD.")
-               : tr("Export this layer’s appearance as pixels.");
+               ? i18n::text("psd.export.panel.combine.this.group.into.one.pixel.layer.in.the")
+               : i18n::text("psd.export.panel.export.this.layer.s.appearance.as.pixels");
     break;
   case PsdExportAction::Omit:
-    text = e.container ? tr("Leave this group and its layers out of the PSD.")
-                       : tr("Leave this layer out of the PSD.");
+    text = e.container ? i18n::text("psd.export.panel.leave.this.group.and.its.layers.out.of.the")
+                       : i18n::text("psd.export.panel.leave.this.layer.out.of.the.psd");
     break;
   }
-  detail_->setText(text);
+  i18n::setText(detail_, text);
   detail_->show();
 }
 void PsdExportPanel::filter() {
@@ -252,10 +269,7 @@ void PsdExportPanel::filter() {
     row->setData(0, Qt::UserRole, QVariant::fromValue(qulonglong(e.id)));
     row->setData(0, Qt::UserRole + 1, e.attention || !e.editable);
     row->setText(0, e.name);
-    row->setText(1, e.action == PsdExportAction::Omit ? tr("Omit")
-                    : e.action == PsdExportAction::Pixels
-                        ? (e.container ? tr("Consolidate") : tr("Pixels"))
-                        : e.type);
+    row->setText(1, outputName(e));
     if (e.container)
       for (int column = 0; column < tree_->columnCount(); ++column)
         row->setForeground(column, themeColor(ThemeColor::SecondaryText));

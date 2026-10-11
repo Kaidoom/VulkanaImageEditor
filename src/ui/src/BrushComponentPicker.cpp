@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/BrushComponentPicker.hpp"
 #include "imageeditor/ui/PopupOwnership.hpp"
 
@@ -178,7 +179,7 @@ void BrushComponentPicker::rebuildGrid()
         item->setTextAlignment(Qt::AlignHCenter | Qt::AlignTop);
         item->setToolTip(component.available
                 ? component.displayName
-                : QStringLiteral("%1\nUnavailable: %2")
+                : i18n::text("brush.component.picker.1.unavailable.2")
                       .arg(component.displayName, component.unavailableReason));
         if (!component.available) {
             item->setFlags(item->flags() & ~Qt::ItemIsEnabled
@@ -194,23 +195,23 @@ void BrushComponentPicker::updateButton()
             return item.id == currentAssetId_;
         });
     if (found == items_.end()) {
-        button_->setText(QStringLiteral("Unavailable · %1")
+        i18n::setText(button_, i18n::text("brush.component.picker.unavailable.1")
             .arg(QString::fromStdString(currentAssetId_)));
         button_->setIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
-        button_->setToolTip(QStringLiteral("Missing brush asset ID: %1")
+        i18n::setToolTip(button_, i18n::text("brush.component.picker.missing.brush.asset.id.1")
             .arg(QString::fromStdString(currentAssetId_)));
         button_->setAccessibleName(button_->text());
         grid_->clearSelection();
         return;
     }
-    button_->setText(found->available ? found->displayName
-        : QStringLiteral("%1 · Unavailable").arg(found->displayName));
+    i18n::setText(button_, found->available ? found->displayName
+        : i18n::text("brush.component.picker.1.unavailable").arg(found->displayName));
     button_->setIcon(QIcon(QPixmap::fromImage(found->thumbnail)));
     button_->setToolTip(found->available
             ? found->displayName : found->unavailableReason);
-    button_->setAccessibleName(QStringLiteral("Current %1: %2")
+    i18n::setAccessibleName(button_, i18n::text("brush.component.picker.current.1.2")
         .arg(type_ == core::BrushAssetType::Tip
-                ? QStringLiteral("brush tip") : QStringLiteral("brush grain"),
+                ? i18n::text("brush.component.picker.brush.tip") : i18n::text("brush.component.picker.brush.grain"),
             button_->text()));
     const auto id = QString::fromStdString(currentAssetId_);
     for (int row = 0; row < grid_->count(); ++row) {

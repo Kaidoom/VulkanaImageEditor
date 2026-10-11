@@ -2,6 +2,30 @@ include(ShapeTests.cmake)
 include(ShapeResizeTests.cmake)
 include(LayerSelectionTests.cmake)
 
+add_executable(imageeditor_localization_tests LocalizationTests.cpp)
+target_link_libraries(imageeditor_localization_tests PRIVATE imageeditor_ui Qt6::Test)
+imageeditor_enable_warnings(imageeditor_localization_tests)
+add_test(NAME imageeditor_localization_tests COMMAND imageeditor_localization_tests)
+set_tests_properties(imageeditor_localization_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 90 LABELS "localization;widgets;tabs;ime")
+add_test(NAME imageeditor_localization_catalogs COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/tools/localization.py" validate)
+add_test(NAME imageeditor_localization_tools COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/LocalizationToolTests.py"
+    "$<TARGET_FILE:imageeditor_localization_tests>" "${VULKANA_LRELEASE}")
+set_tests_properties(imageeditor_localization_tools PROPERTIES TIMEOUT 90 LABELS "localization;catalogs")
+add_executable(imageeditor_localization_installed_probe LocalizationInstalledProbe.cpp
+    "${PROJECT_SOURCE_DIR}/src/ui/src/Localization.cpp"
+    "${PROJECT_SOURCE_DIR}/src/ui/include/imageeditor/ui/Localization.hpp"
+    "${PROJECT_SOURCE_DIR}/src/platform/src/ApplicationPaths.cpp"
+    "${PROJECT_BINARY_DIR}/qrc_localization.cpp")
+target_include_directories(imageeditor_localization_installed_probe PRIVATE
+    "${PROJECT_SOURCE_DIR}/src/ui/include" "${PROJECT_SOURCE_DIR}/src/platform/include")
+target_compile_definitions(imageeditor_localization_installed_probe PRIVATE VULKANA_RELOCATABLE_BUNDLE=1)
+target_link_libraries(imageeditor_localization_installed_probe PRIVATE Qt6::Widgets)
+add_dependencies(imageeditor_localization_installed_probe vulkana_language_packs)
+add_test(NAME imageeditor_localization_installed COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/LocalizationInstalledTest.py" "$<TARGET_FILE:imageeditor_localization_installed_probe>"
+    "${VULKANA_TRANSLATIONS_DIR}" "${_qt_translations}")
+set_tests_properties(imageeditor_localization_installed PROPERTIES TIMEOUT 30 LABELS "localization;install")
+
 add_executable(imageeditor_adjustment_layer_tests AdjustmentLayerTests.cpp)
 target_link_libraries(imageeditor_adjustment_layer_tests PRIVATE imageeditor_ui Qt6::Test)
 imageeditor_enable_warnings(imageeditor_adjustment_layer_tests)

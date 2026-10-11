@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/PropertiesPanel.hpp"
@@ -16,23 +17,15 @@ void MainWindow::createMeasureControls()
     auto* row = new QHBoxLayout(page);
     row->setContentsMargins(0, 0, 0, 0); row->setSpacing(12);
     row->addStretch();
-    measureBoundsLabel_ = new QLabel(QStringLiteral("Bounds W × H: —"), page);
+    measureBoundsLabel_ = i18n::make<QLabel>(i18n::text("main.window.measure.bounds.w.h"), page);
     measureBoundsLabel_->setObjectName(QStringLiteral("MeasureBounds"));
-    measureBoundsLabel_->setToolTip(QStringLiteral("Document-aligned bounds of selected layers/groups, including hidden members. Not local geometry dimensions."));
+    i18n::setToolTip(measureBoundsLabel_, i18n::text("main.window.measure.document.aligned.bounds.of.selected.layers.groups.including.hidden"));
     row->addWidget(measureBoundsLabel_);
     row->addStretch();
-    toolOptionsBar_->registerToolPage(core::ToolId::Measure, QStringLiteral("Measure"), page);
+    toolOptionsBar_->registerToolPage(core::ToolId::Measure, i18n::text("main.window.measure.measure"), page);
     QVBoxLayout* content {};
-    propertiesPanel_->addToolPage(core::ToolId::Measure, QStringLiteral("Measure"),
-        QStringLiteral("Drag A → B to measure document pixels, including outside the canvas. Drag either endpoint to adjust the last line."), content);
-    auto* help = new QLabel(QStringLiteral(
-        "{{ToolAction_measure}} · Measure; hold {{TemporaryMeasureAction}} · Temporary Measure\n"
-        "Release {{TemporaryMeasureAction}} · Restore tool (cancel any unfinished drag)\n"
-        "Shift · Constrain to 45° directions\nEscape / right-click · Clear measurement\n\n"
-        "Angle is clockwise from right; a dot has no angle. Bounds W × H shows document-aligned selected-layer bounds. "
-        "Preferences → General enables advanced ΔX/ΔY readouts.\n\n"
-        "View → Rulers · Visibility / placement; drag dotted grip · Dock ruler\n"
-        "{{PanCanvasAction}} + left-drag / middle-drag · Pan; wheel · Zoom"));
+    propertiesPanel_->addToolPage(core::ToolId::Measure, i18n::text("main.window.measure.measure"), i18n::text("main.window.measure.drag.a.b.to.measure.document.pixels.including.outside"), content);
+    auto* help = i18n::make<QLabel>(i18n::text("main.window.measure.toolaction.measure.measure.hold.temporarymeasureaction.temporary.measure.release.temporarymeasureaction"));
     help->setWordWrap(true); help->setObjectName(QStringLiteral("MutedLabel")); content->addWidget(help);
 }
 void MainWindow::refreshMeasureBounds()
@@ -42,8 +35,8 @@ void MainWindow::refreshMeasureBounds()
                                        : std::optional<core::DocumentBounds> {};
     if (measureBoundsLabel_) {
         const auto size = measureBounds_ ? measureBounds_->extent() : core::Extent2d {};
-        const auto text = measureBounds_ ? QStringLiteral("Bounds W × H: %1 × %2 px")
-            .arg(size.width, 0, 'f', 1).arg(size.height, 0, 'f', 1) : QStringLiteral("Bounds W × H: —");
+        const auto text = measureBounds_ ? i18n::text("main.window.measure.bounds.w.h.1.2.px")
+            .arg(size.width, 0, 'f', 1).arg(size.height, 0, 'f', 1) : i18n::text("main.window.measure.bounds.w.h");
         if (measureBoundsLabel_->text() != text) measureBoundsLabel_->setText(text);
     }
     refreshSelectionStatus();
@@ -58,7 +51,7 @@ void MainWindow::refreshSelectionStatus()
     if (document && selected.size() > 1) {
         const bool containsContainer = std::ranges::any_of(selected,
             [document](auto id) { return document->tree().container(id) != nullptr; });
-        text = (containsContainer ? QStringLiteral("%1 selected items") : QStringLiteral("%1 selected layers"))
+        text = (containsContainer ? i18n::text("main.window.measure.1.selected.items") : i18n::text("main.window.measure.1.selected.layers"))
             .arg(selected.size());
     } else if (document && selected.size() == 1) {
         QString name, type;
@@ -68,21 +61,21 @@ void MainWindow::refreshSelectionStatus()
                 : std::holds_alternative<core::TextLayer>(layer->payload) ? QStringLiteral("Text") : QStringLiteral("Shape");
         } else if (const auto* container = document->tree().container(selected.front())) {
             name = QString::fromStdString(container->name);
-            type = container->kind == core::ContainerKind::ClippingMaskGroup ? QStringLiteral("Clipping Mask Group")
+            type = container->kind == core::ContainerKind::ClippingMaskGroup ? i18n::text("main.window.measure.clipping.mask.group")
                 : container->kind == core::ContainerKind::Group ? QStringLiteral("Group") : QStringLiteral("Folder");
         }
         if (!type.isEmpty()) {
             text = QStringLiteral("%1 (%2)").arg(name.simplified(), type);
             if (measureBounds_) {
                 const auto size = measureBounds_->extent();
-                text += QStringLiteral(" · %1 × %2 px").arg(size.width, 0, 'f', 1).arg(size.height, 0, 'f', 1);
+                text += i18n::text("main.window.measure.1.2.px").arg(size.width, 0, 'f', 1).arg(size.height, 0, 'f', 1);
             }
         }
     }
     if (selectionStatus_->text() != text) {
         selectionStatus_->setText(text);
-        selectionStatus_->setToolTip(text.isEmpty() ? QString{} : text
-            + QStringLiteral("\nDocument-aligned bounds (W × H), including hidden group/folder contents."));
+        i18n::setToolTip(selectionStatus_, text.isEmpty() ? QString{} : text
+            + i18n::text("main.window.measure.document.aligned.bounds.w.h.including.hidden.group.folder"));
     }
 }
 void MainWindow::refreshRulerView()

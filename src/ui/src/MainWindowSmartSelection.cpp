@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/SelectionCommands.hpp"
 #include "imageeditor/core/SmartSelectionEvidence.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
@@ -37,10 +38,9 @@ QWidget* MainWindow::createSmartSelectionControls(QWidget* parent)
     for (int i = 0; i < 3; ++i) {
         auto* button
             = new ToolOptionsButton(i==2 ? QStringLiteral("SmartModeObject") : i ? QStringLiteral("SmartModeWand") : QStringLiteral("SmartModeQuick"),
-                i==2 ? tr("Object Selection") : i ? QStringLiteral("Magic Wand") : QStringLiteral("Quick Selection"),
-                i==2 ? tr("Object Selection · draw a rectangle; click to include, Alt-click to exclude. Runs locally and offline.") : i ? QStringLiteral("Magic Wand · click a contiguous matching color region")
-                  : QStringLiteral("Quick Selection · brush foreground or exclusion evidence; grow along "
-                                   "appearance and edges"),
+                i==2 ? i18n::text("main.window.smart.selection.object.selection") : i ? i18n::text("main.window.smart.selection.magic.wand") : i18n::text("main.window.smart.selection.quick.selection"),
+                i==2 ? i18n::text("main.window.smart.selection.object.selection.draw.a.rectangle.click.to.include.alt") : i ? i18n::text("main.window.smart.selection.magic.wand.click.a.contiguous.matching.color.region")
+                  : i18n::text("main.window.smart.selection.quick.selection.brush.foreground.or.exclusion.evidence.grow.along"),
                 ToolOptionsButton::Kind::Toggle, smartModeControls_, ToolOptionsButton::Presentation::Icon);
         button->setIcon(toolGlyph(i==2 ? ToolGlyph::ObjectSelection : i ? ToolGlyph::MagicWand : ToolGlyph::QuickSelection));
         button->setChecked(i == 0);
@@ -59,10 +59,9 @@ QWidget* MainWindow::createSmartSelectionControls(QWidget* parent)
     for (int i = 0; i < 2; ++i) {
         auto* button = new ToolOptionsButton(
             i ? QStringLiteral("SmartSourceActive") : QStringLiteral("SmartSourceMerged"),
-            i ? QStringLiteral("Active Layer") : QStringLiteral("Merged Visible"),
-            i ? QStringLiteral("Active Layer · visible adjusted/cropped layer appearance, including opacity, "
-                               "against transparency")
-              : QStringLiteral("Merged Visible · rendered document content including blending and hierarchy"),
+            i ? i18n::text("main.window.smart.selection.active.layer") : i18n::text("main.window.smart.selection.merged.visible"),
+            i ? i18n::text("main.window.smart.selection.active.layer.visible.adjusted.cropped.layer.appearance.including.opacity")
+              : i18n::text("main.window.smart.selection.merged.visible.rendered.document.content.including.blending.and.hierarchy"),
             ToolOptionsButton::Kind::Toggle, page, ToolOptionsButton::Presentation::Icon);
         button->setIcon(toolGlyph(i ? ToolGlyph::ActiveLayer : ToolGlyph::MergedVisible));
         button->setChecked(i == 0);
@@ -76,11 +75,11 @@ QWidget* MainWindow::createSmartSelectionControls(QWidget* parent)
         updateActionState();
     });
     auto field
-        = [&](const QString& name, const QString& label, double min, double max, double value, int width) {
+        = [&](const QString& name, const i18n::Message& label, double min, double max, double value, int width) {
               auto* control = new CompactValueControl(page);
               control->setObjectName(name);
-              control->setAccessibleName(label);
-              control->setPrefix(label + QStringLiteral(": "));
+              i18n::setAccessibleName(control, label);
+              i18n::setPrefix(control, label + QStringLiteral(": "));
               control->setDecimals(0);
               control->setRange(min, max);
               control->setSingleStep(1);
@@ -90,20 +89,15 @@ QWidget* MainWindow::createSmartSelectionControls(QWidget* parent)
               return control;
           };
     smartSize_ = field(QStringLiteral("SmartSize"), QStringLiteral("Size"), 2, 512, 24, 132);
-    smartSize_->setSuffix(QStringLiteral(" px"));
-    smartSize_->setToolTip(QStringLiteral(
-        "Brush diameter in document pixels. Growth stays near your path; larger brushes allow a wider local region."));
+    i18n::setSuffix(smartSize_, i18n::text("main.window.smart.selection.px"));
+    i18n::setToolTip(smartSize_, i18n::text("main.window.smart.selection.brush.diameter.in.document.pixels.growth.stays.near.your"));
     connect(smartSize_, &QDoubleSpinBox::valueChanged, this, [this] { refreshSmartSelectionControls(); });
     smartEdgeSensitivity_
         = field(QStringLiteral("SmartEdgeSensitivity"), QStringLiteral("Edges"), 0, 100, 40, 132);
     smartEdgeSensitivity_->setSuffix(QStringLiteral("%"));
-    smartEdgeSensitivity_->setToolTip(QStringLiteral(
-        "Edge sensitivity · higher strengthens soft, monotone boundaries; lower prioritizes fine pixel "
-        "contrast. Applies to the next Quick Selection stroke; does not change brush reach or Magic Wand "
-        "fuzziness."));
+    i18n::setToolTip(smartEdgeSensitivity_, i18n::text("main.window.smart.selection.edge.sensitivity.higher.strengthens.soft.monotone.boundaries.lower.prioritizes"));
     smartTolerance_ = field(QStringLiteral("SmartTolerance"), QStringLiteral("Fuzziness"), 0, 255, 16, 152);
-    smartTolerance_->setToolTip(
-        QStringLiteral("Premultiplied RGB/alpha distance · 0 closest, 255 all eligible connected colors"));
+    i18n::setToolTip(smartTolerance_, i18n::text("main.window.smart.selection.premultiplied.rgb.alpha.distance.0.closest.255.all.eligible"));
     connect(smartTolerance_, &QDoubleSpinBox::valueChanged, this, &MainWindow::changeSmartTolerance);
     smartTolerance_->onInteractionFinished = [this] {
         if (!updatingSmart_)
@@ -112,7 +106,7 @@ QWidget* MainWindow::createSmartSelectionControls(QWidget* parent)
     smartSample_ = new SampledColorLabel(page);
     smartSample_->setObjectName(QStringLiteral("SmartSample"));
     smartSample_->setFixedSize(174, 30);
-    smartSample_->setToolTip(QStringLiteral("Sampled reference; does not change painting colors"));
+    i18n::setToolTip(smartSample_, i18n::text("main.window.smart.selection.sampled.reference.does.not.change.painting.colors"));
     row->addWidget(smartSample_);
     smartTimer_ = new QTimer(this);
     smartTimer_->setObjectName(QStringLiteral("SmartSelectionTimer"));
@@ -124,25 +118,9 @@ QWidget* MainWindow::createSmartSelectionControls(QWidget* parent)
 void MainWindow::createSmartSelectionHelp()
 {
     QVBoxLayout* content { };
-    propertiesPanel_->addToolPage(core::ToolId::SmartSelect, QStringLiteral("Smart Select"),
-        QStringLiteral("{{ToolAction_smartselect}} · Quick Selection, Magic Wand and Object Selection create ordinary selections."), content);
-    auto* help = new QLabel(QStringLiteral(
-        "Quick Selection · Brush along the region to grow nearby edges. Continue brushing to extend it; "
-        "Add grows, Subtract supplies correction hints. "
-        "New strokes override conflicting hints. Edges: higher favors soft boundaries, lower favors fine contrast. "
-        "Weak edges may need correction strokes.\n"
-        "Magic Wand · Click a connected color region; Fuzziness refines that click.\n\n"
-        "Object Selection · Draw a rough rectangle around an object. Click to include, Alt-click to exclude; "
-        "drag a new rectangle to start another object. Runs locally and offline using the bundled model. "
-        "Use Refine Selection for soft edges; the model does not recover transparency.\n\n"
-        "{{DecreaseBrushSizeAction}} / {{IncreaseBrushSizeAction}} · Quick Selection brush size\n"
-        "Shift · Add; Alt · Subtract; Shift+Alt · Intersect (latched at press)\n"
-        "Escape · Cancel pending work\n{{SelectAllAction}} / {{DeselectAction}} · Select all / deselect\n"
-        "{{InvertSelectionAction}} · Invert; {{LayerTransformAction}} · Transform selection\n{{LayerViaCopyAction}} · Copy selected raster content\n"
-        "{{UndoAction}} / {{RedoAction}} · Undo / redo, including correction hints\n\n"
-        "Merged Visible samples the visible document. Active Layer samples its adjusted/cropped appearance without other layers. "
-        "Click within its valid extent. Changed source content resets hints.\n\n"
-        "{{PanCanvasAction}} + left-drag / middle-drag · Pan; wheel · Zoom"));
+    propertiesPanel_->addToolPage(core::ToolId::SmartSelect, i18n::text("main.window.smart.selection.smart.select"),
+        i18n::text("main.window.smart.selection.toolaction.smartselect.quick.selection.magic.wand.and.object.selection"), content);
+    auto* help = i18n::make<QLabel>(i18n::text("main.window.smart.selection.quick.selection.brush.along.the.region.to.grow.nearby"));
     help->setWordWrap(true);
     help->setObjectName(QStringLiteral("MutedLabel"));
     content->addWidget(help);
@@ -156,11 +134,11 @@ bool MainWindow::beginSmartSelection(core::Vec2d point, Qt::KeyboardModifiers mo
         objectSelectionEngine_=std::make_shared<ObjectSelectionEngine>();
     if (smartSelectionEditing_ && smartFinishRequested_) {
         if(smartMode_==core::SmartSelectMode::ObjectSelection) {
-            statusBar()->showMessage(tr("Finishing Object Selection — Escape cancels"),2500);return false;
+            statusBar()->showMessage(i18n::text("main.window.smart.selection.finishing.object.selection.escape.cancels"),2500);return false;
         }
         if (smartQueuedStrokes_.size() >= 8) {
             statusBar()->showMessage(
-                QStringLiteral("Finishing queued selections — please wait before the next stroke"), 2500);
+                i18n::text("main.window.smart.selection.finishing.queued.selections.please.wait.before.the.next.stroke"), 2500);
             return false;
         }
         try {
@@ -247,7 +225,7 @@ bool MainWindow::beginSmartSelection(core::Vec2d point, Qt::KeyboardModifiers mo
         smartTimer_->start(0);
         updateActionState();
         statusBar()->showMessage(
-            QStringLiteral("Smart Select · preparing reference / refining edges… · Escape cancels"));
+            i18n::text("main.window.smart.selection.smart.select.preparing.reference.refining.edges.escape.cancels"));
         return true;
     } catch (const std::exception& error) {
         cancelSmartSelection();
@@ -327,7 +305,7 @@ void MainWindow::finishSmartSelection()
             state.objectCorrection=std::hypot(dx,dy)<3;
             if(state.objectCorrection) {
                 if(state.objectPrompt.box.width<=1||state.objectPrompt.box.height<=1) {
-                    cancelSmartSelection(false);statusBar()->showMessage(tr("Draw a rectangle around the intended object first"),4000);return;
+                    cancelSmartSelection(false);statusBar()->showMessage(i18n::text("main.window.smart.selection.draw.a.rectangle.around.the.intended.object.first"),4000);return;
                 }
                 std::erase_if(state.objectPrompt.corrections,[&](const auto& p){return std::hypot(p.position.x-state.seed.x,p.position.y-state.seed.y)<1;});
                 state.objectPrompt.corrections.push_back({state.seed,state.operation!=core::SelectionOperation::Subtract});
@@ -500,14 +478,14 @@ void MainWindow::advanceSmartSelection()
         canvasWindow_->setSelectionPreview({ });
         synchronizeUi(false, false);
         statusBar()->showMessage(
-            limited ? tr("Only the brushed area could be resolved. Add evidence across the region or supply an exclusion stroke.")
-                    : changed ? QStringLiteral("Smart selection applied") : QStringLiteral("Selection unchanged"),
+            limited ? i18n::text("main.window.smart.selection.only.the.brushed.area.could.be.resolved.add.evidence")
+                    : changed ? i18n::text("main.window.smart.selection.smart.selection.applied") : i18n::text("main.window.smart.selection.selection.unchanged"),
             limited?6000:2500);
         startNextSmartStroke();
     } catch (const std::exception& error) {
         const auto message = QString::fromUtf8(error.what());
         cancelSmartSelection(false);
-        statusBar()->showMessage(QStringLiteral("Smart Select: %1").arg(message), 7000);
+        statusBar()->showMessage(i18n::text("main.window.smart.selection.smart.select.1").arg(message), 7000);
         updateActionState();
     }
 }

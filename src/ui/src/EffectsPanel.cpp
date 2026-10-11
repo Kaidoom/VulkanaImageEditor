@@ -1,3 +1,5 @@
+#include "imageeditor/ui/LocalizedNames.hpp"
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/EffectsPanel.hpp"
 #include "imageeditor/ui/BlendModeCombo.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
@@ -28,9 +30,9 @@ EffectsPanel::EffectsPanel(QWidget *parent) : QWidget(parent) {
   navigation_->setObjectName("EffectNavigation");
   navigation_->setMaxVisibleItems(int(core::layerEffectCount));
   row->addWidget(navigation_, 1);
-  auto *reset = new QPushButton(tr("Reset"));
+  auto *reset = i18n::make<QPushButton>(i18n::text("effects.panel.reset"));
   reset->setObjectName("EffectResetCurrent");
-  reset->setToolTip(tr("Reset the current effect"));
+  i18n::setToolTip(reset, i18n::text("effects.panel.reset.the.current.effect"));
   row->addWidget(reset);
   auto *enabled = new QStackedWidget;
   enabled->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
@@ -46,8 +48,7 @@ EffectsPanel::EffectsPanel(QWidget *parent) : QWidget(parent) {
   scroll->setWidget(stack_);
   outer->addWidget(scroll, 1);
   for (std::size_t i = 0; i < pages_.size(); ++i) {
-    navigation_->addItem(
-        QString::fromUtf8(core::layerEffectName(core::LayerEffectType(i))));
+    i18n::addItem(navigation_, i18n::effectName(core::LayerEffectType(i)));
     auto *navItem =
         static_cast<QStandardItemModel *>(navigation_->model())->item(int(i));
     navItem->setCheckable(true);
@@ -57,7 +58,7 @@ EffectsPanel::EffectsPanel(QWidget *parent) : QWidget(parent) {
     page.layout->setContentsMargins(0, 0, 0, 8);
     page.layout->setSpacing(8);
     stack_->addWidget(widget);
-    page.enabled = new QCheckBox(tr("Enabled"));
+    page.enabled = i18n::make<QCheckBox>(i18n::text("effects.panel.enabled"));
     page.enabled->setObjectName(QString("EffectEnabled%1").arg(i));
     enabled->addWidget(page.enabled);
     connect(page.enabled, &QCheckBox::toggled, this, [this, i](bool v) {
@@ -65,7 +66,7 @@ EffectsPanel::EffectsPanel(QWidget *parent) : QWidget(parent) {
     });
     if(i==7) {bevelPage();page.layout->addStretch();continue;}
     auto *blendRow = blendChoices(
-        i, tr("Blend"),
+        i, "Blend", i18n::text("effects.panel.blend"),
         [this, i] { return working_.items[i].blendMode; },
         [this, i](core::BlendMode v) { working_.items[i].blendMode = v; });
     color(i, false, blendRow);
@@ -73,19 +74,19 @@ EffectsPanel::EffectsPanel(QWidget *parent) : QWidget(parent) {
       color(i, true, blendRow);
     if (i == 0)
       choices(
-          i, tr("Position"), {tr("Inside"), tr("Center"), tr("Outside")},
+          i, i18n::text("effects.panel.position"), {i18n::text("effects.panel.inside"), i18n::text("effects.panel.center"), i18n::text("effects.panel.outside")},
           [this, i] { return int(working_.items[i].position); },
           [this, i](int v) {
             working_.items[i].position = core::StrokePosition(v);
           });
     if (i == 6) {
       auto *typeRow = choices(
-          i, tr("Type"), {tr("Linear"), tr("Radial")},
+          i, i18n::text("effects.panel.type"), {i18n::text("effects.panel.linear"), i18n::text("effects.panel.radial")},
           [this, i] { return int(working_.items[i].gradient); },
           [this, i](int v) {
             working_.items[i].gradient = core::GradientType(v);
           });
-      auto *reverse = new QCheckBox(tr("Reverse"));
+      auto *reverse = i18n::make<QCheckBox>(i18n::text("effects.panel.reverse"));
       reverse->setObjectName("Effect6Reverse");
       typeRow->addWidget(reverse);
       connect(reverse, &QCheckBox::toggled, this, [this](bool v) {
@@ -98,27 +99,29 @@ EffectsPanel::EffectsPanel(QWidget *parent) : QWidget(parent) {
         reverse->setChecked(working_.items[6].reverse);
       };
     }
-    number(i, tr("Opacity"), 0, 100, &core::LayerEffect::opacity, 100);
+    number(i, "Opacity", i18n::text("effects.panel.opacity"), 0, 100, &core::LayerEffect::opacity, 100);
     if (i < 5)
-      number(i, tr("Size"), 0, core::maximumEffectSize,
+      number(i, "Size", i18n::text("effects.panel.size"), 0, core::maximumEffectSize,
              &core::LayerEffect::size);
     if (i > 0 && i < 5)
-      number(i, i == 2 || i == 4 ? tr("Choke") : tr("Spread"), 0, 100,
+      number(i, i == 2 || i == 4 ? "Choke" : "Spread", i == 2 || i == 4 ? i18n::text("effects.panel.choke") : i18n::text("effects.panel.spread"), 0, 100,
              &core::LayerEffect::spread, 100);
     if (i == 1 || i == 2 || i == 6)
-      number(i, tr("Angle"), -180, 180, &core::LayerEffect::angle);
+      number(i, "Angle", i18n::text("effects.panel.angle"), -180, 180, &core::LayerEffect::angle);
     if (i == 1 || i == 2)
-      number(i, tr("Distance"), 0, core::maximumEffectDistance,
+      number(i, "Distance", i18n::text("effects.panel.distance"), 0, core::maximumEffectDistance,
              &core::LayerEffect::distance);
     if (i == 6)
-      number(i, tr("Scale"), 1, 1000, &core::LayerEffect::scale, 100);
+      number(i, "Scale", i18n::text("effects.panel.scale"), 1, 1000, &core::LayerEffect::scale, 100);
     page.layout->addStretch();
   }
   connect(static_cast<QStandardItemModel *>(navigation_->model()),
           &QStandardItemModel::itemChanged, this, [this](QStandardItem *item) {
             const auto row=std::size_t(item->row());
             const bool enabled=item->checkState()==Qt::Checked;
-            if (!updating_)change([this,row,enabled] {working_.items[row].enabled=enabled;});
+            // DisplayRole changes during translation are not effect edits.
+            if (!updating_ && enabled != working_.items[row].enabled)
+              change([this,row,enabled] {working_.items[row].enabled=enabled;});
           });
   connect(navigation_, &QComboBox::currentIndexChanged, this,
           [this, enabled](int index) {
@@ -137,8 +140,7 @@ EffectsPanel::EffectsPanel(QWidget *parent) : QWidget(parent) {
   footer_->setObjectName("EffectFooter");
   footer_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
   auto *note =
-      new QLabel(tr("Local pixels · effects stay independent. Enable each "
-                    "effect separately."));
+      i18n::make<QLabel>(i18n::text("effects.panel.local.pixels.effects.stay.independent.enable.each.effect.separately"));
   note->setObjectName("MutedLabel");
   note->setWordWrap(true);
   note->setAlignment(Qt::AlignLeft | Qt::AlignTop);
@@ -151,18 +153,18 @@ EffectsPanel::EffectsPanel(QWidget *parent) : QWidget(parent) {
   outer->addWidget(footer_);
   setTarget(nullptr);
 }
-void EffectsPanel::number(std::size_t i, const QString &label, double lo,
+void EffectsPanel::number(std::size_t i, const char* identity, const i18n::Message& label, double lo,
                           double hi, double core::LayerEffect::*member,
                           double factor) {
-  number(i,label,lo,hi,[this,i,member,factor]{return working_.items[i].*member*factor;},
+  number(i,identity,label,lo,hi,[this,i,member,factor]{return working_.items[i].*member*factor;},
     [this,i,member,factor](double v){working_.items[i].*member=v/factor;});
 }
-CompactValueControl* EffectsPanel::number(std::size_t i,const QString& label,double lo,double hi,
+CompactValueControl* EffectsPanel::number(std::size_t i,const char* identity,const i18n::Message& label,double lo,double hi,
     std::function<double()> read,std::function<void(double)> write) {
   auto *n = new CompactValueControl;
-  n->setObjectName(QString("Effect%1%2").arg(i).arg(label));
-  n->setAccessibleName(label);
-  n->setPrefix(label + ": ");
+  n->setObjectName(QString("Effect%1%2").arg(i).arg(QString::fromLatin1(identity)));
+  i18n::setAccessibleName(n, label);
+  i18n::setPrefix(n, label + ": ");
   n->setDecimals(1);
   n->setRange(lo, hi);
   n->setSingleStep(1);
@@ -201,17 +203,17 @@ CompactValueControl* EffectsPanel::number(std::size_t i,const QString& label,dou
           });
   return n;
 }
-QHBoxLayout *EffectsPanel::choices(std::size_t i, const QString &label,
-                           const QStringList &options,
+QHBoxLayout *EffectsPanel::choices(std::size_t i, const i18n::Message& label,
+                           const QList<i18n::Message> &options,
                            std::function<int()> read,
                            std::function<void(int)> write,
                            QHBoxLayout *existingRow) {
   auto *row = existingRow ? existingRow : new QHBoxLayout;
   if (!existingRow)
-    row->addWidget(new QLabel(label));
+    row->addWidget(i18n::make<QLabel>(label));
   auto *box = new QComboBox;
-  box->setAccessibleName(label);
-  box->addItems(options);
+  i18n::setAccessibleName(box, label);
+  i18n::addItems(box, options);
   box->setMaxVisibleItems(int(options.size()));
   row->addWidget(box, 1);
   if (!existingRow)
@@ -226,13 +228,13 @@ QHBoxLayout *EffectsPanel::choices(std::size_t i, const QString &label,
           [this, write](int v) { change([&] { write(v); }); });
   return row;
 }
-QHBoxLayout *EffectsPanel::blendChoices(std::size_t i, const QString &label,
+QHBoxLayout *EffectsPanel::blendChoices(std::size_t i, const char* identity, const i18n::Message& label,
     std::function<core::BlendMode()> read, std::function<void(core::BlendMode)> write) {
   auto *row = new QHBoxLayout;
-  row->addWidget(new QLabel(label));
+  row->addWidget(i18n::make<QLabel>(label));
   auto *box = new QComboBox;
-  box->setObjectName(QString("Effect%1%2").arg(i).arg(label));
-  box->setAccessibleName(label);
+  box->setObjectName(QString("Effect%1%2").arg(i).arg(QString::fromLatin1(identity)));
+  i18n::setAccessibleName(box, label);
   populateBlendModeCombo(*box);
   row->addWidget(box, 1);
   pages_[i].layout->addLayout(row);
@@ -249,10 +251,10 @@ QHBoxLayout *EffectsPanel::blendChoices(std::size_t i, const QString &label,
 void EffectsPanel::color(std::size_t i, bool second, QHBoxLayout *row) {
   auto *button = new QPushButton;
   button->setObjectName(QString("EffectColor%1%2").arg(i).arg(second));
-  const auto label = i==7 ? (second?tr("Shadow"):tr("Highlight")) :
-      second ? tr("End") : i == 6 ? tr("Start") : tr("Color");
+  const auto label = i==7 ? (second?i18n::text("effects.panel.shadow"):i18n::text("effects.panel.highlight")) :
+      second ? i18n::text("effects.panel.end") : i == 6 ? i18n::text("effects.panel.start") : i18n::text("effects.panel.color");
   button->setText(label);
-  button->setAccessibleName(label);
+  i18n::setAccessibleName(button, label);
   row->addWidget(button);
   const auto previous = pages_[i].refresh;
   pages_[i].refresh = [this, i, second, button, label, previous] {
@@ -261,7 +263,7 @@ void EffectsPanel::color(std::size_t i, bool second, QHBoxLayout *row) {
     const auto c =
         second ? working_.items[i].secondColor : working_.items[i].color;
     const QColor color(c.red, c.green, c.blue, c.alpha);
-    button->setToolTip(tr("%1: %2").arg(label, color.name(QColor::HexArgb)));
+    i18n::setToolTip(button, i18n::text("effects.panel.1.2").arg(label, color.name(QColor::HexArgb)));
     QPixmap swatch(20, 16);
     swatch.fill(color);
     button->setIcon(QIcon(swatch));
@@ -315,8 +317,7 @@ void EffectsPanel::resetAll() {
 }
 void EffectsPanel::setProcessing(bool busy, double progress,
                                  const QString &message) {
-  status_->setText(
-      busy ? tr("Preparing effects · %1%").arg(qRound(progress * 100))
+  i18n::setText(status_, busy ? i18n::text("effects.panel.preparing.effects.1").arg(qRound(progress * 100))
            : message);
   footer_->setCurrentIndex(busy || !message.isEmpty() ? 1 : 0);
 }

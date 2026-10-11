@@ -1,5 +1,6 @@
 #pragma once
 #include "imageeditor/core/Document.hpp"
+#include "imageeditor/ui/PsdReviewTypes.hpp"
 #include <QImage>
 #include <QMap>
 #include <QStringList>
@@ -22,6 +23,7 @@ struct PsdLayerInfo {
   int sourceIndex{}, parent{-1};
   int clippingBase{-1};
   QString name, type, status, details;
+  PsdContentKind kind{PsdContentKind::Raster};
   QStringList issues, fonts;
   QMap<QString, QString> proposedFonts;
   PsdRasterScope savedRaster;
@@ -33,6 +35,8 @@ struct PsdInspection {
   QSize size;
   double ppi{72};
   QString summary, report, error;
+  PsdColorHandling colorHandling{PsdColorHandling::AssumedSRgb};
+  QString sourceProfile;
   std::vector<PsdLayerInfo>
       layers; // Bottom-to-top source order, stable record IDs.
   bool savedComposite{};

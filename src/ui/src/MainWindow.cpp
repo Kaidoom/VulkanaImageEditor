@@ -1,3 +1,5 @@
+#include "imageeditor/ui/LocalizedNames.hpp"
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/BlendModeCombo.hpp"
 #include "imageeditor/ui/MemoryStatusLabel.hpp"
@@ -83,6 +85,7 @@
 #include <QListView>
 #include <QMenu>
 #include <QMenuBar>
+#include <QTextLayout>
 #include <QMessageBox>
 #include <QMimeData>
 #include <QMouseEvent>
@@ -204,7 +207,7 @@ public:
     {
         setObjectName(QStringLiteral("ToolRailDragHandle"));
         setCursor(Qt::OpenHandCursor);
-        setToolTip(QStringLiteral("Drag to dock the tool rail"));
+        i18n::setToolTip(this, i18n::text("main.window.drag.to.dock.the.tool.rail"));
         setFocusPolicy(Qt::NoFocus);
         setAttribute(Qt::WA_Hover);
         connect(toolbar_, &QToolBar::orientationChanged, this,
@@ -444,10 +447,8 @@ public:
         setText(QStringLiteral("0.0 FPS"));
         setAlignment(Qt::AlignRight | Qt::AlignVCenter);
         setMinimumWidth(70);
-        setToolTip(QStringLiteral(
-            "Actual Vulkan canvas submissions over the last sample window. "
-            "The demand-driven canvas should read 0 FPS while idle."));
-        setAccessibleName(QStringLiteral("Canvas frame rate"));
+        i18n::setToolTip(this, i18n::text("main.window.actual.vulkan.canvas.submissions.over.the.last.sample.window"));
+        i18n::setAccessibleName(this, i18n::text("main.window.canvas.frame.rate"));
 
         sampleClock_.start();
         sampleTimer_.setInterval(500);
@@ -469,7 +470,7 @@ private:
             ? static_cast<double>(submittedFrames) * 1000.0
                 / static_cast<double>(elapsedMilliseconds)
             : 0.0;
-        setText(QStringLiteral("%1 FPS").arg(framesPerSecond, 0, 'f', 1));
+        i18n::setText(this, i18n::text("main.window.1.fps").arg(framesPerSecond, 0, 'f', 1));
     }
 
     render::CanvasWindow& canvas_;
@@ -487,28 +488,28 @@ QString supportedImageFilter()
     }
     patterns.removeDuplicates();
     patterns.sort();
-    return QStringLiteral("Images and PDF (%1);;All files (*)").arg(patterns.join(QChar(' ')));
+    return i18n::text("main.window.images.and.pdf.1.all.files").arg(patterns.join(QChar(' ')));
 }
 
 QString toolName(core::ToolId tool)
 {
     switch (tool) {
-    case core::ToolId::Move: return QStringLiteral("Move");
-    case core::ToolId::Marquee: return QStringLiteral("Select");
-    case core::ToolId::Lasso: return QStringLiteral("Lasso");
-    case core::ToolId::Brush: return QStringLiteral("Brush");
-    case core::ToolId::Cloning: return QStringLiteral("Cloning");
-    case core::ToolId::LocalBlur: return QStringLiteral("Local Blur");
-    case core::ToolId::Eraser: return QStringLiteral("Eraser");
-    case core::ToolId::Fill: return QStringLiteral("Fill");
-    case core::ToolId::Eyedropper: return QStringLiteral("Eyedropper");
-    case core::ToolId::Text: return QStringLiteral("Text");
-    case core::ToolId::Shape: return QStringLiteral("Shape");
-    case core::ToolId::Measure: return QStringLiteral("Measure");
-    case core::ToolId::SelectByColor: return QStringLiteral("Select by Color");
-    case core::ToolId::SmartSelect: return QStringLiteral("Smart Select");
-    case core::ToolId::Transform: return QStringLiteral("Transform");
-    case core::ToolId::Crop: return QStringLiteral("Layer Crop");
+    case core::ToolId::Move: return i18n::text("main.window.move");
+    case core::ToolId::Marquee: return i18n::text("main.window.select.2");
+    case core::ToolId::Lasso: return i18n::text("main.window.lasso");
+    case core::ToolId::Brush: return i18n::text("main.window.brush");
+    case core::ToolId::Cloning: return i18n::text("main.window.cloning");
+    case core::ToolId::LocalBlur: return i18n::text("main.window.local.blur");
+    case core::ToolId::Eraser: return i18n::text("main.window.eraser");
+    case core::ToolId::Fill: return i18n::text("main.window.fill");
+    case core::ToolId::Eyedropper: return i18n::text("main.window.eyedropper");
+    case core::ToolId::Text: return i18n::text("main.window.text");
+    case core::ToolId::Shape: return i18n::text("main.window.shape");
+    case core::ToolId::Measure: return i18n::text("main.window.measure");
+    case core::ToolId::SelectByColor: return i18n::text("main.window.select.by.color");
+    case core::ToolId::SmartSelect: return i18n::text("main.window.smart.select");
+    case core::ToolId::Transform: return i18n::text("main.window.transform");
+    case core::ToolId::Crop: return i18n::text("main.window.layer.crop");
     }
     return {};
 }
@@ -566,7 +567,7 @@ MainWindow::MainWindow(
     , uiLayoutConfig_(std::move(uiLayoutConfig))
 {
     setObjectName(QStringLiteral("ImageEditorMainWindow"));
-    setWindowTitle(QStringLiteral("Vulkana Image Editor"));
+    i18n::setWindowTitle(this, i18n::text("main.window.vulkana.image.editor"));
     resize(1500, 940);
     setMinimumSize(980, 640);
     setAcceptDrops(true);
@@ -610,6 +611,9 @@ MainWindow::MainWindow(
     createMenus();
     createStatusBar(showCanvasFps);
     textController_ = std::make_unique<TextController>(session(), canvasWindow_, workspace_, this);
+    i18n::Localization::instance().canSwitch = [guard = QPointer<MainWindow>(this)] {
+        return !guard || (guard->shortcutGestureIdle() && !guard->textController_->composing());
+    };
     textController_->onChanged = [this] { synchronizeUi(true, false); };
     textController_->onActivateText = [this] { setActiveTool(core::ToolId::Text); };
     textController_->onError = [this](QString message) {
@@ -621,7 +625,7 @@ MainWindow::MainWindow(
             const auto* container=hit?session().document()->tree().container(*hit):nullptr;
             if(container && core::isGroup(container->kind)) {
                 session().setActiveLayer(*hit);synchronizeUi(false,false);
-                statusBar()->showMessage(QStringLiteral("Group selected · Ungroup or explicitly select a child to edit its text."),4000);
+                statusBar()->showMessage(i18n::text("main.window.group.selected.ungroup.or.explicitly.select.a.child.to"),4000);
                 return false;
             }
         }
@@ -660,7 +664,7 @@ MainWindow::MainWindow(
         if(!session().document() || !settleForFileOperation())return false;
         auto tree=session().document()->tree();
         if(!tree.reparent(ids,destination))return true; // A same-slot drop is a no-op, not an error.
-        return commitLayerStructure(QStringLiteral("Organize layers"),std::move(tree),{},{},session().layerSelectionState());
+        return commitLayerStructure(i18n::text("main.window.organize.layers"),std::move(tree),{},{},session().layerSelectionState());
     };
     layerModel_->onExpansionChanged=[this] {synchronizeLayerSelection();};
     layerModel_->onRenameRequested=[this](core::LayerId id,const QString& name) {return setLayerItemName(id,name);};
@@ -785,7 +789,7 @@ MainWindow::MainWindow(
                 if(modifiers.control)canvasWindow_->setSnapGuides({});
             }
             auto values = edit.drag->resolve(position, modifiers, transformOptionsPage_->aspectLocked(), edit.values);
-            if (!values) {canvasWindow_->setSnapGuides({});statusBar()->showMessage(tr("Invalid transform — keep corners convex and away from a projective horizon"),2500);return true;}
+            if (!values) {canvasWindow_->setSnapGuides({});statusBar()->showMessage(i18n::text("main.window.invalid.transform.keep.corners.convex.and.away.from.a"),2500);return true;}
             if (!edit.moving && position != edit.dragPress) {
                 auto options=snappingOptions_;options.logicalScale=canvasWindow_->zoom();
                 edit.pendingGuides=edit.drag->snapEdge(*session().document(),edit.snapping,*values,modifiers,
@@ -807,7 +811,7 @@ MainWindow::MainWindow(
         if (!edit || !edit->dragTo(position,modifiers,ratio,snapping)) {
             canvasWindow_->setSnapGuides({});
             if(layerTransform_&&layerTransform_->targetAvailable()) {
-                statusBar()->showMessage(tr("Invalid transform — last valid position retained"),2500);return true;
+                statusBar()->showMessage(i18n::text("main.window.invalid.transform.last.valid.position.retained"),2500);return true;
             }
             return false;
         }
@@ -1501,14 +1505,14 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
     if(ourTarget && smartInteractionActive() && !blocked && key->key()==Qt::Key_Escape
         && (event->type()==QEvent::ShortcutOverride || event->type()==QEvent::KeyPress)) {
         if(event->type()==QEvent::KeyPress){cancelSmartSelection(false);updateActionState();
-            statusBar()->showMessage(QStringLiteral("Smart selection cancelled"),2500);}
+            statusBar()->showMessage(i18n::text("main.window.smart.selection.cancelled"),2500);}
         event->accept();return true;
     }
     if (ourTarget && colorSelectionEditing_ && !blocked && key->key() == Qt::Key_Escape
         && (event->type() == QEvent::ShortcutOverride || event->type() == QEvent::KeyPress)) {
         if (event->type() == QEvent::KeyPress) {
             cancelColorSelection(false); updateActionState();
-            statusBar()->showMessage(QStringLiteral("Color selection cancelled"),2500);
+            statusBar()->showMessage(i18n::text("main.window.color.selection.cancelled"),2500);
         }
         event->accept(); return true;
     }
@@ -1750,26 +1754,26 @@ void MainWindow::createActions()
 {
     createLayerOrganizationActions();
     createSelectionActions();
-    transformAction_ = new QAction(QStringLiteral("Transform layer"), this);
+    transformAction_ = i18n::make<QAction>(i18n::text("main.window.transform.layer"), this);
     transformAction_->setObjectName(QStringLiteral("LayerTransformAction"));
     transformAction_->setShortcut(QKeySequence(QStringLiteral("Ctrl+T")));
     transformAction_->setIcon(toolGlyph(ToolGlyph::Transform));
     transformAction_->setCheckable(true);
-    transformAction_->setToolTip(QStringLiteral("Transform · Ctrl+T · Enter applies · Escape cancels"));
+    i18n::setToolTip(transformAction_, i18n::text("main.window.transform.ctrl.t.enter.applies.escape.cancels"));
     registerEditorWindowAction(transformAction_);
     connect(transformAction_, &QAction::triggered, this, [this] {
         beginLayerTransform(); // idempotent; Apply/Enter and Cancel/Escape own exit
         updateActionState();
     });
-    transformSelectionAction_=new QAction(tr("Transform Selection"),this);
+    transformSelectionAction_=i18n::make<QAction>(i18n::text("main.window.transform.selection"), this);
     transformSelectionAction_->setObjectName(QStringLiteral("TransformSelectionAction"));
-    transformSelectionAction_->setToolTip(tr("Transform the selection boundary without changing layer pixels"));
+    i18n::setToolTip(transformSelectionAction_, i18n::text("main.window.transform.the.selection.boundary.without.changing.layer.pixels"));
     registerEditorWindowAction(transformSelectionAction_);
     connect(transformSelectionAction_,&QAction::triggered,this,&MainWindow::beginSelectionTransform);
-    transformPixelsAction_=new QAction(tr("Transform Selected Pixels"),this);
+    transformPixelsAction_=i18n::make<QAction>(i18n::text("main.window.transform.selected.pixels"), this);
     transformPixelsAction_->setObjectName(QStringLiteral("TransformSelectedPixelsAction"));
     transformPixelsAction_->setShortcut(QKeySequence(QStringLiteral("Shift+T")));
-    transformPixelsAction_->setToolTip(tr("Cut and transform the selected raw pixels on the primary raster layer"));
+    i18n::setToolTip(transformPixelsAction_, i18n::text("main.window.cut.and.transform.the.selected.raw.pixels.on.the"));
     registerEditorWindowAction(transformPixelsAction_);
     connect(transformPixelsAction_,&QAction::triggered,this,&MainWindow::beginSelectedPixelTransform);
     createFillActions();
@@ -1831,29 +1835,29 @@ void MainWindow::createActions()
     });
 
     deleteLayerAction_ = new QAction(QIcon::fromTheme(QStringLiteral("edit-delete")),
-        QStringLiteral("Delete layer"), this);
-    deleteLayerAction_->setText(tr("Delete Selected Layers"));
+        i18n::text("main.window.delete.layer"), this);
+    i18n::setText(deleteLayerAction_, i18n::text("main.window.delete.selected.layers"));
     deleteLayerAction_->setObjectName(QStringLiteral("DeleteSelectedLayersAction"));
     deleteLayerAction_->setShortcut(QKeySequence(Qt::ShiftModifier | Qt::Key_Delete));
     deleteLayerAction_->setAutoRepeat(false);
     registerEditorWindowAction(deleteLayerAction_);
     connect(deleteLayerAction_, &QAction::triggered, this, &MainWindow::deleteActiveLayer);
 
-    auto* decreaseBrushSize = new QAction(QStringLiteral("Decrease brush size"), this);
+    auto* decreaseBrushSize = i18n::make<QAction>(i18n::text("main.window.decrease.brush.size"), this);
     decreaseBrushSize->setObjectName(QStringLiteral("DecreaseBrushSizeAction"));
     decreaseBrushSize->setShortcut(QKeySequence(QStringLiteral("[")));
     registerEditorWindowAction(decreaseBrushSize);
     connect(decreaseBrushSize, &QAction::triggered, this,
         [this] { adjustBrushSize(false); });
-    auto* increaseBrushSize = new QAction(QStringLiteral("Increase brush size"), this);
+    auto* increaseBrushSize = i18n::make<QAction>(i18n::text("main.window.increase.brush.size"), this);
     increaseBrushSize->setObjectName(QStringLiteral("IncreaseBrushSizeAction"));
     increaseBrushSize->setShortcut(QKeySequence(QStringLiteral("]")));
     registerEditorWindowAction(increaseBrushSize);
     connect(increaseBrushSize, &QAction::triggered, this,
         [this] { adjustBrushSize(true); });
-    layerOutlinesAction_ = new QAction(tr("Selected layer outlines"), this);
+    layerOutlinesAction_ = i18n::make<QAction>(i18n::text("main.window.selected.layer.outlines"), this);
     layerOutlinesAction_->setObjectName(QStringLiteral("ToggleLayerOutlinesAction"));
-    layerOutlinesAction_->setToolTip(tr("Show each selected layer's bounds in Move mode · O"));
+    i18n::setToolTip(layerOutlinesAction_, i18n::text("main.window.show.each.selected.layer.s.bounds.in.move.mode"));
     layerOutlinesAction_->setShortcut(QKeySequence(QStringLiteral("O")));
     layerOutlinesAction_->setAutoRepeat(false);
     layerOutlinesAction_->setCheckable(true);
@@ -1883,8 +1887,10 @@ void MainWindow::showPreferences()
         || (activeLayerMove_ && activeLayerMove_->dragging())) return;
     WorkspaceDialog presenter(*workspace_, *this);
     PreferencesDialog dialog(PreferencesState {currentThemeSettings(), canvasWindow_->advancedMeasurementReadout(),
-        canvasWindow_->layerOutlinesVisible(), collapseLayerSelectionOnEmptyClick_, shiftNudgePixels_, shortcuts_, toolHintPosition_}, &presenter);
+        canvasWindow_->layerOutlinesVisible(), collapseLayerSelectionOnEmptyClick_, shiftNudgePixels_, shortcuts_, toolHintPosition_,
+        i18n::Localization::instance().preference()}, &presenter);
     dialog.onPreview = [this](const PreferencesState& value) {
+        i18n::Localization::instance().requestLanguage(value.language);
         if (value.theme != currentThemeSettings()) {
             applyEditorTheme(*qApp, value.theme); refreshThemeAppearance();
         }
@@ -1898,6 +1904,7 @@ void MainWindow::showPreferences()
     };
     dialog.onApply = [](const PreferencesState& value) {
         QSettings settings;
+        settings.setValue(QStringLiteral("preferences/ui/language"), value.language);
         settings.setValue(QStringLiteral("preferences/measurement/advancedReadout"), value.advancedMeasurementReadout);
         settings.setValue(QStringLiteral("preferences/canvas/selectedLayerOutlines"), value.layerOutlinesVisible);
         settings.setValue(QStringLiteral("preferences/canvas/collapseLayerSelectionOnEmptyClick"), value.collapseLayerSelectionOnEmptyClick);
@@ -1950,21 +1957,19 @@ void MainWindow::showFeedback()
 
 void MainWindow::createMenus()
 {
-    auto* fileMenu = menuBar()->addMenu(QStringLiteral("&File"));
+    auto* fileMenu = i18n::addMenu(menuBar(), i18n::text("main.window.file"));
     fileMenu->setObjectName(QStringLiteral("FileMenu"));
     fileMenu->setProperty("availableDuringRefinement", true);
-    auto* newAction = fileMenu->addAction(QIcon::fromTheme(QStringLiteral("document-new")),
-        QStringLiteral("&New Document…"), this, &MainWindow::createNewDocument);
+    auto* newAction = i18n::addAction(fileMenu, QIcon::fromTheme(QStringLiteral("document-new")), i18n::text("main.window.new.document"), this, &MainWindow::createNewDocument);
     newAction->setShortcut(QKeySequence::New);
-    auto* openAction = fileMenu->addAction(QIcon::fromTheme(QStringLiteral("document-open")),
-        QStringLiteral("&Open…"), this, &MainWindow::openImage);
+    auto* openAction = i18n::addAction(fileMenu, QIcon::fromTheme(QStringLiteral("document-open")), i18n::text("main.window.open"), this, &MainWindow::openImage);
     openAction->setShortcut(QKeySequence::Open);
     openAction->setObjectName(QStringLiteral("OpenDocumentAction"));
     newAction->setObjectName(QStringLiteral("NewDocumentAction"));
-    auto* closeDocumentAction = fileMenu->addAction(tr("Close Document"), this, [this] { closeDocument(activeDocumentId()); });
+    auto* closeDocumentAction = i18n::addAction(fileMenu, i18n::text("main.window.close.document"), this, [this] { closeDocument(activeDocumentId()); });
     closeDocumentAction->setObjectName("CloseDocumentAction");
     for (const auto& pair : {std::pair{"NextDocumentAction", 1}, std::pair{"PreviousDocumentAction", -1}}) {
-        auto* action = new QAction(pair.second > 0 ? tr("Next document") : tr("Previous document"), this);
+        auto* action = i18n::make<QAction>(pair.second > 0 ? i18n::text("main.window.next.document") : i18n::text("main.window.previous.document"), this);
         action->setObjectName(pair.first);
         connect(action, &QAction::triggered, this, [this, direction=pair.second] {
             if (!documentTabs_ || documents_.size() < 2) return;
@@ -1974,36 +1979,34 @@ void MainWindow::createMenus()
             activateDocument(ids[std::size_t(next)]);
         });
     }
-    auto* save = fileMenu->addAction(QStringLiteral("&Save"), this, [this] { saveDocument(); });
+    auto* save = i18n::addAction(fileMenu, i18n::text("main.window.save"), this, [this] { saveDocument(); });
     save->setShortcut(QKeySequence::Save); save->setObjectName(QStringLiteral("SaveDocumentAction"));
     registerEditorWindowAction(save);
-    auto* saveAs = fileMenu->addAction(QStringLiteral("Save &As…"), this, [this] { saveDocument(true); });
+    auto* saveAs = i18n::addAction(fileMenu, i18n::text("main.window.save.as"), this, [this] { saveDocument(true); });
     saveAs->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+S")));
     saveAs->setObjectName(QStringLiteral("SaveDocumentAsAction")); registerEditorWindowAction(saveAs);
-    auto* exportAction = fileMenu->addAction(QIcon::fromTheme(QStringLiteral("document-export"),
-        toolGlyph(ToolGlyph::ExternalLink)), tr("Export…"), this, [this] { exportImage(); });
+    auto* exportAction = i18n::addAction(fileMenu, QIcon::fromTheme(QStringLiteral("document-export"),
+        toolGlyph(ToolGlyph::ExternalLink)), i18n::text("main.window.export"), this, [this] { exportImage(); });
     exportAction->setObjectName(QStringLiteral("ExportImageAction"));
     exportAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+E"))); registerEditorWindowAction(exportAction);
-    auto* exportAgain = fileMenu->addAction(QStringLiteral("Export Again…"), this, [this] { exportImage(true); });
+    auto* exportAgain = i18n::addAction(fileMenu, i18n::text("main.window.export.again"), this, [this] { exportImage(true); });
     exportAgain->setObjectName(QStringLiteral("ExportAgainAction"));
-    exportAgain->setToolTip(QStringLiteral("Reuse the last successful export settings; always confirm before replacing an existing image."));
+    i18n::setToolTip(exportAgain, i18n::text("main.window.reuse.the.last.successful.export.settings.always.confirm.before"));
     registerEditorWindowAction(exportAgain);
-    recentMenu_ = fileMenu->addMenu(QStringLiteral("Open &Recent"));
+    recentMenu_ = i18n::addMenu(fileMenu, i18n::text("main.window.open.recent"));
     connect(recentMenu_, &QMenu::aboutToShow, this, &MainWindow::refreshRecentMenu);
-    auto* importAction = fileMenu->addAction(QIcon::fromTheme(QStringLiteral("document-import")),
-        QStringLiteral("Import as Layer…"), this, &MainWindow::importImageAsLayer);
+    auto* importAction = i18n::addAction(fileMenu, QIcon::fromTheme(QStringLiteral("document-import")), i18n::text("main.window.import.as.layer"), this, &MainWindow::importImageAsLayer);
     importAction->setObjectName(QStringLiteral("ImportImageAction"));
     fileMenu->addSeparator();
-    auto* quitAction = fileMenu->addAction(QStringLiteral("Quit"), this, &QWidget::close);
+    auto* quitAction = i18n::addAction(fileMenu, i18n::text("main.window.quit"), this, &QWidget::close);
     quitAction->setObjectName(QStringLiteral("QuitAction"));
     quitAction->setShortcut(QKeySequence::Quit);
 
-    auto* editMenu = menuBar()->addMenu(QStringLiteral("&Edit"));
+    auto* editMenu = i18n::addMenu(menuBar(), i18n::text("main.window.edit"));
     editMenu->addAction(undoAction_);
     editMenu->addAction(redoAction_);
     editMenu->addSeparator();
-    auto* paste = editMenu->addAction(QIcon::fromTheme(QStringLiteral("edit-paste")),
-        QStringLiteral("Paste Image as Layer"), this, &MainWindow::pasteImageAsLayer);
+    auto* paste = i18n::addAction(editMenu, QIcon::fromTheme(QStringLiteral("edit-paste")), i18n::text("main.window.paste.image.as.layer"), this, &MainWindow::pasteImageAsLayer);
     paste->setObjectName(QStringLiteral("PasteImageAsLayerAction"));
     paste->setShortcut(QKeySequence::Paste);
     registerEditorWindowAction(paste);
@@ -2012,32 +2015,32 @@ void MainWindow::createMenus()
     editMenu->addAction(transformPixelsAction_);
     for (auto* fill : fillActions_) editMenu->addAction(fill);
     editMenu->addSeparator();
-    auto* addLayer = editMenu->addAction(toolGlyph(ToolGlyph::NewLayer),
-        QStringLiteral("New Raster Layer"), this, &MainWindow::addRasterLayer);
+    auto* addLayer = i18n::addAction(editMenu, toolGlyph(ToolGlyph::NewLayer), i18n::text("main.window.new.raster.layer"), this, &MainWindow::addRasterLayer);
     addLayer->setObjectName(QStringLiteral("NewRasterLayerAction"));
     addLayer->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+N")));
     editMenu->addAction(deleteLayerAction_);
     editMenu->addAction(selectionActions_[3]);
     editMenu->addSeparator();
-    auto* preferences = editMenu->addAction(tr("Preferences…"), this, &MainWindow::showPreferences);
+    auto* preferences = i18n::addAction(editMenu, toolGlyph(ToolGlyph::Preferences), i18n::text("main.window.preferences"), this, &MainWindow::showPreferences);
     preferences->setObjectName(QStringLiteral("PreferencesAction"));
 
-    auto* layerMenu=menuBar()->addMenu(QStringLiteral("&Layers"));
-    newAdjustmentLayerAction_=new QAction(toolGlyph(ToolGlyph::AdjustmentLayer),tr("New Adjustment Layer"),this);
+    auto* layerMenu=i18n::addMenu(menuBar(), i18n::text("main.window.layers.2"));
+    newAdjustmentLayerAction_=i18n::make<QAction>(toolGlyph(ToolGlyph::AdjustmentLayer),i18n::text("main.window.new.adjustment.layer"),this);
     newAdjustmentLayerAction_->setObjectName(QStringLiteral("NewAdjustmentLayerAction"));
     connect(newAdjustmentLayerAction_,&QAction::triggered,this,&MainWindow::addAdjustmentLayer);
     layerMenu->addAction(newAdjustmentLayerAction_);
-    editMenu->addAction(newAdjustmentLayerAction_);
     layerMenu->addAction(newFolderAction_);layerMenu->addAction(renameLayerAction_);
     layerMenu->addSeparator();layerMenu->addAction(groupLayersAction_);layerMenu->addAction(ungroupLayersAction_);
     layerMenu->addSeparator();layerMenu->addAction(mergeLayersAction_);
     layerMenu->addAction(rasterizeLayersAction_);
-    auto* maskMenu=layerMenu->addMenu(toolGlyph(ToolGlyph::LayerMask),tr("Layer Mask"));
+    auto* maskMenu=i18n::addMenu(layerMenu,i18n::text("main.window.layer.mask"));
+    maskMenu->setIcon(toolGlyph(ToolGlyph::LayerMask));
+    maskMenu->setObjectName(QStringLiteral("LayerMaskMenu"));
     for(auto* action:maskActions_)maskMenu->addAction(action);
     layerMenu->addSeparator();
     for (auto* action : layerVisibilityActions_) layerMenu->addAction(action);
 
-    auto* selectionMenu = menuBar()->addMenu(QStringLiteral("&Select"));
+    auto* selectionMenu = i18n::addMenu(menuBar(), i18n::text("main.window.select"));
     selectionMenu->setObjectName(QStringLiteral("SelectMenu"));
     connect(selectionMenu, &QMenu::aboutToShow, this, &MainWindow::refreshSelectionControls);
     for (std::size_t i = 0; i < 3; ++i) selectionMenu->addAction(selectionActions_[i]);
@@ -2050,18 +2053,17 @@ void MainWindow::createMenus()
     selectionMenu->addAction(transformSelectionAction_);
     selectionMenu->addAction(transformPixelsAction_);
 
-    auto* imageMenu = menuBar()->addMenu(QStringLiteral("&Image"));
-    auto* canvasSizeAction = imageMenu->addAction(
-        QStringLiteral("Change Canvas Size…"), this, &MainWindow::changeCanvasSize);
+    auto* imageMenu = i18n::addMenu(menuBar(), i18n::text("main.window.image"));
+    auto* canvasSizeAction = i18n::addAction(imageMenu, i18n::text("main.window.change.canvas.size"), this, &MainWindow::changeCanvasSize);
     canvasSizeAction->setObjectName(QStringLiteral("ChangeCanvasSizeAction"));
     canvasSizeAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+Alt+C")));
 
-    auto* viewMenu = menuBar()->addMenu(QStringLiteral("&View"));
-    snappingAction_ = viewMenu->addAction(tr("Snapping"));
+    auto* viewMenu = i18n::addMenu(menuBar(), i18n::text("main.window.view"));
+    snappingAction_ = i18n::addAction(viewMenu, i18n::text("main.window.snapping"));
     snappingAction_->setObjectName(QStringLiteral("SnappingAction"));
-    auto* snapTargets = viewMenu->addMenu(tr("Snap To"));
-    snapCanvasAction_ = snapTargets->addAction(tr("Canvas"));
-    snapLayersAction_ = snapTargets->addAction(tr("Layers"));
+    auto* snapTargets = i18n::addMenu(viewMenu, i18n::text("main.window.snap.to"));
+    snapCanvasAction_ = i18n::addAction(snapTargets, i18n::text("main.window.canvas"));
+    snapLayersAction_ = i18n::addAction(snapTargets, i18n::text("main.window.layers"));
     snapCanvasAction_->setObjectName(QStringLiteral("SnapCanvasAction"));
     snapLayersAction_->setObjectName(QStringLiteral("SnapLayersAction"));
     const std::array snapActions {snappingAction_, snapCanvasAction_, snapLayersAction_};
@@ -2088,26 +2090,26 @@ void MainWindow::createMenus()
     updateSnapping();
     viewMenu->addSeparator();
     pixelPreview_=std::make_unique<PixelPreview>();
-    pixelPreviewAction_=viewMenu->addAction(tr("Pixel Preview"));
+    pixelPreviewAction_=i18n::addAction(viewMenu, i18n::text("main.window.pixel.preview"));
     pixelPreviewAction_->setObjectName(QStringLiteral("PixelPreviewAction"));
     pixelPreviewAction_->setCheckable(true);
     pixelPreviewAction_->setShortcut(QKeySequence(Qt::ShiftModifier | Qt::Key_P));
     pixelPreviewAction_->setAutoRepeat(false);
     registerEditorWindowAction(pixelPreviewAction_);
-    pixelPreviewAction_->setToolTip(tr("Preview the native document pixels used by lossless PNG output; source layers remain editable."));
+    i18n::setToolTip(pixelPreviewAction_, i18n::text("main.window.preview.the.native.document.pixels.used.by.lossless.png"));
     auto* previewBadge = new QWidget(workspace_->panelOverlay());
     previewBadge->setObjectName(QStringLiteral("PixelPreviewBadge"));
     previewBadge->setAttribute(Qt::WA_StyledBackground);
     auto* badgeRow = new QHBoxLayout(previewBadge);
     badgeRow->setContentsMargins(10, 4, 4, 4);
     badgeRow->setSpacing(10);
-    auto* previewLabel = new QLabel(tr("Pixel Preview · Shift+P"), previewBadge);
+    auto* previewLabel = i18n::make<QLabel>(i18n::text("main.window.pixel.preview.shift.p"), previewBadge);
     previewLabel->setObjectName("PixelPreviewBadgeLabel");
     badgeRow->addWidget(previewLabel);
-    auto* exitPreview = new QPushButton(tr("Exit"), previewBadge);
+    auto* exitPreview = i18n::make<QPushButton>(i18n::text("main.window.exit"), previewBadge);
     exitPreview->setObjectName(QStringLiteral("ExitPixelPreview"));
     exitPreview->setFocusPolicy(Qt::NoFocus);
-    exitPreview->setToolTip(tr("Exit Pixel Preview · Shift+P"));
+    i18n::setToolTip(exitPreview, i18n::text("main.window.exit.pixel.preview.shift.p"));
     badgeRow->addWidget(exitPreview);
     connect(exitPreview, &QPushButton::clicked, this, [this] { pixelPreviewAction_->setChecked(false); });
     workspace_->setViewModeOverlay(previewBadge, false);
@@ -2127,7 +2129,7 @@ void MainWindow::createMenus()
         if (refinement_) return;
         if(!error.isEmpty()) {
             pixelPreviewAction_->setChecked(false);
-            statusBar()->showMessage(tr("Pixel Preview unavailable: %1. Source layers are unchanged.").arg(error),8000);
+            statusBar()->showMessage(i18n::text("main.window.pixel.preview.unavailable.1.source.layers.are.unchanged").arg(error),8000);
             return;
         }
         canvasWindow_->setPixelPreview(pixelPreviewAction_->isChecked(),std::move(pixels));
@@ -2140,9 +2142,9 @@ void MainWindow::createMenus()
     });
     if(persistWindowState_){QSettings settings;pixelPreviewAction_->setChecked(settings.value(QStringLiteral("view/pixelPreview"),false).toBool());}
     viewMenu->addAction(layerOutlinesAction_);
-    auto* rulersMenu = viewMenu->addMenu(QStringLiteral("Rulers"));
-    horizontalRulerAction_ = rulersMenu->addAction(QStringLiteral("Horizontal ruler"));
-    verticalRulerAction_ = rulersMenu->addAction(QStringLiteral("Vertical ruler"));
+    auto* rulersMenu = i18n::addMenu(viewMenu, i18n::text("main.window.rulers"));
+    horizontalRulerAction_ = i18n::addAction(rulersMenu, i18n::text("main.window.horizontal.ruler"));
+    verticalRulerAction_ = i18n::addAction(rulersMenu, i18n::text("main.window.vertical.ruler"));
     horizontalRulerAction_->setObjectName(QStringLiteral("ViewHorizontalRuler"));
     verticalRulerAction_->setObjectName(QStringLiteral("ViewVerticalRuler"));
     for (auto* action : {horizontalRulerAction_, verticalRulerAction_}) action->setCheckable(true);
@@ -2154,16 +2156,16 @@ void MainWindow::createMenus()
         verticalRulerAction_->setChecked(workspace_->rulerVisible(Qt::Vertical));
         refreshRulerView();
     };
-    const auto edgeMenu = [this, rulersMenu](Qt::Orientation axis, const QString& name, const QString& near, const QString& far) {
-        auto* menu = rulersMenu->addMenu(name);
-        menu->addAction(near, this, [this, axis] { workspace_->setRulerFarEdge(axis, false); });
-        menu->addAction(far, this, [this, axis] { workspace_->setRulerFarEdge(axis, true); });
+    const auto edgeMenu = [this, rulersMenu](Qt::Orientation axis, i18n::Message name, i18n::Message near, i18n::Message far) {
+        auto* menu = i18n::addMenu(rulersMenu, std::move(name));
+        menu->setObjectName(axis == Qt::Horizontal ? "HorizontalRulerPositionMenu" : "VerticalRulerPositionMenu");
+        i18n::addAction(menu, std::move(near), this, [this, axis] { workspace_->setRulerFarEdge(axis, false); });
+        i18n::addAction(menu, std::move(far), this, [this, axis] { workspace_->setRulerFarEdge(axis, true); });
     };
-    edgeMenu(Qt::Horizontal, QStringLiteral("Horizontal position"), QStringLiteral("Top"), QStringLiteral("Bottom"));
-    edgeMenu(Qt::Vertical, QStringLiteral("Vertical position"), QStringLiteral("Left"), QStringLiteral("Right"));
+    edgeMenu(Qt::Horizontal, i18n::text("main.window.horizontal.position"), i18n::text("main.window.top"), i18n::text("main.window.bottom"));
+    edgeMenu(Qt::Vertical, i18n::text("main.window.vertical.position"), i18n::text("main.window.left"), i18n::text("main.window.right"));
     viewMenu->addSeparator();
-    auto* fitAction = viewMenu->addAction(QStringLiteral("Fit Canvas"), this,
-        [this] { canvasWindow_->fitDocumentToView(); });
+    auto* fitAction = i18n::addAction(viewMenu, i18n::text("main.window.fit.canvas"), this, [this] { canvasWindow_->fitDocumentToView(); });
     fitAction->setObjectName(QStringLiteral("FitCanvasAction"));
     fitAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+0")));
     auto* actualAction = viewMenu->addAction(QStringLiteral("100%"), this,
@@ -2172,12 +2174,12 @@ void MainWindow::createMenus()
     actualAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+1")));
 
     viewMenu->addSeparator();
-    auto* panelsMenu = viewMenu->addMenu(QStringLiteral("Panels"));
-    colorPanelAction_ = panelsMenu->addAction(QStringLiteral("Color"));
-    swatchesPanelAction_ = panelsMenu->addAction(tr("Swatches"));
-    layersPanelAction_ = panelsMenu->addAction(QStringLiteral("Layers"));
-    propertiesPanelAction_ = panelsMenu->addAction(QStringLiteral("Properties"));
-    adjustmentsPanelAction_ = panelsMenu->addAction(QStringLiteral("Adjustments"));
+    auto* panelsMenu = i18n::addMenu(viewMenu, i18n::text("main.window.panels"));
+    colorPanelAction_ = i18n::addAction(panelsMenu, i18n::text("main.window.color"));
+    swatchesPanelAction_ = i18n::addAction(panelsMenu, i18n::text("main.window.swatches"));
+    layersPanelAction_ = i18n::addAction(panelsMenu, i18n::text("main.window.layers"));
+    propertiesPanelAction_ = i18n::addAction(panelsMenu, i18n::text("main.window.properties"));
+    adjustmentsPanelAction_ = i18n::addAction(panelsMenu, i18n::text("main.window.adjustments"));
     adjustmentsPanelAction_->setObjectName(QStringLiteral("AdjustmentsPanelVisibilityAction"));
     adjustmentsPanelAction_->setCheckable(true);
     adjustmentsPanelAction_->setChecked(true);
@@ -2188,9 +2190,9 @@ void MainWindow::createMenus()
             refreshAdjustmentPanel();refreshFiltersPanel();
         }
     });
-    auto* filtersMenu=menuBar()->addMenu(tr("Filters"));
+    auto* filtersMenu=i18n::addMenu(menuBar(), i18n::text("main.window.filters"));
     for(const auto type:core::allSpatialFilterTypes){
-        auto* action=filtersMenu->addAction(QString::fromUtf8(core::spatialFilterName(type).data()));
+        auto* action=i18n::addAction(filtersMenu, i18n::filterName(type));
         action->setObjectName(QStringLiteral("FilterAction_%1").arg(int(type)));
         connect(action,&QAction::triggered,this,[this,type]{
             capturedFilterRegionActive_=true;
@@ -2198,17 +2200,17 @@ void MainWindow::createMenus()
             refreshAdjustmentPanel();refreshFiltersPanel();adjustmentsPanel_->showFilter(type);
         });
     }
-    auto* helpMenu = menuBar()->addMenu(tr("&Help"));
+    auto* helpMenu = i18n::addMenu(menuBar(), i18n::text("main.window.help"));
     helpMenu->setObjectName(QStringLiteral("HelpMenu"));
     helpMenu->setProperty("availableDuringRefinement", true);
     // Intentionally no URL/action until the documentation site is available.
-    auto* documentation = helpMenu->addAction(tr("Documentation"));
+    auto* documentation = i18n::addAction(helpMenu, i18n::text("main.window.documentation"));
     documentation->setObjectName(QStringLiteral("DocumentationAction"));
-    documentation->setToolTip(tr("Documentation will be available here in a future update."));
-    auto* feedback = helpMenu->addAction(tr("Submit feedback / bug report…"), this, &MainWindow::showFeedback);
+    i18n::setToolTip(documentation, i18n::text("main.window.documentation.will.be.available.here.in.a.future.update"));
+    auto* feedback = i18n::addAction(helpMenu, i18n::text("main.window.submit.feedback.bug.report"), this, &MainWindow::showFeedback);
     feedback->setObjectName(QStringLiteral("FeedbackAction"));
     feedback->setEnabled(platform::ServiceConfig::load().enabled());
-    auto* about = helpMenu->addAction(tr("About Vulkana"), this, &MainWindow::showAbout);
+    auto* about = i18n::addAction(helpMenu, i18n::text("main.window.about.vulkana"), this, &MainWindow::showAbout);
     about->setObjectName(QStringLiteral("AboutVulkanaAction"));
     about->setMenuRole(QAction::AboutRole);
     colorPanelAction_->setObjectName(QStringLiteral("ColorPanelVisibilityAction"));
@@ -2237,13 +2239,13 @@ void MainWindow::createMenus()
     });
 
     viewMenu->addSeparator();
-    auto* toolRailMenu = viewMenu->addMenu(QStringLiteral("Tool Rail Position"));
+    auto* toolRailMenu = i18n::addMenu(viewMenu, i18n::text("main.window.tool.rail.position"));
     toolRailDockActions_ = new QActionGroup(this);
     toolRailDockActions_->setExclusive(true);
-    const auto addToolDockAction = [this, toolRailMenu](const QString& label,
+    const auto addToolDockAction = [this, toolRailMenu](const i18n::Message& label,
                                        const QString& objectName,
                                        ToolRailDockLocation location) {
-        auto* action = toolRailMenu->addAction(label);
+        auto* action = i18n::addAction(toolRailMenu, label);
         action->setObjectName(objectName);
         action->setCheckable(true);
         toolRailDockActions_->addAction(action);
@@ -2251,16 +2253,18 @@ void MainWindow::createMenus()
             [this, location] { setToolRailDockLocation(location); });
         return action;
     };
-    toolRailLeftAction_ = addToolDockAction(QStringLiteral("Left"),
-        QStringLiteral("ToolRailDockLeftAction"), ToolRailDockLocation::Left);
-    toolRailRightAction_ = addToolDockAction(QStringLiteral("Inside Right Panels"),
+    toolRailLeftAction_ = addToolDockAction(i18n::text("main.window.left"), QStringLiteral("ToolRailDockLeftAction"), ToolRailDockLocation::Left);
+    toolRailRightAction_ = addToolDockAction(i18n::text("main.window.inside.right.panels"),
         QStringLiteral("ToolRailDockRightAction"), ToolRailDockLocation::RightPanel);
-    toolRailTopAction_ = addToolDockAction(QStringLiteral("Top"),
-        QStringLiteral("ToolRailDockTopAction"), ToolRailDockLocation::Top);
-    toolRailBottomAction_ = addToolDockAction(QStringLiteral("Bottom"),
-        QStringLiteral("ToolRailDockBottomAction"), ToolRailDockLocation::Bottom);
+    toolRailTopAction_ = addToolDockAction(i18n::text("main.window.top"), QStringLiteral("ToolRailDockTopAction"), ToolRailDockLocation::Top);
+    toolRailBottomAction_ = addToolDockAction(i18n::text("main.window.bottom"), QStringLiteral("ToolRailDockBottomAction"), ToolRailDockLocation::Bottom);
     toolRailLeftAction_->setChecked(true);
-
+    // Reserve fallback-script ascent once, with this style's item padding.
+    // Switching language must not move the native canvas below the menu bar.
+    QTextLayout scripts(QString::fromUtf8("Ag العربية हिन्दी 中文 日本語 한국어"), menuBar()->font());
+    scripts.beginLayout(); const auto scriptLine = scripts.createLine(); scripts.endLayout();
+    const int menuPadding = menuBar()->sizeHint().height() - menuBar()->fontMetrics().height();
+    menuBar()->setFixedHeight(std::max(menuBar()->sizeHint().height(), int(std::ceil(scriptLine.height())) + std::max(17, menuPadding)));
 }
 
 void MainWindow::createToolOptionsBar()
@@ -2271,11 +2275,9 @@ void MainWindow::createToolOptionsBar()
     moveOptionsPage_ = new TransformOptionsPage(nullptr, TransformOptionsPage::Mode::Move);
     moveOptionsPage_->setTransformAction(transformAction_);
     transformOptionsPage_->setTransformAction(transformAction_);
-    toolOptionsBar_->registerToolPage(core::ToolId::Move, QStringLiteral("Move"), moveOptionsPage_);
-    toolOptionsBar_->registerToolPage(
-        core::ToolId::Transform, QStringLiteral("Transform"), transformOptionsPage_);
-    toolOptionsBar_->registerToolPage(
-        core::ToolId::Brush, QStringLiteral("Brush"), brushOptionsPage_);
+    toolOptionsBar_->registerToolPage(core::ToolId::Move, i18n::text("main.window.move"), moveOptionsPage_);
+    toolOptionsBar_->registerToolPage(core::ToolId::Transform, i18n::text("main.window.transform"), transformOptionsPage_);
+    toolOptionsBar_->registerToolPage(core::ToolId::Brush, i18n::text("main.window.brush"), brushOptionsPage_);
     addToolBar(Qt::TopToolBarArea, toolOptionsBar_);
     brushOptionsPage_->setBrushSettings(brushSettings_);
     toolOptionsBar_->setActiveTool(core::ToolId::Move);
@@ -2287,11 +2289,11 @@ void MainWindow::createToolOptionsBar()
     auto* textPage = new QWidget;
     auto* textRow = new QHBoxLayout(textPage);
     textRow->setContentsMargins(0, 0, 0, 0);
-    editTextButton_ = new ToolOptionsButton(QStringLiteral("EditText"), QStringLiteral("Edit text"),
-        QStringLiteral("Edit the selected text layer, including an empty layer"),
+    editTextButton_ = new ToolOptionsButton(QStringLiteral("EditText"), i18n::text("main.window.edit.text"),
+        i18n::text("main.window.edit.the.selected.text.layer.including.an.empty.layer"),
         ToolOptionsButton::Kind::Action, textPage);
     textRow->addWidget(editTextButton_);
-    toolOptionsBar_->registerToolPage(core::ToolId::Text, QStringLiteral("Text"), textPage);
+    toolOptionsBar_->registerToolPage(core::ToolId::Text, i18n::text("main.window.text"), textPage);
     connect(editTextButton_, &QToolButton::clicked, this, [this] {
         if (textController_ && session().activeLayer())
             textController_->editLayer(*session().activeLayer());
@@ -2313,46 +2315,36 @@ void MainWindow::createToolRail()
         [this](QWidget* source) { beginToolRailDockDrag(source); });
     toolRail_->addWidget(dragHandle);
 
-    toolAction(core::ToolId::Move, QStringLiteral("Move"), QStringLiteral("move"),
-        QKeySequence(QStringLiteral("V")));
-    toolAction(core::ToolId::Crop,QStringLiteral("Layer Crop"),QStringLiteral("crop"),QKeySequence(QStringLiteral("C")));
-    toolAction(core::ToolId::Marquee, QStringLiteral("Select"), QStringLiteral("marquee"),
-        QKeySequence(QStringLiteral("M")));
-    toolAction(core::ToolId::Lasso, QStringLiteral("Lasso"), QStringLiteral("lasso"),
-        QKeySequence(QStringLiteral("L")));
-    toolAction(core::ToolId::SelectByColor, QStringLiteral("Select by Color"), QStringLiteral("colorselect"),
+    toolAction(core::ToolId::Move, i18n::text("main.window.move"), QStringLiteral("move"), QKeySequence(QStringLiteral("V")));
+    toolAction(core::ToolId::Crop,i18n::text("main.window.layer.crop"),QStringLiteral("crop"),QKeySequence(QStringLiteral("C")));
+    toolAction(core::ToolId::Marquee, i18n::text("main.window.select.2"), QStringLiteral("marquee"), QKeySequence(QStringLiteral("M")));
+    toolAction(core::ToolId::Lasso, i18n::text("main.window.lasso"), QStringLiteral("lasso"), QKeySequence(QStringLiteral("L")));
+    toolAction(core::ToolId::SelectByColor, i18n::text("main.window.select.by.color"), QStringLiteral("colorselect"),
         QKeySequence(QStringLiteral("Shift+O")));
-    toolAction(core::ToolId::SmartSelect,QStringLiteral("Smart Select"),QStringLiteral("smartselect"),QKeySequence(QStringLiteral("W")));
+    toolAction(core::ToolId::SmartSelect,i18n::text("main.window.smart.select"),QStringLiteral("smartselect"),QKeySequence(QStringLiteral("W")));
     toolRail_->addSeparator();
-    toolAction(core::ToolId::Brush, QStringLiteral("Brush"), QStringLiteral("brush"),
-        QKeySequence(QStringLiteral("B")));
+    toolAction(core::ToolId::Brush, i18n::text("main.window.brush"), QStringLiteral("brush"), QKeySequence(QStringLiteral("B")));
     eraserAction_ = toolAction(core::ToolId::Eraser,
-        QStringLiteral("Erase mode"), QStringLiteral("eraser"),
+        i18n::text("main.window.erase.mode"), QStringLiteral("eraser"),
         QKeySequence(QStringLiteral("E")));
     eraserAction_->setAutoRepeat(false);
     brushOptionsPage_->setEraserAction(eraserAction_);
-    toolAction(core::ToolId::Cloning, QStringLiteral("Cloning"), QStringLiteral("cloning"),
-        QKeySequence(QStringLiteral("S")))->setIcon(toolGlyph(ToolGlyph::Cloning));
-    toolAction(core::ToolId::LocalBlur, QStringLiteral("Local Blur"), QStringLiteral("local_blur"),
+    toolAction(core::ToolId::Cloning, i18n::text("main.window.cloning"), QStringLiteral("cloning"), QKeySequence(QStringLiteral("S")))->setIcon(toolGlyph(ToolGlyph::Cloning));
+    toolAction(core::ToolId::LocalBlur, i18n::text("main.window.local.blur"), QStringLiteral("local_blur"),
         QKeySequence(QStringLiteral("K")))->setIcon(toolGlyph(ToolGlyph::LocalBlur));
-    toolAction(core::ToolId::Fill, QStringLiteral("Fill"), QStringLiteral("fill"),
-        QKeySequence(QStringLiteral("G")));
+    toolAction(core::ToolId::Fill, i18n::text("main.window.fill"), QStringLiteral("fill"), QKeySequence(QStringLiteral("G")));
     toolRail_->addSeparator();
-    toolAction(core::ToolId::Text, QStringLiteral("Text"), QStringLiteral("text"),
-        QKeySequence(QStringLiteral("T")));
-    toolAction(core::ToolId::Shape, QStringLiteral("Shape"), QStringLiteral("shape"),
-        QKeySequence(QStringLiteral("U")))->setIcon(toolGlyph(ToolGlyph::ShapeRectangle));
+    toolAction(core::ToolId::Text, i18n::text("main.window.text"), QStringLiteral("text"), QKeySequence(QStringLiteral("T")));
+    toolAction(core::ToolId::Shape, i18n::text("main.window.shape"), QStringLiteral("shape"), QKeySequence(QStringLiteral("U")))->setIcon(toolGlyph(ToolGlyph::ShapeRectangle));
     toolRail_->addSeparator();
-    auto* measure = toolAction(core::ToolId::Measure, QStringLiteral("Measure"), QStringLiteral("measure"),
-        QKeySequence(QStringLiteral("Shift+R")));
+    auto* measure = toolAction(core::ToolId::Measure, i18n::text("main.window.measure"), QStringLiteral("measure"), QKeySequence(QStringLiteral("Shift+R")));
     measure->setAutoRepeat(false);
-    measure->setToolTip(QStringLiteral("Measure (Shift+R) · Hold R for temporary measurement"));
-    toolAction(core::ToolId::Eyedropper, QStringLiteral("Eyedropper"), QStringLiteral("eyedropper"),
-        QKeySequence(QStringLiteral("I")));
+    i18n::setToolTip(measure, i18n::text("main.window.measure.shift.r.hold.r.for.temporary.measurement"));
+    toolAction(core::ToolId::Eyedropper, i18n::text("main.window.eyedropper"), QStringLiteral("eyedropper"), QKeySequence(QStringLiteral("I")));
     railColors_ = new ColorSelector(ColorSelector::Presentation::Compact, toolRail_);
     railColors_->onColorsChanged = [this](core::EditorColors colors) { setColors(colors); };
     toolRail_->addWidget(railColors_);
-    auto* swapColors = new QAction(QStringLiteral("Switch active color"), this);
+    auto* swapColors = i18n::make<QAction>(i18n::text("main.window.switch.active.color"), this);
     swapColors->setObjectName(QStringLiteral("SwapColorsAction"));
     swapColors->setShortcut(QKeySequence(QStringLiteral("X")));
     swapColors->setAutoRepeat(false);
@@ -2374,8 +2366,7 @@ void MainWindow::createDocks()
     colorPanel_ = new ColorPanel;
     colorPanel_->setColors(session().colors());
     colorPanel_->onColorsChanged = [this](core::EditorColors colors) { setColors(colors); };
-    colorPanelShell_ = new WorkspacePanel(
-        QStringLiteral("Color"), colorPanel_);
+    colorPanelShell_ = new WorkspacePanel(i18n::text("main.window.color"), colorPanel_);
     colorPanelShell_->setObjectName(QStringLiteral("ColorPanelShell"));
     colorPanelShell_->setHeightRange(
         uiLayoutConfig_.color.minimum, uiLayoutConfig_.color.maximum);
@@ -2385,7 +2376,7 @@ void MainWindow::createDocks()
     swatchesPanel_ = new SwatchesPanel;
     swatchesPanel_->setColors(session().colors());
     swatchesPanel_->onColorsChanged = [this](core::EditorColors colors) { setColors(colors); };
-    swatchesPanelShell_ = new WorkspacePanel(tr("Swatches"), swatchesPanel_);
+    swatchesPanelShell_ = new WorkspacePanel(i18n::text("main.window.swatches"), swatchesPanel_);
     swatchesPanelShell_->setObjectName(QStringLiteral("SwatchesPanelShell"));
     swatchesPanelShell_->setHeightRange(uiLayoutConfig_.swatches.minimum, uiLayoutConfig_.swatches.maximum);
     workspace_->addPanel(swatchesPanelShell_, OverlayDockWorkspace::PanelDockSide::Right);
@@ -2404,7 +2395,7 @@ void MainWindow::createDocks()
     auto* blendModeLayout = new QHBoxLayout(blendModeRow);
     blendModeLayout->setContentsMargins(0, 0, 0, 0);
     blendModeLayout->setSpacing(8);
-    auto* blendModeLabel = new QLabel(QStringLiteral("Blend Mode"));
+    auto* blendModeLabel = i18n::make<QLabel>(i18n::text("main.window.blend.mode"));
     blendModeLabel->setObjectName(QStringLiteral("LayerControlLabel"));
     blendModeLabel->setMinimumWidth(78);
     blendModeCombo_ = new QComboBox;
@@ -2412,8 +2403,7 @@ void MainWindow::createDocks()
     populateBlendModeCombo(*blendModeCombo_);
     blendModeCombo_->setCurrentIndex(0);
     blendModeCombo_->setEnabled(false);
-    blendModeCombo_->setToolTip(
-        QStringLiteral("How the active layer blends with visible layers underneath"));
+    i18n::setToolTip(blendModeCombo_, i18n::text("main.window.how.the.active.layer.blends.with.visible.layers.underneath"));
     blendModeLabel->setBuddy(blendModeCombo_);
     blendModeLayout->addWidget(blendModeLabel);
     blendModeLayout->addWidget(blendModeCombo_, 1);
@@ -2425,10 +2415,10 @@ void MainWindow::createDocks()
     opacitySlider_->setRange(0, 100);
     opacitySlider_->setSingleStep(1);
     opacitySlider_->setValue(100);
-    opacitySlider_->setPrefix(QStringLiteral("Opacity: "));
+    i18n::setPrefix(opacitySlider_, i18n::text("main.window.opacity"));
     opacitySlider_->setSuffix(QStringLiteral("%"));
-    opacitySlider_->setAccessibleName(QStringLiteral("Layer opacity"));
-    opacitySlider_->setToolTip(QStringLiteral("Layer opacity — drag, type a number, or use the arrows"));
+    i18n::setAccessibleName(opacitySlider_, i18n::text("main.window.layer.opacity"));
+    i18n::setToolTip(opacitySlider_, i18n::text("main.window.layer.opacity.drag.type.a.number.or.use.the"));
     opacitySlider_->setFixedHeight(30);
     opacitySlider_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     layerControlsLayout->addWidget(opacitySlider_);
@@ -2479,24 +2469,24 @@ void MainWindow::createDocks()
     buttonLayout->setSpacing(4);
     auto* addButton = new QPushButton(toolGlyph(ToolGlyph::NewLayer), QString());
     addButton->setObjectName(QStringLiteral("AddLayerButton"));
-    addButton->setToolTip(tr("Add raster layer"));
+    i18n::setToolTip(addButton, i18n::text("main.window.add.raster.layer"));
     deleteLayerButton_ = new QPushButton(toolGlyph(ToolGlyph::Trash), QString());
     deleteLayerButton_->setObjectName(QStringLiteral("DeleteLayerButton"));
-    deleteLayerButton_->setToolTip(tr("Delete selected layers"));
+    i18n::setToolTip(deleteLayerButton_, i18n::text("main.window.delete.selected.layers.2"));
     buttonLayout->addWidget(addButton);
     auto* folderButton=new QPushButton(toolGlyph(ToolGlyph::Folder),QString());
     folderButton->setObjectName(QStringLiteral("NewFolderButton"));
-    folderButton->setToolTip(QStringLiteral("New folder · organizes layers without changing compositing"));
+    i18n::setToolTip(folderButton, i18n::text("main.window.new.folder.organizes.layers.without.changing.compositing"));
     connect(folderButton,&QPushButton::clicked,newFolderAction_,&QAction::trigger);
     buttonLayout->addWidget(folderButton);
     addMaskButton_=new QPushButton(toolGlyph(ToolGlyph::LayerMask),QString());
     addMaskButton_->setObjectName(QStringLiteral("AddLayerMaskButton"));
-    addMaskButton_->setToolTip(tr("Add layer mask"));
+    i18n::setToolTip(addMaskButton_, i18n::text("main.window.add.layer.mask"));
     connect(addMaskButton_,&QPushButton::clicked,maskActions_[0],&QAction::trigger);
     buttonLayout->addWidget(addMaskButton_);
     effectsButton_ = new QPushButton(toolGlyph(ToolGlyph::Effects), QString());
     effectsButton_->setObjectName(QStringLiteral("LayerEffectsButton"));
-    effectsButton_->setToolTip(tr("Layer effects"));
+    i18n::setToolTip(effectsButton_, i18n::text("main.window.layer.effects"));
     buttonLayout->addWidget(effectsButton_);
     connect(effectsButton_, &QPushButton::clicked, this, [this] {
         auto* menu = new QMenu(this);
@@ -2504,7 +2494,7 @@ void MainWindow::createDocks()
         menu->setAttribute(Qt::WA_DeleteOnClose);
         for (std::size_t i = 0; i < core::layerEffectCount; ++i) {
             const auto type = core::LayerEffectType(i);
-            auto* action = menu->addAction(QString::fromUtf8(core::layerEffectName(type)));
+            auto* action = i18n::addAction(menu, i18n::effectName(type));
             action->setData(int(i));
             connect(action, &QAction::triggered, this, [this, type] {
                 adjustmentsPanelAction_->setChecked(true);
@@ -2517,7 +2507,7 @@ void MainWindow::createDocks()
     });
     auto* adjustmentButton=new QPushButton(toolGlyph(ToolGlyph::AdjustmentLayer),QString());
     adjustmentButton->setObjectName(QStringLiteral("AddAdjustmentLayerButton"));
-    adjustmentButton->setToolTip(tr("New adjustment layer"));
+    i18n::setToolTip(adjustmentButton, i18n::text("main.window.new.adjustment.layer.2"));
     connect(adjustmentButton,&QPushButton::clicked,newAdjustmentLayerAction_,&QAction::trigger);
     connect(newAdjustmentLayerAction_,&QAction::changed,adjustmentButton,[this,adjustmentButton]{adjustmentButton->setEnabled(newAdjustmentLayerAction_->isEnabled());});
     buttonLayout->addWidget(adjustmentButton);
@@ -2528,8 +2518,7 @@ void MainWindow::createDocks()
     buttonLayout->addStretch(1);
     buttonLayout->addWidget(deleteLayerButton_);
     layersLayout->addWidget(buttons);
-    layersPanelShell_ = new WorkspacePanel(
-        QStringLiteral("Layers"), layersBody);
+    layersPanelShell_ = new WorkspacePanel(i18n::text("main.window.layers"), layersBody);
     layersPanelShell_->setObjectName(QStringLiteral("LayersPanel"));
     layersPanelShell_->setHeightRange(
         uiLayoutConfig_.layers.minimum, uiLayoutConfig_.layers.maximum);
@@ -2538,8 +2527,7 @@ void MainWindow::createDocks()
 
     propertiesPanel_ = new PropertiesPanel(brushAssets_);
     propertiesPanel_->setBrushPresets(brushPresets_);
-    propertiesPanelShell_ = new WorkspacePanel(
-        QStringLiteral("Properties"), propertiesPanel_);
+    propertiesPanelShell_ = new WorkspacePanel(i18n::text("main.window.properties"), propertiesPanel_);
     propertiesPanelShell_->setObjectName(QStringLiteral("PropertiesPanelShell"));
     propertiesPanelShell_->setHeightRange(
         uiLayoutConfig_.properties.minimum,
@@ -2683,23 +2671,23 @@ void MainWindow::updateStatusNotification()
 void MainWindow::updateToolContextStatus()
 {
     if (!toolContextStatus_) return;
-    QString text, tooltip;
+    i18n::Message text, tooltip;
     // One stable contextual slot, independent of transient status messages and
     // selected-layer information. Future tools can contribute here as needed.
     if (session().activeTool() == core::ToolId::Cloning) {
         const auto* source = session().document() && cloneAnchor_
             ? session().document()->layer(cloneAnchor_->layer) : nullptr;
-        text = source ? tr("Source: %1").arg(QString::fromStdString(source->name))
-                      : tr("Alt-click to set a clone source");
-        tooltip = source ? text + tr("\nAlt-click sets a new source. Changing the destination keeps this anchor.")
-                         : tr("Select the source layer, then Alt-click a source point on the canvas.");
+        text = source ? i18n::text("main.window.source.1").arg(QString::fromStdString(source->name))
+                      : i18n::text("main.window.alt.click.to.set.a.clone.source");
+        tooltip = source ? text + i18n::text("main.window.alt.click.sets.a.new.source.changing.the.destination")
+                         : i18n::text("main.window.select.the.source.layer.then.alt.click.a.source");
         if (cloneSettings_.mode == core::CloneMode::SpotHeal) {
-            text = tr("Spot Heal · automatic source");
-            tooltip = tr("Mark a blemish or scratch and release to repair. No source anchor needed. Escape cancels.");
+            text = i18n::text("main.window.spot.heal.automatic.source");
+            tooltip = i18n::text("main.window.mark.a.blemish.or.scratch.and.release.to.repair");
         }
     }
-    if (toolContextStatus_->text() != text) toolContextStatus_->setText(text);
-    if (toolContextStatus_->toolTip() != tooltip) toolContextStatus_->setToolTip(tooltip);
+    i18n::setText(toolContextStatus_, text);
+    i18n::setToolTip(toolContextStatus_, tooltip);
 }
 
 void MainWindow::updatePanelAreaVisibility()
@@ -2991,8 +2979,8 @@ void MainWindow::createNewDocument()
         if (result != NewDocumentDialog::OpenImage && result != NewDocumentDialog::OpenProject
             && result != NewDocumentDialog::OpenRecent) return;
         const auto filePath = result == NewDocumentDialog::OpenRecent ? dialog.selectedRecentPath()
-            : QFileDialog::getOpenFileName(this, QStringLiteral("Open document"), openDocumentDirectory(),
-                result == NewDocumentDialog::OpenProject ? QStringLiteral("Vulkana project (*.vulkana)") : supportedImageFilter());
+            : QFileDialog::getOpenFileName(this, i18n::text("main.window.open.document"), openDocumentDirectory(),
+                result == NewDocumentDialog::OpenProject ? i18n::text("main.window.vulkana.project.vulkana") : supportedImageFilter());
         if (!filePath.isEmpty() && openImageFromPath(filePath)) return;
         dialog.refreshRecentFiles();
         // File-picker cancellation/failure returns to the user's size choices.
@@ -3011,7 +2999,7 @@ void MainWindow::createNewDocument()
         canvasWindow_->dismissLayerOutlines();
         updateDocumentTitle();
     } catch (const std::exception& exception) {
-        QMessageBox::critical(this, QStringLiteral("Unable to create document"),
+        QMessageBox::critical(this, i18n::text("main.window.unable.to.create.document"),
             QString::fromUtf8(exception.what()));
     }
 }
@@ -3041,19 +3029,19 @@ void MainWindow::changeCanvasSize()
         const auto after = dialog.canvasSpec();
         if (!executeDocumentCommand(
                 std::make_unique<core::ChangeCanvasSpecCommand>(after))) {
-            statusBar()->showMessage(QStringLiteral("Canvas size unchanged"), 2500);
+            statusBar()->showMessage(i18n::text("main.window.canvas.size.unchanged"), 2500);
             return;
         }
         fileState().untouched = false;
         synchronizeUi(false, false);
-        statusBar()->showMessage(QStringLiteral("Canvas changed from %1 × %2 to %3 × %4 px")
+        statusBar()->showMessage(i18n::text("main.window.canvas.changed.from.1.2.to.3.4.px")
                 .arg(before.extent.width)
                 .arg(before.extent.height)
                 .arg(after.extent.width)
                 .arg(after.extent.height),
             3500);
     } catch (const std::exception& exception) {
-        QMessageBox::critical(this, QStringLiteral("Unable to change canvas size"),
+        QMessageBox::critical(this, i18n::text("main.window.unable.to.change.canvas.size"),
             QString::fromUtf8(exception.what()));
     }
 }
@@ -3064,14 +3052,14 @@ void MainWindow::openImage()
     suspendRefinement();
     const auto restoreRefinement = qScopeGuard([this] { resumeRefinement(); });
     const auto paths = QFileDialog::getOpenFileNames(this,
-        QStringLiteral("Open document"), openDocumentDirectory(), documentOpenFilter());
+        i18n::text("main.window.open.document"), openDocumentDirectory(), documentOpenFilter());
     for (const auto& path : paths) openImageFromPath(path);
 }
 
 void MainWindow::importImageAsLayer()
 {
     const auto filePath = QFileDialog::getOpenFileName(this,
-        QStringLiteral("Import image as layer"), openDocumentDirectory(), supportedImageFilter());
+        i18n::text("main.window.import.image.as.layer"), openDocumentDirectory(), supportedImageFilter());
     if (!filePath.isEmpty()) {
         importImageAsLayerFromPath(filePath);
     }
@@ -3096,15 +3084,15 @@ bool MainWindow::importImageAsLayerFromPath(const QString& filePath)
 
     auto result = loadRasterLayer(filePath);
     if (!result) {
-        QMessageBox::critical(this, QStringLiteral("Unable to import image"), result.error);
+        QMessageBox::critical(this, i18n::text("main.window.unable.to.import.image"), result.error);
         return false;
     }
 
     const auto layerId = result.layer->id;
     if (!executeDocumentCommand(std::make_unique<core::AddLayerCommand>(
             std::move(*result.layer), document->layers().size(), session().activeLayer()))) {
-        QMessageBox::critical(this, QStringLiteral("Unable to import image"),
-            QStringLiteral("The image could not be added to the current document."));
+        QMessageBox::critical(this, i18n::text("main.window.unable.to.import.image"),
+            i18n::text("main.window.the.image.could.not.be.added.to.the.current"));
         return false;
     }
 
@@ -3112,7 +3100,7 @@ bool MainWindow::importImageAsLayerFromPath(const QString& filePath)
     fileState().untouched = false;
     synchronizeUi(true, false);
     statusBar()->showMessage(
-        QStringLiteral("Imported %1 as a new layer").arg(QFileInfo(filePath).fileName()), 3500);
+        i18n::text("main.window.imported.1.as.a.new.layer").arg(QFileInfo(filePath).fileName()), 3500);
     return true;
 }
 
@@ -3133,7 +3121,7 @@ void MainWindow::pasteImageAsLayer()
     session().setActiveLayer(id);
     fileState().untouched = false;
     synchronizeUi(true, false); // Keep document bounds and the current view.
-    statusBar()->showMessage(QStringLiteral("Pasted image as a new layer"), 3500);
+    statusBar()->showMessage(i18n::text("main.window.pasted.image.as.a.new.layer"), 3500);
 }
 
 void MainWindow::handleDroppedImages(const QStringList& filePaths)
@@ -4201,7 +4189,7 @@ void MainWindow::addRasterLayer()
             synchronizeUi(true, false);
         }
     } catch (const std::exception& exception) {
-        QMessageBox::critical(this, QStringLiteral("Unable to add layer"),
+        QMessageBox::critical(this, i18n::text("main.window.unable.to.add.layer"),
             QString::fromUtf8(exception.what()));
     }
 }
@@ -4252,7 +4240,7 @@ void MainWindow::setActiveTool(core::ToolId tool)
     if (found != toolActionMap_.end()) {
         found->second->setChecked(true);
     }
-    statusBar()->showMessage(QStringLiteral("%1 tool").arg(toolName(tool)), 1600);
+    statusBar()->showMessage(i18n::text("main.window.1.tool").arg(toolName(tool)), 1600);
     updateActionState();
 }
 
@@ -4358,11 +4346,11 @@ void MainWindow::updateLayerControls()
     // Containers organize pass-through content. They never gain an isolated
     // compositor or their own blend properties merely by being selected.
     if (container && blendModeCombo_->count() == int(core::allBlendModes.size()))
-        blendModeCombo_->addItem(QStringLiteral("Pass Through"));
+        i18n::addItem(blendModeCombo_, i18n::text("main.window.pass.through"));
     else if (!container && blendModeCombo_->count() > int(core::allBlendModes.size()))
         blendModeCombo_->removeItem(int(core::allBlendModes.size()));
     blendModeCombo_->setEnabled(active != nullptr && !fileBusy_);
-    opacitySlider_->setPrefix(active && std::holds_alternative<core::AdjustmentLayer>(active->payload)?tr("Strength: "):tr("Opacity: "));
+    i18n::setPrefix(opacitySlider_, active && std::holds_alternative<core::AdjustmentLayer>(active->payload)?i18n::text("main.window.strength"):i18n::text("main.window.opacity"));
     blendModeCombo_->setCurrentIndex(container ? int(core::allBlendModes.size())
         : blendModeCombo_->findData(int(active ? active->blendMode : core::BlendMode::Normal)));
     propertiesPanel_->setSelectedLayer(active, container);
@@ -4403,25 +4391,25 @@ void MainWindow::updateActionState()
         else if(session().activeLayer() && !layer)transformAction_->setEnabled(!session().document()->expandedLayers(items).empty());
     }
     editTextButton_->setEnabled(layer && std::holds_alternative<core::TextLayer>(layer->payload));
-    undoAction_->setText(history.canUndo()
-        ? QStringLiteral("Undo %1").arg(QString::fromUtf8(history.undoLabel()))
+    i18n::setText(undoAction_, history.canUndo()
+        ? i18n::text("main.window.undo.1").arg(i18n::Localization::instance().historyText(history.undoLabel()))
         : QStringLiteral("Undo"));
-    redoAction_->setText(history.canRedo()
-        ? QStringLiteral("Redo %1").arg(QString::fromUtf8(history.redoLabel()))
+    i18n::setText(redoAction_, history.canRedo()
+        ? i18n::text("main.window.redo.1").arg(i18n::Localization::instance().historyText(history.redoLabel()))
         : QStringLiteral("Redo"));
     if (selectionTransform_) {
         const auto& edit = *selectionTransform_;
         undoAction_->setEnabled(edit.checkpoint > 0 || edit.drag.has_value());
         redoAction_->setEnabled(edit.checkpoint + 1 < edit.checkpoints.size());
-        undoAction_->setText(edit.pixels?tr("Undo selected-pixel transform"):tr("Undo selection transform"));
-        redoAction_->setText(edit.pixels?tr("Redo selected-pixel transform"):tr("Redo selection transform"));
+        i18n::setText(undoAction_, edit.pixels?i18n::text("main.window.undo.selected.pixel.transform"):i18n::text("main.window.undo.selection.transform"));
+        i18n::setText(redoAction_, edit.pixels?i18n::text("main.window.redo.selected.pixel.transform"):i18n::text("main.window.redo.selection.transform"));
     }
     const bool selectionTool = core::isSelectionTool(session().activeTool());
     if (selectionTool) {
         const auto mask = session().document() ? session().document()->selection() : core::SelectionState{};
         transformAction_->setEnabled(mask && !mask->bounds().empty());
     }
-    transformAction_->setText(selectionTool || selectionTransform_ ? QStringLiteral("Transform selection") : QStringLiteral("Transform layer"));
+    i18n::setText(transformAction_, selectionTool || selectionTransform_ ? i18n::text("main.window.transform.selection.2") : i18n::text("main.window.transform.layer"));
     transformAction_->setChecked(layerTransform_ || selectionTransform_.has_value());
     transformSelectionAction_->setEnabled(hasActiveSelection && !session().document()->selection()->bounds().empty()
         && !fileBusy_ && !layerTransform_ && !selectionTransform_ && !layerCrop_);
@@ -4453,9 +4441,9 @@ void MainWindow::updateActionState()
     groupLayersAction_->setEnabled(session().document() && !session().selectedLayers().empty() && !fileBusy_);
     mergeLayersAction_->setEnabled(groupLayersAction_->isEnabled());
     clippingGroupAction_->setEnabled(groupLayersAction_->isEnabled());
-    clippingGroupAction_->setText(activeContainer && session().selectedLayers().size()==1 && core::isGroup(activeContainer->kind)
-        ? activeContainer->kind==core::ContainerKind::ClippingMaskGroup ? tr("Convert to Ordinary Group") : tr("Convert to Clipping Mask Group")
-        : tr("Add to Clipping Mask Group"));
+    i18n::setText(clippingGroupAction_, activeContainer && session().selectedLayers().size()==1 && core::isGroup(activeContainer->kind)
+        ? activeContainer->kind==core::ContainerKind::ClippingMaskGroup ? i18n::text("main.window.convert.to.ordinary.group") : i18n::text("main.window.convert.to.clipping.mask.group")
+        : i18n::text("main.window.add.to.clipping.mask.group"));
     rasterizeLayersAction_->setEnabled(groupLayersAction_->isEnabled());
     duplicateLayersAction_->setEnabled(groupLayersAction_->isEnabled());
     ungroupLayersAction_->setEnabled(activeContainer && core::isGroup(activeContainer->kind) && !fileBusy_);
@@ -4465,37 +4453,37 @@ void MainWindow::updateActionState()
     deleteLayerAction_->setEnabled(canDeleteLayer);
     if (deleteLayerButton_) {
         deleteLayerButton_->setEnabled(canDeleteLayer);
-        deleteLayerButton_->setToolTip(canDeleteLayer
-                ? QStringLiteral("Delete selected layers · %1").arg(shortcutLabel(shortcuts_, "DeleteSelectedLayersAction"))
-                : QStringLiteral("A document must keep at least one layer"));
+        i18n::setToolTip(deleteLayerButton_, canDeleteLayer
+                ? i18n::text("main.window.delete.selected.layers.1").arg(shortcutLabel(shortcuts_, "DeleteSelectedLayersAction"))
+                : i18n::text("main.window.a.document.must.keep.at.least.one.layer"));
     }
 }
 
 void MainWindow::updateStatusText()
 {
     if (!session().document()) {
-        documentStatus_->setText(QStringLiteral("No document"));
+        i18n::setText(documentStatus_, i18n::text("main.window.no.document"));
         documentStatus_->setToolTip(documentStatus_->text());
         zoomStatus_->clear();
         return;
     }
     const auto& canvas = session().document()->canvas();
     const auto layerCount = session().document()->layers().size();
-    documentStatus_->setText(QStringLiteral("%1 × %2 px  ·  %3 layer%4  ·  sRGB RGBA8")
+    auto status = i18n::text("main.window.1.2.px.3.layer.4.srgb.rgba8")
         .arg(canvas.extent.width)
         .arg(canvas.extent.height)
-        .arg(layerCount)
-        .arg(layerCount == 1 ? QString() : QStringLiteral("s")));
+        .arg(i18n::text("language.layers.count", int(layerCount)));
     if (const auto& selection = session().document()->selection()) {
         const auto bounds = selection->bounds();
-        documentStatus_->setText(documentStatus_->text() + (bounds.empty()
-            ? QStringLiteral("  ·  Empty selection — editing blocked")
-            : QStringLiteral("  ·  Selection %1 × %2 px").arg(bounds.width).arg(bounds.height)));
+        status += (bounds.empty()
+            ? i18n::text("main.window.empty.selection.editing.blocked")
+            : i18n::text("main.window.selection.1.2.px").arg(bounds.width).arg(bounds.height));
     }
-    if(session().editingLayerMask())documentStatus_->setText(documentStatus_->text()+tr("  ·  Editing MASK — white reveals / black hides"));
+    if(session().editingLayerMask())status += i18n::text("main.window.editing.mask.white.reveals.black.hides");
+    i18n::setText(documentStatus_, status);
     zoomStatus_->setText(QStringLiteral("%1%")
         .arg(static_cast<int>(std::lround(canvasWindow_->zoom() * 100.0))));
-    documentStatus_->setToolTip(documentStatus_->text());
+    i18n::setToolTip(documentStatus_, status);
 }
 
 void MainWindow::mutateRasterForUploadProbe()
@@ -4545,7 +4533,7 @@ void MainWindow::mutateRasterForUploadProbe()
 bool MainWindow::beginBrushStroke(const core::NormalizedPointerSample& sample)
 {
     if(session().editingLayerMask()&&session().activeTool()!=core::ToolId::Brush&&session().activeTool()!=core::ToolId::Eraser) {
-        statusBar()->showMessage(tr("Use Brush, Eraser or Fill on a layer mask. Click the content thumbnail for other pixel tools."),4000);return false;
+        statusBar()->showMessage(i18n::text("main.window.use.brush.eraser.or.fill.on.a.layer.mask"),4000);return false;
     }
     if(session().activeTool()==core::ToolId::LocalBlur)return beginLocalBlurStroke(sample);
     if(session().activeTool()==core::ToolId::Cloning)return beginCloneStroke(sample);
@@ -4559,7 +4547,7 @@ bool MainWindow::beginBrushStroke(const core::NormalizedPointerSample& sample)
     auto* layer = session().document()->layer(*session().activeLayer());
     if (!layer || (!session().editingLayerMask()&&!std::holds_alternative<core::RasterLayer>(layer->payload))) {
         statusBar()->showMessage(
-            QStringLiteral("Select a raster layer before painting"), 2500);
+            i18n::text("main.window.select.a.raster.layer.before.painting"), 2500);
         return false;
     }
     cancelActiveBrushStroke();
@@ -4591,8 +4579,8 @@ bool MainWindow::beginBrushStroke(const core::NormalizedPointerSample& sample)
         activeBrushStroke_.reset();
         activeMaskEdit_.reset();
         statusBar()->showMessage(limited
-            ? QStringLiteral("Stroke cancelled: too many source pixels at this layer scale. Reduce brush size or enlarge the layer.")
-            : QStringLiteral("Unable to begin brush stroke"), limited ? 6500 : 2500);
+            ? i18n::text("main.window.stroke.cancelled.too.many.source.pixels.at.this.layer")
+            : i18n::text("main.window.unable.to.begin.brush.stroke"), limited ? 6500 : 2500);
         return false;
     }
     if (const auto angle = activeBrushStroke_->lastResolvedTipAngleDegrees()) {
@@ -4652,8 +4640,8 @@ bool MainWindow::endBrushStroke(const core::NormalizedPointerSample& sample)
         synchronizeUi(false, false);
         const auto erasing = compositeMode == core::BrushCompositeMode::Erase;
         statusBar()->showMessage(
-            QStringLiteral("%1 stroke · %2 dabs · %3 dirty batches")
-                .arg(erasing ? QStringLiteral("Eraser") : QStringLiteral("Brush"))
+            i18n::text("main.window.1.stroke.2.dabs.3.dirty.batches")
+                .arg(erasing ? i18n::text("main.window.eraser") : i18n::text("main.window.brush"))
                 .arg(stats.emittedDabs)
                 .arg(stats.surfaceWriteBatches),
             1800);
@@ -4661,7 +4649,7 @@ bool MainWindow::endBrushStroke(const core::NormalizedPointerSample& sample)
     }
     canvasWindow_->scheduleFrame();
     updateActionState();
-    if (limited) statusBar()->showMessage(QStringLiteral("Stroke cancelled: too many source pixels at this layer scale. Reduce brush size or enlarge the layer."),6500);
+    if (limited) statusBar()->showMessage(i18n::text("main.window.stroke.cancelled.too.many.source.pixels.at.this.layer"),6500);
     return result == core::RasterEditCommitResult::NoChanges;
 }
 
@@ -4685,9 +4673,9 @@ void MainWindow::cancelActiveBrushStroke(bool preserveCompletedRepair)
     }
     updateActionState();
     statusBar()->showMessage(
-        limited ? QStringLiteral("Stroke cancelled: too many source pixels at this layer scale. Reduce brush size or enlarge the layer.")
-                : erasing ? QStringLiteral("Eraser stroke cancelled")
-                : QStringLiteral("Brush stroke cancelled"),
+        limited ? i18n::text("main.window.stroke.cancelled.too.many.source.pixels.at.this.layer")
+                : erasing ? i18n::text("main.window.eraser.stroke.cancelled")
+                : i18n::text("main.window.brush.stroke.cancelled"),
         limited ? 6500 : 1500);
 }
 
@@ -4707,7 +4695,7 @@ void MainWindow::adjustBrushSize(bool increase)
     brushSettings_.sizePixels = std::clamp(
         std::round(brushSettings_.sizePixels * factor), 1.0, 1000.0);
     applyBrushSettings(brushSettings_);
-    statusBar()->showMessage(QStringLiteral("Brush size: %1 px")
+    statusBar()->showMessage(i18n::text("main.window.brush.size.1.px")
             .arg(brushSettings_.sizePixels, 0, 'f', 0),
         900);
 }
@@ -4772,7 +4760,7 @@ void MainWindow::registerEditorWindowAction(QAction* action)
     }
 }
 
-QAction* MainWindow::toolAction(core::ToolId tool, const QString& name,
+QAction* MainWindow::toolAction(core::ToolId tool, const i18n::Message& name,
     const QString& iconName, const QKeySequence& shortcut)
 {
     auto* action = new QAction(tool==core::ToolId::Measure ? toolGlyph(ToolGlyph::Measure)
@@ -4783,6 +4771,7 @@ QAction* MainWindow::toolAction(core::ToolId tool, const QString& name,
         : tool==core::ToolId::Cloning ? toolGlyph(ToolGlyph::Cloning)
         : tool==core::ToolId::LocalBlur ? toolGlyph(ToolGlyph::LocalBlur)
         : themedIcon(QStringLiteral(":/icons/%1.svg").arg(iconName)), name, this);
+    i18n::setText(action, name);
     action->setObjectName(QStringLiteral("ToolAction_%1").arg(iconName));
     action->setCheckable(true);
     action->setShortcut(shortcut);

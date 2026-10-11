@@ -1,4 +1,5 @@
 #pragma once
+#include "imageeditor/ui/Localization.hpp"
 #include <QKeySequence>
 #include <QMap>
 #include <QStringList>
@@ -12,7 +13,8 @@ enum ShortcutContext : unsigned {
     EditorKeys = CanvasKeys | TransformKeys | ConstructionKeys | CurveKeys | LayerListKeys | ControlKeys | StrokeKeys
 };
 struct ShortcutDefinition {
-    QString id, label, category;
+    QString id;
+    i18n::Message label, category;
     QList<QKeySequence> defaults;
     unsigned contexts = EditorKeys;
     bool repeat = false;

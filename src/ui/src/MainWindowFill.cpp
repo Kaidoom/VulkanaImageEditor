@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
@@ -17,8 +18,8 @@ namespace imageeditor::ui {
 void MainWindow::createFillActions()
 {
     for (int i = 0; i < 2; ++i) {
-        auto* action = new QAction(
-            i ? QStringLiteral("Fill with Background") : QStringLiteral("Fill with Foreground"), this);
+        auto* action = i18n::make<QAction>(
+            i ? i18n::text("main.window.fill.fill.with.background") : i18n::text("main.window.fill.fill.with.foreground"), this);
         action->setObjectName(
             i ? QStringLiteral("FillBackgroundAction") : QStringLiteral("FillForegroundAction"));
         action->setShortcut(
@@ -37,8 +38,8 @@ void MainWindow::createFillControls()
     row->setContentsMargins(0, 0, 0, 0);
     row->setSpacing(8);
     row->addStretch();
-    row->addWidget(new QLabel(QStringLiteral("Fill mode"), page));
-    const auto toggle = [page, row](const QString& name, const QString& text, const QString& hint,
+    row->addWidget(i18n::make<QLabel>(i18n::text("main.window.fill.fill.mode"), page));
+    const auto toggle = [page, row](const QString& name, const i18n::Message& text, const i18n::Message& hint,
                             ToolGlyph glyph) {
         auto* b = new ToolOptionsButton(name, text, hint, ToolOptionsButton::Kind::Toggle, page,
             ToolOptionsButton::Presentation::Icon);
@@ -47,39 +48,36 @@ void MainWindow::createFillControls()
         return b;
     };
     auto* modes = new QButtonGroup(page);
-    auto* selection = toggle(QStringLiteral("FillModeSelection"), QStringLiteral("Selection / Layer"),
-        QStringLiteral(
-            "Selection / Layer — click to fill all selected coverage, or the layer inside the canvas"),
+    auto* selection = toggle(QStringLiteral("FillModeSelection"), i18n::text("main.window.fill.selection.or.layer"),
+        i18n::text("main.window.fill.selection.layer.click.to.fill.all.selected.coverage.or"),
         ToolGlyph::FillSelection);
-    auto* contiguous = toggle(QStringLiteral("FillModeContiguous"), QStringLiteral("Contiguous"),
-        QStringLiteral("Contiguous — click to fill a connected region on the active layer"),
+    auto* contiguous = toggle(QStringLiteral("FillModeContiguous"), i18n::text("main.window.fill.contiguous"),
+        i18n::text("main.window.fill.contiguous.click.to.fill.a.connected.region.on.the"),
         ToolGlyph::FillContiguous);
     modes->addButton(selection, 0);
     modes->addButton(contiguous, 1);
     selection->setChecked(true);
     const auto number
-        = [page, row](const QString& name, const QString& label, double maximum, double value) {
+        = [page, row](const QString& name, const i18n::Message& label, double maximum, double value) {
               auto* n = new CompactValueControl(page);
               n->setObjectName(name);
               n->setRange(0, maximum);
               n->setDecimals(0);
               n->setSingleStep(1);
               n->setValue(value);
-              n->setPrefix(label + QStringLiteral(": "));
-              n->setAccessibleName(label);
+              i18n::setPrefix(n, label + QStringLiteral(": "));
+              i18n::setAccessibleName(n, label);
               n->setFixedSize(144, 30);
               row->addWidget(n);
               return n;
           };
-    auto* opacity = number(QStringLiteral("FillOpacityControl"), QStringLiteral("Opacity"), 100, 100);
+    auto* opacity = number(QStringLiteral("FillOpacityControl"), i18n::text("main.window.fill.opacity"), 100, 100);
     opacity->setSuffix(QStringLiteral("%"));
-    opacity->setToolTip(
-        QStringLiteral("Fill opacity, combined once with color alpha and selection coverage"));
+    i18n::setToolTip(opacity, i18n::text("main.window.fill.fill.opacity.combined.once.with.color.alpha.and.selection"));
     connect(opacity, &QDoubleSpinBox::valueChanged, this,
         [this](double value) { fillOptions_.opacity = value / 100; });
-    auto* tolerance = number(QStringLiteral("FillToleranceControl"), QStringLiteral("Tolerance"), 255, 16);
-    tolerance->setToolTip(
-        QStringLiteral("Maximum seed-relative premultiplied RGBA difference · 0 exact · 255 all colors"));
+    auto* tolerance = number(QStringLiteral("FillToleranceControl"), i18n::text("main.window.fill.tolerance"), 255, 16);
+    i18n::setToolTip(tolerance, i18n::text("main.window.fill.maximum.seed.relative.premultiplied.rgba.difference.0.exact.255"));
     // Keep the cached control in its fixed slot in both modes. Disabling only
     // input preserves the centered group's geometry and the user's last value.
     tolerance->setEnabled(false);
@@ -91,7 +89,7 @@ void MainWindow::createFillControls()
         updateActionState();
     });
     row->addStretch();
-    toolOptionsBar_->registerToolPage(core::ToolId::Fill, QStringLiteral("Fill"), page);
+    toolOptionsBar_->registerToolPage(core::ToolId::Fill, i18n::text("main.window.fill.fill"), page);
     fillTimer_ = new QTimer(this);
     fillTimer_->setInterval(1);
     fillTimer_->setSingleShot(true);
@@ -111,9 +109,9 @@ void MainWindow::createEyedropperControls()
     for (int i = 0; i < 2; ++i) {
         auto* b = new ToolOptionsButton(
             i ? QStringLiteral("SampleActiveLayer") : QStringLiteral("SampleMergedVisible"),
-            i ? QStringLiteral("Active Layer") : QStringLiteral("Merged Visible"),
-            i ? QStringLiteral("Active Layer — sample its pixels without visibility or layer opacity")
-              : QStringLiteral("Merged Visible — sample the visible composited document"),
+            i ? i18n::text("main.window.fill.active.layer") : i18n::text("main.window.fill.merged.visible"),
+            i ? i18n::text("main.window.fill.active.layer.sample.its.pixels.without.visibility.or.layer")
+              : i18n::text("main.window.fill.merged.visible.sample.the.visible.composited.document"),
             ToolOptionsButton::Kind::Toggle, page, ToolOptionsButton::Presentation::Icon);
         b->setIcon(toolGlyph(i ? ToolGlyph::ActiveLayer : ToolGlyph::MergedVisible));
         b->setChecked(i == 0);
@@ -126,7 +124,7 @@ void MainWindow::createEyedropperControls()
         canvasWindow_->refreshColorSample();
     });
     row->addStretch();
-    toolOptionsBar_->registerToolPage(core::ToolId::Eyedropper, QStringLiteral("Eyedropper"), page);
+    toolOptionsBar_->registerToolPage(core::ToolId::Eyedropper, i18n::text("main.window.fill.eyedropper"), page);
 }
 void MainWindow::startFill(bool background, bool selectionOnly, core::Vec2d seed, bool eraseSelection)
 {
@@ -156,14 +154,12 @@ void MainWindow::startFill(bool background, bool selectionOnly, core::Vec2d seed
         auto* row = new QHBoxLayout(fillProgress_);
         row->setContentsMargins(0, 0, 0, 0);
         row->setSpacing(6);
-        row->addWidget(new QLabel(QStringLiteral("Updating pixels…"), fillProgress_));
+        row->addWidget(i18n::make<QLabel>(i18n::text("main.window.fill.updating.pixels"), fillProgress_));
         auto* progress = new QProgressBar(fillProgress_);
         progress->setRange(0, 0);
         progress->setFixedSize(80, 10);
         row->addWidget(progress);
-        auto* cancel = new ToolOptionsButton(QStringLiteral("FillCancel"), QStringLiteral("Cancel"),
-            QStringLiteral("Cancel fill and restore original pixels · Escape"),
-            ToolOptionsButton::Kind::Action, fillProgress_, ToolOptionsButton::Presentation::Status);
+        auto* cancel = new ToolOptionsButton(QStringLiteral("FillCancel"), i18n::text("main.window.fill.cancel"), i18n::text("main.window.fill.cancel.fill.and.restore.original.pixels.escape"), ToolOptionsButton::Kind::Action, fillProgress_, ToolOptionsButton::Presentation::Status);
         row->addWidget(cancel);
         connect(cancel, &QToolButton::clicked, this, &MainWindow::cancelFill);
         statusBar()->addPermanentWidget(fillProgress_);
@@ -203,9 +199,9 @@ void MainWindow::advanceFill()
     if (result == core::RasterEditCommitResult::Committed)
         fileState().untouched = false;
     synchronizeUi(false, false);
-    statusBar()->showMessage(!error.isEmpty() ? QStringLiteral("%1 failed: %2").arg(label, error)
-            : result == core::RasterEditCommitResult::Committed ? QStringLiteral("%1 applied").arg(label)
-                                                                : QStringLiteral("%1 made no changes").arg(label),
+    statusBar()->showMessage(!error.isEmpty() ? i18n::text("main.window.fill.1.failed.2").arg(label, error)
+            : result == core::RasterEditCommitResult::Committed ? i18n::text("main.window.fill.1.applied").arg(label)
+                                                                : i18n::text("main.window.fill.1.made.no.changes").arg(label),
         3500);
 }
 void MainWindow::cancelFill()
@@ -220,6 +216,6 @@ void MainWindow::cancelFill()
         fillProgress_->hide();
     canvasWindow_->scheduleFrame();
     updateActionState();
-    statusBar()->showMessage(QStringLiteral("Pixel edit cancelled"), 2500);
+    statusBar()->showMessage(i18n::text("main.window.fill.pixel.edit.cancelled"), 2500);
 }
 }

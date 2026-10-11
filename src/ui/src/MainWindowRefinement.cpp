@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/core/LayerMaskEdit.hpp"
 #include "imageeditor/core/LayerStructureCommands.hpp"
@@ -476,11 +477,11 @@ void MainWindow::beginRefinement(bool mask) {
     outer->setContentsMargins(10, 10, 10, 10);
     outer->setSpacing(6);
     auto *title =
-        new QLabel(mask ? tr("Refine Mask") : tr("Refine Selection"), r->panel);
+        i18n::make<QLabel>(mask ? i18n::text("main.window.refinement.refine.mask") : i18n::text("main.window.refinement.refine.selection"), r->panel);
     outer->addWidget(title);
     auto *target = new QLabel(
-        mask ? tr("Mask: %1").arg(QString::fromStdString(layer->name))
-             : tr("Selection"),
+        mask ? i18n::text("main.window.refinement.mask.1").arg(QString::fromStdString(layer->name))
+             : i18n::text("main.window.refinement.selection"),
         r->panel);
     target->setTextFormat(Qt::PlainText);
     target->setWordWrap(true);
@@ -497,34 +498,34 @@ void MainWindow::beginRefinement(bool mask) {
     form->setRowWrapPolicy(QFormLayout::WrapLongRows);
     scroll->setWidget(content);
     outer->addWidget(scroll, 1);
-    auto combo = [&](const QString &label, const QStringList &items,
+    auto combo = [&](const i18n::Message &label, const QList<i18n::Message> &items,
                      const char *name) {
       auto *c = new QComboBox(content);
       c->setObjectName(name);
       c->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
       c->setMinimumContentsLength(8);
       c->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
-      c->addItems(items);
-      form->addRow(label, c);
+      i18n::addItems(c, items);
+      i18n::addRow(form, label, c);
       return c;
     };
-    r->view = combo(tr("View"),
-                    {tr("Overlay"), tr("On Black"), tr("On White"),
-                     tr("Transparency"), tr("Grayscale Mask")},
+    r->view = combo(i18n::text("main.window.refinement.view"),
+                    {i18n::text("main.window.refinement.overlay"), i18n::text("main.window.refinement.on.black"), i18n::text("main.window.refinement.on.white"),
+                     i18n::text("main.window.refinement.transparency"), i18n::text("main.window.refinement.grayscale.mask")},
                     "RefineView");
-    auto number = [&](const QString &label, double low, double high,
+    auto number = [&](const i18n::Message &label, double low, double high,
                       double value, int decimals, const char *name) {
       auto *c = new CompactValueControl(content);
       c->setObjectName(name);
       c->setRange(low, high);
       c->setDecimals(decimals);
       c->setValue(value);
-      form->addRow(label, c);
+      i18n::addRow(form, label, c);
       return c;
     };
     r->overlayOpacity =
-        number(tr("Overlay opacity"), 0, 100, 50, 0, "RefineOverlayOpacity");
-    auto *original = new QPushButton(tr("Hold for Original"), content);
+        number(i18n::text("main.window.refinement.overlay.opacity"), 0, 100, 50, 0, "RefineOverlayOpacity");
+    auto *original = i18n::make<QPushButton>(i18n::text("main.window.refinement.hold.for.original"), content);
     form->addRow(original);
     connect(original, &QPushButton::pressed, this, [this, active] {
       if (active()) {
@@ -538,40 +539,37 @@ void MainWindow::beginRefinement(bool mask) {
         publishRefinementPreview();
       }
     });
-    r->region = new QCheckBox(tr("Show Refinement Region"), content);
+    r->region = i18n::make<QCheckBox>(i18n::text("main.window.refinement.show.refinement.region"), content);
     form->addRow(r->region);
     r->source =
-        combo(tr("Reference"), {tr("Merged Visible"), tr("Active Layer")},
+        combo(i18n::text("main.window.refinement.reference"), {i18n::text("main.window.refinement.merged.visible"), i18n::text("main.window.refinement.active.layer")},
               "RefineReference");
-    r->source->setToolTip(
-        tr("Merged Visible uses the visible composition. Active Layer uses the "
-           "layer in isolation, without its visibility, opacity or blend mode. "
-           "Refine Mask bypasses only the target mask in this reference."));
+    i18n::setToolTip(r->source, i18n::text("main.window.refinement.merged.visible.uses.the.visible.composition.active.layer.uses"));
     if (layer &&
         !std::holds_alternative<core::AdjustmentLayer>(layer->payload) && mask)
       r->source->setCurrentIndex(1);
     if (!layer || std::holds_alternative<core::AdjustmentLayer>(layer->payload))
       r->source->setItemData(1, 0, Qt::UserRole - 1);
-    form->addRow(new QLabel(tr("Edge Refinement"), content));
+    form->addRow(i18n::make<QLabel>(i18n::text("main.window.refinement.edge.refinement"), content));
     r->settings[0] =
-        number(tr("Radius (px)"), 0, core::RefinementSettings::maximumRadius, 0,
+        number(i18n::text("main.window.refinement.radius.px"), 0, core::RefinementSettings::maximumRadius, 0,
                1, "RefineRadius");
-    form->addRow(new QLabel(tr("Global Refinement"), content));
-    r->settings[1] = number(tr("Smooth"), 0, 12, 0, 1, "RefineSmooth");
-    r->settings[2] = number(tr("Feather (px)"), 0, 64, 0, 1, "RefineFeather");
-    r->settings[3] = number(tr("Contrast (%)"), 0, 100, 0, 1, "RefineContrast");
+    form->addRow(i18n::make<QLabel>(i18n::text("main.window.refinement.global.refinement"), content));
+    r->settings[1] = number(i18n::text("main.window.refinement.smooth"), 0, 12, 0, 1, "RefineSmooth");
+    r->settings[2] = number(i18n::text("main.window.refinement.feather.px"), 0, 64, 0, 1, "RefineFeather");
+    r->settings[3] = number(i18n::text("main.window.refinement.contrast"), 0, 100, 0, 1, "RefineContrast");
     r->settings[4] =
-        number(tr("Shift Edge (px)"), -64, 64, 0, 1, "RefineShift");
+        number(i18n::text("main.window.refinement.shift.edge.px"), -64, 64, 0, 1, "RefineShift");
     auto *brush =
-        combo(tr("Brush"),
-              {tr("Refine Edge"), tr("Add Coverage"), tr("Subtract Coverage")},
+        combo(i18n::text("main.window.refinement.brush"),
+              {i18n::text("main.window.refinement.refine.edge"), i18n::text("main.window.refinement.add.coverage"), i18n::text("main.window.refinement.subtract.coverage")},
               "RefineBrush");
-    auto *size = number(tr("Size (px)"), 1, 2000, r->brush.sizePixels, 1,
+    auto *size = number(i18n::text("main.window.refinement.size.px"), 1, 2000, r->brush.sizePixels, 1,
                         "RefineBrushSize");
     r->brushSize = size;
-    auto *hardness = number(tr("Hardness (%)"), 0, 100, r->brush.hardness * 100,
+    auto *hardness = number(i18n::text("main.window.refinement.hardness"), 0, 100, r->brush.hardness * 100,
                             0, "RefineBrushHardness");
-    auto *strength = number(tr("Strength (%)"), 1, 100, r->brush.opacity * 100,
+    auto *strength = number(i18n::text("main.window.refinement.strength"), 1, 100, r->brush.opacity * 100,
                             0, "RefineBrushStrength");
     r->output = new QComboBox(r->panel);
     r->output->setObjectName("RefineOutput");
@@ -579,36 +577,32 @@ void MainWindow::beginRefinement(bool mask) {
         QComboBox::AdjustToMinimumContentsLengthWithIcon);
     r->output->setMinimumContentsLength(8);
     r->output->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
-    r->output->addItem(tr("Selection"));
+    i18n::addItem(r->output, i18n::text("main.window.refinement.selection"));
     if (layer) {
-      r->output->addItem(
-          layer->mask
-              ? tr("Replace Layer Mask — %1")
+      i18n::addItem(r->output, layer->mask
+              ? i18n::text("main.window.refinement.replace.layer.mask.1")
                     .arg(QString::fromStdString(layer->name))
-              : tr("Layer Mask — %1").arg(QString::fromStdString(layer->name)));
-      r->output->addItem(tr("New Layer with Mask — original kept"));
+              : i18n::text("main.window.refinement.layer.mask.1").arg(QString::fromStdString(layer->name)));
+      i18n::addItem(r->output, i18n::text("main.window.refinement.new.layer.with.mask.original.kept"));
     }
     r->output->setCurrentIndex(mask ? 1 : 0);
-    auto *hint = new QLabel(
-        tr("Refine Edge analyzes the brushed region. Add/Subtract corrections "
-           "are applied last. Source colors stay unchanged."),
-        content);
+    auto *hint = i18n::make<QLabel>(i18n::text("main.window.refinement.refine.edge.analyzes.the.brushed.region.add.subtract.corrections"), content);
     hint->setWordWrap(true);
     form->addRow(hint);
     auto *outputRow = new QHBoxLayout;
-    outputRow->addWidget(new QLabel(tr("Output"), r->panel));
+    outputRow->addWidget(i18n::make<QLabel>(i18n::text("main.window.refinement.output"), r->panel));
     outputRow->addWidget(r->output, 1);
     outer->addLayout(outputRow);
-    r->status = new QLabel(tr("Preparing reference…"), r->panel);
+    r->status = i18n::make<QLabel>(i18n::text("main.window.refinement.preparing.reference"), r->panel);
     r->status->setTextFormat(Qt::PlainText);
     r->status->setObjectName("RefineStatus");
     r->status->setWordWrap(true);
     r->status->setMinimumHeight(38);
     outer->addWidget(r->status);
     auto *row = new QHBoxLayout;
-    auto *reset = new QPushButton(tr("Reset"), r->panel);
-    auto *cancel = new QPushButton(tr("Cancel"), r->panel);
-    r->apply = new QPushButton(tr("Apply"), r->panel);
+    auto *reset = i18n::make<QPushButton>(i18n::text("main.window.refinement.reset"), r->panel);
+    auto *cancel = i18n::make<QPushButton>(i18n::text("main.window.refinement.cancel"), r->panel);
+    r->apply = i18n::make<QPushButton>(i18n::text("main.window.refinement.apply"), r->panel);
     r->apply->setObjectName("RefineApply");
     cancel->setObjectName("RefineCancel");
     reset->setObjectName("RefineReset");
@@ -720,7 +714,7 @@ void MainWindow::beginRefinement(bool mask) {
   } catch (const std::exception &e) {
     discardRefinement(activeDocumentId());
     statusBar()->showMessage(
-        tr("Cannot refine: %1").arg(QString::fromUtf8(e.what())), 6000);
+        i18n::text("main.window.refinement.cannot.refine.1").arg(QString::fromUtf8(e.what())), 6000);
   }
 }
 void MainWindow::requestRefinement() {
@@ -733,12 +727,12 @@ void MainWindow::requestRefinement() {
   if (r.cancel)
     *r.cancel = true;
   r.apply->setEnabled(false);
-  r.status->setText(tr("Refining…"));
+  i18n::setText(r.status, i18n::text("main.window.refinement.refining"));
   r.timer->start(30);
   undoAction_->setEnabled(r.checkpoint > 0);
   redoAction_->setEnabled(r.checkpoint + 1 < r.history.size());
-  undoAction_->setText(tr("Undo refinement"));
-  redoAction_->setText(tr("Redo refinement"));
+  i18n::setText(undoAction_, i18n::text("main.window.refinement.undo.refinement"));
+  i18n::setText(redoAction_, i18n::text("main.window.refinement.redo.refinement"));
 }
 void MainWindow::advanceRefinement() {
   if (!refinement_)
@@ -751,7 +745,7 @@ void MainWindow::advanceRefinement() {
   if (!r.current(*this)) {
     finishRefinement(false);
     statusBar()->showMessage(
-        tr("Refinement cancelled because its target changed."), 5000);
+        i18n::text("main.window.refinement.refinement.cancelled.because.its.target.changed"), 5000);
     return;
   }
   if (r.worker.valid()) {
@@ -770,18 +764,14 @@ void MainWindow::advanceRefinement() {
         r.apply->setEnabled(bool(r.result.refined.coverage) &&
                             !r.path.active());
         const auto &stats = r.result.refined;
-        r.status->setText(
-            !r.result.referenceError.isEmpty()
-                ? tr("Global refinements available. Reference: %1")
+        i18n::setText(r.status, !r.result.referenceError.isEmpty()
+                ? i18n::text("main.window.refinement.global.refinements.available.reference.1")
                       .arg(r.result.referenceError)
             : stats.unresolvedPixels
-                ? tr("Ready · limited color evidence in %1 boundary pixels; "
-                     "original coverage retained there.")
+                ? i18n::text("main.window.refinement.ready.limited.color.evidence.in.1.boundary.pixels.original")
                       .arg(qulonglong(stats.unresolvedPixels))
-                : tr("Ready"));
-        r.status->setToolTip(
-            tr("Reference %1 ms · analysis %2 ms · global %3 ms · corrections "
-               "%4 ms · working limit %5 MiB")
+                : i18n::text("main.window.refinement.ready"));
+        i18n::setToolTip(r.status, i18n::text("main.window.refinement.reference.1.ms.analysis.2.ms.global.3.ms")
                 .arg(r.result.preparationMs, 0, 'f', 1)
                 .arg(stats.analysisMs, 0, 'f', 1)
                 .arg(stats.globalMs, 0, 'f', 1)
@@ -1086,7 +1076,7 @@ bool MainWindow::refinementBrush(const core::NormalizedPointerSample &sample,
   } catch (const std::exception &e) {
     r.path.cancel();
     statusBar()->showMessage(
-        tr("Stroke cancelled: %1").arg(QString::fromUtf8(e.what())), 6000);
+        i18n::text("main.window.refinement.stroke.cancelled.1").arg(QString::fromUtf8(e.what())), 6000);
   }
   requestRefinement();
   return true;
@@ -1167,7 +1157,7 @@ void MainWindow::resumeRefinement() {
   if (!r->current(*this)) {
     discardRefinement(r->instance);
     statusBar()->showMessage(
-        tr("Refinement cancelled because its target changed."), 5000);
+        i18n::text("main.window.refinement.refinement.cancelled.because.its.target.changed"), 5000);
     return;
   }
   r->oldTool = session().activeTool();
@@ -1196,8 +1186,8 @@ void MainWindow::resumeRefinement() {
   pixelPreview_->setEnabled(false);
   undoAction_->setEnabled(r->checkpoint > 0);
   redoAction_->setEnabled(r->checkpoint + 1 < r->history.size());
-  undoAction_->setText(tr("Undo refinement"));
-  redoAction_->setText(tr("Redo refinement"));
+  i18n::setText(undoAction_, i18n::text("main.window.refinement.undo.refinement"));
+  i18n::setText(redoAction_, i18n::text("main.window.refinement.redo.refinement"));
   if (r->dirty || r->worker.valid())
     r->timer->start(0);
   publishRefinementPreview();
@@ -1277,14 +1267,13 @@ bool MainWindow::guardRefinement(DocumentInstanceId id) {
     discard = fileInteractions_.confirmCancelRefinement(names.join(", "));
   else {
     QMessageBox question(
-        QMessageBox::Question, tr("Discard refinement?"),
-        tr("Discard unfinished refinement in %1 and continue?\n"
-           "Your document content will be kept.")
+        QMessageBox::Question, i18n::text("main.window.refinement.discard.refinement"),
+        i18n::text("main.window.refinement.discard.unfinished.refinement.in.1.and.continue.your.document")
             .arg(names.join(", ")),
         QMessageBox::Discard | QMessageBox::Cancel, this);
     question.setTextFormat(Qt::PlainText);
-    question.button(QMessageBox::Discard)->setText(tr("Discard refinement"));
-    question.button(QMessageBox::Cancel)->setText(tr("Keep refining"));
+    question.button(QMessageBox::Discard)->setText(i18n::text("main.window.refinement.discard.refinement.2"));
+    question.button(QMessageBox::Cancel)->setText(i18n::text("main.window.refinement.keep.refining"));
     question.setDefaultButton(QMessageBox::Cancel);
     discard = question.exec() == QMessageBox::Discard;
   }
@@ -1307,7 +1296,7 @@ void MainWindow::finishRefinement(bool apply) {
       c->finishEditing();
     if (!r->current(*this) || r->dirty || r->worker.valid() || r->failed ||
         r->path.active() || !r->result.refined.coverage) {
-      r->status->setText(tr("Wait for refinement to finish before applying."));
+      i18n::setText(r->status, i18n::text("main.window.refinement.wait.for.refinement.to.finish.before.applying"));
       return;
     }
     try {
@@ -1325,7 +1314,7 @@ void MainWindow::finishRefinement(bool apply) {
         if (!r->result.duplicate)
           throw std::runtime_error("The new layer is not ready.");
         auto transfer = *r->result.duplicate;
-        transfer.layers.front().name += tr(" refined").toStdString();
+        transfer.layers.front().name += i18n::text("main.window.refinement.refined").toStdString();
         transfer.layers.front().mask = r->result.mask;
         auto placement = *r->owner->tree().placement(r->target);
         ++placement.index;
@@ -1337,8 +1326,7 @@ void MainWindow::finishRefinement(bool apply) {
       if (changed && r->output->currentIndex() != 0)
         fileState().untouched = false;
     } catch (const std::exception &e) {
-      r->status->setText(
-          tr("Could not apply: %1").arg(QString::fromUtf8(e.what())));
+      i18n::setText(r->status, i18n::text("main.window.refinement.could.not.apply.1").arg(QString::fromUtf8(e.what())));
       return;
     }
   }

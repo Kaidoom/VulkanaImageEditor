@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/TextController.hpp"
 #include "imageeditor/core/ColorSampler.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
@@ -187,7 +188,7 @@ void TextController::createOverlay()
     };
     family_->setObjectName(QStringLiteral("TextFamily"));
     family_->setFixedWidth(164);
-    family_->setToolTip(QStringLiteral("Font family • selected characters or insertion style"));
+    i18n::setToolTip(family_, i18n::text("text.controller.font.family.selected.characters.or.insertion.style"));
     row->addWidget(family_);
     auto* styleBox = new TextStyleBox(overlay_);
     styles_ = styleBox;
@@ -199,34 +200,34 @@ void TextController::createOverlay()
     size_->setObjectName(QStringLiteral("TextSize"));
     size_->setRange(.25, 2048);
     size_->setDecimals(2);
-    size_->setSuffix(QStringLiteral(" px"));
+    i18n::setSuffix(size_, i18n::text("text.controller.px"));
     size_->setFixedWidth(100);
-    size_->setToolTip(QStringLiteral("Font size in document pixels"));
+    i18n::setToolTip(size_, i18n::text("text.controller.font.size.in.document.pixels"));
     row->addWidget(size_);
-    auto button = [&](const char* name, const QString& label, const QString& hint) {
+    auto button = [&](const char* name, const i18n::Message& label, const i18n::Message& hint) {
         auto* b = new ToolOptionsButton(
             QString::fromLatin1(name), label, hint, ToolOptionsButton::Kind::Toggle, overlay_);
         b->setFocusPolicy(Qt::NoFocus);
         row->addWidget(b);
         return b;
     };
-    bold_ = button("TextBold", QStringLiteral("B"), QStringLiteral("Bold"));
-    italic_ = button("TextItalic", QStringLiteral("I"), QStringLiteral("Italic"));
+    bold_ = button("TextBold", QStringLiteral("B"), i18n::text("text.controller.bold"));
+    italic_ = button("TextItalic", QStringLiteral("I"), i18n::text("text.controller.italic"));
+    i18n::setAccessibleName(bold_, i18n::text("text.controller.bold"));
+    i18n::setAccessibleName(italic_, i18n::text("text.controller.italic"));
     alignLeft_ = button(
-        "TextAlignLeft", QStringLiteral("≡←"), QStringLiteral("Align current paragraphs left"));
+        "TextAlignLeft", QStringLiteral("≡←"), i18n::text("text.controller.align.current.paragraphs.left"));
     alignCenter_ = button(
-        "TextAlignCenter", QStringLiteral("≡"), QStringLiteral("Align current paragraphs center"));
+        "TextAlignCenter", QStringLiteral("≡"), i18n::text("text.controller.align.current.paragraphs.center"));
     alignRight_ = button(
-        "TextAlignRight", QStringLiteral("→≡"), QStringLiteral("Align current paragraphs right"));
+        "TextAlignRight", QStringLiteral("→≡"), i18n::text("text.controller.align.current.paragraphs.right"));
     color_ = new QPushButton(overlay_);
     color_->setObjectName(QStringLiteral("TextColor"));
     color_->setFixedSize(76, 30);
     color_->setFocusPolicy(Qt::NoFocus);
-    color_->setToolTip(QStringLiteral("Text color • independent of the global colors"));
+    i18n::setToolTip(color_, i18n::text("text.controller.text.color.independent.of.the.global.colors"));
     row->addWidget(color_);
-    auto* done = new ToolOptionsButton(QStringLiteral("TextDone"), QStringLiteral("Done"),
-        QStringLiteral("Finish editing ({{FinishTextAction}}). Enter inserts a new line."),
-        ToolOptionsButton::Kind::Action, overlay_);
+    auto* done = new ToolOptionsButton(QStringLiteral("TextDone"), i18n::text("text.controller.done"), i18n::text("text.controller.finish.editing.finishtextaction.enter.inserts.a.new.line"), ToolOptionsButton::Kind::Action, overlay_);
     done->setFocusPolicy(Qt::NoFocus);
     row->addWidget(done);
     connect(done, &QToolButton::clicked, this, [this] { finish(); });
@@ -556,7 +557,7 @@ bool TextController::settleCreationHistory()
             }
             if (!published) {
                 if (onError)
-                    onError(QStringLiteral("Unable to finish text history; keep editing and retry."));
+                    onError(i18n::text("text.controller.unable.to.finish.text.history.keep.editing.and.retry"));
                 return false;
             }
         } else if (layer) {
@@ -785,7 +786,7 @@ void TextController::replaceSelection(const QString& text, const QString& label,
     if (text.toUtf8().size() + qsizetype(original.utf8.size() - removed)
         > qsizetype(core::kMaximumTextBytes)) {
         if (onError)
-            onError(QStringLiteral("Text limit: 256 KiB per layer"));
+            onError(i18n::text("text.controller.text.limit.256.kib.per.layer"));
         return;
     }
     cursor_.insertText(text, QtTextLayout::format(insertion_));
@@ -901,7 +902,7 @@ void TextController::synchronizeControls()
     const auto requested = QString::fromStdString(shown.font.style);
     if (styleMixed || familyMixed || weightMixed || italicMixed) {
         styles_->setCurrentIndex(-1);
-        styles_->setPlaceholderText(QStringLiteral("Mixed styles"));
+        i18n::setPlaceholderText(styles_, i18n::text("text.controller.mixed.styles"));
     } else {
         int i = styles_->findText(requested);
         if (requested.isEmpty())
@@ -973,7 +974,7 @@ void TextController::showColor()
         owner = owner->parentWidget();
     auto* dialog = new ColorDialog(qtColor(insertion_.color), owner);
     colorDialog_ = dialog;
-    dialog->setWindowTitle(QStringLiteral("Text color"));
+    i18n::setWindowTitle(dialog, i18n::text("text.controller.text.color"));
     dialog->setObjectName(QStringLiteral("TextColorDialog"));
     dialog->setOptions(ColorDialog::DontUseNativeDialog | ColorDialog::ShowAlphaChannel);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
@@ -1260,12 +1261,12 @@ void TextController::prepareCaches()
                 cache->requestedDensity = documentGrid ? 1.0 : density;
                 layer->renderCache = std::move(cache);
                 if (reducedPreview && onError)
-                    onError(QStringLiteral("This text exceeds the full-resolution preview budget. Its editable data is retained."));
+                    onError(i18n::text("text.controller.this.text.exceeds.the.full.resolution.preview.budget.its"));
             } catch (const std::exception&) {
                 if (filtered && layer->renderCache && layer->renderCache->rasterizedDocumentTransform)
                     layer->renderCache.reset();
                 if (onError)
-                    onError(QStringLiteral("Not enough memory to render this text. Its editable data is retained."));
+                    onError(i18n::text("text.controller.not.enough.memory.to.render.this.text.its.editable"));
             }
         }
     }

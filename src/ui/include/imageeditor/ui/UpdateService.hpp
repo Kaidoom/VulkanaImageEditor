@@ -1,6 +1,7 @@
 #pragma once
 
 #include "imageeditor/platform/ServiceConfig.hpp"
+#include "imageeditor/ui/Localization.hpp"
 
 #include <QByteArray>
 #include <QCryptographicHash>
@@ -50,7 +51,7 @@ public:
     [[nodiscard]] bool configured() const { return config_.enabled(); }
     [[nodiscard]] bool simulated() const { return simulated_; }
     [[nodiscard]] bool busy() const { return state_ == State::Checking || state_ == State::Downloading; }
-    [[nodiscard]] const QString& message() const { return message_; }
+    [[nodiscard]] i18n::Message message() const { return message_.refreshed(); }
     [[nodiscard]] const std::optional<UpdateRelease>& release() const { return release_; }
     [[nodiscard]] const QString& downloadedPath() const { return downloadedPath_; }
     [[nodiscard]] UpdatePackage package() const { return package_; }
@@ -72,7 +73,7 @@ private:
     void readAvailable();
     void finish();
     void stopTransfer();
-    void fail(const QString&);
+    void fail(const i18n::Message&);
     void notify();
     void beginDownload(const QString&);
 
@@ -84,7 +85,7 @@ private:
     int checkTimeoutMs_ {60000};
     State state_ {State::Idle};
     bool simulated_ {false};
-    QString message_;
+    i18n::Message message_;
     std::optional<UpdateRelease> release_;
     QByteArray manifest_;
     std::unique_ptr<QSaveFile> file_;

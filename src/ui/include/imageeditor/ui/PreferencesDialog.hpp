@@ -20,6 +20,7 @@ struct PreferencesState {
     int shiftNudgePixels = 10;
     ShortcutBindings shortcuts = defaultShortcutBindings();
     int toolHintPosition = 1; // Left, Center (default), Disabled; UI-only preference.
+    QString language = QStringLiteral("system");
     bool operator==(const PreferencesState&) const = default;
 };
 class PreferencesDialog final : public QDialog {
@@ -36,6 +37,7 @@ private:
     void pickColor(ThemeColor);
     PreferencesState draft_, applied_;
     QComboBox* preset_ {};
+    QComboBox* language_ {};
     QCheckBox* advancedMeasurementReadout_ {};
     QCheckBox* layerOutlinesVisible_ {};
     QCheckBox* collapseLayerSelectionOnEmptyClick_ {};

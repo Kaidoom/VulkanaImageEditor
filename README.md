@@ -42,6 +42,7 @@ Requires Linux, a C++20 compiler, Ninja, pkg-config, and these development libra
 
 - CMake **3.28+** for the supplied presets.
 - Qt **6.8+**: Core, Gui, Widgets, Network, DBus and PDF; Qt Test for tests.
+- Qt Linguist `lrelease` and Python 3 for building language packs (build tools only).
 - qpdf **11+** development library (PDF import/export; not the command-line tool).
 - zlib-compatible development library (PSD ZIP channels).
 - Vulkan **1.2+** headers/loader, a working Vulkan driver, and `glslc`.
@@ -54,6 +55,11 @@ system search path.
 Qt PDF is a separate development package on many distributions (for example,
 `qt6-qtpdf-devel` on Fedora, `qt6-pdf-dev` on Ubuntu). It does not require a
 WebEngine browser in Vulkana's runtime.
+Qt Linguist tools are provided by `qt6-linguist` on Fedora or
+`qt6-tools-dev-tools` on Ubuntu. Set `-DVULKANA_LRELEASE=/path/to/lrelease` if
+needed. Qt's standard-dialog catalogs come from `qt6-qttranslations` on Fedora
+or `qt6-translations-l10n` on Ubuntu. See [localization](docs/LOCALIZATION.md)
+for pack-only builds and review.
 
 From the repository root:
 

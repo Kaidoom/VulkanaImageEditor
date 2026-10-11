@@ -1,0 +1,33 @@
+Qt community translations
+
+The installed qtbase_*.qm files provide translations of Qt's own standard
+controls and dialogs. This delivery selects ar, de, es, fr, it, ja, ko, pl,
+pt_BR, ru, tr, uk, zh_CN and zh_TW when available in the build environment.
+Qt does not provide a Hindi catalog in the tested distribution; Vulkana's own
+Hindi controls are translated, while untranslated Qt-owned dialogs fall back
+to English. These are separate, unmodified data files, not Vulkana's
+independently authored localization/*.ts catalogs.
+
+Local validation used qt6-qttranslations-6.11.2-1.fc44.noarch, whose distributor
+declares GPL-3.0-only WITH Qt-GPL-exception-1.0. Copies of GPL-3.0 and the Qt
+exception are included. The Qt Company Ltd. and Qt translation contributors
+retain their copyrights. The distro license declaration covers the aggregate
+module, including tools; it is not a claim that the BSD build scripts or every
+individual Qt file use identical terms.
+
+Upstream source for the tested translation data:
+https://github.com/qt/qttranslations/tree/v6.11.2/translations
+https://github.com/qt/qttranslations/blob/v6.11.2/licenseRule.json
+
+Upstream's license rules list LGPL-3.0-only among the module-file options and
+separate the GPL-with-exception tool terms from BSD build scripts. Preserve the
+upstream and distributor declarations when preparing distribution notices;
+do not infer a different file license just from the Qt library's license.
+
+Binary release preparation must record the exact source/version of its chosen
+Qt translation catalogs and include that matching qttranslations source in
+the release's Qt source/notices bundle. A different build environment may
+supply different catalog versions and must update its distribution inventory.
+
+Translations are contributed by the Qt community without guarantees. Vulkana
+does not change the original translation or license texts.

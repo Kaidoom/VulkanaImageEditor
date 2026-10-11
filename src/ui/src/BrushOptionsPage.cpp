@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/BrushOptionsPage.hpp"
 
 #include "imageeditor/ui/CompactValueControl.hpp"
@@ -15,7 +16,7 @@ namespace imageeditor::ui {
 namespace {
 
 CompactValueControl* valueControl(const QString& objectName,
-    const QString& label, double minimum, double maximum, double value,
+    const i18n::Message& label, double minimum, double maximum, double value,
     const QString& suffix, int decimals, double singleStep, int width,
     QWidget* parent)
 {
@@ -23,13 +24,13 @@ CompactValueControl* valueControl(const QString& objectName,
     control->setObjectName(objectName);
     control->setRange(minimum, maximum);
     control->setValue(value);
-    control->setPrefix(label + QStringLiteral(": "));
+    i18n::setPrefix(control, label + QStringLiteral(": "));
     control->setSuffix(suffix);
     control->setDecimals(decimals);
     control->setSingleStep(singleStep);
     control->setFixedWidth(width);
     control->setFixedHeight(30);
-    control->setAccessibleName(label);
+    i18n::setAccessibleName(control, label);
     return control;
 }
 
@@ -50,7 +51,7 @@ BrushOptionsPage::BrushOptionsPage(QWidget* parent)
     layout->setColumnStretch(2, 1);
 
     eraserButton_ = new ToolOptionsButton(QStringLiteral("BrushEraseModeButton"),
-        QStringLiteral("Erase mode"), QStringLiteral("Toggle erase mode · E"),
+        i18n::text("brush.options.page.erase.mode"), i18n::text("brush.options.page.toggle.erase.mode.e"),
         ToolOptionsButton::Kind::Toggle, this, ToolOptionsButton::Presentation::Icon);
     layout->addWidget(eraserButton_, 0, 0,
         Qt::AlignRight | Qt::AlignVCenter);
@@ -61,49 +62,30 @@ BrushOptionsPage::BrushOptionsPage(QWidget* parent)
     controlsLayout->setContentsMargins(0, 0, 0, 0);
     controlsLayout->setSpacing(8);
 
-    sizeControl_ = valueControl(QStringLiteral("BrushSizeControl"),
-        QStringLiteral("Size"), 1.0, 1000.0, 32.0, QStringLiteral(" px"),
-        1, 1.0, 132, this);
-    opacityControl_ = valueControl(QStringLiteral("BrushOpacityControl"),
-        QStringLiteral("Opacity"), 1.0, 100.0, 100.0, QStringLiteral("%"),
-        0, 1.0, 132, this);
-    hardnessControl_ = valueControl(QStringLiteral("BrushHardnessControl"),
-        QStringLiteral("Hardness"), 0.0, 100.0, 80.0, QStringLiteral("%"),
-        0, 1.0, 134, this);
+    sizeControl_ = valueControl(QStringLiteral("BrushSizeControl"), i18n::text("brush.options.page.size"), 1.0, 1000.0, 32.0, QStringLiteral(" px"), 1, 1.0, 132, this);
+    opacityControl_ = valueControl(QStringLiteral("BrushOpacityControl"), i18n::text("brush.options.page.opacity"), 1.0, 100.0, 100.0, QStringLiteral("%"), 0, 1.0, 132, this);
+    hardnessControl_ = valueControl(QStringLiteral("BrushHardnessControl"), i18n::text("brush.options.page.hardness"), 0.0, 100.0, 80.0, QStringLiteral("%"), 0, 1.0, 134, this);
     controlsLayout->addWidget(sizeControl_);
     controlsLayout->addWidget(opacityControl_);
     controlsLayout->addWidget(hardnessControl_);
 
-    flowControl_ = valueControl(QStringLiteral("BrushFlowControl"),
-        QStringLiteral("Flow"), 1.0, 100.0, 100.0, QStringLiteral("%"),
-        0, 1.0, 116, this);
-    scaleControl_ = valueControl(QStringLiteral("BrushScaleControl"),
-        QStringLiteral("Scale"), 5.0, 100.0, 100.0, QStringLiteral("%"),
-        0, 1.0, 116, this);
-    scaleControl_->setAccessibleName(QStringLiteral("Tip vertical scale"));
-    scaleControl_->setToolTip(QStringLiteral(
-        "Tip vertical scale\n100% keeps the original shape; lower values flatten the tip."));
-    spacingControl_ = valueControl(QStringLiteral("BrushSpacingControl"),
-        QStringLiteral("Spacing"), 1.0, 200.0, 10.0, QStringLiteral("%"),
-        0, 1.0, 132, this);
-    spacingControl_->setToolTip(QStringLiteral("Dab spacing as a percentage of brush diameter"));
+    flowControl_ = valueControl(QStringLiteral("BrushFlowControl"), i18n::text("brush.options.page.flow"), 1.0, 100.0, 100.0, QStringLiteral("%"), 0, 1.0, 116, this);
+    scaleControl_ = valueControl(QStringLiteral("BrushScaleControl"), i18n::text("brush.options.page.scale"), 5.0, 100.0, 100.0, QStringLiteral("%"), 0, 1.0, 116, this);
+    i18n::setAccessibleName(scaleControl_, i18n::text("brush.options.page.tip.vertical.scale"));
+    i18n::setToolTip(scaleControl_, i18n::text("brush.options.page.tip.vertical.scale.100.keeps.the.original.shape.lower"));
+    spacingControl_ = valueControl(QStringLiteral("BrushSpacingControl"), i18n::text("brush.options.page.spacing"), 1.0, 200.0, 10.0, QStringLiteral("%"), 0, 1.0, 132, this);
+    i18n::setToolTip(spacingControl_, i18n::text("brush.options.page.dab.spacing.as.a.percentage.of.brush.diameter"));
     controlsLayout->addWidget(flowControl_);
     controlsLayout->addWidget(scaleControl_);
     controlsLayout->addWidget(spacingControl_);
 
-    directionButton_ = new ToolOptionsButton(QStringLiteral("BrushDirectionButton"),
-        QStringLiteral("Direction"), QStringLiteral(
-            "Follow stroke direction\nOn: rotate with the stroke plus Angle.\n"
-            "Off: keep a fixed Angle."), ToolOptionsButton::Kind::Toggle, this,
-        ToolOptionsButton::Presentation::Icon);
+    directionButton_ = new ToolOptionsButton(QStringLiteral("BrushDirectionButton"), i18n::text("brush.options.page.direction"), i18n::text("brush.options.page.follow.stroke.direction.on.rotate.with.the.stroke.plus"), ToolOptionsButton::Kind::Toggle, this, ToolOptionsButton::Presentation::Icon);
     directionButton_->setIcon(toolGlyph(ToolGlyph::FollowStrokeDirection));
     directionButton_->setChecked(brushSettings_.tip.rotationMode
         == core::BrushTipRotationMode::FollowStrokeDirection);
-    directionButton_->setAccessibleName(QStringLiteral("Follow stroke direction"));
+    i18n::setAccessibleName(directionButton_, i18n::text("brush.options.page.follow.stroke.direction"));
 
-    angleControl_ = valueControl(QStringLiteral("BrushAngleControl"),
-        QStringLiteral("Angle"), -180.0, 180.0, 0.0,
-        QStringLiteral("°"), 0, 1.0, 116, this);
+    angleControl_ = valueControl(QStringLiteral("BrushAngleControl"), i18n::text("brush.options.page.angle"), -180.0, 180.0, 0.0, QStringLiteral("°"), 0, 1.0, 116, this);
     controlsLayout->addWidget(angleControl_);
     controlsLayout->addWidget(directionButton_);
     layout->addWidget(controls, 0, 1, Qt::AlignCenter);

@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/LayerCommands.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/core/ShapeCommands.hpp"
@@ -103,26 +104,15 @@ bool MainWindow::shapeLayerHit(const core::Layer& layer, core::Vec2d p) const
 void MainWindow::createShapeControls()
 {
     shapeOptionsPage_ = new ShapeOptionsPage;
-    toolOptionsBar_->registerToolPage(core::ToolId::Shape, QStringLiteral("Shape"), shapeOptionsPage_);
+    toolOptionsBar_->registerToolPage(core::ToolId::Shape, i18n::text("main.window.shape.shape"), shapeOptionsPage_);
     toolOptionsBar_->registerToolLeadingWidget(core::ToolId::Shape, shapeOptionsPage_->modeWidget());
     QVBoxLayout* properties = nullptr;
-    propertiesPanel_->addToolPage(core::ToolId::Shape, QStringLiteral("Shape"), QStringLiteral("Editable geometry in layer-local pixels. Use the top bar for shape modes, fill and stroke."), properties);
+    propertiesPanel_->addToolPage(core::ToolId::Shape, i18n::text("main.window.shape.shape"), i18n::text("main.window.shape.editable.geometry.in.layer.local.pixels.use.the.top"), properties);
     shapeOptionsPage_->populateProperties(properties);
-    auto* helpTitle = new QLabel(QStringLiteral("INTERACTION"));
+    auto* helpTitle = i18n::make<QLabel>(i18n::text("main.window.shape.interaction"));
     helpTitle->setObjectName(QStringLiteral("SectionLabel"));
     properties->addWidget(helpTitle);
-    auto* help = new QLabel(QStringLiteral(
-        "{{ToolAction_shape}} · Shape; drag empty canvas · Create\n"
-        "Shift at press · Force new shape (except on handles)\n"
-        "Shift during creation · Square / circle / 45° line\n"
-        "Drag inside bounds · Move; handles · Resize; outside corners · Rotate\n"
-        "Shift · Constrain resizing / snap rotation to 15°; Alt · Resize from center\n\n"
-        "Polygon: click · Add vertex; {{RemovePointAction}} · Remove vertex\n"
-        "{{FinishOperationAction}} / right-click / double-click / first vertex · Finish polygon\n"
-        "Escape · Cancel construction or drag\n{{UndoAction}} / {{RedoAction}} · Undo / redo\n\n"
-        "{{LayerTransformAction}} · Whole-layer transform; {{FinishOperationAction}} / right-click · Apply; Escape · Cancel session\n"
-        "Ordinary handles edit geometry and keep stroke width; {{LayerTransformAction}} scales the whole layer, including stroke. "
-        "Shapes ignore raster selections."));
+    auto* help = i18n::make<QLabel>(i18n::text("main.window.shape.toolaction.shape.shape.drag.empty.canvas.create.shift.at"));
     help->setObjectName(QStringLiteral("MutedLabel"));
     help->setWordWrap(true);
     properties->addWidget(help);
@@ -208,7 +198,7 @@ void MainWindow::createShapeControls()
                 return Action::Ignore;
             }
             if (draft.vertices.size() >= core::maximumShapePoints) {
-                statusBar()->showMessage(QStringLiteral("Polygon vertex limit reached; finish or cancel the shape."), 4000);
+                statusBar()->showMessage(i18n::text("main.window.shape.polygon.vertex.limit.reached.finish.or.cancel.the.shape"), 4000);
                 return Action::Ignore;
             }
             if (draft.vertices.empty() || std::hypot(p.x - draft.vertices.back().x, p.y - draft.vertices.back().y) > 1e-8)
@@ -219,7 +209,7 @@ void MainWindow::createShapeControls()
         if (!mods.testFlag(Qt::ShiftModifier)) {
             if(const auto hit=hitMoveLayer(p); hit && session().document()->tree().container(*hit)) {
                 session().setActiveLayer(*hit);synchronizeUi(false,false);
-                statusBar()->showMessage(QStringLiteral("Group selected · Use Move/%1, or Ungroup to edit shapes. Shift creates a new shape.")
+                statusBar()->showMessage(i18n::text("main.window.shape.group.selected.use.move.1.or.ungroup.to.edit")
                     .arg(shortcutLabel(shortcuts_, "LayerTransformAction")),4000);
                 return Action::Ignore;
             }
@@ -333,7 +323,7 @@ bool MainWindow::beginShapeManipulation(core::TransformHandle handle, core::Vec2
                 core::ShapeResizeGesture(std::get<core::ShapeLayer>(layer->payload), layer->localToDocument, handle, p),
                 layer->shapeRevision, layer->localToDocument, layer->renderCache });
         } catch (const std::exception&) {
-            statusBar()->showMessage(QStringLiteral("Cannot start this shape resize; geometry is unchanged."), 5000);
+            statusBar()->showMessage(i18n::text("main.window.shape.cannot.start.this.shape.resize.geometry.is.unchanged"), 5000);
             return false;
         }
         updateActionState();
@@ -371,7 +361,7 @@ bool MainWindow::updateShapeResize(core::Vec2d position, core::TransformModifier
         }
         return true;
     } catch (const std::exception&) {
-        statusBar()->showMessage(QStringLiteral("Shape resize could not allocate memory; restoring its starting geometry."), 5000);
+        statusBar()->showMessage(i18n::text("main.window.shape.shape.resize.could.not.allocate.memory.restoring.its.starting"), 5000);
         return false;
     }
 }
@@ -407,7 +397,7 @@ void MainWindow::finishShapeResize(bool commit)
                     fileState().untouched = false;
             }
         } catch (const std::exception&) {
-            statusBar()->showMessage(QStringLiteral("Shape resize could not be recorded; original geometry restored."), 5000);
+            statusBar()->showMessage(i18n::text("main.window.shape.shape.resize.could.not.be.recorded.original.geometry.restored"), 5000);
         }
         if (!accepted) {
             doc->setLayerShapeGeometry(edit.id, std::move(before.shape), before.transform);
@@ -503,11 +493,11 @@ void MainWindow::prepareShapeCaches()
                 cache->contentRevision = layer->shapeRevision;
                 layer->renderCache = std::move(cache);
                 if (reducedPreview)
-                    statusBar()->showMessage(QStringLiteral("This shape exceeds the full-resolution preview budget. Its editable data is retained."), 5000);
+                    statusBar()->showMessage(i18n::text("main.window.shape.this.shape.exceeds.the.full.resolution.preview.budget.its"), 5000);
             } catch (const std::exception&) {
                 if (filtered && layer->renderCache && layer->renderCache->rasterizedDocumentTransform)
                     layer->renderCache.reset();
-                statusBar()->showMessage(QStringLiteral("Not enough memory to render this shape. Its editable data is retained."), 5000);
+                statusBar()->showMessage(i18n::text("main.window.shape.not.enough.memory.to.render.this.shape.its.editable"), 5000);
             }
         }
     }
@@ -627,7 +617,7 @@ void MainWindow::publishShapePreview()
             draft.layer.renderCache = QtShapeRenderService { }.render({ shape, previewDensity });
         } catch (const std::exception&) {
             finishShapeCreation(true);
-            statusBar()->showMessage(QStringLiteral("Shape preview could not allocate memory; creation cancelled."), 5000);
+            statusBar()->showMessage(i18n::text("main.window.shape.shape.preview.could.not.allocate.memory.creation.cancelled"), 5000);
             return;
         }
         draft.layer.payload = shape;
@@ -675,7 +665,7 @@ void MainWindow::finishShapeCreation(bool cancel)
                     fileState().untouched = false;
                 }
             } catch (const std::exception&) {
-                statusBar()->showMessage(QStringLiteral("Could not create shape; no layer was added."), 5000);
+                statusBar()->showMessage(i18n::text("main.window.shape.could.not.create.shape.no.layer.was.added"), 5000);
             }
         }
     }
@@ -752,7 +742,7 @@ void MainWindow::finishShapeEdit(bool commit)
             doc->setLayerShape(edit.id, edit.before);
     } catch (const std::exception&) {
         doc->setLayerShape(edit.id, edit.before);
-        statusBar()->showMessage(QStringLiteral("Shape edit could not be recorded; original style restored."), 5000);
+        statusBar()->showMessage(i18n::text("main.window.shape.shape.edit.could.not.be.recorded.original.style.restored"), 5000);
     }
     synchronizeUi(false, false);
 }
@@ -777,7 +767,7 @@ void MainWindow::chooseShapeColor(bool fill)
     auto* owner = workspace_->panelOverlay()->window();
     auto* dialog = new ColorDialog(QColor(color.red, color.green, color.blue, color.alpha), owner);
     dialog->setObjectName(QStringLiteral("ShapeColorDialog"));
-    dialog->setWindowTitle(fill ? QStringLiteral("Shape fill color") : QStringLiteral("Shape stroke color"));
+    i18n::setWindowTitle(dialog, fill ? i18n::text("main.window.shape.shape.fill.color") : i18n::text("main.window.shape.shape.stroke.color"));
     dialog->setOptions(ColorDialog::DontUseNativeDialog | ColorDialog::ShowAlphaChannel);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     connect(dialog, &ColorDialog::colorSelected, this, [this, fill, target, shape](QColor c) {

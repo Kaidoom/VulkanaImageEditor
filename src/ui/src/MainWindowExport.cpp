@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/ExportDialog.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
@@ -165,8 +166,8 @@ namespace {
             }
             const auto proposed = exportPathForFormat(s.destination, s.format);
             if (proposed != s.destination) {
-                if (QMessageBox::question(popupTopLevelOwner(&dialog_), tr("Match image extension?"),
-                        tr("The selected encoding is %1. Use the matching filename %2?")
+                if (QMessageBox::question(popupTopLevelOwner(&dialog_), i18n::text("main.window.export.match.image.extension"),
+                        i18n::text("main.window.export.the.selected.encoding.is.1.use.the.matching.filename")
                             .arg(QString::fromLatin1(exportFormatName(s.format)).toUpper(),
                                 QFileInfo(proposed).fileName()),
                         QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel)
@@ -181,14 +182,14 @@ namespace {
                 &&(QFileInfo(s.destination).absoluteFilePath()==QFileInfo(sourcePath_).absoluteFilePath()
                     ||(!QFileInfo(sourcePath_).canonicalFilePath().isEmpty()
                         &&QFileInfo(s.destination).canonicalFilePath()==QFileInfo(sourcePath_).canonicalFilePath()))){
-                dialog_.setError(tr("Choose a different destination; the imported source PDF is never overwritten."));return;
+                dialog_.setError(i18n::text("main.window.export.choose.a.different.destination.the.imported.source.pdf.is"));return;
             }
             if(s.format==ExportFormat::Psd&&!sourcePath_.isEmpty()
                 &&QFileInfo(sourcePath_).suffix().compare("psd",Qt::CaseInsensitive)==0
                 &&(QFileInfo(s.destination).absoluteFilePath()==QFileInfo(sourcePath_).absoluteFilePath()
                     ||(!QFileInfo(sourcePath_).canonicalFilePath().isEmpty()&&QFileInfo(s.destination).canonicalFilePath()==QFileInfo(sourcePath_).canonicalFilePath()))
-                &&QMessageBox::question(popupTopLevelOwner(&dialog_),tr("Replace source PSD?"),
-                    tr("This is the imported source PSD. Vulkana exports its supported subset, not a lossless PSD round-trip. Replace the original?"),
+                &&QMessageBox::question(popupTopLevelOwner(&dialog_),i18n::text("main.window.export.replace.source.psd"),
+                    i18n::text("main.window.export.this.is.the.imported.source.psd.vulkana.exports.its"),
                     QMessageBox::Yes|QMessageBox::Cancel,QMessageBox::Cancel)!=QMessageBox::Yes)return;
             if (const auto destinationError = validateExportDestination(s.destination, projectPath_);
                 !destinationError.isEmpty()) {
@@ -196,15 +197,14 @@ namespace {
                 return;
             }
             if (QFileInfo::exists(s.destination)
-                && QMessageBox::question(popupTopLevelOwner(&dialog_), tr("Replace exported image?"),
-                       tr("Replace %1? The existing file remains intact "
-                          "unless export finishes successfully.")
+                && QMessageBox::question(popupTopLevelOwner(&dialog_), i18n::text("main.window.export.replace.exported.image"),
+                       i18n::text("main.window.export.replace.1.the.existing.file.remains.intact.unless.export")
                            .arg(s.destination),
                        QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel)
                     != QMessageBox::Yes)
                 return;
             pendingWrite_ = s;
-            dialog_.setProgress(tr("Preparing export…"), true);
+            dialog_.setProgress(i18n::text("main.window.export.preparing.export"), true);
             if(s.format==ExportFormat::Pdf||s.format==ExportFormat::Psd){debounce_.stop();prepare();return;}
             if (ready_ && sameEncoding(readySettings_, s))
                 publish();
@@ -281,7 +281,7 @@ namespace {
             if (rendered_.isNull() || !sameRendering(renderSettings_, s)) {
                 rendered_ = { };
                 ready_ = { };
-                dialog_.setProgress(tr("Rendering document…"), pendingWrite_.has_value());
+                dialog_.setProgress(i18n::text("main.window.export.rendering.document"), pendingWrite_.has_value());
                 rendering_ = true;
                 renderCancel_ = false;
                 QElapsedTimer cadence;
@@ -319,7 +319,7 @@ namespace {
             encodeSettings_ = s;
             auto* job = encode_.get();
             const auto pixels = rendered_;
-            dialog_.setProgress(tr("Encoding %1 and decoding preview…")
+            dialog_.setProgress(i18n::text("main.window.export.encoding.1.and.decoding.preview")
                     .arg(QString::fromLatin1(exportFormatName(s.format)).toUpper()), pendingWrite_.has_value());
             try {
                 job->worker = std::thread([job, pixels, s] {
@@ -417,7 +417,7 @@ namespace {
             job->renderPreview=dialog_.psdPreviewEnabled();
             job->writing=pendingWrite_.has_value()&&psdPlan_.instanceId&&cached==s.psd&&bool(psdPlan_);
             if(job->writing){job->settings=*pendingWrite_;job->plan=psdPlan_;pendingWrite_.reset();}
-            dialog_.setProgress(job->writing?tr("Writing PSD…"):tr("Preparing PSD export review…"),job->writing);
+            dialog_.setProgress(job->writing?i18n::text("main.window.export.writing.psd"):i18n::text("main.window.export.preparing.psd.export.review"),job->writing);
             psdJob_=job;const auto source=psdSource_;
             auto *current=job.get();
             try{job->worker=std::thread([job=current,source]{
@@ -433,7 +433,7 @@ namespace {
         void pollPsd()
         {
             if(!psdJob_->done.load(std::memory_order_acquire)){
-                if(psdJob_->writing&&!closing_&&!cancelling_)dialog_.setProgress(tr("Exporting PSD · layer %1 of %2…").arg(psdJob_->progress.load()).arg(psdJob_->total.load()),true);
+                if(psdJob_->writing&&!closing_&&!cancelling_)dialog_.setProgress(i18n::text("main.window.export.exporting.psd.layer.1.of.2").arg(psdJob_->progress.load()).arg(psdJob_->total.load()),true);
                 return;
             }
             auto job=std::move(psdJob_);poll_.stop();
@@ -466,7 +466,7 @@ namespace {
             if(pdfPlan_&&pdfPlan_.options==s.pdf){
                 if(pendingWrite_){
                     job->kind=PdfJob::Kind::Write;job->settings=*pendingWrite_;job->plan=pdfPlan_;pendingWrite_.reset();
-                    dialog_.setProgress(tr("Writing PDF…"),true);
+                    dialog_.setProgress(i18n::text("main.window.export.writing.pdf"),true);
                     launchPdf(job,[source](PdfJob& j){j.written=writePdfExport(*source,j.plan,j.settings.destination,j.cancel,
                         [&j](int page,int total,const QString& stage){j.progressPage=page;j.progressTotal=total;j.progressStage=stage==QStringLiteral("Writing")?2:1;return !j.cancel.load();});});return;
                 }
@@ -475,7 +475,7 @@ namespace {
                 }
                 job->kind=PdfJob::Kind::Preview;job->plan=pdfPlan_;
             }
-            dialog_.setProgress(tr("Preparing PDF page preview…"), pendingWrite_.has_value());
+            dialog_.setProgress(i18n::text("main.window.export.preparing.pdf.page.preview"), pendingWrite_.has_value());
             launchPdf(job,[source](PdfJob& j){
                 if(j.kind==PdfJob::Kind::Plan)j.plan=planPdfExport(*source,j.settings.pdf,j.cancel);
                 if(!j.plan)return;
@@ -507,7 +507,7 @@ namespace {
             auto& current=*pdfJob_;
             if(!current.done.load(std::memory_order_acquire)){
                 if(current.kind==PdfJob::Kind::Write&&!closing_&&!cancelling_)
-                    dialog_.setProgress(tr("%1 PDF · page %2 of %3…").arg(current.progressStage==2?tr("Writing"):tr("Rendering"))
+                    dialog_.setProgress(i18n::text("main.window.export.1.pdf.page.2.of.3").arg(current.progressStage==2?i18n::text("main.window.export.writing"):i18n::text("main.window.export.rendering"))
                         .arg(current.progressPage.load()).arg(current.progressTotal.load()),true);
                 return;
             }
@@ -562,7 +562,7 @@ namespace {
             debounce_.stop();
             auto* job = write_.get();
             const auto bytes = ready_.bytes;
-            dialog_.setProgress(tr("Writing image…"), true);
+            dialog_.setProgress(i18n::text("main.window.export.writing.image"), true);
             try {
                 job->worker = std::thread([job, bytes] {
                     job->result = writeExportAtomically(job->settings.destination, bytes, job->cancel);
@@ -606,16 +606,16 @@ namespace {
             debounce_.stop();
             pendingWrite_.reset();
             renderCancel_ = true;
-            if(pdfJob_){pdfJob_->cancel=true;dialog_.setProgress(tr("Cancelling PDF export…"),true);return;}
-            if(psdJob_){psdJob_->cancel=true;dialog_.setProgress(tr("Cancelling PSD export…"),true);return;}
+            if(pdfJob_){pdfJob_->cancel=true;dialog_.setProgress(i18n::text("main.window.export.cancelling.pdf.export"),true);return;}
+            if(psdJob_){psdJob_->cancel=true;dialog_.setProgress(i18n::text("main.window.export.cancelling.psd.export"),true);return;}
             if (encode_) {
                 encode_->cancel = true;
-                dialog_.setProgress(tr("Cancelling encoding…"), true);
+                dialog_.setProgress(i18n::text("main.window.export.cancelling.encoding"), true);
                 return;
             }
             if (write_) {
                 write_->cancel = true;
-                dialog_.setProgress(tr("Cancelling write…"), true);
+                dialog_.setProgress(i18n::text("main.window.export.cancelling.write"), true);
                 return;
             }
             if (!rendering_)
@@ -655,13 +655,12 @@ void MainWindow::exportImage(bool again)
         return;
     if (smartInteractionActive() || colorSelectionEditing_ || selectionGesture_ || selectionRasterizer_
         || shapeResize_) {
-        statusBar()->showMessage(tr("Finish or cancel the current selection/shape "
-                                    "interaction before exporting."),
+        statusBar()->showMessage(i18n::text("main.window.export.finish.or.cancel.the.current.selection.shape.interaction.before"),
             4000);
         return;
     }
     if (again && !fileState().exportSettings) {
-        statusBar()->showMessage(tr("Export an image first to establish Export Again settings."), 4000);
+        statusBar()->showMessage(i18n::text("main.window.export.export.an.image.first.to.establish.export.again.settings"), 4000);
         return;
     }
     if (!settleForFileOperation())
@@ -697,7 +696,7 @@ void MainWindow::exportImage(bool again)
             if (owner->closed) return;
             owner->exportSettings = s;
             if (owner != activeDocument_) return;
-            statusBar()->showMessage((s.format==ExportFormat::Pdf||s.format==ExportFormat::Psd)?tr("Exported %1 · %2 bytes").arg(QFileInfo(s.destination).fileName()).arg(bytes):tr("Exported %1 · %2 × %3 px · %4 bytes")
+            statusBar()->showMessage((s.format==ExportFormat::Pdf||s.format==ExportFormat::Psd)?i18n::text("main.window.export.exported.1.2.bytes").arg(QFileInfo(s.destination).fileName()).arg(bytes):i18n::text("main.window.export.exported.1.2.3.px.4.bytes")
                                          .arg(QFileInfo(s.destination).fileName())
                                          .arg(s.size.width())
                                          .arg(s.size.height())

@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/AdjustmentCurveEditor.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
 #include "imageeditor/ui/EffectsPanel.hpp"
@@ -14,26 +15,26 @@ core::EffectContour &EffectsPanel::selectedContour() {
 void EffectsPanel::bevelPage() {
   constexpr std::size_t i = 7;
   auto &page = pages_[i];
-  const auto section = [&](const QString &text) {
-    auto *label = new QLabel(text);
+  const auto section = [&](const i18n::Message& text) {
+    auto *label = i18n::make<QLabel>(text);
     label->setObjectName("MutedLabel");
     page.layout->addWidget(label);
   };
-  section(tr("Structure · Smooth"));
+  section(i18n::text("effects.panel.bevel.structure.smooth"));
   auto *structure = choices(
-      i, tr("Style"), {tr("Inner Bevel"), tr("Outer Bevel"), tr("Emboss")},
+      i, i18n::text("effects.panel.bevel.style"), {i18n::text("effects.panel.bevel.inner.bevel"), i18n::text("effects.panel.bevel.outer.bevel"), i18n::text("effects.panel.bevel.emboss")},
       [this] { return int(working_.items[7].bevel.style); },
       [this](int v) { working_.items[7].bevel.style = core::BevelStyle(v); });
   choices(
-      i, tr("Direction"), {tr("Up"), tr("Down")},
+      i, i18n::text("effects.panel.bevel.direction"), {i18n::text("effects.panel.bevel.up"), i18n::text("effects.panel.bevel.down")},
       [this] { return int(working_.items[7].bevel.down); },
       [this](int v) { working_.items[7].bevel.down = v != 0; }, structure);
   structure->setStretch(structure->count() - 1, 0);
-  const auto value = [this](const QString &label, double lo, double hi,
+  const auto value = [this](const char* identity, const i18n::Message& label, double lo, double hi,
                             double core::BevelParameters::*member,
                             double scale = 1.) {
     number(
-        7, label, lo, hi,
+        7, identity, label, lo, hi,
         [this, member, scale] {
           return working_.items[7].bevel.*member * scale;
         },
@@ -41,35 +42,35 @@ void EffectsPanel::bevelPage() {
           working_.items[7].bevel.*member = v / scale;
         });
   };
-  value(tr("Depth"), 0, 1000, &core::BevelParameters::depth, 100);
-  number(i, tr("Size"), 0, core::maximumEffectSize, &core::LayerEffect::size);
-  value(tr("Soften"), 0, 64, &core::BevelParameters::soften);
-  section(tr("Lighting"));
-  number(i, tr("Angle"), -180, 180, &core::LayerEffect::angle);
-  value(tr("Altitude"), 0, 90, &core::BevelParameters::altitude);
+  value("Depth", i18n::text("effects.panel.bevel.depth"), 0, 1000, &core::BevelParameters::depth, 100);
+  number(i, "Size", i18n::text("effects.panel.bevel.size"), 0, core::maximumEffectSize, &core::LayerEffect::size);
+  value("Soften", i18n::text("effects.panel.bevel.soften"), 0, 64, &core::BevelParameters::soften);
+  section(i18n::text("effects.panel.bevel.lighting"));
+  number(i, "Angle", i18n::text("effects.panel.bevel.angle"), -180, 180, &core::LayerEffect::angle);
+  value("Altitude", i18n::text("effects.panel.bevel.altitude"), 0, 90, &core::BevelParameters::altitude);
   auto *highlight = blendChoices(
-      i, tr("Highlight blend"),
+      i, "Highlight blend", i18n::text("effects.panel.bevel.highlight.blend"),
       [this] { return working_.items[7].blendMode; },
       [this](core::BlendMode v) { working_.items[7].blendMode = v; });
   color(i, false, highlight);
-  number(i, tr("Highlight opacity"), 0, 100, &core::LayerEffect::opacity, 100);
+  number(i, "Highlight opacity", i18n::text("effects.panel.bevel.highlight.opacity"), 0, 100, &core::LayerEffect::opacity, 100);
   auto *shadow = blendChoices(
-      i, tr("Shadow blend"),
+      i, "Shadow blend", i18n::text("effects.panel.bevel.shadow.blend"),
       [this] { return working_.items[7].bevel.shadowBlend; },
       [this](core::BlendMode v) {
         working_.items[7].bevel.shadowBlend = v;
       });
   color(i, true, shadow);
-  value(tr("Shadow opacity"), 0, 100, &core::BevelParameters::shadowOpacity,
+  value("Shadow opacity", i18n::text("effects.panel.bevel.shadow.opacity"), 0, 100, &core::BevelParameters::shadowOpacity,
         100);
-  section(tr("Contour"));
+  section(i18n::text("effects.panel.bevel.contour"));
   // Navigation is deliberately not a parameter/history operation.
   auto *row = new QHBoxLayout;
   auto *selector = new QComboBox;
   selector->setObjectName("BevelContourSelector");
-  selector->addItems({tr("Surface Profile"), tr("Gloss Contour")});
+  i18n::addItems(selector, {i18n::text("effects.panel.bevel.surface.profile"), i18n::text("effects.panel.bevel.gloss.contour")});
   row->addWidget(selector, 1);
-  auto *enabled = new QCheckBox(tr("Enabled"));
+  auto *enabled = i18n::make<QCheckBox>(i18n::text("effects.panel.bevel.enabled"));
   enabled->setObjectName("BevelContourEnabled");
   row->addWidget(enabled);
   page.layout->addLayout(row);
@@ -78,14 +79,14 @@ void EffectsPanel::bevelPage() {
   auto *curveOptions = new QHBoxLayout;
   curveOptions->addWidget(presets, 1);
   auto *interpolation = new QComboBox;
-  interpolation->addItems({tr("Linear segments"), tr("Smooth curve")});
+  i18n::addItems(interpolation, {i18n::text("effects.panel.bevel.linear.segments"), i18n::text("effects.panel.bevel.smooth.curve")});
   interpolation->setObjectName("BevelContourInterpolation");
   curveOptions->addWidget(interpolation, 1);
   page.layout->addLayout(curveOptions);
   contourEditor_ = new AdjustmentCurveEditor;
   contourEditor_->setObjectName("BevelContourEditor");
   page.layout->addWidget(contourEditor_);
-  auto *corner = new QCheckBox(tr("Corner point"));
+  auto *corner = i18n::make<QCheckBox>(i18n::text("effects.panel.bevel.corner.point"));
   corner->setObjectName("BevelContourCorner");
   page.layout->addWidget(corner, 0, Qt::AlignHCenter);
   contourEditor_->evaluate = [this](double x) {
@@ -120,7 +121,7 @@ void EffectsPanel::bevelPage() {
     refresh();
   };
   auto *input = number(
-      i, tr("Input"), 0, 100,
+      i, "Input", i18n::text("effects.panel.bevel.input"), 0, 100,
       [this] {
         return selectedContour()
                    .points[std::size_t(contourEditor_->selectedIndex())]
@@ -134,7 +135,7 @@ void EffectsPanel::bevelPage() {
         contourEditor_->setSelectedPoint(p);
       });
   auto *output = number(
-      i, tr("Output"), 0, 100,
+      i, "Output", i18n::text("effects.panel.bevel.output"), 0, 100,
       [this] {
         return selectedContour()
                    .points[std::size_t(contourEditor_->selectedIndex())]
@@ -149,7 +150,7 @@ void EffectsPanel::bevelPage() {
       });
   (void)input;
   (void)output;
-  auto *remove = new QPushButton(tr("Remove point"));
+  auto *remove = i18n::make<QPushButton>(i18n::text("effects.panel.bevel.remove.point"));
   page.layout->addWidget(remove);
   connect(remove, &QPushButton::clicked, contourEditor_,
           &AdjustmentCurveEditor::removeSelectedPoint);
@@ -195,10 +196,10 @@ void EffectsPanel::bevelPage() {
     interpolation->setCurrentIndex(int(c.interpolation));
     presets->clear();
     presets->addItems(
-        glossSelected_ ? QStringList{tr("Identity"), tr("Glossy"), tr("Ring"),
-                                     tr("Double Ring"), tr("Custom")}
-                       : QStringList{tr("Linear"), tr("Rounded"), tr("Concave"),
-                                     tr("Ridged"), tr("Custom")});
+        glossSelected_ ? QStringList{i18n::text("effects.panel.bevel.identity"), i18n::text("effects.panel.bevel.glossy"), i18n::text("effects.panel.bevel.ring"),
+                                     i18n::text("effects.panel.bevel.double.ring"), i18n::text("effects.panel.bevel.custom")}
+                       : QStringList{i18n::text("effects.panel.bevel.linear"), i18n::text("effects.panel.bevel.rounded"), i18n::text("effects.panel.bevel.concave"),
+                                     i18n::text("effects.panel.bevel.ridged"), i18n::text("effects.panel.bevel.custom")});
     int preset = 4;
     for (int n = 0; n < 4; ++n) {
       auto p = core::effectContourPreset(glossSelected_, n);

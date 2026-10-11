@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/PdfImportDialog.hpp"
 #include "imageeditor/ui/ToolOptionsNumber.hpp"
 #include <QApplication>
@@ -93,12 +94,12 @@ struct PdfImportDialog::State {
         : dialog(owner), path(std::move(input)), limits(budget), settings(pdfImportPreferences())
     {
         dialog.setObjectName(QStringLiteral("PdfImportDialog"));
-        dialog.setWindowTitle(QStringLiteral("Import PDF"));
+        i18n::setWindowTitle(&dialog, i18n::text("pdf.import.dialog.import.pdf"));
         dialog.setWindowFlags(Qt::SubWindow);
         dialog.resize(660, 640);
         dialog.setMinimumWidth(620);
         auto* layout = new QVBoxLayout(&dialog); layout->setContentsMargins(18,18,18,18); layout->setSpacing(10);
-        auto* title = new QLabel(QStringLiteral("Import PDF · %1").arg(QFileInfo(path).fileName()), &dialog);
+        auto* title = i18n::make<QLabel>(i18n::text("pdf.import.dialog.import.pdf.1").arg(QFileInfo(path).fileName()), &dialog);
         title->setTextFormat(Qt::PlainText); title->setWordWrap(true); layout->addWidget(title);
         pages = new QListWidget(&dialog); pages->setObjectName(QStringLiteral("PdfPages"));
         pages->setViewMode(QListView::IconMode); pages->setResizeMode(QListView::Adjust);
@@ -112,49 +113,48 @@ struct PdfImportDialog::State {
         layout->addWidget(pages,1);
         controls = new QWidget(&dialog); auto* fields = new QVBoxLayout(controls); fields->setContentsMargins(0,0,0,0);
         auto* selectRow = new QHBoxLayout;
-        selectRow->addWidget(new QLabel(QStringLiteral("Pages"), controls));
+        selectRow->addWidget(i18n::make<QLabel>(i18n::text("pdf.import.dialog.pages"), controls));
         range = new QLineEdit(controls); range->setObjectName(QStringLiteral("PdfRange")); range->setMaxLength(32768);
         range->setPlaceholderText(QStringLiteral("1, 3-5, 8")); selectRow->addWidget(range,1);
-        all = new QPushButton(QStringLiteral("Select All"), controls); all->setAutoDefault(false); selectRow->addWidget(all);
+        all = i18n::make<QPushButton>(i18n::text("pdf.import.dialog.select.all"), controls); all->setAutoDefault(false); selectRow->addWidget(all);
         fields->addLayout(selectRow);
         auto* rasterRow = new QHBoxLayout;
-        rasterRow->addWidget(new QLabel(QStringLiteral("Resolution"), controls));
+        rasterRow->addWidget(i18n::make<QLabel>(i18n::text("pdf.import.dialog.resolution"), controls));
         ppi = new ToolOptionsNumber(controls); ppi->setObjectName(QStringLiteral("PdfPpi"));
-        ppi->setRange(1,2400); ppi->setDecimals(1); ppi->setSuffix(QStringLiteral(" PPI")); ppi->setValue(settings.ppi);
+        ppi->setRange(1,2400); ppi->setDecimals(1); i18n::setSuffix(ppi, i18n::text("pdf.import.dialog.ppi")); ppi->setValue(settings.ppi);
         rasterRow->addWidget(ppi,1);
         auto* presets = new QComboBox(controls); presets->setObjectName(QStringLiteral("PdfPpiPresets"));
-        presets->addItem(QStringLiteral("Presets…"),0);
+        i18n::addItem(presets, i18n::text("pdf.import.dialog.presets"), 0);
         for (int value : {72,150,300,600}) presets->addItem(QString::number(value), value);
         rasterRow->addWidget(presets);
         background = new QComboBox(controls); background->setObjectName(QStringLiteral("PdfBackground"));
-        background->addItems({QStringLiteral("White paper"),QStringLiteral("Transparent")});
+        i18n::addItems(background, {i18n::text("pdf.import.dialog.white.paper"),i18n::text("pdf.import.dialog.transparent")});
         background->setCurrentIndex(settings.whitePaper ? 0 : 1); rasterRow->addWidget(background,1);
         fields->addLayout(rasterRow);
         auto* destinationRow = new QHBoxLayout;
         destination = new QComboBox(controls); destination->setObjectName(QStringLiteral("PdfDestination"));
-        destination->addItems({QStringLiteral("Layers in a new document"),QStringLiteral("Separate document tabs"),QStringLiteral("Layers in the current document")});
+        i18n::addItems(destination, {i18n::text("pdf.import.dialog.layers.in.a.new.document"),i18n::text("pdf.import.dialog.separate.document.tabs"),i18n::text("pdf.import.dialog.layers.in.the.current.document")});
         if (!currentAvailable) static_cast<QStandardItemModel*>(destination->model())->item(2)->setEnabled(false);
         destination->setCurrentIndex(currentAvailable && intoCurrent ? 2 : 0); destinationRow->addWidget(destination,1);
-        annotations = new QCheckBox(QStringLiteral("Render annotations"),controls); annotations->setChecked(settings.annotations);
+        annotations = i18n::make<QCheckBox>(i18n::text("pdf.import.dialog.render.annotations"), controls); annotations->setChecked(settings.annotations);
         annotations->setObjectName(QStringLiteral("PdfAnnotations")); destinationRow->addWidget(annotations);
         fields->addLayout(destinationRow); layout->addWidget(controls);
         estimate = new QLabel(&dialog); estimate->setObjectName(QStringLiteral("PdfEstimate")); estimate->setWordWrap(true); layout->addWidget(estimate);
-        auto* policy = new QLabel(QStringLiteral("Cropped page area, including existing print marks. No automatic trim. "
-            "Annotation appearances are optional. Interactive form widgets are not rendered."), &dialog);
+        auto* policy = i18n::make<QLabel>(i18n::text("pdf.import.dialog.cropped.page.area.including.existing.print.marks.no.automatic"), &dialog);
         policy->setWordWrap(true); policy->setProperty("muted",true); layout->addWidget(policy);
         passwordRow = new QWidget(&dialog); auto* unlockRow = new QHBoxLayout(passwordRow); unlockRow->setContentsMargins(0,0,0,0);
         password = new QLineEdit(passwordRow); password->setObjectName(QStringLiteral("PdfPassword"));
-        password->setEchoMode(QLineEdit::Password); password->setPlaceholderText(QStringLiteral("PDF password"));
+        password->setEchoMode(QLineEdit::Password); i18n::setPlaceholderText(password, i18n::text("pdf.import.dialog.pdf.password"));
         password->setMaxLength(1024); unlockRow->addWidget(password,1);
-        auto* unlock = new QPushButton(QStringLiteral("Unlock"),passwordRow); unlock->setAutoDefault(false); unlockRow->addWidget(unlock);
+        auto* unlock = i18n::make<QPushButton>(i18n::text("pdf.import.dialog.unlock"), passwordRow); unlock->setAutoDefault(false); unlockRow->addWidget(unlock);
         layout->addWidget(passwordRow); passwordRow->hide();
-        status = new QLabel(QStringLiteral("Reading PDF…"),&dialog); status->setObjectName(QStringLiteral("PdfStatus"));
+        status = i18n::make<QLabel>(i18n::text("pdf.import.dialog.reading.pdf"), &dialog); status->setObjectName(QStringLiteral("PdfStatus"));
         status->setWordWrap(true); layout->addWidget(status);
         progress = new QProgressBar(&dialog); progress->setObjectName(QStringLiteral("PdfProgress")); progress->hide(); layout->addWidget(progress);
         auto* buttons = new QHBoxLayout; buttons->addStretch();
-        auto* cancel = new QPushButton(QStringLiteral("Cancel"),&dialog); cancel->setAutoDefault(false);
+        auto* cancel = i18n::make<QPushButton>(i18n::text("pdf.import.dialog.cancel"), &dialog); cancel->setAutoDefault(false);
         buttons->addWidget(cancel);
-        import = new QPushButton(QStringLiteral("Import"),&dialog); import->setObjectName(QStringLiteral("PdfImport"));
+        import = i18n::make<QPushButton>(i18n::text("pdf.import.dialog.import"), &dialog); import->setObjectName(QStringLiteral("PdfImport"));
         import->setAutoDefault(false); import->setEnabled(false); buttons->addWidget(import); layout->addLayout(buttons);
         QObject::connect(cancel,&QPushButton::clicked,&dialog,&PdfImportDialog::reject);
         QObject::connect(import,&QPushButton::clicked,&dialog,[this] { startImport(); });
@@ -199,7 +199,7 @@ struct PdfImportDialog::State {
         if (loadJob.valid()) return;
         loadState=std::make_shared<PdfJobState>();
         loadJob=readPdfMetadata(path,password->text(),loadState); password->clear();
-        passwordRow->setEnabled(false); status->setText(QStringLiteral("Reading PDF…")); timer.start();
+        passwordRow->setEnabled(false); i18n::setText(status, i18n::text("pdf.import.dialog.reading.pdf")); timer.start();
     }
     PdfLimits applicableLimits() const {
         auto result=limits;
@@ -232,13 +232,13 @@ struct PdfImportDialog::State {
             const auto& info=metadata.pages[i];
             const auto w=std::max(1.0,std::floor(info.points.width()*settings.ppi/72+0.5));
             const auto h=std::max(1.0,std::floor(info.points.height()*settings.ppi/72+0.5));
-            auto label=QStringLiteral("Page %1").arg(i+1);
+            auto label=i18n::text("pdf.import.dialog.page.1").arg(i+1);
             if (!info.label.isEmpty() && info.label!=QString::number(i+1)) label+=QStringLiteral(" · %1").arg(info.label);
-            pages->item(int(i))->setText(label+QStringLiteral("\n%1 × %2 pt\n%3 × %4 px")
+            pages->item(int(i))->setText(label+i18n::text("pdf.import.dialog.1.2.pt.3.4.px")
                 .arg(info.points.width(),0,'f',2).arg(info.points.height(),0,'f',2).arg(w,0,'f',0).arg(h,0,'f',0));
         }
         const auto plan=planPdfImport(metadata,settings,applicableLimits());
-        estimate->setText(QStringLiteral("%1 selected · %2 MiB raster pixels · %3 MiB estimated working memory")
+        i18n::setText(estimate, i18n::text("pdf.import.dialog.1.selected.2.mib.raster.pixels.3.mib.estimated")
             .arg(settings.pages.size()).arg(double(plan.rasterBytes)/1048576,0,'f',1)
             .arg(double(plan.estimatedWorkingBytes)/1048576,0,'f',1));
         status->setText(rangeError.isEmpty()?plan.error:rangeError);
@@ -295,7 +295,7 @@ struct PdfImportDialog::State {
         }
         if (importing) {
             progress->setValue(renderState->completed);
-            status->setText(QStringLiteral("Rendering page %1… Cancel discards the result when this page finishes.")
+            i18n::setText(status, i18n::text("pdf.import.dialog.rendering.page.1.cancel.discards.the.result.when.this")
                 .arg(renderState->physicalPage.load()));
         }
         if (ready(renderJob)) {

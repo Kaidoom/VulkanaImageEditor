@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 
 #include "imageeditor/render/CanvasWindow.hpp"
@@ -82,7 +83,7 @@ public:
         setObjectName(side == PanelDockSide::Left
                 ? QStringLiteral("LeftPanelDockShelf")
                 : QStringLiteral("RightPanelDockShelf"));
-        setToolTip(QStringLiteral("Drag a panel here to dock it"));
+        i18n::setToolTip(this, i18n::text("overlay.dock.workspace.drag.a.panel.here.to.dock.it"));
         setAttribute(Qt::WA_StyledBackground);
     }
 
@@ -222,7 +223,7 @@ protected:
                 const QRect label(width() / 2 - 48, height() / 2 - 15, 96, 30);
                 painter.setBrush(accent); painter.drawRoundedRect(label, 6, 6);
                 painter.setPen(palette().color(QPalette::HighlightedText));
-                painter.drawText(label, Qt::AlignCenter, tr("New tab"));
+                painter.drawText(label, Qt::AlignCenter, i18n::text("overlay.dock.workspace.new.tab"));
             }
             return;
         }
@@ -412,7 +413,7 @@ public:
                 ? QStringLiteral("OverlayLeftPanelResizeHandle")
                 : QStringLiteral("OverlayPanelResizeHandle"));
         setCursor(Qt::SizeHorCursor);
-        setToolTip(QStringLiteral("Drag to resize panels"));
+        i18n::setToolTip(this, i18n::text("overlay.dock.workspace.drag.to.resize.panels"));
         setMouseTracking(true);
         setAttribute(Qt::WA_Hover);
     }
@@ -1940,8 +1941,8 @@ void OverlayDockWorkspace::updateRulerDrag(QPoint global)
     const auto point = panelOverlay_->mapFromGlobal(global);
     const bool far = draggingRuler_ == 0 ? point.y() > area.center().y() : point.x() > area.center().x();
     for (int i = 0; i < 2; ++i) {
-        const auto label = draggingRuler_ == 0 ? (i == 0 ? tr("Top ruler") : tr("Bottom ruler"))
-            : (i == 0 ? tr("Left ruler") : tr("Right ruler"));
+        const auto label = draggingRuler_ == 0 ? (i == 0 ? i18n::text("overlay.dock.workspace.top.ruler") : i18n::text("overlay.dock.workspace.bottom.ruler"))
+            : (i == 0 ? i18n::text("overlay.dock.workspace.left.ruler") : i18n::text("overlay.dock.workspace.right.ruler"));
         static_cast<PanelDragProxy*>(rulerDockHints_[i])->setTitle(label + (bool(i) == far ? QStringLiteral(" ✓") : QString{}));
         const int x = draggingRuler_ == 0 ? area.center().x() - 65 : i == 0 ? area.left() : area.right() - 130;
         const int y = draggingRuler_ == 1 ? area.center().y() - 14 : i == 0 ? area.top() : area.bottom() - 28;

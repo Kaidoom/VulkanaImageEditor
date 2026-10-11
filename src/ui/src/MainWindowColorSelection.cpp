@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
 #include "imageeditor/ui/FlattenedDocument.hpp"
@@ -28,9 +29,9 @@ QWidget* MainWindow::createColorSelectionControls(QWidget* parent)
     auto* sources = new QButtonGroup(page);
     for (int i=0;i<2;++i) {
         auto* button = new ToolOptionsButton(i ? QStringLiteral("ColorSelectionActiveLayer") : QStringLiteral("ColorSelectionMergedVisible"),
-            i ? QStringLiteral("Active Layer") : QStringLiteral("Merged Visible"),
-            i ? QStringLiteral("Match the active raster, text or shape image, ignoring layer visibility/opacity")
-                : QStringLiteral("Match the visible composited document, including hierarchy and layer opacity"),
+            i ? i18n::text("main.window.color.selection.active.layer") : i18n::text("main.window.color.selection.merged.visible"),
+            i ? i18n::text("main.window.color.selection.match.the.active.raster.text.or.shape.image.ignoring")
+                : i18n::text("main.window.color.selection.match.the.visible.composited.document.including.hierarchy.and.layer"),
             ToolOptionsButton::Kind::Toggle,page,ToolOptionsButton::Presentation::Icon);
         button->setIcon(toolGlyph(i ? ToolGlyph::ActiveLayer : ToolGlyph::MergedVisible));
         button->setChecked(i==0); sources->addButton(button,i); row->addWidget(button);
@@ -42,16 +43,16 @@ QWidget* MainWindow::createColorSelectionControls(QWidget* parent)
     colorSelectionFuzziness_ = new CompactValueControl(page);
     auto* field = colorSelectionFuzziness_;
     field->setObjectName(QStringLiteral("ColorSelectionFuzziness"));
-    field->setAccessibleName(QStringLiteral("Fuzziness"));
-    field->setPrefix(QStringLiteral("Fuzziness: ")); field->setDecimals(0); field->setRange(0,255);
+    i18n::setAccessibleName(field, i18n::text("main.window.color.selection.fuzziness"));
+    i18n::setPrefix(field, i18n::text("main.window.color.selection.fuzziness.2")); field->setDecimals(0); field->setRange(0,255);
     field->setSingleStep(1); field->setValue(16); field->setFixedSize(160,30);
-    field->setToolTip(QStringLiteral("Color/alpha distance · 0 closest match, 255 all eligible colors. Transparent/nontransparent pixels never cross-match."));
+    i18n::setToolTip(field, i18n::text("main.window.color.selection.color.alpha.distance.0.closest.match.255.all.eligible"));
     connect(field,&QDoubleSpinBox::valueChanged,this,[this] { changeColorSelectionFuzziness(); });
     field->onInteractionFinished = [this] { if (!updatingColorSelection_) finishColorSelection(); };
     row->addWidget(field);
     auto* sample = new SampledColorLabel(page); colorSelectionSample_ = sample;
     sample->setObjectName(QStringLiteral("ColorSelectionSample")); sample->setFixedSize(174,30);
-    sample->setToolTip(QStringLiteral("Sampled reference only — does not change either painting color"));
+    i18n::setToolTip(sample, i18n::text("main.window.color.selection.sampled.reference.only.does.not.change.either.painting.color"));
     sample->setSample({}); row->addWidget(sample);
     colorSelectionTimer_ = new QTimer(this);
     colorSelectionTimer_->setObjectName(QStringLiteral("ColorSelectionTimer"));
@@ -62,18 +63,9 @@ QWidget* MainWindow::createColorSelectionControls(QWidget* parent)
 void MainWindow::createColorSelectionHelp()
 {
     QVBoxLayout* content {};
-    propertiesPanel_->addToolPage(core::ToolId::SelectByColor,QStringLiteral("Select by Color"),
-        QStringLiteral("Click a color to select matching document pixels everywhere, including disconnected areas."),content);
-    auto* help = new QLabel(QStringLiteral(
-        "{{ToolAction_colorselect}} · Select by Color; click · Sample (also inside selections)\n"
-        "Shift · Add; Alt · Subtract; Shift+Alt · Intersect (latched on click)\n"
-        "Escape · Cancel pending work\n{{SelectAllAction}} / {{DeselectAction}} · Select all / deselect\n"
-        "{{InvertSelectionAction}} · Invert; {{LayerTransformAction}} · Transform selection\n{{LayerViaCopyAction}} · Copy selected raster content to a layer\n"
-        "{{UndoAction}} / {{RedoAction}} · Undo / redo\n\n"
-        "Merged Visible uses the visible document. Active Layer ignores its opacity and visibility; sample within its valid extent. "
-        "Transparent samples match transparent pixels only. Higher Fuzziness includes less-similar colors, refining the last sample. "
-        "After source or selection changes, click again.\n\n"
-        "{{PanCanvasAction}} + left-drag / middle-drag · Pan; wheel · Zoom"));
+    propertiesPanel_->addToolPage(core::ToolId::SelectByColor,i18n::text("main.window.color.selection.select.by.color"),
+        i18n::text("main.window.color.selection.click.a.color.to.select.matching.document.pixels.everywhere"),content);
+    auto* help = i18n::make<QLabel>(i18n::text("main.window.color.selection.toolaction.colorselect.select.by.color.click.sample.also.inside"));
     help->setWordWrap(true); help->setObjectName(QStringLiteral("MutedLabel")); content->addWidget(help);
 }
 bool MainWindow::beginColorSelection(core::Vec2d seed, Qt::KeyboardModifiers modifiers)
@@ -100,7 +92,7 @@ bool MainWindow::beginColorSelection(core::Vec2d seed, Qt::KeyboardModifiers mod
         // Empty incoming path still retains baseline ants in combination modes.
         canvasWindow_->setSelectionPathPreview(std::make_shared<const std::vector<core::SelectionEdge>>(),operation,0,0);
         colorSelectionTimer_->start(0); refreshColorSelectionControls(); updateActionState();
-        statusBar()->showMessage(QStringLiteral("Sampling document colors… · Escape cancels"));
+        statusBar()->showMessage(i18n::text("main.window.color.selection.sampling.document.colors.escape.cancels"));
         return true;
     } catch (const std::exception& error) {
         cancelColorSelection();
@@ -117,7 +109,7 @@ void MainWindow::changeColorSelectionFuzziness()
     if (colorSelectionCancelled_) *colorSelectionCancelled_ = true;
     colorSelectionPreview_ = {}; colorSelectionPreviewFuzziness_ = -1;
     colorSelectionTimer_->start(0); updateActionState();
-    statusBar()->showMessage(QStringLiteral("Refining color selection… · Escape cancels"));
+    statusBar()->showMessage(i18n::text("main.window.color.selection.refining.color.selection.escape.cancels"));
 }
 void MainWindow::finishColorSelection()
 {
@@ -205,11 +197,11 @@ void MainWindow::advanceColorSelection()
         colorSelectionEditing_ = false; colorSelectionPreview_ = {}; colorSelectionPreviewFuzziness_ = -1;
         canvasWindow_->setSelectionPreview({});
         synchronizeUi(false,false);
-        statusBar()->showMessage(changed ? QStringLiteral("Color selection applied") : QStringLiteral("Selection unchanged"),2500);
+        statusBar()->showMessage(changed ? i18n::text("main.window.color.selection.color.selection.applied") : i18n::text("main.window.color.selection.selection.unchanged"),2500);
     } catch (const std::exception& error) {
         const auto message = QString::fromUtf8(error.what());
         cancelColorSelection(!colorSelection_ || !colorSelection_->reference);
-        statusBar()->showMessage(QStringLiteral("Select by Color: %1").arg(message),6000);
+        statusBar()->showMessage(i18n::text("main.window.color.selection.select.by.color.1").arg(message),6000);
     }
 }
 void MainWindow::cancelColorSelection(bool forgetReference)

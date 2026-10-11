@@ -376,6 +376,7 @@ PsdExportPlan planPsdExport(const PsdExportSnapshot &s,
         if (auto c = d.tree().container(*it)) {
           e.container = true;
           e.name = QString::fromStdString(c->name);
+          e.kind = c->kind == core::ContainerKind::ClippingMaskGroup ? PsdContentKind::ClippingGroup : PsdContentKind::Group;
           e.type = c->kind == core::ContainerKind::ClippingMaskGroup
                        ? "Clipping group"
                        : "Folder";
@@ -402,6 +403,9 @@ PsdExportPlan planPsdExport(const PsdExportSnapshot &s,
         } else {
           auto &l = *d.layer(*it);
           e.name = QString::fromStdString(l.name);
+          e.kind = std::holds_alternative<core::TextLayer>(l.payload) ? PsdContentKind::Text
+              : std::holds_alternative<core::AdjustmentLayer>(l.payload) ? PsdContentKind::Adjustment
+              : std::holds_alternative<core::ShapeLayer>(l.payload) ? PsdContentKind::Shape : PsdContentKind::Raster;
           e.type = std::holds_alternative<core::TextLayer>(l.payload) ? "Text"
                    : std::holds_alternative<core::AdjustmentLayer>(l.payload) ? "Adjustment"
                    : std::holds_alternative<core::ShapeLayer>(l.payload)
@@ -477,7 +481,7 @@ PsdExportPlan planPsdExport(const PsdExportSnapshot &s,
                    "editable equivalents if available, consolidate an "
                    "explicitly chosen group, or choose Flattened PSD.";
           }
-          if (e.type == "Raster" && !translation(l.localToDocument)) {
+          if (e.kind == PsdContentKind::Raster && !translation(l.localToDocument)) {
             e.attention = true;
             e.reasons
                 << "Raster transform is baked once at document resolution; the "
@@ -514,6 +518,7 @@ PsdExportPlan planPsdExport(const PsdExportSnapshot &s,
     // An explicit enclosing replacement owns the entire dependency span. Do not
     // block it because an independently encoded child would be unsupported.
     p.error.clear();
+    const auto problem = [&](PsdExportProblem kind, const QString& name) { p.problem = kind; p.problemLayer = name; };
     for (auto &e : p.entries) {
       bool superseded = false, omittedByParent = false;
       for (auto &parent : p.entries)
@@ -531,38 +536,48 @@ PsdExportPlan planPsdExport(const PsdExportSnapshot &s,
             c->children.size() > 1) {
           auto base = std::ranges::find_if(
               p.entries, [&](auto &x) { return x.id == c->children.front(); });
-          if (base != p.entries.end() && base->action == PsdExportAction::Omit)
+          if (base != p.entries.end() && base->action == PsdExportAction::Omit) {
+            problem(PsdExportProblem::MissingBase, e.name);
             p.error =
                 e.name +
                 ": retain the clipping base or omit this whole clipping group.";
+          }
         }
         continue;
       }
-      if (e.action == PsdExportAction::Editable && !e.editable)
+      if (e.action == PsdExportAction::Editable && !e.editable) {
+        problem(PsdExportProblem::EditableUnavailable, e.name);
         p.error = e.name + ": editable output is unavailable.";
-      if (e.action == PsdExportAction::Pixels && !e.pixels)
+      }
+      if (e.action == PsdExportAction::Pixels && !e.pixels) {
+        problem(PsdExportProblem::NeedsGroup, e.name);
         p.error = e.name +
                   ": cannot bake a backdrop-dependent effect independently. "
                   "Consolidate an enclosing group or use Flattened PSD.";
+      }
       p.needsReview |= e.attention;
       if (auto c = d.tree().container(e.id);
           c && c->kind == core::ContainerKind::ClippingMaskGroup &&
           c->children.size() > 1 && e.action != PsdExportAction::Omit) {
         auto base = std::ranges::find_if(
             p.entries, [&](auto &x) { return x.id == c->children.front(); });
-        if (base != p.entries.end() && base->action == PsdExportAction::Omit)
+        if (base != p.entries.end() && base->action == PsdExportAction::Omit) {
+          problem(PsdExportProblem::MissingBase, e.name);
           p.error = e.name + ": retain the base when consolidating, or omit "
                              "the whole clipping group; "
                              "another member will not be silently promoted.";
+        }
         if (base != p.entries.end() &&
             base->action == PsdExportAction::Pixels &&
             e.action == PsdExportAction::Editable) {
           auto l = d.layer(base->id);
-          if (l && core::hasActiveLayerEffects(l->effects))
+          if (l && core::hasActiveLayerEffects(l->effects)) {
+            problem(PsdExportProblem::BaseStyles, e.name);
             p.error =
                 e.name +
                 ": baking the base style changes clipping coverage. "
                 "Consolidate this group or retain the editable base style.";
+          }
         }
       }
     }
@@ -577,6 +592,7 @@ PsdExportPlan planPsdExport(const PsdExportSnapshot &s,
   } catch (const Cancelled &) {
     p.cancelled = true;
   } catch (const std::exception &e) {
+    p.problem = PsdExportProblem::None;
     p.error = QString::fromUtf8(e.what());
   }
   return p;

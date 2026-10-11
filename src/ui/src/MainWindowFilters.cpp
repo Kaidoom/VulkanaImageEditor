@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/FiltersPanel.hpp"
 #include "imageeditor/ui/EffectsPanel.hpp"
@@ -120,7 +121,7 @@ bool MainWindow::beginFilterEdit(core::SpatialFilterType)
         auto transaction=std::make_unique<core::FilterEditTransaction>(*session().document(),*session().activeLayer());
         if(!transaction->active())return false;
         filterEdit_=std::move(transaction);capturedFilterRegionActive_=true;updateActionState();return true;
-    }catch(const std::exception& e){statusBar()->showMessage(tr("Could not begin filter: %1").arg(QString::fromUtf8(e.what())),5000);return false;}
+    }catch(const std::exception& e){statusBar()->showMessage(i18n::text("main.window.filters.could.not.begin.filter.1").arg(QString::fromUtf8(e.what())),5000);return false;}
 }
 void MainWindow::previewFilterEdit(core::SpatialFilterState state)
 {
@@ -139,7 +140,7 @@ void MainWindow::previewFilterEdit(core::SpatialFilterState state)
             canvasWindow_->setDocument(session().document()->snapshot(),false);refreshFiltersPanel();
             if(layerList_)layerList_->viewport()->update();
         }else if(!filterEdit_->active())finishFilterEdit(false);
-    }catch(const std::exception& e){statusBar()->showMessage(tr("Filter preview failed: %1").arg(QString::fromUtf8(e.what())),5000);finishFilterEdit(false);}
+    }catch(const std::exception& e){statusBar()->showMessage(i18n::text("main.window.filters.filter.preview.failed.1").arg(QString::fromUtf8(e.what())),5000);finishFilterEdit(false);}
 }
 void MainWindow::finishFilterEdit(bool commit)
 {
@@ -149,11 +150,11 @@ void MainWindow::finishFilterEdit(bool commit)
     try{
         if(commit){
             if(!filterEdit_->commit(session().history())&&filterEdit_->active()){
-                statusBar()->showMessage(tr("Could not record the filter. Preview retained; retry or Escape to cancel."),5000);return;
+                statusBar()->showMessage(i18n::text("main.window.filters.could.not.record.the.filter.preview.retained.retry.or"),5000);return;
             }
         }else (void)filterEdit_->cancel();
         filterEdit_.reset();if(session().document())synchronizeUi(false,false);
-    }catch(const std::exception& e){statusBar()->showMessage(tr("Could not finish filter: %1").arg(QString::fromUtf8(e.what())),5000);}
+    }catch(const std::exception& e){statusBar()->showMessage(i18n::text("main.window.filters.could.not.finish.filter.1").arg(QString::fromUtf8(e.what())),5000);}
 }
 void MainWindow::captureFilterSelection(core::SpatialFilterType type)
 {
@@ -164,7 +165,7 @@ void MainWindow::captureFilterSelection(core::SpatialFilterType type)
         auto state=layer->filters?*layer->filters:core::SpatialFilterStack{};
         state.items[std::size_t(type)].mask=core::captureAdjustmentMask(session().document()->selection(),layer->localToDocument);
         previewFilterEdit(std::make_shared<const core::SpatialFilterStack>(std::move(state)));finishFilterEdit(true);
-    }catch(const std::exception& e){statusBar()->showMessage(tr("Could not capture filter mask: %1").arg(QString::fromUtf8(e.what())),5000);finishFilterEdit(false);}
+    }catch(const std::exception& e){statusBar()->showMessage(i18n::text("main.window.filters.could.not.capture.filter.mask.1").arg(QString::fromUtf8(e.what())),5000);finishFilterEdit(false);}
 }
 void MainWindow::refreshFiltersPanel()
 {
@@ -192,7 +193,7 @@ void MainWindow::advanceFilterPreparation()
         const bool matches=layer&&job->matches(session().document(),*layer);
         if(!matches)job->cancelled=true;
         if(filterFuture_.wait_for(std::chrono::seconds(0))!=std::future_status::ready){
-            filtersPanel_->setProcessing(true,job->progress.load(),tr("Filtering %1…").arg(QString::fromStdString(job->key.name)));
+            filtersPanel_->setProcessing(true,job->progress.load(),i18n::text("main.window.filters.filtering.1").arg(QString::fromStdString(job->key.name)));
             effectsPanel_->setProcessing(true,job->progress.load());
             filterPreparationTimer_->start(20);return;
         }
@@ -220,7 +221,7 @@ void MainWindow::advanceFilterPreparation()
                 }
             }catch(const std::exception& e){
                 job->error=e.what();job->result.reset();job->effects.reset();job->input.reset();failedFilterJobs_[job->key.id]=job;
-                statusBar()->showMessage(tr("Filter preparation failed: %1").arg(QString::fromUtf8(e.what())),7000);
+                statusBar()->showMessage(i18n::text("main.window.filters.filter.preparation.failed.1").arg(QString::fromUtf8(e.what())),7000);
             }
         }
         job->result.reset(); // The document alone owns an admitted derived image.
@@ -280,7 +281,7 @@ void MainWindow::advanceFilterPreparation()
                 job->result=prepared.filters;job->effects=prepared.effects;
             }catch(const std::exception& e){job->error=e.what();}
         });
-        filtersPanel_->setProcessing(true,0,tr("Filtering %1…").arg(QString::fromStdString(candidate->name)));
+        filtersPanel_->setProcessing(true,0,i18n::text("main.window.filters.filtering.1").arg(QString::fromStdString(candidate->name)));
         filterPreparationTimer_->start(20);
     }catch(const std::exception& e){
         filterJob_.reset();job->error=e.what();job->input.reset();failedFilterJobs_[candidate->id]=job;

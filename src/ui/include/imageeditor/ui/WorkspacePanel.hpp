@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QWidget>
+#include "imageeditor/ui/Localization.hpp"
 
 #include <functional>
 
@@ -12,7 +13,7 @@ namespace imageeditor::ui {
 // "Floating" is presentation state, not QWidget top-level window state.
 class WorkspacePanel final : public QWidget {
 public:
-    explicit WorkspacePanel(QString title, QWidget* content,
+    explicit WorkspacePanel(i18n::Message title, QWidget* content,
         QWidget* parent = nullptr);
 
     [[nodiscard]] QString title() const { return title_; }

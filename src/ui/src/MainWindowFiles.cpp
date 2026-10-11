@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/CrossWindowPointerRouter.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
@@ -74,7 +75,7 @@ bool MainWindow::restartAfterUpdate(const QString& path,
     std::function<bool(const QString&, const QStringList&)> launch)
 {
     if (path.isEmpty() || !QFileInfo(path).isAbsolute() || !QFileInfo(path).isExecutable()) {
-        reportFileError(tr("The updated AppImage is unavailable. Check its location and permissions."));
+        reportFileError(i18n::text("main.window.files.the.updated.appimage.is.unavailable.check.its.location.and"));
         return false;
     }
     QList<MainWindow*> windows;
@@ -128,7 +129,7 @@ bool MainWindow::restartAfterUpdate(const QString& path,
     QApplication::setQuitOnLastWindowClosed(quitOnClose);
     if (!started) {
         for (auto* window : windows) window->show();
-        reportFileError(tr("Failed to restart Vulkana. Your open documents are still available."));
+        reportFileError(i18n::text("main.window.files.failed.to.restart.vulkana.your.open.documents.are.still"));
         return false;
     }
     QCoreApplication::quit();
@@ -140,7 +141,7 @@ QString MainWindow::documentOpenFilter()
     QStringList suffixes;
     for (const auto& format : QImageReader::supportedImageFormats())
         suffixes.append(QStringLiteral("*.%1").arg(QString::fromLatin1(format)));
-    return QStringLiteral("Projects, images, PDF and PSD (*.vulkana *.pdf *.PDF *.psd *.PSD *.psb *.PSB %1);;Vulkana project (*.vulkana);;PDF (*.pdf *.PDF);;PSD (*.psd *.PSD *.psb *.PSB);;Images (%1)")
+    return i18n::text("main.window.files.projects.images.pdf.and.psd.vulkana.pdf.pdf.psd")
         .arg(suffixes.join(' '));
 }
 
@@ -149,13 +150,13 @@ void MainWindow::reportFileError(const QString& error)
     if (fileInteractions_.reportError)
         fileInteractions_.reportError(error);
     else
-        QMessageBox::critical(this, QStringLiteral("Document operation failed"), error);
+        QMessageBox::critical(this, i18n::text("main.window.files.document.operation.failed"), error);
 }
 
 void MainWindow::updateDocumentTitle()
 {
     const bool modified = session().document() && session().document()->isModified();
-    setWindowTitle(QStringLiteral("%1%2 — Vulkana Image Editor")
+    i18n::setWindowTitle(this, i18n::text("main.window.files.1.2.vulkana.image.editor")
             .arg(fileState().displayName, modified ? QStringLiteral(" *") : QString { }));
     refreshDocumentTabs();
 }
@@ -171,7 +172,7 @@ bool MainWindow::settleForFileOperation()
     if (shapeCreation_ || activeBrushStroke_ || activeSpotHealStroke_ || spotHealBusyForActiveDocument() || activeCloneStroke_ || cloneProcessing_
         ||activeLocalBlurStroke_||localBlurProcessing_||activeFill_||canvasWindow_->transformDragging()
         || (activeLayerMove_ && activeLayerMove_->dragging())) {
-        statusBar()->showMessage(QStringLiteral("Finish the current stroke, fill or drag before continuing."), 4000);
+        statusBar()->showMessage(i18n::text("main.window.files.finish.the.current.stroke.fill.or.drag.before.continuing"), 4000);
         return false;
     }
     try {
@@ -195,14 +196,14 @@ bool MainWindow::settleForFileOperation()
         finishLayerTransform(true); // Publish individual completed actions, not a collapsed session.
         finishSelectionTransform(true);
         if (activeLayerMove_ || layerTransform_ || layerCrop_ || selectionTransform_) {
-            reportFileError(QStringLiteral("Unable to finish transform history. Your edits are retained; retry or cancel the transform explicitly."));
+            reportFileError(i18n::text("main.window.files.unable.to.finish.transform.history.your.edits.are.retained"));
             return false;
         }
         pointerRouter_->cancelCapture();
         updateDocumentTitle();
         return true;
     } catch (const std::exception& e) {
-        reportFileError(QStringLiteral("Cannot finish the current edit: %1").arg(QString::fromUtf8(e.what())));
+        reportFileError(i18n::text("main.window.files.cannot.finish.the.current.edit.1").arg(QString::fromUtf8(e.what())));
         return false;
     }
 }
@@ -217,8 +218,8 @@ bool MainWindow::guardUnsavedChanges()
     if (fileInteractions_.askUnsaved)
         choice = fileInteractions_.askUnsaved();
     else {
-        QMessageBox question(QMessageBox::Question, QStringLiteral("Save changes?"),
-            QStringLiteral("Save changes to %1 before continuing?").arg(fileState().displayName),
+        QMessageBox question(QMessageBox::Question, i18n::text("main.window.files.save.changes"),
+            i18n::text("main.window.files.save.changes.to.1.before.continuing").arg(fileState().displayName),
             QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, this);
         question.setDefaultButton(QMessageBox::Save);
         const int response = question.exec();
@@ -239,16 +240,16 @@ bool MainWindow::saveDocument(bool saveAs)
     // Reject the pending repair before opening a destination dialog, whose
     // nested loop must not mistake a worker result for already-saved content.
     if (activeSpotHealStroke_ || spotHealBusyForActiveDocument()) {
-        statusBar()->showMessage(tr("Finish or cancel Spot Heal before saving."), 4000);
+        statusBar()->showMessage(i18n::text("main.window.files.finish.or.cancel.spot.heal.before.saving"), 4000);
         return false;
     }
     QString path = fileState().projectPath;
     const bool chooseDestination = saveAs || path.isEmpty();
     if (chooseDestination) {
         path = fileInteractions_.chooseSavePath ? fileInteractions_.chooseSavePath()
-                                                : QFileDialog::getSaveFileName(this, QStringLiteral("Save Vulkana project"),
+                                                : QFileDialog::getSaveFileName(this, i18n::text("main.window.files.save.vulkana.project"),
                                                       fileState().projectPath.isEmpty() ? QFileInfo(fileState().displayName).completeBaseName() + ".vulkana" : fileState().projectPath,
-                                                      QStringLiteral("Vulkana project (*.vulkana)"), nullptr, QFileDialog::DontConfirmOverwrite);
+                                                      i18n::text("main.window.files.vulkana.project.vulkana"), nullptr, QFileDialog::DontConfirmOverwrite);
         if (path.isEmpty())
             return false;
         if (!path.endsWith(QStringLiteral(".vulkana"), Qt::CaseInsensitive))
@@ -258,14 +259,14 @@ bool MainWindow::saveDocument(bool saveAs)
             if (other == activeDocument_ || other->projectPath.isEmpty()) continue;
             const auto owned = QFileInfo(other->projectPath).canonicalFilePath();
             if (destination == (owned.isEmpty() ? other->projectPath : owned)) {
-                reportFileError(tr("That project is already open in another tab. Choose a different Save As destination."));
+                reportFileError(i18n::text("main.window.files.that.project.is.already.open.in.another.tab.choose"));
                 return false;
             }
         }
         if (QFileInfo::exists(path)) {
             const bool replace = fileInteractions_.confirmReplace ? fileInteractions_.confirmReplace(path)
-                                                                  : QMessageBox::question(this, QStringLiteral("Replace project?"),
-                                                                        QStringLiteral("Replace %1?").arg(QFileInfo(path).fileName()),
+                                                                  : QMessageBox::question(this, i18n::text("main.window.files.replace.project"),
+                                                                        i18n::text("main.window.files.replace.1").arg(QFileInfo(path).fileName()),
                                                                         QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel)
                     == QMessageBox::Yes;
             if (!replace)
@@ -289,7 +290,7 @@ bool MainWindow::saveDocument(bool saveAs)
     ProjectIoResult result;
     {
         QScopedValueRollback busy(fileBusy_, true);
-        QProgressDialog progress(QStringLiteral("Saving and verifying project…"), QStringLiteral("Cancel"), 0, 1000, this);
+        QProgressDialog progress(i18n::text("main.window.files.saving.and.verifying.project"), QStringLiteral("Cancel"), 0, 1000, this);
         progress.setWindowModality(Qt::WindowModal);
         progress.setMinimumDuration(350);
         progress.setAutoClose(false);
@@ -311,7 +312,7 @@ bool MainWindow::saveDocument(bool saveAs)
     if (!result) {
         refreshMoveControls();
         if (!result.cancelled)
-            reportFileError(QStringLiteral("Could not save %1. The previous file was not replaced.\n%2").arg(path, result.error));
+            reportFileError(i18n::text("main.window.files.could.not.save.1.the.previous.file.was.not").arg(path, result.error));
         return false;
     }
     fileState().projectPath = path;
@@ -322,7 +323,7 @@ bool MainWindow::saveDocument(bool saveAs)
     if (persistWindowState_)
         recentFiles_.recordSuccess(path, RecentFileKind::Project);
     updateDocumentTitle();
-    statusBar()->showMessage(QStringLiteral("Saved %1").arg(fileState().displayName), 3500);
+    statusBar()->showMessage(i18n::text("main.window.files.saved.1").arg(fileState().displayName), 3500);
     return true;
 }
 
@@ -349,7 +350,7 @@ bool MainWindow::openDocumentFromPath(const QString& filePath)
     {
         QScopedValueRollback busy(fileBusy_, true);
         if (project) {
-            QProgressDialog progress(QStringLiteral("Opening project…"), QStringLiteral("Cancel"), 0, 1000, this);
+            QProgressDialog progress(i18n::text("main.window.files.opening.project"), QStringLiteral("Cancel"), 0, 1000, this);
             progress.setWindowModality(Qt::WindowModal);
             progress.setMinimumDuration(350);
             progress.setAutoClose(false);
@@ -380,7 +381,7 @@ bool MainWindow::openDocumentFromPath(const QString& filePath)
         }
     }
     if (!document) {
-        reportFileError(QStringLiteral("Could not open %1. The current document was kept.\n%2").arg(path, error));
+        reportFileError(i18n::text("main.window.files.could.not.open.1.the.current.document.was.kept").arg(path, error));
         return false;
     }
     document->markSaved();
@@ -395,9 +396,9 @@ bool MainWindow::openDocumentFromPath(const QString& filePath)
     // Do this after publishing targets (IDs may be reused by another project).
     canvasWindow_->dismissLayerOutlines();
     updateDocumentTitle();
-    statusBar()->showMessage(QStringLiteral("Opened %1").arg(fileState().displayName), 3500);
+    statusBar()->showMessage(i18n::text("main.window.files.opened.1").arg(fileState().displayName), 3500);
     if (!warnings.isEmpty())
-        QMessageBox::warning(this, QStringLiteral("Project font substitutions"), warnings.join('\n'));
+        QMessageBox::warning(this, i18n::text("main.window.files.project.font.substitutions"), warnings.join('\n'));
     return true;
 }
 
@@ -410,14 +411,14 @@ void MainWindow::refreshRecentMenu()
                 .arg(file.fileName(), entry.kind == RecentFileKind::Project ? QStringLiteral("Project")
                     : entry.kind == RecentFileKind::Pdf ? QStringLiteral("PDF")
                     : entry.kind == RecentFileKind::Psd ? QStringLiteral("PSD") : QStringLiteral("Image"), file.absolutePath()));
-        item->addAction(QStringLiteral("Open"), this, [this, path = entry.path] { openImageFromPath(path); });
-        item->addAction(QStringLiteral("Remove from recent files"), this, [this, path = entry.path] { recentFiles_.remove(path); });
+        i18n::addAction(item, i18n::text("main.window.files.open"), this, [this, path = entry.path] { openImageFromPath(path); });
+        i18n::addAction(item, i18n::text("main.window.files.remove.from.recent.files"), this, [this, path = entry.path] { recentFiles_.remove(path); });
     }
     if (recentFiles_.entries().isEmpty())
-        recentMenu_->addAction(QStringLiteral("No recent files"))->setEnabled(false);
+        i18n::addAction(recentMenu_, i18n::text("main.window.files.no.recent.files"))->setEnabled(false);
     else {
         recentMenu_->addSeparator();
-        recentMenu_->addAction(QStringLiteral("Clear recent files"), this, [this] { recentFiles_.clear(); });
+        i18n::addAction(recentMenu_, i18n::text("main.window.files.clear.recent.files"), this, [this] { recentFiles_.clear(); });
     }
 }
 }

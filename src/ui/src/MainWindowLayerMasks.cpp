@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/core/SelectionCommands.hpp"
 #include "imageeditor/ui/LayerListModel.hpp"
@@ -14,16 +15,16 @@
 
 namespace imageeditor::ui {
 void MainWindow::createLayerMaskActions() {
-  const QStringList labels{
-      tr("Add Layer Mask"),    tr("Add Mask from Selection"),
-      tr("Delete Layer Mask"), tr("Disable Layer Mask"),
-      tr("Apply Layer Mask…"), tr("Add Mask to Selection"), tr("Invert Layer Mask")};
+  const QList<i18n::Message> labels{
+      i18n::text("main.window.layer.masks.add.layer.mask"),    i18n::text("main.window.layer.masks.add.mask.from.selection"),
+      i18n::text("main.window.layer.masks.delete.layer.mask"), i18n::text("main.window.layer.masks.disable.layer.mask"),
+      i18n::text("main.window.layer.masks.apply.layer.mask"), i18n::text("main.window.layer.masks.add.mask.to.selection"), i18n::text("main.window.layer.masks.invert.layer.mask")};
   const QStringList names{"AddLayerMaskAction",    "MaskFromSelectionAction",
                           "DeleteLayerMaskAction", "EnableLayerMaskAction",
                           "ApplyLayerMaskAction",  "MaskToSelectionAction", "InvertLayerMaskAction"};
   for (size_t i = 0; i < maskActions_.size(); ++i) {
     auto *action =
-        new QAction(toolGlyph(ToolGlyph::LayerMask), labels[int(i)], this);
+        i18n::make<QAction>(toolGlyph(ToolGlyph::LayerMask), labels[int(i)], this);
     action->setObjectName(names[int(i)]);
     maskActions_[i] = action;
     registerEditorWindowAction(action);
@@ -66,9 +67,9 @@ void MainWindow::refreshLayerMaskActions() {
       !session().document()->selection()->bounds().empty());
   for (size_t i = 2; i < maskActions_.size(); ++i)
     maskActions_[i]->setEnabled(available && layer->mask);
-  maskActions_[3]->setText(layer && layer->mask && !layer->mask->enabled
-                               ? tr("Enable Layer Mask")
-                               : tr("Disable Layer Mask"));
+  i18n::setText(maskActions_[3], layer && layer->mask && !layer->mask->enabled
+                               ? i18n::text("main.window.layer.masks.enable.layer.mask")
+                               : i18n::text("main.window.layer.masks.disable.layer.mask"));
   maskActions_[4]->setEnabled(available && layer->mask && layer->mask->enabled);
   if(layer && std::holds_alternative<core::AdjustmentLayer>(layer->payload))maskActions_[4]->setEnabled(false);
   if (addMaskButton_)
@@ -88,9 +89,8 @@ void MainWindow::setLayerEditingTarget(int row, bool mask) {
   session().setEditingLayerMask(mask);
   synchronizeUi(false, false);
   statusBar()->showMessage(session().editingLayerMask()
-                               ? tr("Editing layer mask · White reveals, black "
-                                    "hides · Brush, Eraser and Fill")
-                               : tr("Editing layer content"),
+                               ? i18n::text("main.window.layer.masks.editing.layer.mask.white.reveals.black.hides.brush.eraser")
+                               : i18n::text("main.window.layer.masks.editing.layer.content"),
                            4000);
 }
 void MainWindow::addLayerMask(bool requireSelection) {
@@ -160,8 +160,7 @@ void MainWindow::addLayerMask(bool requireSelection) {
       fileState().untouched = false;
       synchronizeUi(true, false);
       statusBar()->showMessage(
-          tr("Layer mask active · White reveals, black hides · Click the "
-             "content thumbnail to edit the layer"),
+          i18n::text("main.window.layer.masks.layer.mask.active.white.reveals.black.hides.click.the"),
           5500);
     }
   } catch (const std::exception &e) {
@@ -201,11 +200,8 @@ void MainWindow::applyLayerMask() {
   if (!layer || !layer->mask || !layer->mask->enabled)
     return;
   if (!confirmLayerChange(
-          tr("Apply layer mask"),
-          tr("Commit this layer’s masked appearance to raster pixels, "
-             "including its transforms and effects? Text and shapes will "
-             "become pixels. Layer opacity and blend mode are retained. Undo "
-             "restores the editable original.")))
+          i18n::text("main.window.layer.masks.apply.layer.mask.2"),
+          i18n::text("main.window.layer.masks.commit.this.layer.s.masked.appearance.to.raster.pixels")))
     return;
   auto result = prepareRasterizeLayers(
       *session().document(), session().layerSelectionState(),
@@ -233,7 +229,7 @@ void MainWindow::layerMaskToSelection() {
     return;
   const auto e = doc.canvas().extent;
   if (uint64_t(e.width) * e.height > 64ULL * 1024 * 1024) {
-    statusBar()->showMessage(tr("Selection exceeds 64 megapixels"), 4000);
+    statusBar()->showMessage(i18n::text("main.window.layer.masks.selection.exceeds.64.megapixels"), 4000);
     return;
   }
   auto mask = std::make_shared<core::LayerMask>(*layer->mask);
