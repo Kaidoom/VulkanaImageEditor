@@ -1,5 +1,9 @@
 # Vulkana Image Editor
 
+<!-- readme-languages:start -->
+[English](README.md) · [Français](docs/readme/README.fr.md) · [Español](docs/readme/README.es.md) · [Deutsch](docs/readme/README.de.md) · [Italiano](docs/readme/README.it.md) · [Português (Brasil)](docs/readme/README.pt-BR.md) · [Polski](docs/readme/README.pl.md) · [Türkçe](docs/readme/README.tr.md) · [Русский](docs/readme/README.ru.md) · [Українська](docs/readme/README.uk.md) · [العربية](docs/readme/README.ar.md) · [हिन्दी](docs/readme/README.hi.md) · [简体中文](docs/readme/README.zh-Hans.md) · [繁體中文](docs/readme/README.zh-Hant.md) · [日本語](docs/readme/README.ja.md) · [한국어](docs/readme/README.ko.md)
+<!-- readme-languages:end -->
+
 A Linux-first image editor for painting, retouching and layered composition,
 with a Qt workspace and Vulkan-accelerated canvas.
 
@@ -13,14 +17,18 @@ with a Qt workspace and Vulkan-accelerated canvas.
 - **Painting and retouching:** pressure-sensitive brushes, procedural and textured
   presets, erasing, fill, local blur, Clone Stamp, Heal and automatic Spot Heal.
 - **Selections:** rectangle, ellipse, freehand/polygon/magnetic lasso, select by
-  color and smart selection, with grow/shrink, inversion and reselect.
+  color and brush-guided Quick Selection, with grow/shrink, inversion and reselect.
+- **Object Selection and refinement:** select an object with a rough rectangle
+  using the bundled offline model; improve selections and bitmap masks with
+  Refine Selection, live previews and manual corrections. No model download or
+  Python installation is needed to use Object Selection.
 - **Transforms:** move, scale, rotate, flip and corner distortion; transform
   selection boundaries or selected pixels, with snapping and alignment guides.
 - **Non-destructive adjustments:** per-layer corrections and masked adjustment
   layers with All Below / This Group scope; exposure, levels, curves, hue/saturation,
   vibrance, color balance, warmth/tint, monochrome conversion and inversion.
 - **Filters and layer effects:** Gaussian, Motion and Lens Blur; Stroke, Drop/Inner
-  Shadow, Outer/Inner Glow, Color Overlay and Gradient Overlay.
+  Shadow, Outer/Inner Glow, Color Overlay, Gradient Overlay and Bevel & Emboss.
 - **Multiple documents:** tabs with independent history, selections and view state,
   plus editable layer copying between documents.
 - **PSD import:** reviewed conversion to native layers, rich text, simple shapes,
@@ -31,8 +39,12 @@ with a Qt workspace and Vulkan-accelerated canvas.
   documents, with transparent or white backgrounds.
 - **PDF export:** a composite or layers/groups as pages, custom page selection,
   canvas/fitted sizes and selectable text where supported.
-- **Workspace and output:** dockable panels, themes, editable shortcuts, rulers,
-  Pixel Preview, native `.vulkana` projects and PNG/JPEG/WebP export.
+- **Workspace and output:** tabbed dockable panels, a Navigator with pan/zoom
+  controls, themes, editable shortcuts, rulers, Pixel Preview, native `.vulkana`
+  projects and PNG/JPEG/WebP export.
+- **Languages:** 16 interface languages, selectable in Preferences → General →
+  Language without restarting. New translations are a first pass; corrections
+  are welcome.
 
 Actively developed beta. Please keep backups of important projects.
 

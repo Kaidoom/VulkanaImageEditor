@@ -15,6 +15,7 @@ The guides below describe the architecture, behavior and algorithms.
 - [PDF export](PDF_EXPORT.md): page ordering, physical sizes, hybrid text and safety.
 - [Shortcuts](SHORTCUTS.md): bindings, focus ownership and configuration.
 - [Localization](LOCALIZATION.md): catalogs, language packs, contributor workflow and first-language review.
+- [README translations](README_TRANSLATIONS.md): translated overviews, language links and documentation checks.
 - [Single instance](SINGLE_INSTANCE.md): startup arbitration and file forwarding.
 - [Adjustments](ADJUSTMENT_ALGORITHMS.md): color/alpha equations and masks.
 - [Adjustment layers](ADJUSTMENT_LAYERS.md): lower-stack operators, scope and exchange.
