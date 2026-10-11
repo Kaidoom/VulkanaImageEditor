@@ -10504,4 +10504,31 @@ Abschrägen: Ecken nach innen ziehen; Alt ändert auch die gegenüberliegende Ec
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
   </context>
+  <context>
+    <name>Navigator</name>
+    <message id="navigator.reset.view">
+      <source>Reset view (center and fit canvas)</source>
+      <translation>Ansicht zurücksetzen (zentrieren und einpassen)</translation>
+    </message>
+    <message id="navigator.title">
+      <source>Navigator</source>
+      <translation>Navigator</translation>
+    </message>
+    <message id="navigator.pan.hint">
+      <source>Drag to move around the canvas</source>
+      <translation>Ziehen, um die Leinwand zu verschieben</translation>
+    </message>
+    <message id="navigator.zoom">
+      <source>Zoom</source>
+      <translation>Zoom</translation>
+    </message>
+    <message id="navigator.preparing">
+      <source>Preparing preview…</source>
+      <translation>Vorschau wird erstellt…</translation>
+    </message>
+    <message id="navigator.unavailable">
+      <source>Preview unavailable</source>
+      <translation>Vorschau nicht verfügbar</translation>
+    </message>
+  </context>
 </TS>

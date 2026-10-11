@@ -2,6 +2,7 @@
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/PropertiesPanel.hpp"
+#include "imageeditor/ui/NavigatorPanel.hpp"
 #include "imageeditor/ui/ToolOptionsBar.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include <QAction>
@@ -101,6 +102,8 @@ void MainWindow::refreshRulerView()
         else tooltipArea.adjust(width, 0, 0, 0);
     }
     canvasWindow_->setPointerTooltipArea({tooltipArea.x(), tooltipArea.y(), tooltipArea.width(), tooltipArea.height()});
+    if(navigatorPanel_)navigatorPanel_->setView(scene.viewport,
+        {double(canvasWindow_->width()),double(canvasWindow_->height())},tooltipArea);
     std::optional<core::Vec2d> pointer;
     if (scene.cursorInside) pointer = canvasWindow_->documentPositionForLogical({scene.cursorLogical.x, scene.cursorLogical.y});
     workspace_->setRulerView(scene.viewport,

@@ -4,6 +4,7 @@
 #include "imageeditor/core/SpatialFilterCache.hpp"
 #include <QTimer>
 #include <atomic>
+#include <cmath>
 #include <future>
 #include <map>
 #include <set>
@@ -23,7 +24,7 @@ bool same(const Input& a,const Input& b)
         || a.snapshot.layersBottomToTop.size()!=b.snapshot.layersBottomToTop.size())return false;
     for(std::size_t i=0;i<a.snapshot.layersBottomToTop.size();++i) {
         const auto& x=a.snapshot.layersBottomToTop[i];const auto& y=b.snapshot.layersBottomToTop[i];
-        if(x.id!=y.id || x.visible!=y.visible || x.opacity!=y.opacity || x.blendMode!=y.blendMode
+        if(x.id!=y.id || x.visible!=y.visible || x.opacity!=y.opacity || x.blendMode!=y.blendMode || x.blendSeed!=y.blendSeed
             || x.localToDocument!=y.localToDocument || x.rasterOrigin!=y.rasterOrigin || x.rasterEffectFrame!=y.rasterEffectFrame || x.crop!=y.crop || x.adjustments!=y.adjustments
             || x.filters!=y.filters || x.effects!=y.effects || x.mask!=y.mask || x.payload.index()!=y.payload.index())return false;
         if(const auto* t=std::get_if<core::TextLayer>(&x.payload);t && *t!=std::get<core::TextLayer>(y.payload))return false;
@@ -62,6 +63,7 @@ Input capture(const core::DocumentSnapshot& snapshot)
 }
 }
 struct PixelPreview::State {
+    Purpose purpose = Purpose::NativePixels;
     QTimer timer;
     bool enabled=false;
     std::optional<Input> pending;
@@ -83,8 +85,9 @@ struct PixelPreview::State {
     std::shared_ptr<Job> job;
     std::future<void> worker;
 };
-PixelPreview::PixelPreview(QObject* parent):QObject(parent),state_(std::make_unique<State>())
+PixelPreview::PixelPreview(QObject* parent, Purpose purpose):QObject(parent),state_(std::make_unique<State>())
 {
+    state_->purpose=purpose;
     state_->timer.setSingleShot(true);
     connect(&state_->timer,&QTimer::timeout,this,[this]{advance();});
 }
@@ -97,6 +100,7 @@ void PixelPreview::setDocumentInstance(std::uint64_t instance)
 {
     if(state_->instance==instance)return;
     state_->instance=instance;++state_->generation;
+    if(state_->purpose==Purpose::Navigator)state_->cache.clear();
     if(state_->job)state_->job->cancel=true;
     state_->pending.reset();state_->sources.clear();state_->frozen=0;
     state_->timer.stop();if(state_->job)state_->timer.start(20);
@@ -159,7 +163,7 @@ void PixelPreview::advance()
                 state_->cache.insert_or_assign(state_->instance,State::Cached{std::move(key),job->result,++state_->clock});
                 std::uint64_t bytes=0;
                 for(const auto& [id,cached]:state_->cache){(void)id;const auto e=cached.pixels->extent();bytes+=std::uint64_t(e.width)*e.height*4;}
-                while(bytes>inputBudget || state_->cache.size()>16) {
+                while(bytes>inputBudget || state_->cache.size()>(state_->purpose==Purpose::Navigator?1U:16U)) {
                     auto oldest=std::min_element(state_->cache.begin(),state_->cache.end(),[](const auto& a,const auto& b){return a.second.used<b.second.used;});
                     if(oldest==state_->cache.end())break;
                     const auto e=oldest->second.pixels->extent();bytes-=std::uint64_t(e.width)*e.height*4;state_->cache.erase(oldest);
@@ -228,9 +232,17 @@ void PixelPreview::advance()
             throw std::runtime_error("Invalid Pixel Preview hierarchy");
         state_->frozen=bytes;
         job->profile.freezeMs=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-started).count();
-        state_->worker=std::async(std::launch::async,[job]{
+        const auto purpose=state_->purpose;
+        state_->worker=std::async(std::launch::async,[job,purpose]{
             try {
-                auto output=flattenDocument(*job->document,[&](auto,auto){return !job->cancel.load();},{},&job->profile.evaluation);
+                const auto e=job->document->canvas().extent;
+                const double scale=std::min(1.0,512.0/std::max(e.width,e.height));
+                const core::Extent2u size{std::max(1U,std::uint32_t(std::lround(e.width*scale))),
+                    std::max(1U,std::uint32_t(std::lround(e.height*scale)))};
+                const auto progress=[&](auto,auto){return !job->cancel.load();};
+                auto output=purpose==Purpose::Navigator
+                    ?renderDocumentOverview(*job->document,size,progress,&job->profile.evaluation)
+                    :flattenDocument(*job->document,progress,{},&job->profile.evaluation);
                 const auto transfer=std::chrono::steady_clock::now();
                 if(output && !job->cancel)job->result=surfaceFromNativeImage(output.image);
                 else if(!output.cancelled)job->error=output.error;

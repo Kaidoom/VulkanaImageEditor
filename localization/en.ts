@@ -6993,4 +6993,25 @@ Chamfer: pull corners inward; Alt also changes the opposite corner. Side handles
       <extracomment>Tool settings or accessibility label, not a document value.</extracomment>
     </message>
   </context>
+  <context>
+    <name>Navigator</name>
+    <message id="navigator.reset.view">
+      <source>Reset view (center and fit canvas)</source>
+    </message>
+    <message id="navigator.title">
+      <source>Navigator</source>
+    </message>
+    <message id="navigator.pan.hint">
+      <source>Drag to move around the canvas</source>
+    </message>
+    <message id="navigator.zoom">
+      <source>Zoom</source>
+    </message>
+    <message id="navigator.preparing">
+      <source>Preparing preview…</source>
+    </message>
+    <message id="navigator.unavailable">
+      <source>Preview unavailable</source>
+    </message>
+  </context>
 </TS>

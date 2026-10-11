@@ -10505,4 +10505,31 @@ Escape · Отменить сеанс
       <translation>Текущий и ниже</translation>
     </message>
   </context>
+  <context>
+    <name>Navigator</name>
+    <message id="navigator.reset.view">
+      <source>Reset view (center and fit canvas)</source>
+      <translation>Сбросить вид (центрировать и вписать)</translation>
+    </message>
+    <message id="navigator.title">
+      <source>Navigator</source>
+      <translation>Навигатор</translation>
+    </message>
+    <message id="navigator.pan.hint">
+      <source>Drag to move around the canvas</source>
+      <translation>Перетаскивайте для перемещения по холсту</translation>
+    </message>
+    <message id="navigator.zoom">
+      <source>Zoom</source>
+      <translation>Масштаб</translation>
+    </message>
+    <message id="navigator.preparing">
+      <source>Preparing preview…</source>
+      <translation>Подготовка предпросмотра…</translation>
+    </message>
+    <message id="navigator.unavailable">
+      <source>Preview unavailable</source>
+      <translation>Предпросмотр недоступен</translation>
+    </message>
+  </context>
 </TS>

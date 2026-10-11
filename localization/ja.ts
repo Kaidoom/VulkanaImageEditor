@@ -10503,4 +10503,31 @@ Escape で切り抜きを中止
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
   </context>
+  <context>
+    <name>Navigator</name>
+    <message id="navigator.reset.view">
+      <source>Reset view (center and fit canvas)</source>
+      <translation>表示をリセット（中央に配置して全体表示）</translation>
+    </message>
+    <message id="navigator.title">
+      <source>Navigator</source>
+      <translation>ナビゲーター</translation>
+    </message>
+    <message id="navigator.pan.hint">
+      <source>Drag to move around the canvas</source>
+      <translation>ドラッグしてキャンバスを移動</translation>
+    </message>
+    <message id="navigator.zoom">
+      <source>Zoom</source>
+      <translation>ズーム</translation>
+    </message>
+    <message id="navigator.preparing">
+      <source>Preparing preview…</source>
+      <translation>プレビューを準備中…</translation>
+    </message>
+    <message id="navigator.unavailable">
+      <source>Preview unavailable</source>
+      <translation>プレビューを表示できません</translation>
+    </message>
+  </context>
 </TS>

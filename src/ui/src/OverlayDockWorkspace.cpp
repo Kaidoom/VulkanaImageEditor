@@ -34,6 +34,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <numeric>
 #include <utility>
 
 namespace imageeditor::ui {
@@ -850,6 +851,22 @@ bool OverlayDockWorkspace::restoreDockedPanelSizes(
         return false;
     }
     return splitter->restoreState(state);
+}
+
+void OverlayDockWorkspace::setDockedPanelHeight(WorkspacePanel* panel,int height)
+{
+    auto* frame=panelFrame(panel);
+    auto* splitter=qobject_cast<QSplitter*>(frame ? frame->parentWidget() : nullptr);
+    if(!splitter)return;
+    const int index=splitter->indexOf(frame);
+    auto sizes=splitter->sizes();
+    const int previous=sizes.value(index);
+    const int other=std::accumulate(sizes.begin(),sizes.end(),0)-previous;
+    if(index<0 || other<=0)return;
+    height=std::max(frame->minimumHeight(),height);
+    for(int i=0;i<sizes.size();++i)if(i!=index)
+        sizes[i]=std::max(1,int(std::lround(double(sizes[i])*(other+previous-height)/other)));
+    sizes[index]=height;splitter->setSizes(sizes);
 }
 
 void OverlayDockWorkspace::setToolRail(
@@ -1921,6 +1938,7 @@ void OverlayDockWorkspace::updateRulerGeometry()
         rulers_[i]->lower();
         if (!rulerDockHints_[i]->isHidden()) rulerDockHints_[i]->raise();
     }
+    if(onCanvasAreaChanged)onCanvasAreaChanged();
 }
 
 void OverlayDockWorkspace::setWelcomeOverlay(QWidget* overlay, bool visible)

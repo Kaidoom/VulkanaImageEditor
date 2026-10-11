@@ -10619,4 +10619,31 @@ Escape لإلغاء جلسة الاقتصاص كاملةً
       <translation type="vanished" />
     </message>
   </context>
+  <context>
+    <name>Navigator</name>
+    <message id="navigator.reset.view">
+      <source>Reset view (center and fit canvas)</source>
+      <translation>إعادة ضبط العرض (توسيط وملاءمة)</translation>
+    </message>
+    <message id="navigator.title">
+      <source>Navigator</source>
+      <translation>المستكشف</translation>
+    </message>
+    <message id="navigator.pan.hint">
+      <source>Drag to move around the canvas</source>
+      <translation>اسحب للتنقل في مساحة الرسم</translation>
+    </message>
+    <message id="navigator.zoom">
+      <source>Zoom</source>
+      <translation>التكبير</translation>
+    </message>
+    <message id="navigator.preparing">
+      <source>Preparing preview…</source>
+      <translation>جارٍ إعداد المعاينة…</translation>
+    </message>
+    <message id="navigator.unavailable">
+      <source>Preview unavailable</source>
+      <translation>المعاينة غير متاحة</translation>
+    </message>
+  </context>
 </TS>

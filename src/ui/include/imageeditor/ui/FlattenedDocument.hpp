@@ -55,6 +55,10 @@ struct FlattenedDocumentResult {
 [[nodiscard]] FlattenedDocumentResult flattenDocumentAtSize(const core::Document&,
     core::Extent2u output, FlattenedDocumentProgress = {}, FlattenedDocumentLimits = {},
     std::optional<core::Rgba8> matte = {});
+// Navigation only: bounded 2x2 sampling through the same compositor. Unlike
+// export/Pixel Preview this is an overview, not native-pixel area integration.
+[[nodiscard]] FlattenedDocumentResult renderDocumentOverview(const core::Document&,
+    core::Extent2u output, FlattenedDocumentProgress = {}, MergeProfile* = nullptr);
 // Isolated selected-only composition over transparent RGBA. Real blend modes
 // are retained; no unselected backdrop participates or restricts admission.
 // Selected normalized items only; preserve full visible bounds outside canvas.

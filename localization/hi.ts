@@ -10504,4 +10504,31 @@ Escape · पूरा क्रॉप सत्र रद्द
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
   </context>
+  <context>
+    <name>Navigator</name>
+    <message id="navigator.reset.view">
+      <source>Reset view (center and fit canvas)</source>
+      <translation>दृश्य रीसेट करें (बीच में लाएँ और फ़िट करें)</translation>
+    </message>
+    <message id="navigator.title">
+      <source>Navigator</source>
+      <translation>नेविगेटर</translation>
+    </message>
+    <message id="navigator.pan.hint">
+      <source>Drag to move around the canvas</source>
+      <translation>कैनवास पर घूमने के लिए खींचें</translation>
+    </message>
+    <message id="navigator.zoom">
+      <source>Zoom</source>
+      <translation>ज़ूम</translation>
+    </message>
+    <message id="navigator.preparing">
+      <source>Preparing preview…</source>
+      <translation>पूर्वावलोकन तैयार हो रहा है…</translation>
+    </message>
+    <message id="navigator.unavailable">
+      <source>Preview unavailable</source>
+      <translation>पूर्वावलोकन उपलब्ध नहीं है</translation>
+    </message>
+  </context>
 </TS>

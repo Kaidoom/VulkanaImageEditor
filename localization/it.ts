@@ -10501,4 +10501,31 @@ Smusso: tira gli angoli all'interno; Alt cambia anche l'opposto. I lati ridimens
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
   </context>
+  <context>
+    <name>Navigator</name>
+    <message id="navigator.reset.view">
+      <source>Reset view (center and fit canvas)</source>
+      <translation>Ripristina vista (centra e adatta)</translation>
+    </message>
+    <message id="navigator.title">
+      <source>Navigator</source>
+      <translation>Navigatore</translation>
+    </message>
+    <message id="navigator.pan.hint">
+      <source>Drag to move around the canvas</source>
+      <translation>Trascina per spostarti sulla tela</translation>
+    </message>
+    <message id="navigator.zoom">
+      <source>Zoom</source>
+      <translation>Zoom</translation>
+    </message>
+    <message id="navigator.preparing">
+      <source>Preparing preview…</source>
+      <translation>Preparazione anteprima…</translation>
+    </message>
+    <message id="navigator.unavailable">
+      <source>Preview unavailable</source>
+      <translation>Anteprima non disponibile</translation>
+    </message>
+  </context>
 </TS>

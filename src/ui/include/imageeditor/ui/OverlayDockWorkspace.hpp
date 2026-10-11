@@ -104,6 +104,8 @@ public:
     [[nodiscard]] QByteArray saveDockedPanelSizes(PanelDockSide side) const;
     bool restoreDockedPanelSizes(
         PanelDockSide side, const QByteArray& state);
+    void setDockedPanelHeight(WorkspacePanel*, int height);
+    std::function<void()> onCanvasAreaChanged;
 
     void setToolRail(QToolBar* toolRail, ToolRailPlacement placement);
     void takeToolRail(QToolBar* toolRail);

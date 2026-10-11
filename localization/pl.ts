@@ -10505,4 +10505,31 @@ Escape · Anuluj sesję
       <translation>Bieżąca i poniżej</translation>
     </message>
   </context>
+  <context>
+    <name>Navigator</name>
+    <message id="navigator.reset.view">
+      <source>Reset view (center and fit canvas)</source>
+      <translation>Resetuj widok (wyśrodkuj i dopasuj)</translation>
+    </message>
+    <message id="navigator.title">
+      <source>Navigator</source>
+      <translation>Nawigator</translation>
+    </message>
+    <message id="navigator.pan.hint">
+      <source>Drag to move around the canvas</source>
+      <translation>Przeciągnij, aby przesunąć widok</translation>
+    </message>
+    <message id="navigator.zoom">
+      <source>Zoom</source>
+      <translation>Powiększenie</translation>
+    </message>
+    <message id="navigator.preparing">
+      <source>Preparing preview…</source>
+      <translation>Przygotowywanie podglądu…</translation>
+    </message>
+    <message id="navigator.unavailable">
+      <source>Preview unavailable</source>
+      <translation>Podgląd niedostępny</translation>
+    </message>
+  </context>
 </TS>

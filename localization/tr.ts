@@ -10503,4 +10503,31 @@ Pah: köşeleri içeri çekin; Alt karşı köşeyi de değiştirir. Yan tutama�
       <translation>Geçerli ve Altı</translation>
     </message>
   </context>
+  <context>
+    <name>Navigator</name>
+    <message id="navigator.reset.view">
+      <source>Reset view (center and fit canvas)</source>
+      <translation>Görünümü sıfırla (ortala ve sığdır)</translation>
+    </message>
+    <message id="navigator.title">
+      <source>Navigator</source>
+      <translation>Gezgin</translation>
+    </message>
+    <message id="navigator.pan.hint">
+      <source>Drag to move around the canvas</source>
+      <translation>Tuvalde gezinmek için sürükleyin</translation>
+    </message>
+    <message id="navigator.zoom">
+      <source>Zoom</source>
+      <translation>Yakınlaştırma</translation>
+    </message>
+    <message id="navigator.preparing">
+      <source>Preparing preview…</source>
+      <translation>Önizleme hazırlanıyor…</translation>
+    </message>
+    <message id="navigator.unavailable">
+      <source>Preview unavailable</source>
+      <translation>Önizleme kullanılamıyor</translation>
+    </message>
+  </context>
 </TS>

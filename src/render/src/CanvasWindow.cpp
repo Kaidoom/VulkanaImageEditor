@@ -565,6 +565,28 @@ void CanvasWindow::resetTo100Percent()
     scheduleFrame();
 }
 
+void CanvasWindow::centerDocumentAt(core::Vec2d point, QPointF anchor)
+{
+    if (scene_.document.canvas.extent.empty() || pointerGestureActive()
+        || !std::isfinite(point.x) || !std::isfinite(point.y)) return;
+    const auto current = scene_.viewport.documentToViewport(point, documentExtent(), viewportExtent());
+    scene_.viewport.panBy({anchor.x() - current.x, anchor.y() - current.y});
+    fitPending_ = false;
+    refreshColorSample();
+    scheduleFrame();
+}
+
+void CanvasWindow::setZoomAt(double zoom, QPointF anchor)
+{
+    if (scene_.document.canvas.extent.empty() || pointerGestureActive() || !std::isfinite(zoom)) return;
+    scene_.viewport.zoomAround({anchor.x(), anchor.y()}, zoom / scene_.viewport.zoom(),
+        documentExtent(), viewportExtent());
+    fitPending_ = false;
+    publishZoom();
+    refreshColorSample();
+    scheduleFrame();
+}
+
 void CanvasWindow::scheduleFrame()
 {
     if(onFilterPreparationRequested && std::any_of(scene_.document.layersBottomToTop.begin(),

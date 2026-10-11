@@ -60,7 +60,7 @@ static FlattenedDocumentResult flattenImpl(
     const core::Document& document, FlattenedDocumentProgress progress, FlattenedDocumentLimits limits,
     std::optional<std::span<const core::LayerId>> items, core::Extent2u requested = {},
     std::optional<core::Rgba8> matte = {}, MergeProfile* profile = nullptr, bool intrinsic = false,
-    std::optional<core::RectI> region = {}, core::RectI* boundsOnly = nullptr)
+    std::optional<core::RectI> region = {}, core::RectI* boundsOnly = nullptr, bool overview = false)
 {
     if (profile) *profile={};
     ProfileStage setup(profile?&profile->setupMs:nullptr);
@@ -80,8 +80,8 @@ static FlattenedDocumentResult flattenImpl(
                     && pixels <= limits.outputPixels,
                 "Flattened output exceeds the pixel/dimension limit");
         require(document.layers().size() <= 1024, "Flattened output exceeds the layer limit");
-        const auto densityX=std::max(1.0,double(extent.width)/canvasExtent.width);
-        const auto densityY=std::max(1.0,double(extent.height)/canvasExtent.height);
+        const auto densityX=std::max(overview ? 0.0 : 1.0,double(extent.width)/canvasExtent.width);
+        const auto densityY=std::max(overview ? 0.0 : 1.0,double(extent.height)/canvasExtent.height);
         const core::AffineTransform outputGrid{densityX,0,-origin.x*densityX,0,densityY,-origin.y*densityY};
         std::vector<core::LayerId> selected;
         if (items) {
@@ -363,7 +363,7 @@ static FlattenedDocumentResult flattenImpl(
         // quantization. Compose each native row once using the existing sparse
         // row path, instead of revisiting every layer at every footprint sample.
         // Keep scratch bounded even for unusually wide caller-supplied canvases.
-        const bool reduceRows = stepX >= 1 && stepY >= 1 && (stepX > 1 || stepY > 1)
+        const bool reduceRows = !overview && stepX >= 1 && stepY >= 1 && (stepX > 1 || stepY > 1)
             && canvasExtent.width <= 32768;
         ProfileStage scratchAllocation(profile?&profile->allocationMs:nullptr);
         std::vector<core::PremultipliedColor> rowColors(reduceRows ? canvasExtent.width
@@ -409,7 +409,16 @@ static FlattenedDocumentResult flattenImpl(
                     linear={float(reduced[x][0]),float(reduced[x][1]),float(reduced[x][2]),float(reduced[x][3])};
                 else if (stepX == 1 && stepY == 1)
                     linear = rowColors[x];
-                else {
+                else if (overview) {
+                    // Fixed document-space samples: pan/zoom/DPI never affect
+                    // the preview or the Dissolve grid. Average linear premultiplied colors.
+                    std::array<double,4> sum{};
+                    for (double dy : {.25, .75}) for (double dx : {.25, .75}) {
+                        const auto c=sampler.sampleLinear({(x+dx)*stepX,(y+dy)*stepY});
+                        for (std::size_t i=0;i<4;++i) sum[i]+=double(c[i])*.25;
+                    }
+                    linear={float(sum[0]),float(sum[1]),float(sum[2]),float(sum[3])};
+                } else {
                     // Exact box/area reduction, continuous alpha-aware source
                     // reconstruction on enlarged axes. Never quantize the
                     // composed stack before integrating the output footprint.
@@ -462,6 +471,13 @@ FlattenedDocumentResult flattenDocumentAtSize(const core::Document& doc, core::E
 {
     if(output.empty()) return {{},QStringLiteral("Output dimensions must be positive"),false,{}};
     return flattenImpl(doc,std::move(progress),limits,std::nullopt,output,matte);
+}
+FlattenedDocumentResult renderDocumentOverview(const core::Document& doc, core::Extent2u output,
+    FlattenedDocumentProgress progress, MergeProfile* profile)
+{
+    if(doc.canvas().extent.empty() || output.empty() || output.width>512 || output.height>512)
+        return {{},QStringLiteral("Invalid overview dimensions"),false,{}};
+    return flattenImpl(doc,std::move(progress),{},std::nullopt,output,{},profile,false,{},nullptr,true);
 }
 FlattenedDocumentResult flattenLayerItems(const core::Document& doc, std::span<const core::LayerId> ids, FlattenedDocumentProgress progress, FlattenedDocumentLimits limits, MergeProfile* profile)
 {

@@ -101,6 +101,7 @@ class UpdateService;
 class FeedbackService;
 class TextController;
 class PixelPreview;
+class NavigatorPanel;
 struct RefinementWorkspace;
 
 class MainWindow final : public QMainWindow {
@@ -774,6 +775,8 @@ private:
     TransformOptionsPage* moveOptionsPage_ {nullptr};
     QToolBar* toolRail_ {nullptr};
     WorkspacePanel* layersPanelShell_ {nullptr};
+    WorkspacePanel* navigatorPanelShell_ {nullptr};
+    NavigatorPanel* navigatorPanel_ {nullptr};
     WorkspacePanel* propertiesPanelShell_ {nullptr};
     WorkspacePanel* colorPanelShell_ {nullptr};
     WorkspacePanel* swatchesPanelShell_ {nullptr};
@@ -804,6 +807,7 @@ private:
     QAction* renameLayerAction_ {nullptr};
     std::array<QAction*, 4> layerVisibilityActions_ {};
     QAction* layersPanelAction_ {nullptr};
+    QAction* navigatorPanelAction_ {nullptr};
     QAction* propertiesPanelAction_ {nullptr};
     QAction* colorPanelAction_ {nullptr};
     QAction* swatchesPanelAction_ {nullptr};

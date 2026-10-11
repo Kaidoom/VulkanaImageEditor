@@ -10503,4 +10503,31 @@ Escape 取消整次裁切
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
   </context>
+  <context>
+    <name>Navigator</name>
+    <message id="navigator.reset.view">
+      <source>Reset view (center and fit canvas)</source>
+      <translation>重置视图（居中并适合窗口）</translation>
+    </message>
+    <message id="navigator.title">
+      <source>Navigator</source>
+      <translation>导航器</translation>
+    </message>
+    <message id="navigator.pan.hint">
+      <source>Drag to move around the canvas</source>
+      <translation>拖动以浏览画布</translation>
+    </message>
+    <message id="navigator.zoom">
+      <source>Zoom</source>
+      <translation>缩放</translation>
+    </message>
+    <message id="navigator.preparing">
+      <source>Preparing preview…</source>
+      <translation>正在准备预览…</translation>
+    </message>
+    <message id="navigator.unavailable">
+      <source>Preview unavailable</source>
+      <translation>预览不可用</translation>
+    </message>
+  </context>
 </TS>

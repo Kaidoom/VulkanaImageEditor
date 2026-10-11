@@ -127,6 +127,9 @@ public:
     void setDocumentResources(std::uint64_t instance, std::vector<std::weak_ptr<const core::RasterSurface>> sources)
     { scene_.documentInstance = instance; scene_.retainedSources = std::move(sources); }
     void resetTo100Percent();
+    // View-only navigation, in logical canvas coordinates (independent of DPI).
+    void centerDocumentAt(core::Vec2d documentPoint, QPointF viewportAnchor);
+    void setZoomAt(double zoom, QPointF viewportAnchor);
     void scheduleFrame();
     void setTextQuads(std::vector<CanvasScene::TextQuad> quads) { scene_.textQuads=std::move(quads); scheduleFrame(); }
     void cancelTextInput();

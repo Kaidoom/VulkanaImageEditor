@@ -20,6 +20,7 @@ struct UiLayoutConfig {
     PanelHeightRange color {120, QWIDGETSIZE_MAX};
     PanelHeightRange swatches {120, QWIDGETSIZE_MAX};
     PanelHeightRange layers {260, QWIDGETSIZE_MAX};
+    PanelHeightRange navigator {150, QWIDGETSIZE_MAX};
     PanelHeightRange properties {200, QWIDGETSIZE_MAX};
     PanelHeightRange adjustments {220, QWIDGETSIZE_MAX};
 

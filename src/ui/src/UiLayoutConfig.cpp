@@ -92,6 +92,8 @@ UiLayoutConfig UiLayoutConfig::loadFromIni(
         settings, QStringLiteral("SwatchesPanel"), result.swatches, diagnostics);
     result.layers = readRange(
         settings, QStringLiteral("LayersPanel"), result.layers, diagnostics);
+    result.navigator = readRange(
+        settings, QStringLiteral("NavigatorPanel"), result.navigator, diagnostics);
     result.properties = readRange(
         settings, QStringLiteral("PropertiesPanel"), result.properties,
         diagnostics);

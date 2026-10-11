@@ -33,6 +33,7 @@ add_library(imageeditor_ui STATIC
     src/CrossWindowPointerRouter.cpp
     src/ColorPanel.cpp
     src/SwatchesPanel.cpp
+    src/NavigatorPanel.cpp
     src/ColorPicker.cpp
     src/ColorDialog.cpp
     include/imageeditor/ui/ColorDialog.hpp

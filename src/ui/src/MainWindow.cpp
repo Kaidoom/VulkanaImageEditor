@@ -24,6 +24,7 @@
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/ColorPanel.hpp"
 #include "imageeditor/ui/SwatchesPanel.hpp"
+#include "imageeditor/ui/NavigatorPanel.hpp"
 #include "imageeditor/ui/AdjustmentsPanel.hpp"
 #include "imageeditor/ui/FiltersPanel.hpp"
 #include "imageeditor/ui/ColorSelector.hpp"
@@ -639,6 +640,7 @@ MainWindow::MainWindow(
         if(scale!=shapeViewScale_) {shapeViewScale_=scale;shapeDensityTimer_->start();}
     };
     canvasWindow_->onViewStateChanged = [this] { refreshRulerView(); };
+    workspace_->onCanvasAreaChanged = [this] { refreshRulerView(); };
     canvasWindow_->onTemporaryMeasureChanged = [this](bool active) { presentTemporaryMeasure(active); };
 
     layerModel_->setSession(&session());
@@ -973,6 +975,8 @@ MainWindow::MainWindow(
                     swatchesPanelAction_, 4),
                 readPanel(QStringLiteral("layers"), layersPanelShell_,
                     layersPanelAction_, 1),
+                readPanel(QStringLiteral("navigator"), navigatorPanelShell_,
+                    navigatorPanelAction_, 5),
                 readPanel(QStringLiteral("properties"), propertiesPanelShell_,
                     propertiesPanelAction_, 2),
                 readPanel(QStringLiteral("adjustments"), adjustmentsPanelShell_,
@@ -1057,10 +1061,23 @@ MainWindow::MainWindow(
         swatchesPanelAction_->setChecked(workspace_->panelVisible(swatchesPanelShell_));
         layersPanelAction_->setChecked(
             workspace_->panelVisible(layersPanelShell_));
+        navigatorPanelAction_->setChecked(workspace_->panelVisible(navigatorPanelShell_));
         propertiesPanelAction_->setChecked(
             workspace_->panelVisible(propertiesPanelShell_));
         adjustmentsPanelAction_->setChecked(workspace_->panelVisible(adjustmentsPanelShell_));
         updatePanelAreaVisibility();
+        // Migrate only this new panel. Existing panels/tabs keep their layout.
+        // Run after saved splitter restoration, which may predate Navigator.
+        if (useDefaultPanelLayout || !persistPanelLayout_
+            || !QSettings().contains(QStringLiteral("window/panels-v2/navigator-placement"))) {
+            QTimer::singleShot(0, this, [this] {
+                const auto side = workspace_->panelPlacement(layersPanelShell_)
+                    == OverlayDockWorkspace::PanelPlacement::DockedRight
+                    ? OverlayDockWorkspace::PanelDockSide::Right : OverlayDockWorkspace::PanelDockSide::Left;
+                workspace_->dockPanel(navigatorPanelShell_,side,workspace_->dockedPanelIndex(layersPanelShell_)+1);
+                workspace_->setDockedPanelHeight(navigatorPanelShell_,220);
+            });
+        }
     });
     const auto initialDocument = activeDocumentId();
     QTimer::singleShot(0, this, [this, initialDocument] {
@@ -1072,6 +1089,8 @@ MainWindow::MainWindow(
 
 MainWindow::~MainWindow()
 {
+    workspace_->onCanvasAreaChanged={};
+    if(navigatorPanel_)navigatorPanel_->shutdown();
     shutdownRefinements();
     if (updateService_) { updateService_->onChanged = {}; updateService_->cancel(); }
     canvasWindow_->onDocumentPresentationChanged={};
@@ -1686,6 +1705,7 @@ void MainWindow::closeEvent(QCloseEvent* event)
             savePanel(QStringLiteral("color"), colorPanelShell_);
             savePanel(QStringLiteral("swatches"), swatchesPanelShell_);
             savePanel(QStringLiteral("layers"), layersPanelShell_);
+            savePanel(QStringLiteral("navigator"), navigatorPanelShell_);
             savePanel(QStringLiteral("properties"), propertiesPanelShell_);
             savePanel(QStringLiteral("adjustments"), adjustmentsPanelShell_);
             settings.setValue(QStringLiteral("window/panel-tabs-v1"), workspace_->savePanelTabs());
@@ -2115,6 +2135,7 @@ void MainWindow::createMenus()
     workspace_->setViewModeOverlay(previewBadge, false);
     canvasWindow_->onDocumentPresentationChanged=[this](const core::DocumentSnapshot& snapshot){
         updateDocumentResources();
+        navigatorPanel_->setDocument(activeDocumentId(),snapshot);
         if (refinement_) return;
         if(canvasWindow_->scene().effectBypassLayer || canvasWindow_->scene().adjustmentBypassLayer){
             auto before=snapshot;
@@ -2178,6 +2199,13 @@ void MainWindow::createMenus()
     colorPanelAction_ = i18n::addAction(panelsMenu, i18n::text("main.window.color"));
     swatchesPanelAction_ = i18n::addAction(panelsMenu, i18n::text("main.window.swatches"));
     layersPanelAction_ = i18n::addAction(panelsMenu, i18n::text("main.window.layers"));
+    navigatorPanelAction_ = i18n::addAction(panelsMenu, i18n::text("navigator.title"));
+    navigatorPanelAction_->setObjectName(QStringLiteral("NavigatorPanelVisibilityAction"));
+    navigatorPanelAction_->setCheckable(true);
+    navigatorPanelAction_->setChecked(true);
+    connect(navigatorPanelAction_, &QAction::triggered, this, [this](bool visible) {
+        workspace_->setPanelVisible(navigatorPanelShell_,visible);
+    });
     propertiesPanelAction_ = i18n::addAction(panelsMenu, i18n::text("main.window.properties"));
     adjustmentsPanelAction_ = i18n::addAction(panelsMenu, i18n::text("main.window.adjustments"));
     adjustmentsPanelAction_->setObjectName(QStringLiteral("AdjustmentsPanelVisibilityAction"));
@@ -2525,6 +2553,23 @@ void MainWindow::createDocks()
     workspace_->addPanel(layersPanelShell_,
         OverlayDockWorkspace::PanelDockSide::Left);
 
+    navigatorPanel_=new NavigatorPanel;
+    navigatorPanelShell_=new WorkspacePanel(i18n::text("navigator.title"),navigatorPanel_);
+    navigatorPanelShell_->setObjectName(QStringLiteral("NavigatorPanelShell"));
+    navigatorPanelShell_->setHeightRange(uiLayoutConfig_.navigator.minimum,uiLayoutConfig_.navigator.maximum);
+    navigatorPanel_->onSourceRequested=[this] {
+        navigatorPanel_->setDocument(activeDocumentId(),canvasWindow_->scene().document);
+        refreshRulerView();
+    };
+    navigatorPanel_->onNavigate=[this](core::Vec2d point) {
+        canvasWindow_->centerDocumentAt(point,navigatorPanel_->viewAnchor());
+    };
+    navigatorPanel_->onZoom=[this](double zoom) {
+        canvasWindow_->setZoomAt(zoom,navigatorPanel_->viewAnchor());
+    };
+    navigatorPanel_->onResetView=[this] { canvasWindow_->fitDocumentToView(); };
+    workspace_->addPanel(navigatorPanelShell_,OverlayDockWorkspace::PanelDockSide::Left);
+
     propertiesPanel_ = new PropertiesPanel(brushAssets_);
     propertiesPanel_->setBrushPresets(brushPresets_);
     propertiesPanelShell_ = new WorkspacePanel(i18n::text("main.window.properties"), propertiesPanel_);
@@ -2702,6 +2747,7 @@ void MainWindow::updatePanelAreaVisibility()
     workspace_->setPanelVisible(swatchesPanelShell_, swatchesPanelAction_->isChecked());
     workspace_->setPanelVisible(
         layersPanelShell_, layersPanelAction_->isChecked());
+    workspace_->setPanelVisible(navigatorPanelShell_,navigatorPanelAction_->isChecked());
     workspace_->setPanelVisible(
         propertiesPanelShell_, propertiesPanelAction_->isChecked());
     workspace_->setPanelVisible(adjustmentsPanelShell_, adjustmentsPanelAction_->isChecked());

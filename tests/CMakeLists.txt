@@ -2,6 +2,12 @@ include(ShapeTests.cmake)
 include(ShapeResizeTests.cmake)
 include(LayerSelectionTests.cmake)
 
+add_executable(imageeditor_navigator_tests NavigatorTests.cpp)
+target_link_libraries(imageeditor_navigator_tests PRIVATE imageeditor_ui Qt6::Test)
+imageeditor_enable_warnings(imageeditor_navigator_tests)
+add_test(NAME imageeditor_navigator_tests COMMAND imageeditor_navigator_tests)
+set_tests_properties(imageeditor_navigator_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 60 LABELS "widgets;navigation;preview;tabs")
+
 add_executable(imageeditor_localization_tests LocalizationTests.cpp)
 target_link_libraries(imageeditor_localization_tests PRIVATE imageeditor_ui Qt6::Test)
 imageeditor_enable_warnings(imageeditor_localization_tests)

@@ -10615,4 +10615,31 @@ Chanfrein : tirer les coins vers l'intérieur ; Alt change aussi le coin opposé
       <translation type="vanished" />
     </message>
   </context>
+  <context>
+    <name>Navigator</name>
+    <message id="navigator.reset.view">
+      <source>Reset view (center and fit canvas)</source>
+      <translation>Réinitialiser la vue (centrer et ajuster)</translation>
+    </message>
+    <message id="navigator.title">
+      <source>Navigator</source>
+      <translation>Navigateur</translation>
+    </message>
+    <message id="navigator.pan.hint">
+      <source>Drag to move around the canvas</source>
+      <translation>Faites glisser pour parcourir l’image</translation>
+    </message>
+    <message id="navigator.zoom">
+      <source>Zoom</source>
+      <translation>Zoom</translation>
+    </message>
+    <message id="navigator.preparing">
+      <source>Preparing preview…</source>
+      <translation>Préparation de l’aperçu…</translation>
+    </message>
+    <message id="navigator.unavailable">
+      <source>Preview unavailable</source>
+      <translation>Aperçu indisponible</translation>
+    </message>
+  </context>
 </TS>

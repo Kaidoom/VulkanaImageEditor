@@ -10503,4 +10503,31 @@ Escape · 전체 자르기 세션 취소
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
   </context>
+  <context>
+    <name>Navigator</name>
+    <message id="navigator.reset.view">
+      <source>Reset view (center and fit canvas)</source>
+      <translation>보기 초기화 (가운데 맞춤 및 전체 표시)</translation>
+    </message>
+    <message id="navigator.title">
+      <source>Navigator</source>
+      <translation>내비게이터</translation>
+    </message>
+    <message id="navigator.pan.hint">
+      <source>Drag to move around the canvas</source>
+      <translation>드래그하여 캔버스 이동</translation>
+    </message>
+    <message id="navigator.zoom">
+      <source>Zoom</source>
+      <translation>확대/축소</translation>
+    </message>
+    <message id="navigator.preparing">
+      <source>Preparing preview…</source>
+      <translation>미리보기 준비 중…</translation>
+    </message>
+    <message id="navigator.unavailable">
+      <source>Preview unavailable</source>
+      <translation>미리보기를 사용할 수 없음</translation>
+    </message>
+  </context>
 </TS>
