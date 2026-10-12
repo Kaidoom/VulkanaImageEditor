@@ -123,28 +123,18 @@ Niektóre testy interakcji wymagają uruchomionego pulpitu Wayland/X11.
 
 ### Windows
 
-Zainstaluj PowerShell 7, Git, CMake, Ninja, Python 3, narzędzia C++ x64 programu
-Visual Studio, Qt dla MSVC x64, Vulkan SDK i vcpkg. Użyj wersji i składników
-wymienionych w [przewodniku budowania dla Windows](../../tools/windows/README.md).
-
-W PowerShell 7, z katalogu głównego repozytorium:
+Zainstaluj wymagane narzędzia opisane w [przewodniku budowania dla Windows](../../tools/windows/README.md#prerequisites).
+Otwórz Windows PowerShell w katalogu głównym repozytorium, a następnie zbuduj i uruchom aplikację:
 
 ```powershell
-pwsh -NoProfile -File tools/windows/Setup.ps1 -BuildRoot C:\Dev\VulkanaClean
-pwsh -NoProfile -File tools/windows/Build.ps1 -BuildRoot C:\Dev\VulkanaClean -Tests
-C:\Dev\VulkanaClean\stage\bin\imageeditor.exe
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/Build.ps1
+C:\Dev\Vulkana\stage\bin\imageeditor.exe
 ```
 
-Do testu świeżego klonu wybierz nowy katalog budowania; nie używaj katalogu
-skonfigurowanego dla innej kopii repozytorium. Setup sprawdza zależności
-i wymagania wstępne; Build kompiluje pakiety językowe, buduje i testuje aplikację
-oraz przygotowuje pliki potrzebne do jej uruchomienia. Pierwsza konfiguracja wymaga
-internetu do pobrania zależności budowania, ale aplikacja i dołączone Zaznaczanie
-obiektów działają lokalnie, bez Pythona i pobierania modeli.
-
-Przewodnik dla Windows opisuje własne ścieżki zależności, natywne testy podstawowe
-i tworzenie czystego folderu wersji przenośnej. Preferencje pozostają w przestrzeni
-użytkownika, niezależnie od folderu aplikacji.
+Skrypt przygotowuje zależności i tworzy kompilację Release z pakietami językowymi.
+Przewodnik opisuje [własne ścieżki budowania](../../tools/windows/README.md#configuration),
+[testy](../../tools/windows/README.md#testing) oraz
+[foldery wersji przenośnej](../../tools/windows/README.md#portable-folder).
 
 ## Architektura
 

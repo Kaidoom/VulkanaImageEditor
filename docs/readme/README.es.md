@@ -127,30 +127,18 @@ requieren un escritorio Wayland/X11 en ejecución.
 
 ### Windows
 
-Instala PowerShell 7, Git, CMake, Ninja, Python 3, las herramientas C++ x64 de
-Visual Studio, Qt para MSVC x64, el SDK de Vulkan y vcpkg. Usa las versiones
-fijadas y la lista de componentes de la [guía de compilación para Windows](../../tools/windows/README.md).
-
-Desde PowerShell 7 en la raíz del repositorio:
+Instala los requisitos indicados en la [guía de compilación para Windows](../../tools/windows/README.md#prerequisites).
+Abre Windows PowerShell en la raíz del repositorio, compila y ejecuta la aplicación:
 
 ```powershell
-pwsh -NoProfile -File tools/windows/Setup.ps1 -BuildRoot C:\Dev\VulkanaClean
-pwsh -NoProfile -File tools/windows/Build.ps1 -BuildRoot C:\Dev\VulkanaClean -Tests
-C:\Dev\VulkanaClean\stage\bin\imageeditor.exe
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/Build.ps1
+C:\Dev\Vulkana\stage\bin\imageeditor.exe
 ```
 
-Elige una carpeta de compilación nueva para probar un clon limpio; no reutilices
-una carpeta configurada para otra copia del repositorio. Setup verifica las
-dependencias y los requisitos previos; Build compila los paquetes de idiomas,
-compila y prueba la aplicación y reúne los archivos necesarios para ejecutarla.
-La preparación inicial requiere Internet para obtener las dependencias de
-compilación, pero la aplicación y la selección de objetos incluida funcionan
-localmente, sin Python ni descargas de modelos.
-
-Consulta la guía de Windows para personalizar las rutas de las dependencias,
-realizar pruebas básicas de ejecución nativa y crear una carpeta portátil limpia.
-Las preferencias permanecen en el almacenamiento de cada usuario, separado de
-la carpeta de la aplicación.
+El script prepara las dependencias y crea una compilación Release con los paquetes de idiomas.
+Consulta la guía para [personalizar las rutas de compilación](../../tools/windows/README.md#configuration),
+[ejecutar pruebas](../../tools/windows/README.md#testing) y
+[crear carpetas portables](../../tools/windows/README.md#portable-folder).
 
 ## Arquitectura
 

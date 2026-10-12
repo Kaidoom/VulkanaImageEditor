@@ -1,3 +1,4 @@
+#Requires -Version 5.1
 # Assemble an unsigned portable test folder from a configured Release build.
 [CmdletBinding()]
 param(
@@ -20,14 +21,24 @@ function Invoke-PortableCommand([string]$Program, [string[]]$Arguments) {
     & $Program @Arguments
     if ($LASTEXITCODE -ne 0) { throw "$Program failed with exit code $LASTEXITCODE" }
 }
+function Get-PortableRelativePath([string]$Root, [string]$Path) {
+    # Every inventory entry is inside the staged bundle. Avoid GetRelativePath,
+    # which is unavailable in Windows PowerShell's .NET Framework runtime.
+    $prefix = [IO.Path]::GetFullPath($Root).TrimEnd([char[]]'\/') + [IO.Path]::DirectorySeparatorChar
+    $fullPath = [IO.Path]::GetFullPath($Path)
+    if (!$fullPath.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Portable inventory path must be inside the staged bundle.'
+    }
+    return $fullPath.Substring($prefix.Length).Replace('\', '/')
+}
 # Revalidate/compile changed language catalogs as well as the application.
 Invoke-PortableCommand cmake @('--build', $build, '--target', 'imageeditor', 'vulkana_language_packs', '--parallel', "$Jobs")
-$cache = Get-Content "$build/CMakeCache.txt" -Raw
+$cache = Get-Content "$build/CMakeCache.txt" -Raw -Encoding UTF8
 if ($cache -notmatch 'IMAGEEDITOR_RELOCATABLE_BUNDLE:BOOL=ON' -or
     $cache -notmatch 'IMAGEEDITOR_DEVELOPMENT_RESOURCES:BOOL=OFF' -or
     $cache -notmatch 'CMAKE_BUILD_TYPE:STRING=Release') { throw 'Portable assembly requires the relocatable Release configuration from Build.ps1.' }
 
-# Build privately first. Publish only after dependency and content checks pass.
+# Stage separately. Publish only after dependency and content checks pass.
 $scratch = Join-Path $BuildRoot ('portable-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $scratch | Out-Null
 try {
@@ -71,7 +82,7 @@ try {
                     $origin = 'Windows/driver'
                 } else { throw "Unresolved dependency $dll required by $file" }
             }
-            $imports.Add([ordered]@{ binary = [IO.Path]::GetRelativePath($scratch, $file).Replace('\', '/'); dependency = $dll; origin = $origin })
+            $imports.Add([ordered]@{ binary = Get-PortableRelativePath $scratch $file; dependency = $dll; origin = $origin })
         }
     }
 
@@ -83,7 +94,7 @@ try {
         if (!(Test-Path $copyright)) { throw "Missing dependency notice: $component" }
         Copy-Item $copyright "$licenses/$component-copyright.txt"
     }
-    $lock = Get-Content "$PSScriptRoot/dependencies/versions.json" -Raw | ConvertFrom-Json
+    $lock = Get-Content "$PSScriptRoot/dependencies/versions.json" -Raw -Encoding UTF8 | ConvertFrom-Json
     $qtInventory = Join-Path $licenses 'qt-inventory'
     New-Item -ItemType Directory -Path $qtInventory | Out-Null
     foreach ($module in @('qtbase', 'qtimageformats', 'qtpdf', 'qtsvg', 'qttranslations')) {
@@ -102,11 +113,12 @@ try {
     })
     if ($forbidden.Count) { throw "Unexpected development payload: $($forbidden.FullName -join ', ')" }
     $inventory = @(Get-ChildItem $scratch -Recurse -File | Sort-Object FullName | ForEach-Object {
-        [ordered]@{ path = [IO.Path]::GetRelativePath($scratch, $_.FullName).Replace('\', '/');
+        [ordered]@{ path = Get-PortableRelativePath $scratch $_.FullName;
             bytes = $_.Length; sha256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
     })
-    [ordered]@{ format = 1; purpose = 'Unsigned Windows portable test build'; files = $inventory; imports = $imports } |
-        ConvertTo-Json -Depth 6 | Set-Content "$scratch/portable-manifest.json" -Encoding utf8
+    $manifest = [ordered]@{ format = 1; purpose = 'Unsigned Windows portable test build'; files = $inventory; imports = $imports } |
+        ConvertTo-Json -Depth 6
+    [IO.File]::WriteAllText("$scratch/portable-manifest.json", $manifest, [Text.UTF8Encoding]::new($false))
     $parent = Split-Path $destinationPath -Parent
     if (!(Test-Path -LiteralPath $parent)) { throw 'Destination parent must already exist.' }
     Move-Item -LiteralPath $scratch -Destination $destinationPath

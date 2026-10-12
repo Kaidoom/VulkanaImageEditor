@@ -1,3 +1,4 @@
+#Requires -Version 5.1
 # Build and stage an x64 developer/test application; this does not publish a release.
 [CmdletBinding()]
 param(
@@ -18,7 +19,7 @@ function Invoke-BuildCommand([string]$Program, [string[]]$Arguments) {
 $source = (Resolve-Path "$PSScriptRoot/../..").Path
 $build = Join-Path $BuildRoot 'release'
 $stage = Join-Path $BuildRoot 'stage'
-$lock = Get-Content "$PSScriptRoot/dependencies/versions.json" -Raw | ConvertFrom-Json
+$lock = Get-Content "$PSScriptRoot/dependencies/versions.json" -Raw -Encoding UTF8 | ConvertFrom-Json
 $runtime = Join-Path $BuildRoot ('runtime/onnxruntime-win-x64-' + $lock.onnxRuntime.version)
 $testFlag = if ($Tests) { 'ON' } else { 'OFF' }
 Invoke-BuildCommand cmake @('-S', $source, '-B', $build, '-G', 'Ninja', '-DCMAKE_BUILD_TYPE=Release',

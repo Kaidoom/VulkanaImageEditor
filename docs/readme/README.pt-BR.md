@@ -126,30 +126,18 @@ um ambiente gráfico Wayland/X11 em execução.
 
 ### Windows
 
-Instale PowerShell 7, Git, CMake, Ninja, Python 3, as ferramentas C++ x64 do Visual
-Studio, Qt para MSVC x64, o Vulkan SDK e vcpkg. Use as versões fixadas e a lista
-de componentes do [guia de compilação para Windows](../../tools/windows/README.md).
-
-No PowerShell 7, a partir da raiz do repositório:
+Instale os pré-requisitos indicados no [guia de compilação para Windows](../../tools/windows/README.md#prerequisites).
+Abra o Windows PowerShell na raiz do repositório, compile e inicie o aplicativo:
 
 ```powershell
-pwsh -NoProfile -File tools/windows/Setup.ps1 -BuildRoot C:\Dev\VulkanaClean
-pwsh -NoProfile -File tools/windows/Build.ps1 -BuildRoot C:\Dev\VulkanaClean -Tests
-C:\Dev\VulkanaClean\stage\bin\imageeditor.exe
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/Build.ps1
+C:\Dev\Vulkana\stage\bin\imageeditor.exe
 ```
 
-Escolha uma nova pasta de compilação para testar um clone limpo; não reutilize
-uma pasta configurada para outra cópia do repositório. Setup verifica as
-dependências e os pré-requisitos; Build compila os pacotes de idiomas, compila
-e testa o aplicativo e reúne os arquivos necessários à execução. A configuração
-inicial precisa de Internet para as dependências de compilação, mas o aplicativo
-e a seleção de objetos incluída funcionam localmente, sem Python nem downloads
-de modelos.
-
-Consulte o guia Windows para personalizar os caminhos das dependências,
-executar testes básicos de execução nativa e criar uma pasta portátil limpa.
-As preferências ficam no armazenamento de cada usuário, separado da pasta
-do aplicativo.
+O script prepara as dependências e gera uma compilação Release com os pacotes de idiomas.
+Consulte o guia para [personalizar os caminhos de compilação](../../tools/windows/README.md#configuration),
+[executar testes](../../tools/windows/README.md#testing) e
+[criar pastas portáteis](../../tools/windows/README.md#portable-folder).
 
 ## Arquitetura
 

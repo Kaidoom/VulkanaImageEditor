@@ -104,25 +104,18 @@ ctest --preset release
 
 ### Windows
 
-安裝 PowerShell 7、Git、CMake、Ninja、Python 3、Visual Studio 的 x64 C++ 工具、
-MSVC x64 版 Qt、Vulkan SDK 和 vcpkg。請使用
-[Windows 建置指南](../../tools/windows/README.md)中列出的固定版本和元件。
-
-在儲存庫根目錄透過 PowerShell 7 執行：
+安裝 [Windows 建置指南](../../tools/windows/README.md#prerequisites)中列出的必要元件。
+在儲存庫根目錄開啟 Windows PowerShell，然後建置並啟動應用程式：
 
 ```powershell
-pwsh -NoProfile -File tools/windows/Setup.ps1 -BuildRoot C:\Dev\VulkanaClean
-pwsh -NoProfile -File tools/windows/Build.ps1 -BuildRoot C:\Dev\VulkanaClean -Tests
-C:\Dev\VulkanaClean\stage\bin\imageeditor.exe
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/Build.ps1
+C:\Dev\Vulkana\stage\bin\imageeditor.exe
 ```
 
-測試全新複本時，請選擇新的建置目錄，不要重用為其他簽出副本設定的目錄。
-Setup 驗證相依套件並檢查建置環境；Build 編譯語言套件，建置並測試應用程式，
-整理執行階段檔案。首次設定需要連網取得建置相依套件，但應用程式及隨附的
-物件選取功能均在本機執行，使用時無需 Python 或下載模型。
-
-自訂相依套件路徑、原生冒煙測試和建立乾淨可攜式資料夾的方法，請參閱 Windows 指南。
-偏好設定仍儲存在使用者自己的儲存位置，與應用程式資料夾分開。
+指令碼會準備相依套件，並建立包含語言套件的 Release 版本。
+關於[自訂建置路徑](../../tools/windows/README.md#configuration)、
+[測試](../../tools/windows/README.md#testing)和
+[可攜式資料夾](../../tools/windows/README.md#portable-folder)的說明，請參閱指南。
 
 ## 架構
 

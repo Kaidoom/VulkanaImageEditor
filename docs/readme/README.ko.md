@@ -111,26 +111,18 @@ ctest --preset release
 
 ### Windows
 
-PowerShell 7, Git, CMake, Ninja, Python 3, Visual Studio의 x64 C++ 도구,
-MSVC x64용 Qt, Vulkan SDK, vcpkg를 설치하세요.
-버전과 구성 요소는 [Windows 빌드 가이드](../../tools/windows/README.md)의 지정 목록을 따르세요.
-
-저장소 루트에서 PowerShell 7로 실행하세요.
+[Windows 빌드 가이드](../../tools/windows/README.md#prerequisites)에 안내된 필수 도구를 설치하세요.
+저장소 루트에서 Windows PowerShell을 열고 빌드한 뒤 실행하세요:
 
 ```powershell
-pwsh -NoProfile -File tools/windows/Setup.ps1 -BuildRoot C:\Dev\VulkanaClean
-pwsh -NoProfile -File tools/windows/Build.ps1 -BuildRoot C:\Dev\VulkanaClean -Tests
-C:\Dev\VulkanaClean\stage\bin\imageeditor.exe
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/Build.ps1
+C:\Dev\Vulkana\stage\bin\imageeditor.exe
 ```
 
-새로 복제한 저장소를 테스트할 때는 새 빌드 디렉터리를 사용하세요. 다른 체크아웃에 맞춰
-설정한 디렉터리를 재사용하지 마세요. Setup은 의존성을 검증하고 사전 검사를 수행합니다.
-Build는 언어 팩을 컴파일하고 앱을 빌드·테스트한 뒤 실행에 필요한 파일을 배치합니다.
-초기 설정에는 빌드 의존성을 받기 위한 인터넷 연결이 필요하지만, 앱과 함께 제공되는
-개체 선택은 로컬에서 실행되며 사용 시 Python 설치나 모델 다운로드가 필요하지 않습니다.
-
-의존성 경로 변경, 네이티브 스모크 테스트, 깨끗한 포터블 폴더 생성 방법은 Windows 가이드를
-참조하세요. 환경 설정은 앱 폴더와 별도의 사용자별 저장 공간에 보관됩니다.
+스크립트가 의존성을 준비하고 언어 팩이 포함된 Release 빌드를 생성합니다.
+[빌드 경로 설정](../../tools/windows/README.md#configuration),
+[테스트](../../tools/windows/README.md#testing),
+[포터블 폴더](../../tools/windows/README.md#portable-folder)에 대한 자세한 내용은 가이드를 참조하세요.
 
 ## 아키텍처
 

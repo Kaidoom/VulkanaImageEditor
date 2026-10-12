@@ -128,30 +128,18 @@ Wayland/X11 attivo.
 
 ### Windows
 
-Installa PowerShell 7, Git, CMake, Ninja, Python 3, gli strumenti C++ x64 di Visual
-Studio, Qt per MSVC x64, il Vulkan SDK e vcpkg. Usa le versioni fissate e l’elenco
-dei componenti della [guida alla compilazione per Windows](../../tools/windows/README.md).
-
-Da PowerShell 7 nella radice del repository:
+Installa i prerequisiti indicati nella [guida alla compilazione per Windows](../../tools/windows/README.md#prerequisites).
+Apri Windows PowerShell nella radice del repository, poi compila e avvia l’applicazione:
 
 ```powershell
-pwsh -NoProfile -File tools/windows/Setup.ps1 -BuildRoot C:\Dev\VulkanaClean
-pwsh -NoProfile -File tools/windows/Build.ps1 -BuildRoot C:\Dev\VulkanaClean -Tests
-C:\Dev\VulkanaClean\stage\bin\imageeditor.exe
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/Build.ps1
+C:\Dev\Vulkana\stage\bin\imageeditor.exe
 ```
 
-Scegli una nuova cartella di compilazione per provare un clone pulito; non
-riutilizzare una cartella configurata per un’altra copia del repository. Setup
-verifica le dipendenze e i prerequisiti; Build compila i pacchetti di lingua,
-compila e testa l’applicazione e raccoglie i file necessari all’esecuzione.
-La configurazione iniziale richiede Internet per le dipendenze di compilazione,
-ma l’applicazione e la selezione oggetto inclusa funzionano localmente, senza
-Python né download di modelli.
-
-Consulta la guida Windows per personalizzare i percorsi delle dipendenze,
-eseguire i test di avvio nativi e creare una cartella portabile pulita.
-Le preferenze restano nello spazio di archiviazione del singolo utente,
-separato dalla cartella dell’applicazione.
+Lo script prepara le dipendenze e crea una compilazione Release con i pacchetti lingua.
+Consulta la guida per [personalizzare i percorsi di compilazione](../../tools/windows/README.md#configuration),
+[eseguire i test](../../tools/windows/README.md#testing) e
+[creare cartelle portabili](../../tools/windows/README.md#portable-folder).
 
 ## Architettura
 

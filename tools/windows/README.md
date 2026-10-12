@@ -1,147 +1,167 @@
-# Windows development
+# Build Vulkana on Windows
 
-Vulkana uses native x64 MSVC, Qt and Vulkan on Windows 11. Build tooling is kept
-separate from Linux packaging; no Python runtime, CUDA installation or model
-download is needed by Object Selection. Python is a **build-time** tool for the
-language catalogs only.
+Build an x64 Release application for Windows 11, run its tests, or assemble a
+portable folder.
 
 ## Prerequisites
 
-Install PowerShell 7, Git, CMake 3.28+, Ninja, Python 3, Visual Studio's x64 C++ workload,
-Qt (MSVC x64), the Vulkan SDK and vcpkg. The reviewed dependency versions are in
-`dependencies/versions.json` and `dependencies/vcpkg.json`. Setup rejects version
-or checksum mismatches rather than silently changing runtime/model inputs.
+Install the following tools. The dependency versions are recorded in
+[versions.json](dependencies/versions.json) and the
+[vcpkg manifest](dependencies/vcpkg.json).
 
-The current configuration uses Qt 6.10.3, MSVC tools 14.51.36231, Vulkan SDK
-1.4.363.0 and vcpkg revision `e456309491fd875487bf02b8a0dca76c1b1b00cc`.
-Qt needs Core, Gui, Widgets, Network, Pdf, Svg, Test, Linguist tools, platform/image
-plugins, a TLS backend and translations. The custom `x64-vulkana-windows` triplet
-builds Release with the dynamic MSVC CRT. minizip-ng is statically linked, as
-required by its vcpkg port, with the same dynamic CRT.
+| Tool | Version or components |
+| --- | --- |
+| PowerShell | Windows PowerShell 5.1 or PowerShell 7 |
+| Build tools on PATH | Git, CMake 3.28+, Ninja and Python 3 |
+| Visual Studio | x64 C++ workload with MSVC tools 14.51.36231 |
+| Qt | 6.10.3 for MSVC x64; Core, Gui, Widgets, Network, Pdf, Svg, Test, Linguist tools, translations, platform/image plugins and a TLS backend |
+| Vulkan SDK | 1.4.363.0 |
+| vcpkg | Revision `e456309491fd875487bf02b8a0dca76c1b1b00cc` |
 
-## Setup and build
+Check out the listed vcpkg revision and run its `bootstrap-vcpkg.bat`.
+Install a Vulkan-capable graphics driver to run Vulkana and its rendering tests.
+Dependency setup needs internet access.
 
-Clone the repository in PowerShell 7:
+## Build and run
+
+Open Windows PowerShell and clone the repository:
 
 ```powershell
 git clone https://github.com/Kaidoom/VulkanaImageEditor.git
 cd VulkanaImageEditor
 ```
 
-Use a new build root when testing a fresh clone. CMake build directories are tied
-to their source checkout; do not share one between different clones.
+Build and launch the application:
 
 ```powershell
-pwsh -NoProfile -File tools/windows/Setup.ps1 -BuildRoot C:\Dev\VulkanaClean
-pwsh -NoProfile -File tools/windows/Build.ps1 -BuildRoot C:\Dev\VulkanaClean -Tests
-C:\Dev\VulkanaClean\stage\bin\imageeditor.exe
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/Build.ps1
+C:\Dev\Vulkana\stage\bin\imageeditor.exe
 ```
 
-Both scripts accept `-VcpkgRoot`, `-QtRoot`, `-VulkanRoot`, `-BuildRoot` and `-Jobs`.
-Defaults are conventional developer directories under `C:\Dev` and `C:\Qt`;
-change the arguments to match your installation. Do not dot-source the scripts.
-They enter the x64 compiler environment without changing the machine-wide PATH.
-Pass the same `-BuildRoot` to subsequent smoke and portable commands. Setup,
-Build and Portable also need matching dependency-path overrides; OverlaySmoke
-accepts `-QtRoot` for a nondefault Qt location. The examples below continue using
-`C:\Dev\VulkanaClean`.
+`Build.ps1` prepares dependencies, compiles the app and language packs, and
+assembles the runtime files under `C:\Dev\Vulkana\stage`. Re-run the same
+command after source changes.
 
-Setup does not install Visual Studio, Qt, Vulkan drivers, the SDK or vcpkg itself.
-Use a clean vcpkg checkout at the revision in `dependencies/versions.json` and
-run its `bootstrap-vcpkg.bat` before setup. A working Vulkan graphics driver is
-required to launch the app and run GPU checks, but not to compile C++ or shaders.
-Initial dependency setup needs internet access; no network is needed for editing
-or Object Selection once the runtime has been staged.
+## Configuration
 
-Setup installs missing manifest dependencies and verifies the official ONNX
-Runtime 1.30.0 Windows x64 CPU archive and DLL. Licenses are retained unmodified.
-It then builds/runs a standalone dependency/core smoke suite. `-SkipSmoke`
-prepares dependencies without tests. The unchanged encoder and decoder already
-in the repository are verified before use. No model conversion is performed.
+Use these options with `Build.ps1` to match your tool locations and available
+build resources:
 
-Build configures Release and stages a relocatable application under
-`<BuildRoot>/stage`. Run `stage/bin/imageeditor.exe`. `-Tests` additionally builds
-and runs the Windows regression targets. No ZIP, installer or published release
-is created by this command. Startup/download services require the separate public
-service configuration; Windows update delivery is not yet enabled and cannot
-fall back to a Linux package.
+| Option | Default |
+| --- | --- |
+| `-BuildRoot` | `C:\Dev\Vulkana` |
+| `-VcpkgRoot` | `C:\Dev\vcpkg` |
+| `-QtRoot` | `C:\Qt\6.10.3\msvc2022_64` |
+| `-VulkanRoot` | `C:\VulkanSDK\1.4.363.0` |
+| `-Jobs` | 6 |
 
-Build outputs, dependency archives and runtime SDKs stay outside the source tree.
-vcpkg uses its normal downloads/build trees and binary cache. Settings, custom
-brushes and recovery data use per-user Qt storage rather than the executable
-directory, so replacing the application folder does not replace user settings.
-
-## Verification and scope
-
-For a clean, unsigned portable test folder after configuring with `Build.ps1`:
+For example, choose a build directory and limit compilation to four jobs:
 
 ```powershell
-pwsh -NoProfile -File tools/windows/Portable.ps1 -BuildRoot C:\Dev\VulkanaClean -Destination "$env:USERPROFILE/Desktop/Vulkana Portable"
-pwsh -NoProfile -File tools/windows/PortableSmoke.ps1 -BuildRoot C:\Dev\VulkanaClean -PortableDirectory "$env:USERPROFILE/Desktop/Vulkana Portable"
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/Build.ps1 -BuildRoot D:\Builds\Vulkana -Jobs 4
+D:\Builds\Vulkana\stage\bin\imageeditor.exe
 ```
 
-The destination must not exist. The script updates the executable and language
-packs, installs into a fresh directory, deploys Qt, resolves native DLL imports,
-includes dependency notices/inventories and publishes only after checks pass.
-It excludes test executables, symbols, SDKs, unused software OpenGL/D3D compilers
-and source trees. Run `bin/imageeditor.exe` and move the entire folder together.
-This is a review build, not a signed or license-audited public release.
-The portable smoke requires the probes built by `Setup.ps1`. It verifies the
-inventory, a clean-PATH relocated native launch, image/PDF/SVG/TLS support and
-both offline model stages; probes are added only to a disposable test copy.
+Use a separate build directory for each repository checkout. Reuse that directory
+when rebuilding the same checkout.
 
-The prerequisite suite compiles the actual shared core and existing selection
-tests; it exercises Qt image/PDF/SVG/TLS dependencies, Vulkan device creation and
-the composite shader, and the complete offline MobileSAM encoder/decoder.
-Language packs use the same validation/compiler as Linux. CTest logs are under
-`<BuildRoot>/dependency-smoke/Testing/Temporary` and `<BuildRoot>/release/Testing/Temporary`.
+Pass the same `-BuildRoot` to subsequent test and portable commands. Setup,
+Build and Portable accept the dependency-path options above; OverlaySmoke also
+accepts `-QtRoot`.
 
-Headless checks cannot certify native window presentation, tablet input, IME,
-HiDPI or dialogs. Run the application on an interactive Windows desktop with a
-working Vulkan driver, including `--smoke-test`, before release. The reproducible
-native lifecycle and clean-PATH relocation check is:
+To use PowerShell 7, replace `powershell.exe` with `pwsh` in the commands.
+Run each script as a separate process so its compiler environment stays scoped
+to that invocation.
+
+## Testing
+
+From the repository root, run the dependency checks and application regressions:
 
 ```powershell
-pwsh -NoProfile -File tools/windows/Smoke.ps1 -BuildRoot C:\Dev\VulkanaClean -Relocate
-pwsh -NoProfile -File tools/windows/OverlaySmoke.ps1 -BuildRoot C:\Dev\VulkanaClean
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/Setup.ps1
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/Build.ps1 -Tests
 ```
 
-It requires the SDK's Vulkan validation layer, exercises canvas/panel input,
-window transitions, painting and undo, and fails on any validation warning/error.
-Logs remain under `<BuildRoot>/validation`; a successful temporary relocated copy
-is removed. Failed copies remain available for inspection. Test relocation
-without developer directories on PATH, Unicode filenames, project overwrite and
-cancel, concurrent launches, masks, text, PSD/PDF export and Object Selection.
+Setup tests image/PDF/SVG/TLS support, Vulkan and the offline MobileSAM
+encoder/decoder. Build runs the application tests through CTest. Find their
+logs under `<BuildRoot>/dependency-smoke/Testing/Temporary` and
+`<BuildRoot>/release/Testing/Temporary`.
 
-`OverlaySmoke.ps1` requires `Build.ps1 -Tests`. It captures actual desktop pixels
-over the Vulkan canvas, verifies transparent dock gaps and modal dimming, and
-checks restoration after repeated dismissal. Captures and logs remain under
-`<BuildRoot>/validation/overlay`. This cannot be replaced by QWidget screenshots
-or a session-0 test, which do not inspect native alpha composition.
-The application and Windows test executables embed `res/windows/Vulkana.manifest`:
-its Windows 10/11 compatibility declaration is required for layered child-window
-transparency. Keep it when adding or replacing executable build targets.
+For standalone script checks:
 
-Windows instance coordination uses a user-restricted named mutex and named pipe,
-scoped to the logon session and independent of the executable's location. Project
-saving stages beside the destination, flushes and validates the archive, then
-performs a same-volume replacement without a direct-write fallback. Existing
-Linux coordination and file-saving semantics remain in their platform paths.
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tests/WindowsBuildScriptTests.ps1
+```
 
-Developer staging is not a license-audited distribution. A release must inventory
-the final DLL/plugin closure, retain upstream notices and Qt redistribution
-requirements, and include the appropriate MSVC redistribution material. Do not
-copy runtime SDK symbol files or private source/reference material into a release.
+For native canvas and overlay checks, run these commands from an interactive
+desktop after `Build.ps1 -Tests`, with the SDK's Vulkan validation layer installed:
 
-## Manual UI review
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/Smoke.ps1 -Relocate
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/OverlaySmoke.ps1
+```
 
-- Open several images, paint/erase, pan/zoom and undo; try a pen tablet if available.
-- Float, resize, tab and redock panels; verify that overlays neither hide the
-  canvas nor intercept clicks outside their visible controls.
-- Resize, maximize, minimize/restore and move between displays at different DPI.
-- Create text, switch languages, and test Arabic/CJK typing and native file dialogs.
-- Save/reopen a project with a Unicode filename, overwrite it, and cancel a save.
-- Export PNG/WebP, layered PSD and PDF; reopen the results. Exercise masks,
-  adjustments and rectangle-based Object Selection without a network connection.
-- Close and relaunch from a different application folder: user preferences and
-  custom brushes should remain available without writing into the application.
+Inspect logs and captures under `<BuildRoot>/validation`. Smoke checks window
+lifecycle, canvas interaction and relocation; OverlaySmoke checks dock
+transparency, modal dimming and input handling against actual desktop pixels.
+
+## Portable folder
+
+After building, create a portable folder at a destination that does not exist:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/Portable.ps1 -Destination C:\Dev\VulkanaPortable
+C:\Dev\VulkanaPortable\bin\imageeditor.exe
+```
+
+Keep the entire folder together when copying it to another location. Preferences,
+custom brushes and recovery data stay in the Windows user profile. Store artwork
+outside the application folder, and replace the application folder when updating.
+
+To validate the portable folder, run the dependency checks in the Testing
+section first, then:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/PortableSmoke.ps1 -PortableDirectory C:\Dev\VulkanaPortable
+```
+
+This checks the file inventory, relocated launch, codecs and offline model using
+a temporary copy. Inspect `portable-manifest.json` for file hashes and DLL
+dependencies; it is an integrity inventory rather than a digital signature.
+
+Portable builds are unsigned. Before publishing a release, audit the final
+DLL/plugin inventory and complete the matching Qt source/notices bundle and
+MSVC redistribution material.
+
+## Troubleshooting
+
+- **A prerequisite is missing or its version differs:** check the versions above
+  and the dependency-path options. Install those tools before running Build.
+- **CMake reports a different source directory:** choose a separate `-BuildRoot`
+  for this checkout.
+- **Scripts are blocked:** run scripts from a trusted checkout using the shown
+  `RemoteSigned` command. It sets the execution policy for that process;
+  organization-managed policies take precedence.
+- **Rendering checks fail:** verify the graphics driver and Vulkan validation
+  layer, then inspect the logs in `<BuildRoot>/validation`. Run window tests in
+  an interactive desktop session.
+- **A custom executable has black dock gaps or incorrect modal dimming:** embed
+  [Vulkana.manifest](../../res/windows/Vulkana.manifest) in the executable target
+  to enable layered child-window transparency.
+- **Language changes are missing from the staged app:** rerun Build to compile
+  and install the packs. See [localization](../../docs/LOCALIZATION.md) for
+  pack-only compilation and preview.
+
+## Manual checks
+
+Before distributing a build:
+
+- Paint, erase, pan, zoom and undo; test pressure with a pen tablet.
+- Float, resize, tab and redock panels; check canvas input around overlays.
+- Resize, maximize, minimize and move the window between displays at different DPI.
+- Test text editing, Arabic/CJK input, language changes and native file dialogs.
+- Save, reopen and overwrite Unicode-named projects; check cancellation.
+- Export and reopen PNG/WebP, layered PSD and PDF; exercise masks, adjustments
+  and offline Object Selection.
+- Move the application folder and relaunch; confirm preferences and custom brushes
+  remain available.

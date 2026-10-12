@@ -128,29 +128,18 @@ eine laufende Wayland/X11-Desktopsitzung.
 
 ### Windows
 
-PowerShell 7, Git, CMake, Ninja, Python 3, die x64-C++-Werkzeuge von Visual Studio,
-Qt für MSVC x64, das Vulkan SDK und vcpkg installieren. Die festgelegten Versionen
-und die Komponentenliste stehen im [Windows-Build-Leitfaden](../../tools/windows/README.md).
-
-In PowerShell 7 im Stammverzeichnis des Repositorys:
+Installiere die in der [Windows-Build-Anleitung](../../tools/windows/README.md#prerequisites) aufgeführten Werkzeuge.
+Öffne Windows PowerShell im Stammverzeichnis des Repositorys und baue und starte die Anwendung:
 
 ```powershell
-pwsh -NoProfile -File tools/windows/Setup.ps1 -BuildRoot C:\Dev\VulkanaClean
-pwsh -NoProfile -File tools/windows/Build.ps1 -BuildRoot C:\Dev\VulkanaClean -Tests
-C:\Dev\VulkanaClean\stage\bin\imageeditor.exe
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/Build.ps1
+C:\Dev\Vulkana\stage\bin\imageeditor.exe
 ```
 
-Für einen Test mit einem frisch geklonten Repository ein neues Build-Verzeichnis
-wählen; kein bereits für eine andere Arbeitskopie konfiguriertes Verzeichnis
-verwenden. Setup prüft die Abhängigkeiten und Voraussetzungen; Build kompiliert
-die Sprachpakete, erstellt und testet die Anwendung und stellt die Laufzeitdateien
-zusammen. Die Ersteinrichtung benötigt Internet für Build-Abhängigkeiten, die
-Anwendung und die mitgelieferte Objektauswahl laufen jedoch lokal ohne Python
-oder Modelldownloads.
-
-Der Windows-Leitfaden beschreibt angepasste Abhängigkeitspfade, native Smoke-Tests
-und das Erstellen eines sauberen portablen Ordners. Einstellungen bleiben im
-benutzerspezifischen Speicher, getrennt vom Anwendungsordner.
+Das Skript richtet die Abhängigkeiten ein und erstellt einen Release-Build mit Sprachpaketen.
+Die Anleitung beschreibt [eigene Build-Pfade](../../tools/windows/README.md#configuration),
+[Tests](../../tools/windows/README.md#testing) und
+[portable Ordner](../../tools/windows/README.md#portable-folder).
 
 ## Architektur
 

@@ -119,28 +119,18 @@ Bazı etkileşim testleri çalışan bir Wayland/X11 masaüstü gerektirir.
 
 ### Windows
 
-PowerShell 7, Git, CMake, Ninja, Python 3, Visual Studio x64 C++ araçları,
-MSVC x64 için Qt, Vulkan SDK ve vcpkg kurun. Sabitlenmiş sürümler ve bileşen
-listesi için [Windows derleme kılavuzunu](../../tools/windows/README.md) izleyin.
-
-Deponun kök dizininde PowerShell 7 ile:
+[Windows derleme kılavuzunda](../../tools/windows/README.md#prerequisites) belirtilen gerekli bileşenleri kurun.
+Deponun kök dizininde Windows PowerShell’i açın, ardından uygulamayı derleyip başlatın:
 
 ```powershell
-pwsh -NoProfile -File tools/windows/Setup.ps1 -BuildRoot C:\Dev\VulkanaClean
-pwsh -NoProfile -File tools/windows/Build.ps1 -BuildRoot C:\Dev\VulkanaClean -Tests
-C:\Dev\VulkanaClean\stage\bin\imageeditor.exe
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/Build.ps1
+C:\Dev\Vulkana\stage\bin\imageeditor.exe
 ```
 
-Yeni klon testi için yeni bir derleme dizini seçin; başka bir depo kopyası için
-yapılandırılmış dizini kullanmayın. Setup bağımlılıkları doğrular ve ön koşul
-kontrollerini çalıştırır; Build dil paketlerini derler, uygulamayı derleyip test
-eder ve çalışma dosyalarını hazırlar. İlk kurulum, derleme bağımlılıkları için
-internet erişimi gerektirir; uygulama ve birlikte gelen Nesne Seçimi ise Python
-veya model indirmeden yerel olarak çalışır.
-
-Özel bağımlılık yolları, yerel temel çalışma testleri ve temiz bir taşınabilir
-klasör oluşturma için Windows kılavuzuna bakın. Tercihler, uygulama klasöründen
-ayrı olarak kullanıcıya özel depolamada kalır.
+Betik, bağımlılıkları hazırlar ve dil paketlerini içeren bir Release derlemesi oluşturur.
+[Özel derleme yolları](../../tools/windows/README.md#configuration),
+[testler](../../tools/windows/README.md#testing) ve
+[taşınabilir klasörler](../../tools/windows/README.md#portable-folder) için kılavuza bakın.
 
 ## Mimari
 

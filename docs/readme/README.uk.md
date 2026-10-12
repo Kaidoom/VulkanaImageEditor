@@ -121,28 +121,18 @@ ctest --preset release
 
 ### Windows
 
-Установіть PowerShell 7, Git, CMake, Ninja, Python 3, засоби C++ x64 із
-Visual Studio, Qt для MSVC x64, Vulkan SDK і vcpkg. Використовуйте закріплені версії
-та перелік компонентів із [посібника зі збирання для Windows](../../tools/windows/README.md).
-
-У PowerShell 7 з кореня репозиторію:
+Установіть необхідні інструменти з [посібника зі збирання для Windows](../../tools/windows/README.md#prerequisites).
+Відкрийте Windows PowerShell у кореневому каталозі репозиторію, потім зберіть і запустіть застосунок:
 
 ```powershell
-pwsh -NoProfile -File tools/windows/Setup.ps1 -BuildRoot C:\Dev\VulkanaClean
-pwsh -NoProfile -File tools/windows/Build.ps1 -BuildRoot C:\Dev\VulkanaClean -Tests
-C:\Dev\VulkanaClean\stage\bin\imageeditor.exe
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/Build.ps1
+C:\Dev\Vulkana\stage\bin\imageeditor.exe
 ```
 
-Для перевірки свіжого клону виберіть новий каталог збирання; не використовуйте
-каталог, налаштований для іншої копії репозиторію. Setup перевіряє залежності
-та передумови; Build компілює мовні пакунки, збирає й тестує застосунок, а потім
-готує файли для запуску. Початкове налаштування потребує інтернету для завантаження
-залежностей збирання, але застосунок і вбудоване Виділення об'єктів працюють
-локально без Python і завантаження моделей.
-
-Налаштування шляхів залежностей, нативні перевірки запуску та створення чистої
-переносної теки описані в посібнику для Windows. Налаштування залишаються
-у сховищі користувача, окремо від теки застосунку.
+Скрипт готує залежності та створює збірку Release з мовними пакетами.
+У посібнику описано [налаштування шляхів збирання](../../tools/windows/README.md#configuration),
+[тести](../../tools/windows/README.md#testing) та
+[створення переносної папки](../../tools/windows/README.md#portable-folder).
 
 ## Архітектура
 

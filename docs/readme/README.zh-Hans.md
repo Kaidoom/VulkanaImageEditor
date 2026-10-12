@@ -104,25 +104,18 @@ ctest --preset release
 
 ### Windows
 
-安装 PowerShell 7、Git、CMake、Ninja、Python 3、Visual Studio 的 x64 C++ 工具、
-MSVC x64 版 Qt、Vulkan SDK 和 vcpkg。请使用
-[Windows 构建指南](../../tools/windows/README.md)中列出的固定版本和组件。
-
-在仓库根目录通过 PowerShell 7 运行：
+安装 [Windows 构建指南](../../tools/windows/README.md#prerequisites)中列出的必备组件。
+在仓库根目录打开 Windows PowerShell，然后构建并启动应用：
 
 ```powershell
-pwsh -NoProfile -File tools/windows/Setup.ps1 -BuildRoot C:\Dev\VulkanaClean
-pwsh -NoProfile -File tools/windows/Build.ps1 -BuildRoot C:\Dev\VulkanaClean -Tests
-C:\Dev\VulkanaClean\stage\bin\imageeditor.exe
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/Build.ps1
+C:\Dev\Vulkana\stage\bin\imageeditor.exe
 ```
 
-测试全新克隆时，请选择新的构建目录，不要复用为其他检出副本配置的目录。
-Setup 验证依赖并检查构建环境；Build 编译语言包，构建并测试应用，整理运行时文件。
-首次配置需要联网获取构建依赖，但应用及随附的对象选择功能均在本地运行，
-使用时无需 Python 或下载模型。
-
-自定义依赖路径、原生冒烟测试和创建干净便携目录的方法，请参阅 Windows 指南。
-首选项仍保存在用户自己的存储位置，与应用文件夹分开。
+脚本会准备依赖项，并创建包含语言包的 Release 构建。
+有关[自定义构建路径](../../tools/windows/README.md#configuration)、
+[测试](../../tools/windows/README.md#testing)和
+[便携目录](../../tools/windows/README.md#portable-folder)的说明，请参阅指南。
 
 ## 架构
 

@@ -1,3 +1,4 @@
+#Requires -Version 5.1
 # Run from an interactive desktop. Only the isolated smoke-test process is closed.
 [CmdletBinding()]
 param(
@@ -15,7 +16,8 @@ if ($Relocate) {
     # A unique path with spaces and Unicode checks DLL and data-path discovery.
     $bundle = Split-Path (Split-Path $Executable -Parent) -Parent
     if (!(Test-Path "$bundle/share/vulkana-editor")) { throw 'Expected the complete staged bundle, not a bare executable.' }
-    $relocationRoot = Join-Path $logs ('portable café-' + [guid]::NewGuid().ToString('N'))
+    # Keep script source ASCII: Windows PowerShell treats BOM-less UTF-8 as ANSI.
+    $relocationRoot = Join-Path $logs ('portable caf' + [char]0xE9 + '-' + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $relocationRoot | Out-Null
     Get-ChildItem -LiteralPath $bundle | Copy-Item -Destination $relocationRoot -Recurse
     $Executable = Join-Path $relocationRoot 'bin/imageeditor.exe'
@@ -29,6 +31,9 @@ $stdout = Join-Path $logs 'smoke.stdout.log'
 $stderr = Join-Path $logs 'smoke.stderr.log'
 $process = Start-Process -FilePath $Executable -ArgumentList @('--smoke-test', '--language', 'en', '-platform', 'windows') -PassThru `
     -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+# Retain the handle before a timed wait: Windows PowerShell can otherwise lose
+# ExitCode for a redirected process that has already finished.
+$null = $process.Handle
 if (!$process.WaitForExit($TimeoutSeconds * 1000)) {
     $process.Kill()
     $process.WaitForExit()

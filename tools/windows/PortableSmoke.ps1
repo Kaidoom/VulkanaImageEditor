@@ -1,3 +1,4 @@
+#Requires -Version 5.1
 # Verify the assembled folder on an interactive desktop without changing it.
 [CmdletBinding()]
 param(
@@ -9,7 +10,7 @@ Set-StrictMode -Version Latest
 $bundle = (Resolve-Path -LiteralPath $PortableDirectory).Path
 New-Item -ItemType Directory -Path "$BuildRoot/validation" -Force | Out-Null
 Start-Transcript -Path "$BuildRoot/validation/portable-review.log" -Force
-$manifest = Get-Content "$bundle/portable-manifest.json" -Raw | ConvertFrom-Json
+$manifest = Get-Content "$bundle/portable-manifest.json" -Raw -Encoding UTF8 | ConvertFrom-Json
 foreach ($file in $manifest.files) {
     $path = Join-Path $bundle $file.path
     if (!(Test-Path -LiteralPath $path) -or (Get-FileHash -LiteralPath $path).Hash -ne $file.sha256) {

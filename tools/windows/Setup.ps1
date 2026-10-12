@@ -1,3 +1,4 @@
+#Requires -Version 5.1
 # Developer setup only. No machine-wide PATH changes, driver installs, Python
 # packages, model re-export, app packaging or changes to the Linux build.
 [CmdletBinding()]
@@ -11,10 +12,14 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-if (!$IsWindows) { throw 'Run this setup in PowerShell 7 on Windows.' }
-$PSStyle.OutputRendering = 'PlainText'
+if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
+    throw 'Run this setup in Windows PowerShell 5.1 or PowerShell 7 on Windows.'
+}
+if (Get-Variable -Name PSStyle -ErrorAction SilentlyContinue) {
+    $PSStyle.OutputRendering = 'PlainText'
+}
 $sourceRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
-$lock = Get-Content (Join-Path $PSScriptRoot 'dependencies/versions.json') -Raw | ConvertFrom-Json
+$lock = Get-Content (Join-Path $PSScriptRoot 'dependencies/versions.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 
 function Invoke-Checked([string]$Program, [string[]]$Arguments) {
     & $Program @Arguments
@@ -61,7 +66,8 @@ if (!(Test-Path -LiteralPath $archive)) {
     # Unique pending file; failure never overwrites a previously verified archive.
     $pending = Join-Path $downloads ($lock.onnxRuntime.archive + '.' + [guid]::NewGuid().ToString('N') + '.partial')
     try {
-        Invoke-WebRequest -Uri $lock.onnxRuntime.url -OutFile $pending
+        # Windows PowerShell must not invoke the legacy Internet Explorer parser.
+        Invoke-WebRequest -UseBasicParsing -Uri $lock.onnxRuntime.url -OutFile $pending
         if ((Get-FileHash $pending -Algorithm SHA256).Hash.ToLowerInvariant() -ne $lock.onnxRuntime.sha256) {
             throw 'ONNX Runtime archive checksum mismatch.'
         }

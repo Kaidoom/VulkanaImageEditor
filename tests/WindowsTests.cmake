@@ -1,5 +1,16 @@
 # Native Windows coverage. Linux-specific resource-limit/desktop harnesses stay
 # in the full suite; shared behavior is tested from its original test sources.
+find_program(VULKANA_WINDOWS_POWERSHELL NAMES powershell.exe REQUIRED)
+add_test(NAME imageeditor_windows_build_scripts COMMAND "${VULKANA_WINDOWS_POWERSHELL}"
+    -NoProfile -ExecutionPolicy RemoteSigned -File "${CMAKE_CURRENT_SOURCE_DIR}/WindowsBuildScriptTests.ps1")
+set_tests_properties(imageeditor_windows_build_scripts PROPERTIES TIMEOUT 30 LABELS "platform;build")
+find_program(VULKANA_POWERSHELL_CORE NAMES pwsh.exe)
+if(VULKANA_POWERSHELL_CORE)
+    add_test(NAME imageeditor_windows_build_scripts_core COMMAND "${VULKANA_POWERSHELL_CORE}"
+        -NoProfile -ExecutionPolicy RemoteSigned -File "${CMAKE_CURRENT_SOURCE_DIR}/WindowsBuildScriptTests.ps1")
+    set_tests_properties(imageeditor_windows_build_scripts_core PROPERTIES TIMEOUT 30 LABELS "platform;build")
+endif()
+
 function(vulkana_windows_test name source)
     add_executable(${name} ${source} "${PROJECT_SOURCE_DIR}/res/windows/Vulkana.manifest")
     target_link_libraries(${name} PRIVATE imageeditor_ui Qt6::Test)

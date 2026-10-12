@@ -1,3 +1,4 @@
+#Requires -Version 5.1
 # Run on an interactive Windows desktop after Build.ps1 -Tests.
 [CmdletBinding()]
 param(
@@ -23,6 +24,8 @@ $env:VULKANA_OVERLAY_CAPTURE_DIR = $logs
 try {
     $process = Start-Process "$testRoot/bin/imageeditor_windows_overlay_tests.exe" -PassThru `
         -RedirectStandardOutput "$logs/stdout.log" -RedirectStandardError "$logs/stderr.log"
+    # Keep ExitCode available after the timed wait on Windows PowerShell 5.1.
+    $null = $process.Handle
     if (!$process.WaitForExit(60000)) {
         $process.Kill()
         $process.WaitForExit()

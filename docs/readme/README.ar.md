@@ -134,31 +134,22 @@ ctest --preset release
 
 ### Windows
 
-ثبّت PowerShell 7 وGit وCMake وNinja وPython 3 وأدوات C++ لمعمارية x64 من
-Visual Studio، وQt لـMSVC x64، وVulkan SDK وvcpkg. استخدم الإصدارات المحددة
-وقائمة المكونات في [دليل البناء لنظام Windows](../../tools/windows/README.md).
-
-من PowerShell 7 في المجلد الجذر للمستودع:
+ثبّت المتطلبات الموضحة في [دليل البناء لنظام Windows](../../tools/windows/README.md#prerequisites).
+افتح Windows PowerShell في المجلد الجذر للمستودع، ثم نفّذ الأوامر التالية لبناء التطبيق وتشغيله:
 
 <div dir="ltr">
 
 ```powershell
-pwsh -NoProfile -File tools/windows/Setup.ps1 -BuildRoot C:\Dev\VulkanaClean
-pwsh -NoProfile -File tools/windows/Build.ps1 -BuildRoot C:\Dev\VulkanaClean -Tests
-C:\Dev\VulkanaClean\stage\bin\imageeditor.exe
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/Build.ps1
+C:\Dev\Vulkana\stage\bin\imageeditor.exe
 ```
 
 </div>
 
-اختر مجلد بناء جديدًا لاختبار نسخة مستنسخة حديثًا؛ لا تستخدم مجلدًا مهيّأ لنسخة
-أخرى من المستودع. يتحقق Setup من التبعيات والمتطلبات الأولية؛ ويبني Build حزم
-اللغات والتطبيق، ويشغّل الاختبارات، ويجهّز ملفات التشغيل. يتطلب الإعداد الأولي
-اتصالًا بالإنترنت لتنزيل تبعيات البناء، لكن التطبيق وأداة تحديد الكائنات المرفقة
-يعملان محليًا دون Python أو تنزيل نماذج.
-
-راجع دليل Windows لتخصيص مسارات التبعيات، وإجراء اختبارات التشغيل الأساسية،
-وإنشاء مجلد نظيف لنسخة محمولة. تبقى التفضيلات في مساحة تخزين خاصة بالمستخدم،
-منفصلة عن مجلد التطبيق.
+يجهّز السكربت التبعيات وينشئ إصدار Release مع حزم اللغات.
+راجع الدليل لمعرفة كيفية [تخصيص مسارات البناء](../../tools/windows/README.md#configuration)،
+و[تشغيل الاختبارات](../../tools/windows/README.md#testing)،
+و[إنشاء نسخة محمولة](../../tools/windows/README.md#portable-folder).
 
 ## البنية
 

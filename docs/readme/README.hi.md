@@ -113,28 +113,18 @@ ctest --preset release
 
 ### Windows
 
-PowerShell 7, Git, CMake, Ninja, Python 3, Visual Studio के x64 C++ उपकरण,
-MSVC x64 के लिए Qt, Vulkan SDK और vcpkg स्थापित करें।
-[Windows बिल्ड मार्गदर्शिका](../../tools/windows/README.md) में दिए गए निश्चित संस्करणों
-और घटकों की सूची का उपयोग करें।
-
-रिपॉज़िटरी के मूल फ़ोल्डर में PowerShell 7 से:
+[Windows बिल्ड मार्गदर्शिका](../../tools/windows/README.md#prerequisites) में दिए गए आवश्यक उपकरण स्थापित करें।
+रिपॉज़िटरी के मूल फ़ोल्डर में Windows PowerShell खोलें, फिर ऐप बनाएँ और चलाएँ:
 
 ```powershell
-pwsh -NoProfile -File tools/windows/Setup.ps1 -BuildRoot C:\Dev\VulkanaClean
-pwsh -NoProfile -File tools/windows/Build.ps1 -BuildRoot C:\Dev\VulkanaClean -Tests
-C:\Dev\VulkanaClean\stage\bin\imageeditor.exe
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/Build.ps1
+C:\Dev\Vulkana\stage\bin\imageeditor.exe
 ```
 
-नए क्लोन का परीक्षण करने के लिए नया बिल्ड फ़ोल्डर चुनें; किसी दूसरे चेकआउट के लिए
-कॉन्फ़िगर किए गए फ़ोल्डर का दोबारा उपयोग न करें। Setup निर्भरताओं की पुष्टि और आवश्यक
-जाँचें करता है; Build भाषा पैक बनाता है, ऐप को बिल्ड व टेस्ट करता है और चलाने के लिए
-ज़रूरी फ़ाइलें तैयार करता है। पहली बार सेटअप के लिए बिल्ड निर्भरताएँ डाउनलोड करने हेतु
-इंटरनेट चाहिए, लेकिन ऐप और साथ दिया गया Object Selection स्थानीय रूप से चलते हैं;
-इनके उपयोग के लिए Python या मॉडल डाउनलोड की ज़रूरत नहीं है।
-
-निर्भरताओं के अलग पथ, नेटिव स्मोक टेस्ट और साफ़ पोर्टेबल फ़ोल्डर बनाने के लिए Windows
-मार्गदर्शिका देखें। प्राथमिकताएँ ऐप फ़ोल्डर से अलग, हर उपयोगकर्ता के अपने संग्रह स्थान में रहती हैं।
+स्क्रिप्ट निर्भरताएँ तैयार करती है और भाषा पैक के साथ Release बिल्ड बनाती है।
+[कस्टम बिल्ड पथ](../../tools/windows/README.md#configuration),
+[परीक्षण](../../tools/windows/README.md#testing) और
+[पोर्टेबल फ़ोल्डर](../../tools/windows/README.md#portable-folder) के लिए मार्गदर्शिका देखें।
 
 ## संरचना
 

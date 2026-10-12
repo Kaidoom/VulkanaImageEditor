@@ -114,27 +114,18 @@ validation layers. Some interaction tests require a running Wayland/X11 desktop.
 
 ### Windows
 
-Install PowerShell 7, Git, CMake, Ninja, Python 3, Visual Studio's x64 C++ tools,
-Qt for MSVC x64, the Vulkan SDK and vcpkg. Use the pinned versions and component
-list in the [Windows build guide](tools/windows/README.md).
-
-From PowerShell 7 in the repository root:
+Install the prerequisites in the [Windows build guide](tools/windows/README.md#prerequisites).
+Open Windows PowerShell in the repository root, then build and launch:
 
 ```powershell
-pwsh -NoProfile -File tools/windows/Setup.ps1 -BuildRoot C:\Dev\VulkanaClean
-pwsh -NoProfile -File tools/windows/Build.ps1 -BuildRoot C:\Dev\VulkanaClean -Tests
-C:\Dev\VulkanaClean\stage\bin\imageeditor.exe
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/Build.ps1
+C:\Dev\Vulkana\stage\bin\imageeditor.exe
 ```
 
-Choose a new build directory for a fresh-clone test; do not reuse a directory
-configured for another checkout. Setup verifies dependencies and runs prerequisite
-checks; Build compiles language packs, builds/tests the app and stages its runtime
-files. Initial setup needs internet access for build dependencies, but the app
-and bundled Object Selection run locally without Python or model downloads.
-
-See the Windows guide for custom dependency paths, native smoke tests and
-creating a clean portable folder. Preferences remain in per-user storage,
-separate from the application folder.
+The script prepares dependencies and creates a Release build with language packs.
+See the guide for [custom build paths](tools/windows/README.md#configuration),
+[tests](tools/windows/README.md#testing), and
+[portable folders](tools/windows/README.md#portable-folder).
 
 ## Architecture
 

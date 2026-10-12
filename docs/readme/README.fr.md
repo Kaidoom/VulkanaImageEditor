@@ -128,30 +128,18 @@ bureau Wayland/X11 actif.
 
 ### Windows
 
-Installez PowerShell 7, Git, CMake, Ninja, Python 3, les outils C++ x64 de Visual
-Studio, Qt pour MSVC x64, le SDK Vulkan et vcpkg. Utilisez les versions fixées et
-la liste des composants du [guide de compilation Windows](../../tools/windows/README.md).
-
-Depuis PowerShell 7, à la racine du dépôt :
+Installez les prérequis indiqués dans le [guide de compilation Windows](../../tools/windows/README.md#prerequisites).
+Ouvrez Windows PowerShell à la racine du dépôt, puis compilez et lancez l’application :
 
 ```powershell
-pwsh -NoProfile -File tools/windows/Setup.ps1 -BuildRoot C:\Dev\VulkanaClean
-pwsh -NoProfile -File tools/windows/Build.ps1 -BuildRoot C:\Dev\VulkanaClean -Tests
-C:\Dev\VulkanaClean\stage\bin\imageeditor.exe
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/Build.ps1
+C:\Dev\Vulkana\stage\bin\imageeditor.exe
 ```
 
-Choisissez un nouveau dossier de compilation pour tester un clone neuf ; ne
-réutilisez pas un dossier configuré pour une autre copie du dépôt. Setup vérifie
-les dépendances et les prérequis ; Build compile les packs de langues, compile et
-teste l’application, puis rassemble les fichiers nécessaires à son exécution.
-La configuration initiale nécessite Internet pour les dépendances de compilation,
-mais l’application et la sélection d’objet incluse fonctionnent localement, sans
-Python ni téléchargement de modèle.
-
-Consultez le guide Windows pour personnaliser les chemins des dépendances,
-effectuer les tests de démarrage natifs et créer un dossier portable propre.
-Les préférences restent dans le stockage de chaque utilisateur, séparé du
-dossier de l’application.
+Le script prépare les dépendances et crée une version Release avec les packs de langues.
+Consultez le guide pour [personnaliser les chemins de compilation](../../tools/windows/README.md#configuration),
+[exécuter les tests](../../tools/windows/README.md#testing) et
+[créer un dossier portable](../../tools/windows/README.md#portable-folder).
 
 ## Architecture
 

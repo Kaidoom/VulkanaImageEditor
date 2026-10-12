@@ -122,28 +122,18 @@ ctest --preset release
 
 ### Windows
 
-Установите PowerShell 7, Git, CMake, Ninja, Python 3, инструменты C++ x64 из
-Visual Studio, Qt для MSVC x64, Vulkan SDK и vcpkg. Используйте закреплённые версии
-и список компонентов из [руководства по сборке для Windows](../../tools/windows/README.md).
-
-В PowerShell 7 из корня репозитория:
+Установите инструменты, перечисленные в [руководстве по сборке для Windows](../../tools/windows/README.md#prerequisites).
+Откройте Windows PowerShell в корне репозитория, затем соберите и запустите приложение:
 
 ```powershell
-pwsh -NoProfile -File tools/windows/Setup.ps1 -BuildRoot C:\Dev\VulkanaClean
-pwsh -NoProfile -File tools/windows/Build.ps1 -BuildRoot C:\Dev\VulkanaClean -Tests
-C:\Dev\VulkanaClean\stage\bin\imageeditor.exe
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/Build.ps1
+C:\Dev\Vulkana\stage\bin\imageeditor.exe
 ```
 
-Для проверки свежего клона выберите новый каталог сборки; не используйте каталог,
-настроенный для другой копии репозитория. Setup проверяет зависимости и условия
-для сборки; Build компилирует языковые пакеты, собирает и тестирует приложение,
-затем подготавливает файлы для запуска. Первоначальная настройка требует интернета
-для загрузки зависимостей сборки, но приложение и встроенное Выделение объектов
-работают локально без Python и скачивания моделей.
-
-Настройка путей зависимостей, нативные проверки запуска и создание чистой переносимой
-папки описаны в руководстве для Windows. Настройки остаются в хранилище пользователя,
-отдельно от папки приложения.
+Скрипт подготавливает зависимости и создаёт сборку Release с языковыми пакетами.
+В руководстве описаны [настройка путей сборки](../../tools/windows/README.md#configuration),
+[тесты](../../tools/windows/README.md#testing) и
+[создание папки с переносной версией](../../tools/windows/README.md#portable-folder).
 
 ## Архитектура
 

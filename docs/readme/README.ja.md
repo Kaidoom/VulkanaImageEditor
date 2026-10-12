@@ -115,27 +115,18 @@ ctest --preset release
 
 ### Windows
 
-PowerShell 7、Git、CMake、Ninja、Python 3、Visual Studio の x64 C++ ツール、
-MSVC x64 向け Qt、Vulkan SDK、vcpkg をインストールしてください。
-使用するバージョンとコンポーネントは
-[Windows ビルドガイド](../../tools/windows/README.md)の指定に従ってください。
-
-リポジトリのルートディレクトリから PowerShell 7 で実行します。
+[Windows ビルドガイド](../../tools/windows/README.md#prerequisites)に記載された必要なツールをインストールします。
+リポジトリのルートで Windows PowerShell を開き、ビルドして起動します：
 
 ```powershell
-pwsh -NoProfile -File tools/windows/Setup.ps1 -BuildRoot C:\Dev\VulkanaClean
-pwsh -NoProfile -File tools/windows/Build.ps1 -BuildRoot C:\Dev\VulkanaClean -Tests
-C:\Dev\VulkanaClean\stage\bin\imageeditor.exe
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/Build.ps1
+C:\Dev\Vulkana\stage\bin\imageeditor.exe
 ```
 
-新規クローンのテストには新しいビルドディレクトリを使い、別のチェックアウト用に設定した
-ディレクトリは再利用しないでください。Setup は依存関係を検証して事前チェックを行い、
-Build は言語パックのコンパイル、アプリのビルドとテスト、実行用ファイルの配置を行います。
-初回セットアップではビルド用の依存関係を取得するためにインターネット接続が必要ですが、
-アプリと同梱のオブジェクト選択はローカルで動作し、利用時に Python やモデルのダウンロードは不要です。
-
-依存関係のパスの変更、ネイティブのスモークテスト、クリーンなポータブルフォルダーの作成については、
-Windows ガイドを参照してください。環境設定はアプリのフォルダーとは別の、ユーザーごとの保存領域に保持されます。
+スクリプトは依存関係を準備し、言語パックを含む Release ビルドを作成します。
+[ビルドパスの変更](../../tools/windows/README.md#configuration)、
+[テスト](../../tools/windows/README.md#testing)、
+[ポータブルフォルダーの作成](../../tools/windows/README.md#portable-folder)については、ガイドを参照してください。
 
 ## アーキテクチャ
 
