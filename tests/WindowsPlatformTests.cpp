@@ -99,7 +99,8 @@ int main(int argc, char** argv)
     CHECK(p::processResidentMemoryBytes().value_or(0) > 0);
     CHECK(!p::userDataDirectory().startsWith(QCoreApplication::applicationDirPath()));
     CHECK(!p::userCacheDirectory().startsWith(QCoreApplication::applicationDirPath()));
-    CHECK(u::UpdateService::buildPackage() == u::UpdatePackage::Unavailable);
+    CHECK(u::UpdateService::buildPackage() == u::UpdatePackage::WindowsPortable);
+    qputenv("VULKANA_SERVICE_CONFIG", dir.filePath("missing-services.json").toUtf8());
     u::UpdateService updates("0.3.2"); CHECK(!updates.configured());
     updates.check(); CHECK(updates.state() == u::UpdateService::State::Error);
     QString error;

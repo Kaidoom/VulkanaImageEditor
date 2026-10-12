@@ -1,0 +1,11 @@
+{
+  "version": "6.10.3",
+  "baseUrl": "https://download.qt.io/archive/qt/6.10/6.10.3/submodules/",
+  "archives": {
+    "qtbase": "383dc907816338f0cba72088a524c07458dfc69ce684ca9132fcc4fe91c24b0b",
+    "qtimageformats": "84605dd91037482b5b7c7ecc5c27aee8acc1cd7f1fe77bc564777ddf365d7d28",
+    "qtsvg": "b3223fe005f6a4c7f21f34e4ee6ce0094737cff9503ba15bbb171ac18794f76d",
+    "qttranslations": "52689984b114d4d34516d5d7bfb0c75857b1c3ff529921042144f09ab2de3a83",
+    "qtwebengine": "07c95f81d64391b3dd5b0edce7fc7eb2e8d39844e4904f82ae53f5533f4cf043"
+  }
+}

@@ -56,7 +56,8 @@ void startupPresentationTests()
                 CHECK(!popup->isWindow());
                 const auto kind = u::UpdateService::buildPackage();
                 CHECK(popup->findChild<QPushButton*>("AboutCheckUpdate")->text()
-                    == (kind == u::UpdatePackage::AppImage ? "Update AppImage" : kind == u::UpdatePackage::Deb ? "Download DEB" : "Download RPM"));
+                    == (kind == u::UpdatePackage::AppImage ? "Update AppImage" : kind == u::UpdatePackage::Deb ? "Download DEB"
+                        : kind == u::UpdatePackage::WindowsPortable ? "Download ZIP" : "Download RPM"));
                 CHECK(network.requests.size() == 1); // Cached release, not a second check.
                 popup->reject(); completed = true;
             }

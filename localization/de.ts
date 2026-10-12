@@ -175,6 +175,16 @@
   </context>
   <context>
     <name>AboutDialog</name>
+    <message id="about.dialog.zip.archives">
+      <source>ZIP archives (*.zip)</source>
+      <extracomment>Windows portable download. Preserve ZIP, SHA-256 and file patterns. AI-assisted drafts welcome contributor review.</extracomment>
+      <translation>ZIP-Archive (*.zip)</translation>
+    </message>
+    <message id="about.dialog.portable.manual.extraction">
+      <source>You choose when to extract and run the app.</source>
+      <extracomment>Windows portable download. Preserve ZIP, SHA-256 and file patterns. AI-assisted drafts welcome contributor review.</extracomment>
+      <translation>Du entscheidest, wann du die App entpackst und startest.</translation>
+    </message>
     <message id="about.dialog.about.vulkana">
       <source>About Vulkana</source>
       <extracomment>AboutDialog presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
@@ -8803,6 +8813,16 @@ Ein gespeichertes Bild; Ebenenauswahl wird ignoriert.</translation>
   </context>
   <context>
     <name>UpdateService</name>
+    <message id="update.service.invalid.portable.zip">
+      <source>The download is not a ZIP archive. No file was saved.</source>
+      <extracomment>Windows portable download. Preserve ZIP, SHA-256 and file patterns. AI-assisted drafts welcome contributor review.</extracomment>
+      <translation>Der Download ist kein ZIP-Archiv. Es wurde keine Datei gespeichert.</translation>
+    </message>
+    <message id="update.service.portable.zip.saved">
+      <source>ZIP saved and SHA-256 verified.</source>
+      <extracomment>Windows portable download. Preserve ZIP, SHA-256 and file patterns. AI-assisted drafts welcome contributor review.</extracomment>
+      <translation>ZIP gespeichert und SHA-256 geprüft.</translation>
+    </message>
     <message id="update.service.the.request.timed.out.please.try.again">
       <source>The request timed out. Please try again.</source>
       <extracomment>UpdateService presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>

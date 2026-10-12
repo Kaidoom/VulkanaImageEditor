@@ -40,6 +40,8 @@ UpdatePackage UpdateService::buildPackage()
 {
 #if defined(VULKANA_UPDATE_PACKAGE_NONE)
     return UpdatePackage::Unavailable;
+#elif defined(VULKANA_UPDATE_PACKAGE_WINDOWSPORTABLE)
+    return UpdatePackage::WindowsPortable;
 #elif defined(VULKANA_UPDATE_PACKAGE_APPIMAGE)
     return UpdatePackage::AppImage;
 #elif defined(VULKANA_UPDATE_PACKAGE_DEB)
@@ -121,6 +123,7 @@ std::optional<UpdateRelease> UpdateService::parseManifest(const QByteArray& byte
     const auto document = QJsonDocument::fromJson(bytes);
     const auto object = document.object();
     const auto key = package==UpdatePackage::AppImage ? QStringLiteral("appimage")
+        : package==UpdatePackage::WindowsPortable ? QStringLiteral("windowsportable")
         : package==UpdatePackage::Deb ? QStringLiteral("deb") : QStringLiteral("rpm");
     // Retain legacy RPM-feed compatibility; never substitute another package.
     const auto artifact = !object.contains(key)&&package==UpdatePackage::Rpm ? object : object.value(key).toObject();
@@ -130,6 +133,7 @@ std::optional<UpdateRelease> UpdateService::parseManifest(const QByteArray& byte
     static const QRegularExpression digest(QStringLiteral("\\A[0-9a-fA-F]{64}\\z"));
     const QRegularExpression filename(package==UpdatePackage::AppImage
         ? QStringLiteral("\\A[A-Za-z0-9][A-Za-z0-9._+-]*\\.AppImage\\z")
+        : package==UpdatePackage::WindowsPortable ? QStringLiteral("\\A[A-Za-z0-9][A-Za-z0-9._+-]*\\.zip\\z")
         : package==UpdatePackage::Deb ? QStringLiteral("\\A[A-Za-z0-9][A-Za-z0-9._+-]*\\.deb\\z")
         : QStringLiteral("\\A[A-Za-z0-9][A-Za-z0-9._+-]*\\.rpm\\z"));
     // Configured origin only. No local URLs,
@@ -207,8 +211,8 @@ void UpdateService::download(const QString& destination)
 
 void UpdateService::downloadAppImage()
 {
+    if (simulated_ || package_ != UpdatePackage::AppImage) return;
 #ifdef Q_OS_LINUX
-    if (simulated_) return;
     if(package_!=UpdatePackage::AppImage||busy()||!release_||state_==State::RestartReady)return;
     const QFileInfo original(appImagePath_);
     // Do not guess the mount/extracted path or overwrite a different program.
@@ -364,6 +368,12 @@ void UpdateService::finish()
                 return;
             }
         }
+        // Verify the bounded ZIP signature only. Archive entries are never opened
+        // or extracted by the updater; SHA-256 covers the complete downloaded file.
+        if (package_ == UpdatePackage::WindowsPortable && header_.first(4) != QByteArray("PK\x03\x04", 4)) {
+            fail(i18n::text("update.service.invalid.portable.zip"));
+            return;
+        }
         if(package_==UpdatePackage::AppImage) {
 #ifdef Q_OS_LINUX
             struct stat st {};
@@ -390,6 +400,8 @@ void UpdateService::finish()
         state_ = package_==UpdatePackage::AppImage ? State::RestartReady : State::Downloaded;
         message_ = package_==UpdatePackage::AppImage
             ? i18n::text("update.service.appimage.replaced.and.sha.256.verified.restart.when.you")
+            : package_==UpdatePackage::WindowsPortable
+                ? i18n::text("update.service.portable.zip.saved")
             : i18n::text("update.service.download.saved.and.sha.256.verified.install.the.1")
                 .arg(package_ == UpdatePackage::Deb ? QStringLiteral("DEB") : QStringLiteral("RPM"));
         if(package_==UpdatePackage::AppImage)

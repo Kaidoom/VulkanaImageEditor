@@ -603,7 +603,93 @@ QByteArray packageManifest(QString version, const QByteArray& deb = debBytes())
     object["version"] = version;
     object["deb"] = QJsonObject{{"url", "https://updates.example/downloads/Vulkana-editor_0.3.0-1_amd64.deb"},
         {"sha256", QString::fromLatin1(QCryptographicHash::hash(deb, QCryptographicHash::Sha256).toHex())}};
+    object["windowsportable"] = QJsonObject{{"url", "https://updates.example/downloads/Vulkana-0.3.2-win64.zip"},
+        {"sha256", QString(64, 'a')}};
     return QJsonDocument(object).toJson();
+}
+
+void windowsPortableTests()
+{
+    // Valid stored ZIP containing a text entry. The updater must save these bytes
+    // unchanged without enumerating entries, extracting files or opening the ZIP.
+    const auto zip = QByteArray::fromHex(
+        "504b03041400000000000000000086a61036050000000500000009000000"
+        "68656c6c6f2e74787468656c6c6f504b0102140014000000000000000000"
+        "86a610360500000005000000090000000000000000000000000000000000"
+        "68656c6c6f2e747874504b05060000000001000100370000002c0000000000");
+    const auto metadata = [&](const QByteArray& payload) {
+        auto object = QJsonDocument::fromJson(packageManifest("9.9.9")).object();
+        auto artifact = object["windowsportable"].toObject();
+        artifact["sha256"] = QString::fromLatin1(QCryptographicHash::hash(payload, QCryptographicHash::Sha256).toHex());
+        object["windowsportable"] = artifact;
+        return QJsonDocument(object).toJson();
+    };
+    using Kind = u::UpdatePackage;
+    QString error;
+    const auto parsed = u::UpdateService::parseManifest(metadata(zip), error, Kind::WindowsPortable);
+    CHECK(parsed && parsed->url.fileName() == "Vulkana-0.3.2-win64.zip");
+    CHECK(!u::UpdateService::parseManifest(manifest(), error, Kind::WindowsPortable));
+    auto missing = QJsonDocument::fromJson(metadata(zip)).object(); missing.remove("windowsportable");
+    CHECK(!u::UpdateService::parseManifest(QJsonDocument(missing).toJson(), error, Kind::WindowsPortable));
+    for (const auto* url : {"https://updates.example/downloads/a.rpm", "https://updates.example/downloads/a.exe",
+             "http://updates.example/downloads/a.zip", "https://elsewhere.example/downloads/a.zip",
+             "file:///C:/a.zip", "https://updates.example/downloads/../a.zip",
+             "https://updates.example/downloads/a.zip?query", "https://user@updates.example/downloads/a.zip"}) {
+        auto object = QJsonDocument::fromJson(metadata(zip)).object();
+        auto artifact = object["windowsportable"].toObject(); artifact["url"] = url; object["windowsportable"] = artifact;
+        CHECK(!u::UpdateService::parseManifest(QJsonDocument(object).toJson(), error, Kind::WindowsPortable));
+    }
+    QTemporaryDir files;
+    const auto path = files.filePath(QString::fromUtf8("更新 café.zip"));
+    const auto pendingRestart = QCoreApplication::instance()->property("vulkanaPendingRestart");
+    for (int scenario = 0; scenario < 5; ++scenario) {
+        seedFile(path);
+        Network network;
+        const auto payload = scenario == 2 ? QByteArray("not a ZIP") : zip;
+        network.responses.push_back({metadata(payload)});
+        u::UpdateService service("0.3.2", nullptr, &network, Kind::WindowsPortable);
+        service.check(); CHECK(waitFor([&] { return !service.busy(); }));
+        CHECK(service.state() == State::Available);
+        network.responses.push_back({scenario == 1 ? QByteArray("corrupt") : payload, 200,
+            scenario == 4 ? QNetworkReply::RemoteHostClosedError : QNetworkReply::NoError, scenario == 3});
+        service.download(path);
+        if (scenario == 3) { QTest::qWait(10); service.cancel(); }
+        CHECK(waitFor([&] { return !service.busy(); }));
+        CHECK(readFile(path) == (scenario == 0 ? zip : QByteArray("previous")));
+        CHECK(service.state() == (scenario == 0 ? State::Downloaded : scenario == 3 ? State::Available : State::Error));
+        CHECK(QCoreApplication::instance()->property("vulkanaPendingRestart") == pendingRestart);
+        CHECK(QDir(files.path()).entryList(QDir::AllEntries | QDir::Hidden | QDir::NoDotAndDotDot).size() == 1);
+        if (scenario == 0) {
+            CHECK(service.message().contains("ZIP saved"));
+            service.downloadAppImage(); // Not a valid action for ZIPs; must not start another operation.
+            CHECK(service.state() == State::Downloaded && network.requests.size() == 2);
+        }
+    }
+    Network network;
+    network.responses.push_back({metadata(zip)});
+    QWidget host;
+    u::AboutDialog dialog(&host, &network, Kind::WindowsPortable);
+    bool restarted = false; dialog.onRestartRequested = [&](const QString&) { restarted = true; };
+    auto* button = dialog.findChild<QPushButton*>("AboutCheckUpdate");
+    CHECK(button); if (!button) return;
+    button->click(); CHECK(waitFor([&] { return button->text() == "Download ZIP"; }));
+    CHECK(dialog.findChild<QLabel*>("AboutUpdateDetail")->text().contains("extract"));
+    network.responses.push_back({zip});
+    const auto chosen = files.filePath("chosen.zip");
+    QTimer::singleShot(0, &dialog, [&] {
+        auto* picker = qobject_cast<QFileDialog*>(QApplication::activeModalWidget());
+        CHECK(picker);
+        if (picker) {
+            CHECK(picker->selectedNameFilter() == "ZIP archives (*.zip)");
+            CHECK(picker->selectedFiles().value(0).endsWith(".zip"));
+            picker->selectFile(chosen);
+            QMetaObject::invokeMethod(picker, "accept", Qt::QueuedConnection);
+        }
+    });
+    button->click(); CHECK(waitFor([&] { return button->text() == "Check for Updates"; }));
+    CHECK(readFile(chosen) == zip && !restarted);
+    CHECK(QCoreApplication::instance()->property("vulkanaPendingRestart") == pendingRestart);
+    CHECK(dialog.findChild<QLabel*>("AboutUpdateStatus")->text().contains("verified"));
 }
 
 void debTests()
@@ -672,7 +758,7 @@ void simulatedUpdateTests()
     CHECK(QFile::remove(config.path())); // Preview works in unconfigured builds too.
     QTemporaryDir files;
     const auto path = files.filePath("existing-package");
-    for (const auto kind : {u::UpdatePackage::Rpm, u::UpdatePackage::Deb, u::UpdatePackage::AppImage}) {
+    for (const auto kind : {u::UpdatePackage::Rpm, u::UpdatePackage::Deb, u::UpdatePackage::AppImage, u::UpdatePackage::WindowsPortable}) {
         seedFile(path);
         Network network;
         u::UpdateService service("0.3.1", nullptr, &network, kind, path);
@@ -694,6 +780,7 @@ void simulatedUpdateTests()
         auto* button = about.findChild<QPushButton*>("AboutCheckUpdate");
         CHECK(button && !button->isEnabled());
         CHECK(button->text() == (kind == u::UpdatePackage::AppImage ? "Update AppImage"
+            : kind == u::UpdatePackage::WindowsPortable ? "Download ZIP"
             : kind == u::UpdatePackage::Deb ? "Download DEB" : "Download RPM"));
         button->click();
         CHECK(network.requests.empty() && readFile(path) == "previous");
@@ -718,7 +805,8 @@ void liveCheck(bool download)
     QTemporaryDir directory;
     const auto kind = u::UpdateService::buildPackage();
     const auto path = directory.filePath(kind == u::UpdatePackage::AppImage
-        ? QStringLiteral("verified-update.AppImage") : kind == u::UpdatePackage::Deb
+        ? QStringLiteral("verified-update.AppImage") : kind == u::UpdatePackage::WindowsPortable
+        ? QStringLiteral("verified-update.zip") : kind == u::UpdatePackage::Deb
         ? QStringLiteral("verified-update.deb") : QStringLiteral("verified-update.rpm"));
     if (download && kind == u::UpdatePackage::AppImage) {
         // Exercise replacement only on a disposable fixture, never APPIMAGE
@@ -760,10 +848,17 @@ int main(int argc, char** argv)
     QStandardPaths::setTestModeEnabled(true);
     QSettings::setDefaultFormat(QSettings::IniFormat);
     QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settings.path());
+#ifdef VULKANA_TEST_TRANSLATIONS
+    u::i18n::Localization::instance().initialize(QStringLiteral(VULKANA_TEST_TRANSLATIONS));
+#endif
     u::applyEditorTheme(app);
     if (app.arguments().contains("--live-check") || app.arguments().contains("--live-download"))
         liveCheck(app.arguments().contains("--live-download"));
-    else { TestServiceConfig services; serviceConfigurationTests(); metadataTests(); stateAndDownloadTests(); dialogTests(); reopenedAboutLanguageTests(); appImageTests(); debTests();
+    else { TestServiceConfig services; serviceConfigurationTests(); metadataTests(); stateAndDownloadTests(); dialogTests(); reopenedAboutLanguageTests();
+#ifdef Q_OS_LINUX
+        appImageTests();
+#endif
+        debTests(); windowsPortableTests();
         startupPolicyTests(); startupPresentationTests(); startupSilentTests(); startupCloseTests();
         simulatedUpdateTests(); startupSimulationTests(); }
     if (app.arguments().contains("--expect-deb")) CHECK(u::UpdateService::buildPackage() == u::UpdatePackage::Deb);

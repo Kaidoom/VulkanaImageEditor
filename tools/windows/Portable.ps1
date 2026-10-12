@@ -1,5 +1,5 @@
 #Requires -Version 5.1
-# Assemble an unsigned portable test folder from a configured Release build.
+# Assemble an unsigned portable folder from a configured Release build.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$Destination,
@@ -7,6 +7,7 @@ param(
     [string]$QtRoot = 'C:\Qt\6.10.3\msvc2022_64',
     [string]$VulkanRoot = 'C:\VulkanSDK\1.4.363.0',
     [string]$BuildRoot = 'C:\Dev\Vulkana',
+    [string]$NoticesDirectory,
     [ValidateRange(1, 32)][int]$Jobs = 6
 )
 $ErrorActionPreference = 'Stop'
@@ -53,6 +54,20 @@ try {
 
     $crt = Join-Path $env:VCToolsRedistDir 'x64/Microsoft.VC145.CRT'
     $runtimeRoots = @($crt, "$BuildRoot/installed/x64-vulkana-windows/bin", "$QtRoot/bin")
+    # windeployqt may copy Windows' ICU implementation on Windows 11. Only
+    # redistribute libraries supplied by the SDKs/REDIST, never OS-owned DLLs.
+    foreach ($dll in Get-ChildItem $bin -Filter '*.dll' -File) {
+        $systemFile = Join-Path "$env:SystemRoot/System32" $dll.Name
+        $redistributable = @($runtimeRoots | Where-Object { Test-Path -LiteralPath (Join-Path $_ $dll.Name) })
+        if (!$redistributable.Count -and (Test-Path -LiteralPath $systemFile)) {
+            if ((Get-FileHash $dll.FullName).Hash -ne (Get-FileHash $systemFile).Hash) {
+                throw "Unreviewed DLL shadows a Windows component: $($dll.Name)"
+            }
+            # Exact scratch-staging file only; the SDK and system remain intact.
+            Remove-Item -LiteralPath $dll.FullName
+            Write-Output "Using Windows-provided $($dll.Name); not redistributing it."
+        }
+    }
     $dumpbin = (Get-Command dumpbin.exe -ErrorAction Stop).Source
     $pending = [Collections.Generic.Queue[string]]::new()
     $visited = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
@@ -105,6 +120,18 @@ try {
     Copy-Item "$vsRoot/Licenses/1033/Redist.txt" "$licenses/Microsoft-Redist.txt"
     Copy-Item "$source/LICENSE" "$scratch/LICENSE.txt"
     Copy-Item "$PSScriptRoot/PORTABLE-README.txt" "$scratch/README.txt"
+    if ($NoticesDirectory) {
+        $reviewed = Get-Content "$NoticesDirectory/notices.json" -Raw -Encoding UTF8 | ConvertFrom-Json
+        $installed = Get-Content "$scratch/share/vulkana-editor/notices/notices.json" -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($reviewed.profile -ne 'windowsportable' -or $reviewed.version -ne $installed.version) {
+            throw 'Portable notices must match the Windows package and application version.'
+        }
+        foreach ($name in @('notices.json', 'THIRD-PARTY-NOTICES.txt', 'SOURCES.json', 'SOURCE-SHA256SUMS', 'LIBRARY-REPLACEMENT.txt')) {
+            Copy-Item -LiteralPath "$NoticesDirectory/$name" -Destination "$scratch/share/vulkana-editor/notices/$name" -Force
+        }
+    } else {
+        Add-Content "$scratch/README.txt" "`nDeveloper assembly: distribution notices/source access have not been prepared. Run PrepareNotices.py before creating a public ZIP."
+    }
 
     $forbidden = @(Get-ChildItem $scratch -Recurse -File | Where-Object {
         $_.Extension -in '.pdb', '.lib', '.obj', '.exp', '.py', '.ps1', '.so' -or
@@ -116,7 +143,7 @@ try {
         [ordered]@{ path = Get-PortableRelativePath $scratch $_.FullName;
             bytes = $_.Length; sha256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
     })
-    $manifest = [ordered]@{ format = 1; purpose = 'Unsigned Windows portable test build'; files = $inventory; imports = $imports } |
+    $manifest = [ordered]@{ format = 1; purpose = 'Unsigned Windows portable build'; files = $inventory; imports = $imports } |
         ConvertTo-Json -Depth 6
     [IO.File]::WriteAllText("$scratch/portable-manifest.json", $manifest, [Text.UTF8Encoding]::new($false))
     $parent = Split-Path $destinationPath -Parent

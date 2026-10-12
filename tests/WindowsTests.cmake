@@ -38,6 +38,11 @@ target_compile_definitions(imageeditor_object_selection_tests PRIVATE VULKANA_TE
 vulkana_windows_test(imageeditor_navigator_tests NavigatorTests.cpp)
 vulkana_windows_test(imageeditor_localization_tests LocalizationTests.cpp)
 target_compile_definitions(imageeditor_localization_tests PRIVATE VULKANA_TEST_TRANSLATIONS="${VULKANA_TRANSLATIONS_DIR}")
+vulkana_windows_test(imageeditor_update_tests UpdateServiceTests.cpp)
+target_link_libraries(imageeditor_update_tests PRIVATE Qt6::Network)
+target_compile_definitions(imageeditor_update_tests PRIVATE
+    VULKANA_TEST_VERSION="${VULKANA_VERSION}"
+    VULKANA_TEST_TRANSLATIONS="${VULKANA_TRANSLATIONS_DIR}")
 vulkana_windows_test(imageeditor_blend_math_tests BlendMathTests.cpp)
 vulkana_windows_test(imageeditor_blend_persistence_tests BlendPersistenceTests.cpp)
 target_link_libraries(imageeditor_blend_persistence_tests PRIVATE MINIZIP::minizip-ng)

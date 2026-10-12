@@ -129,9 +129,43 @@ This checks the file inventory, relocated launch, codecs and offline model using
 a temporary copy. Inspect `portable-manifest.json` for file hashes and DLL
 dependencies; it is an integrity inventory rather than a digital signature.
 
-Portable builds are unsigned. Before publishing a release, audit the final
-DLL/plugin inventory and complete the matching Qt source/notices bundle and
-MSVC redistribution material.
+## Release ZIP
+
+Portable builds are unsigned. The included README explains Windows warnings,
+manual extraction, user-data storage and the download-only update workflow.
+Vulkana never extracts, installs or launches a downloaded Windows update.
+
+Prepare distribution notices before archiving. Download the five exact Qt source
+archives listed in [qt-sources.json](dependencies/qt-sources.json) from its
+`baseUrl` into `C:\Dev\QtSources`. Qt PDF's source is in the larger QtWebEngine
+archive; the browser runtime is not shipped. Keep these archives available for
+source access. Generate notices from them and the installed dependency metadata:
+
+```powershell
+python tools/windows/PrepareNotices.py --sources C:\Dev\QtSources --base C:\Dev\Vulkana\release\notices --qt C:\Qt\6.10.3\msvc2022_64 --vcpkg C:\Dev\Vulkana\installed\x64-vulkana-windows --output C:\Dev\WindowsNotices
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/Portable.ps1 -Destination C:\Dev\Vulkana-0.3.2-win64 -NoticesDirectory C:\Dev\WindowsNotices
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/PortableSmoke.ps1 -PortableDirectory C:\Dev\Vulkana-0.3.2-win64
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/ZipPortable.ps1 -PortableDirectory C:\Dev\Vulkana-0.3.2-win64 -Destination C:\Dev\Vulkana-0.3.2-win64.zip
+```
+
+Use new output paths for each release. Notice preparation verifies source hashes;
+ZIP creation checks every file against the portable inventory, then verifies the
+compressed members. Neither script uploads files. Review the DLL/plugin inventory,
+notices and source-access links before distribution; retain Microsoft's REDIST
+material and the model/runtime notices.
+
+Official builds with configured service credentials read the `windowsportable`
+entry in the update feed. Set its HTTPS `url` and `sha256` to the final ZIP's values:
+
+```json
+"windowsportable": {
+  "sha256": "<SHA-256 printed by ZipPortable.ps1>",
+  "url": "https://vulkana.app/downloads/Vulkana-0.3.2-win64.zip"
+}
+```
+
+Publish the artifact before changing the feed. Keep the existing Linux entries.
+Builds without service credentials do not contact the update service.
 
 ## Troubleshooting
 

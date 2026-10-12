@@ -26,10 +26,10 @@ struct UpdateRelease {
     QByteArray sha256;
     QUrl url;
 };
-enum class UpdatePackage { Rpm, AppImage, Deb, Unavailable };
+enum class UpdatePackage { Rpm, AppImage, Deb, Unavailable, WindowsPortable };
 
-// Checks are asynchronous. Downloads are user-initiated: RPMs/DEBs are saved, never
-// installed. AppImages are replaced atomically only after verification;
+// Checks are asynchronous. Downloads are user-initiated: RPMs/DEBs/Windows ZIPs
+// are saved only, never extracted, installed or run. AppImages are replaced atomically only after verification;
 // restart is a separate unsaved-edit guard.
 // An injected transport lets focused tests exercise failures without networking.
 class UpdateService final : public QObject {

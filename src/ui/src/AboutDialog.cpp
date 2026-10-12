@@ -249,7 +249,9 @@ AboutDialog::AboutDialog(QWidget* parent, QNetworkAccessManager* transport, Upda
         using State = UpdateService::State;
         const auto state = updates_->state();
         const bool appImage=updates_->package()==UpdatePackage::AppImage;
-        const auto packageName = updates_->package()==UpdatePackage::Deb ? QStringLiteral("DEB") : QStringLiteral("RPM");
+        const bool portable=updates_->package()==UpdatePackage::WindowsPortable;
+        const auto packageName = portable ? QStringLiteral("ZIP")
+            : updates_->package()==UpdatePackage::Deb ? QStringLiteral("DEB") : QStringLiteral("RPM");
         const bool restart=state==State::RestartReady;
         const bool downloading = updates_->state() == UpdateService::State::Downloading;
         const bool checking = updates_->state() == UpdateService::State::Checking;
@@ -280,6 +282,8 @@ AboutDialog::AboutDialog(QWidget* parent, QNetworkAccessManager* transport, Upda
             : state == State::Checking ? i18n::text("about.dialog.contacting.the.update.service")
             : state == State::Downloading ? i18n::text("about.dialog.verifying.the.file.before.saving")
             : restart ? i18n::text("about.dialog.your.current.session.stays.open.until.you.restart")
+            : portable && (state == State::Available || state == State::Downloaded)
+                ? i18n::text("about.dialog.portable.manual.extraction")
             : state == State::Available ? (appImage ? i18n::text("about.dialog.the.current.appimage.is.kept.until.verification.succeeds") : i18n::text("about.dialog.save.the.1.then.install.it.manually").arg(packageName))
             : state == State::Downloaded ? i18n::text("about.dialog.install.the.1.manually.when.ready").arg(packageName)
             : i18n::text("about.dialog.you.re.running.version.1").arg(i18n::ltrToken(currentVersion)));
@@ -316,7 +320,8 @@ AboutDialog::AboutDialog(QWidget* parent, QNetworkAccessManager* transport, Upda
         const auto folder = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
         const auto suggested = QDir(folder).filePath(QFileInfo(updates_->release()->url.path()).fileName());
         QString destination = QFileDialog::getSaveFileName(popupTopLevelOwner(this), i18n::text("about.dialog.save.vulkana.update"),
-            suggested, updates_->package()==UpdatePackage::Deb ? i18n::text("about.dialog.deb.packages.deb") : i18n::text("about.dialog.rpm.packages.rpm"));
+            suggested, updates_->package()==UpdatePackage::WindowsPortable ? i18n::text("about.dialog.zip.archives")
+                : updates_->package()==UpdatePackage::Deb ? i18n::text("about.dialog.deb.packages.deb") : i18n::text("about.dialog.rpm.packages.rpm"));
         if (destination.isEmpty()) return;
         updates_->download(destination);
     });

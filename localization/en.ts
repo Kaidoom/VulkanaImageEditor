@@ -111,6 +111,14 @@
   </context>
   <context>
     <name>AboutDialog</name>
+    <message id="about.dialog.zip.archives">
+      <source>ZIP archives (*.zip)</source>
+      <extracomment>Windows portable download. Preserve ZIP, SHA-256 and file patterns. AI-assisted drafts welcome contributor review.</extracomment>
+    </message>
+    <message id="about.dialog.portable.manual.extraction">
+      <source>You choose when to extract and run the app.</source>
+      <extracomment>Windows portable download. Preserve ZIP, SHA-256 and file patterns. AI-assisted drafts welcome contributor review.</extracomment>
+    </message>
     <message id="about.dialog.about.vulkana">
       <source>About Vulkana</source>
       <extracomment>AboutDialog presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
@@ -5856,6 +5864,14 @@ One saved image; layer choices are ignored.</source>
   </context>
   <context>
     <name>UpdateService</name>
+    <message id="update.service.invalid.portable.zip">
+      <source>The download is not a ZIP archive. No file was saved.</source>
+      <extracomment>Windows portable download. Preserve ZIP, SHA-256 and file patterns. AI-assisted drafts welcome contributor review.</extracomment>
+    </message>
+    <message id="update.service.portable.zip.saved">
+      <source>ZIP saved and SHA-256 verified.</source>
+      <extracomment>Windows portable download. Preserve ZIP, SHA-256 and file patterns. AI-assisted drafts welcome contributor review.</extracomment>
+    </message>
     <message id="update.service.the.request.timed.out.please.try.again">
       <source>The request timed out. Please try again.</source>
       <extracomment>UpdateService presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>

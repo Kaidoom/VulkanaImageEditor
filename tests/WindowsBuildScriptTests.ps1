@@ -45,6 +45,30 @@ foreach ($outside in @('C:\portable-sibling\app.exe', 'C:\portable\..\app.exe', 
 $work = Join-Path ([IO.Path]::GetTempPath()) ('vulkana-script-check-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $work | Out-Null
 try {
+    # The release archiver validates bytes without launching or extracting them.
+    $portable = Join-Path $work 'portable'
+    $noticePath = Join-Path $portable 'share/vulkana-editor/notices'
+    New-Item -ItemType Directory -Path $noticePath | Out-Null
+    [IO.File]::WriteAllText("$noticePath/notices.json", '{"profile":"windowsportable"}')
+    foreach ($name in @('THIRD-PARTY-NOTICES.txt', 'SOURCES.json', 'SOURCE-SHA256SUMS', 'LIBRARY-REPLACEMENT.txt')) {
+        [IO.File]::WriteAllText("$noticePath/$name", 'test fixture')
+    }
+    [IO.File]::WriteAllText("$portable/never-run.cmd", 'exit /b 91')
+    $files = @(Get-ChildItem $portable -File -Recurse | ForEach-Object {
+        @{ path = Get-PortableRelativePath $portable $_.FullName; sha256 = (Get-FileHash $_.FullName).Hash.ToLowerInvariant() }
+    })
+    [IO.File]::WriteAllText("$portable/portable-manifest.json", (@{files=$files} | ConvertTo-Json -Depth 5))
+    & "$sourceRoot/tools/windows/ZipPortable.ps1" -PortableDirectory $portable -Destination "$work/valid.zip"
+    if (!(Test-Path "$work/valid.zip")) { throw 'ZIP fixture was not created.' }
+    $originalHash = (Get-FileHash "$work/valid.zip").Hash
+    $rejected = $false
+    try { & "$sourceRoot/tools/windows/ZipPortable.ps1" -PortableDirectory $portable -Destination "$work/valid.zip" } catch { $rejected = $true }
+    if (!$rejected -or (Get-FileHash "$work/valid.zip").Hash -ne $originalHash) { throw 'Existing ZIP was overwritten.' }
+    [IO.File]::WriteAllText("$portable/never-run.cmd", 'changed')
+    $rejected = $false
+    try { & "$sourceRoot/tools/windows/ZipPortable.ps1" -PortableDirectory $portable -Destination "$work/tampered.zip" } catch { $rejected = $true }
+    if (!$rejected -or (Test-Path "$work/tampered.zip")) { throw 'Tampered portable was published.' }
+    if (@(Get-ChildItem $work -Filter '*.partial').Count) { throw 'ZIP left an incomplete output.' }
     foreach ($code in @(0, 7)) {
         $process = Start-Process "$env:SystemRoot/System32/cmd.exe" -ArgumentList "/c exit $code" -PassThru -WindowStyle Hidden `
             -RedirectStandardOutput "$work/stdout.log" -RedirectStandardError "$work/stderr.log"

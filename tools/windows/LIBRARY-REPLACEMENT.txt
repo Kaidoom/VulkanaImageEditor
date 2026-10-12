@@ -1,0 +1,34 @@
+Vulkana Windows portable: sources and library replacement
+
+Vulkana uses dynamically linked Qt 6.10.3 libraries under LGPL version 3.
+The LGPL and GPL texts, upstream copyright notices and third-party attributions
+are included in this bundle. The application is MIT-licensed; third-party
+components retain their own terms. You may modify/replace the LGPL libraries
+and debug those modifications. No signature or checksum enforcement prevents
+loading a modified library; portable-manifest.json is a diagnostic inventory.
+
+SOURCES.json and SOURCE-SHA256SUMS identify complete matching upstream Qt source
+archives and their download URLs. Sources are also indexed at:
+https://vulkana.app/licensing/
+Qt PDF and PDFium are in qtwebengine-everywhere-src-6.10.3.tar.xz; Vulkana does
+not ship the WebEngine browser. No changes were made to these Qt source files.
+The SDK's SPDX inventories accompany the distribution. Source archives include
+upstream build scripts, configuration checks, embedded dependencies and patches.
+
+To replace a library, close Vulkana, keep a backup of the portable folder, build
+the matching x64 Release Qt module with an ABI-compatible MSVC toolchain, and
+replace its DLLs in bin (and any matching plugins beneath bin). Keep Qt modules
+and plugins ABI-compatible with each other. This application does not statically
+link Qt. You can also rebuild Vulkana against your own Qt installation using
+tools/windows/Build.ps1 -QtRoot in the source repository:
+https://github.com/Kaidoom/VulkanaImageEditor
+
+Bundled Microsoft Visual C++ runtime files come from the Visual Studio REDIST
+directory and remain subject to Microsoft's redistribution terms. Windows
+system DLLs and the Vulkan driver/loader are supplied by Windows/the graphics
+driver, not this archive. Other library and model notices are preserved under
+share/licenses/vulkana-editor and share/vulkana-editor/object-selection.
+
+If distributing this ZIP, retain these notices and ensure the source-index URLs
+remain accessible alongside the binary download. Verify the exact source
+checksums; do not substitute a different Qt release's sources or notices.
