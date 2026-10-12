@@ -5,7 +5,8 @@
 <!-- readme-languages:end -->
 
 Öncelikle Linux için geliştirilen; boyama, rötuş ve katmanlı kompozisyon için
-Qt çalışma alanı ve Vulkan ile hızlandırılan tuval sunan bir görüntü düzenleyici.
+yerel Windows derlemeleri, Qt çalışma alanı ve Vulkan ile hızlandırılan tuval
+sunan bir görüntü düzenleyici.
 
 ![Katmanlı görüntü, fırça hazır ayarları ve ayarlamalar içeren Vulkana çalışma alanı](../../res/Preview.png)
 
@@ -46,11 +47,22 @@ Qt çalışma alanı ve Vulkan ile hızlandırılan tuval sunan bir görüntü d
   denetimli Gezgin, temalar, düzenlenebilir kısayollar, cetveller, Piksel Önizleme,
   yerel `.vulkana` projeleri ve PNG/JPEG/WebP dışa aktarma.
 - **Diller:** Tercihler → Genel → Dil bölümünden yeniden başlatmadan seçilebilen
-  16 arayüz dili. Yeni çeviriler ilk sürümdür; düzeltmeler memnuniyetle karşılanır.
+  16 arayüz dili. Tüm dil sürümleri ilk taslaktır; inceleme ve düzeltmeler
+  memnuniyetle karşılanır.
 
 Aktif olarak geliştirilen bir beta sürümüdür. Önemli projelerinizin yedeklerini saklayın.
 
 ## Derleme ve çalıştırma
+
+Linux ve Windows derlemeleri x86-64 içindir. Depoyu klonlayın, ardından
+kök dizininden platformunuza uygun komutları çalıştırın:
+
+```sh
+git clone https://github.com/Kaidoom/VulkanaImageEditor.git
+cd VulkanaImageEditor
+```
+
+### Linux
 
 Linux, C++20 derleyicisi, Ninja, pkg-config ve şu geliştirme kitaplıkları gereklidir:
 
@@ -94,16 +106,41 @@ Qt, oturuma göre Wayland veya X11'i seçer. Tercihler ve özel hazır ayarlar k
 [hizmet yapılandırması](../../config/SERVICES.md) olmadan güncellemeler ve geri bildirim
 devre dışı kalır.
 
-Geliştirme ve testler için:
+Release testleri için test hedeflerini etkinleştirip yeniden derleyin:
 
 ```sh
-cmake --preset debug
-cmake --build --preset debug --parallel
-ctest --preset debug
+cmake --preset release -DIMAGEEDITOR_BUILD_TESTS=ON
+cmake --build --preset release --parallel 6
+ctest --preset release
 ```
 
-Hata ayıklama/yerel işleme kontrolleri Vulkan doğrulama katmanlarını gerektirir.
+Debug hazır yapılandırması da kullanılabilir. Yerel işleme kontrolleri Vulkan doğrulama katmanlarını gerektirir.
 Bazı etkileşim testleri çalışan bir Wayland/X11 masaüstü gerektirir.
+
+### Windows
+
+PowerShell 7, Git, CMake, Ninja, Python 3, Visual Studio x64 C++ araçları,
+MSVC x64 için Qt, Vulkan SDK ve vcpkg kurun. Sabitlenmiş sürümler ve bileşen
+listesi için [Windows derleme kılavuzunu](../../tools/windows/README.md) izleyin.
+
+Deponun kök dizininde PowerShell 7 ile:
+
+```powershell
+pwsh -NoProfile -File tools/windows/Setup.ps1 -BuildRoot C:\Dev\VulkanaClean
+pwsh -NoProfile -File tools/windows/Build.ps1 -BuildRoot C:\Dev\VulkanaClean -Tests
+C:\Dev\VulkanaClean\stage\bin\imageeditor.exe
+```
+
+Yeni klon testi için yeni bir derleme dizini seçin; başka bir depo kopyası için
+yapılandırılmış dizini kullanmayın. Setup bağımlılıkları doğrular ve ön koşul
+kontrollerini çalıştırır; Build dil paketlerini derler, uygulamayı derleyip test
+eder ve çalışma dosyalarını hazırlar. İlk kurulum, derleme bağımlılıkları için
+internet erişimi gerektirir; uygulama ve birlikte gelen Nesne Seçimi ise Python
+veya model indirmeden yerel olarak çalışır.
+
+Özel bağımlılık yolları, yerel temel çalışma testleri ve temiz bir taşınabilir
+klasör oluşturma için Windows kılavuzuna bakın. Tercihler, uygulama klasöründen
+ayrı olarak kullanıcıya özel depolamada kalır.
 
 ## Mimari
 

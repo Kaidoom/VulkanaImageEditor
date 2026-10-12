@@ -1,15 +1,12 @@
 # Localization
 
-The Linux workspace has 16 local language packs: English, French, Spanish,
+The Linux and Windows workspace has 16 local language packs: English, French, Spanish,
 German, Italian, Brazilian Portuguese, Polish, Turkish, Russian, Ukrainian,
 Modern Standard Arabic, Hindi, Simplified Chinese, Traditional Chinese,
-Japanese and Korean. The 13 new translations are complete first drafts for
-native-speaker review, not claims of reviewed terminology in every language.
+Japanese and Korean. All language versions are first drafts. Reviews and
+corrections from contributors are welcome, including English wording.
 Choose **Preferences → General → Language**, or use the first-run choice.
-The owner approved the first English/French/Arabic localization pass on
-2026-10-11. This is approval of the delivered user-facing scope, not a claim
-that every diagnostic or every individual catalog entry was separately reviewed.
-Technical validation remains distinct from linguistic review of future changes.
+Passing technical validation does not certify linguistic accuracy.
 
 ## Authoring and preview
 
@@ -31,14 +28,21 @@ python3 tools/localization.py validate
 cmake --build build/release --target vulkana_language_packs
 
 # Close an existing instance before these manual launches.
-./temp/release-test --language fr
-./temp/release-test --language ar
-./temp/release-test --language ja
-./temp/release-test --language pt-BR
-./temp/release-test --language qps
+./build/release/src/app/imageeditor --language fr
+./build/release/src/app/imageeditor --language ar
+./build/release/src/app/imageeditor --language ja
+./build/release/src/app/imageeditor --language pt-BR
+./build/release/src/app/imageeditor --language qps
 ```
 
-RPM, DEB and AppImage staging automatically validates and recompiles the packs
+On Windows, use `python` instead of `python3`, build the same
+`vulkana_language_packs` target in `<BuildRoot>/release`, and launch
+`<BuildRoot>/stage/bin/imageeditor.exe` with the same language arguments. Re-stage
+with `Build.ps1` to update its installed packs, or use `--language-pack-dir`
+with `<BuildRoot>/release/translations` to preview newly compiled packs directly.
+See the [Windows build guide](../tools/windows/README.md) for build paths.
+
+RPM, DEB, AppImage and Windows staging automatically validate and recompile packs
 through the shared CMake install step, including direct `cmake --install` or
 CPack use. You do not need to compile packs manually before packaging. Invalid
 catalogs or compiler failures stop staging instead of packaging stale packs.
@@ -49,7 +53,7 @@ before packaging; staging deliberately does not edit the source catalogs.
 language advertised in Preferences. `--language` is a launch-only override.
 `--language system` uses the system UI language with English fallback.
 
-To review a trusted pack without changing an installed RPM/AppImage/DEB:
+To review a trusted pack without changing the installed application:
 
 ```sh
 python3 tools/localization.py compile --output /tmp/vulkana-language-review \
@@ -70,9 +74,9 @@ restarting is also sufficient. Embedded English is the last-resort fallback.
 
 `--catalog-dir /path/to/catalogs` lets the authoring tool work on a separate copy
 of the TS files and metadata. The default is this repository's `localization/`.
-The CMake cache setting `VULKANA_LRELEASE` selects the build-time compiler. On
-this review machine it points to the extracted tool in
-`.cache/localization-tools/qt6.11.2/lrelease`; that tool is not shipped.
+The CMake cache setting `VULKANA_LRELEASE` selects the build-time compiler;
+point it at your Qt installation's `lrelease` if automatic lookup fails.
+The compiler is not shipped with the application.
 
 ## Adding languages and submitting corrections
 
@@ -84,7 +88,7 @@ this review machine it points to the extracted tool in
 3. Translate, validate, then enable the language in a trusted local metadata
    copy to compile and preview using `--language <id>`. Enable the shipping
    metadata when the translation draft is ready for delivery; keep
-   `reviewPending` true until the agreed native-speaker review.
+   `reviewPending` true while language-wide review remains incomplete.
 4. Submit the TS/metadata diff and screenshots for any layout problem. Do not
    submit generated QM files or change document/serialization identifiers.
 
@@ -95,19 +99,19 @@ language, territory and script: `pt_BR → pt-BR`, `zh-TW`/`zh-HK → zh-Hant`,
 `pt-PT` does not silently become Brazilian Portuguese. Missing matches use
 English. ASCII numbers remain independent of the chosen UI locale.
 
-The agreed 16-language lineup is now translated and enabled in `localization/`:
+The 16-language lineup is translated and enabled in `localization/`:
 `en`, `fr`, `es`, `de`, `it`, `pt-BR`, `pl`, `tr`, `ru`, `uk`, `ar`, `hi`,
-`zh-Hans`, `zh-Hant`, `ja`, `ko`. Each has all 1,653 catalog entries and the
-appropriate plural forms. The owner-approved English/French/Arabic pass remains
-distinct from the 13 AI-assisted first drafts, whose metadata retains
-`reviewPending: true`. CMake installs enabled packs plus the test pseudo-pack.
+`zh-Hans`, `zh-Hant`, `ja`, `ko`. Each has all 1,659 catalog entries and the
+appropriate plural forms. All language metadata retains `reviewPending: true`;
+targeted corrections do not imply a complete review of a language.
+CMake installs enabled packs plus the test pseudo-pack.
 
 The sync command retains contributor translations/comments, preserves retired
 entries as vanished, and marks changed English sources unfinished with their
 old source for review. Unfinished translations use readable English. The
 current draft comments identify AI assistance; remove/update those comments
 as entries receive human review. Set a language's `reviewPending` false only
-after the agreed review, not merely because validation passes.
+after a documented language-wide review, not merely because validation passes.
 
 Keep `%1`, `%2`, `%n`, shortcut tokens such as `{{UndoAction}}`, markup and file
 extension patterns intact. `%n` entries need the language's real plural forms
@@ -133,7 +137,7 @@ Use `50%` for numeric percentages in translated UI copy.
 
 Contexts distinguish brush marks from the Stroke style. Existing user layer
 names, paths, text content, preset IDs and original license texts are not
-translated. The owner may refine this glossary during review.
+translated. Contributors can propose glossary corrections alongside catalog edits.
 
 ## Runtime contract
 
@@ -174,17 +178,18 @@ tested Qt 6.11.2 compiler. See [Qt ID-based translation](https://doc.qt.io/qt-6/
 and [lrelease](https://doc.qt.io/qt-6/linguist-lrelease.html). No new runtime library
 was incorporated. Unmodified Qt dialog translation data is installed separately;
 its provenance and license inventory are in `QtTranslations-NOTICE.txt`. The
-next binary packaging pass must include matching Qt translation sources/notices.
+binary packages must include the matching Qt translation sources/notices required
+for their distribution.
 
 ## Coverage and known remaining work
 
-This delivery has **1,653 English entries**, with translations in all 15 other
+The catalogs have **1,659 English entries**, with translations in all 15 other
 languages for every cataloged entry. It covers menus/tools, Properties, Adjustments/Effects,
 layer/mask actions, preferences, shortcuts, update/feedback UI, Refine Selection,
 selection tools, undo presentation, and the primary save/import/export controls
 and prompts. This is **not a claim of complete application-string coverage**.
 
-The agreed scope is the interface people use to edit and make decisions, not
+The scope is the interface people use to edit and make decisions, not
 translation of every string in the program. PSD content types, status, source
 summary, conversion guidance, actionable export blockers and the final import
 confirmation now update live. Worker results use presentation identifiers;
@@ -211,7 +216,7 @@ arguments and translate at the presentation boundary, rather than putting Qt
 into core or using translated strings as program decisions. Technical diagnostic
 details stay verbatim beneath a localized, actionable summary where needed.
 
-## Validation and owner review
+## Validation and contributor review
 
 ```sh
 python3 tools/localization.py validate
@@ -228,7 +233,7 @@ commit and surrogate-pair replacement through both a field and the canvas text
 controller, including undo and finite candidate geometry. These are not a claim
 that every desktop IME candidate window has been manually verified.
 
-Manual language-review checklist (including the approved French/Arabic baseline):
+Manual language-review checklist for every language:
 
 - Switch language with multiple edited documents open. Confirm names, changes,
   selections, zoom and dock/tab positions stay intact.
@@ -245,7 +250,7 @@ Manual language-review checklist (including the approved French/Arabic baseline)
   candidate position, replacement, Enter/Escape ownership and undo.
 - Preview `qps`; check expanded menus, dock labels, buttons and long help text.
 
-Build/run results for this pass are recorded in `LOCALIZATION_TEST_RESULTS.md`.
-The first French/Arabic pass is approved. The additional 13 language drafts are
-ready for native-speaker review. Technical validation does not replace that
-review; report awkward terminology separately from layout or runtime bugs.
+Technical verification and known limits are recorded in
+[Localization validation](LOCALIZATION_TEST_RESULTS.md). All language versions
+remain open to review; report awkward terminology separately from layout or
+runtime bugs.

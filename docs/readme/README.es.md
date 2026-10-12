@@ -5,7 +5,8 @@
 <!-- readme-languages:end -->
 
 Un editor de imágenes diseñado principalmente para Linux, para pintar, retocar
-y componer con capas, con un espacio de trabajo Qt y un lienzo acelerado por Vulkan.
+y componer con capas, también disponible en versiones nativas para Windows,
+con un espacio de trabajo Qt y un lienzo acelerado por Vulkan.
 
 ![Espacio de trabajo de Vulkana con una imagen con capas, preajustes de pincel y ajustes](../../res/Preview.png)
 
@@ -52,12 +53,22 @@ y componer con capas, con un espacio de trabajo Qt y un lienzo acelerado por Vul
   con controles de desplazamiento y zoom, temas, atajos editables, reglas, vista
   previa de píxeles, proyectos nativos `.vulkana` y exportación PNG/JPEG/WebP.
 - **Idiomas:** 16 idiomas de interfaz, seleccionables en Preferencias → General →
-  Idioma sin reiniciar. Las nuevas traducciones son una primera versión; las
-  correcciones son bienvenidas.
+  Idioma sin reiniciar. Todas las versiones lingüísticas son borradores iniciales;
+  cualquier persona puede aportar revisiones y correcciones.
 
 Versión beta en desarrollo activo. Conserva copias de seguridad de los proyectos importantes.
 
 ## Compilar y ejecutar
+
+Las compilaciones para Linux y Windows están dirigidas a x86-64. Clona el
+repositorio y ejecuta los comandos de tu plataforma desde su raíz:
+
+```sh
+git clone https://github.com/Kaidoom/VulkanaImageEditor.git
+cd VulkanaImageEditor
+```
+
+### Linux
 
 Requiere Linux, un compilador C++20, Ninja, pkg-config y estas bibliotecas de desarrollo:
 
@@ -102,17 +113,44 @@ personalizados se guardan en el almacenamiento de cada usuario. Los servicios en
 línea son opcionales; sin la [configuración de servicios](../../config/SERVICES.md),
 las actualizaciones y el envío de comentarios permanecen desactivados.
 
-Para desarrollo y pruebas:
+Para las pruebas Release, activa los destinos de prueba y vuelve a compilar:
 
 ```sh
-cmake --preset debug
-cmake --build --preset debug --parallel
-ctest --preset debug
+cmake --preset release -DIMAGEEDITOR_BUILD_TESTS=ON
+cmake --build --preset release --parallel 6
+ctest --preset release
 ```
 
-Las comprobaciones de renderizado en modo debug o nativo necesitan las capas de
-validación de Vulkan. Algunas pruebas de interacción requieren un escritorio
-Wayland/X11 en ejecución.
+El preajuste debug también está disponible. Las comprobaciones de renderizado
+nativo necesitan las capas de validación de Vulkan. Algunas pruebas de interacción
+requieren un escritorio Wayland/X11 en ejecución.
+
+### Windows
+
+Instala PowerShell 7, Git, CMake, Ninja, Python 3, las herramientas C++ x64 de
+Visual Studio, Qt para MSVC x64, el SDK de Vulkan y vcpkg. Usa las versiones
+fijadas y la lista de componentes de la [guía de compilación para Windows](../../tools/windows/README.md).
+
+Desde PowerShell 7 en la raíz del repositorio:
+
+```powershell
+pwsh -NoProfile -File tools/windows/Setup.ps1 -BuildRoot C:\Dev\VulkanaClean
+pwsh -NoProfile -File tools/windows/Build.ps1 -BuildRoot C:\Dev\VulkanaClean -Tests
+C:\Dev\VulkanaClean\stage\bin\imageeditor.exe
+```
+
+Elige una carpeta de compilación nueva para probar un clon limpio; no reutilices
+una carpeta configurada para otra copia del repositorio. Setup verifica las
+dependencias y los requisitos previos; Build compila los paquetes de idiomas,
+compila y prueba la aplicación y reúne los archivos necesarios para ejecutarla.
+La preparación inicial requiere Internet para obtener las dependencias de
+compilación, pero la aplicación y la selección de objetos incluida funcionan
+localmente, sin Python ni descargas de modelos.
+
+Consulta la guía de Windows para personalizar las rutas de las dependencias,
+realizar pruebas básicas de ejecución nativa y crear una carpeta portátil limpia.
+Las preferencias permanecen en el almacenamiento de cada usuario, separado de
+la carpeta de la aplicación.
 
 ## Arquitectura
 

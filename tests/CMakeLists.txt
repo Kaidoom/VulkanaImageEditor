@@ -1,3 +1,10 @@
+add_test(NAME imageeditor_readme_translations COMMAND "${Python3_EXECUTABLE}"
+    "${PROJECT_SOURCE_DIR}/tools/check-readme-translations.py")
+add_test(NAME imageeditor_readme_translation_tools COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ReadmeTranslationToolTests.py")
+set_tests_properties(imageeditor_readme_translations imageeditor_readme_translation_tools
+    PROPERTIES TIMEOUT 30 LABELS "documentation;localization")
+
 if(WIN32)
     include(WindowsTests.cmake)
     return()

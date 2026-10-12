@@ -5,7 +5,7 @@
 <!-- readme-languages:end -->
 
 A Linux-first image editor for painting, retouching and layered composition,
-with a Qt workspace and Vulkan-accelerated canvas.
+with native Windows builds, a Qt workspace and Vulkan-accelerated canvas.
 
 ![Vulkana workspace with a layered image, brush presets and adjustments](res/Preview.png)
 
@@ -43,12 +43,22 @@ with a Qt workspace and Vulkan-accelerated canvas.
   controls, themes, editable shortcuts, rulers, Pixel Preview, native `.vulkana`
   projects and PNG/JPEG/WebP export.
 - **Languages:** 16 interface languages, selectable in Preferences → General →
-  Language without restarting. New translations are a first pass; corrections
-  are welcome.
+  Language without restarting. All language versions are first drafts; reviews
+  and corrections are welcome.
 
 Actively developed beta. Please keep backups of important projects.
 
 ## Build and run
+
+Linux and Windows builds target x86-64. Clone the repository, then run the
+commands for your platform from its root:
+
+```sh
+git clone https://github.com/Kaidoom/VulkanaImageEditor.git
+cd VulkanaImageEditor
+```
+
+### Linux
 
 Requires Linux, a C++20 compiler, Ninja, pkg-config, and these development libraries:
 
@@ -91,16 +101,40 @@ Qt selects Wayland or X11 from the session. Preferences and custom presets live
 in per-user storage. Online services are optional; without
 [service configuration](config/SERVICES.md), updates and feedback stay disabled.
 
-For development and tests:
+For Release tests, enable the test targets and rebuild:
 
 ```sh
-cmake --preset debug
-cmake --build --preset debug --parallel
-ctest --preset debug
+cmake --preset release -DIMAGEEDITOR_BUILD_TESTS=ON
+cmake --build --preset release --parallel 6
+ctest --preset release
 ```
 
-Debug/native rendering checks need Vulkan validation layers. Some interaction
-tests require a running Wayland/X11 desktop.
+The debug preset is also available. Native rendering checks need Vulkan
+validation layers. Some interaction tests require a running Wayland/X11 desktop.
+
+### Windows
+
+Install PowerShell 7, Git, CMake, Ninja, Python 3, Visual Studio's x64 C++ tools,
+Qt for MSVC x64, the Vulkan SDK and vcpkg. Use the pinned versions and component
+list in the [Windows build guide](tools/windows/README.md).
+
+From PowerShell 7 in the repository root:
+
+```powershell
+pwsh -NoProfile -File tools/windows/Setup.ps1 -BuildRoot C:\Dev\VulkanaClean
+pwsh -NoProfile -File tools/windows/Build.ps1 -BuildRoot C:\Dev\VulkanaClean -Tests
+C:\Dev\VulkanaClean\stage\bin\imageeditor.exe
+```
+
+Choose a new build directory for a fresh-clone test; do not reuse a directory
+configured for another checkout. Setup verifies dependencies and runs prerequisite
+checks; Build compiles language packs, builds/tests the app and stages its runtime
+files. Initial setup needs internet access for build dependencies, but the app
+and bundled Object Selection run locally without Python or model downloads.
+
+See the Windows guide for custom dependency paths, native smoke tests and
+creating a clean portable folder. Preferences remain in per-user storage,
+separate from the application folder.
 
 ## Architecture
 

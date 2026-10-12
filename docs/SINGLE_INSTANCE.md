@@ -2,7 +2,7 @@
 
 ## Ownership and second launches
 
-RPM, AppImage (mounted or extracted), and development executables all use the
+Linux RPM, DEB, AppImage (mounted or extracted), and development executables use the
 same `vulkana-editor` directory inside Qt's per-user RuntimeLocation. The
 AppImage launcher preserves that location and forwards arguments unchanged.
 No executable basename, PID-liveness heuristic, package version, mount path,
@@ -15,6 +15,12 @@ unlinked: contenders must continue to lock the same inode. Process exit/crash
 releases ownership automatically. Only the lock owner removes a stale local
 socket and starts the user-only Qt local server. A live but unresponsive owner
 does not permit a second workspace.
+
+Windows uses a user-restricted named mutex and Qt named pipe, scoped to the
+current user and logon session. It does not use the executable directory for
+ownership, so copied portable builds still share one workspace in that session.
+The kernel releases the mutex on process exit or crash. Acquisition happens
+before Vulkan/workspace creation, as on Linux.
 
 Second launches forward an activation request and optional ordered file list.
 Paths are made absolute in the launching process's working directory; spaces,
@@ -49,6 +55,8 @@ Multiprocess tests cover concurrent launches, differently named executables,
 path forwarding, malformed requests, timeouts, crash recovery, restart handoff
 and runtime-directory permissions. Project lifecycle tests cover modal deferral,
 startup-chooser dismissal and preservation of unsaved tabs.
+Windows platform tests cover concurrent mutex election, Unicode forwarding,
+crash recovery and restart handoff using independent test scopes.
 
 ```sh
 ctest --test-dir build/release --output-on-failure -R 'imageeditor_(single_instance|platform_startup|project_lifecycle)_tests$'

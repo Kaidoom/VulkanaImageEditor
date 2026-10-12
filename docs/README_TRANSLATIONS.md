@@ -6,9 +6,9 @@ names as `localization/languages.json`. The language links at the top of every
 README let readers switch directly between all 16 versions.
 
 These are documentation translations, separate from the application's `.ts`/`.qm`
-language packs. The new README translations are first drafts; native-speaker
-corrections are welcome. Approval of an interface translation does not imply
-separate review of the README.
+language packs. All language versions are first drafts. Reviews and corrections
+from anyone interested are welcome; interface and documentation wording should
+be checked separately.
 
 ## Editing
 
@@ -18,6 +18,9 @@ separate review of the README.
 - Preserve shell commands, example filenames, inline code, package names and
   dependency versions exactly. Commands run from the repository root regardless
   of which README is being read.
+- Keep Linux and Windows build instructions in sync with English. The detailed
+  [Windows guide](../tools/windows/README.md) is the shared reference for pinned
+  dependencies and portable staging; avoid duplicating its version list.
 - Adjust relative documentation/image links for the nested directory. Keep all
   16 language links on every page, using native language names.
 - Translate the license-description paragraph, not the original license or
@@ -31,7 +34,15 @@ From the repository root, validate the documentation without building the app:
 python3 tools/check-readme-translations.py
 ```
 
-This checks language navigation, local links/images, copyable commands, inline
-technical tokens, dependency versions and section coverage. It does not certify
+This checks language navigation, local links/images, copyable shell/PowerShell
+commands, inline technical tokens, dependency versions and section coverage. It does not certify
 linguistic accuracy or replace a reading/layout review. When adding a supported
 language, add its README and update every language-navigation block too.
+
+The checker and its regression tests also run through CTest on Linux and Windows:
+
+```sh
+ctest --test-dir build/release -R imageeditor_readme --output-on-failure
+```
+
+On Windows, replace `build/release` with your `<BuildRoot>/release` directory.

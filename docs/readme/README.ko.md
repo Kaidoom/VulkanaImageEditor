@@ -5,7 +5,7 @@
 <!-- readme-languages:end -->
 
 Linux를 우선 대상으로 하는 페인팅, 사진 보정, 레이어 합성용 이미지 편집기입니다.
-Qt 작업 공간과 Vulkan으로 가속하는 캔버스를 제공합니다.
+네이티브 Windows 빌드를 지원하며 Qt 작업 공간과 Vulkan으로 가속하는 캔버스를 제공합니다.
 
 ![레이어가 있는 이미지, 브러시 사전 설정, 조정 항목이 표시된 Vulkana 작업 공간](../../res/Preview.png)
 
@@ -43,11 +43,21 @@ Qt 작업 공간과 Vulkan으로 가속하는 캔버스를 제공합니다.
   테마, 편집 가능한 단축키, 눈금자, 픽셀 미리 보기, 기본 `.vulkana` 프로젝트,
   PNG/JPEG/WebP 내보내기.
 - **언어:** 인터페이스 언어 16개를 제공합니다. 환경 설정 → 일반 → 언어에서 다시 시작하지
-  않고 변경할 수 있습니다. 새 번역은 초안이며, 수정 제안을 환영합니다.
+  않고 변경할 수 있습니다. 모든 언어 버전은 초안이며, 검토와 수정 제안을 환영합니다.
 
 활발히 개발 중인 베타 버전입니다. 중요한 프로젝트는 백업해 두세요.
 
 ## 빌드 및 실행
+
+Linux와 Windows 빌드는 x86-64를 대상으로 합니다. 저장소를 복제한 뒤,
+루트 디렉터리에서 해당 플랫폼의 명령을 실행하세요.
+
+```sh
+git clone https://github.com/Kaidoom/VulkanaImageEditor.git
+cd VulkanaImageEditor
+```
+
+### Linux
 
 Linux, C++20 컴파일러, Ninja, pkg-config와 다음 개발 라이브러리가 필요합니다.
 
@@ -88,16 +98,39 @@ Qt는 세션에 따라 Wayland 또는 X11을 선택합니다. 환경 설정과 �
 사용자별 저장 공간에 보관됩니다. 온라인 서비스는 선택 사항입니다.
 [서비스 설정](../../config/SERVICES.md)이 없으면 업데이트와 피드백 기능은 비활성 상태로 유지됩니다.
 
-개발 및 테스트용 명령은 다음과 같습니다.
+Release 테스트를 실행하려면 테스트 대상을 활성화하고 다시 빌드하세요.
 
 ```sh
-cmake --preset debug
-cmake --build --preset debug --parallel
-ctest --preset debug
+cmake --preset release -DIMAGEEDITOR_BUILD_TESTS=ON
+cmake --build --preset release --parallel 6
+ctest --preset release
 ```
 
-디버그/네이티브 렌더링 검사에는 Vulkan 검증 레이어가 필요합니다. 일부 상호 작용 테스트에는
+디버그 사전 설정도 사용할 수 있습니다. 네이티브 렌더링 검사에는 Vulkan 검증 레이어가 필요합니다. 일부 상호 작용 테스트에는
 실행 중인 Wayland/X11 데스크톱이 필요합니다.
+
+### Windows
+
+PowerShell 7, Git, CMake, Ninja, Python 3, Visual Studio의 x64 C++ 도구,
+MSVC x64용 Qt, Vulkan SDK, vcpkg를 설치하세요.
+버전과 구성 요소는 [Windows 빌드 가이드](../../tools/windows/README.md)의 지정 목록을 따르세요.
+
+저장소 루트에서 PowerShell 7로 실행하세요.
+
+```powershell
+pwsh -NoProfile -File tools/windows/Setup.ps1 -BuildRoot C:\Dev\VulkanaClean
+pwsh -NoProfile -File tools/windows/Build.ps1 -BuildRoot C:\Dev\VulkanaClean -Tests
+C:\Dev\VulkanaClean\stage\bin\imageeditor.exe
+```
+
+새로 복제한 저장소를 테스트할 때는 새 빌드 디렉터리를 사용하세요. 다른 체크아웃에 맞춰
+설정한 디렉터리를 재사용하지 마세요. Setup은 의존성을 검증하고 사전 검사를 수행합니다.
+Build는 언어 팩을 컴파일하고 앱을 빌드·테스트한 뒤 실행에 필요한 파일을 배치합니다.
+초기 설정에는 빌드 의존성을 받기 위한 인터넷 연결이 필요하지만, 앱과 함께 제공되는
+개체 선택은 로컬에서 실행되며 사용 시 Python 설치나 모델 다운로드가 필요하지 않습니다.
+
+의존성 경로 변경, 네이티브 스모크 테스트, 깨끗한 포터블 폴더 생성 방법은 Windows 가이드를
+참조하세요. 환경 설정은 앱 폴더와 별도의 사용자별 저장 공간에 보관됩니다.
 
 ## 아키텍처
 

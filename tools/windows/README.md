@@ -1,13 +1,13 @@
 # Windows development
 
-Vulkana uses native x64 MSVC, Qt and Vulkan on Windows. Build tooling is kept
+Vulkana uses native x64 MSVC, Qt and Vulkan on Windows 11. Build tooling is kept
 separate from Linux packaging; no Python runtime, CUDA installation or model
 download is needed by Object Selection. Python is a **build-time** tool for the
 language catalogs only.
 
 ## Prerequisites
 
-Install PowerShell 7, Git, CMake, Ninja, Python 3, Visual Studio's x64 C++ workload,
+Install PowerShell 7, Git, CMake 3.28+, Ninja, Python 3, Visual Studio's x64 C++ workload,
 Qt (MSVC x64), the Vulkan SDK and vcpkg. The reviewed dependency versions are in
 `dependencies/versions.json` and `dependencies/vcpkg.json`. Setup rejects version
 or checksum mismatches rather than silently changing runtime/model inputs.
@@ -21,17 +21,37 @@ required by its vcpkg port, with the same dynamic CRT.
 
 ## Setup and build
 
-From a repository checkout in PowerShell 7:
+Clone the repository in PowerShell 7:
 
 ```powershell
-pwsh -NoProfile -File tools/windows/Setup.ps1
-pwsh -NoProfile -File tools/windows/Build.ps1
+git clone https://github.com/Kaidoom/VulkanaImageEditor.git
+cd VulkanaImageEditor
+```
+
+Use a new build root when testing a fresh clone. CMake build directories are tied
+to their source checkout; do not share one between different clones.
+
+```powershell
+pwsh -NoProfile -File tools/windows/Setup.ps1 -BuildRoot C:\Dev\VulkanaClean
+pwsh -NoProfile -File tools/windows/Build.ps1 -BuildRoot C:\Dev\VulkanaClean -Tests
+C:\Dev\VulkanaClean\stage\bin\imageeditor.exe
 ```
 
 Both scripts accept `-VcpkgRoot`, `-QtRoot`, `-VulkanRoot`, `-BuildRoot` and `-Jobs`.
 Defaults are conventional developer directories under `C:\Dev` and `C:\Qt`;
 change the arguments to match your installation. Do not dot-source the scripts.
 They enter the x64 compiler environment without changing the machine-wide PATH.
+Pass the same `-BuildRoot` to subsequent smoke and portable commands. Setup,
+Build and Portable also need matching dependency-path overrides; OverlaySmoke
+accepts `-QtRoot` for a nondefault Qt location. The examples below continue using
+`C:\Dev\VulkanaClean`.
+
+Setup does not install Visual Studio, Qt, Vulkan drivers, the SDK or vcpkg itself.
+Use a clean vcpkg checkout at the revision in `dependencies/versions.json` and
+run its `bootstrap-vcpkg.bat` before setup. A working Vulkan graphics driver is
+required to launch the app and run GPU checks, but not to compile C++ or shaders.
+Initial dependency setup needs internet access; no network is needed for editing
+or Object Selection once the runtime has been staged.
 
 Setup installs missing manifest dependencies and verifies the official ONNX
 Runtime 1.30.0 Windows x64 CPU archive and DLL. Licenses are retained unmodified.
@@ -56,8 +76,8 @@ directory, so replacing the application folder does not replace user settings.
 For a clean, unsigned portable test folder after configuring with `Build.ps1`:
 
 ```powershell
-pwsh -NoProfile -File tools/windows/Portable.ps1 -Destination "$env:USERPROFILE/Desktop/Vulkana Portable"
-pwsh -NoProfile -File tools/windows/PortableSmoke.ps1 -PortableDirectory "$env:USERPROFILE/Desktop/Vulkana Portable"
+pwsh -NoProfile -File tools/windows/Portable.ps1 -BuildRoot C:\Dev\VulkanaClean -Destination "$env:USERPROFILE/Desktop/Vulkana Portable"
+pwsh -NoProfile -File tools/windows/PortableSmoke.ps1 -BuildRoot C:\Dev\VulkanaClean -PortableDirectory "$env:USERPROFILE/Desktop/Vulkana Portable"
 ```
 
 The destination must not exist. The script updates the executable and language
@@ -82,8 +102,8 @@ working Vulkan driver, including `--smoke-test`, before release. The reproducibl
 native lifecycle and clean-PATH relocation check is:
 
 ```powershell
-pwsh -NoProfile -File tools/windows/Smoke.ps1 -Relocate
-pwsh -NoProfile -File tools/windows/OverlaySmoke.ps1
+pwsh -NoProfile -File tools/windows/Smoke.ps1 -BuildRoot C:\Dev\VulkanaClean -Relocate
+pwsh -NoProfile -File tools/windows/OverlaySmoke.ps1 -BuildRoot C:\Dev\VulkanaClean
 ```
 
 It requires the SDK's Vulkan validation layer, exercises canvas/panel input,

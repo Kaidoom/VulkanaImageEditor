@@ -5,7 +5,7 @@
 <!-- readme-languages:end -->
 
 一款优先面向 Linux 的图像编辑器，用于绘画、修图和图层合成，
-采用 Qt 工作区和 Vulkan 加速画布。
+提供原生 Windows 构建，采用 Qt 工作区和 Vulkan 加速画布。
 
 ![Vulkana 工作区，显示带图层的图像、画笔预设和调整选项](../../res/Preview.png)
 
@@ -39,11 +39,20 @@
 - **工作区与输出：** 带标签页的可停靠面板、提供平移/缩放控制的导航器、主题、
   可编辑快捷键、标尺、像素预览、原生 `.vulkana` 项目以及 PNG/JPEG/WebP 导出。
 - **语言：** 提供 16 种界面语言，可在“首选项 → 常规 → 语言”中切换，无需重启。
-  新增翻译为初稿，欢迎提出修正。
+  所有语言版本均为初稿，欢迎审阅并提出修正。
 
 目前处于积极开发中的测试阶段。请为重要项目保留备份。
 
 ## 构建与运行
+
+Linux 和 Windows 构建均面向 x86-64。克隆仓库后，在仓库根目录运行对应平台的命令：
+
+```sh
+git clone https://github.com/Kaidoom/VulkanaImageEditor.git
+cd VulkanaImageEditor
+```
+
+### Linux
 
 需要 Linux、C++20 编译器、Ninja、pkg-config 和以下开发库：
 
@@ -83,15 +92,37 @@ cmake --build --preset release --parallel
 Qt 根据会话选择 Wayland 或 X11。首选项和自定义预设保存在各用户自己的存储位置。
 在线服务为可选功能；未进行[服务配置](../../config/SERVICES.md)时，更新和反馈功能保持禁用。
 
-用于开发和测试：
+运行 Release 测试前，请启用测试目标并重新构建：
 
 ```sh
-cmake --preset debug
-cmake --build --preset debug --parallel
-ctest --preset debug
+cmake --preset release -DIMAGEEDITOR_BUILD_TESTS=ON
+cmake --build --preset release --parallel 6
+ctest --preset release
 ```
 
-调试/原生渲染检查需要 Vulkan 验证层。部分交互测试需要正在运行的 Wayland/X11 桌面。
+也可使用调试预设。原生渲染检查需要 Vulkan 验证层。部分交互测试需要正在运行的 Wayland/X11 桌面。
+
+### Windows
+
+安装 PowerShell 7、Git、CMake、Ninja、Python 3、Visual Studio 的 x64 C++ 工具、
+MSVC x64 版 Qt、Vulkan SDK 和 vcpkg。请使用
+[Windows 构建指南](../../tools/windows/README.md)中列出的固定版本和组件。
+
+在仓库根目录通过 PowerShell 7 运行：
+
+```powershell
+pwsh -NoProfile -File tools/windows/Setup.ps1 -BuildRoot C:\Dev\VulkanaClean
+pwsh -NoProfile -File tools/windows/Build.ps1 -BuildRoot C:\Dev\VulkanaClean -Tests
+C:\Dev\VulkanaClean\stage\bin\imageeditor.exe
+```
+
+测试全新克隆时，请选择新的构建目录，不要复用为其他检出副本配置的目录。
+Setup 验证依赖并检查构建环境；Build 编译语言包，构建并测试应用，整理运行时文件。
+首次配置需要联网获取构建依赖，但应用及随附的对象选择功能均在本地运行，
+使用时无需 Python 或下载模型。
+
+自定义依赖路径、原生冒烟测试和创建干净便携目录的方法，请参阅 Windows 指南。
+首选项仍保存在用户自己的存储位置，与应用文件夹分开。
 
 ## 架构
 

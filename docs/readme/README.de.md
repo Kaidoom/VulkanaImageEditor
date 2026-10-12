@@ -5,7 +5,8 @@
 <!-- readme-languages:end -->
 
 Ein vorrangig für Linux entwickelter Bildeditor zum Malen, Retuschieren und
-Gestalten mit Ebenen, mit einer Qt-Arbeitsoberfläche und einer Vulkan-beschleunigten Leinwand.
+Gestalten mit Ebenen, auch als nativer Windows-Build verfügbar, mit einer
+Qt-Arbeitsoberfläche und einer Vulkan-beschleunigten Leinwand.
 
 ![Vulkana-Arbeitsoberfläche mit einem Bild mit mehreren Ebenen, Pinselvorgaben und Anpassungen](../../res/Preview.png)
 
@@ -53,12 +54,22 @@ Gestalten mit Ebenen, mit einer Qt-Arbeitsoberfläche und einer Vulkan-beschleun
   Navigator mit Schwenk- und Zoomsteuerung, Designs, bearbeitbare Tastenkürzel,
   Lineale, Pixelvorschau, native `.vulkana`-Projekte und PNG/JPEG/WebP-Export.
 - **Sprachen:** 16 Oberflächensprachen, auswählbar unter Einstellungen → Allgemein →
-  Sprache ohne Neustart. Die neuen Übersetzungen sind eine erste Fassung;
-  Korrekturen sind willkommen.
+  Sprache ohne Neustart. Alle Sprachfassungen sind erste Entwürfe; alle
+  Interessierten sind zum Prüfen und Korrigieren eingeladen.
 
 Beta-Version in aktiver Entwicklung. Bitte Sicherungskopien wichtiger Projekte aufbewahren.
 
 ## Kompilieren und starten
+
+Linux- und Windows-Builds sind für x86-64 ausgelegt. Das Repository klonen und
+anschließend die Befehle für die jeweilige Plattform in dessen Stammverzeichnis ausführen:
+
+```sh
+git clone https://github.com/Kaidoom/VulkanaImageEditor.git
+cd VulkanaImageEditor
+```
+
+### Linux
 
 Benötigt werden Linux, ein C++20-Compiler, Ninja, pkg-config und diese Entwicklungsbibliotheken:
 
@@ -103,16 +114,43 @@ Vorgaben werden pro Benutzer gespeichert. Onlinedienste sind optional; ohne
 [Dienstkonfiguration](../../config/SERVICES.md) bleiben Updates und das Senden
 von Feedback deaktiviert.
 
-Für Entwicklung und Tests:
+Für Release-Tests die Testziele aktivieren und erneut kompilieren:
 
 ```sh
-cmake --preset debug
-cmake --build --preset debug --parallel
-ctest --preset debug
+cmake --preset release -DIMAGEEDITOR_BUILD_TESTS=ON
+cmake --build --preset release --parallel 6
+ctest --preset release
 ```
 
-Prüfungen des Debug-/nativen Renderings benötigen die Vulkan-Validierungsschichten.
-Einige Interaktionstests erfordern eine laufende Wayland/X11-Desktopsitzung.
+Das Debug-Preset ist ebenfalls verfügbar. Prüfungen des nativen Renderings
+benötigen die Vulkan-Validierungsschichten. Einige Interaktionstests erfordern
+eine laufende Wayland/X11-Desktopsitzung.
+
+### Windows
+
+PowerShell 7, Git, CMake, Ninja, Python 3, die x64-C++-Werkzeuge von Visual Studio,
+Qt für MSVC x64, das Vulkan SDK und vcpkg installieren. Die festgelegten Versionen
+und die Komponentenliste stehen im [Windows-Build-Leitfaden](../../tools/windows/README.md).
+
+In PowerShell 7 im Stammverzeichnis des Repositorys:
+
+```powershell
+pwsh -NoProfile -File tools/windows/Setup.ps1 -BuildRoot C:\Dev\VulkanaClean
+pwsh -NoProfile -File tools/windows/Build.ps1 -BuildRoot C:\Dev\VulkanaClean -Tests
+C:\Dev\VulkanaClean\stage\bin\imageeditor.exe
+```
+
+Für einen Test mit einem frisch geklonten Repository ein neues Build-Verzeichnis
+wählen; kein bereits für eine andere Arbeitskopie konfiguriertes Verzeichnis
+verwenden. Setup prüft die Abhängigkeiten und Voraussetzungen; Build kompiliert
+die Sprachpakete, erstellt und testet die Anwendung und stellt die Laufzeitdateien
+zusammen. Die Ersteinrichtung benötigt Internet für Build-Abhängigkeiten, die
+Anwendung und die mitgelieferte Objektauswahl laufen jedoch lokal ohne Python
+oder Modelldownloads.
+
+Der Windows-Leitfaden beschreibt angepasste Abhängigkeitspfade, native Smoke-Tests
+und das Erstellen eines sauberen portablen Ordners. Einstellungen bleiben im
+benutzerspezifischen Speicher, getrennt vom Anwendungsordner.
 
 ## Architektur
 

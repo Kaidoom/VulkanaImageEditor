@@ -3,6 +3,8 @@
 Build/run/test instructions are in the [repository README](../README.md).
 The guides below describe the architecture, behavior and algorithms.
 
+- [Windows builds](../tools/windows/README.md): prerequisites, clean builds,
+  tests and portable staging.
 - [Architecture](ARCHITECTURE.md): module boundaries, document ownership,
   rendering, transactions and resource lifetime.
 - [Coordinates](COORDINATE_SYSTEM.md): pixel grids, transforms and input mapping.
@@ -14,7 +16,7 @@ The guides below describe the architecture, behavior and algorithms.
 - [PSD import](PSD_IMPORT.md): editable conversion, review choices, saved-raster scope and limits.
 - [PDF export](PDF_EXPORT.md): page ordering, physical sizes, hybrid text and safety.
 - [Shortcuts](SHORTCUTS.md): bindings, focus ownership and configuration.
-- [Localization](LOCALIZATION.md): catalogs, language packs, contributor workflow and first-language review.
+- [Localization](LOCALIZATION.md): catalogs, language packs, contributor workflow and language review.
 - [README translations](README_TRANSLATIONS.md): translated overviews, language links and documentation checks.
 - [Single instance](SINGLE_INSTANCE.md): startup arbitration and file forwarding.
 - [Adjustments](ADJUSTMENT_ALGORITHMS.md): color/alpha equations and masks.

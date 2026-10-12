@@ -5,7 +5,7 @@
 <!-- readme-languages:end -->
 
 Linux を主な対象とした、ペイント、レタッチ、レイヤー合成のための画像エディターです。
-Qt のワークスペースと Vulkan で高速化したキャンバスを備えています。
+Windows ネイティブビルドにも対応し、Qt のワークスペースと Vulkan で高速化したキャンバスを備えています。
 
 ![レイヤーを持つ画像、ブラシプリセット、調整項目を表示した Vulkana のワークスペース](../../res/Preview.png)
 
@@ -46,11 +46,21 @@ Qt のワークスペースと Vulkan で高速化したキャンバスを備え
   ナビゲーター、テーマ、編集可能なショートカット、定規、ピクセルプレビュー、
   ネイティブの `.vulkana` プロジェクト、PNG/JPEG/WebP 書き出し。
 - **言語：** 16 言語のインターフェースを用意しています。環境設定 → 一般 → 言語で、
-  再起動せずに切り替えられます。新しい翻訳は初稿です。修正の提案を歓迎します。
+  再起動せずに切り替えられます。すべての言語版は初稿です。レビューや修正の提案を歓迎します。
 
 現在も開発を進めているベータ版です。重要なプロジェクトはバックアップを保存してください。
 
 ## ビルドと実行
+
+Linux と Windows のビルドは x86-64 を対象としています。リポジトリをクローンし、
+ルートディレクトリから各プラットフォームのコマンドを実行してください。
+
+```sh
+git clone https://github.com/Kaidoom/VulkanaImageEditor.git
+cd VulkanaImageEditor
+```
+
+### Linux
 
 Linux、C++20 コンパイラー、Ninja、pkg-config、および次の開発ライブラリが必要です。
 
@@ -92,16 +102,40 @@ Qt はセッションに応じて Wayland または X11 を選択します。環
 ユーザーごとの保存領域に格納されます。オンラインサービスは任意です。
 [サービス設定](../../config/SERVICES.md)がない場合、更新とフィードバック機能は無効のままです。
 
-開発とテストには次を実行します。
+Release テストを実行するには、テストターゲットを有効にして再ビルドします。
 
 ```sh
-cmake --preset debug
-cmake --build --preset debug --parallel
-ctest --preset debug
+cmake --preset release -DIMAGEEDITOR_BUILD_TESTS=ON
+cmake --build --preset release --parallel 6
+ctest --preset release
 ```
 
-デバッグ/ネイティブ描画のチェックには Vulkan 検証レイヤーが必要です。一部の操作テストには、
+デバッグプリセットも利用できます。ネイティブ描画のチェックには Vulkan 検証レイヤーが必要です。一部の操作テストには、
 実行中の Wayland/X11 デスクトップが必要です。
+
+### Windows
+
+PowerShell 7、Git、CMake、Ninja、Python 3、Visual Studio の x64 C++ ツール、
+MSVC x64 向け Qt、Vulkan SDK、vcpkg をインストールしてください。
+使用するバージョンとコンポーネントは
+[Windows ビルドガイド](../../tools/windows/README.md)の指定に従ってください。
+
+リポジトリのルートディレクトリから PowerShell 7 で実行します。
+
+```powershell
+pwsh -NoProfile -File tools/windows/Setup.ps1 -BuildRoot C:\Dev\VulkanaClean
+pwsh -NoProfile -File tools/windows/Build.ps1 -BuildRoot C:\Dev\VulkanaClean -Tests
+C:\Dev\VulkanaClean\stage\bin\imageeditor.exe
+```
+
+新規クローンのテストには新しいビルドディレクトリを使い、別のチェックアウト用に設定した
+ディレクトリは再利用しないでください。Setup は依存関係を検証して事前チェックを行い、
+Build は言語パックのコンパイル、アプリのビルドとテスト、実行用ファイルの配置を行います。
+初回セットアップではビルド用の依存関係を取得するためにインターネット接続が必要ですが、
+アプリと同梱のオブジェクト選択はローカルで動作し、利用時に Python やモデルのダウンロードは不要です。
+
+依存関係のパスの変更、ネイティブのスモークテスト、クリーンなポータブルフォルダーの作成については、
+Windows ガイドを参照してください。環境設定はアプリのフォルダーとは別の、ユーザーごとの保存領域に保持されます。
 
 ## アーキテクチャ
 

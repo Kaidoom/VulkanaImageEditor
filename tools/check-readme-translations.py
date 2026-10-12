@@ -15,15 +15,15 @@ ROOT = Path(__file__).resolve().parent.parent
 START = '<!-- readme-languages:start -->'
 END = '<!-- readme-languages:end -->'
 LINK = re.compile(r'!?\[([^\]]*)\]\(([^\s)]+)\)')
-CODE = re.compile(r'^```sh\n(.*?)^```$', re.M | re.S)
+CODE = re.compile(r'^```(sh|powershell)\n(.*?)^```$', re.M | re.S)
 INLINE = re.compile(r'(?<!`)`([^`\n]+)`(?!`)')
 VERSION = re.compile(r'\*\*(\d+(?:\.\d+)*(?:\+|\.x))\*\*')
 
 
-def check():
-    languages = [item for item in json.loads((ROOT / 'localization/languages.json').read_text())
+def check(root=ROOT):
+    languages = [item for item in json.loads((root / 'localization/languages.json').read_text(encoding='utf-8'))
                  if item['enabled']]
-    source = (ROOT / 'README.md').read_text()
+    source = (root / 'README.md').read_text(encoding='utf-8')
     blocks = CODE.findall(source)
     inline = Counter(INLINE.findall(CODE.sub('', source)))
     versions = Counter(VERSION.findall(source))
@@ -31,11 +31,11 @@ def check():
     for language in languages:
         code = language['id']
         relative = Path('README.md') if code == 'en' else Path('docs/readme') / f'README.{code}.md'
-        path = ROOT / relative
+        path = root / relative
         if not path.is_file():
             errors.append(f'{relative}: missing README')
             continue
-        text = path.read_text()
+        text = path.read_text(encoding='utf-8')
         if text.count(START) != 1 or text.count(END) != 1:
             errors.append(f'{relative}: expected one language-navigation block')
         else:
@@ -52,10 +52,10 @@ def check():
             if url.scheme or url.netloc or not url.path:
                 continue
             destination = (path.parent / unquote(url.path)).resolve()
-            if not destination.is_relative_to(ROOT) or not destination.is_file():
+            if not destination.is_relative_to(root) or not destination.is_file():
                 errors.append(f'{relative}: broken local link: {target}')
         if CODE.findall(text) != blocks:
-            errors.append(f'{relative}: shell examples differ from English')
+            errors.append(f'{relative}: shell/PowerShell examples differ from English')
         tokens = Counter(INLINE.findall(CODE.sub('', text)))
         if tokens != inline:
             errors.append(f'{relative}: inline technical tokens differ: '
@@ -64,11 +64,13 @@ def check():
             errors.append(f'{relative}: dependency version requirements differ')
         if len(re.findall(r'^## ', text, re.M)) != len(re.findall(r'^## ', source, re.M)):
             errors.append(f'{relative}: missing or extra major section')
+        if len(re.findall(r'^### ', text, re.M)) != len(re.findall(r'^### ', source, re.M)):
+            errors.append(f'{relative}: missing or extra subsection')
     if errors:
         print('\n'.join(errors), file=sys.stderr)
         return 1
     print(f'PASS: {len(languages)} READMEs; language navigation, local links/images, '
-          'shell commands, technical tokens and version requirements match.')
+          'shell/PowerShell commands, technical tokens and version requirements match.')
     return 0
 
 

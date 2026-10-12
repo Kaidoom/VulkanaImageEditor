@@ -1,6 +1,6 @@
 [
-  {"id":"en", "nativeName":"English", "rtl":false, "reviewPending":false, "pluralForms":2, "enabled":true, "qtCatalog":"en"},
-  {"id":"fr", "nativeName":"Français", "rtl":false, "reviewPending":false, "pluralForms":2, "enabled":true, "qtCatalog":"fr"},
+  {"id":"en", "nativeName":"English", "rtl":false, "reviewPending":true, "pluralForms":2, "enabled":true, "qtCatalog":"en"},
+  {"id":"fr", "nativeName":"Français", "rtl":false, "reviewPending":true, "pluralForms":2, "enabled":true, "qtCatalog":"fr"},
   {"id":"es", "nativeName":"Español", "rtl":false, "reviewPending":true, "pluralForms":2, "enabled":true, "qtCatalog":"es"},
   {"id":"de", "nativeName":"Deutsch", "rtl":false, "reviewPending":true, "pluralForms":2, "enabled":true, "qtCatalog":"de"},
   {"id":"it", "nativeName":"Italiano", "rtl":false, "reviewPending":true, "pluralForms":2, "enabled":true, "qtCatalog":"it"},
@@ -9,7 +9,7 @@
   {"id":"tr", "nativeName":"Türkçe", "rtl":false, "reviewPending":true, "pluralForms":1, "enabled":true, "qtCatalog":"tr"},
   {"id":"ru", "nativeName":"Русский", "rtl":false, "reviewPending":true, "pluralForms":3, "enabled":true, "qtCatalog":"ru"},
   {"id":"uk", "nativeName":"Українська", "rtl":false, "reviewPending":true, "pluralForms":3, "enabled":true, "qtCatalog":"uk"},
-  {"id":"ar", "nativeName":"العربية", "rtl":true, "reviewPending":false, "pluralForms":6, "enabled":true, "qtCatalog":"ar"},
+  {"id":"ar", "nativeName":"العربية", "rtl":true, "reviewPending":true, "pluralForms":6, "enabled":true, "qtCatalog":"ar"},
   {"id":"hi", "nativeName":"हिन्दी", "rtl":false, "reviewPending":true, "pluralForms":2, "enabled":true, "qtCatalog":"hi"},
   {"id":"zh-Hans", "nativeName":"简体中文", "rtl":false, "reviewPending":true, "pluralForms":1, "enabled":true, "qtCatalog":"zh_CN"},
   {"id":"zh-Hant", "nativeName":"繁體中文", "rtl":false, "reviewPending":true, "pluralForms":1, "enabled":true, "qtCatalog":"zh_TW"},
