@@ -497,7 +497,14 @@ int main(int argc, char** argv)
         CHECK(!i::text("language.label").isEmpty());
         return failures ? 1 : 0;
     }
-    i::Localization::instance().initialize(); u::applyEditorTheme(app);
+#ifdef VULKANA_TEST_TRANSLATIONS
+    // Relocatable builds deliberately omit development resource paths. Test the
+    // generated packs explicitly; installed resource discovery is a staging check.
+    i::Localization::instance().initialize(QStringLiteral(VULKANA_TEST_TRANSLATIONS));
+#else
+    i::Localization::instance().initialize();
+#endif
+    u::applyEditorTheme(app);
     const auto output = qEnvironmentVariable("VULKANA_LOCALIZATION_SCREENSHOTS");
     localeMatching(); bindings(); composition(); dropdown(output); dialogButtons();
     adjustmentCategories(output); psdReview(output); workspace(output); workspace({}, "ar");

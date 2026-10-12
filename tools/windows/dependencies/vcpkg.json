@@ -1,0 +1,12 @@
+{
+  "name": "vulkana-windows-dependencies",
+  "version-string": "0.3.2",
+  "builtin-baseline": "e456309491fd875487bf02b8a0dca76c1b1b00cc",
+  "dependencies": [
+    "qpdf",
+    "zlib",
+    { "name": "minizip-ng", "default-features": false, "features": ["zlib"] },
+    { "name": "libwebp", "default-features": false,
+      "features": ["libwebpmux", "nearlossless", "simd"] }
+  ]
+}

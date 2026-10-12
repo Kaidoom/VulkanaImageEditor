@@ -1,5 +1,6 @@
 #include "imageeditor/ui/ProjectFile.hpp"
 #include "imageeditor/platform/AvailableMemory.hpp"
+#include "imageeditor/platform/AtomicFile.hpp"
 #include "LayerEffectCodec.hpp"
 #include "AdjustmentCodec.hpp"
 #include "SpatialFilterCodec.hpp"
@@ -15,6 +16,7 @@
 #include <QJsonDocument>
 #include <QJsonParseError>
 #include <QTemporaryFile>
+#include <QScopeGuard>
 #include <algorithm>
 #include <array>
 #include <cerrno>
@@ -28,7 +30,6 @@
 #include <mz_zip.h>
 #include <set>
 #include <stdexcept>
-#include <unistd.h>
 
 namespace imageeditor::ui {
 namespace {
@@ -1060,7 +1061,8 @@ ProjectIoResult saveProject(const QString& path, const core::Document& doc, cons
         Progress progress { std::move(callback), 0, bytes * 2 };
         progress.tick();
         const QFileInfo target(path);
-        QTemporaryFile temp(target.absolutePath() + "/.vulkana-save-XXXXXX");
+        auto temporary = std::make_unique<QTemporaryFile>(target.absolutePath() + "/.vulkana-save-XXXXXX");
+        auto& temp = *temporary;
         require(temp.open(), "Cannot create temporary project beside destination");
         {
             Archive zip(temp, true);
@@ -1145,7 +1147,7 @@ ProjectIoResult saveProject(const QString& path, const core::Document& doc, cons
             }
             zip.finish();
         }
-        require(temp.flush() && ::fsync(temp.handle()) == 0, "Cannot flush project (disk full or I/O failure)");
+        require(platform::syncFile(temp), "Cannot flush project (disk full or I/O failure)");
         require(temp.seek(0), "Cannot validate temporary project");
         {
             Archive verify(temp, false);
@@ -1158,13 +1160,18 @@ ProjectIoResult saveProject(const QString& path, const core::Document& doc, cons
             verify.finish();
         }
         progress.tick(); // Cancellation remains safe until the atomic rename.
-        const auto source = QFile::encodeName(temp.fileName()), destination = QFile::encodeName(target.absoluteFilePath());
-        temp.close();
-        // Linux-first, same-directory POSIX rename is atomic and replaces only
-        // after complete CRC verification. There is deliberately no direct-write fallback.
-        if (::rename(source.constData(), destination.constData()) != 0)
-            throw std::runtime_error(std::string("Cannot replace project: ") + std::strerror(errno));
+        const auto source = temp.fileName(), destination = target.absoluteFilePath();
+        // QTemporaryFile::close retains its native handle for reopening. Destroy
+        // the device before Windows rename, while retaining scoped file cleanup.
+        auto cleanup = qScopeGuard([&] { QFile::remove(source); });
         temp.setAutoRemove(false);
+        temporary.reset();
+        // Publish only after complete CRC verification. Never truncate the old
+        // project or fall back to copying directly over it on either platform.
+        QString replacementError;
+        if (!platform::replaceFileAtomically(source, destination, replacementError))
+            throw std::runtime_error(replacementError.toStdString());
+        cleanup.dismiss();
         return { };
     } catch (const Cancelled&) {
         return { { }, true };

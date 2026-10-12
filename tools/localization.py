@@ -19,7 +19,7 @@ CATALOG = ROOT / 'localization'
 TOKENS = re.compile(r'%L?(?:[1-9][0-9]?|n)|\{\{[A-Za-z0-9_]+\}\}')
 
 def languages():
-    values = json.loads((CATALOG / 'languages.json').read_text())
+    values = json.loads((CATALOG / 'languages.json').read_text(encoding='utf-8'))
     ids = [v['id'] for v in values]
     if len(ids) != len(set(ids)) or 'en' not in ids:
         raise ValueError('Language metadata needs unique IDs including en')
@@ -39,8 +39,9 @@ def uncovered():
     pattern = re.compile(r'\b(?:tr|setText|setToolTip|setWindowTitle|setAccessibleName|addAction|addMenu)\(\s*(?:QStringLiteral\()?"([A-Za-z][^"\n]*)"')
     for file in sorted((ROOT / 'src/ui').rglob('*.cpp')):
         if file.stem == 'Localization': continue
-        for match in pattern.finditer(file.read_text()):
-            result.append(str(file.relative_to(ROOT)) + ': ' + match[1])
+        for match in pattern.finditer(file.read_text(encoding='utf-8')):
+            # The checked-in inventory uses repository paths, not host separators.
+            result.append(file.relative_to(ROOT).as_posix() + ': ' + match[1])
     return sorted(set(result))
 
 def read(path):
@@ -164,13 +165,14 @@ def validate():
         print(f'{file.stem}: {translated}/{len(english)} translated; remaining entries fall back to English')
     for file in (ROOT / 'src').rglob('*'):
         if file.suffix not in ('.cpp', '.hpp'): continue
-        for key in re.findall(r'i18n::text\("([^"]+)"', file.read_text()):
+        source_text = file.read_text(encoding='utf-8')
+        for key in re.findall(r'i18n::text\("([^"]+)"', source_text):
             if key not in english: errors.append(f'{file.relative_to(ROOT)}: missing {key}')
-        if re.search(r'setObjectName\(\s*i18n::text', file.read_text()):
+        if re.search(r'setObjectName\(\s*i18n::text', source_text):
             errors.append(f'{file.relative_to(ROOT)}: object identity must not be translated')
     baseline = CATALOG / 'untranslated-baseline.json'
     if baseline.exists():
-        for item in set(uncovered()) - set(json.loads(baseline.read_text())):
+        for item in set(uncovered()) - set(json.loads(baseline.read_text(encoding='utf-8'))):
             errors.append('New untranslated widget text: ' + item)
     if errors: raise ValueError('\n'.join(errors))
     return english
@@ -184,7 +186,7 @@ def compile_packs(output, lrelease):
     # Compatibility adapter for existing Qt-free command labels. Generated only;
     # never use this lookup for user-authored document data.
     history = {m.findtext('source'): key for key, (_, m) in entries.items()}
-    (output / 'history-ids.json').write_text(json.dumps(history, ensure_ascii=False))
+    (output / 'history-ids.json').write_text(json.dumps(history, ensure_ascii=False), encoding='utf-8')
     for _, m in entries.values():
         t = m.find('translation')
         if m.get('numerus') == 'yes':
@@ -233,11 +235,11 @@ def main():
     elif args.command == 'compile': compile_packs(args.output, args.lrelease)
     elif args.command == 'inventory':
         if args.write_baseline:
-            (CATALOG / 'untranslated-baseline.json').write_text(json.dumps(uncovered(), ensure_ascii=False, indent=2) + '\n')
+            (CATALOG / 'untranslated-baseline.json').write_text(json.dumps(uncovered(), ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
         validate()
         for file in sorted((ROOT / 'src').rglob('*.cpp')):
             if 'third_party' in file.parts: continue
-            for n, line in enumerate(file.read_text().splitlines(), 1):
+            for n, line in enumerate(file.read_text(encoding='utf-8').splitlines(), 1):
                 if re.search(r'\btr\("|(?:setText|setToolTip|setWindowTitle|addAction|addMenu)\(\s*(?:QStringLiteral\()?"[A-Za-z]', line):
                     print(f'{file.relative_to(ROOT)}:{n}: {line.strip()}')
     else: validate()

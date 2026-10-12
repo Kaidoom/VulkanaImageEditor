@@ -1,0 +1,14 @@
+{
+  "format": 1,
+  "vcpkgCommit": "e456309491fd875487bf02b8a0dca76c1b1b00cc",
+  "qtVersion": "6.10.3",
+  "msvcToolsVersion": "14.51.36231",
+  "vulkanSdkVersion": "1.4.363.0",
+  "onnxRuntime": {
+    "version": "1.30.0",
+    "archive": "onnxruntime-win-x64-1.30.0.zip",
+    "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.30.0/onnxruntime-win-x64-1.30.0.zip",
+    "sha256": "c6ba983baf5681af108599675d2a89c2d145512d02de28aed0bff177cd0ba949",
+    "dllSha256": "7e39e2bdbba836d98071ef28620735ba36a47c554cf794585269aecc50fab0da"
+  }
+}

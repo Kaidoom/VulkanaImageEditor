@@ -14,8 +14,10 @@
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QVersionNumber>
+#ifdef Q_OS_LINUX
 #include <sys/stat.h>
 #include <unistd.h>
+#endif
 #include <algorithm>
 
 namespace imageeditor::ui {
@@ -36,7 +38,9 @@ QUrl UpdateService::downloadPageUrl(const platform::ServiceConfig& config) { ret
 
 UpdatePackage UpdateService::buildPackage()
 {
-#if defined(VULKANA_UPDATE_PACKAGE_APPIMAGE)
+#if defined(VULKANA_UPDATE_PACKAGE_NONE)
+    return UpdatePackage::Unavailable;
+#elif defined(VULKANA_UPDATE_PACKAGE_APPIMAGE)
     return UpdatePackage::AppImage;
 #elif defined(VULKANA_UPDATE_PACKAGE_DEB)
     return UpdatePackage::Deb;
@@ -106,6 +110,10 @@ std::optional<UpdateRelease> UpdateService::parseManifest(const QByteArray& byte
     const platform::ServiceConfig& config)
 {
     error.clear();
+    if (package == UpdatePackage::Unavailable) {
+        error = i18n::text("update.service.updates.are.not.configured.for.this.build");
+        return std::nullopt;
+    }
     if (bytes.size() > manifestLimit) {
         error = i18n::text("update.service.the.update.information.exceeds.the.size.limit");
         return std::nullopt;
@@ -199,6 +207,7 @@ void UpdateService::download(const QString& destination)
 
 void UpdateService::downloadAppImage()
 {
+#ifdef Q_OS_LINUX
     if (simulated_) return;
     if(package_!=UpdatePackage::AppImage||busy()||!release_||state_==State::RestartReady)return;
     const QFileInfo original(appImagePath_);
@@ -220,10 +229,14 @@ void UpdateService::downloadAppImage()
     originalDevice_=st.st_dev;originalInode_=st.st_ino;originalSize_=st.st_size;
     originalMtime_=st.st_mtim.tv_sec;originalMtimeNsec_=st.st_mtim.tv_nsec;
     beginDownload(path); // QSaveFile stages beside it; never truncates the mounted inode.
+#else
+    fail(i18n::text("update.service.updates.are.not.configured.for.this.build"));
+#endif
 }
 
 void UpdateService::beginDownload(const QString& destination)
 {
+    if (package_ == UpdatePackage::Unavailable) return;
     if (busy() || !release_ || destination.isEmpty()) return;
     downloadedPath_.clear();
     file_ = std::make_unique<QSaveFile>(destination);
@@ -352,6 +365,7 @@ void UpdateService::finish()
             }
         }
         if(package_==UpdatePackage::AppImage) {
+#ifdef Q_OS_LINUX
             struct stat st {};
             if(!isAppImageHeader(header_)) {fail(i18n::text("update.service.the.verified.download.is.not.an.x86.64.type"));return;}
             if(::lstat(QFile::encodeName(destination_).constData(),&st)!=0||!S_ISREG(st.st_mode)
@@ -363,6 +377,9 @@ void UpdateService::finish()
                 |QFileDevice::ReadGroup|QFileDevice::ExeGroup|QFileDevice::ReadOther|QFileDevice::ExeOther)) {
                 fail(i18n::text("update.service.failed.to.make.the.update.executable.the.current.image"));return;
             }
+#else
+            fail(i18n::text("update.service.updates.are.not.configured.for.this.build"));return;
+#endif
         }
         if (!file_->commit()) {
             fail(i18n::text("update.service.failed.to.save.the.download.check.the.folder.permissions"));

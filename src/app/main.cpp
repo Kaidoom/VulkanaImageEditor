@@ -149,7 +149,8 @@ int main(int argc, char* argv[])
         qInfo() << "Screen:" << screen->name() << screen->geometry()
                 << screen->refreshRate() << "Hz DPR" << screen->devicePixelRatio();
     }
-    if (platform != QStringLiteral("wayland") && platform != QStringLiteral("xcb")) {
+    if (platform != QStringLiteral("wayland") && platform != QStringLiteral("xcb")
+        && platform != QStringLiteral("windows")) {
         qWarning() << "Non-desktop Qt platform (explicit headless/test use):" << platform;
     }
 

@@ -20,7 +20,9 @@ application code. Python, PyTorch and the development environment are not shippe
 ONNX Runtime CPU 1.30.0: Copyright (c) Microsoft Corporation.
 The Linux x86-64 shared library is redistributed without modification from the
 official onnxruntime 1.30.0 cp314 manylinux_2_28_x86_64 distribution.
-The MIT license and complete upstream ThirdPartyNotices.txt accompany it.
+Windows x64 builds instead redistribute the unmodified CPU DLL from the official
+onnxruntime-win-x64-1.30.0 SDK archive.
+The MIT license and matching upstream ThirdPartyNotices.txt accompany each runtime.
 The ONNX Runtime 1.20.1 C API header is used without modification under MIT.
 
 These components run locally and offline. No model download or image upload is

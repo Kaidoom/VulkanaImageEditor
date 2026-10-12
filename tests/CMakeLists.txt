@@ -1,3 +1,7 @@
+if(WIN32)
+    include(WindowsTests.cmake)
+    return()
+endif()
 include(ShapeTests.cmake)
 include(ShapeResizeTests.cmake)
 include(LayerSelectionTests.cmake)

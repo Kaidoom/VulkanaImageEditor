@@ -93,8 +93,13 @@ struct ObjectSelectionEngine::Impl {
             "Bundled Object Selection files are missing or damaged; repair the Vulkana installation");
         const auto metadata = QJsonDocument::fromJson(manifest.readAll()).object();
         require(metadata["format"].toInt() == 1, "Unsupported Object Selection model pack version");
+#ifdef Q_OS_WIN
+        const auto runtimeFile = QStringLiteral("onnxruntime.dll");
+#else
+        const auto runtimeFile = QStringLiteral("libonnxruntime.so");
+#endif
         for (const auto& name : { QStringLiteral("encoder.onnx"), QStringLiteral("decoder.onnx"),
-                 QStringLiteral("libonnxruntime.so") }) {
+                 runtimeFile }) {
             QFile file(dir.filePath(name));
             require(file.open(QIODevice::ReadOnly), "Object Selection model pack is incomplete");
             require(file.size() > 0 && file.size() < 128 * 1024 * 1024,
@@ -110,7 +115,7 @@ struct ObjectSelectionEngine::Impl {
             require(hash.result().toHex() == metadata[name].toString().toLatin1(),
                 "Object Selection model pack checksum mismatch");
         }
-        library.setFileName(dir.absoluteFilePath("libonnxruntime.so"));
+        library.setFileName(dir.absoluteFilePath(runtimeFile));
         require(library.load(), "Could not load the bundled Object Selection CPU runtime on this system");
         const auto getApi
             = reinterpret_cast<const OrtApiBase*(ORT_API_CALL*)()>(library.resolve("OrtGetApiBase"));
@@ -127,10 +132,15 @@ struct ObjectSelectionEngine::Impl {
         check(api->SetInterOpNumThreads(options, 1));
         check(api->DisableCpuMemArena(options));
         check(api->SetSessionGraphOptimizationLevel(options, ORT_ENABLE_ALL));
+#ifdef Q_OS_WIN
+        check(api->CreateSession(env, dir.filePath("encoder.onnx").toStdWString().c_str(), options, &encoder));
+        check(api->CreateSession(env, dir.filePath("decoder.onnx").toStdWString().c_str(), options, &decoder));
+#else
         check(api->CreateSession(
             env, dir.filePath("encoder.onnx").toLocal8Bit().constData(), options, &encoder));
         check(api->CreateSession(
             env, dir.filePath("decoder.onnx").toLocal8Bit().constData(), options, &decoder));
+#endif
         check(api->CreateCpuMemoryInfo(OrtArenaAllocator, OrtMemTypeDefault, &memory));
     }
     OrtValue* tensor(std::span<float> values, std::span<const int64_t> shape)

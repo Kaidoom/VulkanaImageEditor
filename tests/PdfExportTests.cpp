@@ -275,8 +275,12 @@ void alphaBlendTests(const QDir &directory) {
     CHECK(independent.insertLayer(0, *doc.layer(top.id)));
     CHECK(samePixels(rendered.image, u::flattenDocument(independent).image));
     if (mode == c::BlendMode::ColorDodge) {
-      CHECK(u::writePdfExport(source, p, directory.filePath("alpha.pdf"),
-                              cancel));
+      const auto written = u::writePdfExport(source, p, directory.filePath("alpha.pdf"), cancel);
+      CHECK(written);
+      if (!written) {
+        std::cerr << written.error.toStdString() << '\n';
+        return; // Report the writer error, not a second exception opening a missing file.
+      }
       exactImage(directory.filePath("alpha.pdf"), rendered.image);
       CHECK(rendered.image.save(directory.filePath("alpha-reference.png")));
       isolated.matte = true;

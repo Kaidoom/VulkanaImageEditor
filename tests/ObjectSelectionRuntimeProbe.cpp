@@ -3,14 +3,25 @@
 #include "../src/ui/third_party/onnxruntime/onnxruntime_c_api.h"
 #include <array>
 #include <cmath>
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#else
 #include <dlfcn.h>
+#endif
 #include <filesystem>
 #include <iostream>
 #include <stdexcept>
 #include <vector>
 
 struct Runtime {
+#ifdef _WIN32
+    HMODULE library { };
+#else
     void* library { };
+#endif
     const OrtApi* api { };
     OrtEnv* env { };
     OrtSessionOptions* options { };
@@ -35,8 +46,13 @@ struct Runtime {
             if (env)
                 api->ReleaseEnv(env);
         }
-        if (library)
+        if (library) {
+#ifdef _WIN32
+            FreeLibrary(library);
+#else
             dlclose(library);
+#endif
+        }
     }
     void check(OrtStatus* status)
     {
@@ -71,18 +87,33 @@ struct Runtime {
                 throw std::runtime_error("Nonfinite output");
     }
 };
+#ifdef _WIN32
+int wmain(int argc, wchar_t** argv)
+#else
 int main(int argc, char** argv)
+#endif
 {
-    if (argc != 2)
+    if (argc != 2 && argc != 3)
         return 2;
     try {
         const std::filesystem::path directory(argv[1]);
         Runtime r;
-        r.library = dlopen((directory / "libonnxruntime.so").c_str(), RTLD_NOW | RTLD_LOCAL);
+#ifdef _WIN32
+        const auto runtimePath = std::filesystem::absolute(argc == 3
+                ? std::filesystem::path(argv[2]) : directory / "onnxruntime.dll");
+        r.library = LoadLibraryExW(runtimePath.c_str(), nullptr,
+            LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+        if (!r.library)
+            throw std::runtime_error("Could not load Windows ONNX Runtime: " + std::to_string(GetLastError()));
+        const auto getApi = reinterpret_cast<const OrtApiBase*(ORT_API_CALL*)()>(GetProcAddress(r.library, "OrtGetApiBase"));
+#else
+        const auto runtimePath = argc == 3 ? std::filesystem::path(argv[2]) : directory / "libonnxruntime.so";
+        r.library = dlopen(runtimePath.c_str(), RTLD_NOW | RTLD_LOCAL);
         if (!r.library)
             throw std::runtime_error(dlerror());
         const auto getApi
             = reinterpret_cast<const OrtApiBase*(ORT_API_CALL*)()>(dlsym(r.library, "OrtGetApiBase"));
+#endif
         if (!getApi)
             throw std::runtime_error("Missing ONNX C API");
         r.api = getApi()->GetApi(ORT_API_VERSION);

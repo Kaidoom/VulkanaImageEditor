@@ -4,7 +4,28 @@
 #include <chrono>
 #include <cmath>
 #include <iostream>
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <psapi.h>
+#else
 #include <sys/resource.h>
+#endif
+
+static std::uint64_t peakResidentKiB() {
+#ifdef _WIN32
+  PROCESS_MEMORY_COUNTERS counters{};
+  counters.cb = sizeof(counters);
+  return K32GetProcessMemoryInfo(GetCurrentProcess(), &counters, sizeof(counters))
+      ? counters.PeakWorkingSetSize / 1024 : 0;
+#else
+  rusage usage{};
+  getrusage(RUSAGE_SELF, &usage);
+  return static_cast<std::uint64_t>(usage.ru_maxrss);
+#endif
+}
 
 using namespace imageeditor::core;
 int failures = 0;
@@ -353,14 +374,12 @@ int main(int argc, char **argv) {
       s.settings.radius = 8;
       auto start = std::chrono::steady_clock::now();
       auto r = refineSelection(f.input, &f.image, s);
-      rusage usage{};
-      getrusage(RUSAGE_SELF, &usage);
       std::cout << e.width << 'x' << e.height << " total_ms="
                 << std::chrono::duration<double, std::milli>(
                        std::chrono::steady_clock::now() - start)
                        .count()
                 << " analysis_ms=" << r.analysisMs
-                << " rss_KiB=" << usage.ru_maxrss << '\n';
+                << " rss_KiB=" << peakResidentKiB() << '\n';
       for (auto name : {"smooth", "shift", "feather"}) {
         RefinementState global;
         if (std::string_view(name) == "smooth")

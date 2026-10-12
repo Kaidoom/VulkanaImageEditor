@@ -26,7 +26,7 @@ struct UpdateRelease {
     QByteArray sha256;
     QUrl url;
 };
-enum class UpdatePackage { Rpm, AppImage, Deb };
+enum class UpdatePackage { Rpm, AppImage, Deb, Unavailable };
 
 // Checks are asynchronous. Downloads are user-initiated: RPMs/DEBs are saved, never
 // installed. AppImages are replaced atomically only after verification;
@@ -48,7 +48,7 @@ public:
     void downloadAppImage();
     void cancel();
     [[nodiscard]] State state() const { return state_; }
-    [[nodiscard]] bool configured() const { return config_.enabled(); }
+    [[nodiscard]] bool configured() const { return package_ != UpdatePackage::Unavailable && config_.enabled(); }
     [[nodiscard]] bool simulated() const { return simulated_; }
     [[nodiscard]] bool busy() const { return state_ == State::Checking || state_ == State::Downloading; }
     [[nodiscard]] i18n::Message message() const { return message_.refreshed(); }

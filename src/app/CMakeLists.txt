@@ -36,8 +36,12 @@ endif()
 target_compile_definitions(imageeditor PRIVATE
     $<$<CONFIG:Debug>:IMAGEEDITOR_ENABLE_VALIDATION=1>
 )
-if(IMAGEEDITOR_RELOCATABLE_BUNDLE)
+if(IMAGEEDITOR_RELOCATABLE_BUNDLE AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_compile_definitions(imageeditor PRIVATE VULKANA_BUNDLED_QT=1)
+endif()
+if(WIN32)
+    set_target_properties(imageeditor PROPERTIES WIN32_EXECUTABLE TRUE)
+    target_sources(imageeditor PRIVATE "${PROJECT_SOURCE_DIR}/res/windows/Vulkana.manifest")
 endif()
 
 install(TARGETS imageeditor RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")

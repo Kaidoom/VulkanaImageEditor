@@ -6,11 +6,20 @@
 #include <limits>
 #ifdef Q_OS_LINUX
 #include <unistd.h>
+#elif defined(Q_OS_WIN)
+#include <windows.h>
+#include <psapi.h>
 #endif
 
 namespace imageeditor::platform {
 std::optional<std::uint64_t> availableMemoryBytes() {
   std::optional<std::uint64_t> available;
+#ifdef Q_OS_WIN
+  MEMORYSTATUSEX status{};
+  status.dwLength = sizeof(status);
+  if (GlobalMemoryStatusEx(&status))
+    available = std::min(status.ullAvailPhys, status.ullAvailPageFile);
+#endif
 #ifdef Q_OS_LINUX
   QFile meminfo("/proc/meminfo");
   if (meminfo.open(QIODevice::ReadOnly))
@@ -54,6 +63,12 @@ std::uint64_t availableWorkingMemoryBytes() {
   return available ? *available - *available / 4 : 1536ULL * 1024 * 1024;
 }
 std::optional<std::uint64_t> processResidentMemoryBytes() {
+#ifdef Q_OS_WIN
+  PROCESS_MEMORY_COUNTERS counters{};
+  counters.cb = sizeof(counters);
+  if (K32GetProcessMemoryInfo(GetCurrentProcess(), &counters, sizeof(counters)))
+    return counters.WorkingSetSize;
+#endif
 #ifdef Q_OS_LINUX
   QFile statm("/proc/self/statm");
   if (statm.open(QIODevice::ReadOnly)) {

@@ -5,6 +5,7 @@
 #include <QAbstractTextDocumentLayout>
 #include <QColorSpace>
 #include <QElapsedTimer>
+#include <QFile>
 #include <QFileInfo>
 #include <QPainter>
 #include <QPainterPath>
@@ -12,7 +13,7 @@
 #include <QPdfWriter>
 #include <QRegularExpression>
 #include <QSaveFile>
-#include <QTemporaryFile>
+#include <QTemporaryDir>
 #include <QTextBlock>
 #include <QTextFragment>
 #include <QTextLayout>
@@ -725,8 +726,13 @@ PdfExportResult writePdfExport(const PdfExportSnapshot &source,
         QFileInfo(destination).suffix().compare("pdf", Qt::CaseInsensitive) ==
             0,
         "Choose a .pdf destination");
-    QTemporaryFile staged;
-    require(staged.open(), "Cannot create PDF staging file");
+    // QPDF reopens this file by name. QTemporaryFile retains an exclusive native
+    // handle on Windows even after close(); a scoped directory and ordinary
+    // QFile let us release the writer while preserving bounded disk staging.
+    QTemporaryDir stagingDirectory;
+    require(stagingDirectory.isValid(), "Cannot create PDF staging directory");
+    QFile staged(stagingDirectory.filePath(QStringLiteral("staged.pdf")));
+    require(staged.open(QIODevice::ReadWrite), "Cannot create PDF staging file");
     struct Part {
       int page;
       core::LayerId text;
@@ -861,6 +867,7 @@ PdfExportResult writePdfExport(const PdfExportSnapshot &source,
     }
     require(staged.flush() && staged.error() == QFileDevice::NoError,
             "Could not finalize staged PDF");
+    staged.close();
     check(cancel);
     QPDF input;
     input.processFile(staged.fileName().toUtf8().constData());

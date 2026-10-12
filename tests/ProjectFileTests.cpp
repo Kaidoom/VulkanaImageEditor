@@ -30,7 +30,11 @@
 #include <utility>
 #include <vector>
 
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <sys/resource.h>
+#endif
 
 #include <mz.h>
 #include <mz_strm.h>
@@ -873,6 +877,14 @@ int writeFailureChild(const QString& path)
     const auto filesBefore = directory.entryList(QDir::Files | QDir::Hidden);
     const auto document = incompressibleDocument();
     const auto revision = document.revision();
+#ifdef _WIN32
+    // Deny delete/rename sharing on the existing destination. The fully written
+    // replacement must fail safely at publication and clean its staging file.
+    HANDLE held = CreateFileW(path.toStdWString().c_str(), GENERIC_READ, FILE_SHARE_READ,
+        nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (held == INVALID_HANDLE_VALUE)
+        throw std::runtime_error("Cannot establish Windows replacement-failure lock");
+#else
     struct rlimit original { };
     if (::getrlimit(RLIMIT_FSIZE, &original) != 0 || original.rlim_max < 4096
         || std::signal(SIGXFSZ, SIG_IGN) == SIG_ERR)
@@ -880,14 +892,18 @@ int writeFailureChild(const QString& path)
     const struct rlimit limited { 4096, original.rlim_max };
     if (::setrlimit(RLIMIT_FSIZE, &limited) != 0)
         throw std::runtime_error("Cannot set child-only RLIMIT_FSIZE");
+#endif
     const auto result = u::saveProject(path, document);
+#ifdef _WIN32
+    CloseHandle(held);
+#endif
     CHECK(!result);
     CHECK(!result.cancelled);
     CHECK(!result.error.isEmpty());
     CHECK(readBytes(path) == before);
     CHECK(document.revision() == revision);
     CHECK(directory.entryList(QDir::Files | QDir::Hidden) == filesBefore);
-    std::cout << "Child-only RLIMIT_FSIZE write failure: " << result.error.toStdString() << '\n';
+    std::cout << "Child-only file publication failure: " << result.error.toStdString() << '\n';
     return failures ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
@@ -904,8 +920,10 @@ void actualWriteFailurePreservesDestination()
     const QByteArray sentinel("Existing destination must survive a real EFBIG write failure.\n");
     writeBytes(destination, sentinel);
     const auto filesBefore = QDir(f.directory.path()).entryList(QDir::Files | QDir::Hidden);
+#ifndef _WIN32
     struct rlimit before { }, after { };
     CHECK(::getrlimit(RLIMIT_FSIZE, &before) == 0);
+#endif
     QProcess child;
     auto environment = QProcessEnvironment::systemEnvironment();
     environment.insert("QT_QPA_PLATFORM", "offscreen");
@@ -921,14 +939,16 @@ void actualWriteFailurePreservesDestination()
     CHECK(child.exitStatus() == QProcess::NormalExit);
     CHECK(child.exitCode() == EXIT_SUCCESS);
     const auto output = child.readAllStandardOutput();
-    CHECK(output.contains("Child-only RLIMIT_FSIZE write failure:"));
+    CHECK(output.contains("Child-only file publication failure:"));
     if (!finished || child.exitStatus() != QProcess::NormalExit || child.exitCode() != EXIT_SUCCESS)
         std::cerr << "Write-failure child output:\n" << output.constData()
                   << child.readAllStandardError().constData();
     CHECK(readBytes(destination) == sentinel);
     CHECK(QDir(f.directory.path()).entryList(QDir::Files | QDir::Hidden) == filesBefore);
+#ifndef _WIN32
     CHECK(::getrlimit(RLIMIT_FSIZE, &after) == 0);
     CHECK(before.rlim_cur == after.rlim_cur && before.rlim_max == after.rlim_max);
+#endif
 }
 
 void cancellationAndFailurePreserveDestination()
@@ -1033,7 +1053,12 @@ void rememberedSelectionRoundTrip()
 int main(int argc, char** argv)
 {
     qputenv("TZ", "UTC");
-    ::tzset(); // ZIP DOS timestamps must not depend on the test host's timezone.
+    // ZIP DOS timestamps must not depend on the test host's timezone.
+#ifdef _WIN32
+    ::_tzset();
+#else
+    ::tzset();
+#endif
     QGuiApplication application(argc, argv);
     try {
         if (application.arguments().size() == 3 && application.arguments()[1] == "--write-failure")

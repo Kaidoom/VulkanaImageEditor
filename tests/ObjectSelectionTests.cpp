@@ -1,4 +1,5 @@
 #include "imageeditor/platform/ApplicationPaths.hpp"
+#include "imageeditor/platform/AvailableMemory.hpp"
 #include "imageeditor/ui/ObjectSelection.hpp"
 #include <QCoreApplication>
 #include <QDir>
@@ -6,7 +7,9 @@
 #include <QImage>
 #include <QTemporaryDir>
 #include <iostream>
+#ifndef _WIN32
 #include <sys/resource.h>
+#endif
 #include <thread>
 namespace c = imageeditor::core;
 namespace u = imageeditor::ui;
@@ -61,7 +64,11 @@ int main(int argc, char** argv)
                 fixture->pixels.push_back(x >= 32 && x < 96 && y >= 24 && y < 104
                         ? c::Rgba8 { 225, 45, 35, 255 }
                         : c::Rgba8 { 30, 110, 185, 255 });
+#ifdef VULKANA_TEST_OBJECT_SELECTION_BUNDLE
+        u::ObjectSelectionEngine bundled(QString::fromUtf8(VULKANA_TEST_OBJECT_SELECTION_BUNDLE));
+#else
         u::ObjectSelectionEngine bundled;
+#endif
         const u::ObjectSelectionPrompt rectangle { { 24, 16, 80, 96 }, { } };
         const auto result = bundled.evaluate(fixture, rectangle, cancelled);
         require(result && result->coverageAtDocumentPixel(64, 64) == 255
@@ -141,8 +148,13 @@ int main(int argc, char** argv)
     require(!engine.evaluate(next, prompt, cancelled), "In-flight cancellation published");
     std::cout << "cancel_ms=" << timer.elapsed() << '\n';
     cancel.join();
+#ifdef _WIN32
+    const auto resident = imageeditor::platform::processResidentMemoryBytes();
+    std::cout << "resident_mib=" << (resident ? double(*resident) / (1024 * 1024) : 0) << '\n';
+#else
     rusage usage { };
     getrusage(RUSAGE_SELF, &usage);
     std::cout << "peak_rss_mib=" << double(usage.ru_maxrss) / 1024 << '\n';
+#endif
     return failures ? 1 : 0;
 }

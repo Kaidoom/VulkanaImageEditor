@@ -70,7 +70,15 @@ protected:
         QPainter painter(this);
         painter.setCompositionMode(QPainter::CompositionMode_Source);
         for (const QRect& rect : event->region()) {
+#ifdef Q_OS_WIN
+            // Layered HWNDs treat alpha-zero pixels as input-transparent even
+            // inside their window region. Retain the transparent resize/padding
+            // hit areas with minimum alpha; the native mask still excludes the
+            // canvas. This is not a color-keyed or separately owned window.
+            painter.fillRect(rect, QColor(0, 0, 0, 1));
+#else
             painter.fillRect(rect, Qt::transparent);
+#endif
         }
     }
 };

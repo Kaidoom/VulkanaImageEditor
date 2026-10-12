@@ -3228,6 +3228,14 @@ void MainWindow::runIntegrationSmokeTest()
 {
     smokeFailures_.clear();
     smokeCompleted_ = false;
+    // Preserve the pauses between dependent UI actions even when native window
+    // calls or cold shader compilation block briefly. Independent coarse timers
+    // can expire/reorder together, letting maximize overlap panel-only checks.
+    using UiProbeStages = std::vector<std::pair<int, std::function<void()>>>;
+    const auto uiProbeStages = std::make_shared<UiProbeStages>();
+    const auto afterUiStep = [uiProbeStages](int offset, std::function<void()> callback) {
+        uiProbeStages->emplace_back(offset, std::move(callback));
+    };
     smokeCheck(QCoreApplication::testAttribute(
             Qt::AA_DontCreateNativeWidgetSiblings),
         QStringLiteral("Native canvas sibling promotion is not disabled"));
@@ -3274,7 +3282,7 @@ void MainWindow::runIntegrationSmokeTest()
         QStringLiteral("imageeditor-wayland-drop-a-XXXXXX.png"), {32, 24}, {72, 96, 220, 192});
     auto* secondDroppedImage = createDropProbe(
         QStringLiteral("imageeditor-wayland-drop-b-XXXXXX.png"), {17, 11}, {220, 112, 72, 255});
-    QTimer::singleShot(45, this, [this] {
+    afterUiStep(45, [this] {
         auto* panelOverlay = workspace_->panelOverlay();
         auto* panelCard = workspace_->findChild<QWidget*>(
             QStringLiteral("OverlayPanelCard"));
@@ -3345,7 +3353,7 @@ void MainWindow::runIntegrationSmokeTest()
             QStringLiteral("Tool rail drag exposed its redundant current dock target"));
         hideToolRailDockTargets();
     });
-    QTimer::singleShot(70, this, [this, droppedImage, secondDroppedImage] {
+    afterUiStep(70, [this, droppedImage, secondDroppedImage] {
         if (droppedImage->fileName().isEmpty() || secondDroppedImage->fileName().isEmpty()) {
             return;
         }
@@ -3378,12 +3386,12 @@ void MainWindow::runIntegrationSmokeTest()
                 QStringLiteral("Last dropped raster is not the active layer"));
         }
     });
-    QTimer::singleShot(260, this, [this] { layerList_->setFocus(Qt::OtherFocusReason); });
-    QTimer::singleShot(310, this, [this] {
+    afterUiStep(260, [this] { layerList_->setFocus(Qt::OtherFocusReason); });
+    afterUiStep(310, [this] {
         smokeCheck(layerList_->focusPolicy() != Qt::NoFocus,
             QStringLiteral("Layer list is not keyboard-focusable"));
     });
-    QTimer::singleShot(325, this, [this] {
+    afterUiStep(325, [this] {
         const auto routesBefore = pointerRouter_->routedEventCount();
         const auto retainedUngrabsBefore = pointerRouter_->retainedUngrabCount();
         const auto repairedButtonsBefore = pointerRouter_->repairedButtonStateCount();
@@ -3446,11 +3454,11 @@ void MainWindow::runIntegrationSmokeTest()
                 == CrossWindowPointerRouter::CaptureDomain::None,
             QStringLiteral("Pointer router retained capture after slider release"));
     });
-    QTimer::singleShot(340, this, [this] {
+    afterUiStep(340, [this] {
         canvasContainer_->setFocus(Qt::OtherFocusReason);
         canvasWindow_->requestActivate();
     });
-    QTimer::singleShot(365, this, [this] {
+    afterUiStep(365, [this] {
         // Give this synthetic 160px growth room below the column's maximum;
         // production defaults/preferences may already start near that limit.
         workspace_->setPanelWidth(310);
@@ -3494,7 +3502,7 @@ void MainWindow::runIntegrationSmokeTest()
         smokeCheck(QWidget::mouseGrabber() == nullptr,
             QStringLiteral("Panel resize left an explicit QWidget grab behind"));
     });
-    QTimer::singleShot(410, this, [this] {
+    afterUiStep(410, [this] {
         const auto before = canvasWindow_->scene().viewport.pan();
         const QPointF start {90.0, 90.0};
         const QPointF finish {124.0, 112.0};
@@ -3561,7 +3569,7 @@ void MainWindow::runIntegrationSmokeTest()
                     == panelBaseline->renderer.resizePresentationResumes,
             QStringLiteral("Panel operation suspended canvas presentation: %1").arg(phase));
     };
-    QTimer::singleShot(430, this, [this, panelBaseline] {
+    afterUiStep(430, [this, panelBaseline] {
         panelBaseline->canvasContainerGeometry = canvasContainer_->geometry();
         panelBaseline->canvasWindowGeometry = canvasWindow_->geometry();
         panelBaseline->panelOverlayGeometry = workspace_->panelOverlay()->geometry();
@@ -3569,18 +3577,18 @@ void MainWindow::runIntegrationSmokeTest()
         panelBaseline->renderer = canvasWindow_->rendererStats();
         workspace_->setPanelWidth(workspace_->panelWidth() + 120);
     });
-    QTimer::singleShot(520, this, [this, checkPanelIsolation] {
+    afterUiStep(520, [this, checkPanelIsolation] {
         checkPanelIsolation(QStringLiteral("panel width"));
         layersPanelAction_->trigger();
     });
-    QTimer::singleShot(600, this, [this, checkPanelIsolation] {
+    afterUiStep(600, [this, checkPanelIsolation] {
         checkPanelIsolation(QStringLiteral("Layers hidden"));
         propertiesPanelAction_->trigger();
         colorPanelAction_->trigger();
         swatchesPanelAction_->trigger();
         adjustmentsPanelAction_->trigger();
     });
-    QTimer::singleShot(680, this, [this, checkPanelIsolation] {
+    afterUiStep(680, [this, checkPanelIsolation] {
         checkPanelIsolation(QStringLiteral("all panels hidden"));
         smokeCheck(workspace_->panelOverlay()->isVisible()
                 && workspace_->hasToolRail(toolRail_),
@@ -3591,7 +3599,7 @@ void MainWindow::runIntegrationSmokeTest()
         swatchesPanelAction_->trigger();
         adjustmentsPanelAction_->trigger();
     });
-    QTimer::singleShot(760, this, [this, checkPanelIsolation] {
+    afterUiStep(760, [this, checkPanelIsolation] {
         checkPanelIsolation(QStringLiteral("panels restored"));
         smokeCheck(workspace_->panelOverlay()->isVisible(),
             QStringLiteral("Panel overlay did not return with its panels"));
@@ -3604,7 +3612,7 @@ void MainWindow::runIntegrationSmokeTest()
         workspace_->floatPanel(adjustmentsPanelShell_,
             QRect {780, 300, 360, 420});
     });
-    QTimer::singleShot(850, this, [this] {
+    afterUiStep(850, [this] {
         smokeCheck(workspace_->panelFrame(propertiesPanelShell_)->parentWidget()
                 == workspace_->panelOverlay(),
             QStringLiteral("Floating panel is not owned by the overlay"));
@@ -3612,7 +3620,7 @@ void MainWindow::runIntegrationSmokeTest()
         // Properties page before checking its content visibility below.
         workspace_->activatePanel(propertiesPanelShell_);
     });
-    QTimer::singleShot(940, this, [this, checkPanelIsolation] {
+    afterUiStep(940, [this, checkPanelIsolation] {
         checkPanelIsolation(QStringLiteral("all panels floating"));
         for (auto* panel : {layersPanelShell_, propertiesPanelShell_,
                  colorPanelShell_, swatchesPanelShell_, adjustmentsPanelShell_}) {
@@ -3641,11 +3649,11 @@ void MainWindow::runIntegrationSmokeTest()
                 && workspace_->rightPanelCard()->isVisible() == rightHostsRail,
             QStringLiteral("Idle empty panel adoption shelf remained visible"));
     });
-    QTimer::singleShot(1000, this, [this] {
+    afterUiStep(1000, [this] {
         workspace_->dockPanel(propertiesPanelShell_,
             OverlayDockWorkspace::PanelDockSide::Right);
     });
-    QTimer::singleShot(1100, this, [this, checkPanelIsolation] {
+    afterUiStep(1100, [this, checkPanelIsolation] {
         checkPanelIsolation(QStringLiteral("Properties redocked"));
         smokeCheck(workspace_->panelPlacement(propertiesPanelShell_)
                 == OverlayDockWorkspace::PanelPlacement::DockedRight,
@@ -3663,7 +3671,7 @@ void MainWindow::runIntegrationSmokeTest()
         workspace_->dockPanel(adjustmentsPanelShell_,
             OverlayDockWorkspace::PanelDockSide::Right, 2);
     });
-    QTimer::singleShot(1130, this, [this, checkPanelIsolation] {
+    afterUiStep(1130, [this, checkPanelIsolation] {
         const std::array transitions {
             ToolRailDockLocation::Top,
             ToolRailDockLocation::Left,
@@ -3682,38 +3690,44 @@ void MainWindow::runIntegrationSmokeTest()
                 && workspace_->panelOverlay()->isAncestorOf(toolRail_),
             QStringLiteral("Tool rail escaped the stable panel overlay"));
     });
-    QTimer::singleShot(1180, this, [this] { showMaximized(); });
-    QTimer::singleShot(1350, this, [this] {
+    afterUiStep(1180, [this] { showMaximized(); });
+    afterUiStep(1350, [this] {
         smokeCheck(isMaximized(), QStringLiteral("Main window did not maximize"));
     });
-    QTimer::singleShot(1460, this, [this] { showNormal(); });
-    QTimer::singleShot(1660, this, [this] { showMinimized(); });
-    QTimer::singleShot(1810, this, [this] {
+    afterUiStep(1460, [this] { showNormal(); });
+    afterUiStep(1660, [this] { showMinimized(); });
+    afterUiStep(1810, [this] {
         const bool minimizedOrUnexposed = isMinimized()
             || windowHandle()->windowStates().testFlag(Qt::WindowMinimized)
             || !windowHandle()->isExposed();
         smokeCheck(minimizedOrUnexposed,
             QStringLiteral("Main window remained exposed after minimize request"));
     });
-    QTimer::singleShot(1910, this, [this] { showNormal(); });
+    afterUiStep(1910, [this] { showNormal(); });
     if (screens.size() >= 2) {
-        QTimer::singleShot(2150, this, [this, screens] {
+        afterUiStep(2150, [this, screens] {
             windowHandle()->setScreen(screens.front());
+            if (QGuiApplication::platformName() != QStringLiteral("wayland"))
+                move(screens.front()->geometry().topLeft());
             showFullScreen();
         });
-        QTimer::singleShot(2320, this, [this, screens] {
+        afterUiStep(2320, [this, screens] {
             smokeCheck(windowHandle()->screen() == screens.front(),
                 QStringLiteral("Main window did not transition to the first screen"));
         });
-        QTimer::singleShot(2450, this, [this, screens] {
+        afterUiStep(2450, [this, screens] {
+            // setScreen alone does not move between virtual-desktop siblings.
+            showNormal();
             windowHandle()->setScreen(screens.at(1));
+            if (QGuiApplication::platformName() != QStringLiteral("wayland"))
+                move(screens.at(1)->geometry().topLeft());
             showFullScreen();
         });
-        QTimer::singleShot(2620, this, [this, screens] {
+        afterUiStep(2620, [this, screens] {
             smokeCheck(windowHandle()->screen() == screens.at(1),
                 QStringLiteral("Main window did not transition to the second screen"));
         });
-        QTimer::singleShot(2700, this, [this] { showNormal(); });
+        afterUiStep(2700, [this] { showNormal(); });
     }
     // Test-only continuation: compositor readiness must precede every raster
     // probe. Independent wall-clock timers let the fragmented mutation land
@@ -3723,7 +3737,7 @@ void MainWindow::runIntegrationSmokeTest()
     const auto afterRasterReady = [rasterProbeStages](int delay, std::function<void()> callback) {
         rasterProbeStages->emplace_back(delay, std::move(callback));
     };
-    QTimer::singleShot(2880, Qt::PreciseTimer, this, [this, rasterProbeStages] {
+    afterUiStep(2880, [this, rasterProbeStages] {
         const auto fullUploadsBefore = canvasWindow_->rendererStats().fullUploads;
         resize(1420, 900);
         // The earlier drop checks intentionally replace the starter document
@@ -4203,6 +4217,16 @@ void MainWindow::runIntegrationSmokeTest()
         }
         close();
     });
+    auto* uiSequence = new QTimer(this);
+    uiSequence->setSingleShot(true);
+    uiSequence->setTimerType(Qt::PreciseTimer);
+    connect(uiSequence, &QTimer::timeout, this, [uiProbeStages, uiSequence, index = std::size_t{0}]() mutable {
+        const auto previousOffset = uiProbeStages->at(index).first;
+        uiProbeStages->at(index).second();
+        if (++index == uiProbeStages->size()) uiSequence->deleteLater();
+        else uiSequence->start(uiProbeStages->at(index).first - previousOffset);
+    });
+    uiSequence->start(uiProbeStages->front().first);
 }
 
 bool MainWindow::integrationSmokePassed() const noexcept
