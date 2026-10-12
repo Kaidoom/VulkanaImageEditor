@@ -1,10 +1,16 @@
 #include "imageeditor/core/SmartSelection.hpp"
+#include "imageeditor/core/BoundedParallel.hpp"
+#include "imageeditor/core/SpatialFilterCache.hpp"
 #include "imageeditor/ui/FlattenedDocument.hpp"
+#include "imageeditor/ui/ProjectFile.hpp"
 #include <QApplication>
+#include <QCryptographicHash>
 #include <QImage>
 #include <QStandardPaths>
 #include <chrono>
 #include <iostream>
+#include <future>
+#include <thread>
 
 namespace c = imageeditor::core;
 namespace u = imageeditor::ui;
@@ -192,11 +198,131 @@ void batchedMatchesPixelSampling()
         }
     }
 }
-void benchmark()
+void parallelHierarchyMatchesPixelSampling()
+{
+    for (int scenario = 0; scenario < 3; ++scenario) {
+        c::Document doc({{257,193}}); // Crosses row, batch and worker boundaries.
+        auto base = c::Layer::raster("Base", solid({211,167}, {80,130,170,128}));
+        base.localToDocument = {1,0,13.5,0,1,8.25};
+        auto top = c::Layer::raster("Small transformed leaf", solid({19,23}, {220,70,30,191}));
+        top.localToDocument = scenario == 0 ? c::AffineTransform{-1.4,.25,135.5,.3,.7,37.75}
+            : scenario == 1 ? c::AffineTransform{.1,-1,124.5,1.4,.1,37.75}
+                            : c::AffineTransform{1.1,.3,75.5,-.1,.9,43.25,.002,-.001,1};
+        top.opacity = .61F;
+        auto effects = std::make_shared<c::LayerEffectStack>();
+        effects->items[std::size_t(c::LayerEffectType::Stroke)].enabled = true;
+        effects->items[std::size_t(c::LayerEffectType::Stroke)].size = 5;
+        auto& shadow = effects->items[std::size_t(c::LayerEffectType::DropShadow)];
+        shadow.enabled = true; shadow.distance = 17; shadow.size = 4;
+        top.effects = effects;
+        top = c::prepareSpatialFilterLayer(top);
+        CHECK(top.effectCache);
+        auto mask = std::make_shared<c::LayerMask>();
+        mask->coverage = c::SelectionMask::rectangle({19,23},{0,0,13,23},170);
+        mask->outside = 255; top.mask = mask;
+        auto adjustment = c::Layer::adjustment("Invert");
+        auto stack = std::make_shared<c::AdjustmentStack>();
+        stack->items[std::size_t(c::AdjustmentType::Invert)].enabled = true;
+        adjustment.adjustments = stack; adjustment.opacity = .3F;
+        CHECK(doc.insertLayer(0,base)); CHECK(doc.insertLayer(1,top)); CHECK(doc.insertLayer(2,adjustment));
+        auto tree = doc.tree();
+        const auto folder = c::makeLayerId(), group = c::makeLayerId();
+        tree.roots = {folder};
+        tree.containers = {{folder,"Nested",c::ContainerKind::Folder,c::ColorLabel::None,{group,adjustment.id}},
+            {group,"Clipped",c::ContainerKind::ClippingMaskGroup,c::ColorLabel::None,{base.id,top.id}}};
+        CHECK(doc.replaceStructure(doc.tree(),tree));
+        for (auto source : {c::ColorSampleSource::ActiveLayer,c::ColorSampleSource::MergedVisible}) {
+            c::PinnedDocumentSampler oracle(doc,top.id,source,c::SampleFiltering::AlphaAware,{},c::ActiveReferenceAppearance::Rendered);
+            std::vector<c::Rgba8> pixels;
+            std::vector<std::uint8_t> valid;
+            for (int y = 0; y < 193; ++y) for (int x = 0; x < 257; ++x) {
+                const c::Vec2d p{double(x)+.5,double(y)+.5};
+                valid.push_back(oracle.validSample(p));
+                auto color = valid.back() ? oracle.sample(p) : c::Rgba8{};
+                if (!color.alpha) color = {0,0,0,0};
+                pixels.push_back(color);
+            }
+            for (unsigned workers : {1U,2U,8U,0U}) for (std::size_t budget : {17003U,32768U}) {
+                c::SmartSelectionReference batched(doc,top.id,source);
+                CHECK(!batched.image());
+                while (!batched.step(budget,workers)) CHECK(!batched.image());
+                CHECK(batched.image()->pixels == pixels);
+                CHECK(batched.image()->valid == valid);
+                const auto image = batched.image();
+                CHECK(batched.step(budget,workers)); // Finished stepping is an identity.
+                CHECK(batched.image() == image && image->pixels == pixels);
+            }
+        }
+    }
+}
+
+class CountedSurface final : public c::RasterSurface {
+public:
+    c::ContiguousRasterSurface storage{{19,23},{120,70,30,191}};
+    mutable std::atomic_size_t extentQueries{0};
+    c::SurfaceId id() const noexcept override { return storage.id(); }
+    c::Extent2u extent() const noexcept override { ++extentQueries; return storage.extent(); }
+    c::Revision revision() const noexcept override { return storage.revision(); }
+    c::DirtySet dirtySince(c::Revision r) const override { return storage.dirtySince(r); }
+    void copyRgba8(c::RectI r,std::span<std::byte> out,std::size_t stride) const override { storage.copyRgba8(r,out,stride); }
+    c::DirtySet replaceRgba8Batch(std::span<const c::RasterPatch> p) override { return storage.replaceRgba8Batch(p); }
+    c::DirtySet swapRgba8Batch(std::span<c::MutableRasterPatch> p) override { return storage.swapRgba8Batch(p); }
+};
+void sparseRowsAndBusyPool()
+{
+    c::Document doc({{512,384}});
+    const auto surface = std::make_shared<CountedSurface>();
+    auto leaf = c::Layer::raster("Fractional leaf",surface);
+    leaf.localToDocument = {1,0,151.5,0,1,105.25};
+    auto adjustment = c::Layer::adjustment("Operator");
+    CHECK(doc.insertLayer(0,leaf)); CHECK(doc.insertLayer(1,adjustment));
+    c::SmartSelectionReference serial(doc,leaf.id,c::ColorSampleSource::MergedVisible);
+    surface->extentQueries = 0;
+    const auto expected = finish(serial);
+    // Count visits rather than assert a machine-dependent elapsed-time limit.
+    // A tiny fractional leaf must not be sampled at every document pixel.
+    CHECK(surface->extentQueries < 5000);
+    c::SmartSelectionReference parallel(doc,leaf.id,c::ColorSampleSource::MergedVisible);
+    while (!parallel.step(32768,0)) {}
+    CHECK(parallel.image()->pixels == expected->pixels && parallel.image()->valid == expected->valid);
+
+    std::promise<void> occupied, release;
+    auto occupiedFuture = occupied.get_future();
+    auto releaseFuture = release.get_future().share();
+    std::jthread worker([&] {
+        CHECK(c::boundedParallel(2,[&](unsigned rank,unsigned) {
+            if (!rank) occupied.set_value();
+            releaseFuture.wait();
+        }));
+    });
+    occupiedFuture.wait();
+    // Always release on failure, so a regression cannot hang the test process.
+    auto fallback = std::async(std::launch::async,[&] {
+        c::SmartSelectionReference source(doc,leaf.id,c::ColorSampleSource::MergedVisible);
+        while (!source.step(32768,0)) {}
+        return source.image();
+    });
+    CHECK(fallback.wait_for(std::chrono::seconds(5)) == std::future_status::ready);
+    release.set_value(); worker.join();
+    const auto result = fallback.get();
+    CHECK(result->pixels == expected->pixels && result->valid == expected->valid);
+
+    c::SmartSelectionReference interrupted(doc,leaf.id,c::ColorSampleSource::MergedVisible);
+    CHECK(!interrupted.step(32768,0));
+    const std::array bytes{std::byte{1},std::byte{2},std::byte{3},std::byte{255}};
+    surface->replaceRgba8({0,0,1,1},bytes,4);
+    CHECK(!interrupted.matches(doc));
+    bool rejected = false;
+    try { (void)interrupted.step(32768,0); } catch (const std::runtime_error&) { rejected = true; }
+    CHECK(rejected && !interrupted.image());
+}
+void benchmark(const QStringList& args)
 {
     using Clock = std::chrono::steady_clock;
     const auto elapsed
         = [](auto start) { return std::chrono::duration<double, std::milli>(Clock::now() - start).count(); };
+    const auto budget = args.contains("--budget") ? args.value(args.indexOf("--budget")+1).toULongLong() : 32768ULL;
+    const auto workers = args.contains("--workers") ? args.value(args.indexOf("--workers")+1).toUInt() : 0U;
     for (const auto size : { c::Extent2u { 3840, 2160 }, c::Extent2u { 5120, 2880 } })
         for (bool merged : { false, true }) {
             c::Document document({ size });
@@ -219,30 +345,105 @@ void benchmark()
             const auto scanStart = Clock::now();
             do {
                 const auto slice = Clock::now();
-                (void)source.step(2048);
+                (void)source.step(budget,workers);
                 maxSlice = std::max(maxSlice, elapsed(slice));
                 ++slices;
             } while (!source.image());
             std::cout << size.width << 'x' << size.height << (merged ? " merged-two" : " active")
                       << " construct_ms=" << constructMs << " cold_reference_ms=" << elapsed(scanStart)
-                      << " max_2048px_slice_ms=" << maxSlice << " slices=" << slices << " cache_MiB="
+                      << " workers=" << workers << " budget=" << budget
+                      << " max_step_ms=" << maxSlice << " slices=" << slices << " cache_MiB="
                       << double(source.image()->pixels.capacity() * sizeof(c::Rgba8)
                              + source.image()->valid.capacity())
                     / (1024 * 1024)
                       << '\n';
         }
 }
+void projectBenchmark(const QStringList& args)
+{
+    using Clock = std::chrono::steady_clock;
+    const auto elapsed = [](auto start) {
+        return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
+    };
+    const auto start = Clock::now();
+    auto loaded = u::loadProject(args.value(args.indexOf("--project") + 1));
+    if (!loaded) { std::cerr << loaded.error.toStdString() << '\n'; ++failures; return; }
+    auto& doc = *loaded.document;
+    std::cout << "load_ms=" << elapsed(start) << " extent=" << doc.canvas().extent.width << 'x'
+              << doc.canvas().extent.height << " layers=" << doc.layers().size() << '\n';
+    const auto prepare = Clock::now();
+    std::vector<c::SampleCacheOverride> caches;
+    for (const auto& layer : doc.layers())
+        if (doc.isEffectivelyVisible(layer.id) && layer.opacity > 0
+            && (std::holds_alternative<c::TextLayer>(layer.payload) || std::holds_alternative<c::ShapeLayer>(layer.payload)))
+            caches.push_back({layer.id, u::prepareDocumentSampleCache(layer, 64 * 1024 * 1024)});
+    std::cout << "typed_prepare_ms=" << elapsed(prepare) << '\n';
+    const auto setup = Clock::now();
+    c::SmartSelectionReference source(doc, {}, c::ColorSampleSource::MergedVisible, caches);
+    std::cout << "sampler_setup_ms=" << elapsed(setup) << " sources=" << source.sourcesPerPixel() << '\n';
+    const auto budget = args.contains("--budget") ? args.value(args.indexOf("--budget") + 1).toULongLong()
+        : std::max(std::size_t(1), std::size_t(2048) / std::max(std::size_t(1), source.sourcesPerPixel()));
+    const auto workers = args.contains("--workers") ? args.value(args.indexOf("--workers")+1).toUInt() : 1U;
+    const auto scan = Clock::now();
+    std::size_t calls = 0;
+    double maximumMs = 0;
+    do {
+        const auto tick = Clock::now();
+        (void)source.step(budget, workers);
+        maximumMs = std::max(maximumMs, elapsed(tick));
+        ++calls;
+    } while (!source.image());
+    std::cout << "reference_ms=" << elapsed(scan) << " budget=" << budget << " workers=" << workers << " calls=" << calls
+              << " max_step_ms=" << maximumMs << '\n';
+    const auto image = source.image();
+    const auto bytes = QByteArrayView(reinterpret_cast<const char*>(image->pixels.data()),
+        qsizetype(image->pixels.size() * sizeof(c::Rgba8)));
+    std::cout << "reference_sha256=" << QCryptographicHash::hash(bytes, QCryptographicHash::Sha256).toHex().constData() << '\n';
+    const auto seedIndex = args.indexOf("--seed");
+    if (seedIndex >= 0) {
+        const c::Vec2d seed{args.value(seedIndex+1).toDouble(), args.value(seedIndex+2).toDouble()};
+        const std::atomic_bool cancelled{false};
+        for (bool quick : {false, true}) {
+            c::QuickSelectionPath path;
+            c::NormalizedPointerSample sample; sample.documentPosition = seed; sample.pressure = 1;
+            sample.buttons = c::PointerButtonPrimary; sample.pointerType = c::PointerType::Mouse;
+            path.begin(24, sample); path.end(sample);
+            const auto begin = Clock::now();
+            const auto result = quick
+                ? c::buildQuickSelection(*image, path.dabs(), {}, {}, c::SelectionOperation::Replace, cancelled)
+                : c::buildMagicWand(*image, seed, 16, {}, c::SelectionOperation::Replace, cancelled);
+            std::cout << (quick ? "quick" : "wand") << "_solve_ms=" << elapsed(begin);
+            QCryptographicHash hash(QCryptographicHash::Sha256);
+            std::vector<char> row(image->extent.width);
+            for (std::uint32_t y = 0; y < image->extent.height; ++y) {
+                for (std::uint32_t x = 0; x < image->extent.width; ++x)
+                    row[x] = result.combined ? char(result.combined->coverageAtDocumentPixel(int(x), int(y))) : 0;
+                hash.addData(QByteArrayView(row.data(), qsizetype(row.size())));
+            }
+            std::cout << " mask_sha256=" << hash.result().toHex().constData() << '\n';
+        }
+    }
+    if (args.contains("--write-reference")) {
+        const QImage view(reinterpret_cast<const uchar*>(image->pixels.data()), int(image->extent.width),
+            int(image->extent.height), qsizetype(image->extent.width)*4, QImage::Format_RGBA8888);
+        CHECK(view.save(args.value(args.indexOf("--write-reference")+1)));
+    }
+}
 }
 int main(int argc, char** argv)
 {
     QStandardPaths::setTestModeEnabled(true);
     QApplication app(argc, argv);
-    if (app.arguments().contains("--benchmark"))
-        benchmark();
+    if (app.arguments().contains("--project"))
+        projectBenchmark(app.arguments());
+    else if (app.arguments().contains("--benchmark"))
+        benchmark(app.arguments());
     else {
         typedRenderedReferences();
         cropAndAlpha();
         batchedMatchesPixelSampling();
+        parallelHierarchyMatchesPixelSampling();
+        sparseRowsAndBusyPool();
     }
     return failures ? 1 : 0;
 }

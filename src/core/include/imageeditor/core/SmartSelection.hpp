@@ -1,6 +1,7 @@
 #pragma once
 #include "imageeditor/core/BasicPixelBrushEngine.hpp"
 #include "imageeditor/core/ColorSelection.hpp"
+#include <array>
 #include <functional>
 #include <string_view>
 
@@ -11,14 +12,17 @@ struct SmartReferenceImage {
     std::vector<Rgba8> pixels; // Canonical visible straight RGBA8; zero alpha has zero RGB.
     std::vector<std::uint8_t> valid;
 };
-// Owner-thread, cooperative snapshot. Workers only see the completed immutable
-// image, never live RasterSurface/Qt layout data.
+// Owner-thread, cooperative snapshot. Row preparation may borrow the bounded
+// executor, but every reader joins before returning to the document owner/event
+// loop. Solvers only see the completed immutable image, never live source data.
 class SmartSelectionReference {
 public:
     static constexpr std::uint64_t maximumPixels = 64'000'000;
     SmartSelectionReference(const Document&, std::optional<LayerId>, ColorSampleSource,
         std::span<const SampleCacheOverride> = { });
-    bool step(std::size_t budget = 4096);
+    // workers=1 retains the serial schedule; zero selects the shared pool.
+    // A busy pool falls back to serial work rather than delaying UI cancellation.
+    bool step(std::size_t budget = 4096, unsigned workers = 1);
     [[nodiscard]] bool matches(const Document& doc) const noexcept { return sampler_.matches(doc); }
     [[nodiscard]] std::size_t sourcesPerPixel() const noexcept { return sampler_.sourceCount(); }
     [[nodiscard]] std::shared_ptr<const SmartReferenceImage> image() const noexcept;
@@ -26,8 +30,12 @@ public:
 private:
     PinnedDocumentSampler sampler_;
     std::shared_ptr<SmartReferenceImage> image_;
-    std::vector<PremultipliedColor> row_;
-    std::vector<std::byte> scratch_;
+    struct Scratch {
+        std::vector<PremultipliedColor> row;
+        std::vector<std::byte> bytes;
+    };
+    std::array<Scratch, 8> scratch_;
+    std::size_t completed_ {0};
 };
 struct QuickSelectionHints {
     SelectionState foreground, background;

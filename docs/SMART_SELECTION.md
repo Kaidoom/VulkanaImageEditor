@@ -17,13 +17,28 @@ earlier evidence. Each request contains the complete current stroke, even when
 intermediate requests are coalesced.
 
 The authoritative Active Layer or Merged Visible reference is sampled in document
-coordinates without clipping to the temporary selection. Typed content uses its
+coordinates without clipping to the temporary selection. Active Layer is the
+initial source; Merged Visible is available in the same source controls. Typed content uses its
 normal prepared source cache. Adjustment layers remain composition operators.
 Invisible RGB cannot create color edges. Sampling and worker publication are
 pinned to the runtime document instance, layer, source revision and request
 generation. Pan and zoom do not invalidate reference pixels. Preparation uses
 bounded row spans through the canonical compositor, including the existing
 integer-aligned raster fast path, instead of individual virtual pixel reads.
+Affine leaves in hierarchical/clipping composition also intersect their actual
+source extent with each row, including fractional transforms. Exterior effect
+support is admitted separately; projective and float-coherent spatial blends
+retain their existing admission rules. Empty source samples skip content-only
+compositing, but never skip exterior styles.
+
+Reference preparation borrows the existing bounded executor (up to eight
+participants). Each batch joins before returning to the document owner's event
+loop, so raster reads cannot overlap a document edit. A busy executor falls back
+to serial work without queuing behind a solver. UI batches contain at most 32,768
+pixels and two million source/pixel visits, with a four-millisecond cooperative
+slice target. Per-worker row storage is reused, and aggregate per-source row
+planes are limited to 64 MiB; nested group scratch is additional. No source
+textures, typed geometry, blend equations or reference resolution change.
 
 Region discovery uses competing geodesic edge barriers and learned appearance
 prototypes when both evidence classes are present. Growth follows the current
@@ -215,16 +230,27 @@ evaluates 49,729 pixels in about 9 ms, instead of repeatedly expanding across
 falls from 273/482 MiB to 47/79 MiB. It intentionally produces a local region,
 not the previous full-canvas result.
 
-Batched cold reference preparation measured 461/813 ms for one aligned layer at
-4K/5K, down from 805/1428 ms. Two-layer transformed/blended preparation measured
-1159/2059 ms, down from 1523/2742 ms. The coherent whole-canvas reference is still
-prepared once when source content changes; subsequent strokes reuse it. This
-remaining cold cost is distinct from local solving and stays cooperatively
-sliced on the owner thread. Larger documents or complex effects can cost more.
+Cold-reference profiling of a 2979 × 4000 document with 41 raster layers,
+nested folders and clipping groups isolated 2.29 seconds in reference preparation,
+versus 33 ms in Magic Wand and 13 ms in Quick Selection for the sampled region.
+Sparse affine admission reduced preparation to 1.61 seconds without parallelism;
+bounded parallel rows reduced it to about 260 ms on a Ryzen 9 9900X. The canonical
+reference and both selection masks remained byte-identical. Native Wayland canvas
+clicks completed in 395/356 ms for Wand/Quick Selection, with warm additions in
+49/34 ms and maximum observed event-loop gaps of 12/9 ms. These are sample timings,
+not cross-machine guarantees. The whole-canvas reference is prepared once when
+source content changes; subsequent strokes reuse it. Complex effects or typed
+cache preparation can add cost independently of the reference row pass.
 
-The generated 4K/5K canvas interaction test measured 513/735 ms from the cold
+Generated 4K/5K parallel references measured 99/191 ms for one aligned layer and
+241/425 ms for two transformed/blended layers. Reference storage remains
+39.6/70.3 MiB. Peak process RSS was 216 MiB across those generated benchmarks and
+246 MiB for the 41-layer project benchmark, including loaded source data and
+solver/hash checks. These are measured process peaks, not a global memory cap.
+
+The generated 4K/5K canvas interaction test measured 148/217 ms from the cold
 gesture to idle, and 22/23 ms for the warm correction. Its longest observed UI
-event-loop gap was 7 ms. Native character-scene gestures took 277 ms on Wayland
+event-loop gap was 8 ms. Native character-scene gestures took 277 ms on Wayland
 and 302 ms on XCB, including initial reference preparation and held-stroke preview.
 
 Fine gaps/strands absent from the model proposal can still require corrections or
@@ -233,6 +259,30 @@ residual edge tint is not removed. Private images, masks, model experiments and
 comparison artifacts stay under ignored directories and outside releases.
 
 ## Verification and references
+
+Reference regression tests compare independent single-pixel sampling with serial
+and parallel batches, including fractional/rotated/flipped/projective leaves,
+exterior styles, masks, nested clipping groups, adjustment operators and active
+layer clipping coverage. They also cover a busy shared executor, source mutation
+between batches and withholding incomplete references. A sparse-layer work-count
+assertion catches accidental full-canvas evaluation without a timing threshold.
+
+To profile an existing project locally (nothing is saved to the project):
+
+```sh
+QT_QPA_PLATFORM=offscreen build/release/tests/imageeditor_smart_reference_tests \
+  --project /path/to/document.vulkana --seed 1400 400 --budget 32768 --workers 0
+QT_QPA_PLATFORM=wayland build/release/tests/imageeditor_smart_selection_interaction_tests \
+  --project-reference /path/to/document.vulkana 1400 400
+```
+
+Choose a seed inside the intended region. The first command reports separate
+preparation/solver times and reference/mask hashes; `--workers 1` measures serial
+preparation. `--write-reference /path/to/reference.png` saves diagnostic pixels.
+The second uses canvas pointer events and reports cold/warm completion and
+event-loop gaps; `xcb` and `offscreen` are also supported. Generated 4K/5K cases
+use `imageeditor_smart_reference_tests --benchmark` with the same worker/budget
+options.
 
 Focused Release tests cover graph energy, textured regions, thin features, holes,
 correction precedence, cancellation, source sampling, history and exact preview

@@ -4,6 +4,7 @@
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/NewDocumentDialog.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
+#include "imageeditor/ui/ProjectFile.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/ToolOptionsBar.hpp"
 
@@ -26,6 +27,7 @@
 #include <QPlatformSurfaceEvent>
 #include <QPointingDevice>
 #include <QProcess>
+#include <QPushButton>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QTemporaryDir>
@@ -815,7 +817,7 @@ void explicitNewDocumentsKeepDimensionsAndBackgroundWhenImagesAreDropped()
     }
 }
 
-void startupOpenImageUsesImageDimensionsAndFileCancellationKeepsCanvasChoices()
+void startupOpenDocumentAndFileCancellationKeepCanvasChoices(bool includeProject)
 {
     Fixture f;
     CHECK(f.valid());
@@ -824,6 +826,13 @@ void startupOpenImageUsesImageDimensionsAndFileCancellationKeepsCanvasChoices()
     image.fill(QColor(21, 82, 193, 127));
     const auto imagePath = f.assets.filePath(QStringLiteral("startup-image.png"));
     CHECK(image.save(imagePath));
+    const auto projectPath = f.assets.filePath(QStringLiteral("startup-project.vulkana"));
+    core::Document project({{43,29}});
+    auto projectLayer = core::Layer::raster("Editable project layer",
+        std::make_shared<core::ContiguousRasterSurface>(core::Extent2u{43,29},core::Rgba8{30,40,50,255}));
+    CHECK(project.insertLayer(0,projectLayer));
+    CHECK(ui::saveProject(projectPath,project));
+    const auto beforeCount = f.window.documentCount();
     // Exercise the real file-picker workflow without relying on a desktop
     // portal outside this offscreen test process. Production retains Qt's
     // platform file dialog choice.
@@ -851,11 +860,9 @@ void startupOpenImageUsesImageDimensionsAndFileCancellationKeepsCanvasChoices()
             auto* width = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("CanvasWidthSpinBox"));
             auto* height = dialog->findChild<QDoubleSpinBox*>(QStringLiteral("CanvasHeightSpinBox"));
             auto* background = dialog->findChild<QComboBox*>(QStringLiteral("CanvasBackgroundCombo"));
-            // Native popup ownership is the editor top-level, not the embedded
-            // card. The menu action still operates on this startup dialog.
-            auto* openImage = f.window.findChild<QAction*>(QStringLiteral("OpenImageFromNewAction"));
-            CHECK(width && height && background && openImage);
-            if (!width || !height || !background || !openImage) {
+            auto* openDocument = dialog->findChild<QPushButton*>(QStringLiteral("OpenDocumentButton"));
+            CHECK(width && height && background && openDocument);
+            if (!width || !height || !background || !openDocument) {
                 drive.stop();
                 dialog->reject();
                 return;
@@ -869,8 +876,11 @@ void startupOpenImageUsesImageDimensionsAndFileCancellationKeepsCanvasChoices()
                 CHECK(dialog->backgroundColor() == core::Rgba8({0, 0, 0, 255}));
             }
             ++stage;
-            openImage->trigger();
+            openDocument->click();
         } else if (auto* file = qobject_cast<QFileDialog*>(modal)) {
+            CHECK(file->fileMode() == QFileDialog::ExistingFiles);
+            CHECK(file->nameFilters().join(' ').contains("*.vulkana"));
+            CHECK(file->nameFilters().join(' ').contains("*.png"));
             if (stage == 1) {
                 ++stage;
                 file->reject();
@@ -879,10 +889,11 @@ void startupOpenImageUsesImageDimensionsAndFileCancellationKeepsCanvasChoices()
                 file->setDirectory(f.assets.path());
                 // QFileSystemModel populates asynchronously. Wait for the
                 // directory change before setting/accepting the file name.
-                QTimer::singleShot(100, file, [file, imagePath] {
+                QTimer::singleShot(100, file, [file, imagePath, projectPath, includeProject] {
                     auto* name = file->findChild<QLineEdit*>(QStringLiteral("fileNameEdit"));
                     CHECK(name);
-                    if (name) name->setText(imagePath);
+                    if (name) name->setText(includeProject
+                        ? QStringLiteral("\"%1\" \"%2\"").arg(imagePath,projectPath) : imagePath);
                     CHECK(QMetaObject::invokeMethod(file, "accept", Qt::DirectConnection));
                 });
             }
@@ -896,6 +907,13 @@ void startupOpenImageUsesImageDimensionsAndFileCancellationKeepsCanvasChoices()
     CHECK(stage == 4);
     CHECK(ticks <= 150);
     CHECK(!QApplication::activeModalWidget());
+    CHECK(f.window.documentCount() == beforeCount + (includeProject ? 2 : 1));
+    if (includeProject) {
+        CHECK(f.document().canvas().extent == core::Extent2u({43,29}));
+        CHECK(f.document().layers().front().name == "Editable project layer");
+        CHECK(!f.document().isModified() && f.history().undoDepth() == 0);
+        return;
+    }
     CHECK(f.document().canvas().extent == core::Extent2u({71, 39}));
     CHECK(f.document().layers().size() == 1);
     CHECK(f.document().layers().front().name == "startup-image");
@@ -1743,7 +1761,8 @@ int main(int argc, char** argv)
     canvasResizeUndoesMaskClippingAndRetainsLayerStorage();
     redoUsesActualKeyDispatchAcrossCanvasAndPanelsWithoutStealingTyping();
     explicitNewDocumentsKeepDimensionsAndBackgroundWhenImagesAreDropped();
-    startupOpenImageUsesImageDimensionsAndFileCancellationKeepsCanvasChoices();
+    startupOpenDocumentAndFileCancellationKeepCanvasChoices(false);
+    startupOpenDocumentAndFileCancellationKeepCanvasChoices(true);
     zoomChangesNeitherAlignedMaskNorRectangleDirection();
     replacingInsideCoverageMovesAllRegionsWithoutTouchingLayerContent();
     explicitOperationsAndModifiersWinOverInteriorMoveAndRemainLatched();

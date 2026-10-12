@@ -190,22 +190,18 @@ void resizePresetMatchingRequiresBothDimensionsAndResolution()
     }
 }
 
-void backgroundChoicesHaveExplicitRgbaAndOpenImageHasASeparateResult()
+void backgroundChoicesHaveExplicitRgbaAndOpenDocumentHasASeparateResult()
 {
     imageeditor::ui::NewDocumentDialog dialog;
     auto* background = dialog.findChild<QComboBox*>(QStringLiteral("CanvasBackgroundCombo"));
     auto* open = dialog.findChild<QPushButton*>(QStringLiteral("OpenDocumentButton"));
     auto* image = dialog.findChild<QAction*>(QStringLiteral("OpenImageFromNewAction"));
     auto* project = dialog.findChild<QAction*>(QStringLiteral("OpenProjectFromNewAction"));
-    CHECK(background && open && image && project);
-    if (!background || !open || !image || !project) return;
+    CHECK(background && open && !image && !project);
+    if (!background || !open) return;
     CHECK(background->count() == 3);
-    // Button activation uses an explicit owned popup, not Qt's setMenu path
-    // which derives the transient owner from the child overlay plane.
-    auto* menu = qobject_cast<QMenu*>(image->parent());
-    CHECK(menu && menu->actions().contains(image) && menu->actions().contains(project));
-    CHECK(image->isEnabled());
-    CHECK(project->isEnabled());
+    CHECK(!open->menu());
+    CHECK(open->isEnabled());
     const auto setBackground = [&dialog, background](const QString& name, imageeditor::core::Rgba8 expected) {
         const auto index = background->findText(name);
         CHECK(index >= 0);
@@ -215,11 +211,8 @@ void backgroundChoicesHaveExplicitRgbaAndOpenImageHasASeparateResult()
     setBackground(QStringLiteral("White"), {255, 255, 255, 255});
     setBackground(QStringLiteral("Black"), {0, 0, 0, 255});
     setBackground(QStringLiteral("Transparent"), {0, 0, 0, 0});
-    image->trigger();
-    CHECK(dialog.result() == imageeditor::ui::NewDocumentDialog::OpenImage);
-    CHECK(dialog.result() != QDialog::Accepted);
-    project->trigger();
-    CHECK(dialog.result() == imageeditor::ui::NewDocumentDialog::OpenProject);
+    open->click();
+    CHECK(dialog.result() == imageeditor::ui::NewDocumentDialog::OpenDocument);
     CHECK(dialog.result() != QDialog::Accepted);
 }
 
@@ -447,7 +440,7 @@ int main(int argc, char* argv[])
     presetsFillDimensionsAndManualEditsReturnToCustom();
     allRequestedPresetFamiliesHaveTheirExactPixelDimensions();
     resizePresetMatchingRequiresBothDimensionsAndResolution();
-    backgroundChoicesHaveExplicitRgbaAndOpenImageHasASeparateResult();
+    backgroundChoicesHaveExplicitRgbaAndOpenDocumentHasASeparateResult();
     recentFilesDisplayRefreshAndActivation();
     recentFilesRemovalClearAndResizeIsolation();
     recentViewportShowsFiveRowsAndCapsTheListAtTen();

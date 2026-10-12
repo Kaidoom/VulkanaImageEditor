@@ -364,6 +364,28 @@ void PinnedDocumentSampler::sampleRow(std::int32_t x, std::int32_t y, std::span<
     const auto first=std::max<std::int64_t>(0,-std::int64_t(x));
     const auto last=std::min<std::int64_t>(std::int64_t(output.size()),std::int64_t(extent.width)-x);
     const double documentX=double(x)+sampleOrigin_.x, documentY=double(y)+sampleOrigin_.y+.5;
+    // Conservative affine row admission shared by flat and hierarchical output.
+    // A fractional translation must not make a tiny leaf visit every canvas pixel.
+    // Projective quads retain full admission and their exact coverage sampler.
+    const auto rowRange = [&](const AffineTransform& admission, RectD bounds) {
+        using Range = std::pair<std::int64_t, std::int64_t>;
+        if (first >= last) return Range{0, 0};
+        if (!admission.isAffine()) return Range{first, last};
+        double lo = documentX + double(first) + .5, hi = documentX + double(last) - .5;
+        const auto clipAxis = [&](double a, double b, double size) {
+            if (a == 0) return b >= 0 && b < size;
+            const auto p = -b/a, q = (size-b)/a;
+            lo = std::max(lo, std::min(p, q)); hi = std::min(hi, std::max(p, q));
+            return hi >= lo-1;
+        };
+        if (!clipAxis(admission.m00, admission.m01*documentY+admission.m02-bounds.x, bounds.width)
+            || !clipAxis(admission.m10, admission.m11*documentY+admission.m12-bounds.y, bounds.height))
+            return Range{0, 0};
+        // Division can round across an exact edge. Admit one extra pixel and
+        // leave the final decision to the existing filtering/coverage equations.
+        return Range{std::max(first, std::int64_t(std::ceil(lo-documentX-.5))-1),
+                     std::min(last, std::int64_t(std::floor(hi-documentX-.5))+2)};
+    };
     if(composition_) {
         constexpr std::size_t rowBudget=64ULL*1024*1024;
         const auto maxWidth=std::max<std::size_t>(1,rowBudget/(std::max<std::size_t>(sources_.size(),1)*sizeof(PremultipliedColor)));
@@ -380,11 +402,16 @@ void PinnedDocumentSampler::sampleRow(std::int32_t x, std::int32_t y, std::span<
         for(std::size_t si=0;si<sources_.size();++si) {
             if(sources_[si].adjustment){ranges[si]={first,last};continue;}
             const auto& s=sources_[si];const auto e=s.surface->extent();
-            if(s.effects)ranges[si]={first,last};
+            if(s.effects)ranges[si]=s.effectCache && !s.spatialBlend() ? rowRange(s.documentToLocal,s.effectCache->visualBounds)
+                                                : std::pair{first,last};
             const bool aligned=s.inverse.isAffine() && s.inverse.m00==1 && s.inverse.m11==1 && s.inverse.m01==0 && s.inverse.m10==0
                 && s.inverse.m02==std::floor(s.inverse.m02) && s.inverse.m12==std::floor(s.inverse.m12)
                 && sampleOrigin_.x==std::floor(sampleOrigin_.x) && sampleOrigin_.y==std::floor(sampleOrigin_.y);
-            auto begin=first,end=last;
+            // Spatial blends use float-coherent mapping; retain their original
+            // admission rather than culling with a different precision contract.
+            auto [begin,end]=s.spatialBlend() ? std::pair{first,last}
+                : rowRange(s.inverse,{0,0,double(e.width),double(e.height)});
+            if(end<=begin)continue;
             if(aligned) {
                 const auto sy=double(y)+sampleOrigin_.y+s.inverse.m12;
                 if(sy<0||sy>=e.height)continue;
@@ -416,6 +443,9 @@ void PinnedDocumentSampler::sampleRow(std::int32_t x, std::int32_t y, std::span<
                     continue;
                 }
                 auto c=rows[si*output.size()+index];
+                // Transparent content has no contribution, but exterior styles
+                // can still contribute there and must retain their own support.
+                if(c[3]<=0 && (!s.effects || contentOnly))continue;
                 if(!replacement.empty())for(std::size_t j=0;j<3;++j)c[j]=replacement[index][j]*c[3];
                 const auto local=s.documentToLocal.map(p);
                 const float coverage=applyLayerCrop({1,1,1,1},s.crop,s.documentToLocal,p)[3]*layerMaskCoverage(s.mask,local);
@@ -460,24 +490,9 @@ void PinnedDocumentSampler::sampleRow(std::int32_t x, std::int32_t y, std::span<
     if(scratch.size()<output.size()*4) {owned.resize(output.size()*4);scratch=owned;}
     for (const auto& s : sources_) {
         const auto e=s.surface->extent();
-        // Intersect this output row with the inverse-mapped source quad before
-        // touching pixels. Sparse separated layers do not scan the union N times.
-        double lo=documentX+double(first)+.5, hi=documentX+double(last)-.5;
-        const auto clipAxis=[&](double a,double b,double size) {
-            if (a==0) return b>=0 && b<size;
-            const auto p=-b/a,q=(size-b)/a;
-            lo=std::max(lo,std::min(p,q)); hi=std::min(hi,std::max(p,q));
-            return hi>=lo-1; // Conservative admission; exact coverage is sampled below.
-        };
         const auto r=s.effects&&s.effectCache?s.effectCache->visualBounds:RectD{0,0,double(e.width),double(e.height)};
         const auto& admission=s.effects?s.documentToLocal:s.inverse;
-        if (first>=last || (admission.isAffine() && (!clipAxis(admission.m00,admission.m01*documentY+admission.m02-r.x,r.width)
-            || !clipAxis(admission.m10,admission.m11*documentY+admission.m12-r.y,r.height)))) continue;
-        // Division used for row admission can round to the other side of an
-        // exact edge. Admit one extra pixel; sampleRaster's original inverse
-        // evaluation remains authoritative for the final coverage decision.
-        const auto begin=std::max(first,std::int64_t(std::ceil(lo-documentX-.5))-1);
-        const auto end=std::min(last,std::int64_t(std::floor(hi-documentX-.5))+2);
+        const auto [begin,end]=rowRange(admission,r);
         if (end<=begin) continue;
         const bool aligned=!s.effects && s.inverse.isAffine() && s.inverse.m00==1 && s.inverse.m11==1 && s.inverse.m01==0 && s.inverse.m10==0
             && s.inverse.m02==std::floor(s.inverse.m02) && s.inverse.m12==std::floor(s.inverse.m12)

@@ -6,7 +6,6 @@
 #include "imageeditor/ui/RasterLimits.hpp"
 #include "imageeditor/ui/RecentFiles.hpp"
 #include "imageeditor/ui/ToolOptionsNumber.hpp"
-#include "imageeditor/ui/PopupOwnership.hpp"
 
 #include <QComboBox>
 #include <QDialogButtonBox>
@@ -21,36 +20,11 @@
 #include <QSignalBlocker>
 #include <QStyle>
 #include <QStyledItemDelegate>
-#include <QStyleOptionButton>
-#include <QKeyEvent>
 #include <QVBoxLayout>
 #include <array>
 
 namespace imageeditor::ui {
 namespace {
-class DocumentMenuButton final : public QPushButton {
-public:
-    using QPushButton::QPushButton;
-    QSize sizeHint() const override
-    {
-        auto size = QPushButton::sizeHint();
-        QStyleOptionButton option;
-        initStyleOption(&option);
-        size.rwidth() += style()->pixelMetric(QStyle::PM_MenuButtonIndicator, &option, this);
-        return size;
-    }
-protected:
-    void initStyleOption(QStyleOptionButton* option) const override
-    {
-        QPushButton::initStyleOption(option);
-        option->features |= QStyleOptionButton::HasMenu;
-    }
-    void keyPressEvent(QKeyEvent* event) override
-    {
-        if (event->key() == Qt::Key_Down) { click(); event->accept(); }
-        else QPushButton::keyPressEvent(event);
-    }
-};
 struct CanvasPreset { const char* name; core::CanvasSpec spec; };
 constexpr std::array<CanvasPreset,25> canvasPresets {{
     {"Icon · 16 × 16",{{16,16},96}}, {"Icon · 32 × 32",{{32,32},96}},
@@ -238,19 +212,11 @@ NewDocumentDialog::NewDocumentDialog(Mode mode, core::CanvasSpec initialSpec, QW
     i18n::setText(buttons->button(QDialogButtonBox::Ok),
         changingCanvas ? i18n::text("dialog.button.apply") : i18n::text("dialog.button.create"));
     if (!changingCanvas) {
-        auto* open = i18n::make<DocumentMenuButton>(i18n::text("new.document.dialog.open.document"), buttons);
+        auto* open = i18n::make<QPushButton>(i18n::text("new.document.dialog.open.document"), buttons);
         buttons->addButton(open, QDialogButtonBox::ActionRole);
         open->setObjectName(QStringLiteral("OpenDocumentButton"));
-        auto* menu = new QMenu(open);
-        auto* image = i18n::addAction(menu, i18n::text("new.document.dialog.open.image"));
-        image->setObjectName(QStringLiteral("OpenImageFromNewAction"));
-        connect(image, &QAction::triggered, this, [this] { done(OpenImage); });
-        auto* project = i18n::addAction(menu, i18n::text("new.document.dialog.open.project"));
-        project->setObjectName(QStringLiteral("OpenProjectFromNewAction"));
-        connect(project, &QAction::triggered, this, [this] { done(OpenProject); });
-        connect(open, &QPushButton::clicked, menu, [open, menu] { showOwnedPopupMenu(menu, open); });
-        connect(menu, &QMenu::aboutToShow, open, [open] { open->setDown(true); });
-        connect(menu, &QMenu::aboutToHide, open, [open] { open->setDown(false); });
+        open->setAutoDefault(false);
+        connect(open, &QPushButton::clicked, this, [this] { done(OpenDocument); });
     }
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);

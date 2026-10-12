@@ -12,6 +12,7 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QCryptographicHash>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFocusEvent>
@@ -223,7 +224,8 @@ void controlsAndTypedShortcutOwnership()
     CHECK(tolerance && tolerance->minimum() == 0 && tolerance->maximum() == 255 && tolerance->value() == 16
         && !tolerance->isVisible());
     CHECK(f.find<QToolButton>("SmartModeQuick")->isChecked());
-    CHECK(f.find<QToolButton>("SmartSourceMerged")->isChecked());
+    CHECK(f.find<QToolButton>("SmartSourceActive")->isChecked());
+    CHECK(!f.find<QToolButton>("SmartSourceMerged")->isChecked());
     CHECK(f.find<QToolButton>("SelectionModeAdd")->isChecked());
     CHECK(f.canvas->scene().quickSelectionCursor);
     const auto geometry = f.workspace->canvasContainer()->geometry();
@@ -686,6 +688,51 @@ int privateQuality(const QString& sourcePath,const QString& outputPath)
     return failures?1:0;
 }
 
+int projectReferenceBenchmark(const QString& path, core::Vec2d seed)
+{
+    QVulkanInstance instance;
+    const bool native = QGuiApplication::platformName() == "wayland" || QGuiApplication::platformName() == "xcb";
+    if (native) {
+        instance.setApiVersion(QVersionNumber(1,2));
+        instance.setLayers({"VK_LAYER_KHRONOS_validation"});
+        CHECK(instance.create());
+    }
+    for (bool quick : {false,true}) {
+        Fixture f(native ? &instance : nullptr);
+        CHECK(f.valid()); CHECK(f.window.openImageFromPath(path));
+        f.action("ToolAction_smartselect");
+        if (quick) f.quick(); else f.wand();
+        f.button("SmartSourceMerged"); f.mode("Replace");
+        f.find<ui::CompactValueControl>("SmartSize")->setValue(24);
+        QTest::qWait(250); // Exclude initial document presentation, not reference preparation.
+        const auto revision = f.document().revision();
+        auto* timer = f.find<QTimer>("SmartSelectionTimer");
+        QElapsedTimer gap; gap.start(); QTimer heartbeat; qint64 maxGap = 0;
+        QObject::connect(&heartbeat,&QTimer::timeout,[&] { maxGap = std::max(maxGap,gap.restart()); });
+        heartbeat.start(1);
+        QElapsedTimer elapsed; elapsed.start();
+        f.press(seed); f.release(seed);
+        CHECK(waitFor([&] { return !timer->isActive(); },30000));
+        const auto coldMs = elapsed.elapsed();
+        CHECK(f.selection());
+        const auto extent = f.document().canvas().extent;
+        QCryptographicHash hash(QCryptographicHash::Sha256);
+        std::vector<char> row(extent.width);
+        for (unsigned y = 0; y < extent.height; ++y) {
+            for (unsigned x = 0; x < extent.width; ++x) row[x] = char(std::max(0,pixel(f.selection(),int(x),int(y))));
+            hash.addData(QByteArrayView(row.data(),qsizetype(row.size())));
+        }
+        gap.restart(); elapsed.restart();
+        f.press({seed.x+2,seed.y+2},Qt::ShiftModifier); f.release({seed.x+2,seed.y+2},Qt::ShiftModifier);
+        CHECK(waitFor([&] { return !timer->isActive(); },30000));
+        const auto warmMs = elapsed.elapsed(); heartbeat.stop();
+        CHECK(f.document().revision() == revision && !f.document().isModified());
+        std::cout << (quick ? "quick" : "wand") << " UI cold_ms=" << coldMs << " warm_add_ms=" << warmMs
+                  << " largest_loop_gap_ms=" << maxGap << " mask_sha256=" << hash.result().toHex().constData() << '\n';
+    }
+    return failures ? EXIT_FAILURE : EXIT_SUCCESS;
+}
+
 int nativeValidation()
 {
     if (QGuiApplication::platformName() != QStringLiteral("wayland") && QGuiApplication::platformName()!=QStringLiteral("xcb")) return 77;
@@ -762,6 +809,9 @@ int main(int argc, char** argv)
     QSettings::setDefaultFormat(QSettings::IniFormat);
     QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settings.path());
     ui::applyEditorTheme(application);
+    if (const auto i=application.arguments().indexOf("--project-reference");i>=0&&application.arguments().size()>i+3)
+        return projectReferenceBenchmark(application.arguments()[i+1],
+            {application.arguments()[i+2].toDouble(),application.arguments()[i+3].toDouble()});
     if(const auto i=application.arguments().indexOf("--private-quality");i>=0&&application.arguments().size()>i+2)
         return privateQuality(application.arguments()[i+1],application.arguments()[i+2]);
     if(application.arguments().contains(QStringLiteral("--large-reference"))){highResolutionResponsiveness();return failures?EXIT_FAILURE:EXIT_SUCCESS;}

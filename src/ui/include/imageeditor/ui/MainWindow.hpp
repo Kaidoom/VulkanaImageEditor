@@ -617,7 +617,7 @@ private:
     std::optional<SmartSelectionContext> smartSelection_;
     std::shared_ptr<ObjectSelectionEngine> objectSelectionEngine_;
     core::SmartSelectMode smartMode_ {core::SmartSelectMode::QuickSelection};
-    core::ColorSampleSource smartSource_ {core::ColorSampleSource::MergedVisible};
+    core::ColorSampleSource smartSource_ {core::ColorSampleSource::ActiveLayer};
     bool smartSelectionEditing_ {false}, smartFinishRequested_ {false}, updatingSmart_ {false};
     bool smartEverActivated_ {false};
     std::uint64_t smartGeneration_ {0}, smartVersion_ {0}, smartWorkerGeneration_ {0}, smartWorkerVersion_ {0}, smartPreviewVersion_ {0};

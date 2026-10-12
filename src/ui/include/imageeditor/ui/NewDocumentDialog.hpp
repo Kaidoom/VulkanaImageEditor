@@ -21,7 +21,7 @@ public:
         CreateDocument,
         ChangeCanvasSize,
     };
-    enum Result { OpenImage = 2, OpenProject = 3, OpenRecent = 4, OpenDropped = 5 };
+    enum Result { OpenDocument = 2, OpenRecent = 4, OpenDropped = 5 };
 
     explicit NewDocumentDialog(QWidget* parent = nullptr);
     NewDocumentDialog(Mode mode, core::CanvasSpec initialSpec, QWidget* parent = nullptr);

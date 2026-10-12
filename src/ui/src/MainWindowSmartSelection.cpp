@@ -64,7 +64,7 @@ QWidget* MainWindow::createSmartSelectionControls(QWidget* parent)
               : i18n::text("main.window.smart.selection.merged.visible.rendered.document.content.including.blending.and.hierarchy"),
             ToolOptionsButton::Kind::Toggle, page, ToolOptionsButton::Presentation::Icon);
         button->setIcon(toolGlyph(i ? ToolGlyph::ActiveLayer : ToolGlyph::MergedVisible));
-        button->setChecked(i == 0);
+        button->setChecked(i == int(smartSource_));
         sources->addButton(button, i);
         row->addWidget(button);
     }
@@ -408,9 +408,13 @@ void MainWindow::advanceSmartSelection()
         if (!state.reference->image()) {
             QElapsedTimer slice;
             slice.start();
+            // Amortize shared row workers without letting very large stacks
+            // turn a cooperative batch into an unbounded UI pause.
+            const auto pixels = std::clamp(std::size_t(2 * 1024 * 1024)
+                / std::max(std::size_t(1), state.reference->sourcesPerPixel()),
+                std::size_t(1), std::size_t(32768));
             do {
-                if (state.reference->step(std::max(std::size_t(1),
-                        std::size_t(2048) / std::max(std::size_t(1), state.reference->sourcesPerPixel()))))
+                if (state.reference->step(pixels, 0))
                     break;
             } while (slice.elapsed() < 4);
             if (!state.reference->image()) {

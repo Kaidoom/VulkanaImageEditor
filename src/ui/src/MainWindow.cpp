@@ -3022,12 +3022,13 @@ void MainWindow::createNewDocument()
             if (opened) return;
             continue;
         }
-        if (result != NewDocumentDialog::OpenImage && result != NewDocumentDialog::OpenProject
-            && result != NewDocumentDialog::OpenRecent) return;
-        const auto filePath = result == NewDocumentDialog::OpenRecent ? dialog.selectedRecentPath()
-            : QFileDialog::getOpenFileName(this, i18n::text("main.window.open.document"), openDocumentDirectory(),
-                result == NewDocumentDialog::OpenProject ? i18n::text("main.window.vulkana.project.vulkana") : supportedImageFilter());
-        if (!filePath.isEmpty() && openImageFromPath(filePath)) return;
+        if (result != NewDocumentDialog::OpenDocument && result != NewDocumentDialog::OpenRecent) return;
+        const auto paths = result == NewDocumentDialog::OpenRecent ? QStringList{dialog.selectedRecentPath()}
+            : QFileDialog::getOpenFileNames(this, i18n::text("main.window.open.document"), openDocumentDirectory(),
+                documentOpenFilter());
+        bool opened = false;
+        for (const auto& path : paths) opened = openImageFromPath(path) || opened;
+        if (opened) return;
         dialog.refreshRecentFiles();
         // File-picker cancellation/failure returns to the user's size choices.
     }
