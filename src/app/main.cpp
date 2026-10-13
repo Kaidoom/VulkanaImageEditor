@@ -130,7 +130,7 @@ int main(int argc, char* argv[])
         if (parser.isSet(registerProjects) && parser.isSet(unregisterProjects)) return EXIT_FAILURE;
         QSettings settings;
         const auto error = parser.isSet(registerProjects)
-            ? imageeditor::platform::registerProjectFiles(settings, QCoreApplication::applicationFilePath())
+            ? imageeditor::platform::registerProjectFiles(settings, QCoreApplication::applicationFilePath(), application.applicationVersion())
             : imageeditor::platform::unregisterProjectFiles(settings);
         if (!error.isEmpty()) qCritical().noquote() << error;
         return error.isEmpty() ? EXIT_SUCCESS : EXIT_FAILURE;
@@ -164,6 +164,12 @@ int main(int argc, char* argv[])
             QMessageBox::warning(nullptr, QStringLiteral("Vulkana"), instance.errorString());
             return EXIT_FAILURE;
         }
+        // Only the startup owner maintains prior opt-ins. Forwarded launches
+        // and smoke tests must not change file associations.
+        QSettings settings;
+        const auto integrationError = imageeditor::platform::refreshProjectFiles(
+            settings, QCoreApplication::applicationFilePath(), application.applicationVersion());
+        if (!integrationError.isEmpty()) qWarning().noquote() << integrationError;
     }
     for (const auto& diagnostic : imageeditor::platform::migrateLegacyUserPresets())
         qWarning().noquote() << diagnostic;

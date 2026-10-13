@@ -7034,11 +7034,11 @@ Chamfer: pull corners inward; Alt also changes the opposite corner. Side handles
     <name>Project file integration</name>
     <message id="project.integration.title"><source>Register Vulkana project files?</source></message>
     <message id="project.integration.description"><source>Show saved canvas previews in File Explorer and add Vulkana to Open with for .vulkana files. This applies only to your Windows account and does not need administrator access. Your existing default app stays unchanged.</source></message>
-    <message id="project.integration.location"><source>Keep this portable folder in place. After moving it, register again in Preferences → General → Project files.</source></message>
+    <message id="project.integration.location"><source>Newer portable versions update registration when launched. Keep the registered folder in place. If you move the same version, use Register Vulkana project files in Preferences → General.</source></message>
     <message id="project.integration.register"><source>Register</source></message>
     <message id="project.integration.remove"><source>Remove registration</source></message>
     <message id="project.integration.decline"><source>No thanks</source></message>
     <message id="project.integration.close"><source>Close</source></message>
-    <message id="project.integration.preferences"><source>Project files…</source></message>
+    <message id="project.integration.preferences"><source>Register Vulkana project files…</source></message>
   </context>
 </TS>

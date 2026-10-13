@@ -5,6 +5,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSettings>
+#include <QVersionNumber>
 #include <vector>
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -27,6 +28,7 @@ bool projectIntegrationAvailable(const QString& executable)
 #ifdef Q_OS_WIN
 namespace {
 const QString snapshotKey = QStringLiteral("integration/windows/projectFilesRegistration");
+const QString versionKey = QStringLiteral("integration/windows/projectFilesRegistrationVersion");
 const QString clsid = QStringLiteral("{4EE78B14-4465-40F5-BC5E-C4F096A51B7F}");
 const QString handler = QStringLiteral("\\shellex\\{E357FCCD-A995-4576-B01F-234630154E96}");
 const QString progId = QStringLiteral("Vulkana.Project");
@@ -98,27 +100,74 @@ QByteArray serialize(const std::vector<Entry>& entries)
     return QJsonDocument(data).toJson(QJsonDocument::Compact);
 }
 void notify() { SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr); }
+
+QVersionNumber releaseVersion(const QString& text)
+{
+    qsizetype suffix = 0;
+    const auto version = QVersionNumber::fromString(text, &suffix);
+    return suffix == text.size() && version.segmentCount() == 3 ? version : QVersionNumber();
+}
+
+// The shell needs actual executable/DLL paths, not .lnk targets. Keeping all
+// three together also lets removal retain the original, pre-registration values.
+std::vector<Entry> pathEntries(const QString& executable)
+{
+    const auto exe = QDir::toNativeSeparators(QFileInfo(executable).absoluteFilePath());
+    const auto dll = QDir::toNativeSeparators(QFileInfo(executable).absoluteDir().filePath("vulkana-thumbnail-provider.dll"));
+    if (exe.contains('"') || dll.contains('"')) return {};
+    return {
+        {progId + "\\DefaultIcon", {}, {}, value('"' + exe + "\",0")},
+        {progId + "\\shell\\open\\command", {}, {}, value('"' + exe + "\" \"%1\"")},
+        {"CLSID\\" + clsid + "\\InprocServer32", {}, {}, value(dll)}
+    };
+}
+
+QString publish(QSettings& settings, const std::vector<Entry>& writes,
+                const std::vector<Entry>& journal, const QString& version)
+{
+    const auto oldJournal = settings.value(snapshotKey), oldVersion = settings.value(versionKey);
+    auto restorePreferences = [&] {
+        if (oldJournal.isValid()) settings.setValue(snapshotKey, oldJournal); else settings.remove(snapshotKey);
+        if (oldVersion.isValid()) settings.setValue(versionKey, oldVersion); else settings.remove(versionKey);
+        settings.sync();
+    };
+    // Journal before registry writes, so an interrupted setup is removable.
+    settings.setValue(snapshotKey, serialize(journal));
+    settings.setValue(versionKey, version); settings.sync();
+    if (settings.status() != QSettings::NoError) {
+        restorePreferences();
+        return QStringLiteral("Cannot save project registration preferences.");
+    }
+    for (size_t i = 0; i < writes.size(); ++i) {
+        const auto& entry = writes[i];
+        if (const auto status = write(entry.path, entry.name, entry.after); status) {
+            while (i > 0) { --i; write(writes[i].path, writes[i].name, writes[i].before); }
+            restorePreferences();
+            return QStringLiteral("Cannot register project files for this account (%1).").arg(status);
+        }
+    }
+    settings.setValue(projectIntegrationChoiceKey, "registered"); settings.sync();
+    if (!writes.empty()) notify();
+    return settings.status() == QSettings::NoError ? QString()
+        : QStringLiteral("Cannot save project registration preferences.");
+}
 }
 #endif
-QString registerProjectFiles(QSettings& settings, const QString& executable)
+QString registerProjectFiles(QSettings& settings, const QString& executable, const QString& version)
 {
 #ifdef Q_OS_WIN
     if (!projectIntegrationAvailable(executable)) return QStringLiteral("The portable folder is missing its project-thumbnail components.");
+    if (releaseVersion(version).isNull()) return QStringLiteral("Invalid project registration version.");
     const auto previous = snapshot(settings);
-    const auto exe = QDir::toNativeSeparators(QFileInfo(executable).absoluteFilePath());
-    const auto dll = QDir::toNativeSeparators(QFileInfo(executable).absoluteDir().filePath("vulkana-thumbnail-provider.dll"));
-    if (exe.contains('"') || dll.contains('"')) return QStringLiteral("Invalid application path.");
-    std::vector<Entry> entries;
+    auto entries = pathEntries(executable);
+    if (entries.empty()) return QStringLiteral("Invalid application path.");
     auto add = [&](const QString& path, const QString& name, const QString& text) { entries.push_back({path, name, {}, value(text)}); };
     add(progId, {}, "Vulkana project");
     add(progId + "\\Application", "ApplicationName", "Vulkana Image Editor");
-    add(progId + "\\DefaultIcon", {}, '"' + exe + "\",0");
-    add(progId + "\\shell\\open\\command", {}, '"' + exe + "\" \"%1\"");
     add(progId + handler, {}, clsid);
     add(".vulkana\\OpenWithProgids", progId, "");
     add(".vulkana" + handler, {}, clsid);
     add("CLSID\\" + clsid, {}, "Vulkana project thumbnail");
-    add("CLSID\\" + clsid + "\\InprocServer32", {}, dll);
     add("CLSID\\" + clsid + "\\InprocServer32", "ThreadingModel", "Apartment");
     QJsonObject extension;
     if (const auto status = read(".vulkana", {}, extension); status) return QStringLiteral("Cannot read project association (%1).").arg(status);
@@ -138,23 +187,46 @@ QString registerProjectFiles(QSettings& settings, const QString& executable)
         for (const auto& old : previous)
             if (old.path == entry.path && old.name == entry.name && old.after == entry.before) saved[i].before = old.before;
     }
-    // Save the undo journal before registry writes, so interruption is removable.
-    const auto oldJournal = settings.value(snapshotKey);
-    settings.setValue(snapshotKey, serialize(saved)); settings.sync();
-    if (settings.status() != QSettings::NoError) return QStringLiteral("Cannot save project registration preferences.");
-    for (size_t i = 0; i < entries.size(); ++i) {
-        const auto& entry = entries[i];
-        if (const auto status = write(entry.path, entry.name, entry.after); status) {
-            while (i > 0) { --i; write(entries[i].path, entries[i].name, entries[i].before); }
-            settings.setValue(snapshotKey, oldJournal); settings.sync();
-            return QStringLiteral("Cannot register project files for this account (%1).").arg(status);
+    return publish(settings, entries, saved, version);
+#else
+    Q_UNUSED(settings); Q_UNUSED(executable); Q_UNUSED(version);
+    return QStringLiteral("Project registration is not available for this package.");
+#endif
+}
+QString refreshProjectFiles(QSettings& settings, const QString& executable, const QString& version)
+{
+#ifdef Q_OS_WIN
+    if (settings.value(projectIntegrationChoiceKey).toString() != "registered"
+        || !projectIntegrationAvailable(executable)) return {};
+    auto saved = snapshot(settings);
+    if (saved.empty()) return {}; // No ownership record: require explicit setup.
+    // 0.3.2 introduced registration without a saved version. Only that legacy
+    // journal format uses this migration; malformed version metadata is not guessed.
+    const auto previousVersion = releaseVersion(settings.value(versionKey, QStringLiteral("0.3.2")).toString());
+    const auto currentVersion = releaseVersion(version);
+    if (previousVersion.isNull() || currentVersion.isNull() || currentVersion <= previousVersion) return {};
+    auto paths = pathEntries(executable);
+    if (paths.empty()) return QStringLiteral("Invalid application path.");
+    std::vector<Entry> writes;
+    for (auto& entry : paths) {
+        for (auto& old : saved) {
+            if (old.path != entry.path || old.name != entry.name) continue;
+            QJsonObject current;
+            if (const auto status = read(entry.path, entry.name, current); status)
+                return QStringLiteral("Cannot read project registration (%1).").arg(status);
+            // Never undo a subsequent user's/installer's removal or replacement.
+            if (current["present"].toBool() && current == old.after && current != entry.after) {
+                entry.before = current;
+                writes.push_back(entry);
+                old.after = entry.after;
+            }
+            break;
         }
     }
-    settings.setValue(projectIntegrationChoiceKey, "registered"); settings.sync(); notify();
-    return {};
+    return publish(settings, writes, saved, version);
 #else
-    Q_UNUSED(settings); Q_UNUSED(executable);
-    return QStringLiteral("Project registration is not available for this package.");
+    Q_UNUSED(settings); Q_UNUSED(executable); Q_UNUSED(version);
+    return {};
 #endif
 }
 QString unregisterProjectFiles(QSettings& settings)
@@ -169,6 +241,7 @@ QString unregisterProjectFiles(QSettings& settings)
         if (status) return QStringLiteral("Cannot remove project registration (%1).").arg(status);
     }
     settings.remove(snapshotKey);
+    settings.remove(versionKey);
     settings.setValue(projectIntegrationChoiceKey, "declined"); settings.sync(); notify();
     return {};
 #else

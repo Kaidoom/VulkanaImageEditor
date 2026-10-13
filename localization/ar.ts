@@ -10677,7 +10677,7 @@ Escape لإلغاء جلسة الاقتصاص كاملةً
       <translation type="unfinished" />
     </message>
     <message id="project.integration.location">
-      <source>Keep this portable folder in place. After moving it, register again in Preferences → General → Project files.</source>
+      <source>Newer portable versions update registration when launched. Keep the registered folder in place. If you move the same version, use Register Vulkana project files in Preferences → General.</source>
       <translation type="unfinished" />
     </message>
     <message id="project.integration.register">
@@ -10697,7 +10697,7 @@ Escape لإلغاء جلسة الاقتصاص كاملةً
       <translation type="unfinished" />
     </message>
     <message id="project.integration.preferences">
-      <source>Project files…</source>
+      <source>Register Vulkana project files…</source>
       <translation type="unfinished" />
     </message>
   </context>

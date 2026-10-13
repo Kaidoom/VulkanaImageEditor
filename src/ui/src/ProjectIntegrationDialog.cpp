@@ -44,7 +44,7 @@ ProjectIntegrationDialog::ProjectIntegrationDialog(bool firstRun, QWidget* paren
     install->setObjectName(QStringLiteral("ProjectIntegrationRegister")); buttons->addWidget(install);
     connect(install, &QPushButton::clicked, this, [this, status] {
         QSettings settings;
-        const auto error = platform::registerProjectFiles(settings, QCoreApplication::applicationFilePath());
+        const auto error = platform::registerProjectFiles(settings, QCoreApplication::applicationFilePath(), QCoreApplication::applicationVersion());
         if (error.isEmpty()) accept(); else { status->setText(error); status->show(); adjustSize(); }
     });
     if (firstRun) connect(this, &QDialog::rejected, this, [] {

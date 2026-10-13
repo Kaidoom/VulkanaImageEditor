@@ -53,9 +53,18 @@ external installer is needed. Existing default-app choices and Explorer's own
 thumbnail visibility settings stay unchanged. Choosing **No thanks** (or closing
 the prompt) is remembered; portable updates do not reset this choice.
 
-Use **Preferences → General → Project files…** to register again or remove the
-registration. Keep the portable folder in place while registered. If it moves,
-launch from the new location and register again there. Removing registration
+Use **Preferences → General → Register Vulkana project files…** to register again
+or remove the registration. After opting in, launch a newer portable version once to refresh
+the icon, Open with and thumbnail-provider paths to its folder. Versions are
+compared numerically; older or same-version copies do not take over automatically.
+Keep the newly registered folder in place. If moving the same version or choosing
+an older build deliberately, register it through Preferences from its new location.
+Downloading or extracting a build alone does not update registration. Choosing
+**No thanks** or removing registration disables automatic refresh.
+
+Only paths still matching Vulkana's saved registration are refreshed; removed
+or externally changed values are left untouched. No shortcut or shared runtime
+copy is installed. Removing registration
 restores prior registry values only where Vulkana's values are still present;
 later changes by another application are preserved. Remove registration before
 deleting the last portable copy.
@@ -110,7 +119,9 @@ The KDE migration test uses isolated profiles to check first installation,
 existing provider lists, inherited settings and preservation of later opt-outs.
 
 Windows CTest includes `imageeditor_windows_project_integration_tests` (a
-disposable registry root) and `imageeditor_windows_thumbnail_provider` (native
+disposable registry root covering numeric upgrades, older/equal versions, legacy
+registration, missing components, opt-outs, external changes and removal after
+upgrades) and `imageeditor_windows_thumbnail_provider` (native
 COM loading, Unicode filenames, legacy/corrupt/stale inputs and source
 preservation). The decoder is tested from an executable that does not import Qt.
 For a real Shell-cache check, stage the two Windows test executables beside the

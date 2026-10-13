@@ -119,9 +119,11 @@ custom brushes and recovery data stay in the Windows user profile. Store artwork
 outside the application folder, and replace the application folder when updating.
 
 The first launch offers per-user project icons and Explorer thumbnails. Manage
-this in **Preferences → General → Project files…**, or launch with
-`--force-project-integration-prompt` to ask again. Re-register after moving a
-registered folder. See [project thumbnail integration](../../docs/PROJECT_THUMBNAILS.md)
+this in **Preferences → General → Register Vulkana project files…**, or launch with
+`--force-project-integration-prompt` to ask again. After opting in, launching a
+newer version updates the registered paths automatically. Re-register through
+Preferences when moving the same version or deliberately choosing an older one.
+See [project thumbnail integration](../../docs/PROJECT_THUMBNAILS.md)
 for removal, command-line setup and troubleshooting.
 
 To assemble from another configured Release directory, pass `-BuildDirectory`
