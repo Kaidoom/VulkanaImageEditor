@@ -1,6 +1,8 @@
 #include "imageeditor/core/Document.hpp"
 #include "imageeditor/core/RichText.hpp"
 #include "imageeditor/ui/ProjectFile.hpp"
+#include "imageeditor/ui/FlattenedDocument.hpp"
+#include "imageeditor/project/ProjectPreview.hpp"
 #include "imageeditor/ui/TextClipboard.hpp"
 
 #include <QBuffer>
@@ -369,12 +371,19 @@ void largeStreamingSave()
     // Exercise >1 GiB of real ZIP payloads without retaining that much RAM in
     // the routine test suite. copyRgba8 must only be asked for bounded chunks.
     struct ZeroSurface final : c::RasterSurface {
+        mutable quint64 serializedBytes {0}, previewReads {0};
         c::SurfaceId id() const noexcept override { return 1; }
         c::Extent2u extent() const noexcept override { return {8192, 8192}; }
         c::Revision revision() const noexcept override { return 1; }
         c::DirtySet dirtySince(c::Revision) const override { return {}; }
         void copyRgba8(c::RectI r, std::span<std::byte> target, size_t stride) const override {
-            CHECK(r.x == 0 && r.width == 8192 && r.height > 0);
+            if (r.width <= 2 && r.height <= 2) {
+                ++previewReads;
+                CHECK(r.x >= 0 && r.y >= 0 && r.right() <= 8192 && r.bottom() <= 8192);
+            } else {
+                CHECK(r.x == 0 && r.width == 8192 && r.height > 0);
+                serializedBytes += target.size();
+            }
             CHECK(target.size() <= 256 * 1024);
             CHECK(target.size() == size_t(r.height) * stride);
             std::fill(target.begin(), target.end(), std::byte{});
@@ -407,6 +416,8 @@ void largeStreamingSave()
     CHECK(saved);
     CHECK(done == total && total > 2ULL * 1024 * 1024 * 1024);
     CHECK(doc.revision() == revision);
+    CHECK(surface->serializedBytes == 5ULL * 8192 * 8192 * 4);
+    CHECK(surface->previewReads > 0 && surface->previewReads <= 5ULL * 512 * 512 * 4);
     CHECK(QFileInfo(f.path("large.vulkana")).size() > 0);
     const auto constrained = u::loadProject(f.path("large.vulkana"), {}, {1});
     CHECK(!constrained && constrained.error.contains("available load allowance"));
@@ -926,7 +937,11 @@ void actualWriteFailurePreservesDestination()
 #endif
     QProcess child;
     auto environment = QProcessEnvironment::systemEnvironment();
+#ifdef _WIN32
+    environment.insert("QT_QPA_PLATFORM", "windows");
+#else
     environment.insert("QT_QPA_PLATFORM", "offscreen");
+#endif
     child.setProcessEnvironment(environment);
     child.start(QCoreApplication::applicationFilePath(), { "--write-failure", destination });
     CHECK(child.waitForStarted(5000));
@@ -1050,6 +1065,96 @@ void rememberedSelectionRoundTrip()
     CHECK(read && read.document->lastSelection() && read.document->lastSelection()->bounds().empty());
 }
 
+void savedPreviewsAreOptionalBoundedAndFresh()
+{
+    namespace p = imageeditor::project;
+    Fixture f;
+    auto document = sampleDocument();
+    const auto revision = document.revision();
+    const auto path = f.path("preview Ω.vulkana");
+    CHECK(u::saveProject(path,document));
+    const auto loaded = u::loadProject(path);
+    CHECK(loaded);
+    if (!loaded) return;
+    sameDocument(*loaded.document,document);
+    const auto image = p::readPreview(path);
+    const auto expected = u::renderDocumentOverview(document,document.canvas().extent);
+    CHECK(expected && !image.isNull());
+    CHECK(image.convertToFormat(QImage::Format_RGBA8888) == expected.image);
+    QFile stream(path); CHECK(stream.open(QIODevice::ReadOnly));
+    CHECK(p::readPreview(stream) == image);
+    CHECK(stream.isOpen()); // The shell stream is borrowed, never closed by us.
+    CHECK(stream.seek(7)); CHECK(p::readPreview(stream) == image);
+    CHECK(document.revision() == revision);
+    CHECK(!p::readPreview(path,1).isNull());
+    CHECK(p::readPreview(path,0).isNull() && p::readPreview(path,4097).isNull());
+    CHECK(p::readPreview(f.path("absent.vulkana")).isNull());
+    CHECK(p::readPreview(f.store(makeZip(entriesFor()))).isNull()); // Old schema-1 projects.
+
+    // Independent ZIP fixture, not our project writer, supplies the CRC table.
+    auto manifest = baseManifest();
+    const auto raster = referencePixels();
+    p::Entries files{{"rasters/17.rgba",{0,quint64(raster.size()),
+        mz_crypt_crc32_update(0,reinterpret_cast<const uint8_t*>(raster.data()),int(raster.size()))}}};
+    QImage content(3,2,QImage::Format_RGBA8888);
+    content.fill(QColor(210,60,90,127));
+    manifest["preview"] = p::encodePreview(content,manifest,files);
+    CHECK(!manifest["preview"].toObject().isEmpty());
+    const auto fresh = f.store(makeZip(entriesFor(manifest)));
+    CHECK(!p::readPreview(fresh).isNull()); CHECK(u::loadProject(fresh));
+    // An old writer preserves unknown JSON but edits source pixels or metadata.
+    // Such thumbnails must be ignored, not displayed as the new saved artwork.
+    auto changed = entriesFor(manifest); changed[1].bytes[0] = char(changed[1].bytes[0]^1);
+    const auto stalePixels = f.store(makeZip(changed));
+    CHECK(p::readPreview(stalePixels).isNull()); CHECK(u::loadProject(stalePixels));
+    auto moved = manifest;
+    editLayer(moved,[](QJsonObject& layer) { layer["opacity"] = .3; });
+    const auto staleGeometry = f.store(makeZip(entriesFor(moved)));
+    CHECK(p::readPreview(staleGeometry).isNull()); CHECK(u::loadProject(staleGeometry));
+    for (int variant = 0; variant < 5; ++variant) {
+        auto bad = manifest; auto record = bad["preview"].toObject();
+        if (variant == 0) record["version"] = 99;
+        if (variant == 1) record["png"] = "not a base64 PNG";
+        if (variant == 2) record["png"] = QString(3*1024*1024,'A');
+        if (variant == 3) record["contentSha256"] = "stale";
+        if (variant == 4) {
+            QImage huge(513,1,QImage::Format_RGBA8888); huge.fill(Qt::red);
+            QByteArray png; QBuffer buffer(&png); CHECK(buffer.open(QIODevice::WriteOnly)); CHECK(huge.save(&buffer,"PNG"));
+            record["png"] = QString::fromLatin1(png.toBase64());
+        }
+        bad["preview"] = record;
+        const auto badFile = f.store(makeZip(entriesFor(bad)));
+        CHECK(p::readPreview(badFile).isNull());
+        CHECK(u::loadProject(badFile)); // Damaged optional preview is not damaged editable content.
+    }
+    auto unsafe = entriesFor(manifest); unsafe.push_back({"../outside", "bad"});
+    CHECK(p::readPreview(f.store(makeZip(unsafe))).isNull());
+    auto duplicate = entriesFor(manifest); duplicate.push_back(duplicate.front());
+    CHECK(p::readPreview(f.store(makeZip(duplicate))).isNull());
+    CHECK(p::readPreview(f.store(readBytes(fresh).chopped(8))).isNull());
+
+    c::Document large({{800,200}});
+    CHECK(large.insertLayer(0,c::Layer::raster("Wide",std::make_shared<c::ContiguousRasterSurface>(
+        c::Extent2u{800,200},c::Rgba8{50,120,190,100}))));
+    const auto wide = f.path("wide.vulkana");
+    CHECK(u::saveProject(wide,large));
+    CHECK(p::readPreview(wide).size() == QSize(512,128));
+    CHECK(p::readPreview(wide,96).size() == QSize(96,24));
+    CHECK(p::readPreview(wide).pixelColor(250,60) == QColor(50,120,190,100));
+    const auto old = readBytes(wide);
+    bool mutated = false;
+    auto cancelled = u::saveProject(wide,large,{},[&](quint64,quint64) {
+        if (!mutated) {
+            mutated = true;
+            auto surface = std::get<c::RasterLayer>(large.layers()[0].payload).surface;
+            const std::array value{std::byte{20},std::byte{30},std::byte{40},std::byte{255}};
+            surface->replaceRgba8({0,0,1,1},value,4);
+        }
+        return true;
+    });
+    CHECK(!cancelled && !cancelled.error.isEmpty()); CHECK(readBytes(wide) == old);
+}
+
 int main(int argc, char** argv)
 {
     qputenv("TZ", "UTC");
@@ -1063,6 +1168,13 @@ int main(int argc, char** argv)
     try {
         if (application.arguments().size() == 3 && application.arguments()[1] == "--write-failure")
             return writeFailureChild(application.arguments()[2]);
+        if (application.arguments().size() == 4 && application.arguments()[1] == "--resave") {
+            const auto loaded = u::loadProject(application.arguments()[2]);
+            CHECK(loaded);
+            if (loaded) CHECK(u::saveProject(application.arguments()[3],*loaded.document,loaded.metadata));
+            return failures ? EXIT_FAILURE : EXIT_SUCCESS;
+        }
+        savedPreviewsAreOptionalBoundedAndFresh();
         frozenFixtureDefaultsAndZipVariants();
         rememberedSelectionRoundTrip();
         exactRasterAndRichTextRoundTrip();

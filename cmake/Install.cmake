@@ -19,8 +19,17 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/512x512/apps" RENAME vulkana-editor.png)
     install(FILES assets/Vulkana512.png
         DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/512x512/mimetypes" RENAME application-x-vulkana.png)
+    # A distinct name avoids KDE's application-x-generic fallback taking
+    # precedence over the MIME icon in the inherited hicolor theme.
+    install(FILES assets/Vulkana512.png
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/512x512/mimetypes" RENAME vulkana-project.png)
     install(FILES res/linux/vulkana-editor.desktop DESTINATION "${CMAKE_INSTALL_DATADIR}/applications")
     install(FILES res/linux/vulkana-editor.xml DESTINATION "${CMAKE_INSTALL_DATADIR}/mime/packages")
+    install(FILES res/linux/vulkana.thumbnailer DESTINATION "${CMAKE_INSTALL_DATADIR}/thumbnailers")
+    # KDE applies this once in each user's session. Do not modify user settings
+    # from package-manager scriptlets or repeatedly from application startup.
+    install(FILES res/linux/vulkana-dolphin-previews.sh res/linux/vulkana-dolphin-previews.upd
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/kconf_update")
 endif()
 install(FILES LICENSE THIRD_PARTY.md assets/brush/ASSET_PROVENANCE.md
     DESTINATION "${CMAKE_INSTALL_DATADIR}/licenses/vulkana-editor")
@@ -35,6 +44,7 @@ install(FILES
     "${VULKANA_EFFECTIVE_NOTICES_DIRECTORY}/THIRD-PARTY-NOTICES.txt"
     DESTINATION "${VULKANA_DATA_DIR}/notices")
 install(FILES docs/VULKANA_FORMAT.md DESTINATION "${CMAKE_INSTALL_DOCDIR}")
+install(FILES docs/PROJECT_THUMBNAILS.md DESTINATION "${CMAKE_INSTALL_DOCDIR}")
 install(FILES docs/PSD_IMPORT.md DESTINATION "${CMAKE_INSTALL_DOCDIR}")
 install(FILES THIRD_PARTY.md docs/HEALING_ALGORITHM.md
     DESTINATION "${CMAKE_INSTALL_DOCDIR}")

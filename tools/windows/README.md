@@ -118,6 +118,15 @@ Keep the entire folder together when copying it to another location. Preferences
 custom brushes and recovery data stay in the Windows user profile. Store artwork
 outside the application folder, and replace the application folder when updating.
 
+The first launch offers per-user project icons and Explorer thumbnails. Manage
+this in **Preferences → General → Project files…**, or launch with
+`--force-project-integration-prompt` to ask again. Re-register after moving a
+registered folder. See [project thumbnail integration](../../docs/PROJECT_THUMBNAILS.md)
+for removal, command-line setup and troubleshooting.
+
+To assemble from another configured Release directory, pass `-BuildDirectory`
+to `Portable.ps1`; `-BuildRoot` still locates the prepared dependencies.
+
 To validate the portable folder, run the dependency checks in the Testing
 section first, then:
 

@@ -1,0 +1,4 @@
+LIBRARY vulkana-thumbnail-provider
+EXPORTS
+    DllGetClassObject PRIVATE
+    DllCanUnloadNow PRIVATE

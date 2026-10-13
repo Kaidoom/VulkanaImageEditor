@@ -101,6 +101,7 @@ add_library(imageeditor_ui STATIC
     src/Theme.cpp
     src/ThemeSettings.cpp
     src/PreferencesDialog.cpp
+    src/ProjectIntegrationDialog.cpp
     src/EditorShortcuts.cpp
     src/ShortcutsPanel.cpp
     src/MainWindowShortcuts.cpp
@@ -161,3 +162,4 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_link_libraries(imageeditor_ui PRIVATE Qt6::DBus)
 endif()
 target_link_libraries(imageeditor_ui PRIVATE ZLIB::ZLIB)
+target_link_libraries(imageeditor_ui PRIVATE imageeditor_project_preview)

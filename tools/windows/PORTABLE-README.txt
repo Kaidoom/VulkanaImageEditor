@@ -12,6 +12,15 @@ Preferences, custom brushes and recovery data stay in your Windows user profile,
 not beside the program. Replacing this folder does not reset those settings.
 Do not keep your own artwork inside the application folder.
 
+On first launch, Vulkana offers to register .vulkana project files for this
+Windows account: a project icon, Open with entry and saved-canvas thumbnails
+in File Explorer. No administrator access is needed. Declining is remembered.
+Change this later in Preferences > General > Project files. Keep the portable
+folder in place while registered; after moving it, register again from the new
+location. Remove registration before deleting the last copy.
+To show the prompt again: bin\imageeditor.exe --force-project-integration-prompt
+Explorer must allow thumbnails; older projects need re-saving for a preview.
+
 This build is not digitally signed. Windows SmartScreen or Smart App Control
 may warn about an unrecognized app/unknown publisher or block it. Only run
 copies from a source you trust. Organization security policies may prevent

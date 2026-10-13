@@ -1,6 +1,47 @@
 // Shares the offline transport with UpdateServiceTests.cpp; no live HTTP.
 const auto startupTimeKey = QStringLiteral("updates/lastStartupAttemptUtcSeconds");
 
+void projectIntegrationPromptTests()
+{
+    namespace p = imageeditor::platform;
+    if (!p::projectIntegrationAvailable(QCoreApplication::applicationFilePath())) return;
+    for (const auto& scenario : {QString("first"), QString("declined"), QString("forced"), QString("registered-forced")}) {
+        QSettings settings;
+        settings.remove(p::projectIntegrationChoiceKey);
+        if (scenario != "first") settings.setValue(p::projectIntegrationChoiceKey,
+            scenario == "registered-forced" ? "registered" : "declined");
+        qApp->setProperty("vulkanaOfferProjectIntegration", true);
+        qApp->setProperty("vulkanaForceProjectIntegrationPrompt", scenario.contains("forced"));
+        Network network; network.responses.push_back({packageManifest(QCoreApplication::applicationVersion())});
+        u::MainWindow window(nullptr, false); window.setUnsavedPromptEnabled(false); window.show();
+        const auto document = window.editorSession().document();
+        const auto content = document->contentState();
+        const auto depth = window.editorSession().history().undoDepth();
+        int shown = 0;
+        QTimer responder;
+        QObject::connect(&responder, &QTimer::timeout, &window, [&] {
+            auto* popup = window.findChild<QDialog*>("ProjectIntegrationDialog");
+            if (!popup || !popup->isVisible()) return;
+            ++shown;
+            CHECK(!popup->isWindow() && !popup->windowHandle());
+            CHECK(popup->parentWidget()->objectName() == "WorkspaceDialogShield");
+            auto* decline = popup->findChild<QPushButton*>("ProjectIntegrationDecline");
+            CHECK(decline); if (decline) decline->click();
+        });
+        responder.start(5);
+        QTimer::singleShot(3000, &window, [&] { window.close(); });
+        window.startStartupFlow(false, &network);
+        CHECK(waitFor([&] { return scenario == "declined" ? !network.responses.size() : shown == 1; }, 3500));
+        QTest::qWait(60);
+        CHECK(shown == (scenario == "declined" ? 0 : 1));
+        CHECK(settings.value(p::projectIntegrationChoiceKey) == (scenario == "registered-forced" ? "registered" : "declined"));
+        CHECK(document->contentState() == content && window.editorSession().history().undoDepth() == depth);
+        window.close();
+    }
+    qApp->setProperty("vulkanaOfferProjectIntegration", false);
+    qApp->setProperty("vulkanaForceProjectIntegrationPrompt", false);
+}
+
 void startupPolicyTests()
 {
     Network network;

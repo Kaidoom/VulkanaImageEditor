@@ -1,5 +1,12 @@
 # Native Windows coverage. Linux-specific resource-limit/desktop harnesses stay
 # in the full suite; shared behavior is tested from its original test sources.
+add_executable(imageeditor_windows_thumbnail_tests WindowsThumbnailTests.cpp)
+set_target_properties(imageeditor_windows_thumbnail_tests PROPERTIES AUTOMOC OFF AUTOUIC OFF
+    MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+target_link_libraries(imageeditor_windows_thumbnail_tests PRIVATE ole32 uuid shell32 shlwapi gdi32)
+add_executable(imageeditor_windows_project_integration_tests WindowsProjectIntegrationTests.cpp)
+target_link_libraries(imageeditor_windows_project_integration_tests PRIVATE imageeditor_platform)
+add_test(NAME imageeditor_windows_project_integration_tests COMMAND imageeditor_windows_project_integration_tests)
 find_program(VULKANA_WINDOWS_POWERSHELL NAMES powershell.exe REQUIRED)
 add_test(NAME imageeditor_windows_build_scripts COMMAND "${VULKANA_WINDOWS_POWERSHELL}"
     -NoProfile -ExecutionPolicy RemoteSigned -File "${CMAKE_CURRENT_SOURCE_DIR}/WindowsBuildScriptTests.ps1")
@@ -26,8 +33,13 @@ endfunction()
 vulkana_windows_test(imageeditor_windows_platform_tests WindowsPlatformTests.cpp)
 vulkana_windows_test(imageeditor_core_tests CoreTests.cpp)
 vulkana_windows_test(imageeditor_project_file_tests ProjectFileTests.cpp)
-target_link_libraries(imageeditor_project_file_tests PRIVATE MINIZIP::minizip-ng)
+target_link_libraries(imageeditor_project_file_tests PRIVATE MINIZIP::minizip-ng imageeditor_project_preview)
 target_compile_definitions(imageeditor_project_file_tests PRIVATE IMAGEEDITOR_PROJECT_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/projects")
+add_test(NAME imageeditor_windows_thumbnail_provider COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/WindowsThumbnailTests.py"
+    "$<TARGET_FILE:imageeditor_project_file_tests>" "$<TARGET_FILE:imageeditor_windows_thumbnail_tests>"
+    "$<TARGET_FILE:vulkana-thumbnail-provider>")
+set_tests_properties(imageeditor_windows_thumbnail_provider PROPERTIES TIMEOUT 90 LABELS "project;thumbnail;windows")
 vulkana_windows_test(imageeditor_project_lifecycle_tests ProjectLifecycleTests.cpp)
 vulkana_windows_test(imageeditor_document_tabs_tests DocumentTabsTests.cpp)
 vulkana_windows_test(imageeditor_document_transfer_tests DocumentTransferTests.cpp)

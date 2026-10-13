@@ -1,0 +1,4 @@
+[Thumbnailer Entry]
+TryExec=vulkana-thumbnailer
+Exec=vulkana-thumbnailer --size %s %i %o
+MimeType=application/x-vulkana;

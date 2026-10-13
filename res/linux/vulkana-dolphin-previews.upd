@@ -1,0 +1,4 @@
+Version=6
+# Keep this ID stable: later user choices must survive upgrades/reinstallation.
+Id=enable-vulkana-previews-v1
+Script=vulkana-dolphin-previews.sh,sh

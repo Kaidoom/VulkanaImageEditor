@@ -3,6 +3,8 @@
 #include "imageeditor/ui/ShortcutsPanel.hpp"
 #include "imageeditor/ui/ToolOptionsNumber.hpp"
 #include "imageeditor/ui/ColorDialog.hpp"
+#include "imageeditor/platform/ProjectIntegration.hpp"
+#include <QCoreApplication>
 #include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QGridLayout>
@@ -141,6 +143,12 @@ PreferencesDialog::PreferencesDialog(PreferencesState initial, QWidget* parent)
     i18n::addItems(toolHintPosition_, {i18n::text("preferences.dialog.left"), i18n::text("preferences.dialog.center"), i18n::text("preferences.dialog.disabled")});
     hintRow->addWidget(toolHintPosition_);
     generalLayout->addLayout(hintRow);
+    if (platform::projectIntegrationAvailable(QCoreApplication::applicationFilePath())) {
+        auto* integration = i18n::make<QPushButton>(i18n::text("project.integration.preferences"), general);
+        integration->setObjectName(QStringLiteral("ProjectIntegrationSettings"));
+        connect(integration, &QPushButton::clicked, this, [this] { done(ProjectFilesRequested); });
+        generalLayout->addWidget(integration);
+    }
     generalLayout->addStretch(1);
     i18n::addTab(tabs, general, i18n::text("preferences.dialog.general"));
     i18n::addTab(tabs, themes, i18n::text("preferences.dialog.themes"));

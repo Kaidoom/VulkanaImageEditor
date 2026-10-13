@@ -6,6 +6,7 @@
 #include "imageeditor/platform/BuildInfo.hpp"
 #include "imageeditor/platform/PlatformStartup.hpp"
 #include "imageeditor/platform/SingleInstance.hpp"
+#include "imageeditor/platform/ProjectIntegration.hpp"
 
 #include <QApplication>
 #include <QCommandLineOption>
@@ -104,6 +105,15 @@ int main(int argc, char* argv[])
         QStringLiteral("Internal: wait for the previous instance to finish an update restart."));
     restartOption.setFlags(QCommandLineOption::HiddenFromHelp);
     parser.addOption(restartOption);
+    QCommandLineOption registerProjects(QStringLiteral("register-project-files"),
+        QStringLiteral("Register project icons, Open With and Explorer thumbnails for this Windows account."));
+    QCommandLineOption unregisterProjects(QStringLiteral("unregister-project-files"),
+        QStringLiteral("Remove this account's Vulkana project-file registration."));
+    QCommandLineOption forceProjectPrompt(QStringLiteral("force-project-integration-prompt"),
+        QStringLiteral("Show the Windows project-file registration prompt again, without changing the saved choice first."));
+    parser.addOption(registerProjects);
+    parser.addOption(unregisterProjects);
+    parser.addOption(forceProjectPrompt);
     parser.addOption(smokeTestOption);
     parser.addOption(fpsOption);
     parser.addOption(skipNewOption);
@@ -116,11 +126,23 @@ int main(int argc, char* argv[])
     parser.addPositionalArgument(QStringLiteral("document"),
         QStringLiteral("Optional projects or images; each opens in its own tab."), QStringLiteral("[document…]"));
     parser.process(application);
+    if (parser.isSet(registerProjects) || parser.isSet(unregisterProjects)) {
+        if (parser.isSet(registerProjects) && parser.isSet(unregisterProjects)) return EXIT_FAILURE;
+        QSettings settings;
+        const auto error = parser.isSet(registerProjects)
+            ? imageeditor::platform::registerProjectFiles(settings, QCoreApplication::applicationFilePath())
+            : imageeditor::platform::unregisterProjectFiles(settings);
+        if (!error.isEmpty()) qCritical().noquote() << error;
+        return error.isEmpty() ? EXIT_SUCCESS : EXIT_FAILURE;
+    }
     auto& localization = imageeditor::ui::i18n::Localization::instance();
     localization.initialize(parser.value(languagePackOption));
     if (parser.isSet(languageOption)) localization.setLanguage(parser.value(languageOption));
     application.setProperty("vulkanaOfferLanguageChoice", !parser.isSet(languageOption)
         && !parser.isSet(smokeTestOption) && !parser.isSet(skipNewOption));
+    application.setProperty("vulkanaOfferProjectIntegration", !parser.isSet(smokeTestOption)
+        && (parser.isSet(forceProjectPrompt) || !parser.isSet(skipNewOption)));
+    application.setProperty("vulkanaForceProjectIntegrationPrompt", parser.isSet(forceProjectPrompt));
     // Share one user-scoped owner across installed RPMs, AppImage mounts and
     // versions. Explicit integration smoke probes are deliberately isolated.
     imageeditor::platform::SingleInstance instance;
@@ -133,6 +155,8 @@ int main(int argc, char* argv[])
                 qInfo() << "--panel-default takes effect at startup. Close Vulkana, then launch with this flag again.";
             if (parser.isSet(testUpdateOption))
                 qInfo() << "--test-update takes effect at startup. Close Vulkana, then launch with this flag again.";
+            if (parser.isSet(forceProjectPrompt))
+                qInfo() << "--force-project-integration-prompt takes effect at startup. Close Vulkana, then launch with this flag again.";
             return EXIT_SUCCESS;
         }
         if (result == imageeditor::platform::SingleInstance::Result::Error) {

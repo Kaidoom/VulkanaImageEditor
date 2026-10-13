@@ -83,6 +83,7 @@ add_subdirectory(src/platform)
 add_subdirectory(src/core)
 add_subdirectory(src/render)
 add_subdirectory(src/ui)
+add_subdirectory(src/project)
 add_subdirectory(src/app)
 include(cmake/Notices.cmake)
 

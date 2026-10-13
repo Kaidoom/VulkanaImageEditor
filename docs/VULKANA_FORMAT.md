@@ -28,6 +28,56 @@ Layers are ordered **bottom to top**. IDs are canonical positive decimal strings
 
 The existing initial Transparent/White/Black background is actual raster content, not a second document background property.
 
+### Optional saved preview
+
+The root manifest may contain a disposable `preview` object:
+
+```json
+"preview": {
+  "version": 1,
+  "contentSha256": "<lowercase hexadecimal freshness digest>",
+  "png": "<base64 PNG>"
+}
+```
+
+This is ordinary optional metadata, not a new ZIP entry or required capability.
+Schema-1 readers can continue opening these projects. A previous writer may
+preserve this metadata without updating it; thumbnail readers therefore validate
+freshness before displaying it. Old files without a preview remain valid and
+gain one on their next successful save with a preview-capable writer.
+
+The PNG is a complete canvas overview, at most 512 pixels on either side,
+preserving aspect ratio and straight RGBA transparency. It uses the shared
+Navigator overview compositor, including layer visibility, hierarchy, masks,
+adjustments, effects and transforms. It is independent of zoom, pan, selection
+outlines and inspection overlays. It is a thumbnail, not a full-resolution
+compatibility composite. Source pixels and editable text/shape data are unchanged.
+
+`contentSha256` hashes the UTF-8 bytes `Vulkana preview v1\n`, followed by Qt compact
+JSON for the manifest with the root `preview` key removed, followed by one compact
+JSON array `[path, sizeString, crcString]` for each non-manifest archive member in
+QString name order. Object keys use Qt's sorted JSON order; size and CRC are
+unsigned decimal strings. CRCs describe uncompressed payloads. Compression,
+ZIP offsets and timestamps are excluded. This detects stale previews from older
+writers, including pixel-only edits, without decompressing layer data. It is not
+an authenticity or complete-file integrity check.
+
+The writer generates the preview before publication, records payload CRCs while
+streaming, then writes the manifest last. The existing verification and atomic
+replacement still apply to the complete project. Cancel or detected document
+mutation retains the previous file. A failed optional render or an oversized
+preview is omitted rather than preventing artwork from being saved. Old preview
+metadata is never reused by this writer. The existing 8 MiB manifest budget is
+unchanged, and takes precedence over inclusion of a preview.
+
+The thumbnail-only reader bounds archive entries/metadata, manifest expansion,
+base64 length, PNG dimensions and decoded storage. PNG data is limited to 2 MiB;
+compressed text/profiles, animation and unsupported ancillary chunks are rejected.
+It reads only the directory and manifest, never extracts files, decodes layer
+pixels, starts the editor or initializes Vulkan. Missing, stale, unsupported or
+damaged previews fall back to the ordinary file icon and do not affect project
+loading.
+
 ### Projective mapping and native raster origins
 
 `projective-transform-v1` extends the schema-1 required-capability list. Affine

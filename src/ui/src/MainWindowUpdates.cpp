@@ -4,6 +4,8 @@
 #include "imageeditor/ui/WorkspaceDialog.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/TextController.hpp"
+#include "imageeditor/ui/ProjectIntegrationDialog.hpp"
+#include "imageeditor/platform/ProjectIntegration.hpp"
 
 #include <QApplication>
 #include <QDialog>
@@ -58,7 +60,11 @@ void MainWindow::presentStartupUi()
     if (activeDocument_ && !fileState().untouched) startupNewDocumentPending_ = false;
     const bool chooseLanguage = qApp->property("vulkanaOfferLanguageChoice").toBool()
         && !QSettings().contains(QStringLiteral("preferences/ui/language"));
-    if (!startupNewDocumentPending_ && !startupUpdateNoticePending_ && !chooseLanguage) return;
+    const bool offerIntegration = qApp->property("vulkanaOfferProjectIntegration").toBool()
+        && platform::projectIntegrationAvailable(QCoreApplication::applicationFilePath())
+        && (qApp->property("vulkanaForceProjectIntegrationPrompt").toBool()
+            || !QSettings().contains(platform::projectIntegrationChoiceKey));
+    if (!startupNewDocumentPending_ && !startupUpdateNoticePending_ && !chooseLanguage && !offerIntegration) return;
     if (isMinimized() || fileBusy_ || workspaceDialog_ || QApplication::activeModalWidget()
         || QApplication::activePopupWidget() || !shortcutGestureIdle() || editorTextInputActive()) {
         // Never interrupt an edit, native popup or another workspace dialog.
@@ -92,6 +98,13 @@ void MainWindow::presentStartupUi()
         if (presenter.exec(dialog) == QDialog::Accepted)
             QSettings().setValue(QStringLiteral("preferences/ui/language"), choice->currentData());
         else i18n::Localization::instance().requestLanguage(previous);
+    }
+    if (offerIntegration) {
+        qApp->setProperty("vulkanaOfferProjectIntegration", false);
+        WorkspaceDialog presenter(*workspace_, *this);
+        ProjectIntegrationDialog dialog(QSettings().value(platform::projectIntegrationChoiceKey).toString() != "registered", &presenter);
+        const QScopedValueRollback active(workspaceDialog_, &presenter);
+        presenter.exec(dialog);
     }
     if (startupUpdateNoticePending_) {
         startupUpdateNoticePending_ = false;

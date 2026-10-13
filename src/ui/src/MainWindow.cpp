@@ -39,6 +39,7 @@
 #include "imageeditor/ui/NewDocumentDialog.hpp"
 #include "imageeditor/ui/WorkspaceDialog.hpp"
 #include "imageeditor/ui/PreferencesDialog.hpp"
+#include "imageeditor/ui/ProjectIntegrationDialog.hpp"
 #include <QScopedValueRollback>
 #include <QScopeGuard>
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
@@ -1933,7 +1934,10 @@ void MainWindow::showPreferences()
         return saveShortcutBindings(settings, value.shortcuts) && saveThemeSettings(settings, value.theme);
     };
     const QScopedValueRollback active(workspaceDialog_, &presenter);
-    presenter.exec(dialog);
+    while (presenter.exec(dialog) == PreferencesDialog::ProjectFilesRequested) {
+        ProjectIntegrationDialog integration(false, &presenter);
+        presenter.exec(integration);
+    }
 }
 
 void MainWindow::showAbout()

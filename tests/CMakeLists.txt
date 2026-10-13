@@ -1233,11 +1233,21 @@ imageeditor_enable_warnings(imageeditor_recent_files_tests)
 add_test(NAME imageeditor_recent_files_tests COMMAND imageeditor_recent_files_tests)
 
 add_executable(imageeditor_project_file_tests ProjectFileTests.cpp)
-target_link_libraries(imageeditor_project_file_tests PRIVATE imageeditor_ui PkgConfig::MINIZIP)
+target_link_libraries(imageeditor_project_file_tests PRIVATE imageeditor_ui imageeditor_project_preview PkgConfig::MINIZIP)
 target_compile_definitions(imageeditor_project_file_tests PRIVATE IMAGEEDITOR_PROJECT_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/projects")
 imageeditor_enable_warnings(imageeditor_project_file_tests)
 add_test(NAME imageeditor_project_file_tests COMMAND imageeditor_project_file_tests)
 set_tests_properties(imageeditor_project_file_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 60)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    add_test(NAME imageeditor_project_thumbnail_integration COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/LinuxProjectThumbnailTests.py"
+        "$<TARGET_FILE:imageeditor_project_file_tests>" "$<TARGET_FILE:vulkana-thumbnailer>")
+    set_tests_properties(imageeditor_project_thumbnail_integration PROPERTIES TIMEOUT 60 LABELS "project;thumbnail;integration")
+    add_test(NAME imageeditor_dolphin_preview_migration COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/LinuxDolphinPreviewMigrationTests.py")
+    set_tests_properties(imageeditor_dolphin_preview_migration PROPERTIES TIMEOUT 60
+        SKIP_RETURN_CODE 77 LABELS "project;thumbnail;integration")
+endif()
 
 add_executable(imageeditor_project_lifecycle_tests ProjectLifecycleTests.cpp)
 target_link_libraries(imageeditor_project_lifecycle_tests PRIVATE imageeditor_ui Qt6::Test)

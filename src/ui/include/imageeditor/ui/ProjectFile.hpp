@@ -22,6 +22,8 @@ struct ProjectLoadResult {
 };
 // Caller excludes document mutations throughout save. No shared mutable
 // snapshot is advertised as immutable; work uses bounded row/chunk buffers.
+// A small optional canvas preview is rendered through the shared overview path;
+// inability to render it does not prevent saving the editable project data.
 ProjectIoResult saveProject(const QString&, const core::Document&,
     const QJsonObject& metadata = { }, ProjectProgress = { });
 struct ProjectLoadLimits {

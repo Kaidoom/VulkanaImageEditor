@@ -10548,4 +10548,39 @@ Smusso: tira gli angoli all'interno; Alt cambia anche l'opposto. I lati ridimens
       <translation>Anteprima non disponibile</translation>
     </message>
   </context>
+  <context>
+    <name>Project file integration</name>
+    <message id="project.integration.title">
+      <source>Register Vulkana project files?</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="project.integration.description">
+      <source>Show saved canvas previews in File Explorer and add Vulkana to Open with for .vulkana files. This applies only to your Windows account and does not need administrator access. Your existing default app stays unchanged.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="project.integration.location">
+      <source>Keep this portable folder in place. After moving it, register again in Preferences → General → Project files.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="project.integration.register">
+      <source>Register</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="project.integration.remove">
+      <source>Remove registration</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="project.integration.decline">
+      <source>No thanks</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="project.integration.close">
+      <source>Close</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="project.integration.preferences">
+      <source>Project files…</source>
+      <translation type="unfinished" />
+    </message>
+  </context>
 </TS>

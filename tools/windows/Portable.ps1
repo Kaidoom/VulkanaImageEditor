@@ -7,6 +7,7 @@ param(
     [string]$QtRoot = 'C:\Qt\6.10.3\msvc2022_64',
     [string]$VulkanRoot = 'C:\VulkanSDK\1.4.363.0',
     [string]$BuildRoot = 'C:\Dev\Vulkana',
+    [string]$BuildDirectory,
     [string]$NoticesDirectory,
     [ValidateRange(1, 32)][int]$Jobs = 6
 )
@@ -15,7 +16,7 @@ Set-StrictMode -Version Latest
 $destinationPath = [IO.Path]::GetFullPath($Destination)
 if (Test-Path -LiteralPath $destinationPath) { throw 'Destination already exists. Choose a new folder; existing builds are never overwritten.' }
 $source = (Resolve-Path "$PSScriptRoot/../..").Path
-$build = Join-Path $BuildRoot 'release'
+$build = if ($BuildDirectory) { [IO.Path]::GetFullPath($BuildDirectory) } else { Join-Path $BuildRoot 'release' }
 if (!(Test-Path "$build/CMakeCache.txt")) { throw 'Run Build.ps1 first to configure the Release build.' }
 & "$PSScriptRoot/Setup.ps1" -VcpkgRoot $VcpkgRoot -QtRoot $QtRoot -VulkanRoot $VulkanRoot -BuildRoot $BuildRoot -Jobs $Jobs -SkipSmoke
 function Invoke-PortableCommand([string]$Program, [string[]]$Arguments) {
@@ -33,7 +34,7 @@ function Get-PortableRelativePath([string]$Root, [string]$Path) {
     return $fullPath.Substring($prefix.Length).Replace('\', '/')
 }
 # Revalidate/compile changed language catalogs as well as the application.
-Invoke-PortableCommand cmake @('--build', $build, '--target', 'imageeditor', 'vulkana_language_packs', '--parallel', "$Jobs")
+Invoke-PortableCommand cmake @('--build', $build, '--target', 'imageeditor', 'vulkana-thumbnail-provider', 'vulkana-thumbnail-codec', 'vulkana_language_packs', '--parallel', "$Jobs")
 $cache = Get-Content "$build/CMakeCache.txt" -Raw -Encoding UTF8
 if ($cache -notmatch 'IMAGEEDITOR_RELOCATABLE_BUNDLE:BOOL=ON' -or
     $cache -notmatch 'IMAGEEDITOR_DEVELOPMENT_RESOURCES:BOOL=OFF' -or

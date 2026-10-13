@@ -3,6 +3,7 @@
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "TestServiceConfig.hpp"
+#include "imageeditor/platform/ProjectIntegration.hpp"
 
 #include <QApplication>
 #include <QAction>
@@ -860,7 +861,7 @@ int main(int argc, char** argv)
 #endif
         debTests(); windowsPortableTests();
         startupPolicyTests(); startupPresentationTests(); startupSilentTests(); startupCloseTests();
-        simulatedUpdateTests(); startupSimulationTests(); }
+        simulatedUpdateTests(); startupSimulationTests(); projectIntegrationPromptTests(); }
     if (app.arguments().contains("--expect-deb")) CHECK(u::UpdateService::buildPackage() == u::UpdatePackage::Deb);
     std::cout << "Update checks: " << failures << " failures\n";
     return failures ? 1 : 0;

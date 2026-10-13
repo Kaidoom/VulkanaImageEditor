@@ -1,11 +1,11 @@
-add_library(imageeditor_platform STATIC src/ApplicationPaths.cpp src/PlatformStartup.cpp src/SingleInstance.cpp src/ServiceConfig.cpp src/AvailableMemory.cpp src/AtomicFile.cpp)
+add_library(imageeditor_platform STATIC src/ApplicationPaths.cpp src/PlatformStartup.cpp src/SingleInstance.cpp src/ServiceConfig.cpp src/AvailableMemory.cpp src/AtomicFile.cpp src/ProjectIntegration.cpp)
 configure_file(include/imageeditor/platform/BuildInfo.hpp.in
     "${CMAKE_CURRENT_BINARY_DIR}/include/imageeditor/platform/BuildInfo.hpp" @ONLY)
 target_include_directories(imageeditor_platform PUBLIC include "${CMAKE_CURRENT_BINARY_DIR}/include")
 target_link_libraries(imageeditor_platform PUBLIC Qt6::Core)
 target_link_libraries(imageeditor_platform PRIVATE Qt6::Network)
 if(WIN32)
-    target_link_libraries(imageeditor_platform PRIVATE advapi32)
+    target_link_libraries(imageeditor_platform PRIVATE advapi32 shell32)
 endif()
 target_compile_definitions(imageeditor_platform PRIVATE
     VULKANA_INSTALLED_DATA_DIR="${CMAKE_INSTALL_FULL_DATADIR}/vulkana-editor")

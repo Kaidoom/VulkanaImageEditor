@@ -25,6 +25,7 @@ struct PreferencesState {
 };
 class PreferencesDialog final : public QDialog {
 public:
+    static constexpr int ProjectFilesRequested = 100;
     explicit PreferencesDialog(PreferencesState, QWidget* parent = nullptr);
     [[nodiscard]] const PreferencesState& draft() const { return draft_; }
     std::function<void(const PreferencesState&)> onPreview;
