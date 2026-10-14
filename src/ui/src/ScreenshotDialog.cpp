@@ -5,6 +5,7 @@
 #include "imageeditor/ui/ToolIcons.hpp"
 #include "imageeditor/ui/RasterLimits.hpp"
 #include <QComboBox>
+#include <QEvent>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
@@ -56,7 +57,7 @@ ScreenshotDialog::ScreenshotDialog(QWidget& host,QWidget* parent,ScreenCapture* 
     resetButton_->setObjectName("ScreenshotResetCrop");resetButton_->setAutoDefault(false);cropRow->addWidget(resetButton_);layout->addLayout(cropRow);
     auto* cropHint=i18n::make<QLabel>(i18n::text("screenshot.crop.hint"),this);cropHint->setWordWrap(true);layout->addWidget(cropHint);
     status_=new QLabel(this);status_->setObjectName("ScreenshotStatus");status_->setWordWrap(true);layout->addWidget(status_);
-    auto* footer=new QHBoxLayout;
+    auto* footer=new QHBoxLayout;footer_=footer;
     stopButton_=i18n::make<QPushButton>(i18n::text("screenshot.stop"),this);stopButton_->setObjectName("ScreenshotStop");stopButton_->setAutoDefault(false);
     footer->addWidget(stopButton_);footer->addStretch();
     auto* cancel=i18n::make<QPushButton>(i18n::text("screenshot.cancel"),this);cancel->setObjectName("ScreenshotCancel");cancel->setAutoDefault(false);
@@ -96,7 +97,31 @@ ScreenshotDialog::ScreenshotDialog(QWidget& host,QWidget* parent,ScreenCapture* 
     connect(capture_,&QObject::destroyed,this,[this]{cancelCapture(false);showError(QStringLiteral("The screenshot service closed."));});
     refresh();
 }
-ScreenshotDialog::~ScreenshotDialog(){cancelCapture(false);}
+ScreenshotDialog::~ScreenshotDialog()
+{
+    // An owned capture service is deleted by QObject after our members. Its
+    // destroyed/finished callbacks must not touch the timer or controls then.
+    if(capture_)disconnect(capture_,nullptr,this,nullptr);
+    cancelCapture(false);
+}
+bool ScreenshotDialog::event(QEvent* event)
+{
+    const bool handled=QDialog::event(event);
+    if(footer_&&(event->type()==QEvent::LayoutRequest||event->type()==QEvent::Resize)) {
+        // A local pack or fallback font can make the actions wider than the
+        // workspace. Stack them rather than clipping their translated labels.
+        int required=0,count=0;
+        for(int n=0;n<footer_->count();++n)if(auto* widget=footer_->itemAt(n)->widget();widget&&!widget->isHidden()) {
+            required+=widget->minimumSizeHint().width();++count;
+        }
+        required+=std::max(0,count-1)*footer_->spacing();
+        const auto margins=layout()->contentsMargins();
+        const auto direction=required>width()-margins.left()-margins.right()
+            ?QBoxLayout::TopToBottom:QBoxLayout::LeftToRight;
+        if(footer_->direction()!=direction)footer_->setDirection(direction);
+    }
+    return handled;
+}
 void ScreenshotDialog::beginCapture()
 {
     if(capturing_||!capture_)return;

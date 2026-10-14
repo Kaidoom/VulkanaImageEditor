@@ -136,6 +136,16 @@ void cropTests()
 }
 void dialogTests(const QString& artifacts)
 {
+    // Exercise the production ownership path too: QObject deletes the capture
+    // service after the derived dialog's timer and guarded pointers are gone.
+    for(int n=0;n<8;++n) {
+        QWidget owner;
+        auto* owned=new u::ScreenshotDialog(owner,&owner);
+        QPointer<u::ScreenCapture> service=owned->findChild<u::ScreenCapture*>();
+        CHECK(service);
+        delete owned;
+        CHECK(!service);
+    }
     QWidget host;host.resize(900,730);host.show();Capture service;
     u::ScreenshotDialog dialog(host,&host,&service);dialog.show();
     auto* capture=dialog.findChild<QPushButton*>("ScreenshotCapture");

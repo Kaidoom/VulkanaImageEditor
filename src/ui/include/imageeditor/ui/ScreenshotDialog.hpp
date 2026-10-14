@@ -7,6 +7,7 @@
 class QComboBox;
 class QLabel;
 class QPushButton;
+class QBoxLayout;
 namespace imageeditor::ui {
 class CompactValueControl;
 class ScreenshotPreview;
@@ -21,6 +22,8 @@ public:
     void setCanAddLayer(bool);
     void showError(const QString&);
     void done(int result) override;
+protected:
+    bool event(QEvent*) override;
 private:
     void beginCapture();
     void cancelCapture(bool showStatus);
@@ -33,6 +36,7 @@ private:
     CompactValueControl* delay_{};
     QPushButton *captureButton_{}, *stopButton_{}, *resetButton_{}, *openButton_{}, *layerButton_{}, *resetViewButton_{};
     QLabel *status_{}, *dimensions_{}, *zoom_{};
+    QBoxLayout* footer_{};
     QTimer timer_;
     QElapsedTimer clock_;
     quint64 generation_{};

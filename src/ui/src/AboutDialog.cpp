@@ -185,7 +185,6 @@ AboutDialog::AboutDialog(QWidget* parent, QNetworkAccessManager* transport, Upda
     auto messagePolicy = status->sizePolicy();
     messagePolicy.setHorizontalPolicy(QSizePolicy::Ignored);
     status->setSizePolicy(messagePolicy);
-    status->setMaximumHeight(status->fontMetrics().lineSpacing() * 2);
     messages->addWidget(status);
     auto* detail = new QLabel(card);
     detail->setObjectName(QStringLiteral("AboutUpdateDetail"));
@@ -193,7 +192,6 @@ AboutDialog::AboutDialog(QWidget* parent, QNetworkAccessManager* transport, Upda
     detail->setTextFormat(Qt::PlainText);
     detail->setWordWrap(true);
     detail->setSizePolicy(messagePolicy);
-    detail->setMaximumHeight(detail->fontMetrics().lineSpacing() * 3);
     messages->addWidget(detail);
     updateRow->addLayout(messages, 1);
     auto* progress = new QProgressBar(card);
@@ -337,6 +335,13 @@ void AboutDialog::refreshLayout()
 {
     // Let wrapped status/detail text determine its true height while the action
     // reserves enough width for its translation. No blank progress row is kept.
+    ensurePolished();
+    if(auto* action=findChild<QPushButton*>(QStringLiteral("AboutCheckUpdate"))) {
+        action->ensurePolished();
+        // Reserve the measured action width before first display, and retain
+        // it as status changes so fallback fonts cannot make the button jump.
+        action->setMinimumWidth(qMax(action->minimumWidth(),action->sizeHint().width()));
+    }
     layout()->invalidate();
     const int preferredHeight = layout()->hasHeightForWidth() ? layout()->totalHeightForWidth(width())
         : layout()->sizeHint().height();
