@@ -58,6 +58,7 @@ add_library(imageeditor_ui STATIC
     src/FileDialogLocations.cpp
     src/ExportDialog.cpp
     src/MainWindowExport.cpp
+    src/MainWindowClipboard.cpp
     src/ProjectFile.cpp
     src/RecentFiles.cpp
     src/RulerStrip.cpp

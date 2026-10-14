@@ -19,6 +19,7 @@ void MainWindow::createFillActions()
 {
     for (int i = 0; i < 2; ++i) {
         auto* action = i18n::make<QAction>(
+            toolGlyph(ToolGlyph::FillSelection),
             i ? i18n::text("main.window.fill.fill.with.background") : i18n::text("main.window.fill.fill.with.foreground"), this);
         action->setObjectName(
             i ? QStringLiteral("FillBackgroundAction") : QStringLiteral("FillForegroundAction"));

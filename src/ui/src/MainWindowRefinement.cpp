@@ -1350,6 +1350,7 @@ bool MainWindow::refinementEvent(QObject *watched, QEvent *event) {
         refineSelectionAction_) {
       refreshRefinementActions();
       QMenu menu(this);
+      menu.setObjectName(QStringLiteral("CanvasSelectionContextMenu"));
       menu.addAction(refineSelectionAction_);
       menu.addAction(selectionGrowAction_);
       menu.addAction(transformSelectionAction_);

@@ -16,6 +16,7 @@
 #include "imageeditor/platform/PlatformStartup.hpp"
 #include "imageeditor/platform/SingleInstance.hpp"
 #include "imageeditor/ui/WorkspaceDialog.hpp"
+#include "imageeditor/ui/ToolIcons.hpp"
 #include <QApplication>
 #include <QElapsedTimer>
 #include <QFileDialog>
@@ -411,14 +412,15 @@ void MainWindow::refreshRecentMenu()
                 .arg(file.fileName(), entry.kind == RecentFileKind::Project ? QStringLiteral("Project")
                     : entry.kind == RecentFileKind::Pdf ? QStringLiteral("PDF")
                     : entry.kind == RecentFileKind::Psd ? QStringLiteral("PSD") : QStringLiteral("Image"), file.absolutePath()));
-        i18n::addAction(item, i18n::text("main.window.files.open"), this, [this, path = entry.path] { openImageFromPath(path); });
-        i18n::addAction(item, i18n::text("main.window.files.remove.from.recent.files"), this, [this, path = entry.path] { recentFiles_.remove(path); });
+        item->setIcon(toolGlyph(ToolGlyph::LayerRaster));
+        i18n::addAction(item, toolGlyph(ToolGlyph::Folder), i18n::text("main.window.files.open"), this, [this, path = entry.path] { openImageFromPath(path); });
+        i18n::addAction(item, toolGlyph(ToolGlyph::Close), i18n::text("main.window.files.remove.from.recent.files"), this, [this, path = entry.path] { recentFiles_.remove(path); });
     }
     if (recentFiles_.entries().isEmpty())
         i18n::addAction(recentMenu_, i18n::text("main.window.files.no.recent.files"))->setEnabled(false);
     else {
         recentMenu_->addSeparator();
-        i18n::addAction(recentMenu_, i18n::text("main.window.files.clear.recent.files"), this, [this] { recentFiles_.clear(); });
+        i18n::addAction(recentMenu_, toolGlyph(ToolGlyph::Trash), i18n::text("main.window.files.clear.recent.files"), this, [this] { recentFiles_.clear(); });
     }
 }
 }

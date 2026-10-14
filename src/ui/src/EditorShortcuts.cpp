@@ -26,6 +26,7 @@ const QList<ShortcutDefinition>& shortcutDefinitions()
         add("ImportImageAction", i18n::text("editor.shortcuts.import.image.as.layer"), i18n::text("editor.shortcuts.file"));
         add("ExportImageAction", i18n::text("editor.shortcuts.export"), i18n::text("editor.shortcuts.file"), "Ctrl+Shift+E");
         add("ExportAgainAction", i18n::text("editor.shortcuts.export.again"), i18n::text("editor.shortcuts.file"));
+        add("CopyCanvasToClipboardAction", i18n::text("clipboard.copy.canvas"), i18n::text("editor.shortcuts.file"));
         add("QuitAction", i18n::text("editor.shortcuts.quit"), i18n::text("editor.shortcuts.file"), "Ctrl+Q");
         add("UndoAction", i18n::text("editor.shortcuts.undo"), i18n::text("editor.shortcuts.edit"), "Ctrl+Z", EditorKeys | TextKeys);
         add("RedoAction", i18n::text("editor.shortcuts.redo"), i18n::text("editor.shortcuts.edit"), "Ctrl+Shift+Z", EditorKeys | TextKeys);

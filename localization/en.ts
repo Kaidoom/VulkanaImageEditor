@@ -7041,4 +7041,13 @@ Chamfer: pull corners inward; Alt also changes the opposite corner. Side handles
     <message id="project.integration.close"><source>Close</source></message>
     <message id="project.integration.preferences"><source>Register Vulkana project files…</source></message>
   </context>
+  <context>
+    <name>Canvas clipboard</name>
+    <message id="clipboard.copy.canvas"><source>Copy canvas to clipboard</source></message>
+    <message id="clipboard.copy.canvas.hint"><source>Copy the full canvas at its original size, including visible layers and transparency.</source></message>
+    <message id="clipboard.copy.canvas.preparing"><source>Preparing canvas for clipboard…</source></message>
+    <message id="clipboard.copy.canvas.finish.edit"><source>Finish or cancel the current selection or shape edit before copying the canvas.</source></message>
+    <message id="clipboard.copy.canvas.failed"><source>Could not copy the canvas: %1</source></message>
+    <message id="clipboard.copy.canvas.done"><source>Canvas copied to clipboard · %1 × %2 px</source></message>
+  </context>
 </TS>

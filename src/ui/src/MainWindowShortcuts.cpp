@@ -184,7 +184,7 @@ bool MainWindow::routeEditorShortcut(QObject* watched, QEvent* event)
     }
     if (event->type() != QEvent::KeyPress || key->key() == Qt::Key_Escape) return false;
     for (const auto* id : {"CloseDocumentAction", "NextDocumentAction", "PreviousDocumentAction", "QuitAction",
-             "NewDocumentAction", "OpenDocumentAction", "ImportImageAction", "ExportImageAction", "ExportAgainAction"}) {
+             "NewDocumentAction", "OpenDocumentAction", "ImportImageAction", "ExportImageAction", "ExportAgainAction", "CopyCanvasToClipboardAction"}) {
         if (shortcutMatches(shortcuts_, id, *key)) {
             if (!key->isAutoRepeat()) if (auto* action=shortcutActions_.value(id);action&&action->isEnabled()) action->trigger();
             event->accept();return true;

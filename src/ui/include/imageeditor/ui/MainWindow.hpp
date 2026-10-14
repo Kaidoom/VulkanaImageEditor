@@ -131,6 +131,7 @@ public:
     bool restartAfterUpdate(const QString& path,
         std::function<bool(const QString&, const QStringList&)> launch = {});
     void exportImage(bool again = false);
+    void copyCanvasToClipboard();
     [[nodiscard]] const QString& projectPath() const noexcept { return fileState().projectPath; }
     enum class UnsavedChoice { Save, Discard, Cancel };
     // Deterministic automation seams; normal application defaults always prompt.
@@ -141,6 +142,7 @@ public:
         std::function<void(const QString&)> reportError;
         ProjectProgress progress;
         std::function<bool(const QString&)> confirmCancelRefinement;
+        std::function<void(const QImage&)> publishClipboardImage;
     };
     void setFileInteractions(FileInteractions hooks) { fileInteractions_ = std::move(hooks); }
     void setUnsavedPromptEnabled(bool enabled) { unsavedPromptEnabled_ = enabled; }

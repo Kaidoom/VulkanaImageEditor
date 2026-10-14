@@ -26,17 +26,84 @@ QPixmap rasterizedGlyph(ToolGlyph glyph, const QColor& ink, const QSize& size, q
     // The 24-unit geometry is a vector coordinate system, not a fixed-size
     // bitmap. Render it directly into the requested physical resolution.
     QPixmap pixmap(size * scale);
-    pixmap.setDevicePixelRatio(scale);
     pixmap.fill(Qt::transparent);
     QPainter p(&pixmap);
-    const auto logical = pixmap.deviceIndependentSize();
-    const auto side = std::min(logical.width(), logical.height());
-    p.translate((logical.width() - side) / 2, (logical.height() - side) / 2);
+    // Apply DPR after painting. Equivalent physical sizes must use exactly the
+    // same transform, rather than differently rounded logical-scale products.
+    const QSizeF physical = pixmap.size();
+    const auto side = std::min(physical.width(), physical.height());
+    p.translate((physical.width() - side) / 2, (physical.height() - side) / 2);
     p.scale(side / 24, side / 24);
     p.setRenderHint(QPainter::Antialiasing);
     p.setPen(QPen(ink, 1.5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
     p.setBrush(Qt::NoBrush);
-    if (glyph == ToolGlyph::Person) {
+    if (glyph == ToolGlyph::NewDocument) {
+        p.drawPolyline(QPolygonF{{14,2},{4,2},{4,22},{20,22},{20,8},{14,2},{14,8},{20,8}});
+        p.drawLine(8,15,16,15); p.drawLine(12,11,12,19);
+    } else if (glyph == ToolGlyph::Save) {
+        p.drawPolygon(QPolygonF{{3,3},{18,3},{21,6},{21,21},{3,21}});
+        p.drawRect(QRectF(7,3,9,6)); p.drawRect(QRectF(7,14,10,7));
+    } else if (glyph == ToolGlyph::Undo || glyph == ToolGlyph::Redo) {
+        if (glyph == ToolGlyph::Redo) { p.translate(24,0); p.scale(-1,1); }
+        p.drawPolyline(QPolygonF{{8,3},{3,8},{8,13}});
+        QPainterPath curve; curve.moveTo(3,8); curve.lineTo(14,8);
+        curve.cubicTo(23,8,23,20,14,20); p.drawPath(curve);
+    } else if (glyph == ToolGlyph::Copy) {
+        p.drawPolyline(QPolygonF{{6,17},{3,17},{3,3},{16,3},{16,6}});
+        p.drawRoundedRect(QRectF(8,8,13,13),1,1);
+    } else if (glyph == ToolGlyph::Paste) {
+        p.drawPolyline(QPolygonF{{8,4},{4,4},{4,22},{20,22},{20,4},{16,4}});
+        p.drawRoundedRect(QRectF(8,2,8,5),1,1);
+        p.drawLine(8,12,16,12); p.drawLine(8,16,16,16);
+    } else if (glyph == ToolGlyph::Import || glyph == ToolGlyph::Export) {
+        p.drawPolyline(QPolygonF{{10,3},{3,3},{3,21},{18,21},{18,17}});
+        if (glyph == ToolGlyph::Import) { p.translate(29,0); p.scale(-1,1); }
+        p.drawLine(9,10,22,10); p.drawPolyline(QPolygonF{{17,5},{22,10},{17,15}});
+    } else if (glyph == ToolGlyph::Quit) {
+        p.drawPolyline(QPolygonF{{10,3},{3,3},{3,21},{10,21}});
+        p.drawLine(9,12,22,12); p.drawPolyline(QPolygonF{{17,7},{22,12},{17,17}});
+    } else if (glyph == ToolGlyph::Rename) {
+        p.drawPolygon(QPolygonF{{4,15},{16,3},{21,8},{9,20},{3,21}});
+        p.drawLine(13,6,18,11); p.drawLine(4,15,9,20);
+    } else if (glyph == ToolGlyph::Deselect) {
+        p.setPen(QPen(ink,1.5,Qt::DashLine)); p.drawRect(QRectF(3,3,18,18));
+        p.setPen(QPen(ink,1.5)); p.drawLine(6,6,18,18);
+    } else if (glyph == ToolGlyph::Invert) {
+        p.drawEllipse(QRectF(3,3,18,18));
+        QPainterPath half; half.moveTo(12,3); half.arcTo(QRectF(3,3,18,18),90,180);
+        half.closeSubpath(); p.fillPath(half,ink);
+    } else if (glyph == ToolGlyph::Pixels || glyph == ToolGlyph::Swatches) {
+        for (int y=0;y<3;++y) for (int x=0;x<3;++x) {
+            if (glyph == ToolGlyph::Swatches) { auto shade=ink; shade.setAlphaF(ink.alphaF()*(.3F+.08F*float(y*3+x))); p.setBrush(shade); }
+            p.drawRect(QRectF(3+x*6,3+y*6,5,5));
+        }
+    } else if (glyph == ToolGlyph::Snapping) {
+        QPainterPath magnet; magnet.moveTo(4,3); magnet.lineTo(4,13);
+        magnet.cubicTo(4,24,20,24,20,13); magnet.lineTo(20,3);
+        magnet.lineTo(15,3); magnet.lineTo(15,13); magnet.cubicTo(15,17,9,17,9,13);
+        magnet.lineTo(9,3); magnet.closeSubpath(); p.drawPath(magnet);
+        p.drawLine(4,8,9,8); p.drawLine(15,8,20,8);
+    } else if (glyph == ToolGlyph::FitCanvas) {
+        p.drawPolyline(QPolygonF{{3,8},{3,3},{8,3}}); p.drawPolyline(QPolygonF{{16,3},{21,3},{21,8}});
+        p.drawPolyline(QPolygonF{{21,16},{21,21},{16,21}}); p.drawPolyline(QPolygonF{{8,21},{3,21},{3,16}});
+        p.drawRect(QRectF(7,7,10,10));
+    } else if (glyph == ToolGlyph::ZoomActual) {
+        p.drawEllipse(QRectF(3,3,13,13)); p.drawLine(15,15,22,22);
+        p.drawPolyline(QPolygonF{{8,8},{10,6},{10,13}});
+    } else if (glyph == ToolGlyph::Palette) {
+        QPainterPath palette; palette.moveTo(12,2); palette.cubicTo(25,2,25,16,17,16);
+        palette.cubicTo(10,14,17,22,10,22); palette.cubicTo(-2,21,-1,3,12,2); p.drawPath(palette);
+        for (auto pt : {QPointF(7,8),QPointF(13,6),QPointF(18,10),QPointF(6,14)}) p.drawEllipse(pt,1,1);
+    } else if (glyph == ToolGlyph::Panels || glyph == ToolGlyph::DockLeft || glyph == ToolGlyph::DockRight
+               || glyph == ToolGlyph::DockTop || glyph == ToolGlyph::DockBottom) {
+        p.drawRoundedRect(QRectF(3,3,18,18),1,1);
+        if (glyph == ToolGlyph::DockTop) p.fillRect(QRectF(5,5,14,4),ink);
+        else if (glyph == ToolGlyph::DockBottom) p.fillRect(QRectF(5,15,14,4),ink);
+        else if (glyph == ToolGlyph::DockRight) p.fillRect(QRectF(15,5,4,14),ink);
+        else { p.fillRect(QRectF(5,5,4,14),ink); if (glyph == ToolGlyph::Panels) p.drawLine(12,10,19,10); }
+    } else if (glyph == ToolGlyph::History) {
+        p.drawEllipse(QRectF(3,3,18,18)); p.drawPolyline(QPolygonF{{12,6},{12,12},{17,15}});
+    } else if (glyph == ToolGlyph::Person) {
         p.drawEllipse(QPointF(12, 7), 4, 4);
         QPainterPath shoulders;
         shoulders.moveTo(3, 21); shoulders.cubicTo(3, 11, 21, 11, 21, 21);
@@ -99,14 +166,14 @@ QPixmap rasterizedGlyph(ToolGlyph glyph, const QColor& ink, const QSize& size, q
     } else if (glyph == ToolGlyph::Close) {
         p.drawLine(QPointF(5, 5), QPointF(19, 19));
         p.drawLine(QPointF(19, 5), QPointF(5, 19));
-    } else if (glyph == ToolGlyph::ShowSource) {
+    } else if (glyph == ToolGlyph::ShowSource || glyph == ToolGlyph::Visible || glyph == ToolGlyph::Hidden) {
         QPainterPath eye;
         eye.moveTo(2, 12);
         eye.cubicTo(7, 4, 17, 4, 22, 12);
         eye.cubicTo(17, 20, 7, 20, 2, 12);
         p.drawPath(eye);
         p.drawEllipse(QPointF(12, 12), 3, 3);
-        if (state == QIcon::Off)
+        if (glyph == ToolGlyph::Hidden || (glyph == ToolGlyph::ShowSource && state == QIcon::Off))
             p.drawLine(QPointF(4, 3), QPointF(20, 21));
     } else if (glyph == ToolGlyph::Chamfer) {
         if (state == QIcon::On) {
@@ -493,6 +560,7 @@ QPixmap rasterizedGlyph(ToolGlyph glyph, const QColor& ink, const QSize& size, q
         }
     }
     p.end();
+    pixmap.setDevicePixelRatio(scale);
     return pixmap;
 }
 class ThemeIconEngine final : public QIconEngine {

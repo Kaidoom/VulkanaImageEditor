@@ -1786,19 +1786,19 @@ void MainWindow::createActions()
         beginLayerTransform(); // idempotent; Apply/Enter and Cancel/Escape own exit
         updateActionState();
     });
-    transformSelectionAction_=i18n::make<QAction>(i18n::text("main.window.transform.selection"), this);
+    transformSelectionAction_=i18n::make<QAction>(toolGlyph(ToolGlyph::Transform), i18n::text("main.window.transform.selection"), this);
     transformSelectionAction_->setObjectName(QStringLiteral("TransformSelectionAction"));
     i18n::setToolTip(transformSelectionAction_, i18n::text("main.window.transform.the.selection.boundary.without.changing.layer.pixels"));
     registerEditorWindowAction(transformSelectionAction_);
     connect(transformSelectionAction_,&QAction::triggered,this,&MainWindow::beginSelectionTransform);
-    transformPixelsAction_=i18n::make<QAction>(i18n::text("main.window.transform.selected.pixels"), this);
+    transformPixelsAction_=i18n::make<QAction>(toolGlyph(ToolGlyph::Transform), i18n::text("main.window.transform.selected.pixels"), this);
     transformPixelsAction_->setObjectName(QStringLiteral("TransformSelectedPixelsAction"));
     transformPixelsAction_->setShortcut(QKeySequence(QStringLiteral("Shift+T")));
     i18n::setToolTip(transformPixelsAction_, i18n::text("main.window.cut.and.transform.the.selected.raw.pixels.on.the"));
     registerEditorWindowAction(transformPixelsAction_);
     connect(transformPixelsAction_,&QAction::triggered,this,&MainWindow::beginSelectedPixelTransform);
     createFillActions();
-    undoAction_ = new QAction(QIcon::fromTheme(QStringLiteral("edit-undo")), QStringLiteral("Undo"), this);
+    undoAction_ = new QAction(toolGlyph(ToolGlyph::Undo), QStringLiteral("Undo"), this);
     undoAction_->setShortcut(QKeySequence::Undo);
     registerEditorWindowAction(undoAction_);
     connect(undoAction_, &QAction::triggered, this, [this] {
@@ -1824,7 +1824,7 @@ void MainWindow::createActions()
         }
     });
 
-    redoAction_ = new QAction(QIcon::fromTheme(QStringLiteral("edit-redo")), QStringLiteral("Redo"), this);
+    redoAction_ = new QAction(toolGlyph(ToolGlyph::Redo), QStringLiteral("Redo"), this);
     auto redoBindings = QKeySequence::keyBindings(QKeySequence::Redo);
     redoBindings.push_back(QKeySequence(QStringLiteral("Ctrl+Shift+Z")));
     QList<QKeySequence> redoKeys;
@@ -1855,7 +1855,7 @@ void MainWindow::createActions()
         }
     });
 
-    deleteLayerAction_ = new QAction(QIcon::fromTheme(QStringLiteral("edit-delete")),
+    deleteLayerAction_ = new QAction(toolGlyph(ToolGlyph::Trash),
         i18n::text("main.window.delete.layer"), this);
     i18n::setText(deleteLayerAction_, i18n::text("main.window.delete.selected.layers"));
     deleteLayerAction_->setObjectName(QStringLiteral("DeleteSelectedLayersAction"));
@@ -1876,7 +1876,7 @@ void MainWindow::createActions()
     registerEditorWindowAction(increaseBrushSize);
     connect(increaseBrushSize, &QAction::triggered, this,
         [this] { adjustBrushSize(true); });
-    layerOutlinesAction_ = i18n::make<QAction>(i18n::text("main.window.selected.layer.outlines"), this);
+    layerOutlinesAction_ = i18n::make<QAction>(toolGlyph(ToolGlyph::SelectRectangle), i18n::text("main.window.selected.layer.outlines"), this);
     layerOutlinesAction_->setObjectName(QStringLiteral("ToggleLayerOutlinesAction"));
     i18n::setToolTip(layerOutlinesAction_, i18n::text("main.window.show.each.selected.layer.s.bounds.in.move.mode"));
     layerOutlinesAction_->setShortcut(QKeySequence(QStringLiteral("O")));
@@ -1984,13 +1984,13 @@ void MainWindow::createMenus()
     auto* fileMenu = i18n::addMenu(menuBar(), i18n::text("main.window.file"));
     fileMenu->setObjectName(QStringLiteral("FileMenu"));
     fileMenu->setProperty("availableDuringRefinement", true);
-    auto* newAction = i18n::addAction(fileMenu, QIcon::fromTheme(QStringLiteral("document-new")), i18n::text("main.window.new.document"), this, &MainWindow::createNewDocument);
+    auto* newAction = i18n::addAction(fileMenu, toolGlyph(ToolGlyph::NewDocument), i18n::text("main.window.new.document"), this, &MainWindow::createNewDocument);
     newAction->setShortcut(QKeySequence::New);
-    auto* openAction = i18n::addAction(fileMenu, QIcon::fromTheme(QStringLiteral("document-open")), i18n::text("main.window.open"), this, &MainWindow::openImage);
+    auto* openAction = i18n::addAction(fileMenu, toolGlyph(ToolGlyph::Folder), i18n::text("main.window.open"), this, &MainWindow::openImage);
     openAction->setShortcut(QKeySequence::Open);
     openAction->setObjectName(QStringLiteral("OpenDocumentAction"));
     newAction->setObjectName(QStringLiteral("NewDocumentAction"));
-    auto* closeDocumentAction = i18n::addAction(fileMenu, i18n::text("main.window.close.document"), this, [this] { closeDocument(activeDocumentId()); });
+    auto* closeDocumentAction = i18n::addAction(fileMenu, toolGlyph(ToolGlyph::Close), i18n::text("main.window.close.document"), this, [this] { closeDocument(activeDocumentId()); });
     closeDocumentAction->setObjectName("CloseDocumentAction");
     for (const auto& pair : {std::pair{"NextDocumentAction", 1}, std::pair{"PreviousDocumentAction", -1}}) {
         auto* action = i18n::make<QAction>(pair.second > 0 ? i18n::text("main.window.next.document") : i18n::text("main.window.previous.document"), this);
@@ -2003,26 +2003,30 @@ void MainWindow::createMenus()
             activateDocument(ids[std::size_t(next)]);
         });
     }
-    auto* save = i18n::addAction(fileMenu, i18n::text("main.window.save"), this, [this] { saveDocument(); });
+    auto* save = i18n::addAction(fileMenu, toolGlyph(ToolGlyph::Save), i18n::text("main.window.save"), this, [this] { saveDocument(); });
     save->setShortcut(QKeySequence::Save); save->setObjectName(QStringLiteral("SaveDocumentAction"));
     registerEditorWindowAction(save);
-    auto* saveAs = i18n::addAction(fileMenu, i18n::text("main.window.save.as"), this, [this] { saveDocument(true); });
+    auto* saveAs = i18n::addAction(fileMenu, toolGlyph(ToolGlyph::Save), i18n::text("main.window.save.as"), this, [this] { saveDocument(true); });
     saveAs->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+S")));
     saveAs->setObjectName(QStringLiteral("SaveDocumentAsAction")); registerEditorWindowAction(saveAs);
-    auto* exportAction = i18n::addAction(fileMenu, QIcon::fromTheme(QStringLiteral("document-export"),
-        toolGlyph(ToolGlyph::ExternalLink)), i18n::text("main.window.export"), this, [this] { exportImage(); });
+    auto* exportAction = i18n::addAction(fileMenu, toolGlyph(ToolGlyph::Export), i18n::text("main.window.export"), this, [this] { exportImage(); });
     exportAction->setObjectName(QStringLiteral("ExportImageAction"));
     exportAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+E"))); registerEditorWindowAction(exportAction);
-    auto* exportAgain = i18n::addAction(fileMenu, i18n::text("main.window.export.again"), this, [this] { exportImage(true); });
+    auto* exportAgain = i18n::addAction(fileMenu, toolGlyph(ToolGlyph::Export), i18n::text("main.window.export.again"), this, [this] { exportImage(true); });
     exportAgain->setObjectName(QStringLiteral("ExportAgainAction"));
     i18n::setToolTip(exportAgain, i18n::text("main.window.reuse.the.last.successful.export.settings.always.confirm.before"));
     registerEditorWindowAction(exportAgain);
+    auto* copyCanvas = i18n::addAction(fileMenu, toolGlyph(ToolGlyph::Copy), i18n::text("clipboard.copy.canvas"), this, &MainWindow::copyCanvasToClipboard);
+    copyCanvas->setObjectName(QStringLiteral("CopyCanvasToClipboardAction"));
+    i18n::setToolTip(copyCanvas, i18n::text("clipboard.copy.canvas.hint"));
+    registerEditorWindowAction(copyCanvas);
     recentMenu_ = i18n::addMenu(fileMenu, i18n::text("main.window.open.recent"));
+    recentMenu_->setIcon(toolGlyph(ToolGlyph::History));
     connect(recentMenu_, &QMenu::aboutToShow, this, &MainWindow::refreshRecentMenu);
-    auto* importAction = i18n::addAction(fileMenu, QIcon::fromTheme(QStringLiteral("document-import")), i18n::text("main.window.import.as.layer"), this, &MainWindow::importImageAsLayer);
+    auto* importAction = i18n::addAction(fileMenu, toolGlyph(ToolGlyph::Import), i18n::text("main.window.import.as.layer"), this, &MainWindow::importImageAsLayer);
     importAction->setObjectName(QStringLiteral("ImportImageAction"));
     fileMenu->addSeparator();
-    auto* quitAction = i18n::addAction(fileMenu, i18n::text("main.window.quit"), this, &QWidget::close);
+    auto* quitAction = i18n::addAction(fileMenu, toolGlyph(ToolGlyph::Quit), i18n::text("main.window.quit"), this, &QWidget::close);
     quitAction->setObjectName(QStringLiteral("QuitAction"));
     quitAction->setShortcut(QKeySequence::Quit);
 
@@ -2030,7 +2034,7 @@ void MainWindow::createMenus()
     editMenu->addAction(undoAction_);
     editMenu->addAction(redoAction_);
     editMenu->addSeparator();
-    auto* paste = i18n::addAction(editMenu, QIcon::fromTheme(QStringLiteral("edit-paste")), i18n::text("main.window.paste.image.as.layer"), this, &MainWindow::pasteImageAsLayer);
+    auto* paste = i18n::addAction(editMenu, toolGlyph(ToolGlyph::Paste), i18n::text("main.window.paste.image.as.layer"), this, &MainWindow::pasteImageAsLayer);
     paste->setObjectName(QStringLiteral("PasteImageAsLayerAction"));
     paste->setShortcut(QKeySequence::Paste);
     registerEditorWindowAction(paste);
@@ -2078,16 +2082,17 @@ void MainWindow::createMenus()
     selectionMenu->addAction(transformPixelsAction_);
 
     auto* imageMenu = i18n::addMenu(menuBar(), i18n::text("main.window.image"));
-    auto* canvasSizeAction = i18n::addAction(imageMenu, i18n::text("main.window.change.canvas.size"), this, &MainWindow::changeCanvasSize);
+    auto* canvasSizeAction = i18n::addAction(imageMenu, toolGlyph(ToolGlyph::Crop), i18n::text("main.window.change.canvas.size"), this, &MainWindow::changeCanvasSize);
     canvasSizeAction->setObjectName(QStringLiteral("ChangeCanvasSizeAction"));
     canvasSizeAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+Alt+C")));
 
     auto* viewMenu = i18n::addMenu(menuBar(), i18n::text("main.window.view"));
-    snappingAction_ = i18n::addAction(viewMenu, i18n::text("main.window.snapping"));
+    snappingAction_ = i18n::addAction(viewMenu, toolGlyph(ToolGlyph::Snapping), i18n::text("main.window.snapping"));
     snappingAction_->setObjectName(QStringLiteral("SnappingAction"));
     auto* snapTargets = i18n::addMenu(viewMenu, i18n::text("main.window.snap.to"));
-    snapCanvasAction_ = i18n::addAction(snapTargets, i18n::text("main.window.canvas"));
-    snapLayersAction_ = i18n::addAction(snapTargets, i18n::text("main.window.layers"));
+    snapTargets->setIcon(toolGlyph(ToolGlyph::Snapping));
+    snapCanvasAction_ = i18n::addAction(snapTargets, toolGlyph(ToolGlyph::ShapeRectangle), i18n::text("main.window.canvas"));
+    snapLayersAction_ = i18n::addAction(snapTargets, toolGlyph(ToolGlyph::MergedVisible), i18n::text("main.window.layers"));
     snapCanvasAction_->setObjectName(QStringLiteral("SnapCanvasAction"));
     snapLayersAction_->setObjectName(QStringLiteral("SnapLayersAction"));
     const std::array snapActions {snappingAction_, snapCanvasAction_, snapLayersAction_};
@@ -2114,7 +2119,7 @@ void MainWindow::createMenus()
     updateSnapping();
     viewMenu->addSeparator();
     pixelPreview_=std::make_unique<PixelPreview>();
-    pixelPreviewAction_=i18n::addAction(viewMenu, i18n::text("main.window.pixel.preview"));
+    pixelPreviewAction_=i18n::addAction(viewMenu, toolGlyph(ToolGlyph::Pixels), i18n::text("main.window.pixel.preview"));
     pixelPreviewAction_->setObjectName(QStringLiteral("PixelPreviewAction"));
     pixelPreviewAction_->setCheckable(true);
     pixelPreviewAction_->setShortcut(QKeySequence(Qt::ShiftModifier | Qt::Key_P));
@@ -2168,8 +2173,9 @@ void MainWindow::createMenus()
     if(persistWindowState_){QSettings settings;pixelPreviewAction_->setChecked(settings.value(QStringLiteral("view/pixelPreview"),false).toBool());}
     viewMenu->addAction(layerOutlinesAction_);
     auto* rulersMenu = i18n::addMenu(viewMenu, i18n::text("main.window.rulers"));
-    horizontalRulerAction_ = i18n::addAction(rulersMenu, i18n::text("main.window.horizontal.ruler"));
-    verticalRulerAction_ = i18n::addAction(rulersMenu, i18n::text("main.window.vertical.ruler"));
+    rulersMenu->setIcon(toolGlyph(ToolGlyph::Measure));
+    horizontalRulerAction_ = i18n::addAction(rulersMenu, toolGlyph(ToolGlyph::Measure), i18n::text("main.window.horizontal.ruler"));
+    verticalRulerAction_ = i18n::addAction(rulersMenu, toolGlyph(ToolGlyph::Measure), i18n::text("main.window.vertical.ruler"));
     horizontalRulerAction_->setObjectName(QStringLiteral("ViewHorizontalRuler"));
     verticalRulerAction_->setObjectName(QStringLiteral("ViewVerticalRuler"));
     for (auto* action : {horizontalRulerAction_, verticalRulerAction_}) action->setCheckable(true);
@@ -2183,35 +2189,37 @@ void MainWindow::createMenus()
     };
     const auto edgeMenu = [this, rulersMenu](Qt::Orientation axis, i18n::Message name, i18n::Message near, i18n::Message far) {
         auto* menu = i18n::addMenu(rulersMenu, std::move(name));
+        menu->setIcon(toolGlyph(ToolGlyph::Measure));
         menu->setObjectName(axis == Qt::Horizontal ? "HorizontalRulerPositionMenu" : "VerticalRulerPositionMenu");
-        i18n::addAction(menu, std::move(near), this, [this, axis] { workspace_->setRulerFarEdge(axis, false); });
-        i18n::addAction(menu, std::move(far), this, [this, axis] { workspace_->setRulerFarEdge(axis, true); });
+        i18n::addAction(menu, toolGlyph(axis == Qt::Horizontal ? ToolGlyph::DockTop : ToolGlyph::DockLeft), std::move(near), this, [this, axis] { workspace_->setRulerFarEdge(axis, false); });
+        i18n::addAction(menu, toolGlyph(axis == Qt::Horizontal ? ToolGlyph::DockBottom : ToolGlyph::DockRight), std::move(far), this, [this, axis] { workspace_->setRulerFarEdge(axis, true); });
     };
     edgeMenu(Qt::Horizontal, i18n::text("main.window.horizontal.position"), i18n::text("main.window.top"), i18n::text("main.window.bottom"));
     edgeMenu(Qt::Vertical, i18n::text("main.window.vertical.position"), i18n::text("main.window.left"), i18n::text("main.window.right"));
     viewMenu->addSeparator();
-    auto* fitAction = i18n::addAction(viewMenu, i18n::text("main.window.fit.canvas"), this, [this] { canvasWindow_->fitDocumentToView(); });
+    auto* fitAction = i18n::addAction(viewMenu, toolGlyph(ToolGlyph::FitCanvas), i18n::text("main.window.fit.canvas"), this, [this] { canvasWindow_->fitDocumentToView(); });
     fitAction->setObjectName(QStringLiteral("FitCanvasAction"));
     fitAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+0")));
-    auto* actualAction = viewMenu->addAction(QStringLiteral("100%"), this,
+    auto* actualAction = viewMenu->addAction(toolGlyph(ToolGlyph::ZoomActual), QStringLiteral("100%"), this,
         [this] { canvasWindow_->resetTo100Percent(); });
     actualAction->setObjectName(QStringLiteral("ActualSizeAction"));
     actualAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+1")));
 
     viewMenu->addSeparator();
     auto* panelsMenu = i18n::addMenu(viewMenu, i18n::text("main.window.panels"));
-    colorPanelAction_ = i18n::addAction(panelsMenu, i18n::text("main.window.color"));
-    swatchesPanelAction_ = i18n::addAction(panelsMenu, i18n::text("main.window.swatches"));
-    layersPanelAction_ = i18n::addAction(panelsMenu, i18n::text("main.window.layers"));
-    navigatorPanelAction_ = i18n::addAction(panelsMenu, i18n::text("navigator.title"));
+    panelsMenu->setIcon(toolGlyph(ToolGlyph::Panels));
+    colorPanelAction_ = i18n::addAction(panelsMenu, toolGlyph(ToolGlyph::Palette), i18n::text("main.window.color"));
+    swatchesPanelAction_ = i18n::addAction(panelsMenu, toolGlyph(ToolGlyph::Swatches), i18n::text("main.window.swatches"));
+    layersPanelAction_ = i18n::addAction(panelsMenu, toolGlyph(ToolGlyph::MergedVisible), i18n::text("main.window.layers"));
+    navigatorPanelAction_ = i18n::addAction(panelsMenu, toolGlyph(ToolGlyph::FitCanvas), i18n::text("navigator.title"));
     navigatorPanelAction_->setObjectName(QStringLiteral("NavigatorPanelVisibilityAction"));
     navigatorPanelAction_->setCheckable(true);
     navigatorPanelAction_->setChecked(true);
     connect(navigatorPanelAction_, &QAction::triggered, this, [this](bool visible) {
         workspace_->setPanelVisible(navigatorPanelShell_,visible);
     });
-    propertiesPanelAction_ = i18n::addAction(panelsMenu, i18n::text("main.window.properties"));
-    adjustmentsPanelAction_ = i18n::addAction(panelsMenu, i18n::text("main.window.adjustments"));
+    propertiesPanelAction_ = i18n::addAction(panelsMenu, toolGlyph(ToolGlyph::Preferences), i18n::text("main.window.properties"));
+    adjustmentsPanelAction_ = i18n::addAction(panelsMenu, toolGlyph(ToolGlyph::AdjustmentLayer), i18n::text("main.window.adjustments"));
     adjustmentsPanelAction_->setObjectName(QStringLiteral("AdjustmentsPanelVisibilityAction"));
     adjustmentsPanelAction_->setCheckable(true);
     adjustmentsPanelAction_->setChecked(true);
@@ -2224,7 +2232,7 @@ void MainWindow::createMenus()
     });
     auto* filtersMenu=i18n::addMenu(menuBar(), i18n::text("main.window.filters"));
     for(const auto type:core::allSpatialFilterTypes){
-        auto* action=i18n::addAction(filtersMenu, i18n::filterName(type));
+        auto* action=i18n::addAction(filtersMenu, toolGlyph(ToolGlyph::LocalBlur), i18n::filterName(type));
         action->setObjectName(QStringLiteral("FilterAction_%1").arg(int(type)));
         connect(action,&QAction::triggered,this,[this,type]{
             capturedFilterRegionActive_=true;
@@ -2236,13 +2244,13 @@ void MainWindow::createMenus()
     helpMenu->setObjectName(QStringLiteral("HelpMenu"));
     helpMenu->setProperty("availableDuringRefinement", true);
     // Intentionally no URL/action until the documentation site is available.
-    auto* documentation = i18n::addAction(helpMenu, i18n::text("main.window.documentation"));
+    auto* documentation = i18n::addAction(helpMenu, toolGlyph(ToolGlyph::Repository), i18n::text("main.window.documentation"));
     documentation->setObjectName(QStringLiteral("DocumentationAction"));
     i18n::setToolTip(documentation, i18n::text("main.window.documentation.will.be.available.here.in.a.future.update"));
-    auto* feedback = i18n::addAction(helpMenu, i18n::text("main.window.submit.feedback.bug.report"), this, &MainWindow::showFeedback);
+    auto* feedback = i18n::addAction(helpMenu, toolGlyph(ToolGlyph::Mail), i18n::text("main.window.submit.feedback.bug.report"), this, &MainWindow::showFeedback);
     feedback->setObjectName(QStringLiteral("FeedbackAction"));
     feedback->setEnabled(platform::ServiceConfig::load().enabled());
-    auto* about = i18n::addAction(helpMenu, i18n::text("main.window.about.vulkana"), this, &MainWindow::showAbout);
+    auto* about = i18n::addAction(helpMenu, toolGlyph(ToolGlyph::InfoCircle), i18n::text("main.window.about.vulkana"), this, &MainWindow::showAbout);
     about->setObjectName(QStringLiteral("AboutVulkanaAction"));
     about->setMenuRole(QAction::AboutRole);
     colorPanelAction_->setObjectName(QStringLiteral("ColorPanelVisibilityAction"));
@@ -2272,12 +2280,17 @@ void MainWindow::createMenus()
 
     viewMenu->addSeparator();
     auto* toolRailMenu = i18n::addMenu(viewMenu, i18n::text("main.window.tool.rail.position"));
+    toolRailMenu->setIcon(toolGlyph(ToolGlyph::Panels));
     toolRailDockActions_ = new QActionGroup(this);
     toolRailDockActions_->setExclusive(true);
     const auto addToolDockAction = [this, toolRailMenu](const i18n::Message& label,
                                        const QString& objectName,
                                        ToolRailDockLocation location) {
         auto* action = i18n::addAction(toolRailMenu, label);
+        const auto glyph = location == ToolRailDockLocation::Left ? ToolGlyph::DockLeft
+            : location == ToolRailDockLocation::RightPanel ? ToolGlyph::DockRight
+            : location == ToolRailDockLocation::Top ? ToolGlyph::DockTop : ToolGlyph::DockBottom;
+        action->setIcon(toolGlyph(glyph));
         action->setObjectName(objectName);
         action->setCheckable(true);
         toolRailDockActions_->addAction(action);
@@ -2526,7 +2539,7 @@ void MainWindow::createDocks()
         menu->setAttribute(Qt::WA_DeleteOnClose);
         for (std::size_t i = 0; i < core::layerEffectCount; ++i) {
             const auto type = core::LayerEffectType(i);
-            auto* action = i18n::addAction(menu, i18n::effectName(type));
+            auto* action = i18n::addAction(menu, toolGlyph(ToolGlyph::Effects), i18n::effectName(type));
             action->setData(int(i));
             connect(action, &QAction::triggered, this, [this, type] {
                 adjustmentsPanelAction_->setChecked(true);

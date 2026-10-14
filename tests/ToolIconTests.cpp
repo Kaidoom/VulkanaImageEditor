@@ -48,6 +48,8 @@ void iconsRenderRequestedSizesAndPreserveExplicitTint()
         icons.push_back(toolGlyph(glyph, ink));
     }
     icons.push_back(themedIcon(QStringLiteral(":/icons/text.svg"), ink));
+    for (int glyph=int(ToolGlyph::NewDocument); glyph<=int(ToolGlyph::Hidden); ++glyph)
+        icons.push_back(toolGlyph(ToolGlyph(glyph), ink));
     for (std::size_t i = 0; i < icons.size(); ++i) {
         const auto& icon = icons[i];
         CHECK(!icon.isNull());

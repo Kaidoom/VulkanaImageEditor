@@ -68,10 +68,10 @@ void MainWindow::createLayerOrganizationActions()
     i18n::setToolTip(mergeLayersAction_, i18n::text("main.window.layer.organization.bake.selected.content.together.over.transparency.unselected.backdrop.layers"));
     rasterizeLayersAction_ = action(i18n::text("main.window.layer.organization.rasterize.layer"), "RasterizeLayersAction", ToolGlyph::ActiveLayer, [this] { rasterizeLayerItems(); });
     i18n::setToolTip(rasterizeLayersAction_, i18n::text("main.window.layer.organization.commit.selected.layers.to.native.document.pixels.separately.retaining"));
-    duplicateLayersAction_ = action(i18n::text("main.window.layer.organization.duplicate.selected.layers"), "DuplicateLayersAction", ToolGlyph::ActiveLayer, [this] { duplicateLayerItems(); });
+    duplicateLayersAction_ = action(i18n::text("main.window.layer.organization.duplicate.selected.layers"), "DuplicateLayersAction", ToolGlyph::Copy, [this] { duplicateLayerItems(); });
     duplicateLayersAction_->setShortcut(QKeySequence(Qt::ShiftModifier | Qt::Key_D));
     duplicateLayersAction_->setAutoRepeat(false);
-    renameLayerAction_ = action(i18n::text("main.window.layer.organization.rename"), "RenameLayerItemAction", ToolGlyph::ActiveLayer, [this] {
+    renameLayerAction_ = action(i18n::text("main.window.layer.organization.rename"), "RenameLayerItemAction", ToolGlyph::Rename, [this] {
         if (session().activeLayer() && !editorTextInputActive() && !(textController_ && textController_->active()))
             renameLayerItem(*session().activeLayer());
     });
@@ -81,7 +81,7 @@ void MainWindow::createLayerOrganizationActions()
     const std::array shortcuts { QKeySequence(Qt::Key_H), QKeySequence(Qt::AltModifier | Qt::Key_H),
         QKeySequence(Qt::ShiftModifier | Qt::Key_H), QKeySequence(Qt::ShiftModifier | Qt::AltModifier | Qt::Key_H) };
     for (std::size_t i = 0; i < layerVisibilityActions_.size(); ++i) {
-        auto* a = i18n::make<QAction>(titles[i], this);
+        auto* a = i18n::make<QAction>(toolGlyph(i == 0 ? ToolGlyph::Hidden : ToolGlyph::Visible), titles[i], this);
         a->setObjectName(QString::fromLatin1(names[i]));
         a->setShortcut(shortcuts[i]);
         a->setAutoRepeat(false);
@@ -361,11 +361,13 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
     menu.addAction(newAdjustmentLayerAction_);
     if(layer && std::holds_alternative<core::AdjustmentLayer>(layer->payload)) {
         auto* scopeMenu=menu.addMenu(i18n::text("main.window.layer.organization.adjustment.scope"));
+        scopeMenu->setIcon(toolGlyph(ToolGlyph::AdjustmentLayer));
         const auto scope=std::get<core::AdjustmentLayer>(layer->payload).scope;
         const auto position=session().document()->tree().placement(layer->id);
         for(auto value:{core::AdjustmentScope::AllBelow,core::AdjustmentScope::ThisGroup}) {
             if(value==core::AdjustmentScope::ThisGroup && (!position || !position->parent))continue;
             auto* action=i18n::addAction(scopeMenu, value==core::AdjustmentScope::AllBelow?i18n::text("main.window.layer.organization.all.below"):i18n::text("main.window.layer.organization.this.group"));
+            action->setIcon(toolGlyph(value == core::AdjustmentScope::AllBelow ? ToolGlyph::CurrentAndBelow : ToolGlyph::Group));
             action->setCheckable(true);action->setChecked(value==scope || ((!position||!position->parent)&&value==core::AdjustmentScope::AllBelow));
             connect(action,&QAction::triggered,this,[this,id=*id,scope,value,instance=activeDocumentId()]{
                 if(activeDocumentId()!=instance)return;
@@ -382,29 +384,31 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
         gather->setObjectName(QStringLiteral("AddToNewLayerFolderAction"));
     }
     if (id) {
-        menu.addAction(i18n::text("main.window.layer.organization.rename"), this, [this, id] { renameLayerItem(*id); });
+        menu.addAction(toolGlyph(ToolGlyph::Rename), i18n::text("main.window.layer.organization.rename"), this, [this, id] { renameLayerItem(*id); });
         auto* labels = menu.addMenu(i18n::text("main.window.layer.organization.color.label"));
+        labels->setIcon(toolGlyph(ToolGlyph::Palette));
         const QStringList names { i18n::text("main.window.layer.organization.none"), i18n::text("main.window.layer.organization.red"), i18n::text("main.window.layer.organization.orange"), i18n::text("main.window.layer.organization.yellow"), i18n::text("main.window.layer.organization.green"), i18n::text("main.window.layer.organization.blue"), i18n::text("main.window.layer.organization.purple") };
         const auto current = metadata(*session().document(), *id).second;
         for (int i = 0; i < names.size(); ++i) {
             auto* action = labels->addAction(names[i], this, [this, id, i] { setLayerItemLabel(*id, core::ColorLabel(i)); });
+            action->setIcon(i ? toolGlyph(ToolGlyph::ShapeFill, layerLabelColor(core::ColorLabel(i))) : toolGlyph(ToolGlyph::Close));
             action->setCheckable(true);
             action->setChecked(int(current) == i);
         }
         if (const auto* c = session().document()->tree().container(*id)) {
             menu.addSeparator();
             for (bool immediate : { true, false })
-                menu.addAction(immediate ? i18n::text("main.window.layer.organization.select.immediate.layers") : i18n::text("main.window.layer.organization.select.all.descendant.layers"), this, [this, id, immediate] {
+                menu.addAction(toolGlyph(ToolGlyph::MergedVisible), immediate ? i18n::text("main.window.layer.organization.select.immediate.layers") : i18n::text("main.window.layer.organization.select.all.descendant.layers"), this, [this, id, immediate] {
                     cancelPendingEdits();
                     const auto ids = session().document()->tree().descendants(*id, immediate);
                     session().setLayerSelection(ids, ids.empty() ? std::nullopt : std::optional(ids.back()));
                     synchronizeUi(false, false);
                 });
-            menu.addAction(core::isGroup(c->kind) ? i18n::text("main.window.layer.organization.ungroup") : c->children.empty() ? i18n::text("main.window.layer.organization.remove.empty.folder")
+            menu.addAction(toolGlyph(ToolGlyph::Group), core::isGroup(c->kind) ? i18n::text("main.window.layer.organization.ungroup") : c->children.empty() ? i18n::text("main.window.layer.organization.remove.empty.folder")
                                                                                                        : i18n::text("main.window.layer.organization.remove.folder.keep.contents"),
                 this, [this, id] { dissolveLayerItem(*id); });
             if (!c->children.empty())
-                menu.addAction(i18n::text("main.window.layer.organization.delete.container.and.contents.2"), this, [this, id] { removeLayerItem(*id, true); });
+                menu.addAction(toolGlyph(ToolGlyph::Trash), i18n::text("main.window.layer.organization.delete.container.and.contents.2"), this, [this, id] { removeLayerItem(*id, true); });
         }
     }
     menu.addAction(duplicateLayersAction_);

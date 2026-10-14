@@ -26,8 +26,9 @@ void MainWindow::createSelectionActions()
         "LayerViaCopyAction", "ReselectAction" };
     const std::array labels { i18n::text("main.window.selection.select.all"), i18n::text("main.window.selection.deselect"), i18n::text("main.window.selection.invert.selection"), i18n::text("main.window.selection.layer.via.copy"), i18n::text("main.window.selection.reselect.last.selection") };
     const std::array shortcuts { "Ctrl+A", "Ctrl+D", "Ctrl+Shift+I", "Ctrl+J", "Ctrl+Shift+D" };
+    const std::array glyphs {ToolGlyph::SelectRectangle, ToolGlyph::Deselect, ToolGlyph::Invert, ToolGlyph::Copy, ToolGlyph::History};
     for (std::size_t i = 0; i < selectionActions_.size(); ++i) {
-        auto* action = i18n::make<QAction>(labels[i], this);
+        auto* action = i18n::make<QAction>(toolGlyph(glyphs[i]), labels[i], this);
         action->setObjectName(QString::fromLatin1(names[i]));
         action->setShortcut(QKeySequence(QString::fromLatin1(shortcuts[i])));
         action->setToolTip(QStringLiteral("%1 · %2").arg(action->text(), action->shortcut().toString()));
@@ -36,17 +37,17 @@ void MainWindow::createSelectionActions()
         registerEditorWindowAction(action);
         connect(action, &QAction::triggered, this, [this, i] { runSelectionAction(int(i)); });
     }
-    selectionGrowAction_ = i18n::make<QAction>(i18n::text("main.window.selection.grow.shrink"), this);
+    selectionGrowAction_ = i18n::make<QAction>(toolGlyph(ToolGlyph::SelectionAdjustments), i18n::text("main.window.selection.grow.shrink"), this);
     selectionGrowAction_->setObjectName(QStringLiteral("GrowShrinkSelectionAction"));
     i18n::setToolTip(selectionGrowAction_, i18n::text("main.window.selection.show.selection.adjustments.in.the.top.toolbar"));
     selectionGrowAction_->setAutoRepeat(false);
     registerEditorWindowAction(selectionGrowAction_);
     connect(selectionGrowAction_, &QAction::triggered, this, &MainWindow::openSelectionAdjustments);
-    refineSelectionAction_ = i18n::make<QAction>(i18n::text("main.window.selection.refine.selection"), this);
+    refineSelectionAction_ = i18n::make<QAction>(toolGlyph(ToolGlyph::QuickSelection), i18n::text("main.window.selection.refine.selection"), this);
     refineSelectionAction_->setObjectName(QStringLiteral("RefineSelectionAction"));
     registerEditorWindowAction(refineSelectionAction_);
     connect(refineSelectionAction_, &QAction::triggered, this, [this] { beginRefinement(false); });
-    refineMaskAction_ = i18n::make<QAction>(i18n::text("main.window.selection.refine.mask"), this);
+    refineMaskAction_ = i18n::make<QAction>(toolGlyph(ToolGlyph::QuickSelection), i18n::text("main.window.selection.refine.mask"), this);
     refineMaskAction_->setObjectName(QStringLiteral("RefineMaskAction"));
     registerEditorWindowAction(refineMaskAction_);
     connect(refineMaskAction_, &QAction::triggered, this, [this] { beginRefinement(true); });

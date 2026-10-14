@@ -29,6 +29,10 @@ void MainWindow::createLayerMaskActions() {
     maskActions_[i] = action;
     registerEditorWindowAction(action);
   }
+  maskActions_[2]->setIcon(toolGlyph(ToolGlyph::Trash));
+  maskActions_[4]->setIcon(toolGlyph(ToolGlyph::CheckCircle));
+  maskActions_[5]->setIcon(toolGlyph(ToolGlyph::SelectRectangle));
+  maskActions_[6]->setIcon(toolGlyph(ToolGlyph::Invert));
   connect(maskActions_[0], &QAction::triggered, this,
           [this] { addLayerMask(); });
   connect(maskActions_[1], &QAction::triggered, this,

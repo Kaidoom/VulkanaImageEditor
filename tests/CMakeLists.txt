@@ -397,6 +397,14 @@ set_tests_properties(imageeditor_clipboard_interaction_tests PROPERTIES
 # --system-clipboard is an explicit manual/native diagnostic only. CTest never
 # overwrites or consumes the user's real Wayland clipboard to make a fixture.
 
+add_executable(imageeditor_menu_clipboard_tests MenuClipboardTests.cpp)
+target_link_libraries(imageeditor_menu_clipboard_tests PRIVATE imageeditor_ui Qt6::Test)
+imageeditor_enable_warnings(imageeditor_menu_clipboard_tests)
+file(GLOB _menu_icons "${PROJECT_SOURCE_DIR}/assets/icons/*.svg")
+qt_add_resources(imageeditor_menu_clipboard_tests "menu_icons" PREFIX "/" BASE "${PROJECT_SOURCE_DIR}/assets" FILES ${_menu_icons})
+add_test(NAME imageeditor_menu_clipboard_tests COMMAND imageeditor_menu_clipboard_tests)
+set_tests_properties(imageeditor_menu_clipboard_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 45 LABELS "clipboard;menus;widgets")
+
 add_executable(imageeditor_pointer_tooltip_tests PointerTooltipTests.cpp)
 target_link_libraries(imageeditor_pointer_tooltip_tests PRIVATE imageeditor_render Qt6::Gui)
 imageeditor_enable_warnings(imageeditor_pointer_tooltip_tests)

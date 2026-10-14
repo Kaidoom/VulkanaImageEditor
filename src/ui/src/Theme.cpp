@@ -343,6 +343,14 @@ void applyEditorTheme(QApplication& application, const ThemeSettings& settings)
         QMenu::item:selected {
             background: #34405E;
         }
+        QMenu::icon {
+            border: 1px solid transparent;
+            border-radius: 3px;
+        }
+        QMenu::icon:checked {
+            background: #34405E;
+            border-color: #6577F3;
+        }
         QMenu::separator {
             height: 1px;
             background: #343947;
