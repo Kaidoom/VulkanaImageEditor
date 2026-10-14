@@ -2745,7 +2745,12 @@ void MainWindow::updateStatusNotification()
     }
     const auto area=workspace_->panelOverlay()->rect().adjusted(8,8,-8,-8);
     if (area.isEmpty()) { workspace_->setPassiveOverlay(statusNotification_, false); return; }
-    const int width=std::min(area.width(),std::min(640,statusNotification_->sizeHint().width()));
+    // QLabel's wrapped size hint favors a narrow, multiline box. Measure the
+    // full text first, including themed padding, and wrap only at our limit.
+    statusNotification_->setWordWrap(false);
+    const int naturalWidth=statusNotification_->sizeHint().width();
+    statusNotification_->setWordWrap(true);
+    const int width=std::min(area.width(),std::min(720,naturalWidth));
     const int height=std::min(area.height(),statusNotification_->heightForWidth(width));
     const int x = toolHintPosition_ == 1 ? area.left() + (area.width() - width) / 2 : area.left();
     statusNotification_->setGeometry(x,area.bottom()-height+1,width,height);

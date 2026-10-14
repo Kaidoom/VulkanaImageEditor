@@ -675,6 +675,47 @@ void toolNotificationsAreTransientAndPositionedWithoutInterceptingInput()
     CHECK(!timer->isActive());
 }
 
+void toolNotificationsUseAvailableWidthBeforeWrapping()
+{
+    Fixture f; CHECK(f.valid()); if(!f.valid())return;
+    auto* notice=f.find<QLabel>("StatusNotification");
+    if(!notice)return;
+    const auto canvasBefore=f.workspace->canvasContainer()->geometry();
+    const auto depth=f.window.editorSession().history().undoDepth();
+    QLabel unwrapped;
+    unwrapped.setObjectName(QStringLiteral("StatusNotification"));
+    unwrapped.setTextFormat(Qt::PlainText);
+    unwrapped.setFont(notice->font());
+    unwrapped.ensurePolished();
+    for(const auto& message:{QStringLiteral("Opened 8f281095-fbc0-4a05-a311-4f5fbf47741e.png"),
+            QString::fromUtf8("Document ouvert : Illustration — version finale.vulkana"),
+            QString::fromUtf8("تم فتح المستند Illustration-2026.vulkana"),
+            QStringLiteral("Saved")}) {
+        unwrapped.setText(message);
+        f.window.statusBar()->showMessage(message);settle();
+        CHECK(unwrapped.sizeHint().width()<720);
+        CHECK(notice->width()==unwrapped.sizeHint().width());
+        CHECK(notice->height()==unwrapped.sizeHint().height());
+        CHECK(notice->wordWrap());
+    }
+    const auto longMessage=QStringLiteral("This longer activity message should wrap only after using the available notification width. ").repeated(4);
+    unwrapped.setText(longMessage);
+    f.window.statusBar()->showMessage(longMessage);settle();
+    CHECK(notice->width()==720);
+    CHECK(notice->height()>unwrapped.sizeHint().height());
+    CHECK(notice->parentWidget()->rect().adjusted(8,8,-8,-8).contains(notice->geometry()));
+    CHECK(f.workspace->canvasContainer()->geometry()==canvasBefore);
+    CHECK(f.window.editorSession().history().undoDepth()==depth);
+    // Exercise the overlay resize path independently of the main window's
+    // toolbar minimum width, including a notification narrower than its cap.
+    auto* overlay=notice->parentWidget();
+    overlay->resize(360,overlay->height());
+    CHECK(notice->width()==344);
+    CHECK(overlay->rect().adjusted(8,8,-8,-8).contains(notice->geometry()));
+    CHECK(notice->height()==notice->heightForWidth(notice->width()));
+    f.window.statusBar()->clearMessage();
+}
+
 void narrowLayoutUsesOverflowWithoutCoveringLeadingModes()
 {
     Fixture f;
@@ -782,6 +823,7 @@ int main(int argc, char** argv)
     adjustmentDisclosureIsCachedAndSeparateFromCtrlT();
     selectMenuReusesToolsAndSafelyRevealsGrowShrink();
     toolNotificationsAreTransientAndPositionedWithoutInterceptingInput();
+    toolNotificationsUseAvailableWidthBeforeWrapping();
     narrowLayoutUsesOverflowWithoutCoveringLeadingModes();
     if (failures) std::cerr << failures << " selection toolbar layout assertion(s) failed\n";
     else std::cout << "All selection toolbar layout tests passed\n";
