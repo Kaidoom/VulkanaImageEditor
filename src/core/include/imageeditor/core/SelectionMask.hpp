@@ -56,6 +56,9 @@ public:
     // Copy-on-write tile edits; null means every supplied byte was unchanged.
     [[nodiscard]] SelectionState replacedR8(std::span<const CoveragePatch>) const;
     [[nodiscard]] SelectionState resized(Extent2u) const;
+    // Integer-only padding in the existing pixel grid. Frame must contain the
+    // entire old plane; new pixels use outside rather than selection zero.
+    [[nodiscard]] SelectionState padded(RectI frame, std::uint8_t outside) const;
     [[nodiscard]] SelectionState translated(int dx, int dy) const;
     // Signed document-axis radii, per side. X is applied before Y for mixed signs.
     [[nodiscard]] SelectionState adjusted(int horizontal, int vertical) const;

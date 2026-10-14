@@ -349,10 +349,24 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
         synchronizeUi(false,false);
     }
     QMenu menu(layerList_);
+    const auto menuInstance=activeDocumentId();
+    const auto menuSelection=session().layerSelectionState();
+    const auto addMaskAction=[&](size_t i) {
+        if(i<7){menu.addAction(maskActions_[i]);return;}
+        // The menu targets the document/layers under the original right-click,
+        // even if another window or a delayed callback changes the active tab.
+        auto* source=maskActions_[i];
+        auto* action=menu.addAction(source->icon(),source->text());
+        action->setObjectName(source->objectName());action->setToolTip(source->toolTip());
+        action->setEnabled(id.has_value()&&source->isEnabled());
+        connect(action,&QAction::triggered,&menu,[this,source,menuInstance,menuSelection]{
+            if(activeDocumentId()==menuInstance&&session().layerSelectionState()==menuSelection)source->trigger();
+        });
+    };
     if(maskThumbnail) {
         menu.setObjectName(QStringLiteral("LayerMaskContextMenu"));
         // This thumbnail already owns a mask: offer only operations on it.
-        for(size_t i=2;i<maskActions_.size();++i)menu.addAction(maskActions_[i]);
+        for(size_t i=2;i<maskActions_.size();++i)addMaskAction(i);
         menu.addAction(refineMaskAction_);
         menu.exec(layerList_->viewport()->mapToGlobal(point));
         return;
@@ -421,7 +435,7 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
     menu.addAction(mergeLayersAction_);
     menu.addAction(rasterizeLayersAction_);
     menu.addSeparator();
-    for (auto* action : maskActions_) menu.addAction(action);
+    for(size_t i=0;i<maskActions_.size();++i)addMaskAction(i);
     menu.exec(layerList_->viewport()->mapToGlobal(point));
 }
 void MainWindow::mergeLayerItems()

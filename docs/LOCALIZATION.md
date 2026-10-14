@@ -101,8 +101,9 @@ English. ASCII numbers remain independent of the chosen UI locale.
 
 The 16-language lineup is translated and enabled in `localization/`:
 `en`, `fr`, `es`, `de`, `it`, `pt-BR`, `pl`, `tr`, `ru`, `uk`, `ar`, `hi`,
-`zh-Hans`, `zh-Hant`, `ja`, `ko`. Each has all 1,731 catalog entries and the
-appropriate plural forms. All language metadata retains `reviewPending: true`;
+`zh-Hans`, `zh-Hant`, `ja`, `ko`. The initial 1,731-message translation pass includes
+the appropriate plural forms. New messages may fall back to English until the
+next translation pass; run `validate` for current coverage. All language metadata retains `reviewPending: true`;
 targeted corrections do not imply a complete review of a language.
 CMake installs enabled packs plus the test pseudo-pack.
 

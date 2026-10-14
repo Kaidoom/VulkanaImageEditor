@@ -67,6 +67,8 @@ const QList<ShortcutDefinition>& shortcutDefinitions()
         add("GrowShrinkSelectionAction", i18n::text("editor.shortcuts.show.grow.shrink.controls"), i18n::text("editor.shortcuts.selection"));
         add("RefineSelectionAction", i18n::text("editor.shortcuts.refine.selection"), i18n::text("editor.shortcuts.selection"));
         add("RefineMaskAction", i18n::text("editor.shortcuts.refine.mask"), i18n::text("editor.shortcuts.layers"));
+        add("CopyLayerMaskAction", i18n::text("layer.mask.copy"), i18n::text("editor.shortcuts.layers"));
+        add("PasteLayerMaskAction", i18n::text("layer.mask.paste"), i18n::text("editor.shortcuts.layers"));
         add("LayerViaCopyAction", i18n::text("editor.shortcuts.layer.via.copy"), i18n::text("editor.shortcuts.selection"), "Ctrl+J");
         add("ToolAction_move", i18n::text("editor.shortcuts.move"), i18n::text("editor.shortcuts.tools"), "V");
         add("ToolAction_crop", i18n::text("editor.shortcuts.layer.crop"), i18n::text("editor.shortcuts.tools"), "C");

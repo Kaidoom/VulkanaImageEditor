@@ -371,6 +371,8 @@ private:
     void applyLayerMask();
     void layerMaskToSelection();
     void invertLayerMask();
+    void copyLayerMask();
+    void pasteLayerMask();
     void setLayerEditingTarget(int row, bool mask);
     void refreshLayerMaskActions();
     bool confirmLayerChange(const QString& title,const QString& question);
@@ -782,7 +784,8 @@ private:
     QPushButton* deleteLayerButton_ {nullptr};
     QPushButton* addMaskButton_ {nullptr};
     QPushButton* effectsButton_ {nullptr};
-    std::array<QAction*,7> maskActions_ {};
+    std::array<QAction*,9> maskActions_ {};
+    bool layerMaskClipboardAvailable_{};
     PropertiesPanel* propertiesPanel_ {nullptr};
     ToolOptionsBar* toolOptionsBar_ {nullptr};
     ToolOptionsButton* editTextButton_ {nullptr};

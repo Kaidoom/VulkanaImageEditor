@@ -2,6 +2,29 @@
 #include "imageeditor/core/RasterEditTransaction.hpp"
 
 namespace imageeditor::core {
+struct LayerMaskReplacement {
+  LayerId id;
+  LayerMaskState before, after;
+};
+// Preflight every target before publishing any mask; one paste/undo for a
+// multi-layer selection. Immutable coverage remains shared, never resampled.
+class PasteLayerMasksCommand final : public Command {
+public:
+  PasteLayerMasksCommand(std::vector<LayerMaskReplacement>, LayerSelectionState, bool editingMask);
+  bool apply(Document&) override;
+  bool undo(Document&) override;
+  std::string_view label() const noexcept override { return "Paste layer mask"; }
+  std::size_t memoryCost() const noexcept override;
+  const LayerSelectionState* layerSelectionAfter(bool) const noexcept override { return &selection_; }
+  std::optional<bool> maskEditingAfter(bool undo) const noexcept override { return undo?editingMask_:true; }
+private:
+  bool publish(Document&, bool undo);
+  std::vector<LayerMaskReplacement> replacements_;
+  LayerSelectionState selection_;
+  bool editingMask_{};
+  std::size_t memoryBytes_{};
+};
+
 class LayerMaskCommand final : public Command {
 public:
   LayerMaskCommand(LayerId, LayerMaskState before, LayerMaskState after,
@@ -36,7 +59,7 @@ private:
   bool publish(SelectionState);
   Document &owner_;
   LayerId id_;
-  LayerMaskState before_, current_;
+  LayerMaskState before_, current_, editable_;
   AffineTransform transform_;
   SelectionState selection_;
   std::string label_;

@@ -39,6 +39,7 @@ add_library(imageeditor_ui STATIC
     include/imageeditor/ui/ColorDialog.hpp
     src/ColorSelector.cpp
     src/ClipboardImage.cpp
+    src/LayerMaskClipboard.cpp
     src/LayerListModel.cpp
     src/LayerListView.cpp
     src/MainWindow.cpp

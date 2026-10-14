@@ -1,6 +1,8 @@
 #include "imageeditor/core/LayerMaskEdit.hpp"
+#include "imageeditor/core/LayerGeometry.hpp"
 #include <functional>
 #include <stdexcept>
+#include <unordered_set>
 
 namespace imageeditor::core {
 namespace {
@@ -89,6 +91,41 @@ LayerMaskCommand::LayerMaskCommand(LayerId id, LayerMaskState before,
                                    LayerMaskState after, std::string label)
     : id_(id), before_(std::move(before)), after_(std::move(after)),
       label_(std::move(label)) {}
+PasteLayerMasksCommand::PasteLayerMasksCommand(std::vector<LayerMaskReplacement> replacements,
+    LayerSelectionState selection,bool editingMask)
+    :replacements_(std::move(replacements)),selection_(std::move(selection)),editingMask_(editingMask)
+{
+  for(const auto& r:replacements_)if(!validLayerMask(r.before)||!r.after||!validLayerMask(r.after))
+    throw std::invalid_argument("Invalid layer mask paste");
+  std::sort(replacements_.begin(),replacements_.end(),[](const auto& a,const auto& b){return a.id<b.id;});
+  if(std::adjacent_find(replacements_.begin(),replacements_.end(),[](const auto& a,const auto& b){return a.id==b.id;})!=replacements_.end())
+    throw std::invalid_argument("Duplicate layer mask paste target");
+  std::erase_if(replacements_,[](const auto& r){return equivalentLayerMasks(r.before,r.after);});
+  memoryBytes_=sizeof(*this)+replacements_.capacity()*sizeof(LayerMaskReplacement)+selection_.ids.capacity()*sizeof(LayerId);
+  std::unordered_set<const LayerMask*> masks;
+  std::unordered_set<const SelectionMask*> coverage;
+  for(const auto& r:replacements_)for(const auto& state:{r.before,r.after})if(state) {
+    if(masks.insert(state.get()).second)memoryBytes_+=sizeof(LayerMask);
+    if(coverage.insert(state->coverage.get()).second)memoryBytes_+=state->coverage->memoryCost();
+  }
+}
+bool PasteLayerMasksCommand::publish(Document& doc,bool undo)
+{
+  if(replacements_.empty())return false;
+  for(const auto& r:replacements_) {
+    const auto* layer=doc.layer(r.id);
+    if(!layer||layer->mask!=(undo?r.after:r.before)||!validLayerMask(undo?r.before:r.after))return false;
+  }
+  // setLayerMask cannot allocate or fail after the complete preflight above.
+  for(const auto& r:replacements_)doc.setLayerMask(r.id,undo?r.before:r.after);
+  return true;
+}
+bool PasteLayerMasksCommand::apply(Document& doc){return publish(doc,false);}
+bool PasteLayerMasksCommand::undo(Document& doc){return publish(doc,true);}
+std::size_t PasteLayerMasksCommand::memoryCost() const noexcept
+{
+  return memoryBytes_;
+}
 bool LayerMaskCommand::apply(Document &d) {
   const auto *l = d.layer(id_);
   return l && l->mask == before_ && !equivalentLayerMasks(before_, after_) &&
@@ -117,13 +154,17 @@ LayerMaskEdit::LayerMaskEdit(Document &owner, LayerId id, std::string label)
     throw std::invalid_argument("Layer has no editable mask");
   before_ = current_ = layer->mask;
   transform_ = layer->localToDocument;
+  // Prepare a larger proxy without publishing a document change. Old pasted
+  // masks become editable across the destination; no-op/cancel keeps the exact
+  // old mask and redo. Padding is stored only together with an actual edit.
+  editable_ = expandedLayerMask(before_, layerMaskEditingBounds(*layer, owner.canvas().extent));
   auto surface = std::make_shared<MaskSurface>(
-      before_->coverage,
+      editable_->coverage,
       [this](SelectionState state) { return publish(std::move(state)); });
   auto proxy = Layer::raster(layer->name, std::move(surface));
   proxy.id = id;
   proxy.localToDocument =
-      composeTransform(transform_, *before_->localToMask.inverted());
+      composeTransform(transform_, *editable_->localToMask.inverted());
   if (!proxy_.insertLayer(0, std::move(proxy)))
     throw std::runtime_error("Cannot prepare layer mask edit");
   proxy_.setSelection(selection_);
@@ -138,7 +179,7 @@ bool LayerMaskEdit::valid() const noexcept {
 bool LayerMaskEdit::publish(SelectionState coverage) {
   if (!valid())
     return false;
-  auto next = std::make_shared<LayerMask>(*current_);
+  auto next = std::make_shared<LayerMask>(*editable_);
   next->coverage = std::move(coverage);
   if (!owner_.setLayerMask(id_, next))
     return false;
@@ -150,7 +191,7 @@ RasterEditCommitResult LayerMaskEdit::commit(History &history) {
     cancel();
     return RasterEditCommitResult::TargetUnavailable;
   }
-  if (equivalentLayerMasks(before_, current_)) {
+  if (current_ == before_ || equivalentLayerMasks(editable_, current_)) {
     cancel();
     return RasterEditCommitResult::NoChanges;
   }

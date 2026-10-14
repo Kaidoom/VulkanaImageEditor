@@ -16,6 +16,10 @@ using LayerMaskState = std::shared_ptr<const LayerMask>;
 [[nodiscard]] bool validLayerMask(const LayerMaskState &) noexcept;
 [[nodiscard]] bool equivalentLayerMasks(const LayerMaskState &,
                                         const LayerMaskState &) noexcept;
+// Retain all original samples and their placement, padding the existing grid
+// with outside coverage to include localBounds. Throws on unsafe/oversize frames.
+// Returns the original state when no extension is needed.
+[[nodiscard]] LayerMaskState expandedLayerMask(const LayerMaskState &, RectD localBounds);
 [[nodiscard]] float layerMaskCoverage(const LayerMaskState &,
                                       Vec2d local) noexcept;
 [[nodiscard]] std::uint8_t maskGray(Rgba8) noexcept;

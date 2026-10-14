@@ -3,25 +3,45 @@
 #include "imageeditor/core/SelectionCommands.hpp"
 #include "imageeditor/ui/LayerListModel.hpp"
 #include "imageeditor/ui/LayerListView.hpp"
+#include "imageeditor/ui/LayerMaskClipboard.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/NativeRasterBake.hpp"
 #include "imageeditor/ui/QtShapeRenderService.hpp"
 #include "imageeditor/ui/QtTextLayoutService.hpp"
 #include "imageeditor/ui/ToolIcons.hpp"
 #include <QAction>
+#include <QApplication>
+#include <QClipboard>
+#include <QMimeData>
 #include <QPushButton>
 #include <QStatusBar>
 #include <cmath>
 
 namespace imageeditor::ui {
+namespace {
+core::RectD maskEditingBounds(const core::Layer& layer, core::Extent2u canvas)
+{
+  auto bounds = core::layerMaskEditingBounds(layer, canvas);
+  // Hidden/new typed layers may not yet have a display cache. Query their
+  // native model without rasterizing or changing editable content.
+  if (bounds.empty()) {
+    if (const auto* shape = std::get_if<core::ShapeLayer>(&layer.payload))
+      bounds = QtShapeRenderService().documentBounds(*shape, {});
+    else if (const auto* text = std::get_if<core::TextLayer>(&layer.payload))
+      bounds = QtTextLayout(*text).documentBounds({});
+  }
+  return bounds;
+}
+}
 void MainWindow::createLayerMaskActions() {
   const QList<i18n::Message> labels{
       i18n::text("main.window.layer.masks.add.layer.mask"),    i18n::text("main.window.layer.masks.add.mask.from.selection"),
       i18n::text("main.window.layer.masks.delete.layer.mask"), i18n::text("main.window.layer.masks.disable.layer.mask"),
-      i18n::text("main.window.layer.masks.apply.layer.mask"), i18n::text("main.window.layer.masks.add.mask.to.selection"), i18n::text("main.window.layer.masks.invert.layer.mask")};
+      i18n::text("main.window.layer.masks.apply.layer.mask"), i18n::text("main.window.layer.masks.add.mask.to.selection"), i18n::text("main.window.layer.masks.invert.layer.mask"),
+      i18n::text("layer.mask.copy"), i18n::text("layer.mask.paste")};
   const QStringList names{"AddLayerMaskAction",    "MaskFromSelectionAction",
                           "DeleteLayerMaskAction", "EnableLayerMaskAction",
-                          "ApplyLayerMaskAction",  "MaskToSelectionAction", "InvertLayerMaskAction"};
+                          "ApplyLayerMaskAction",  "MaskToSelectionAction", "InvertLayerMaskAction", "CopyLayerMaskAction", "PasteLayerMaskAction"};
   for (size_t i = 0; i < maskActions_.size(); ++i) {
     auto *action =
         i18n::make<QAction>(toolGlyph(ToolGlyph::LayerMask), labels[int(i)], this);
@@ -33,6 +53,9 @@ void MainWindow::createLayerMaskActions() {
   maskActions_[4]->setIcon(toolGlyph(ToolGlyph::CheckCircle));
   maskActions_[5]->setIcon(toolGlyph(ToolGlyph::SelectRectangle));
   maskActions_[6]->setIcon(toolGlyph(ToolGlyph::Invert));
+  maskActions_[7]->setIcon(toolGlyph(ToolGlyph::Copy));
+  maskActions_[8]->setIcon(toolGlyph(ToolGlyph::Paste));
+  i18n::setToolTip(maskActions_[8],i18n::text("layer.mask.paste.hint"));
   connect(maskActions_[0], &QAction::triggered, this,
           [this] { addLayerMask(); });
   connect(maskActions_[1], &QAction::triggered, this,
@@ -46,6 +69,51 @@ void MainWindow::createLayerMaskActions() {
   connect(maskActions_[5], &QAction::triggered, this,
           &MainWindow::layerMaskToSelection);
   connect(maskActions_[6], &QAction::triggered, this,&MainWindow::invertLayerMask);
+  connect(maskActions_[7], &QAction::triggered, this,&MainWindow::copyLayerMask);
+  connect(maskActions_[8], &QAction::triggered, this,&MainWindow::pasteLayerMask);
+  const auto* mime=QApplication::clipboard()->mimeData();
+  layerMaskClipboardAvailable_=mime&&mime->hasFormat(layerMaskClipboardMime);
+  connect(QApplication::clipboard(),&QClipboard::dataChanged,this,[this]{
+    const auto* data=QApplication::clipboard()->mimeData();
+    layerMaskClipboardAvailable_=data&&data->hasFormat(layerMaskClipboardMime);
+    refreshLayerMaskActions();
+  });
+}
+void MainWindow::copyLayerMask()
+{
+  if(!maskActions_[7]->isEnabled()||!session().document()||!session().activeLayer())return;
+  const auto* layer=session().document()->layer(*session().activeLayer());
+  if(!layer)return;
+  try {
+    const auto bytes=encodeLayerMaskClipboard(*layer);
+    if(bytes.isEmpty())return;
+    auto mime=std::make_unique<QMimeData>();mime->setData(layerMaskClipboardMime,bytes);
+    QApplication::clipboard()->setMimeData(mime.release());
+    statusBar()->showMessage(i18n::text("layer.mask.copy.done"),4000);
+  }catch(const std::exception& e){statusBar()->showMessage(QString::fromUtf8(e.what()),6000);}
+}
+void MainWindow::pasteLayerMask()
+{
+  if(!maskActions_[8]->isEnabled()||!session().document())return;
+  const auto instance=activeDocumentId();
+  const auto selection=session().layerSelectionState();
+  try {
+    const auto* mime=QApplication::clipboard()->mimeData();
+    const auto copied=mime?decodeLayerMaskClipboard(mime->data(layerMaskClipboardMime)):std::nullopt;
+    if(!copied){statusBar()->showMessage(i18n::text("layer.mask.paste.failed"),5000);return;}
+    if(!settleForFileOperation()||activeDocumentId()!=instance||session().layerSelectionState()!=selection)return;
+    std::vector<core::LayerMaskReplacement> replacements;
+    for(auto id:selection.ids) {
+      const auto* layer=session().document()->layer(id);
+      const auto next=layer?pastedLayerMask(*copied,layer->localToDocument,
+          maskEditingBounds(*layer,session().document()->canvas().extent)):nullptr;
+      if(!next){statusBar()->showMessage(i18n::text("layer.mask.paste.failed"),5000);return;}
+      replacements.push_back({id,layer->mask,next});
+    }
+    if(session().execute(std::make_unique<core::PasteLayerMasksCommand>(std::move(replacements),selection,session().editingLayerMask()))) {
+      fileState().untouched=false;synchronizeUi(true,false);
+    }
+  }catch(const std::exception& e){statusBar()->showMessage(QString::fromUtf8(e.what()),6000);}
 }
 void MainWindow::invertLayerMask() {
   if(fileBusy_||!session().document()||!session().activeLayer()||!settleForFileOperation())return;
@@ -62,7 +130,7 @@ void MainWindow::refreshLayerMaskActions() {
       session().document() && session().activeLayer()
           ? session().document()->layer(*session().activeLayer())
           : nullptr;
-  const bool available = layer && !fileBusy_ && !activeFill_ &&
+  const bool available = layer && !fileBusy_ && !refinement_ && !workspaceDialog_ && !activeFill_ &&
                          !activeBrushStroke_ && !layerTransform_ &&
                          !selectionTransform_ && !layerCrop_;
   maskActions_[0]->setEnabled(available && !layer->mask);
@@ -76,6 +144,12 @@ void MainWindow::refreshLayerMaskActions() {
                                : i18n::text("main.window.layer.masks.disable.layer.mask"));
   maskActions_[4]->setEnabled(available && layer->mask && layer->mask->enabled);
   if(layer && std::holds_alternative<core::AdjustmentLayer>(layer->payload))maskActions_[4]->setEnabled(false);
+  maskActions_[7]->setEnabled(available&&layer->mask&&core::validLayerMask(layer->mask)&&layer->localToDocument.inverted().has_value());
+  const bool targets=available&&!session().selectedLayers().empty()
+      &&std::all_of(session().selectedLayers().begin(),session().selectedLayers().end(),[this](auto id){
+        const auto* target=session().document()->layer(id);return target&&target->localToDocument.inverted().has_value();
+      });
+  maskActions_[8]->setEnabled(targets&&layerMaskClipboardAvailable_);
   if (addMaskButton_)
     addMaskButton_->setEnabled(maskActions_[0]->isEnabled());
   if (effectsButton_)
@@ -114,23 +188,7 @@ void MainWindow::addLayerMask(bool requireSelection) {
     // when present; otherwise Reveal All also reveals future content outside it.
     // Cropping is reversible: allocate the full local source/style frame so
     // removing a crop does not expose areas that the mask cannot edit.
-    auto bounds = core::hasActiveLayerEffects(layer->effects) &&
-                          core::layerEffectCacheValid(*layer) && layer->effectCache
-                      ? layer->effectCache->visualBounds
-                      : core::layerSourceBounds(*layer);
-    if (bounds.empty()) {
-      // A hidden or newly created typed layer may not have a display cache.
-      // Its model still supplies the local frame without rasterizing content.
-      if (const auto *shape = std::get_if<core::ShapeLayer>(&layer->payload))
-        bounds = QtShapeRenderService().documentBounds(*shape, {});
-      else if (const auto *text = std::get_if<core::TextLayer>(&layer->payload))
-        bounds = QtTextLayout(*text).documentBounds({});
-      else
-        bounds = core::layerSourceBounds(*layer);
-    }
-    if(std::holds_alternative<core::AdjustmentLayer>(layer->payload)) {
-      const auto e=doc.canvas().extent;bounds={0,0,double(e.width),double(e.height)};
-    }
+    const auto bounds = maskEditingBounds(*layer, doc.canvas().extent);
     if (bounds.empty())
       throw std::runtime_error("Layer has no renderable bounds");
     const auto x = std::floor(bounds.x), y = std::floor(bounds.y);

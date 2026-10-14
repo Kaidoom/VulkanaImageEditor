@@ -10770,4 +10770,27 @@ Escape لإلغاء جلسة الاقتصاص كاملةً
     <message id="performance.undo.warning.title"><source>Reduce Undo Memory?</source><translation>تقليل ذاكرة التراجع؟</translation></message>
     <message id="performance.undo.warning"><source>Older undo steps may be discarded as you make new edits. This cannot be reversed by raising the budget later. Continue?</source><translation>قد تُحذف خطوات التراجع القديمة مع إجراء تعديلات جديدة. لا يمكن استعادتها بزيادة الميزانية لاحقًا. هل تريد المتابعة؟</translation></message>
   </context>
+  <context>
+    <name>LayerMaskClipboard</name>
+    <message id="layer.mask.copy">
+      <source>Copy layer mask</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layer.mask.paste">
+      <source>Paste layer mask</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layer.mask.paste.hint">
+      <source>Replace masks on the selected layers, keeping the copied mask's canvas position. Undo restores the previous masks.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layer.mask.copy.done">
+      <source>Layer mask copied.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layer.mask.paste.failed">
+      <source>The layer mask could not be pasted at its original position.</source>
+      <translation type="unfinished" />
+    </message>
+  </context>
 </TS>

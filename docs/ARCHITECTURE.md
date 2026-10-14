@@ -96,12 +96,33 @@ Other destructive pixel tools require returning to the content thumbnail.
 
 Reveal All creates a mask over full local source/styled bounds, with white outside;
 From Selection captures the selection in that frame, with black outside.
-Later text/shape edits retain this frame. Masks do not resize with new content.
+Later text/shape edits retain the original pixel grid. When editing needs a larger
+frame, integer padding extends it to the uncropped local source/style bounds using
+the mask's outside coverage, never scaling or resampling existing pixels. Preparing
+the brush/fill proxy alone does not change the document; padding is committed with
+the actual edit, and cancel/no-op retains the original mask and redo history.
 Apply explicitly rasterizes the masked appearance, baking transforms/effects too,
 while retaining layer identity, opacity and blend mode; undo restores the typed
 original. A disabled mask must be enabled before Apply. Canvas, Pixel Preview,
 rendered references, merge and export share the coverage contract. Native PDF text
 falls back to raster output when an enabled layer mask cannot be represented.
+
+Copy/Paste layer mask uses a versioned, size-bounded R8 clipboard format with
+the original mask frame, source layer transform, enabled state and outside
+coverage. Paste keeps the same document-pixel position without resampling:
+`destinationLocalToMask = sourceLocalToMask × inverse(sourceLocalToDocument) × destinationLocalToDocument`.
+The bitmap is integer-padded to include the destination's full local source/style
+frame, retaining off-frame samples and outside coverage. The mapping receives the
+opposite integer offset, so neither its appearance nor its position changes. Masks
+saved with smaller frames also expand when brush/fill edits require more room.
+The pasted mask subsequently moves with its destination layer normally. It is
+independent of later source edits and does not consume the document selection.
+Selected raster/text/shape/adjustment layers receive independent mask states
+sharing unchanged tiles where aligned; containers are not implicit paste targets.
+`PasteLayerMasksCommand` preflights all replacements, preserves typed content,
+and restores the previous masks, layer selection and mask-editing target in one
+undo step. Identical pastes preserve redo and the saved checkpoint. Clipboard
+payloads contain no source RGB, layer IDs or document pointers.
 
 ## Adjustment operators
 

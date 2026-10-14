@@ -96,6 +96,15 @@ template<class L> RectD layerVisibleBounds(const L& layer)
     const auto source=layerSourceBounds(layer);
     return layer.crop?croppedBounds(*layer.crop,source):source;
 }
+// Editable masks cover uncropped source/style support, not just nontransparent
+// pixels or the old mask bitmap. Cropping must not discard editable coverage.
+inline RectD layerMaskEditingBounds(const Layer& layer, Extent2u canvas)
+{
+    if (std::holds_alternative<AdjustmentLayer>(layer.payload))
+        return {0, 0, double(canvas.width), double(canvas.height)};
+    return hasActiveLayerEffects(layer.effects) && layerEffectCacheValid(layer) && layer.effectCache
+        ? layer.effectCache->visualBounds : layerSourceBounds(layer);
+}
 // Styling never changes model geometry, transform handles, or the gradient's
 // reference frame. Only visual/output consumers request these expanded bounds.
 template<class L> RectD layerStyledBounds(const L& layer)

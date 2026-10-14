@@ -255,6 +255,44 @@ SelectionState SelectionMask::resized(Extent2u extent) const
     result->updateBounds();
     return result;
 }
+SelectionState SelectionMask::padded(RectI frame, std::uint8_t outside) const
+{
+    if (frame.empty() || frame.x > 0 || frame.y > 0
+        || std::int64_t(frame.x) + frame.width < extent_.width
+        || std::int64_t(frame.y) + frame.height < extent_.height)
+        throw std::invalid_argument("Mask padding must retain the original plane");
+    auto result = std::shared_ptr<SelectionMask>(new SelectionMask(
+        {std::uint32_t(frame.width), std::uint32_t(frame.height)}));
+    for (std::size_t i = 0; i < result->tiles_.size(); ++i) {
+        const auto r = result->tileRect(i);
+        const RectI source{r.x + frame.x, r.y + frame.y, r.width, r.height};
+        const auto overlap = source.clippedTo(canvasBounds(extent_));
+        auto& tile = result->tiles_[i];
+        if (overlap.empty()) {
+            tile.uniform = outside;
+            if (outside) tile.bounds = {0, 0, r.width, r.height};
+            continue;
+        }
+        if (overlap == source && source.x % int(tileSize) == 0 && source.y % int(tileSize) == 0) {
+            const auto index = std::size_t(source.y / int(tileSize)) * columns_ + std::size_t(source.x / int(tileSize));
+            if (source == tileRect(index)) { tile = tiles_[index]; continue; }
+        }
+        const auto uniform = constantCoverage(overlap);
+        if (uniform && (overlap == source || *uniform == outside)) {
+            tile.uniform = *uniform;
+            if (*uniform) tile.bounds = {0, 0, r.width, r.height};
+            continue;
+        }
+        auto pixels = std::make_shared<Pixels>();
+        pixels->fill(outside);
+        for (int y = overlap.y; y < overlap.bottom(); ++y)
+            for (int x = overlap.x; x < overlap.right(); ++x)
+                (*pixels)[std::size_t(y - source.y) * tileSize + std::size_t(x - source.x)] = coverageAtDocumentPixel(x, y);
+        tile = compress(std::move(pixels), {std::uint32_t(r.width), std::uint32_t(r.height)});
+    }
+    result->updateBounds();
+    return result;
+}
 bool SelectionMask::equivalent(const SelectionMask& other) const noexcept
 {
     if (extent_ != other.extent_ || bounds_ != other.bounds_) return false;

@@ -10652,4 +10652,27 @@ Smusso: tira gli angoli all'interno; Alt cambia anche l'opposto. I lati ridimens
     <message id="performance.undo.warning.title"><source>Reduce Undo Memory?</source><translation>Ridurre la memoria degli annullamenti?</translation></message>
     <message id="performance.undo.warning"><source>Older undo steps may be discarded as you make new edits. This cannot be reversed by raising the budget later. Continue?</source><translation>Le vecchie operazioni annullabili potrebbero essere eliminate con le nuove modifiche. Aumentare il budget in seguito non le ripristinerà. Continuare?</translation></message>
   </context>
+  <context>
+    <name>LayerMaskClipboard</name>
+    <message id="layer.mask.copy">
+      <source>Copy layer mask</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layer.mask.paste">
+      <source>Paste layer mask</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layer.mask.paste.hint">
+      <source>Replace masks on the selected layers, keeping the copied mask's canvas position. Undo restores the previous masks.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layer.mask.copy.done">
+      <source>Layer mask copied.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layer.mask.paste.failed">
+      <source>The layer mask could not be pasted at its original position.</source>
+      <translation type="unfinished" />
+    </message>
+  </context>
 </TS>
