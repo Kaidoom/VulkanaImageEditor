@@ -53,6 +53,9 @@ public:
     void recordFrame(const CanvasScene& scene, const VulkanFrameContext& frame);
 
     [[nodiscard]] const RendererStats& stats() const noexcept { return stats_; }
+    [[nodiscard]] std::uint64_t pendingTextureReleases() const noexcept {
+        std::uint64_t count=0;for(const auto& slot:deferredTextures_)count+=slot.size();return count;
+    }
 
 private:
     struct BufferResource {
@@ -184,6 +187,7 @@ private:
 
     VkDevice device_ {VK_NULL_HANDLE};
     VkPhysicalDevice physicalDevice_ {VK_NULL_HANDLE};
+    std::uint64_t inactiveCacheClearGeneration_{};
     VkRenderPass renderPass_ {VK_NULL_HANDLE};
     VkFormat colorFormat_ {VK_FORMAT_UNDEFINED};
     VkExtent2D targetExtent_ {};

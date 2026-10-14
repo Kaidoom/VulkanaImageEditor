@@ -6,6 +6,7 @@
 #include "imageeditor/ui/TextController.hpp"
 #include "imageeditor/ui/ProjectIntegrationDialog.hpp"
 #include "imageeditor/platform/ProjectIntegration.hpp"
+#include "imageeditor/render/CanvasWindow.hpp"
 
 #include <QApplication>
 #include <QDialog>
@@ -65,6 +66,12 @@ void MainWindow::presentStartupUi()
         && (qApp->property("vulkanaForceProjectIntegrationPrompt").toBool()
             || !QSettings().contains(platform::projectIntegrationChoiceKey));
     if (!startupNewDocumentPending_ && !startupUpdateNoticePending_ && !chooseLanguage && !offerIntegration) return;
+    // Let an explicit GPU choice finish its first presentation and, if needed,
+    // show the recovery notice before the other startup cards.
+    if(gpuFallbackPending_||(!platform::startupPerformanceSettings().graphicsDevice.isEmpty()
+        &&canvasWindow_->vulkanInstance()&&!canvasWindow_->rendererStats().presentQueuedFrames)) {
+        startupUiTimer_->start(200);return;
+    }
     if (isMinimized() || fileBusy_ || workspaceDialog_ || QApplication::activeModalWidget()
         || QApplication::activePopupWidget() || !shortcutGestureIdle() || editorTextInputActive()) {
         // Never interrupt an edit, native popup or another workspace dialog.

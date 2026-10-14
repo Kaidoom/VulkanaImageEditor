@@ -18,6 +18,9 @@ namespace imageeditor::core {
 namespace {
 
 thread_local unsigned parallelDepth = 0;
+std::mutex configurationMutex;
+unsigned configuredLimit{};
+bool executorCreated{};
 struct DepthGuard {
     DepthGuard() { ++parallelDepth; }
     ~DepthGuard() { --parallelDepth; }
@@ -27,7 +30,11 @@ class Executor {
 public:
     Executor()
     {
-        const auto desired = std::clamp(std::thread::hardware_concurrency(), 1U, 8U);
+        const auto desired = [] {
+            std::lock_guard lock(configurationMutex);executorCreated=true;
+            const auto available=std::clamp(std::thread::hardware_concurrency(),1U,8U);
+            return configuredLimit?std::min(available,configuredLimit):available;
+        }();
         threads_.reserve(desired - 1);
         for (unsigned rank = 1; rank < desired; ++rank) {
             try {
@@ -166,6 +173,14 @@ unsigned boundedParallelWorkerCount(unsigned requested)
 {
     // Avoid starting the pool at all for explicitly serial work/nested batches.
     return parallelDepth || requested == 1 ? 1 : executor().count(requested);
+}
+
+bool configureBoundedParallelLimit(unsigned limit)
+{
+    if(limit>8)return false;
+    std::lock_guard lock(configurationMutex);
+    if(executorCreated)return configuredLimit==limit;
+    configuredLimit=limit;return true;
 }
 
 bool boundedParallel(unsigned workers,

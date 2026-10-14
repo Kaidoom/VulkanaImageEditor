@@ -7,6 +7,9 @@
 #include "imageeditor/platform/PlatformStartup.hpp"
 #include "imageeditor/platform/SingleInstance.hpp"
 #include "imageeditor/platform/ProjectIntegration.hpp"
+#include "imageeditor/platform/PerformanceSettings.hpp"
+#include "imageeditor/core/BoundedParallel.hpp"
+#include "imageeditor/render/GraphicsDeviceProbe.hpp"
 
 #include <QApplication>
 #include <QCommandLineOption>
@@ -71,6 +74,10 @@ int main(int argc, char* argv[])
     application.setApplicationVersion(QString::fromLatin1(imageeditor::platform::buildVersion));
     application.setApplicationDisplayName(QStringLiteral("Vulkana Image Editor"));
     application.setWindowIcon(QIcon(QStringLiteral(":/Vulkana512.png")));
+    const auto probeArgument=application.arguments().indexOf(QString::fromLatin1(imageeditor::render::graphicsDeviceProbeOption));
+    if(probeArgument>=0)return imageeditor::render::runGraphicsDeviceProbe(application,application.arguments().value(probeArgument+1));
+    const auto& performance=imageeditor::platform::startupPerformanceSettings();
+    (void)imageeditor::core::configureBoundedParallelLimit(unsigned(performance.processingThreads));
     imageeditor::ui::applyEditorTheme(application);
     {
         QSettings startupPreferences;
@@ -173,6 +180,8 @@ int main(int argc, char* argv[])
     }
     for (const auto& diagnostic : imageeditor::platform::migrateLegacyUserPresets())
         qWarning().noquote() << diagnostic;
+
+    (void)imageeditor::render::verifyStartupGraphicsDevice();
 
     const auto platform = QGuiApplication::platformName();
     for (const auto* screen : QGuiApplication::screens()) {

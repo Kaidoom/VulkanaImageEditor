@@ -108,6 +108,8 @@ add_library(imageeditor_ui STATIC
     src/Theme.cpp
     src/ThemeSettings.cpp
     src/PreferencesDialog.cpp
+    src/PerformancePanel.cpp
+    src/MainWindowPerformance.cpp
     src/ProjectIntegrationDialog.cpp
     src/EditorShortcuts.cpp
     src/ShortcutsPanel.cpp

@@ -10626,4 +10626,33 @@ Escape · पूरा क्रॉप सत्र रद्द
     <message id="screenshot.dimensions"><source>%1 × %2 px</source><translation type="unfinished" /></message>
     <message id="screenshot.failed"><source>Could not capture or open the screenshot: %1</source><translation type="unfinished" /></message>
   </context>
+  <context>
+    <name>Performance preferences</name>
+    <message id="performance.title"><source>Performance</source><translation type="unfinished" /></message>
+    <message id="performance.gpu"><source>Graphics device</source><translation type="unfinished" /></message>
+    <message id="performance.undo"><source>Undo memory per document</source><translation type="unfinished" /></message>
+    <message id="performance.cpu.cache"><source>Document cache per window</source><translation type="unfinished" /></message>
+    <message id="performance.gpu.cache"><source>GPU texture cache per window</source><translation type="unfinished" /></message>
+    <message id="performance.threads"><source>Image-processing threads</source><translation type="unfinished" /></message>
+    <message id="performance.object.threads"><source>Object Selection threads</source><translation type="unfinished" /></message>
+    <message id="performance.auto"><source>Auto</source><translation type="unfinished" /></message>
+    <message id="performance.auto.memory"><source>Auto (%1 MiB)</source><translation type="unfinished" /></message>
+    <message id="performance.auto.threads"><source>Auto (up to %1)</source><translation type="unfinished" /></message>
+    <message id="performance.restart.note"><source>GPU and thread changes require a restart. Object Selection runs on the CPU.</source><translation type="unfinished" /></message>
+    <message id="performance.memory.note"><source>Budgets are retention targets, not total RAM/VRAM limits. Undo trims on later edits.</source><translation type="unfinished" /></message>
+    <message id="performance.usage"><source>RAM (process): %1&#10;Undo: %2 (current), %3 (all tabs)&#10;Document cache: %4 · GPU texture cache: %5&#10;Rendering GPU: %6</source><translation type="unfinished" /></message>
+    <message id="performance.clear"><source>Clear Inactive Caches</source><translation type="unfinished" /></message>
+    <message id="performance.clear.hint"><source>Release cached previews and textures for inactive tabs in this window. Source pixels and undo history stay intact.</source><translation type="unfinished" /></message>
+    <message id="performance.defaults"><source>Restore Defaults</source><translation type="unfinished" /></message>
+    <message id="performance.gpu.changed.title"><source>Graphics device changed</source><translation type="unfinished" /></message>
+    <message id="performance.gpu.changed.message"><source>The selected GPU (%1) could not be used. Falling back to %2.</source><translation type="unfinished" /></message>
+    <message id="performance.gpu.changed.unknown"><source>The selected GPU could not be used. Falling back to %1.</source><translation type="unfinished" /></message>
+    <message id="performance.gpu.unavailable"><source>Saved device (unavailable)</source><translation type="unfinished" /></message>
+    <message id="performance.gpu.check.hint"><source>GPU availability is checked on restart. If a device cannot display the canvas, Vulkana uses another GPU.</source><translation type="unfinished" /></message>
+    <message id="performance.gpu.failed.item"><source>%1 — startup check failed</source><translation type="unfinished" /></message>
+    <message id="performance.gpu.unsupported.item"><source>%1 — unavailable for this display</source><translation type="unfinished" /></message>
+    <message id="performance.unknown"><source>Unavailable</source><translation type="unfinished" /></message>
+    <message id="performance.undo.warning.title"><source>Reduce Undo Memory?</source><translation type="unfinished" /></message>
+    <message id="performance.undo.warning"><source>Older undo steps may be discarded as you make new edits. This cannot be reversed by raising the budget later. Continue?</source><translation type="unfinished" /></message>
+  </context>
 </TS>

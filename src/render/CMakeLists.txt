@@ -41,6 +41,7 @@ add_custom_target(imageeditor_shaders DEPENDS ${IMAGEEDITOR_SHADER_OUTPUTS})
 add_library(imageeditor_render STATIC
     src/CanvasCoordinateMapping.cpp
     src/CanvasWindow.cpp
+    src/GraphicsDeviceProbe.cpp
     src/CanvasMeasure.cpp
     src/CanvasSelection.cpp
     src/CanvasLayerOutlines.cpp

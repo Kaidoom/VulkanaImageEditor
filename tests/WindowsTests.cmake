@@ -53,6 +53,7 @@ target_compile_definitions(imageeditor_localization_tests PRIVATE VULKANA_TEST_T
 vulkana_windows_test(imageeditor_update_tests UpdateServiceTests.cpp)
 vulkana_windows_test(imageeditor_menu_clipboard_tests MenuClipboardTests.cpp)
 vulkana_windows_test(imageeditor_screenshot_tests ScreenshotTests.cpp)
+vulkana_windows_test(imageeditor_performance_tests PerformanceTests.cpp)
 target_link_libraries(imageeditor_update_tests PRIVATE Qt6::Network)
 target_compile_definitions(imageeditor_update_tests PRIVATE
     VULKANA_TEST_VERSION="${VULKANA_VERSION}"

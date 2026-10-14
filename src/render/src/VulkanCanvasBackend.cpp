@@ -1,4 +1,5 @@
 #include "VulkanCanvasBackend.hpp"
+#include "imageeditor/platform/PerformanceSettings.hpp"
 
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/render/detail/VulkanEnumeration.hpp"
@@ -63,7 +64,12 @@ void VulkanCanvasBackend::shutdown()
 
 bool VulkanCanvasBackend::render(const CanvasScene& scene)
 {
-    if (!ensureDevice() || !ensureSwapchain()) {
+    if(!ensureDevice())return false;
+    if(!ensureSwapchain()) {
+        if(retryDevice_) {
+            rejectedDevices_.push_back(physicalDevice_);releaseDevice();retryDevice_=false;
+            return true; // Retry once per candidate, never the failed adapter again.
+        }
         return false;
     }
 
@@ -109,6 +115,13 @@ bool VulkanCanvasBackend::render(const CanvasScene& scene)
         .extent = swapchainExtent_,
         .frameSlot = currentFrame_,
     });
+    const bool retentionChanged=scene.inactiveCacheClearGeneration!=lastCacheClearGeneration_
+        ||scene.textureCacheBudgetBytes<lastTextureBudget_;
+    lastCacheClearGeneration_=scene.inactiveCacheClearGeneration;lastTextureBudget_=scene.textureCacheBudgetBytes;
+    // Explicit clearing/lower retention must reclaim retired allocations even
+    // if the user stops interacting immediately. Drain exactly one slot cycle
+    // through existing fences, then return to demand-driven idle rendering.
+    if(retentionChanged&&renderer_.pendingTextureReleases())cacheDrainFrames_=kFrameSlotCount;
     checkVk(vkEndCommandBuffer(frame.commandBuffer), "end canvas command buffer");
 
     // Reset only after acquisition and command recording succeeded. Resetting
@@ -147,6 +160,16 @@ bool VulkanCanvasBackend::render(const CanvasScene& scene)
                 std::chrono::duration_cast<std::chrono::nanoseconds>(
                     std::chrono::steady_clock::now().time_since_epoch()).count());
         uploadedBytesAtPresent_ = uploadedBytes;
+        if(preferredDeviceUnavailable_&&!fallbackReported_&&window_.onPreferredGpuUnavailable) {
+            // Publish recovery only after the replacement actually presents,
+            // never while candidates are still failing initialization.
+            fallbackReported_=true;
+            GraphicsDeviceFallback recovery;
+            recovery.requestedId=platform::startupPerformanceSettings().graphicsDevice.toStdString();
+            for(const auto& device:graphicsDevices_)if(device.id==recovery.requestedId)recovery.requestedName=device.name;
+            recovery.selectedId=selectedDeviceId_;recovery.selectedName=renderer_.stats().deviceName;
+            window_.onPreferredGpuUnavailable(std::move(recovery));
+        }
     }
 
     currentFrame_ = (currentFrame_ + 1U) % kFrameSlotCount;
@@ -163,7 +186,9 @@ bool VulkanCanvasBackend::render(const CanvasScene& scene)
     if (presentResult != VK_SUCCESS) {
         qCWarning(logVulkanHost) << "Unable to present the canvas:" << presentResult;
         shutdown();
+        return false;
     }
+    if(cacheDrainFrames_){--cacheDrainFrames_;return true;}
     return false;
 }
 
@@ -190,11 +215,12 @@ bool VulkanCanvasBackend::ensureDevice()
         return false;
     }
 
-    const auto candidate = choosePhysicalDevice();
-    if (candidate.physicalDevice == VK_NULL_HANDLE) {
-        qFatal("No Vulkan device can render and present the canvas");
+    auto candidate=choosePhysicalDevice();
+    for(;;) {
+        if(candidate.physicalDevice==VK_NULL_HANDLE)qFatal("No Vulkan device can render and present the canvas");
+        if(createDevice(candidate))break;
+        rejectedDevices_.push_back(candidate.physicalDevice);candidate=choosePhysicalDevice();
     }
-    createDevice(candidate);
     createFrameResources();
     renderer_.initializeDevice(VulkanDeviceContext {
         .physicalDevice = physicalDevice_,
@@ -215,7 +241,7 @@ bool VulkanCanvasBackend::ensureSwapchain()
     return swapchain_ != VK_NULL_HANDLE;
 }
 
-VulkanCanvasBackend::DeviceCandidate VulkanCanvasBackend::choosePhysicalDevice() const
+VulkanCanvasBackend::DeviceCandidate VulkanCanvasBackend::choosePhysicalDevice()
 {
     const auto instance = window_.vulkanInstance()->vkInstance();
     auto deviceEnumeration = detail::enumerateVulkanValues<VkPhysicalDevice>(
@@ -226,8 +252,29 @@ VulkanCanvasBackend::DeviceCandidate VulkanCanvasBackend::choosePhysicalDevice()
     checkVk(deviceEnumeration.result, "enumerate Vulkan devices");
     const auto& devices = deviceEnumeration.values;
 
-    DeviceCandidate best;
+    std::vector<DeviceCandidate> candidates;
+    graphicsDevices_.clear();
     for (const auto device : devices) {
+        // Inventory and eligibility are separate: a failed adapter must remain
+        // identifiable in Preferences instead of becoming a generic missing GPU.
+        VkPhysicalDeviceProperties properties {};
+        vkGetPhysicalDeviceProperties(device, &properties);
+        QString id;
+        if(properties.apiVersion>=VK_API_VERSION_1_1) {
+            VkPhysicalDeviceIDProperties identity{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES};
+            VkPhysicalDeviceProperties2 info{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};info.pNext=&identity;
+            vkGetPhysicalDeviceProperties2(device,&info);
+            const QByteArray uuid(reinterpret_cast<const char*>(identity.deviceUUID),VK_UUID_SIZE);
+            if(uuid!=QByteArray(VK_UUID_SIZE,'\0'))id=QStringLiteral("gpu:%1:%2:%3")
+                .arg(properties.vendorID,0,16).arg(properties.deviceID,0,16).arg(QString::fromLatin1(uuid.toHex()));
+        }
+        candidates.emplace_back();
+        auto& descriptor=graphicsDevices_.emplace_back(GraphicsDeviceInfo{
+            id.toStdString(),properties.deviceName,0,GraphicsDeviceAvailability::Unsupported});
+        if(std::find(rejectedDevices_.begin(),rejectedDevices_.end(),device)!=rejectedDevices_.end()
+            ||(!id.isEmpty()&&id==platform::rejectedGraphicsDevice())) {
+            descriptor.availability=GraphicsDeviceAvailability::StartupCheckFailed;continue;
+        }
         if (!hasDeviceExtension(device, VK_KHR_SWAPCHAIN_EXTENSION_NAME)
             || !hasUsableSwapchain(device)) {
             continue;
@@ -267,8 +314,6 @@ VulkanCanvasBackend::DeviceCandidate VulkanCanvasBackend::choosePhysicalDevice()
             continue;
         }
 
-        VkPhysicalDeviceProperties properties {};
-        vkGetPhysicalDeviceProperties(device, &properties);
         int score = 0;
         switch (properties.deviceType) {
         case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU: score += 10'000; break;
@@ -279,20 +324,23 @@ VulkanCanvasBackend::DeviceCandidate VulkanCanvasBackend::choosePhysicalDevice()
         }
         score += static_cast<int>(std::min<std::uint32_t>(
             properties.limits.maxImageDimension2D / 1024U, 1'000U));
-        if (score > best.score) {
-            best = {
-                .physicalDevice = device,
-                .properties = properties,
-                .graphicsQueueFamily = graphicsFamily,
-                .presentQueueFamily = presentFamily,
-                .score = score,
-            };
-        }
+        candidates.back()={
+            .physicalDevice=device,.properties=properties,
+            .graphicsQueueFamily=graphicsFamily,.presentQueueFamily=presentFamily,.score=score,
+        };
+        descriptor.automaticScore=score;descriptor.availability=GraphicsDeviceAvailability::Available;
     }
-    return best;
+    // UUID is a best-effort identity, not a permanent hardware serial. Never
+    // bind the saved preference to a changing enumeration index/name alone.
+    const auto preferred=platform::startupPerformanceSettings().graphicsDevice.toStdString();
+    const auto chosen=selectGraphicsDevice(graphicsDevices_,platform::startupGraphicsDevice().toStdString());
+    selectedDeviceId_=chosen?graphicsDevices_[*chosen].id:std::string{};
+    preferredDeviceUnavailable_=!preferred.empty()&&selectedDeviceId_!=preferred;
+    if(preferredDeviceUnavailable_)qCWarning(logVulkanHost)<<"Preferred GPU unavailable; using automatic device selection";
+    return chosen?candidates[*chosen]:DeviceCandidate{};
 }
 
-void VulkanCanvasBackend::createDevice(const DeviceCandidate& candidate)
+bool VulkanCanvasBackend::createDevice(const DeviceCandidate& candidate)
 {
     physicalDevice_ = candidate.physicalDevice;
     graphicsQueueFamily_ = candidate.graphicsQueueFamily;
@@ -320,14 +368,19 @@ void VulkanCanvasBackend::createDevice(const DeviceCandidate& candidate)
     deviceInfo.pQueueCreateInfos = queueInfos.data();
     deviceInfo.enabledExtensionCount = 1;
     deviceInfo.ppEnabledExtensionNames = extensions;
-    checkVk(vkCreateDevice(physicalDevice_, &deviceInfo, nullptr, &device_),
-        "create canvas Vulkan device");
+    const auto result=vkCreateDevice(physicalDevice_,&deviceInfo,nullptr,&device_);
+    if(result!=VK_SUCCESS) {
+        device_=VK_NULL_HANDLE;qCWarning(logVulkanHost)<<"Cannot initialize Vulkan device"<<candidate.properties.deviceName<<result;
+        return false;
+    }
+    firstSwapchainForDevice_=true;cacheDrainFrames_=0;
     vkGetDeviceQueue(device_, graphicsQueueFamily_, 0, &graphicsQueue_);
     vkGetDeviceQueue(device_, presentQueueFamily_, 0, &presentQueue_);
 
     qCInfo(logVulkanHost) << "Selected Vulkan device:" << candidate.properties.deviceName
                           << "graphics queue" << graphicsQueueFamily_
                           << "present queue" << presentQueueFamily_;
+    return true;
 }
 
 void VulkanCanvasBackend::createFrameResources()
@@ -397,8 +450,18 @@ void VulkanCanvasBackend::createSwapchain()
     swapchainInfo.compositeAlpha = chooseCompositeAlpha(capabilities);
     swapchainInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
     swapchainInfo.clipped = VK_TRUE;
-    checkVk(vkCreateSwapchainKHR(device_, &swapchainInfo, nullptr, &swapchain_),
-        "create canvas swapchain");
+    const auto created=vkCreateSwapchainKHR(device_,&swapchainInfo,nullptr,&swapchain_);
+    if(created!=VK_SUCCESS) {
+        swapchain_=VK_NULL_HANDLE;
+        if(firstSwapchainForDevice_) {
+            // Present-support queries can succeed although a hybrid-driver
+            // window-system combination cannot create its first swapchain.
+            qCWarning(logVulkanHost)<<"Cannot initialize swapchain on selected adapter; trying another device"<<created;
+            retryDevice_=true;return;
+        }
+        checkVk(created,"create canvas swapchain");
+    }
+    firstSwapchainForDevice_=false;
 
     colorFormat_ = surfaceFormat.format;
     colorSpace_ = surfaceFormat.colorSpace;

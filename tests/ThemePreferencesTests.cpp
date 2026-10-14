@@ -493,12 +493,14 @@ void dialogTabsControlsPreviewAndApplyCancel(QApplication& application)
     auto* ok = dialog.findChild<QPushButton*>(QStringLiteral("PreferencesOk"));
     CHECK(tabs && presets && apply && cancel && ok);
     if (!tabs || !presets || !apply || !cancel || !ok) return;
-    CHECK(tabs->count() == 3);
+    CHECK(tabs->count() == 4);
     CHECK(tabs->tabText(0) == QStringLiteral("General"));
     CHECK(tabs->tabText(1) == QStringLiteral("Themes"));
-    CHECK(tabs->tabText(2) == QStringLiteral("Shortcuts"));
-    CHECK(tabs->widget(2)->findChildren<QComboBox*>().empty());
-    CHECK(tabs->widget(2)->findChild<QPushButton*>("ShortcutChange"));
+    CHECK(tabs->tabText(2) == QStringLiteral("Performance"));
+    CHECK(tabs->widget(2)->findChild<QComboBox*>("PerformanceGpu"));
+    CHECK(tabs->tabText(3) == QStringLiteral("Shortcuts"));
+    CHECK(tabs->widget(3)->findChildren<QComboBox*>().empty());
+    CHECK(tabs->widget(3)->findChild<QPushButton*>("ShortcutChange"));
     CHECK(!tabs->widget(0)->findChild<QComboBox*>("ThemePresetCombo"));
     CHECK(tabs->widget(1)->findChild<QComboBox*>("ThemePresetCombo")==presets);
     CHECK(presets->count() == 13);

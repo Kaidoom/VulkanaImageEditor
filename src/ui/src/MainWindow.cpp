@@ -39,6 +39,7 @@
 #include "imageeditor/ui/NewDocumentDialog.hpp"
 #include "imageeditor/ui/WorkspaceDialog.hpp"
 #include "imageeditor/ui/PreferencesDialog.hpp"
+#include "imageeditor/ui/PerformancePanel.hpp"
 #include "imageeditor/ui/ProjectIntegrationDialog.hpp"
 #include <QScopedValueRollback>
 #include <QScopeGuard>
@@ -871,6 +872,15 @@ MainWindow::MainWindow(
     setForegroundColor(session().foregroundColor());
 
     createDocumentTabs();
+    // Freeze restart-only choices before any UI can change saved preferences.
+    (void)platform::startupPerformanceSettings();
+    { QSettings settings;performance_=platform::loadPerformanceSettings(settings); }
+    emptyDocument_.session.history().setMemoryBudget(std::size_t(performance_.undoBytes()));
+    canvasWindow_->setTextureCacheBudget(performance_.textureCacheBytes());
+    canvasWindow_->onPreferredGpuUnavailable=[this](render::GraphicsDeviceFallback recovery){
+        gpuFallbackPending_=true;
+        QTimer::singleShot(0,this,[this,recovery=std::move(recovery)]{handleGraphicsDeviceFallback(recovery);});
+    };
     createInitialDocument();
     setActiveTool(core::ToolId::Move);
     workspace_->setRulerVisible(Qt::Horizontal, true);
@@ -1907,9 +1917,14 @@ void MainWindow::showPreferences()
     if (activeBrushStroke_ || activeSpotHealStroke_ || spotHealBusyForActiveDocument() || activeCloneStroke_ || cloneProcessing_ || activeLocalBlurStroke_ || localBlurProcessing_ || activeFill_ || shapeCreation_ || canvasWindow_->transformDragging()
         || (activeLayerMove_ && activeLayerMove_->dragging())) return;
     WorkspaceDialog presenter(*workspace_, *this);
+    QSettings preferences;
     PreferencesDialog dialog(PreferencesState {currentThemeSettings(), canvasWindow_->advancedMeasurementReadout(),
         canvasWindow_->layerOutlinesVisible(), collapseLayerSelectionOnEmptyClick_, shiftNudgePixels_, shortcuts_, toolHintPosition_,
-        i18n::Localization::instance().preference()}, &presenter);
+        i18n::Localization::instance().preference(),platform::loadPerformanceSettings(preferences)}, &presenter);
+    dialog.performancePanel()->setGraphicsDevices(canvasWindow_->graphicsDevices());
+    dialog.performancePanel()->readUsage=[this]{return performanceUsage();};
+    dialog.performancePanel()->onClearCaches=[this]{clearInactiveCaches();};
+    dialog.currentUndoBudget=[this]{return performance_.undoBytes();};
     dialog.onPreview = [this](const PreferencesState& value) {
         i18n::Localization::instance().requestLanguage(value.language);
         if (value.theme != currentThemeSettings()) {
@@ -1931,7 +1946,11 @@ void MainWindow::showPreferences()
         settings.setValue(QStringLiteral("preferences/canvas/collapseLayerSelectionOnEmptyClick"), value.collapseLayerSelectionOnEmptyClick);
         settings.setValue(QStringLiteral("preferences/canvas/shiftNudgePixels"), value.shiftNudgePixels);
         settings.setValue(QStringLiteral("preferences/ui/toolHintPosition"), value.toolHintPosition);
-        return saveShortcutBindings(settings, value.shortcuts) && saveThemeSettings(settings, value.theme);
+        if(!saveShortcutBindings(settings,value.shortcuts)||!saveThemeSettings(settings,value.theme)
+            ||!platform::savePerformanceSettings(settings,value.performance))return false;
+        for(auto* widget:QApplication::topLevelWidgets())if(auto* editor=dynamic_cast<MainWindow*>(widget))
+            editor->applyPerformanceMemory(value.performance);
+        return true;
     };
     const QScopedValueRollback active(workspaceDialog_, &presenter);
     while (presenter.exec(dialog) == PreferencesDialog::ProjectFilesRequested) {

@@ -19,6 +19,65 @@ may overlap resident RAM. The figures are not additive. Sampling reads OS and
 existing renderer counters only, pauses while hidden/minimized, and never
 requests a canvas frame or walks pixel data. Narrow layouts prioritize RAM.
 
+## Performance preferences
+
+Preferences → Performance stores resource policy under
+`preferences/performance` in per-user QSettings, never in projects. Auto keeps
+the established defaults: 256 MiB of undo retention per document, 512 MiB of
+derived document caches per editor window, and 512 MiB of layer textures per
+renderer. Custom memory values are bounded to 64–8192 MiB. These targets do not
+cap process RAM, total VRAM, source pixels, operation scratch or active inputs.
+Import/export and tool-specific admission limits remain independent.
+
+Memory policy is applied to existing editor windows only after successful Apply;
+new documents inherit it. Reducing undo retention requires confirmation, updates
+the budget without deleting existing undo/redo, and trims at the next normal
+history publication. The latest command is kept even if it exceeds the target.
+No document revision, saved checkpoint, selection or view changes on Apply.
+Clear Inactive Caches is a separate immediate action: it drops inactive tabs'
+derived caches and retained preview results, then requests inactive GPU texture
+eviction through the normal frame-fence deferral path. It does not clear history,
+source pixels or required active textures. Worker-held immutable data lives until
+its owning work completes. Lower targets/clearing may make later tab activation
+recompute or reupload those disposable resources.
+An explicit GPU clear or target reduction drains at most one extra frame-slot
+cycle to reclaim retired textures promptly, then returns to idle rendering.
+
+GPU and thread choices use an immutable startup snapshot and require a restart.
+The core parallel executor supports an automatic or 1–8 participant limit,
+including the calling thread, bounded by detected hardware capacity. Nested work
+stays serial, interactive brushes retain the nonblocking busy-pool fallback,
+and no pool is resized while work is live. Object Selection's separate CPU
+inference sessions support Auto (half the logical CPU count, capped at six) or a
+1–6 thread limit, also hardware-bounded. These are not a cap on all application
+threads; job coordinators, import workers and the renderer remain independent.
+
+The GPU picker lists detected devices and their eligibility using best-effort Vulkan
+device UUID plus vendor/device IDs, never a saved enumeration index or name
+alone. Auto retains the dedicated/integrated/software preference order. A missing
+or no-longer-compatible saved identity falls back to a compatible device.
+Adapters whose device/initial swapchain creation fails are excluded from further
+startup attempts and the next compatible candidate is tried; this covers hybrid
+drivers that advertise presentation support but cannot create that surface.
+On Wayland, an explicit choice first presents a tiny empty canvas in an isolated
+process using the same executable and temporary settings. This catches fatal
+cross-GPU buffer-import errors without terminating the editor. The check is
+bounded to 15 seconds, reads no documents, and never runs for Auto. Failure uses
+automatic selection until a replacement presents successfully.
+An adapter that fails the isolated presentation check is excluded for that
+process, so Auto cannot immediately retry the same failing device.
+Exclusion affects rendering eligibility, not the device inventory: detected
+adapters remain listed by name with a disabled startup-check/unsupported status.
+After successful presentation, the working device becomes the saved selection
+and the process's resolved choice. One app-owned startup information card names
+the failed and replacement GPUs; OK resumes the normal startup flow. Preferences
+has no persistent fallback warning. Recovery preserves other resource settings
+and never overwrites a newer explicit GPU choice made while startup was pending.
+Changing this selection does not move Object Selection inference onto the GPU.
+Performance usage polling runs only while the page is visible, uses existing
+renderer counters and document accounting, and never requests a canvas frame.
+The displayed cache totals are not additive with whole-process resident RAM.
+
 ## Bitmap layer masks
 
 Raster, text, shape and adjustment layers can own one immutable tiled R8 `LayerMask`.

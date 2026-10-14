@@ -1,6 +1,7 @@
 #pragma once
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/EditorShortcuts.hpp"
+#include "imageeditor/platform/PerformanceSettings.hpp"
 #include <QDialog>
 #include <functional>
 
@@ -11,6 +12,7 @@ class QPushButton;
 class QDoubleSpinBox;
 namespace imageeditor::ui {
 class ShortcutsPanel;
+class PerformancePanel;
 // Dialog-local snapshot: preview and rollback cover all preferences together.
 struct PreferencesState {
     ThemeSettings theme;
@@ -21,6 +23,7 @@ struct PreferencesState {
     ShortcutBindings shortcuts = defaultShortcutBindings();
     int toolHintPosition = 1; // Left, Center (default), Disabled; UI-only preference.
     QString language = QStringLiteral("system");
+    platform::PerformanceSettings performance {};
     bool operator==(const PreferencesState&) const = default;
 };
 class PreferencesDialog final : public QDialog {
@@ -30,6 +33,9 @@ public:
     [[nodiscard]] const PreferencesState& draft() const { return draft_; }
     std::function<void(const PreferencesState&)> onPreview;
     std::function<bool(const PreferencesState&)> onApply;
+    std::function<bool()> confirmUndoReduction;
+    std::function<std::uint64_t()> currentUndoBudget;
+    PerformancePanel* performancePanel() const { return performance_; }
     void reject() override;
 private:
     void refresh();
@@ -47,6 +53,7 @@ private:
     QLabel* status_ {};
     QPushButton* customize_ {};
     ShortcutsPanel* shortcuts_ {};
+    PerformancePanel* performance_ {};
     std::array<QPushButton*, static_cast<std::size_t>(ThemeColor::Count)> swatches_ {};
 };
 }

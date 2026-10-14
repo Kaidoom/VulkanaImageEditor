@@ -6,6 +6,7 @@
 
 #include "imageeditor/render/CanvasScene.hpp"
 #include "imageeditor/render/RendererStats.hpp"
+#include "imageeditor/render/GraphicsDeviceSelection.hpp"
 #include "imageeditor/core/BrushEngine.hpp"
 #include "imageeditor/core/ColorSampler.hpp"
 
@@ -37,6 +38,10 @@ class CanvasWindow final : public QWindow {
 public:
     CanvasWindow();
     ~CanvasWindow() override;
+    std::vector<GraphicsDeviceInfo> graphicsDevices() const;
+    void setTextureCacheBudget(std::uint64_t bytes);
+    void clearInactiveTextures();
+    std::function<void(GraphicsDeviceFallback)> onPreferredGpuUnavailable;
 
     void setDocument(core::DocumentSnapshot document, bool fitToView);
     std::function<void(const core::DocumentSnapshot&)> onDocumentPresentationChanged;

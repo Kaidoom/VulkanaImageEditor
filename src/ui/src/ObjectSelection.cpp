@@ -17,6 +17,7 @@
 #include <mutex>
 #include <stdexcept>
 #include <thread>
+#include "imageeditor/platform/PerformanceSettings.hpp"
 
 namespace imageeditor::ui {
 bool ObjectSelectionEvidence::equivalent(const core::SelectionEvidence& value) const noexcept
@@ -128,7 +129,7 @@ struct ObjectSelectionEngine::Impl {
         check(api->CreateSessionOptions(&options));
         const auto release = qScopeGuard([&] { api->ReleaseSessionOptions(options); });
         check(api->SetIntraOpNumThreads(
-            options, int(std::clamp(std::thread::hardware_concurrency() / 2, 1u, 6u))));
+            options, int(platform::resolvedObjectSelectionThreads(platform::startupPerformanceSettings()))));
         check(api->SetInterOpNumThreads(options, 1));
         check(api->DisableCpuMemArena(options));
         check(api->SetSessionGraphOptimizationLevel(options, ORT_ENABLE_ALL));

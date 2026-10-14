@@ -13,6 +13,9 @@ namespace imageeditor::core {
 // share the same pool instead of creating additional worker sets. Nested calls
 // execute serially. A worker count of zero requests the bounded default.
 [[nodiscard]] unsigned boundedParallelWorkerCount(unsigned requested = 0);
+// Startup-only participant cap (0 = automatic, at most 8). Returns false if a
+// different policy is requested after the process-wide pool has been created.
+[[nodiscard]] bool configureBoundedParallelLimit(unsigned limit);
 
 // Invokes function once per participant with (rank, participantCount). Waiting
 // for a busy executor is cancellable; false means the batch never started.

@@ -391,6 +391,7 @@ bool MainWindow::publishDocuments(std::vector<std::shared_ptr<DocumentContext>> 
     if (staged.empty() || !settleForDocumentSwitch()) return false;
     for (const auto& context : staged)
         if (!context || context->closed || !context->session.document()) return false;
+    for(const auto& context:staged)context->session.history().setMemoryBudget(std::size_t(performance_.undoBytes()));
     // Allocate the complete tab set before publishing any of it. Inactive tabs
     // retain source pixels only; activation alone prepares display resources.
     documents_.reserve(documents_.size() + staged.size());
@@ -491,22 +492,23 @@ MainWindow::DocumentMemory MainWindow::documentMemory() const
     }
     return result;
 }
-void MainWindow::updateDocumentResources()
+void MainWindow::updateDocumentResources(bool clearInactive)
 {
     // Aggregate disposable CPU budget. Authoritative pixels and undo remain
     // owned by their sessions regardless of cache pressure.
-    constexpr auto budget=512ULL*1024*1024;
+    const auto budget=performance_.documentCacheBytes();
     auto candidates=documents_;
     std::ranges::sort(candidates,{},&DocumentContext::lastActivated);
     auto memory=documentMemory();
     for(const auto& context:candidates) {
-        if(memory.derivedBytes<=budget)break;
+        if(!clearInactive&&memory.derivedBytes<=budget)break;
         if(context==activeDocument_)continue;
         for(const auto& item:context->session.document()->layers()) {
             auto* layer=context->session.document()->layer(item.id);
             layer->renderCache.reset();layer->filterCache.reset();layer->effectCache.reset();
         }
         textController_->forgetSession(context->session);
+        if(clearInactive&&pixelPreview_)pixelPreview_->forgetDocument(context->id);
         memory=documentMemory();
     }
     std::vector<std::weak_ptr<const core::RasterSurface>> sources;

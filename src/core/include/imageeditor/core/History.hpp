@@ -33,6 +33,9 @@ public:
     [[nodiscard]] std::string_view redoLabel() const noexcept;
     [[nodiscard]] std::size_t memoryUsed() const noexcept { return memoryUsed_; }
     [[nodiscard]] std::size_t memoryBudget() const noexcept { return memoryBudgetBytes_; }
+    // Only changes future trimming. Existing undo/redo, retractable edits and
+    // saved checkpoints remain intact until a normal command is recorded.
+    void setMemoryBudget(std::size_t bytes) noexcept { memoryBudgetBytes_ = bytes; }
     [[nodiscard]] const LayerSelectionState* layerSelectionHint() const noexcept { return layerSelectionHint_; }
     [[nodiscard]] std::size_t undoDepth() const noexcept { return done_.size(); }
     [[nodiscard]] std::size_t redoDepth() const noexcept { return undone_.size(); }

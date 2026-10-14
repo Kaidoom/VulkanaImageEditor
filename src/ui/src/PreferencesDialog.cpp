@@ -1,5 +1,7 @@
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/PreferencesDialog.hpp"
+#include "imageeditor/ui/PerformancePanel.hpp"
+#include <QMessageBox>
 #include "imageeditor/ui/ShortcutsPanel.hpp"
 #include "imageeditor/ui/ToolOptionsNumber.hpp"
 #include "imageeditor/ui/ColorDialog.hpp"
@@ -152,6 +154,9 @@ PreferencesDialog::PreferencesDialog(PreferencesState initial, QWidget* parent)
     generalLayout->addStretch(1);
     i18n::addTab(tabs, general, i18n::text("preferences.dialog.general"));
     i18n::addTab(tabs, themes, i18n::text("preferences.dialog.themes"));
+    performance_=new PerformancePanel(tabs);performance_->setSettings(draft_.performance);
+    i18n::addTab(tabs,performance_,i18n::text("performance.title"));
+    performance_->onChanged=[this]{draft_.performance=performance_->settings();status_->hide();};
     shortcuts_ = new ShortcutsPanel(draft_.shortcuts, tabs);
     i18n::addTab(tabs, shortcuts_, i18n::text("preferences.dialog.shortcuts"));
     shortcuts_->onChanged = [this](const ShortcutBindings& bindings) {
@@ -222,6 +227,14 @@ bool PreferencesDialog::apply()
 {
     if (shortcuts_->pending()) {
         i18n::setText(status_, i18n::text("preferences.dialog.finish.or.cancel.the.pending.key.binding.first")); status_->show(); return false;
+    }
+    if(draft_.performance.undoBytes()<(currentUndoBudget?currentUndoBudget():applied_.performance.undoBytes())) {
+        const auto confirm=[this]{
+            QMessageBox question(QMessageBox::Warning,i18n::text("performance.undo.warning.title"),i18n::text("performance.undo.warning"),
+                QMessageBox::Yes|QMessageBox::Cancel,this);
+            question.setDefaultButton(QMessageBox::Cancel);return question.exec()==QMessageBox::Yes;
+        };
+        if(!(confirmUndoReduction?confirmUndoReduction():confirm()))return false;
     }
     if (onApply && !onApply(draft_)) {
         i18n::setText(status_, i18n::text("preferences.dialog.preferences.could.not.be.saved.check.permissions.or.available"));

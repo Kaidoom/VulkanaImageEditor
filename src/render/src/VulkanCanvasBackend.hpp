@@ -4,6 +4,7 @@
 
 #include "imageeditor/render/CanvasScene.hpp"
 #include "imageeditor/render/RendererStats.hpp"
+#include "imageeditor/render/GraphicsDeviceSelection.hpp"
 #include "imageeditor/render/VulkanCanvasRenderer.hpp"
 
 #include <array>
@@ -32,9 +33,13 @@ public:
     // Returns true when a follow-up update should be requested, for example
     // after an out-of-date or suboptimal swapchain result.
     [[nodiscard]] bool render(const CanvasScene& scene);
+    const std::vector<GraphicsDeviceInfo>& graphicsDevices() const { return graphicsDevices_; }
     [[nodiscard]] RendererStats stats() const
     {
         auto result = renderer_.stats();
+        result.deviceId=selectedDeviceId_;
+        result.preferredDeviceUnavailable=preferredDeviceUnavailable_;
+        result.pendingTextureReleases=renderer_.pendingTextureReleases();
         result.presentQueuedFrames = presentQueuedFrames_;
         result.uploadedBytesAtPresent = uploadedBytesAtPresent_;
         result.lastUploadPresentQueuedSteadyNanoseconds = lastUploadPresentQueuedSteadyNanoseconds_;
@@ -71,8 +76,8 @@ private:
     static void checkVk(VkResult result, const char* operation);
     [[nodiscard]] bool ensureDevice();
     [[nodiscard]] bool ensureSwapchain();
-    [[nodiscard]] DeviceCandidate choosePhysicalDevice() const;
-    void createDevice(const DeviceCandidate& candidate);
+    [[nodiscard]] DeviceCandidate choosePhysicalDevice();
+    bool createDevice(const DeviceCandidate& candidate);
     void createFrameResources();
     void createSwapchain();
     void createRenderPass();
@@ -87,6 +92,13 @@ private:
     [[nodiscard]] bool hasUsableSwapchain(VkPhysicalDevice device) const;
 
     CanvasWindow& window_;
+    std::vector<GraphicsDeviceInfo> graphicsDevices_;
+    std::string selectedDeviceId_;
+    bool preferredDeviceUnavailable_{}, fallbackReported_{};
+    std::uint64_t lastCacheClearGeneration_{}, lastTextureBudget_{512ULL*1024*1024};
+    unsigned cacheDrainFrames_{};
+    std::vector<VkPhysicalDevice> rejectedDevices_;
+    bool firstSwapchainForDevice_{true}, retryDevice_{};
     VulkanCanvasRenderer renderer_;
     VkSurfaceKHR surface_ {VK_NULL_HANDLE}; // Borrowed from the Qt platform window.
     VkPhysicalDevice physicalDevice_ {VK_NULL_HANDLE};

@@ -1,4 +1,5 @@
 #pragma once
+#include "imageeditor/platform/PerformanceSettings.hpp"
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/LayerMaskEdit.hpp"
 #include "imageeditor/core/ShapeResize.hpp"
@@ -71,6 +72,7 @@ namespace imageeditor::core { enum class VisibilityOperation; }
 
 namespace imageeditor::render {
 class CanvasWindow;
+struct GraphicsDeviceFallback;
 }
 
 namespace imageeditor::ui {
@@ -103,6 +105,7 @@ class TextController;
 class PixelPreview;
 class NavigatorPanel;
 class ScreenCapture;
+struct PerformanceUsage;
 struct RefinementWorkspace;
 
 class MainWindow final : public QMainWindow {
@@ -468,7 +471,15 @@ private:
     bool settleForDocumentSwitch();
     void captureDocumentView();
     bool guardAllDocuments();
-    void updateDocumentResources();
+    void updateDocumentResources(bool clearInactive = false);
+    void applyPerformanceMemory(const platform::PerformanceSettings&);
+    void clearInactiveCaches();
+    PerformanceUsage performanceUsage() const;
+    void handleGraphicsDeviceFallback(const render::GraphicsDeviceFallback&);
+    void presentGraphicsDeviceFallback();
+    QString gpuFallbackRequested_,gpuFallbackSelected_;
+    bool gpuFallbackPending_{};
+    platform::PerformanceSettings performance_;
     void showEmptyWorkspace();
     QMimeData* captureLayerTransfer(std::span<const core::LayerId>, std::optional<core::Vec2d> = {});
     bool canReceiveLayerTransfer(const QMimeData*) const;

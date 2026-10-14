@@ -887,7 +887,9 @@ void VulkanCanvasRenderer::pruneTextures(const CanvasScene& scene, std::uint32_t
         deferred.push_back(std::move(iterator->second));
         iterator = textures_.erase(iterator);
     }
-    constexpr std::uint64_t budget = 512ULL * 1024 * 1024;
+    const auto clearInactive=inactiveCacheClearGeneration_!=scene.inactiveCacheClearGeneration;
+    inactiveCacheClearGeneration_=scene.inactiveCacheClearGeneration;
+    const std::uint64_t budget=clearInactive?0:scene.textureCacheBudgetBytes;
     const auto bytes = [](const auto& texture) { return std::uint64_t(texture.extent.width) * texture.extent.height * 4; };
     std::uint64_t total = 0;
     for (const auto& [id, texture] : textures_) { (void)id; total += bytes(texture); }

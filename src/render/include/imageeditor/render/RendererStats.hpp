@@ -40,6 +40,7 @@ struct RendererStats {
     std::uint64_t fullUploads {0};
     std::uint64_t regionalSourceCopies {0};
     std::uint64_t textureCacheBytes {0}, textureCacheEntries {0}, inactiveTextureEvictions {0};
+    std::uint64_t pendingTextureReleases {0};
     std::uint64_t regionalUploadBatches {0};
     std::uint64_t regionalDirtyRegions {0};
     std::uint64_t regionalUploads {0};
@@ -59,6 +60,8 @@ struct RendererStats {
     std::uint64_t resizePresentationSuspends {0};
     std::uint64_t resizePresentationResumes {0};
     std::string deviceName;
+    std::string deviceId;
+    bool preferredDeviceUnavailable{};
 };
 
 } // namespace imageeditor::render

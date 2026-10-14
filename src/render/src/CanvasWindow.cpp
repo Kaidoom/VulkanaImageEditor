@@ -33,6 +33,19 @@
 #include <utility>
 
 namespace imageeditor::render {
+std::vector<GraphicsDeviceInfo> CanvasWindow::graphicsDevices() const
+{
+    return backend_?backend_->graphicsDevices():std::vector<GraphicsDeviceInfo>{};
+}
+void CanvasWindow::setTextureCacheBudget(std::uint64_t bytes)
+{
+    if(scene_.textureCacheBudgetBytes==bytes)return;
+    scene_.textureCacheBudgetBytes=bytes;scheduleFrame();
+}
+void CanvasWindow::clearInactiveTextures()
+{
+    ++scene_.inactiveCacheClearGeneration;scheduleFrame();
+}
 namespace {
 
 bool platformProvidesImplicitPointerGrab()

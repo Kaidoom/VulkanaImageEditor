@@ -48,6 +48,8 @@ struct CanvasScene {
     // Weak retention hints only; document contexts own the actual data. The
     // renderer keeps hot inactive textures within its shared cache budget.
     std::vector<std::weak_ptr<const core::RasterSurface>> retainedSources;
+    std::uint64_t textureCacheBudgetBytes{512ULL*1024*1024};
+    std::uint64_t inactiveCacheClearGeneration{};
     // Separate display source: original document remains authoritative for all
     // targeting, coordinates and overlays. Never serialized/exported.
     bool pixelPreviewEnabled {false};
