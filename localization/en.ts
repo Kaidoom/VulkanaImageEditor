@@ -7050,4 +7050,35 @@ Chamfer: pull corners inward; Alt also changes the opposite corner. Side handles
     <message id="clipboard.copy.canvas.failed"><source>Could not copy the canvas: %1</source></message>
     <message id="clipboard.copy.canvas.done"><source>Canvas copied to clipboard · %1 × %2 px</source></message>
   </context>
+  <context>
+    <name>Screenshot capture</name>
+    <message id="screenshot.action"><source>Take Screenshot…</source></message>
+    <message id="screenshot.title"><source>Screenshot</source></message>
+    <message id="screenshot.document"><source>Screenshot</source></message>
+    <message id="screenshot.preview"><source>Screenshot crop preview</source></message>
+    <message id="screenshot.close"><source>Close screenshot</source></message>
+    <message id="screenshot.desktop.chooser"><source>Desktop chooser</source></message>
+    <message id="screenshot.entire.desktop"><source>Entire desktop</source></message>
+    <message id="screenshot.active.window"><source>Active window</source></message>
+    <message id="screenshot.target"><source>Capture source</source></message>
+    <message id="screenshot.delay"><source>Delay: </source></message>
+    <message id="screenshot.capture"><source>Capture</source></message>
+    <message id="screenshot.retake"><source>Retake</source></message>
+    <message id="screenshot.reset.crop"><source>Reset Crop</source></message>
+    <message id="screenshot.reset.zoom"><source>Reset Zoom</source></message>
+    <message id="screenshot.add.layer"><source>Add as Layer</source></message>
+    <message id="screenshot.add.layer.hint"><source>Add the crop to the current document as an undoable raster layer.</source></message>
+    <message id="screenshot.stop"><source>Cancel Capture</source></message>
+    <message id="screenshot.cancel"><source>Cancel</source></message>
+    <message id="screenshot.open"><source>Open as New Document</source></message>
+    <message id="screenshot.chooser.hint"><source>Vulkana minimizes while you choose what to capture using your desktop's screenshot chooser.</source></message>
+    <message id="screenshot.native.hint"><source>Vulkana minimizes during capture. For Active Window, switch to your target during the delay. Restore Vulkana to cancel.</source></message>
+    <message id="screenshot.crop.hint"><source>Scroll to zoom; middle mouse to pan. Drag to crop or adjust its corners. Arrow keys move the crop; Shift moves 10 pixels.</source></message>
+    <message id="screenshot.empty"><source>Capture a screenshot to preview and crop it here.</source></message>
+    <message id="screenshot.countdown"><source>Capturing in %1 s…</source></message>
+    <message id="screenshot.waiting"><source>Waiting for capture…</source></message>
+    <message id="screenshot.cancelled"><source>Capture cancelled.</source></message>
+    <message id="screenshot.dimensions"><source>%1 × %2 px</source></message>
+    <message id="screenshot.failed"><source>Could not capture or open the screenshot: %1</source></message>
+  </context>
 </TS>

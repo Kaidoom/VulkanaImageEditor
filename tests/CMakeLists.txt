@@ -405,6 +405,13 @@ qt_add_resources(imageeditor_menu_clipboard_tests "menu_icons" PREFIX "/" BASE "
 add_test(NAME imageeditor_menu_clipboard_tests COMMAND imageeditor_menu_clipboard_tests)
 set_tests_properties(imageeditor_menu_clipboard_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 45 LABELS "clipboard;menus;widgets")
 
+add_executable(imageeditor_screenshot_tests ScreenshotTests.cpp)
+target_link_libraries(imageeditor_screenshot_tests PRIVATE imageeditor_ui Qt6::Test)
+imageeditor_enable_warnings(imageeditor_screenshot_tests)
+qt_add_resources(imageeditor_screenshot_tests "screenshot_icons" PREFIX "/" BASE "${PROJECT_SOURCE_DIR}/assets" FILES ${_menu_icons})
+add_test(NAME imageeditor_screenshot_tests COMMAND imageeditor_screenshot_tests)
+set_tests_properties(imageeditor_screenshot_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30 LABELS "screenshot;widgets;crop;tabs")
+
 add_executable(imageeditor_pointer_tooltip_tests PointerTooltipTests.cpp)
 target_link_libraries(imageeditor_pointer_tooltip_tests PRIVATE imageeditor_render Qt6::Gui)
 imageeditor_enable_warnings(imageeditor_pointer_tooltip_tests)
@@ -824,6 +831,13 @@ set_tests_properties(imageeditor_color_panel_tests PROPERTIES
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     find_program(IMAGEEDITOR_DBUS_RUN_SESSION dbus-run-session)
     if(IMAGEEDITOR_DBUS_RUN_SESSION)
+        add_executable(imageeditor_screenshot_portal_tests ScreenshotPortalTests.cpp)
+        target_link_libraries(imageeditor_screenshot_portal_tests PRIVATE imageeditor_ui Qt6::Test Qt6::DBus)
+        imageeditor_enable_warnings(imageeditor_screenshot_portal_tests)
+        add_test(NAME imageeditor_screenshot_portal_tests
+            COMMAND "${IMAGEEDITOR_DBUS_RUN_SESSION}" -- $<TARGET_FILE:imageeditor_screenshot_portal_tests>)
+        set_tests_properties(imageeditor_screenshot_portal_tests PROPERTIES
+            TIMEOUT 20 LABELS "screenshot;portal")
         add_executable(imageeditor_color_portal_tests ColorPortalTests.cpp)
         target_link_libraries(imageeditor_color_portal_tests PRIVATE imageeditor_ui Qt6::Test Qt6::DBus)
         imageeditor_enable_warnings(imageeditor_color_portal_tests)

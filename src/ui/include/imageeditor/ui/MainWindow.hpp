@@ -102,6 +102,7 @@ class FeedbackService;
 class TextController;
 class PixelPreview;
 class NavigatorPanel;
+class ScreenCapture;
 struct RefinementWorkspace;
 
 class MainWindow final : public QMainWindow {
@@ -132,6 +133,7 @@ public:
         std::function<bool(const QString&, const QStringList&)> launch = {});
     void exportImage(bool again = false);
     void copyCanvasToClipboard();
+    void takeScreenshot();
     [[nodiscard]] const QString& projectPath() const noexcept { return fileState().projectPath; }
     enum class UnsavedChoice { Save, Discard, Cancel };
     // Deterministic automation seams; normal application defaults always prompt.
@@ -143,6 +145,7 @@ public:
         ProjectProgress progress;
         std::function<bool(const QString&)> confirmCancelRefinement;
         std::function<void(const QImage&)> publishClipboardImage;
+        std::function<ScreenCapture*(QObject*)> createScreenCapture;
     };
     void setFileInteractions(FileInteractions hooks) { fileInteractions_ = std::move(hooks); }
     void setUnsavedPromptEnabled(bool enabled) { unsavedPromptEnabled_ = enabled; }

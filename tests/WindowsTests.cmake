@@ -52,6 +52,7 @@ vulkana_windows_test(imageeditor_localization_tests LocalizationTests.cpp)
 target_compile_definitions(imageeditor_localization_tests PRIVATE VULKANA_TEST_TRANSLATIONS="${VULKANA_TRANSLATIONS_DIR}")
 vulkana_windows_test(imageeditor_update_tests UpdateServiceTests.cpp)
 vulkana_windows_test(imageeditor_menu_clipboard_tests MenuClipboardTests.cpp)
+vulkana_windows_test(imageeditor_screenshot_tests ScreenshotTests.cpp)
 target_link_libraries(imageeditor_update_tests PRIVATE Qt6::Network)
 target_compile_definitions(imageeditor_update_tests PRIVATE
     VULKANA_TEST_VERSION="${VULKANA_VERSION}"
@@ -71,3 +72,8 @@ add_executable(imageeditor_windows_overlay_tests WindowsOverlayTests.cpp
     "${PROJECT_SOURCE_DIR}/res/windows/Vulkana.manifest")
 target_link_libraries(imageeditor_windows_overlay_tests PRIVATE imageeditor_ui Qt6::Test)
 imageeditor_enable_warnings(imageeditor_windows_overlay_tests)
+
+add_executable(imageeditor_windows_screenshot_tests WindowsScreenshotTests.cpp
+    "${PROJECT_SOURCE_DIR}/res/windows/Vulkana.manifest")
+target_link_libraries(imageeditor_windows_screenshot_tests PRIVATE imageeditor_ui Qt6::Test user32)
+imageeditor_enable_warnings(imageeditor_windows_screenshot_tests)

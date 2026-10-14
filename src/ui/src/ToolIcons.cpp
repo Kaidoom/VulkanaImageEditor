@@ -37,7 +37,10 @@ QPixmap rasterizedGlyph(ToolGlyph glyph, const QColor& ink, const QSize& size, q
     p.setRenderHint(QPainter::Antialiasing);
     p.setPen(QPen(ink, 1.5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
     p.setBrush(Qt::NoBrush);
-    if (glyph == ToolGlyph::NewDocument) {
+    if (glyph == ToolGlyph::Camera) {
+        p.drawPolyline(QPolygonF{{3,7},{7,7},{9,4},{15,4},{17,7},{21,7},{21,20},{3,20},{3,7}});
+        p.drawEllipse(QPointF(12,13),4,4);p.drawPoint(QPointF(18,10));
+    } else if (glyph == ToolGlyph::NewDocument) {
         p.drawPolyline(QPolygonF{{14,2},{4,2},{4,22},{20,22},{20,8},{14,2},{14,8},{20,8}});
         p.drawLine(8,15,16,15); p.drawLine(12,11,12,19);
     } else if (glyph == ToolGlyph::Save) {

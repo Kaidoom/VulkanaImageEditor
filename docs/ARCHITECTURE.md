@@ -116,6 +116,46 @@ Screen picking uses the desktop PickColor portal in Wayland sessions (including
 XWayland) and Qt screen capture on X11. Custom palettes belong only to Swatches,
 not to individual dialogs.
 
+### Screenshot capture
+
+File → Take Screenshot opens an app-owned workspace card with a shared preview
+and pixel-aligned crop. Capture minimizes Vulkana, then restores its previous
+window state for review. Retake retains the previous image until a new capture
+succeeds. Open as New Document publishes an unsaved raster document through the
+normal image loader. Add as Layer instead uses the existing undoable layer-import
+path, pinned to the originating document; it preserves canvas size and view and
+uses the normal refinement-discard guard when needed. Cancelling leaves existing
+tabs, history and clipboard unchanged. Cropping copies source pixels without
+resampling the preview. Wheel zoom uses the canvas's cursor-anchored mapping and
+limits; middle-mouse dragging pans. Reset Zoom fits and centers the image without
+changing the crop. Windows capture defaults to a user-adjustable one-second delay.
+
+On Linux, the interactive XDG Screenshot portal owns capture permissions and
+the available screen/window/region choices. A generation-scoped request subscribes
+before dispatch, handles cancellation and late replies, and times out. Only a
+bounded local image returned by that request is decoded; no remote URI is fetched
+and portal-owned files are not deleted. A working desktop screenshot portal is
+required, including on X11.
+
+On Windows, GDI captures visible pixels from the virtual desktop or the foreground
+window at the end of a configurable delay. Active Window excludes Vulkana, uses
+DWM frame bounds clipped to the desktop and physical-pixel DPI coordinates, and
+does not request hidden/minimized window content. BGRX becomes an owned opaque
+image in memory. Protected content, occluded regions and HDR/wide-gamut color
+fidelity are subject to the desktop capture API; the result is treated as SDR,
+not an HDR or color-managed screen export. No helper executable, network service
+or additional runtime dependency is required.
+
+`imageeditor_screenshot_tests` covers crop geometry, stale callbacks, cancellation,
+new-document publication and existing history. `imageeditor_screenshot_portal_tests`
+uses an isolated D-Bus fixture, never the real desktop. The opt-in Windows test
+`imageeditor_windows_screenshot_tests --native` captures only its own separate
+fixture window on an interactive desktop. Monitor arrangements, live portal
+chooser behavior and protected/HDR content still need desktop-specific testing.
+The screenshot widget test's `--native` mode exercises the workspace with Vulkan;
+on Wayland it needs real pointer input to authorize restoring a minimized window
+and returns 77 if the compositor input prerequisite is unavailable.
+
 Jobs and deferred callbacks must carry their owning document, target identities,
 revisions and cancellation generation. Completion cannot infer its target from
 the currently active tab. Explicit repair work can finish on an inactive valid

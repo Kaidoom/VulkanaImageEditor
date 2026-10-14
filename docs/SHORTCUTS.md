@@ -72,6 +72,7 @@ content and do not affect document history. Existing settings are preserved.
 | --- | --- |
 | New document | Ctrl+N |
 | Open document | Ctrl+O |
+| Take Screenshot | Unassigned |
 | Close document | Ctrl+W |
 | Next document tab | Ctrl+Tab |
 | Previous document tab | Ctrl+Shift+Tab |

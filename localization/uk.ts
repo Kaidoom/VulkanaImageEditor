@@ -10596,4 +10596,35 @@ Escape · Скасувати сеанс
     <message id="clipboard.copy.canvas.failed"><source>Could not copy the canvas: %1</source><translation type="unfinished" /></message>
     <message id="clipboard.copy.canvas.done"><source>Canvas copied to clipboard · %1 × %2 px</source><translation type="unfinished" /></message>
   </context>
+  <context>
+    <name>Screenshot capture</name>
+    <message id="screenshot.action"><source>Take Screenshot…</source><translation type="unfinished" /></message>
+    <message id="screenshot.title"><source>Screenshot</source><translation type="unfinished" /></message>
+    <message id="screenshot.document"><source>Screenshot</source><translation type="unfinished" /></message>
+    <message id="screenshot.preview"><source>Screenshot crop preview</source><translation type="unfinished" /></message>
+    <message id="screenshot.close"><source>Close screenshot</source><translation type="unfinished" /></message>
+    <message id="screenshot.desktop.chooser"><source>Desktop chooser</source><translation type="unfinished" /></message>
+    <message id="screenshot.entire.desktop"><source>Entire desktop</source><translation type="unfinished" /></message>
+    <message id="screenshot.active.window"><source>Active window</source><translation type="unfinished" /></message>
+    <message id="screenshot.target"><source>Capture source</source><translation type="unfinished" /></message>
+    <message id="screenshot.delay"><source>Delay: </source><translation type="unfinished" /></message>
+    <message id="screenshot.capture"><source>Capture</source><translation type="unfinished" /></message>
+    <message id="screenshot.retake"><source>Retake</source><translation type="unfinished" /></message>
+    <message id="screenshot.reset.crop"><source>Reset Crop</source><translation type="unfinished" /></message>
+    <message id="screenshot.reset.zoom"><source>Reset Zoom</source><translation type="unfinished" /></message>
+    <message id="screenshot.add.layer"><source>Add as Layer</source><translation type="unfinished" /></message>
+    <message id="screenshot.add.layer.hint"><source>Add the crop to the current document as an undoable raster layer.</source><translation type="unfinished" /></message>
+    <message id="screenshot.stop"><source>Cancel Capture</source><translation type="unfinished" /></message>
+    <message id="screenshot.cancel"><source>Cancel</source><translation type="unfinished" /></message>
+    <message id="screenshot.open"><source>Open as New Document</source><translation type="unfinished" /></message>
+    <message id="screenshot.chooser.hint"><source>Vulkana minimizes while you choose what to capture using your desktop's screenshot chooser.</source><translation type="unfinished" /></message>
+    <message id="screenshot.native.hint"><source>Vulkana minimizes during capture. For Active Window, switch to your target during the delay. Restore Vulkana to cancel.</source><translation type="unfinished" /></message>
+    <message id="screenshot.crop.hint"><source>Scroll to zoom; middle mouse to pan. Drag to crop or adjust its corners. Arrow keys move the crop; Shift moves 10 pixels.</source><oldsource>Drag to crop. Move the crop or drag its corners to adjust it. Arrow keys move it; Shift moves 10 pixels.</oldsource><translation type="unfinished" /></message>
+    <message id="screenshot.empty"><source>Capture a screenshot to preview and crop it here.</source><translation type="unfinished" /></message>
+    <message id="screenshot.countdown"><source>Capturing in %1 s…</source><translation type="unfinished" /></message>
+    <message id="screenshot.waiting"><source>Waiting for capture…</source><translation type="unfinished" /></message>
+    <message id="screenshot.cancelled"><source>Capture cancelled.</source><translation type="unfinished" /></message>
+    <message id="screenshot.dimensions"><source>%1 × %2 px</source><translation type="unfinished" /></message>
+    <message id="screenshot.failed"><source>Could not capture or open the screenshot: %1</source><translation type="unfinished" /></message>
+  </context>
 </TS>

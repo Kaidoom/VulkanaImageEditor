@@ -18,6 +18,7 @@ const QList<ShortcutDefinition>& shortcutDefinitions()
         };
         add("NewDocumentAction", i18n::text("editor.shortcuts.new.document"), i18n::text("editor.shortcuts.file"), "Ctrl+N");
         add("OpenDocumentAction", i18n::text("editor.shortcuts.open.document"), i18n::text("editor.shortcuts.file"), "Ctrl+O");
+        add("TakeScreenshotAction", i18n::text("screenshot.action"), i18n::text("editor.shortcuts.file"));
         add("CloseDocumentAction", i18n::text("editor.shortcuts.close.document"), i18n::text("editor.shortcuts.file"), "Ctrl+W", EditorKeys | TextKeys);
         add("NextDocumentAction", i18n::text("editor.shortcuts.next.document"), i18n::text("editor.shortcuts.view"), "Ctrl+Tab", EditorKeys | TextKeys);
         add("PreviousDocumentAction", i18n::text("editor.shortcuts.previous.document"), i18n::text("editor.shortcuts.view"), "Ctrl+Shift+Tab", EditorKeys | TextKeys);

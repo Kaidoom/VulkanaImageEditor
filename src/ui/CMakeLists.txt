@@ -59,6 +59,12 @@ add_library(imageeditor_ui STATIC
     src/ExportDialog.cpp
     src/MainWindowExport.cpp
     src/MainWindowClipboard.cpp
+    src/ScreenCapture.cpp
+    include/imageeditor/ui/ScreenCapture.hpp
+    src/ScreenshotPreview.cpp
+    src/ScreenshotDialog.cpp
+    include/imageeditor/ui/ScreenshotDialog.hpp
+    src/MainWindowScreenshot.cpp
     src/ProjectFile.cpp
     src/RecentFiles.cpp
     src/RulerStrip.cpp
@@ -146,6 +152,7 @@ target_compile_definitions(imageeditor_ui PRIVATE
     VULKANA_UPDATE_PACKAGE_${VULKANA_EFFECTIVE_UPDATE_PACKAGE}=1)
 
 if(WIN32)
+    target_link_libraries(imageeditor_ui PRIVATE user32 gdi32 dwmapi)
     find_package(minizip-ng 4.0 CONFIG REQUIRED GLOBAL)
     find_package(WebP CONFIG REQUIRED GLOBAL)
     target_link_libraries(imageeditor_ui PRIVATE MINIZIP::minizip-ng WebP::webp WebP::libwebpmux)

@@ -1988,6 +1988,9 @@ void MainWindow::createMenus()
     newAction->setShortcut(QKeySequence::New);
     auto* openAction = i18n::addAction(fileMenu, toolGlyph(ToolGlyph::Folder), i18n::text("main.window.open"), this, &MainWindow::openImage);
     openAction->setShortcut(QKeySequence::Open);
+    auto* screenshot = i18n::addAction(fileMenu, toolGlyph(ToolGlyph::Camera), i18n::text("screenshot.action"), this, &MainWindow::takeScreenshot);
+    screenshot->setObjectName(QStringLiteral("TakeScreenshotAction"));
+    registerEditorWindowAction(screenshot);
     openAction->setObjectName(QStringLiteral("OpenDocumentAction"));
     newAction->setObjectName(QStringLiteral("NewDocumentAction"));
     auto* closeDocumentAction = i18n::addAction(fileMenu, toolGlyph(ToolGlyph::Close), i18n::text("main.window.close.document"), this, [this] { closeDocument(activeDocumentId()); });
