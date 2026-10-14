@@ -10554,104 +10554,104 @@ Escape · 전체 자르기 세션 취소
     <name>Project file integration</name>
     <message id="project.integration.title">
       <source>Register Vulkana project files?</source>
-      <translation type="unfinished" />
+      <translation>Vulkana 프로젝트 파일을 등록할까요?</translation>
     </message>
     <message id="project.integration.description">
       <source>Show saved canvas previews in File Explorer and add Vulkana to Open with for .vulkana files. This applies only to your Windows account and does not need administrator access. Your existing default app stays unchanged.</source>
-      <translation type="unfinished" />
+      <translation>파일 탐색기에 저장된 캔버스 미리보기를 표시하고 .vulkana 파일의 '연결 프로그램'에 Vulkana를 추가합니다. 현재 Windows 계정에만 적용되며 관리자 권한은 필요하지 않습니다. 기존 기본 앱은 바뀌지 않습니다.</translation>
     </message>
     <message id="project.integration.location">
       <source>Newer portable versions update registration when launched. Keep the registered folder in place. If you move the same version, use Register Vulkana project files in Preferences → General.</source>
-      <translation type="unfinished" />
+      <translation>새 휴대용 버전을 실행하면 등록 정보가 갱신됩니다. 등록된 폴더는 이동하지 마세요. 같은 버전을 다른 위치로 옮겼다면 환경 설정 → 일반에서 'Vulkana 프로젝트 파일 등록'을 사용하세요.</translation>
     </message>
     <message id="project.integration.register">
       <source>Register</source>
-      <translation type="unfinished" />
+      <translation>등록</translation>
     </message>
     <message id="project.integration.remove">
       <source>Remove registration</source>
-      <translation type="unfinished" />
+      <translation>등록 해제</translation>
     </message>
     <message id="project.integration.decline">
       <source>No thanks</source>
-      <translation type="unfinished" />
+      <translation>괜찮습니다</translation>
     </message>
     <message id="project.integration.close">
       <source>Close</source>
-      <translation type="unfinished" />
+      <translation>닫기</translation>
     </message>
     <message id="project.integration.preferences">
       <source>Register Vulkana project files…</source>
-      <translation type="unfinished" />
+      <translation>Vulkana 프로젝트 파일 등록…</translation>
     </message>
   </context>
   <context>
     <name>Canvas clipboard</name>
-    <message id="clipboard.copy.canvas"><source>Copy canvas to clipboard</source><translation type="unfinished" /></message>
-    <message id="clipboard.copy.canvas.hint"><source>Copy the full canvas at its original size, including visible layers and transparency.</source><translation type="unfinished" /></message>
-    <message id="clipboard.copy.canvas.preparing"><source>Preparing canvas for clipboard…</source><translation type="unfinished" /></message>
-    <message id="clipboard.copy.canvas.finish.edit"><source>Finish or cancel the current selection or shape edit before copying the canvas.</source><translation type="unfinished" /></message>
-    <message id="clipboard.copy.canvas.failed"><source>Could not copy the canvas: %1</source><translation type="unfinished" /></message>
-    <message id="clipboard.copy.canvas.done"><source>Canvas copied to clipboard · %1 × %2 px</source><translation type="unfinished" /></message>
+    <message id="clipboard.copy.canvas"><source>Copy canvas to clipboard</source><translation>캔버스를 클립보드에 복사</translation></message>
+    <message id="clipboard.copy.canvas.hint"><source>Copy the full canvas at its original size, including visible layers and transparency.</source><translation>표시된 레이어와 투명도를 포함한 전체 캔버스를 원래 크기로 복사합니다.</translation></message>
+    <message id="clipboard.copy.canvas.preparing"><source>Preparing canvas for clipboard…</source><translation>캔버스 복사 준비 중…</translation></message>
+    <message id="clipboard.copy.canvas.finish.edit"><source>Finish or cancel the current selection or shape edit before copying the canvas.</source><translation>현재 선택 영역 또는 도형 편집을 완료하거나 취소한 후 캔버스를 복사하세요.</translation></message>
+    <message id="clipboard.copy.canvas.failed"><source>Could not copy the canvas: %1</source><translation>캔버스를 복사할 수 없습니다: %1</translation></message>
+    <message id="clipboard.copy.canvas.done"><source>Canvas copied to clipboard · %1 × %2 px</source><translation>캔버스를 클립보드에 복사했습니다 · %1 × %2 px</translation></message>
   </context>
   <context>
     <name>Screenshot capture</name>
-    <message id="screenshot.action"><source>Take Screenshot…</source><translation type="unfinished" /></message>
-    <message id="screenshot.title"><source>Screenshot</source><translation type="unfinished" /></message>
-    <message id="screenshot.document"><source>Screenshot</source><translation type="unfinished" /></message>
-    <message id="screenshot.preview"><source>Screenshot crop preview</source><translation type="unfinished" /></message>
-    <message id="screenshot.close"><source>Close screenshot</source><translation type="unfinished" /></message>
-    <message id="screenshot.desktop.chooser"><source>Desktop chooser</source><translation type="unfinished" /></message>
-    <message id="screenshot.entire.desktop"><source>Entire desktop</source><translation type="unfinished" /></message>
-    <message id="screenshot.active.window"><source>Active window</source><translation type="unfinished" /></message>
-    <message id="screenshot.target"><source>Capture source</source><translation type="unfinished" /></message>
-    <message id="screenshot.delay"><source>Delay: </source><translation type="unfinished" /></message>
-    <message id="screenshot.capture"><source>Capture</source><translation type="unfinished" /></message>
-    <message id="screenshot.retake"><source>Retake</source><translation type="unfinished" /></message>
-    <message id="screenshot.reset.crop"><source>Reset Crop</source><translation type="unfinished" /></message>
-    <message id="screenshot.reset.zoom"><source>Reset Zoom</source><translation type="unfinished" /></message>
-    <message id="screenshot.add.layer"><source>Add as Layer</source><translation type="unfinished" /></message>
-    <message id="screenshot.add.layer.hint"><source>Add the crop to the current document as an undoable raster layer.</source><translation type="unfinished" /></message>
-    <message id="screenshot.stop"><source>Cancel Capture</source><translation type="unfinished" /></message>
-    <message id="screenshot.cancel"><source>Cancel</source><translation type="unfinished" /></message>
-    <message id="screenshot.open"><source>Open as New Document</source><translation type="unfinished" /></message>
-    <message id="screenshot.chooser.hint"><source>Vulkana minimizes while you choose what to capture using your desktop's screenshot chooser.</source><translation type="unfinished" /></message>
-    <message id="screenshot.native.hint"><source>Vulkana minimizes during capture. For Active Window, switch to your target during the delay. Restore Vulkana to cancel.</source><translation type="unfinished" /></message>
-    <message id="screenshot.crop.hint"><source>Scroll to zoom; middle mouse to pan. Drag to crop or adjust its corners. Arrow keys move the crop; Shift moves 10 pixels.</source><oldsource>Drag to crop. Move the crop or drag its corners to adjust it. Arrow keys move it; Shift moves 10 pixels.</oldsource><translation type="unfinished" /></message>
-    <message id="screenshot.empty"><source>Capture a screenshot to preview and crop it here.</source><translation type="unfinished" /></message>
-    <message id="screenshot.countdown"><source>Capturing in %1 s…</source><translation type="unfinished" /></message>
-    <message id="screenshot.waiting"><source>Waiting for capture…</source><translation type="unfinished" /></message>
-    <message id="screenshot.cancelled"><source>Capture cancelled.</source><translation type="unfinished" /></message>
-    <message id="screenshot.dimensions"><source>%1 × %2 px</source><translation type="unfinished" /></message>
-    <message id="screenshot.failed"><source>Could not capture or open the screenshot: %1</source><translation type="unfinished" /></message>
+    <message id="screenshot.action"><source>Take Screenshot…</source><translation>스크린샷 촬영…</translation></message>
+    <message id="screenshot.title"><source>Screenshot</source><translation>스크린샷</translation></message>
+    <message id="screenshot.document"><source>Screenshot</source><translation>스크린샷</translation></message>
+    <message id="screenshot.preview"><source>Screenshot crop preview</source><translation>스크린샷 자르기 미리보기</translation></message>
+    <message id="screenshot.close"><source>Close screenshot</source><translation>스크린샷 닫기</translation></message>
+    <message id="screenshot.desktop.chooser"><source>Desktop chooser</source><translation>데스크톱 캡처 선택기</translation></message>
+    <message id="screenshot.entire.desktop"><source>Entire desktop</source><translation>전체 데스크톱</translation></message>
+    <message id="screenshot.active.window"><source>Active window</source><translation>활성 창</translation></message>
+    <message id="screenshot.target"><source>Capture source</source><translation>캡처 대상</translation></message>
+    <message id="screenshot.delay"><source>Delay: </source><translation>지연: </translation></message>
+    <message id="screenshot.capture"><source>Capture</source><translation>캡처</translation></message>
+    <message id="screenshot.retake"><source>Retake</source><translation>다시 캡처</translation></message>
+    <message id="screenshot.reset.crop"><source>Reset Crop</source><translation>자르기 초기화</translation></message>
+    <message id="screenshot.reset.zoom"><source>Reset Zoom</source><translation>확대/축소 초기화</translation></message>
+    <message id="screenshot.add.layer"><source>Add as Layer</source><translation>레이어로 추가</translation></message>
+    <message id="screenshot.add.layer.hint"><source>Add the crop to the current document as an undoable raster layer.</source><translation>잘라낸 이미지를 현재 문서에 래스터 레이어로 추가합니다. 실행 취소할 수 있습니다.</translation></message>
+    <message id="screenshot.stop"><source>Cancel Capture</source><translation>캡처 취소</translation></message>
+    <message id="screenshot.cancel"><source>Cancel</source><translation>취소</translation></message>
+    <message id="screenshot.open"><source>Open as New Document</source><translation>새 문서로 열기</translation></message>
+    <message id="screenshot.chooser.hint"><source>Vulkana minimizes while you choose what to capture using your desktop's screenshot chooser.</source><translation>데스크톱 스크린샷 선택기에서 캡처할 대상을 고르는 동안 Vulkana가 최소화됩니다.</translation></message>
+    <message id="screenshot.native.hint"><source>Vulkana minimizes during capture. For Active Window, switch to your target during the delay. Restore Vulkana to cancel.</source><translation>캡처 중에는 Vulkana가 최소화됩니다. 활성 창을 캡처하려면 지연 시간 동안 대상 창으로 전환하세요. Vulkana를 다시 표시하면 취소됩니다.</translation></message>
+    <message id="screenshot.crop.hint"><source>Scroll to zoom; middle mouse to pan. Drag to crop or adjust its corners. Arrow keys move the crop; Shift moves 10 pixels.</source><oldsource>Drag to crop. Move the crop or drag its corners to adjust it. Arrow keys move it; Shift moves 10 pixels.</oldsource><translation>스크롤로 확대/축소하고 마우스 가운데 버튼으로 드래그해 이동합니다. 드래그로 자를 영역이나 모서리를 조정하세요. 방향키로 자르기 영역을 이동하며 Shift를 누르면 10픽셀씩 이동합니다.</translation></message>
+    <message id="screenshot.empty"><source>Capture a screenshot to preview and crop it here.</source><translation>스크린샷을 캡처하면 여기에서 미리 보고 자를 수 있습니다.</translation></message>
+    <message id="screenshot.countdown"><source>Capturing in %1 s…</source><translation>%1초 후 캡처…</translation></message>
+    <message id="screenshot.waiting"><source>Waiting for capture…</source><translation>캡처 대기 중…</translation></message>
+    <message id="screenshot.cancelled"><source>Capture cancelled.</source><translation>캡처가 취소되었습니다.</translation></message>
+    <message id="screenshot.dimensions"><source>%1 × %2 px</source><translation>%1 × %2 px</translation></message>
+    <message id="screenshot.failed"><source>Could not capture or open the screenshot: %1</source><translation>스크린샷을 캡처하거나 열 수 없습니다: %1</translation></message>
   </context>
   <context>
     <name>Performance preferences</name>
-    <message id="performance.title"><source>Performance</source><translation type="unfinished" /></message>
-    <message id="performance.gpu"><source>Graphics device</source><translation type="unfinished" /></message>
-    <message id="performance.undo"><source>Undo memory per document</source><translation type="unfinished" /></message>
-    <message id="performance.cpu.cache"><source>Document cache per window</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.cache"><source>GPU texture cache per window</source><translation type="unfinished" /></message>
-    <message id="performance.threads"><source>Image-processing threads</source><translation type="unfinished" /></message>
-    <message id="performance.object.threads"><source>Object Selection threads</source><translation type="unfinished" /></message>
-    <message id="performance.auto"><source>Auto</source><translation type="unfinished" /></message>
-    <message id="performance.auto.memory"><source>Auto (%1 MiB)</source><translation type="unfinished" /></message>
-    <message id="performance.auto.threads"><source>Auto (up to %1)</source><translation type="unfinished" /></message>
-    <message id="performance.restart.note"><source>GPU and thread changes require a restart. Object Selection runs on the CPU.</source><translation type="unfinished" /></message>
-    <message id="performance.memory.note"><source>Budgets are retention targets, not total RAM/VRAM limits. Undo trims on later edits.</source><translation type="unfinished" /></message>
-    <message id="performance.usage"><source>RAM (process): %1&#10;Undo: %2 (current), %3 (all tabs)&#10;Document cache: %4 · GPU texture cache: %5&#10;Rendering GPU: %6</source><translation type="unfinished" /></message>
-    <message id="performance.clear"><source>Clear Inactive Caches</source><translation type="unfinished" /></message>
-    <message id="performance.clear.hint"><source>Release cached previews and textures for inactive tabs in this window. Source pixels and undo history stay intact.</source><translation type="unfinished" /></message>
-    <message id="performance.defaults"><source>Restore Defaults</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.changed.title"><source>Graphics device changed</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.changed.message"><source>The selected GPU (%1) could not be used. Falling back to %2.</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.changed.unknown"><source>The selected GPU could not be used. Falling back to %1.</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.unavailable"><source>Saved device (unavailable)</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.check.hint"><source>GPU availability is checked on restart. If a device cannot display the canvas, Vulkana uses another GPU.</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.failed.item"><source>%1 — startup check failed</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.unsupported.item"><source>%1 — unavailable for this display</source><translation type="unfinished" /></message>
-    <message id="performance.unknown"><source>Unavailable</source><translation type="unfinished" /></message>
-    <message id="performance.undo.warning.title"><source>Reduce Undo Memory?</source><translation type="unfinished" /></message>
-    <message id="performance.undo.warning"><source>Older undo steps may be discarded as you make new edits. This cannot be reversed by raising the budget later. Continue?</source><translation type="unfinished" /></message>
+    <message id="performance.title"><source>Performance</source><translation>성능</translation></message>
+    <message id="performance.gpu"><source>Graphics device</source><translation>그래픽 장치</translation></message>
+    <message id="performance.undo"><source>Undo memory per document</source><translation>문서별 실행 취소 메모리</translation></message>
+    <message id="performance.cpu.cache"><source>Document cache per window</source><translation>창별 문서 캐시</translation></message>
+    <message id="performance.gpu.cache"><source>GPU texture cache per window</source><translation>창별 GPU 텍스처 캐시</translation></message>
+    <message id="performance.threads"><source>Image-processing threads</source><translation>이미지 처리 스레드</translation></message>
+    <message id="performance.object.threads"><source>Object Selection threads</source><translation>개체 선택 스레드</translation></message>
+    <message id="performance.auto"><source>Auto</source><translation>자동</translation></message>
+    <message id="performance.auto.memory"><source>Auto (%1 MiB)</source><translation>자동 (%1 MiB)</translation></message>
+    <message id="performance.auto.threads"><source>Auto (up to %1)</source><translation>자동 (최대 %1)</translation></message>
+    <message id="performance.restart.note"><source>GPU and thread changes require a restart. Object Selection runs on the CPU.</source><translation>GPU나 스레드를 변경하면 다시 시작해야 합니다. 개체 선택은 CPU에서 처리합니다.</translation></message>
+    <message id="performance.memory.note"><source>Budgets are retention targets, not total RAM/VRAM limits. Undo trims on later edits.</source><translation>설정 용량은 데이터 보관 목표이며 전체 RAM/VRAM의 제한이 아닙니다. 실행 취소 기록은 이후 편집 시 줄어듭니다.</translation></message>
+    <message id="performance.usage"><source>RAM (process): %1&#10;Undo: %2 (current), %3 (all tabs)&#10;Document cache: %4 · GPU texture cache: %5&#10;Rendering GPU: %6</source><translation>RAM (프로세스): %1&#10;실행 취소: %2 (현재), %3 (모든 탭)&#10;문서 캐시: %4 · GPU 텍스처 캐시: %5&#10;렌더링 GPU: %6</translation></message>
+    <message id="performance.clear"><source>Clear Inactive Caches</source><translation>비활성 캐시 지우기</translation></message>
+    <message id="performance.clear.hint"><source>Release cached previews and textures for inactive tabs in this window. Source pixels and undo history stay intact.</source><translation>이 창의 비활성 탭에 저장된 미리보기와 텍스처 캐시를 해제합니다. 원본 픽셀과 실행 취소 기록은 유지됩니다.</translation></message>
+    <message id="performance.defaults"><source>Restore Defaults</source><translation>기본값 복원</translation></message>
+    <message id="performance.gpu.changed.title"><source>Graphics device changed</source><translation>그래픽 장치 변경됨</translation></message>
+    <message id="performance.gpu.changed.message"><source>The selected GPU (%1) could not be used. Falling back to %2.</source><translation>선택한 GPU(%1)를 사용할 수 없습니다. 대신 %2을(를) 사용합니다.</translation></message>
+    <message id="performance.gpu.changed.unknown"><source>The selected GPU could not be used. Falling back to %1.</source><translation>선택한 GPU를 사용할 수 없습니다. 대신 %1을(를) 사용합니다.</translation></message>
+    <message id="performance.gpu.unavailable"><source>Saved device (unavailable)</source><translation>저장된 장치 (사용 불가)</translation></message>
+    <message id="performance.gpu.check.hint"><source>GPU availability is checked on restart. If a device cannot display the canvas, Vulkana uses another GPU.</source><translation>다시 시작할 때 GPU 사용 가능 여부를 확인합니다. 캔버스를 표시할 수 없는 장치라면 다른 GPU를 사용합니다.</translation></message>
+    <message id="performance.gpu.failed.item"><source>%1 — startup check failed</source><translation>%1 — 시작 검사 실패</translation></message>
+    <message id="performance.gpu.unsupported.item"><source>%1 — unavailable for this display</source><translation>%1 — 이 디스플레이에서 사용 불가</translation></message>
+    <message id="performance.unknown"><source>Unavailable</source><translation>사용 불가</translation></message>
+    <message id="performance.undo.warning.title"><source>Reduce Undo Memory?</source><translation>실행 취소 메모리를 줄일까요?</translation></message>
+    <message id="performance.undo.warning"><source>Older undo steps may be discarded as you make new edits. This cannot be reversed by raising the budget later. Continue?</source><translation>새로 편집하면 이전 실행 취소 단계가 삭제될 수 있습니다. 나중에 용량을 늘려도 복구할 수 없습니다. 계속할까요?</translation></message>
   </context>
 </TS>

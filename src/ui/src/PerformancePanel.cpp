@@ -98,9 +98,10 @@ void PerformancePanel::refreshUsage()
 {
     if(!isVisible()||window()->isMinimized()||!readUsage)return;
     const auto u=readUsage();const auto mib=[](std::uint64_t value){return QString::number(double(value)/(1024*1024),'f',1)+QStringLiteral(" MiB");};
-    const QString ram=u.residentBytes?mib(*u.residentBytes):QString(i18n::text("performance.unknown"));
-    i18n::setText(usage_,i18n::text("performance.usage").arg(ram).arg(mib(u.activeUndoBytes)).arg(mib(u.allUndoBytes))
-        .arg(mib(u.documentCacheBytes)).arg(mib(u.textureCacheBytes)).arg(u.gpuName.isEmpty()?QString(i18n::text("performance.unknown")):u.gpuName));
+    const auto ram=u.residentBytes?i18n::ltrToken(mib(*u.residentBytes)):i18n::text("performance.unknown");
+    i18n::setText(usage_,i18n::text("performance.usage").arg(ram).arg(i18n::ltrToken(mib(u.activeUndoBytes))).arg(i18n::ltrToken(mib(u.allUndoBytes)))
+        .arg(i18n::ltrToken(mib(u.documentCacheBytes))).arg(i18n::ltrToken(mib(u.textureCacheBytes)))
+        .arg(u.gpuName.isEmpty()?i18n::text("performance.unknown"):i18n::ltrToken(u.gpuName)));
 }
 void PerformancePanel::showEvent(QShowEvent* e){QWidget::showEvent(e);refreshUsage();timer_.start();}
 void PerformancePanel::hideEvent(QHideEvent* e){timer_.stop();QWidget::hideEvent(e);}

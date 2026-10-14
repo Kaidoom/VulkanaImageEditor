@@ -25,7 +25,7 @@ ScreenshotDialog::ScreenshotDialog(QWidget& host,QWidget* parent,ScreenCapture* 
     auto* title=i18n::make<QLabel>(i18n::text("screenshot.title"),this);
     auto font=title->font();font.setBold(true);title->setFont(font);header->addWidget(title,1);
     auto* close=new QPushButton(toolGlyph(ToolGlyph::Close),{},this);close->setObjectName("ScreenshotClose");
-    i18n::setToolTip(close,i18n::text("screenshot.close"));close->setAccessibleName(close->toolTip());
+    i18n::setToolTip(close,i18n::text("screenshot.close"));i18n::setAccessibleName(close,i18n::text("screenshot.close"));
     close->setFixedSize(30,30);close->setAutoDefault(false);connect(close,&QPushButton::clicked,this,&QDialog::reject);
     header->addWidget(close);layout->addLayout(header);
     auto* options=new QHBoxLayout;

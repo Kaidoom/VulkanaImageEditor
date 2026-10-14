@@ -10555,104 +10555,104 @@ Abschrägen: Ecken nach innen ziehen; Alt ändert auch die gegenüberliegende Ec
     <name>Project file integration</name>
     <message id="project.integration.title">
       <source>Register Vulkana project files?</source>
-      <translation type="unfinished" />
+      <translation>Vulkana-Projektdateien registrieren?</translation>
     </message>
     <message id="project.integration.description">
       <source>Show saved canvas previews in File Explorer and add Vulkana to Open with for .vulkana files. This applies only to your Windows account and does not need administrator access. Your existing default app stays unchanged.</source>
-      <translation type="unfinished" />
+      <translation>Zeigt gespeicherte Leinwandvorschauen im Datei-Explorer und ergänzt „Öffnen mit“ für .vulkana-Dateien um Vulkana. Gilt nur für dein Windows-Konto und benötigt keine Administratorrechte. Die Standard-App bleibt unverändert.</translation>
     </message>
     <message id="project.integration.location">
       <source>Newer portable versions update registration when launched. Keep the registered folder in place. If you move the same version, use Register Vulkana project files in Preferences → General.</source>
-      <translation type="unfinished" />
+      <translation>Neuere portable Versionen aktualisieren die Registrierung beim Start. Belasse den registrierten Ordner an seinem Ort. Wenn du dieselbe Version verschiebst, nutze „Vulkana-Projektdateien registrieren“ unter Einstellungen → Allgemein.</translation>
     </message>
     <message id="project.integration.register">
       <source>Register</source>
-      <translation type="unfinished" />
+      <translation>Registrieren</translation>
     </message>
     <message id="project.integration.remove">
       <source>Remove registration</source>
-      <translation type="unfinished" />
+      <translation>Registrierung entfernen</translation>
     </message>
     <message id="project.integration.decline">
       <source>No thanks</source>
-      <translation type="unfinished" />
+      <translation>Nein, danke</translation>
     </message>
     <message id="project.integration.close">
       <source>Close</source>
-      <translation type="unfinished" />
+      <translation>Schließen</translation>
     </message>
     <message id="project.integration.preferences">
       <source>Register Vulkana project files…</source>
-      <translation type="unfinished" />
+      <translation>Vulkana-Projektdateien registrieren…</translation>
     </message>
   </context>
   <context>
     <name>Canvas clipboard</name>
-    <message id="clipboard.copy.canvas"><source>Copy canvas to clipboard</source><translation type="unfinished" /></message>
-    <message id="clipboard.copy.canvas.hint"><source>Copy the full canvas at its original size, including visible layers and transparency.</source><translation type="unfinished" /></message>
-    <message id="clipboard.copy.canvas.preparing"><source>Preparing canvas for clipboard…</source><translation type="unfinished" /></message>
-    <message id="clipboard.copy.canvas.finish.edit"><source>Finish or cancel the current selection or shape edit before copying the canvas.</source><translation type="unfinished" /></message>
-    <message id="clipboard.copy.canvas.failed"><source>Could not copy the canvas: %1</source><translation type="unfinished" /></message>
-    <message id="clipboard.copy.canvas.done"><source>Canvas copied to clipboard · %1 × %2 px</source><translation type="unfinished" /></message>
+    <message id="clipboard.copy.canvas"><source>Copy canvas to clipboard</source><translation>Leinwand in die Zwischenablage</translation></message>
+    <message id="clipboard.copy.canvas.hint"><source>Copy the full canvas at its original size, including visible layers and transparency.</source><translation>Kopiert die gesamte Leinwand in Originalgröße, mit sichtbaren Ebenen und Transparenz.</translation></message>
+    <message id="clipboard.copy.canvas.preparing"><source>Preparing canvas for clipboard…</source><translation>Leinwand wird zum Kopieren vorbereitet…</translation></message>
+    <message id="clipboard.copy.canvas.finish.edit"><source>Finish or cancel the current selection or shape edit before copying the canvas.</source><translation>Beende oder verwirf die laufende Auswahl- oder Formbearbeitung, bevor du die Leinwand kopierst.</translation></message>
+    <message id="clipboard.copy.canvas.failed"><source>Could not copy the canvas: %1</source><translation>Leinwand konnte nicht kopiert werden: %1</translation></message>
+    <message id="clipboard.copy.canvas.done"><source>Canvas copied to clipboard · %1 × %2 px</source><translation>Leinwand in die Zwischenablage kopiert · %1 × %2 px</translation></message>
   </context>
   <context>
     <name>Screenshot capture</name>
-    <message id="screenshot.action"><source>Take Screenshot…</source><translation type="unfinished" /></message>
-    <message id="screenshot.title"><source>Screenshot</source><translation type="unfinished" /></message>
-    <message id="screenshot.document"><source>Screenshot</source><translation type="unfinished" /></message>
-    <message id="screenshot.preview"><source>Screenshot crop preview</source><translation type="unfinished" /></message>
-    <message id="screenshot.close"><source>Close screenshot</source><translation type="unfinished" /></message>
-    <message id="screenshot.desktop.chooser"><source>Desktop chooser</source><translation type="unfinished" /></message>
-    <message id="screenshot.entire.desktop"><source>Entire desktop</source><translation type="unfinished" /></message>
-    <message id="screenshot.active.window"><source>Active window</source><translation type="unfinished" /></message>
-    <message id="screenshot.target"><source>Capture source</source><translation type="unfinished" /></message>
-    <message id="screenshot.delay"><source>Delay: </source><translation type="unfinished" /></message>
-    <message id="screenshot.capture"><source>Capture</source><translation type="unfinished" /></message>
-    <message id="screenshot.retake"><source>Retake</source><translation type="unfinished" /></message>
-    <message id="screenshot.reset.crop"><source>Reset Crop</source><translation type="unfinished" /></message>
-    <message id="screenshot.reset.zoom"><source>Reset Zoom</source><translation type="unfinished" /></message>
-    <message id="screenshot.add.layer"><source>Add as Layer</source><translation type="unfinished" /></message>
-    <message id="screenshot.add.layer.hint"><source>Add the crop to the current document as an undoable raster layer.</source><translation type="unfinished" /></message>
-    <message id="screenshot.stop"><source>Cancel Capture</source><translation type="unfinished" /></message>
-    <message id="screenshot.cancel"><source>Cancel</source><translation type="unfinished" /></message>
-    <message id="screenshot.open"><source>Open as New Document</source><translation type="unfinished" /></message>
-    <message id="screenshot.chooser.hint"><source>Vulkana minimizes while you choose what to capture using your desktop's screenshot chooser.</source><translation type="unfinished" /></message>
-    <message id="screenshot.native.hint"><source>Vulkana minimizes during capture. For Active Window, switch to your target during the delay. Restore Vulkana to cancel.</source><translation type="unfinished" /></message>
-    <message id="screenshot.crop.hint"><source>Scroll to zoom; middle mouse to pan. Drag to crop or adjust its corners. Arrow keys move the crop; Shift moves 10 pixels.</source><oldsource>Drag to crop. Move the crop or drag its corners to adjust it. Arrow keys move it; Shift moves 10 pixels.</oldsource><translation type="unfinished" /></message>
-    <message id="screenshot.empty"><source>Capture a screenshot to preview and crop it here.</source><translation type="unfinished" /></message>
-    <message id="screenshot.countdown"><source>Capturing in %1 s…</source><translation type="unfinished" /></message>
-    <message id="screenshot.waiting"><source>Waiting for capture…</source><translation type="unfinished" /></message>
-    <message id="screenshot.cancelled"><source>Capture cancelled.</source><translation type="unfinished" /></message>
-    <message id="screenshot.dimensions"><source>%1 × %2 px</source><translation type="unfinished" /></message>
-    <message id="screenshot.failed"><source>Could not capture or open the screenshot: %1</source><translation type="unfinished" /></message>
+    <message id="screenshot.action"><source>Take Screenshot…</source><translation>Bildschirmfoto aufnehmen…</translation></message>
+    <message id="screenshot.title"><source>Screenshot</source><translation>Bildschirmfoto</translation></message>
+    <message id="screenshot.document"><source>Screenshot</source><translation>Bildschirmfoto</translation></message>
+    <message id="screenshot.preview"><source>Screenshot crop preview</source><translation>Zuschnittvorschau</translation></message>
+    <message id="screenshot.close"><source>Close screenshot</source><translation>Bildschirmfoto schließen</translation></message>
+    <message id="screenshot.desktop.chooser"><source>Desktop chooser</source><translation>Desktop-Auswahldialog</translation></message>
+    <message id="screenshot.entire.desktop"><source>Entire desktop</source><translation>Gesamter Desktop</translation></message>
+    <message id="screenshot.active.window"><source>Active window</source><translation>Aktives Fenster</translation></message>
+    <message id="screenshot.target"><source>Capture source</source><translation>Aufnahmequelle</translation></message>
+    <message id="screenshot.delay"><source>Delay: </source><translation>Verzögerung: </translation></message>
+    <message id="screenshot.capture"><source>Capture</source><translation>Aufnehmen</translation></message>
+    <message id="screenshot.retake"><source>Retake</source><translation>Erneut aufnehmen</translation></message>
+    <message id="screenshot.reset.crop"><source>Reset Crop</source><translation>Zuschnitt zurücksetzen</translation></message>
+    <message id="screenshot.reset.zoom"><source>Reset Zoom</source><translation>Zoom zurücksetzen</translation></message>
+    <message id="screenshot.add.layer"><source>Add as Layer</source><translation>Als Ebene hinzufügen</translation></message>
+    <message id="screenshot.add.layer.hint"><source>Add the crop to the current document as an undoable raster layer.</source><translation>Fügt den Zuschnitt als Rasterebene im aktuellen Dokument ein. Der Vorgang ist rückgängig machbar.</translation></message>
+    <message id="screenshot.stop"><source>Cancel Capture</source><translation>Aufnahme abbrechen</translation></message>
+    <message id="screenshot.cancel"><source>Cancel</source><translation>Abbrechen</translation></message>
+    <message id="screenshot.open"><source>Open as New Document</source><translation>Als neues Dokument öffnen</translation></message>
+    <message id="screenshot.chooser.hint"><source>Vulkana minimizes while you choose what to capture using your desktop's screenshot chooser.</source><translation>Vulkana wird minimiert, während du im Bildschirmfoto-Dialog deines Desktops den Aufnahmebereich wählst.</translation></message>
+    <message id="screenshot.native.hint"><source>Vulkana minimizes during capture. For Active Window, switch to your target during the delay. Restore Vulkana to cancel.</source><translation>Vulkana wird während der Aufnahme minimiert. Für „Aktives Fenster“ wechsle während der Verzögerung zum gewünschten Fenster. Stelle Vulkana wieder her, um abzubrechen.</translation></message>
+    <message id="screenshot.crop.hint"><source>Scroll to zoom; middle mouse to pan. Drag to crop or adjust its corners. Arrow keys move the crop; Shift moves 10 pixels.</source><oldsource>Drag to crop. Move the crop or drag its corners to adjust it. Arrow keys move it; Shift moves 10 pixels.</oldsource><translation>Mausrad: Zoom; mittlere Maustaste: Ansicht verschieben. Zum Zuschneiden ziehen oder die Ecken anpassen. Pfeiltasten verschieben den Zuschnitt; mit Shift um 10 Pixel.</translation></message>
+    <message id="screenshot.empty"><source>Capture a screenshot to preview and crop it here.</source><translation>Nimm ein Bildschirmfoto auf, um es hier anzusehen und zuzuschneiden.</translation></message>
+    <message id="screenshot.countdown"><source>Capturing in %1 s…</source><translation>Aufnahme in %1 s…</translation></message>
+    <message id="screenshot.waiting"><source>Waiting for capture…</source><translation>Warten auf Aufnahme…</translation></message>
+    <message id="screenshot.cancelled"><source>Capture cancelled.</source><translation>Aufnahme abgebrochen.</translation></message>
+    <message id="screenshot.dimensions"><source>%1 × %2 px</source><translation>%1 × %2 px</translation></message>
+    <message id="screenshot.failed"><source>Could not capture or open the screenshot: %1</source><translation>Bildschirmfoto konnte nicht aufgenommen oder geöffnet werden: %1</translation></message>
   </context>
   <context>
     <name>Performance preferences</name>
-    <message id="performance.title"><source>Performance</source><translation type="unfinished" /></message>
-    <message id="performance.gpu"><source>Graphics device</source><translation type="unfinished" /></message>
-    <message id="performance.undo"><source>Undo memory per document</source><translation type="unfinished" /></message>
-    <message id="performance.cpu.cache"><source>Document cache per window</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.cache"><source>GPU texture cache per window</source><translation type="unfinished" /></message>
-    <message id="performance.threads"><source>Image-processing threads</source><translation type="unfinished" /></message>
-    <message id="performance.object.threads"><source>Object Selection threads</source><translation type="unfinished" /></message>
-    <message id="performance.auto"><source>Auto</source><translation type="unfinished" /></message>
-    <message id="performance.auto.memory"><source>Auto (%1 MiB)</source><translation type="unfinished" /></message>
-    <message id="performance.auto.threads"><source>Auto (up to %1)</source><translation type="unfinished" /></message>
-    <message id="performance.restart.note"><source>GPU and thread changes require a restart. Object Selection runs on the CPU.</source><translation type="unfinished" /></message>
-    <message id="performance.memory.note"><source>Budgets are retention targets, not total RAM/VRAM limits. Undo trims on later edits.</source><translation type="unfinished" /></message>
-    <message id="performance.usage"><source>RAM (process): %1&#10;Undo: %2 (current), %3 (all tabs)&#10;Document cache: %4 · GPU texture cache: %5&#10;Rendering GPU: %6</source><translation type="unfinished" /></message>
-    <message id="performance.clear"><source>Clear Inactive Caches</source><translation type="unfinished" /></message>
-    <message id="performance.clear.hint"><source>Release cached previews and textures for inactive tabs in this window. Source pixels and undo history stay intact.</source><translation type="unfinished" /></message>
-    <message id="performance.defaults"><source>Restore Defaults</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.changed.title"><source>Graphics device changed</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.changed.message"><source>The selected GPU (%1) could not be used. Falling back to %2.</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.changed.unknown"><source>The selected GPU could not be used. Falling back to %1.</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.unavailable"><source>Saved device (unavailable)</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.check.hint"><source>GPU availability is checked on restart. If a device cannot display the canvas, Vulkana uses another GPU.</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.failed.item"><source>%1 — startup check failed</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.unsupported.item"><source>%1 — unavailable for this display</source><translation type="unfinished" /></message>
-    <message id="performance.unknown"><source>Unavailable</source><translation type="unfinished" /></message>
-    <message id="performance.undo.warning.title"><source>Reduce Undo Memory?</source><translation type="unfinished" /></message>
-    <message id="performance.undo.warning"><source>Older undo steps may be discarded as you make new edits. This cannot be reversed by raising the budget later. Continue?</source><translation type="unfinished" /></message>
+    <message id="performance.title"><source>Performance</source><translation>Leistung</translation></message>
+    <message id="performance.gpu"><source>Graphics device</source><translation>Grafikgerät</translation></message>
+    <message id="performance.undo"><source>Undo memory per document</source><translation>Rückgängig-Speicher je Dokument</translation></message>
+    <message id="performance.cpu.cache"><source>Document cache per window</source><translation>Dokument-Cache je Fenster</translation></message>
+    <message id="performance.gpu.cache"><source>GPU texture cache per window</source><translation>GPU-Texturcache je Fenster</translation></message>
+    <message id="performance.threads"><source>Image-processing threads</source><translation>Threads für Bildverarbeitung</translation></message>
+    <message id="performance.object.threads"><source>Object Selection threads</source><translation>Threads für Objektauswahl</translation></message>
+    <message id="performance.auto"><source>Auto</source><translation>Auto</translation></message>
+    <message id="performance.auto.memory"><source>Auto (%1 MiB)</source><translation>Auto (%1 MiB)</translation></message>
+    <message id="performance.auto.threads"><source>Auto (up to %1)</source><translation>Auto (bis zu %1)</translation></message>
+    <message id="performance.restart.note"><source>GPU and thread changes require a restart. Object Selection runs on the CPU.</source><translation>Änderungen an GPU und Threads erfordern einen Neustart. Die Objektauswahl nutzt die CPU.</translation></message>
+    <message id="performance.memory.note"><source>Budgets are retention targets, not total RAM/VRAM limits. Undo trims on later edits.</source><translation>Budgets sind Zielwerte für vorgehaltene Daten, keine RAM-/VRAM-Gesamtlimits. Der Verlauf wird erst bei weiteren Bearbeitungen gekürzt.</translation></message>
+    <message id="performance.usage"><source>RAM (process): %1&#10;Undo: %2 (current), %3 (all tabs)&#10;Document cache: %4 · GPU texture cache: %5&#10;Rendering GPU: %6</source><translation>RAM (Prozess): %1&#10;Rückgängig: %2 (aktuell), %3 (alle Tabs)&#10;Dokument-Cache: %4 · GPU-Texturcache: %5&#10;Render-GPU: %6</translation></message>
+    <message id="performance.clear"><source>Clear Inactive Caches</source><translation>Inaktive Caches leeren</translation></message>
+    <message id="performance.clear.hint"><source>Release cached previews and textures for inactive tabs in this window. Source pixels and undo history stay intact.</source><translation>Gibt Vorschauen und Texturen inaktiver Tabs dieses Fensters frei. Quellpixel und Rückgängig-Verlauf bleiben erhalten.</translation></message>
+    <message id="performance.defaults"><source>Restore Defaults</source><translation>Standardwerte wiederherstellen</translation></message>
+    <message id="performance.gpu.changed.title"><source>Graphics device changed</source><translation>Grafikgerät gewechselt</translation></message>
+    <message id="performance.gpu.changed.message"><source>The selected GPU (%1) could not be used. Falling back to %2.</source><translation>Die gewählte GPU (%1) konnte nicht verwendet werden. Stattdessen wird %2 verwendet.</translation></message>
+    <message id="performance.gpu.changed.unknown"><source>The selected GPU could not be used. Falling back to %1.</source><translation>Die gewählte GPU konnte nicht verwendet werden. Stattdessen wird %1 verwendet.</translation></message>
+    <message id="performance.gpu.unavailable"><source>Saved device (unavailable)</source><translation>Gespeichertes Gerät (nicht verfügbar)</translation></message>
+    <message id="performance.gpu.check.hint"><source>GPU availability is checked on restart. If a device cannot display the canvas, Vulkana uses another GPU.</source><translation>Die GPU-Verfügbarkeit wird beim Neustart geprüft. Kann ein Gerät die Leinwand nicht darstellen, nutzt Vulkana eine andere GPU.</translation></message>
+    <message id="performance.gpu.failed.item"><source>%1 — startup check failed</source><translation>%1 — Startprüfung fehlgeschlagen</translation></message>
+    <message id="performance.gpu.unsupported.item"><source>%1 — unavailable for this display</source><translation>%1 — für diese Anzeige nicht verfügbar</translation></message>
+    <message id="performance.unknown"><source>Unavailable</source><translation>Nicht verfügbar</translation></message>
+    <message id="performance.undo.warning.title"><source>Reduce Undo Memory?</source><translation>Rückgängig-Speicher verringern?</translation></message>
+    <message id="performance.undo.warning"><source>Older undo steps may be discarded as you make new edits. This cannot be reversed by raising the budget later. Continue?</source><translation>Bei neuen Bearbeitungen können ältere Rückgängig-Schritte verworfen werden. Ein späteres Erhöhen des Budgets stellt sie nicht wieder her. Fortfahren?</translation></message>
   </context>
 </TS>

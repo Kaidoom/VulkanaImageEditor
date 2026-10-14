@@ -10554,104 +10554,104 @@ Escape 取消整次裁切
     <name>Project file integration</name>
     <message id="project.integration.title">
       <source>Register Vulkana project files?</source>
-      <translation type="unfinished" />
+      <translation>註冊 Vulkana 專案檔案？</translation>
     </message>
     <message id="project.integration.description">
       <source>Show saved canvas previews in File Explorer and add Vulkana to Open with for .vulkana files. This applies only to your Windows account and does not need administrator access. Your existing default app stays unchanged.</source>
-      <translation type="unfinished" />
+      <translation>在檔案總管中顯示已儲存的畫布預覽，並將 Vulkana 加入 .vulkana 檔案的「開啟方式」清單。僅對目前的 Windows 帳戶生效，不需系統管理員權限。現有的預設應用程式不會變更。</translation>
     </message>
     <message id="project.integration.location">
       <source>Newer portable versions update registration when launched. Keep the registered folder in place. If you move the same version, use Register Vulkana project files in Preferences → General.</source>
-      <translation type="unfinished" />
+      <translation>啟動新版可攜版時會更新註冊資訊。請保留已註冊資料夾的位置。如果移動了同一版本，請在「偏好設定 → 一般」中選擇「註冊 Vulkana 專案檔案」。</translation>
     </message>
     <message id="project.integration.register">
       <source>Register</source>
-      <translation type="unfinished" />
+      <translation>註冊</translation>
     </message>
     <message id="project.integration.remove">
       <source>Remove registration</source>
-      <translation type="unfinished" />
+      <translation>取消註冊</translation>
     </message>
     <message id="project.integration.decline">
       <source>No thanks</source>
-      <translation type="unfinished" />
+      <translation>暫時不要</translation>
     </message>
     <message id="project.integration.close">
       <source>Close</source>
-      <translation type="unfinished" />
+      <translation>關閉</translation>
     </message>
     <message id="project.integration.preferences">
       <source>Register Vulkana project files…</source>
-      <translation type="unfinished" />
+      <translation>註冊 Vulkana 專案檔案…</translation>
     </message>
   </context>
   <context>
     <name>Canvas clipboard</name>
-    <message id="clipboard.copy.canvas"><source>Copy canvas to clipboard</source><translation type="unfinished" /></message>
-    <message id="clipboard.copy.canvas.hint"><source>Copy the full canvas at its original size, including visible layers and transparency.</source><translation type="unfinished" /></message>
-    <message id="clipboard.copy.canvas.preparing"><source>Preparing canvas for clipboard…</source><translation type="unfinished" /></message>
-    <message id="clipboard.copy.canvas.finish.edit"><source>Finish or cancel the current selection or shape edit before copying the canvas.</source><translation type="unfinished" /></message>
-    <message id="clipboard.copy.canvas.failed"><source>Could not copy the canvas: %1</source><translation type="unfinished" /></message>
-    <message id="clipboard.copy.canvas.done"><source>Canvas copied to clipboard · %1 × %2 px</source><translation type="unfinished" /></message>
+    <message id="clipboard.copy.canvas"><source>Copy canvas to clipboard</source><translation>複製畫布到剪貼簿</translation></message>
+    <message id="clipboard.copy.canvas.hint"><source>Copy the full canvas at its original size, including visible layers and transparency.</source><translation>以原始尺寸複製整個畫布，包含可見圖層和透明度。</translation></message>
+    <message id="clipboard.copy.canvas.preparing"><source>Preparing canvas for clipboard…</source><translation>正在準備複製畫布…</translation></message>
+    <message id="clipboard.copy.canvas.finish.edit"><source>Finish or cancel the current selection or shape edit before copying the canvas.</source><translation>請先完成或取消目前選取範圍或形狀的編輯，再複製畫布。</translation></message>
+    <message id="clipboard.copy.canvas.failed"><source>Could not copy the canvas: %1</source><translation>無法複製畫布：%1</translation></message>
+    <message id="clipboard.copy.canvas.done"><source>Canvas copied to clipboard · %1 × %2 px</source><translation>畫布已複製到剪貼簿 · %1 × %2 px</translation></message>
   </context>
   <context>
     <name>Screenshot capture</name>
-    <message id="screenshot.action"><source>Take Screenshot…</source><translation type="unfinished" /></message>
-    <message id="screenshot.title"><source>Screenshot</source><translation type="unfinished" /></message>
-    <message id="screenshot.document"><source>Screenshot</source><translation type="unfinished" /></message>
-    <message id="screenshot.preview"><source>Screenshot crop preview</source><translation type="unfinished" /></message>
-    <message id="screenshot.close"><source>Close screenshot</source><translation type="unfinished" /></message>
-    <message id="screenshot.desktop.chooser"><source>Desktop chooser</source><translation type="unfinished" /></message>
-    <message id="screenshot.entire.desktop"><source>Entire desktop</source><translation type="unfinished" /></message>
-    <message id="screenshot.active.window"><source>Active window</source><translation type="unfinished" /></message>
-    <message id="screenshot.target"><source>Capture source</source><translation type="unfinished" /></message>
-    <message id="screenshot.delay"><source>Delay: </source><translation type="unfinished" /></message>
-    <message id="screenshot.capture"><source>Capture</source><translation type="unfinished" /></message>
-    <message id="screenshot.retake"><source>Retake</source><translation type="unfinished" /></message>
-    <message id="screenshot.reset.crop"><source>Reset Crop</source><translation type="unfinished" /></message>
-    <message id="screenshot.reset.zoom"><source>Reset Zoom</source><translation type="unfinished" /></message>
-    <message id="screenshot.add.layer"><source>Add as Layer</source><translation type="unfinished" /></message>
-    <message id="screenshot.add.layer.hint"><source>Add the crop to the current document as an undoable raster layer.</source><translation type="unfinished" /></message>
-    <message id="screenshot.stop"><source>Cancel Capture</source><translation type="unfinished" /></message>
-    <message id="screenshot.cancel"><source>Cancel</source><translation type="unfinished" /></message>
-    <message id="screenshot.open"><source>Open as New Document</source><translation type="unfinished" /></message>
-    <message id="screenshot.chooser.hint"><source>Vulkana minimizes while you choose what to capture using your desktop's screenshot chooser.</source><translation type="unfinished" /></message>
-    <message id="screenshot.native.hint"><source>Vulkana minimizes during capture. For Active Window, switch to your target during the delay. Restore Vulkana to cancel.</source><translation type="unfinished" /></message>
-    <message id="screenshot.crop.hint"><source>Scroll to zoom; middle mouse to pan. Drag to crop or adjust its corners. Arrow keys move the crop; Shift moves 10 pixels.</source><oldsource>Drag to crop. Move the crop or drag its corners to adjust it. Arrow keys move it; Shift moves 10 pixels.</oldsource><translation type="unfinished" /></message>
-    <message id="screenshot.empty"><source>Capture a screenshot to preview and crop it here.</source><translation type="unfinished" /></message>
-    <message id="screenshot.countdown"><source>Capturing in %1 s…</source><translation type="unfinished" /></message>
-    <message id="screenshot.waiting"><source>Waiting for capture…</source><translation type="unfinished" /></message>
-    <message id="screenshot.cancelled"><source>Capture cancelled.</source><translation type="unfinished" /></message>
-    <message id="screenshot.dimensions"><source>%1 × %2 px</source><translation type="unfinished" /></message>
-    <message id="screenshot.failed"><source>Could not capture or open the screenshot: %1</source><translation type="unfinished" /></message>
+    <message id="screenshot.action"><source>Take Screenshot…</source><translation>擷取螢幕…</translation></message>
+    <message id="screenshot.title"><source>Screenshot</source><translation>螢幕擷取</translation></message>
+    <message id="screenshot.document"><source>Screenshot</source><translation>螢幕擷取</translation></message>
+    <message id="screenshot.preview"><source>Screenshot crop preview</source><translation>螢幕擷取裁切預覽</translation></message>
+    <message id="screenshot.close"><source>Close screenshot</source><translation>關閉螢幕擷取</translation></message>
+    <message id="screenshot.desktop.chooser"><source>Desktop chooser</source><translation>桌面擷取選擇器</translation></message>
+    <message id="screenshot.entire.desktop"><source>Entire desktop</source><translation>整個桌面</translation></message>
+    <message id="screenshot.active.window"><source>Active window</source><translation>作用中視窗</translation></message>
+    <message id="screenshot.target"><source>Capture source</source><translation>擷取來源</translation></message>
+    <message id="screenshot.delay"><source>Delay: </source><translation>延遲：</translation></message>
+    <message id="screenshot.capture"><source>Capture</source><translation>擷取</translation></message>
+    <message id="screenshot.retake"><source>Retake</source><translation>重新擷取</translation></message>
+    <message id="screenshot.reset.crop"><source>Reset Crop</source><translation>重設裁切</translation></message>
+    <message id="screenshot.reset.zoom"><source>Reset Zoom</source><translation>重設縮放</translation></message>
+    <message id="screenshot.add.layer"><source>Add as Layer</source><translation>新增為圖層</translation></message>
+    <message id="screenshot.add.layer.hint"><source>Add the crop to the current document as an undoable raster layer.</source><translation>將裁切結果作為點陣圖層加入目前文件，可復原。</translation></message>
+    <message id="screenshot.stop"><source>Cancel Capture</source><translation>取消擷取</translation></message>
+    <message id="screenshot.cancel"><source>Cancel</source><translation>取消</translation></message>
+    <message id="screenshot.open"><source>Open as New Document</source><translation>開啟為新文件</translation></message>
+    <message id="screenshot.chooser.hint"><source>Vulkana minimizes while you choose what to capture using your desktop's screenshot chooser.</source><translation>使用桌面的螢幕擷取選擇器選擇擷取內容時，Vulkana 會最小化。</translation></message>
+    <message id="screenshot.native.hint"><source>Vulkana minimizes during capture. For Active Window, switch to your target during the delay. Restore Vulkana to cancel.</source><translation>擷取期間 Vulkana 會最小化。擷取作用中視窗時，請在延遲期間切換到目標視窗。還原 Vulkana 視窗可取消擷取。</translation></message>
+    <message id="screenshot.crop.hint"><source>Scroll to zoom; middle mouse to pan. Drag to crop or adjust its corners. Arrow keys move the crop; Shift moves 10 pixels.</source><oldsource>Drag to crop. Move the crop or drag its corners to adjust it. Arrow keys move it; Shift moves 10 pixels.</oldsource><translation>滾輪縮放，中鍵拖曳平移。拖曳以裁切或調整四角。方向鍵移動裁切框；按住 Shift 每次移動 10 像素。</translation></message>
+    <message id="screenshot.empty"><source>Capture a screenshot to preview and crop it here.</source><translation>擷取螢幕後可在此預覽和裁切。</translation></message>
+    <message id="screenshot.countdown"><source>Capturing in %1 s…</source><translation>%1 秒後擷取…</translation></message>
+    <message id="screenshot.waiting"><source>Waiting for capture…</source><translation>正在等待擷取…</translation></message>
+    <message id="screenshot.cancelled"><source>Capture cancelled.</source><translation>已取消擷取。</translation></message>
+    <message id="screenshot.dimensions"><source>%1 × %2 px</source><translation>%1 × %2 px</translation></message>
+    <message id="screenshot.failed"><source>Could not capture or open the screenshot: %1</source><translation>無法擷取或開啟螢幕擷取畫面：%1</translation></message>
   </context>
   <context>
     <name>Performance preferences</name>
-    <message id="performance.title"><source>Performance</source><translation type="unfinished" /></message>
-    <message id="performance.gpu"><source>Graphics device</source><translation type="unfinished" /></message>
-    <message id="performance.undo"><source>Undo memory per document</source><translation type="unfinished" /></message>
-    <message id="performance.cpu.cache"><source>Document cache per window</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.cache"><source>GPU texture cache per window</source><translation type="unfinished" /></message>
-    <message id="performance.threads"><source>Image-processing threads</source><translation type="unfinished" /></message>
-    <message id="performance.object.threads"><source>Object Selection threads</source><translation type="unfinished" /></message>
-    <message id="performance.auto"><source>Auto</source><translation type="unfinished" /></message>
-    <message id="performance.auto.memory"><source>Auto (%1 MiB)</source><translation type="unfinished" /></message>
-    <message id="performance.auto.threads"><source>Auto (up to %1)</source><translation type="unfinished" /></message>
-    <message id="performance.restart.note"><source>GPU and thread changes require a restart. Object Selection runs on the CPU.</source><translation type="unfinished" /></message>
-    <message id="performance.memory.note"><source>Budgets are retention targets, not total RAM/VRAM limits. Undo trims on later edits.</source><translation type="unfinished" /></message>
-    <message id="performance.usage"><source>RAM (process): %1&#10;Undo: %2 (current), %3 (all tabs)&#10;Document cache: %4 · GPU texture cache: %5&#10;Rendering GPU: %6</source><translation type="unfinished" /></message>
-    <message id="performance.clear"><source>Clear Inactive Caches</source><translation type="unfinished" /></message>
-    <message id="performance.clear.hint"><source>Release cached previews and textures for inactive tabs in this window. Source pixels and undo history stay intact.</source><translation type="unfinished" /></message>
-    <message id="performance.defaults"><source>Restore Defaults</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.changed.title"><source>Graphics device changed</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.changed.message"><source>The selected GPU (%1) could not be used. Falling back to %2.</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.changed.unknown"><source>The selected GPU could not be used. Falling back to %1.</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.unavailable"><source>Saved device (unavailable)</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.check.hint"><source>GPU availability is checked on restart. If a device cannot display the canvas, Vulkana uses another GPU.</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.failed.item"><source>%1 — startup check failed</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.unsupported.item"><source>%1 — unavailable for this display</source><translation type="unfinished" /></message>
-    <message id="performance.unknown"><source>Unavailable</source><translation type="unfinished" /></message>
-    <message id="performance.undo.warning.title"><source>Reduce Undo Memory?</source><translation type="unfinished" /></message>
-    <message id="performance.undo.warning"><source>Older undo steps may be discarded as you make new edits. This cannot be reversed by raising the budget later. Continue?</source><translation type="unfinished" /></message>
+    <message id="performance.title"><source>Performance</source><translation>效能</translation></message>
+    <message id="performance.gpu"><source>Graphics device</source><translation>圖形裝置</translation></message>
+    <message id="performance.undo"><source>Undo memory per document</source><translation>每份文件的復原記憶體</translation></message>
+    <message id="performance.cpu.cache"><source>Document cache per window</source><translation>每個視窗的文件快取</translation></message>
+    <message id="performance.gpu.cache"><source>GPU texture cache per window</source><translation>每個視窗的 GPU 紋理快取</translation></message>
+    <message id="performance.threads"><source>Image-processing threads</source><translation>影像處理執行緒</translation></message>
+    <message id="performance.object.threads"><source>Object Selection threads</source><translation>物件選取執行緒</translation></message>
+    <message id="performance.auto"><source>Auto</source><translation>自動</translation></message>
+    <message id="performance.auto.memory"><source>Auto (%1 MiB)</source><translation>自動（%1 MiB）</translation></message>
+    <message id="performance.auto.threads"><source>Auto (up to %1)</source><translation>自動（最多 %1）</translation></message>
+    <message id="performance.restart.note"><source>GPU and thread changes require a restart. Object Selection runs on the CPU.</source><translation>變更 GPU 或執行緒設定後需重新啟動。物件選取在 CPU 上執行。</translation></message>
+    <message id="performance.memory.note"><source>Budgets are retention targets, not total RAM/VRAM limits. Undo trims on later edits.</source><translation>這些預算是保留資料的目標大小，並非總 RAM/VRAM 上限。復原記錄會在後續編輯時縮減。</translation></message>
+    <message id="performance.usage"><source>RAM (process): %1&#10;Undo: %2 (current), %3 (all tabs)&#10;Document cache: %4 · GPU texture cache: %5&#10;Rendering GPU: %6</source><translation>RAM（處理程序）：%1&#10;復原：%2（目前），%3（所有分頁）&#10;文件快取：%4 · GPU 紋理快取：%5&#10;繪製 GPU：%6</translation></message>
+    <message id="performance.clear"><source>Clear Inactive Caches</source><translation>清除非作用中快取</translation></message>
+    <message id="performance.clear.hint"><source>Release cached previews and textures for inactive tabs in this window. Source pixels and undo history stay intact.</source><translation>釋放此視窗中非作用中分頁的預覽和紋理快取。不影響來源像素和復原記錄。</translation></message>
+    <message id="performance.defaults"><source>Restore Defaults</source><translation>還原預設值</translation></message>
+    <message id="performance.gpu.changed.title"><source>Graphics device changed</source><translation>圖形裝置已變更</translation></message>
+    <message id="performance.gpu.changed.message"><source>The selected GPU (%1) could not be used. Falling back to %2.</source><translation>無法使用所選 GPU（%1）。將改用 %2。</translation></message>
+    <message id="performance.gpu.changed.unknown"><source>The selected GPU could not be used. Falling back to %1.</source><translation>無法使用所選 GPU。將改用 %1。</translation></message>
+    <message id="performance.gpu.unavailable"><source>Saved device (unavailable)</source><translation>已儲存的裝置（無法使用）</translation></message>
+    <message id="performance.gpu.check.hint"><source>GPU availability is checked on restart. If a device cannot display the canvas, Vulkana uses another GPU.</source><translation>重新啟動時會檢查 GPU 是否可用。如果裝置無法顯示畫布，Vulkana 會使用其他 GPU。</translation></message>
+    <message id="performance.gpu.failed.item"><source>%1 — startup check failed</source><translation>%1 — 啟動檢查失敗</translation></message>
+    <message id="performance.gpu.unsupported.item"><source>%1 — unavailable for this display</source><translation>%1 — 無法用於此顯示器</translation></message>
+    <message id="performance.unknown"><source>Unavailable</source><translation>無法使用</translation></message>
+    <message id="performance.undo.warning.title"><source>Reduce Undo Memory?</source><translation>減少復原記憶體？</translation></message>
+    <message id="performance.undo.warning"><source>Older undo steps may be discarded as you make new edits. This cannot be reversed by raising the budget later. Continue?</source><translation>進行新編輯時，舊的復原步驟可能被捨棄。之後增加預算也無法恢復。是否繼續？</translation></message>
   </context>
 </TS>

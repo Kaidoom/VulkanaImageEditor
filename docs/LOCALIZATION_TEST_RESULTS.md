@@ -2,7 +2,7 @@
 
 All 16 language choices are enabled: en, fr, es, de, it, pt-BR, pl, tr, ru, uk,
 ar, hi, zh-Hans, zh-Hant, ja and ko. Each non-English catalog contains a first
-translation of all **1,659 active English entries**, including the required
+translation of all **1,731 active English entries**, including the required
 plural forms. Retired contributor entries remain in the catalogs but do not
 count toward active coverage.
 
@@ -10,6 +10,12 @@ All language versions are first drafts, including the English wording.
 Contributors are welcome to review terminology, clarity and layout. Automated
 validation and targeted fixes are not a substitute for language-wide review.
 See the [localization guide](LOCALIZATION.md) for editing and preview commands.
+
+The 0.3.3 catalog update adds 68 translations per non-English language for
+project registration, canvas clipboard copying, screenshot capture/cropping,
+and Performance preferences. Existing completed translations are retained.
+Technical GPU names remain isolated left-to-right in Arabic messages; numeric
+values, units, source pixels and selection coordinates remain unchanged.
 
 ## Recorded technical checks
 
@@ -23,6 +29,9 @@ desktop configuration or a claim that every page has been visually reviewed.
 | Native Wayland at 125% and XCB at 150%; 2026-10-11 | Widget checks passed; PSD interaction checks reported zero Vulkan validation messages and no idle frame growth |
 | Relocatable Linux install; 2026-10-11 | All 16 application QMs, pseudo-pack, metadata and 14 matching Qt QMs loaded without development-path lookup |
 | Windows 11 x64, Qt 6.10.3, MSVC 19.51; 2026-10-12 | 16/16 focused Release tests passed, including localization runtime and catalog validation |
+| Linux, Qt 6.11.2; 2026-10-14 | 9/9 focused Release checks passed: catalogs, authoring, installed lookup/staging, runtime, preferences, Performance, screenshots and updates; 2/2 focused Debug checks passed |
+| Native Wayland at 125% and XCB at 150%; 2026-10-14 | Widget/localization checks passed, including new Performance, screenshot and registration layouts, repeated language switches and unchanged crop/settings |
+| Windows 11 x64, Qt 6.10.3; 2026-10-14 | Localization, screenshot and Performance tests passed with the 0.3.3 test build and compiled packs |
 
 The tested Qt translation distributions have no Hindi Qt dialog catalog.
 Vulkana-owned Hindi controls are translated; some Qt-owned dialogs fall back to
@@ -79,6 +88,11 @@ Run native window-lifecycle tests separately: simultaneous Wayland/XCB exercises
 can compete for focus and window state. A concurrent XCB lifecycle run previously
 failed presentation-resume assertions; the isolated retry passed with zero Vulkan
 messages. A recurrence during isolated use still needs investigation.
+
+The native workspace test waits for initial window-manager placement to settle
+before recording its geometry baseline. An XCB run otherwise recorded the
+pre-placement origin and later mistook the initial configure event for a language
+change. Geometry equality remains strict throughout the language-switch loop.
 
 Popup geometry must be compared in content coordinates when a menu scrolls.
 A recorded XCB row-position difference was one legitimate 28-pixel scroll step,

@@ -101,7 +101,7 @@ English. ASCII numbers remain independent of the chosen UI locale.
 
 The 16-language lineup is translated and enabled in `localization/`:
 `en`, `fr`, `es`, `de`, `it`, `pt-BR`, `pl`, `tr`, `ru`, `uk`, `ar`, `hi`,
-`zh-Hans`, `zh-Hant`, `ja`, `ko`. Each has all 1,659 catalog entries and the
+`zh-Hans`, `zh-Hant`, `ja`, `ko`. Each has all 1,731 catalog entries and the
 appropriate plural forms. All language metadata retains `reviewPending: true`;
 targeted corrections do not imply a complete review of a language.
 CMake installs enabled packs plus the test pseudo-pack.
@@ -183,11 +183,13 @@ for their distribution.
 
 ## Coverage and known remaining work
 
-The catalogs have **1,659 English entries**, with translations in all 15 other
+The catalogs have **1,731 English entries**, with translations in all 15 other
 languages for every cataloged entry. It covers menus/tools, Properties, Adjustments/Effects,
 layer/mask actions, preferences, shortcuts, update/feedback UI, Refine Selection,
 selection tools, undo presentation, and the primary save/import/export controls
-and prompts. This is **not a claim of complete application-string coverage**.
+and prompts, project-file registration, canvas clipboard copying, screenshot
+capture/cropping, and Performance preferences. This is **not a claim of complete
+application-string coverage**.
 
 The scope is the interface people use to edit and make decisions, not
 translation of every string in the program. PSD content types, status, source

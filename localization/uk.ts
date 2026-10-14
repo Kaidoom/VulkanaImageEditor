@@ -10556,104 +10556,104 @@ Escape · Скасувати сеанс
     <name>Project file integration</name>
     <message id="project.integration.title">
       <source>Register Vulkana project files?</source>
-      <translation type="unfinished" />
+      <translation>Зареєструвати файли проєктів Vulkana?</translation>
     </message>
     <message id="project.integration.description">
       <source>Show saved canvas previews in File Explorer and add Vulkana to Open with for .vulkana files. This applies only to your Windows account and does not need administrator access. Your existing default app stays unchanged.</source>
-      <translation type="unfinished" />
+      <translation>Показувати перегляди збереженого полотна у Файловому провіднику й додати Vulkana до меню «Відкрити за допомогою» для файлів .vulkana. Лише для вашого облікового запису Windows, без прав адміністратора. Типова програма не зміниться.</translation>
     </message>
     <message id="project.integration.location">
       <source>Newer portable versions update registration when launched. Keep the registered folder in place. If you move the same version, use Register Vulkana project files in Preferences → General.</source>
-      <translation type="unfinished" />
+      <translation>Новіші портативні версії оновлюють реєстрацію під час запуску. Не переміщуйте зареєстровану папку. Якщо перемістили ту саму версію, виберіть «Зареєструвати файли проєктів Vulkana» у Налаштування → Загальні.</translation>
     </message>
     <message id="project.integration.register">
       <source>Register</source>
-      <translation type="unfinished" />
+      <translation>Зареєструвати</translation>
     </message>
     <message id="project.integration.remove">
       <source>Remove registration</source>
-      <translation type="unfinished" />
+      <translation>Видалити реєстрацію</translation>
     </message>
     <message id="project.integration.decline">
       <source>No thanks</source>
-      <translation type="unfinished" />
+      <translation>Ні, дякую</translation>
     </message>
     <message id="project.integration.close">
       <source>Close</source>
-      <translation type="unfinished" />
+      <translation>Закрити</translation>
     </message>
     <message id="project.integration.preferences">
       <source>Register Vulkana project files…</source>
-      <translation type="unfinished" />
+      <translation>Зареєструвати файли проєктів Vulkana…</translation>
     </message>
   </context>
   <context>
     <name>Canvas clipboard</name>
-    <message id="clipboard.copy.canvas"><source>Copy canvas to clipboard</source><translation type="unfinished" /></message>
-    <message id="clipboard.copy.canvas.hint"><source>Copy the full canvas at its original size, including visible layers and transparency.</source><translation type="unfinished" /></message>
-    <message id="clipboard.copy.canvas.preparing"><source>Preparing canvas for clipboard…</source><translation type="unfinished" /></message>
-    <message id="clipboard.copy.canvas.finish.edit"><source>Finish or cancel the current selection or shape edit before copying the canvas.</source><translation type="unfinished" /></message>
-    <message id="clipboard.copy.canvas.failed"><source>Could not copy the canvas: %1</source><translation type="unfinished" /></message>
-    <message id="clipboard.copy.canvas.done"><source>Canvas copied to clipboard · %1 × %2 px</source><translation type="unfinished" /></message>
+    <message id="clipboard.copy.canvas"><source>Copy canvas to clipboard</source><translation>Копіювати полотно до буфера обміну</translation></message>
+    <message id="clipboard.copy.canvas.hint"><source>Copy the full canvas at its original size, including visible layers and transparency.</source><translation>Копіювати все полотно в початковому розмірі, з видимими шарами та прозорістю.</translation></message>
+    <message id="clipboard.copy.canvas.preparing"><source>Preparing canvas for clipboard…</source><translation>Підготовка полотна до копіювання…</translation></message>
+    <message id="clipboard.copy.canvas.finish.edit"><source>Finish or cancel the current selection or shape edit before copying the canvas.</source><translation>Завершіть або скасуйте поточне редагування виділення чи фігури перед копіюванням полотна.</translation></message>
+    <message id="clipboard.copy.canvas.failed"><source>Could not copy the canvas: %1</source><translation>Не вдалося скопіювати полотно: %1</translation></message>
+    <message id="clipboard.copy.canvas.done"><source>Canvas copied to clipboard · %1 × %2 px</source><translation>Полотно скопійовано до буфера обміну · %1 × %2 px</translation></message>
   </context>
   <context>
     <name>Screenshot capture</name>
-    <message id="screenshot.action"><source>Take Screenshot…</source><translation type="unfinished" /></message>
-    <message id="screenshot.title"><source>Screenshot</source><translation type="unfinished" /></message>
-    <message id="screenshot.document"><source>Screenshot</source><translation type="unfinished" /></message>
-    <message id="screenshot.preview"><source>Screenshot crop preview</source><translation type="unfinished" /></message>
-    <message id="screenshot.close"><source>Close screenshot</source><translation type="unfinished" /></message>
-    <message id="screenshot.desktop.chooser"><source>Desktop chooser</source><translation type="unfinished" /></message>
-    <message id="screenshot.entire.desktop"><source>Entire desktop</source><translation type="unfinished" /></message>
-    <message id="screenshot.active.window"><source>Active window</source><translation type="unfinished" /></message>
-    <message id="screenshot.target"><source>Capture source</source><translation type="unfinished" /></message>
-    <message id="screenshot.delay"><source>Delay: </source><translation type="unfinished" /></message>
-    <message id="screenshot.capture"><source>Capture</source><translation type="unfinished" /></message>
-    <message id="screenshot.retake"><source>Retake</source><translation type="unfinished" /></message>
-    <message id="screenshot.reset.crop"><source>Reset Crop</source><translation type="unfinished" /></message>
-    <message id="screenshot.reset.zoom"><source>Reset Zoom</source><translation type="unfinished" /></message>
-    <message id="screenshot.add.layer"><source>Add as Layer</source><translation type="unfinished" /></message>
-    <message id="screenshot.add.layer.hint"><source>Add the crop to the current document as an undoable raster layer.</source><translation type="unfinished" /></message>
-    <message id="screenshot.stop"><source>Cancel Capture</source><translation type="unfinished" /></message>
-    <message id="screenshot.cancel"><source>Cancel</source><translation type="unfinished" /></message>
-    <message id="screenshot.open"><source>Open as New Document</source><translation type="unfinished" /></message>
-    <message id="screenshot.chooser.hint"><source>Vulkana minimizes while you choose what to capture using your desktop's screenshot chooser.</source><translation type="unfinished" /></message>
-    <message id="screenshot.native.hint"><source>Vulkana minimizes during capture. For Active Window, switch to your target during the delay. Restore Vulkana to cancel.</source><translation type="unfinished" /></message>
-    <message id="screenshot.crop.hint"><source>Scroll to zoom; middle mouse to pan. Drag to crop or adjust its corners. Arrow keys move the crop; Shift moves 10 pixels.</source><oldsource>Drag to crop. Move the crop or drag its corners to adjust it. Arrow keys move it; Shift moves 10 pixels.</oldsource><translation type="unfinished" /></message>
-    <message id="screenshot.empty"><source>Capture a screenshot to preview and crop it here.</source><translation type="unfinished" /></message>
-    <message id="screenshot.countdown"><source>Capturing in %1 s…</source><translation type="unfinished" /></message>
-    <message id="screenshot.waiting"><source>Waiting for capture…</source><translation type="unfinished" /></message>
-    <message id="screenshot.cancelled"><source>Capture cancelled.</source><translation type="unfinished" /></message>
-    <message id="screenshot.dimensions"><source>%1 × %2 px</source><translation type="unfinished" /></message>
-    <message id="screenshot.failed"><source>Could not capture or open the screenshot: %1</source><translation type="unfinished" /></message>
+    <message id="screenshot.action"><source>Take Screenshot…</source><translation>Зробити знімок екрана…</translation></message>
+    <message id="screenshot.title"><source>Screenshot</source><translation>Знімок екрана</translation></message>
+    <message id="screenshot.document"><source>Screenshot</source><translation>Знімок екрана</translation></message>
+    <message id="screenshot.preview"><source>Screenshot crop preview</source><translation>Перегляд обрізання знімка</translation></message>
+    <message id="screenshot.close"><source>Close screenshot</source><translation>Закрити знімок екрана</translation></message>
+    <message id="screenshot.desktop.chooser"><source>Desktop chooser</source><translation>Системний вибір</translation></message>
+    <message id="screenshot.entire.desktop"><source>Entire desktop</source><translation>Увесь робочий стіл</translation></message>
+    <message id="screenshot.active.window"><source>Active window</source><translation>Активне вікно</translation></message>
+    <message id="screenshot.target"><source>Capture source</source><translation>Джерело знімка</translation></message>
+    <message id="screenshot.delay"><source>Delay: </source><translation>Затримка: </translation></message>
+    <message id="screenshot.capture"><source>Capture</source><translation>Зняти</translation></message>
+    <message id="screenshot.retake"><source>Retake</source><translation>Зняти повторно</translation></message>
+    <message id="screenshot.reset.crop"><source>Reset Crop</source><translation>Скинути обрізання</translation></message>
+    <message id="screenshot.reset.zoom"><source>Reset Zoom</source><translation>Скинути масштаб</translation></message>
+    <message id="screenshot.add.layer"><source>Add as Layer</source><translation>Додати як шар</translation></message>
+    <message id="screenshot.add.layer.hint"><source>Add the crop to the current document as an undoable raster layer.</source><translation>Додати обрізаний знімок до поточного документа як растровий шар. Дію можна скасувати.</translation></message>
+    <message id="screenshot.stop"><source>Cancel Capture</source><translation>Скасувати знімання</translation></message>
+    <message id="screenshot.cancel"><source>Cancel</source><translation>Скасувати</translation></message>
+    <message id="screenshot.open"><source>Open as New Document</source><translation>Відкрити як новий документ</translation></message>
+    <message id="screenshot.chooser.hint"><source>Vulkana minimizes while you choose what to capture using your desktop's screenshot chooser.</source><translation>Vulkana згортається, поки ви вибираєте область знімка в системному засобі.</translation></message>
+    <message id="screenshot.native.hint"><source>Vulkana minimizes during capture. For Active Window, switch to your target during the delay. Restore Vulkana to cancel.</source><translation>Vulkana згортається на час знімання. Для активного вікна перейдіть до потрібного вікна під час затримки. Розгорніть Vulkana, щоб скасувати.</translation></message>
+    <message id="screenshot.crop.hint"><source>Scroll to zoom; middle mouse to pan. Drag to crop or adjust its corners. Arrow keys move the crop; Shift moves 10 pixels.</source><oldsource>Drag to crop. Move the crop or drag its corners to adjust it. Arrow keys move it; Shift moves 10 pixels.</oldsource><translation>Коліщатко миші змінює масштаб, середня кнопка переміщує вид. Перетягуйте для обрізання або зміни кутів. Стрілки пересувають рамку; із Shift — на 10 пікселів.</translation></message>
+    <message id="screenshot.empty"><source>Capture a screenshot to preview and crop it here.</source><translation>Зробіть знімок екрана, щоб переглянути й обрізати його тут.</translation></message>
+    <message id="screenshot.countdown"><source>Capturing in %1 s…</source><translation>Знімок через %1 с…</translation></message>
+    <message id="screenshot.waiting"><source>Waiting for capture…</source><translation>Очікування знімка…</translation></message>
+    <message id="screenshot.cancelled"><source>Capture cancelled.</source><translation>Знімання скасовано.</translation></message>
+    <message id="screenshot.dimensions"><source>%1 × %2 px</source><translation>%1 × %2 px</translation></message>
+    <message id="screenshot.failed"><source>Could not capture or open the screenshot: %1</source><translation>Не вдалося зробити або відкрити знімок екрана: %1</translation></message>
   </context>
   <context>
     <name>Performance preferences</name>
-    <message id="performance.title"><source>Performance</source><translation type="unfinished" /></message>
-    <message id="performance.gpu"><source>Graphics device</source><translation type="unfinished" /></message>
-    <message id="performance.undo"><source>Undo memory per document</source><translation type="unfinished" /></message>
-    <message id="performance.cpu.cache"><source>Document cache per window</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.cache"><source>GPU texture cache per window</source><translation type="unfinished" /></message>
-    <message id="performance.threads"><source>Image-processing threads</source><translation type="unfinished" /></message>
-    <message id="performance.object.threads"><source>Object Selection threads</source><translation type="unfinished" /></message>
-    <message id="performance.auto"><source>Auto</source><translation type="unfinished" /></message>
-    <message id="performance.auto.memory"><source>Auto (%1 MiB)</source><translation type="unfinished" /></message>
-    <message id="performance.auto.threads"><source>Auto (up to %1)</source><translation type="unfinished" /></message>
-    <message id="performance.restart.note"><source>GPU and thread changes require a restart. Object Selection runs on the CPU.</source><translation type="unfinished" /></message>
-    <message id="performance.memory.note"><source>Budgets are retention targets, not total RAM/VRAM limits. Undo trims on later edits.</source><translation type="unfinished" /></message>
-    <message id="performance.usage"><source>RAM (process): %1&#10;Undo: %2 (current), %3 (all tabs)&#10;Document cache: %4 · GPU texture cache: %5&#10;Rendering GPU: %6</source><translation type="unfinished" /></message>
-    <message id="performance.clear"><source>Clear Inactive Caches</source><translation type="unfinished" /></message>
-    <message id="performance.clear.hint"><source>Release cached previews and textures for inactive tabs in this window. Source pixels and undo history stay intact.</source><translation type="unfinished" /></message>
-    <message id="performance.defaults"><source>Restore Defaults</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.changed.title"><source>Graphics device changed</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.changed.message"><source>The selected GPU (%1) could not be used. Falling back to %2.</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.changed.unknown"><source>The selected GPU could not be used. Falling back to %1.</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.unavailable"><source>Saved device (unavailable)</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.check.hint"><source>GPU availability is checked on restart. If a device cannot display the canvas, Vulkana uses another GPU.</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.failed.item"><source>%1 — startup check failed</source><translation type="unfinished" /></message>
-    <message id="performance.gpu.unsupported.item"><source>%1 — unavailable for this display</source><translation type="unfinished" /></message>
-    <message id="performance.unknown"><source>Unavailable</source><translation type="unfinished" /></message>
-    <message id="performance.undo.warning.title"><source>Reduce Undo Memory?</source><translation type="unfinished" /></message>
-    <message id="performance.undo.warning"><source>Older undo steps may be discarded as you make new edits. This cannot be reversed by raising the budget later. Continue?</source><translation type="unfinished" /></message>
+    <message id="performance.title"><source>Performance</source><translation>Продуктивність</translation></message>
+    <message id="performance.gpu"><source>Graphics device</source><translation>Графічний пристрій</translation></message>
+    <message id="performance.undo"><source>Undo memory per document</source><translation>Пам’ять скасування на документ</translation></message>
+    <message id="performance.cpu.cache"><source>Document cache per window</source><translation>Кеш документів на вікно</translation></message>
+    <message id="performance.gpu.cache"><source>GPU texture cache per window</source><translation>Кеш текстур GPU на вікно</translation></message>
+    <message id="performance.threads"><source>Image-processing threads</source><translation>Потоки обробки зображень</translation></message>
+    <message id="performance.object.threads"><source>Object Selection threads</source><translation>Потоки виділення об’єкта</translation></message>
+    <message id="performance.auto"><source>Auto</source><translation>Авто</translation></message>
+    <message id="performance.auto.memory"><source>Auto (%1 MiB)</source><translation>Авто (%1 MiB)</translation></message>
+    <message id="performance.auto.threads"><source>Auto (up to %1)</source><translation>Авто (до %1)</translation></message>
+    <message id="performance.restart.note"><source>GPU and thread changes require a restart. Object Selection runs on the CPU.</source><translation>Зміна GPU й кількості потоків потребує перезапуску. Виділення об’єкта працює на CPU.</translation></message>
+    <message id="performance.memory.note"><source>Budgets are retention targets, not total RAM/VRAM limits. Undo trims on later edits.</source><translation>Бюджети задають цільовий обсяг збережених даних, а не загальні межі RAM/VRAM. Історія скасування скорочується з наступними змінами.</translation></message>
+    <message id="performance.usage"><source>RAM (process): %1&#10;Undo: %2 (current), %3 (all tabs)&#10;Document cache: %4 · GPU texture cache: %5&#10;Rendering GPU: %6</source><translation>RAM (процес): %1&#10;Скасування: %2 (поточний), %3 (усі вкладки)&#10;Кеш документів: %4 · Кеш текстур GPU: %5&#10;GPU візуалізації: %6</translation></message>
+    <message id="performance.clear"><source>Clear Inactive Caches</source><translation>Очистити неактивні кеші</translation></message>
+    <message id="performance.clear.hint"><source>Release cached previews and textures for inactive tabs in this window. Source pixels and undo history stay intact.</source><translation>Звільнити кеш переглядів і текстур неактивних вкладок цього вікна. Початкові пікселі й історія скасування збережуться.</translation></message>
+    <message id="performance.defaults"><source>Restore Defaults</source><translation>Відновити типові значення</translation></message>
+    <message id="performance.gpu.changed.title"><source>Graphics device changed</source><translation>Графічний пристрій змінено</translation></message>
+    <message id="performance.gpu.changed.message"><source>The selected GPU (%1) could not be used. Falling back to %2.</source><translation>Вибраний GPU (%1) недоступний. Натомість використовуватиметься %2.</translation></message>
+    <message id="performance.gpu.changed.unknown"><source>The selected GPU could not be used. Falling back to %1.</source><translation>Вибраний GPU недоступний. Натомість використовуватиметься %1.</translation></message>
+    <message id="performance.gpu.unavailable"><source>Saved device (unavailable)</source><translation>Збережений пристрій (недоступний)</translation></message>
+    <message id="performance.gpu.check.hint"><source>GPU availability is checked on restart. If a device cannot display the canvas, Vulkana uses another GPU.</source><translation>Доступність GPU перевіряється під час перезапуску. Якщо пристрій не може показати полотно, Vulkana використовує інший GPU.</translation></message>
+    <message id="performance.gpu.failed.item"><source>%1 — startup check failed</source><translation>%1 — перевірку під час запуску не пройдено</translation></message>
+    <message id="performance.gpu.unsupported.item"><source>%1 — unavailable for this display</source><translation>%1 — недоступний для цього дисплея</translation></message>
+    <message id="performance.unknown"><source>Unavailable</source><translation>Недоступно</translation></message>
+    <message id="performance.undo.warning.title"><source>Reduce Undo Memory?</source><translation>Зменшити пам’ять скасування?</translation></message>
+    <message id="performance.undo.warning"><source>Older undo steps may be discarded as you make new edits. This cannot be reversed by raising the budget later. Continue?</source><translation>Під час нових змін старі кроки скасування можуть бути видалені. Збільшення бюджету згодом їх не відновить. Продовжити?</translation></message>
   </context>
 </TS>

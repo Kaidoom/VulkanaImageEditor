@@ -3,6 +3,11 @@
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/WorkspacePanel.hpp"
 #include "imageeditor/ui/PreferencesDialog.hpp"
+#include "imageeditor/ui/PerformancePanel.hpp"
+#include "imageeditor/ui/ScreenshotDialog.hpp"
+#include "imageeditor/ui/ScreenshotPreview.hpp"
+#include "imageeditor/ui/ProjectIntegrationDialog.hpp"
+#include "imageeditor/ui/CompactValueControl.hpp"
 #include "imageeditor/ui/EditorShortcuts.hpp"
 #include "imageeditor/ui/BlendModeCombo.hpp"
 #include "imageeditor/ui/Theme.hpp"
@@ -18,6 +23,7 @@
 #include <QAbstractItemView>
 #include <QAbstractItemDelegate>
 #include <QDialogButtonBox>
+#include <QDir>
 #include <QPushButton>
 #include <QStyleOptionViewItem>
 #include <QTextLayout>
@@ -66,6 +72,58 @@ void localeMatching()
     CHECK(service.resolveLanguage("pt-BR") == "pt-BR");
     CHECK(service.resolveLanguage("hi-IN") == "hi");
     CHECK(service.resolveLanguage("ko-KR") == "ko");
+}
+void recentUi(const QString& output)
+{
+    auto& service=i::Localization::instance();service.setLanguage("en");
+    u::PreferencesDialog preferences({});auto* panel=preferences.performancePanel();
+    const imageeditor::platform::PerformanceSettings settings{128,256,512,2,3,{}};
+    panel->setSettings(settings);int changed{};panel->onChanged=[&]{++changed;};
+    panel->readUsage=[] {return u::PerformanceUsage{256*1024*1024,1024,2048,4096,8192,"NVIDIA GeForce RTX 4080"};};
+    preferences.findChild<QTabWidget*>()->setCurrentWidget(panel);service.direction(&preferences);preferences.show();
+    QWidget host;host.resize(780,620);host.show();
+    u::ScreenshotDialog screenshot(host,&host);service.direction(&screenshot);screenshot.show();
+    auto* preview=dynamic_cast<u::ScreenshotPreview*>(screenshot.findChild<QWidget*>("ScreenshotPreview"));
+    QImage image(160,120,QImage::Format_RGBA8888);image.fill(QColor(32,64,96));
+    preview->setImage(image);preview->setCrop(QRect(20,10,80,65));screenshot.setCanAddLayer(true);
+    const auto crop=preview->crop();auto* target=screenshot.findChild<QComboBox*>("ScreenshotTarget");const auto targetValue=target->currentData();
+    u::ProjectIntegrationDialog registration(false,nullptr);service.direction(&registration);registration.show();
+    const auto usableButtons=[](QWidget& owner) {
+        for(auto* button:owner.findChildren<QPushButton*>())if(button->isVisible()&&!button->text().isEmpty()) {
+            if(button->width()<button->minimumSizeHint().width())
+                std::cerr<<"Clipped button: "<<button->objectName().toStdString()<<" / "<<button->text().toStdString()<<'\n';
+            CHECK(button->width()>=button->minimumSizeHint().width());
+        }
+    };
+    for(const auto* language:{"en","fr","es","de","it","pt-BR","pl","tr","ru","uk","ar","hi","zh-Hans","zh-Hant","ja","ko","qps","en"}) {
+        service.setLanguage(language);settle();
+        CHECK(panel->settings()==settings&&changed==0);
+        CHECK(panel->findChild<QPushButton*>("PerformanceClearCaches")->text()==i::text("performance.clear"));
+        if(QString(language)=="ar") {
+            CHECK(panel->findChild<QLabel*>("PerformanceUsage")->text().contains(QStringLiteral("\u2066256.0 MiB\u2069")));
+            CHECK(panel->findChild<QLabel*>("PerformanceUsage")->text().contains(QStringLiteral("\u2066NVIDIA GeForce RTX 4080\u2069")));
+        }
+        CHECK(screenshot.findChild<QPushButton*>("ScreenshotOpen")->text()==i::text("screenshot.open"));
+        CHECK(screenshot.findChild<QPushButton*>("ScreenshotClose")->accessibleName()==i::text("screenshot.close"));
+        CHECK(registration.findChild<QPushButton*>("ProjectIntegrationRegister")->text()==i::text("project.integration.register"));
+        CHECK(preview->crop()==crop&&preview->croppedImage()==image.copy(crop));
+        CHECK(preview->layoutDirection()==Qt::LeftToRight&&target->currentData()==targetValue);
+        CHECK(screenshot.findChild<QWidget*>("ScreenshotDelay")->locale().decimalPoint()==QStringLiteral("."));
+        if(QString(language)!="en") {
+            CHECK(i::text("performance.clear.hint")!=service.source("performance.clear.hint"));
+            CHECK(i::text("screenshot.crop.hint")!=service.source("screenshot.crop.hint"));
+            CHECK(i::text("project.integration.description")!=service.source("project.integration.description"));
+        }
+        usableButtons(preferences);usableButtons(screenshot);usableButtons(registration);
+        for(auto* button:screenshot.findChildren<QPushButton*>())if(button->isVisible())
+            CHECK(screenshot.rect().contains(QRect(button->mapTo(&screenshot,QPoint{}),button->size())));
+        if(!output.isEmpty()) {
+            QDir().mkpath(output);
+            preferences.grab().save(output+"/performance-"+language+".png");
+            host.grab().save(output+"/screenshot-"+language+".png");
+            registration.grab().save(output+"/registration-"+language+".png");
+        }
+    }
 }
 void adjustmentCategories(const QString& output)
 {
@@ -384,6 +442,19 @@ void workspace(const QString& output, const char* initialLanguage = "en")
     const auto revision = doc->revision(); const auto undo = window.editorSession().history().undoDepth();
     const auto* workspace = dynamic_cast<u::OverlayDockWorkspace*>(window.findChild<QWidget*>("CanvasWorkspace"));
     CHECK(workspace);
+    if(QGuiApplication::platformName()=="xcb"||QGuiApplication::platformName().startsWith("wayland")) {
+        CHECK(QTest::qWaitForWindowExposed(window.windowHandle()));
+        QGuiApplication::sync();
+        // Native placement/configure can arrive after QWidget::show returns.
+        // Capture a settled baseline before changing language; keep the strict
+        // geometry equality assertion throughout the actual switching test.
+        QElapsedTimer deadline,stable;deadline.start();stable.start();auto previous=window.geometry();
+        while(stable.elapsed()<200&&deadline.elapsed()<2000) {
+            QTest::qWait(20);
+            if(window.geometry()!=previous){previous=window.geometry();stable.restart();}
+        }
+        CHECK(stable.elapsed()>=200);
+    }
     const auto tabs = workspace ? workspace->savePanelTabs() : QByteArray{};
     const auto state = window.saveState(); const auto geometry = window.geometry();
     auto combos = window.findChildren<QComboBox*>();
@@ -506,7 +577,7 @@ int main(int argc, char** argv)
 #endif
     u::applyEditorTheme(app);
     const auto output = qEnvironmentVariable("VULKANA_LOCALIZATION_SCREENSHOTS");
-    localeMatching(); bindings(); composition(); dropdown(output); dialogButtons();
+    localeMatching(); bindings(); composition(); dropdown(output); dialogButtons();recentUi(output);
     adjustmentCategories(output); psdReview(output); workspace(output); workspace({}, "ar");
     std::cout << "Localization failures: " << failures << '\n'; return failures ? 1 : 0;
 }

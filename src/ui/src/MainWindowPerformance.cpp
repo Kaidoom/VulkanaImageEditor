@@ -45,8 +45,8 @@ void MainWindow::presentGraphicsDeviceFallback()
     auto* layout=new QVBoxLayout(&notification);layout->setContentsMargins(20,18,20,18);layout->setSpacing(14);
     auto* title=i18n::make<QLabel>(i18n::text("performance.gpu.changed.title"));title->setObjectName("ToolTitle");layout->addWidget(title);
     auto* message=new QLabel(&notification);message->setObjectName("GpuFallbackMessage");message->setTextFormat(Qt::PlainText);message->setWordWrap(true);
-    if(gpuFallbackRequested_.isEmpty())i18n::setText(message,i18n::text("performance.gpu.changed.unknown").arg(gpuFallbackSelected_));
-    else i18n::setText(message,i18n::text("performance.gpu.changed.message").arg(gpuFallbackRequested_).arg(gpuFallbackSelected_));
+    if(gpuFallbackRequested_.isEmpty())i18n::setText(message,i18n::text("performance.gpu.changed.unknown").arg(i18n::ltrToken(gpuFallbackSelected_)));
+    else i18n::setText(message,i18n::text("performance.gpu.changed.message").arg(i18n::ltrToken(gpuFallbackRequested_)).arg(i18n::ltrToken(gpuFallbackSelected_)));
     layout->addWidget(message);
     auto* buttons=new i18n::ButtonBox(QDialogButtonBox::Ok,&notification);layout->addWidget(buttons);
     connect(buttons,&QDialogButtonBox::accepted,&notification,&QDialog::accept);
