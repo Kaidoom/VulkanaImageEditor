@@ -858,9 +858,9 @@ core::LayerMaskState maskFor(const PsdSource &s, const Record &rec,
   if (channel == rec.channels.end())
     throw Error("Mask descriptor has no user-mask channel");
   const auto &source = rec.mask;
-  auto rect = source.bounds;
-  if (source.flags & 1)
-    rect.translate(rec.bounds.topLeft());
+  // PSD mask rectangles are in document coordinates. Bit 0 describes the
+  // mask/layer link state, not a layer-relative encoding of this rectangle.
+  const auto rect = source.bounds;
   if (rect.isEmpty())
     throw Unsupported("Empty bitmap mask rectangle");
   auto bytes = decodeChannel(

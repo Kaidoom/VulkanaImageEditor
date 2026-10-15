@@ -1029,6 +1029,96 @@ void emptyPixelLayers() {
   in = inspect({warped});
   CHECK(!in.layers[0].editable && !in.layers[0].raster);
 }
+void maskCoordinates() {
+  namespace f = psdfixture;
+  QTemporaryDir dir;
+  const auto job = std::make_shared<u::PsdJob>();
+  for (const QPoint origin : {QPoint{-4, 5}, QPoint{8, 11}})
+    for (int flags : {0, 1, 2, 3})
+      for (int outside : {0, 255}) {
+        f::Layer input;
+        input.rect = {origin, QSize{16, 14}};
+        input.maskRect = {origin + QPoint{2, 4}, QSize{14, 9}};
+        input.maskFlags = flags;
+        input.maskOutside = outside;
+        input.mask.resize(14 * 9);
+        for (int y = 0; y < 9; ++y)
+          for (int x = 0; x < 14; ++x)
+            input.mask[y * 14 + x] = char(((x + y) % 4) * 85);
+        for (int channel : {-1, 0, 1, 2}) {
+          auto &data = input.channelData[channel];
+          data = QByteArray(16 * 14, 0);
+          for (int y = 2; y < 11; ++y)
+            for (int x = 3; x < 13; ++x)
+              data[y * 16 + x] = char(channel == -1 ? 200 :
+                                     channel == 0 ? 255 : channel == 1 ? 80 : 40);
+        }
+        const auto path = dir.filePath("mask.psd");
+        QFile file(path);
+        CHECK(file.open(QIODevice::WriteOnly));
+        const auto bytes = f::file({input}, {32, 32});
+        CHECK(file.write(bytes) == bytes.size());
+        file.close();
+        const auto inspected = u::inspectPsd(path, job);
+        CHECK(inspected.error.isEmpty() && inspected.layers[0].editable);
+        const auto output = u::convertPsd(inspected, u::defaultPsdOptions(inspected), job, {}, false);
+        CHECK(output.document);
+        if (!output.document)
+          continue;
+        const auto &doc = *output.document;
+        const auto &layer = doc.layers()[0];
+        CHECK(layer.mask && layer.mask->enabled == !(flags & 2));
+        if (!layer.mask)
+          continue;
+        CHECK(layer.rasterOrigin == c::Vec2d{2, 1}); // Transparent storage was compacted.
+        const auto maskToDocument = c::composeTransform(
+            layer.localToDocument, *layer.mask->localToMask.inverted());
+        CHECK(maskToDocument.map({0, 0}) == c::Vec2d{
+              double(input.maskRect.x()), double(input.maskRect.y())});
+        const auto flat = u::flattenDocument(doc);
+        CHECK(flat);
+        if (!flat)
+          continue;
+        int alphaError = 0, colorError = 0;
+        // Independent document-space reference: neither the link flag nor
+        // transparent-raster compaction changes the stored mask coordinates.
+        for (int y = 0; y < 32; ++y)
+          for (int x = 0; x < 32; ++x) {
+            const int lx = x - origin.x(), ly = y - origin.y();
+            const int mx = x - input.maskRect.x(), my = y - input.maskRect.y();
+            const int coverage = flags & 2 ? 255 : mx >= 0 && my >= 0 && mx < 14 && my < 9
+                ? quint8(input.mask[my * 14 + mx]) : outside;
+            const int alpha = lx >= 3 && lx < 13 && ly >= 2 && ly < 11
+                ? (200 * coverage + 127) / 255 : 0;
+            const auto actual = flat.image.pixelColor(x, y);
+            alphaError = std::max(alphaError, std::abs(actual.alpha() - alpha));
+            if (alpha)
+              colorError = std::max({colorError, std::abs(actual.red() - 255),
+                                    std::abs(actual.green() - 80), std::abs(actual.blue() - 40)});
+          }
+        CHECK(alphaError <= 1 && colorError <= 1);
+        const auto project = dir.filePath("mask.vulkana");
+        CHECK(u::saveProject(project, doc));
+        const auto reopened = u::loadProject(project);
+        CHECK(reopened.document);
+        if (reopened.document) {
+          CHECK(c::equivalentLayerMasks(reopened.document->layers()[0].mask, layer.mask));
+          CHECK(u::flattenDocument(*reopened.document).image == flat.image);
+        }
+        const std::atomic_bool cancelled{false};
+        const auto snapshot = u::capturePsdExport(doc, 1);
+        const auto plan = u::planPsdExport(snapshot, {}, cancelled);
+        CHECK(plan);
+        const auto exported = dir.filePath("round-trip.psd");
+        CHECK(u::writePsdExport(snapshot, plan, exported, cancelled));
+        const auto again = u::inspectPsd(exported, job);
+        CHECK(again.error.isEmpty());
+        const auto imported = u::convertPsd(again, u::defaultPsdOptions(again), job, {}, false);
+        CHECK(imported.document);
+        if (imported.document)
+          CHECK(u::flattenDocument(*imported.document).image == flat.image);
+      }
+}
 void compactBounds() {
   namespace f=psdfixture;
   QTemporaryDir dir;
@@ -1187,6 +1277,7 @@ int main(int argc, char **argv) {
   compositingRoundTrip();
   semanticFixtures();
   emptyPixelLayers();
+  maskCoordinates();
   compactBounds();
   if (argc >= 4 && QString::fromLocal8Bit(argv[1]) == "--sample")
     sample(QString::fromLocal8Bit(argv[2]), QString::fromLocal8Bit(argv[3]));

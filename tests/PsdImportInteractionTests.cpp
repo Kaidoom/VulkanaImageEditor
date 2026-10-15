@@ -174,7 +174,9 @@ int main(int argc, char **argv) {
     text.tags["TySh"] = psdfixture::textTag(QString::fromUtf8("Hello 😀\r"));
     psdfixture::Layer masked;
     masked.name = "Mask";
-    masked.maskRect = {1, 0, 1, 1};
+    masked.rect = {8, 5, 3, 2};
+    masked.maskRect = {9, 5, 1, 1};
+    masked.maskFlags = 1;
     masked.mask = QByteArray(1, 0);
     psdfixture::Layer folder;
     folder.name = "Automatic group";
