@@ -65,6 +65,7 @@ bool MainWindow::runTransformAction(const std::function<bool()>& action)
 }
 void MainWindow::cancelPendingEdits()
 {
+    layerAlphaSelection_.reset();
     // Refinement is tab-owned; only Apply, Cancel or a confirmed lifecycle
     // operation may discard it. Ordinary tool cleanup must not do so implicitly.
     if (refinement_) return;

@@ -1,4 +1,9 @@
 #include "imageeditor/core/SelectionMask.hpp"
+#include "imageeditor/core/SelectionCommands.hpp"
+#include "imageeditor/core/ColorSampler.hpp"
+#include "imageeditor/ui/LayerListView.hpp"
+#include "imageeditor/ui/LayerListModel.hpp"
+#include "imageeditor/ui/FlattenedDocument.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/CrossWindowPointerRouter.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
@@ -97,13 +102,14 @@ void sendMouse(QWidget& widget, QEvent::Type type, QPointF local,
 
 struct Fixture {
     QTemporaryDir assets;
-    ui::MainWindow window {nullptr, false, false};
+    ui::MainWindow window;
     render::CanvasWindow* canvas {nullptr};
     ui::OverlayDockWorkspace* workspace {nullptr};
     ui::ToolOptionsBar* options {nullptr};
     ui::CrossWindowPointerRouter* router {nullptr};
 
-    Fixture()
+    explicit Fixture(QVulkanInstance* instance = nullptr)
+        : window(instance, false, false)
     {
         window.setUnsavedPromptEnabled(false);
         window.resize(1420, 860);
@@ -206,6 +212,140 @@ void checkPixel(const core::SelectionState& selection, int x, int y, int expecte
 {
     CHECK(selection);
     if (selection) CHECK(selection->coverageAtDocumentPixel(x, y) == expected);
+}
+
+void thumbnailAlphaReplacesAtomicallyAndKeepsLayerTargets(QVulkanInstance* instance = nullptr)
+{
+    Fixture f(instance); CHECK(f.valid()); if (!f.valid()) return;
+    core::Document input({{64,48}});
+    std::vector<std::byte> pixels(8*6*4);
+    for (int y=0;y<6;++y) for (int x=0;x<8;++x) {
+        const auto offset=std::size_t(y*8+x)*4;
+        pixels[offset]=std::byte{255}; // Hidden RGB must not produce coverage.
+        pixels[offset+3]=std::byte(x==0?0:x==1?1:x==2?64:x==3?128:255);
+    }
+    auto source=core::Layer::raster("Alpha source",std::make_shared<core::ContiguousRasterSurface>(core::Extent2u{8,6},pixels));
+    source.rasterOrigin={3,2}; source.localToDocument={1,0,12,0,1,8};
+    source.visible=false; source.opacity=0;
+    auto mask=std::make_shared<core::LayerMask>();
+    mask->coverage=core::SelectionMask::filled({8,6},0);mask->outside=0;source.mask=mask;
+    const auto sourceId=source.id;
+    auto empty=core::Layer::raster("Empty",std::make_shared<core::ContiguousRasterSurface>(core::Extent2u{64,48}));
+    const auto emptyId=empty.id;
+    auto active=core::Layer::raster("Active",std::make_shared<core::ContiguousRasterSurface>(core::Extent2u{64,48},core::Rgba8{30,40,50,255}));
+    const auto activeId=active.id;
+    auto faint=core::Layer::raster("Faint",std::make_shared<core::ContiguousRasterSurface>(core::Extent2u{2,2},core::Rgba8{255,255,255,1}));
+    const auto faintId=faint.id;
+    CHECK(input.insertLayer(0,source)); CHECK(input.insertLayer(1,empty)); CHECK(input.insertLayer(2,faint)); CHECK(input.insertLayer(3,active));
+    const auto path=f.assets.filePath("alpha.vulkana");CHECK(ui::saveProject(path,input));
+    CHECK(f.window.openImageFromPath(path));settle();
+    auto& session=const_cast<core::EditorSession&>(f.window.editorSession());
+    auto* view=dynamic_cast<ui::LayerListView*>(f.window.findChild<QListView*>("LayerList"));
+    auto* model=view?dynamic_cast<ui::LayerListModel*>(view->model()):nullptr;
+    CHECK(view&&model);if(!view||!model)return;
+    auto click=[&](core::LayerId id,bool thumbnail=true,bool wait=true) {
+        const auto index=model->index(model->rowForLayer(id),0);
+        view->scrollTo(index);settle();
+        QTest::mouseClick(view->viewport(),Qt::LeftButton,Qt::ControlModifier,
+            thumbnail?view->thumbnailRect(index,false).center():view->visualRect(index).center());
+        if(wait)QTest::qWait(25);
+    };
+    const auto target=session.layerSelectionState();
+    click(activeId,false); // Last row remains selected.
+    CHECK(session.layerSelectionState()==target);
+    f.action("SelectAllAction");
+    const auto before=f.selection();const auto depth=f.history().undoDepth();
+    const auto content=f.document().contentState();
+    f.mode("Add"); // Thumbnail loading always replaces, regardless of toolbar mode.
+    click(sourceId);
+    const auto loaded=f.selection();
+    CHECK(loaded&&loaded!=before);
+    checkPixel(loaded,0,0,0);
+    for(int x=0;x<8;++x)checkPixel(loaded,15+x,10,x==0?0:x==1?1:x==2?64:x==3?128:255);
+    CHECK(session.layerSelectionState()==target&&!session.editingLayerMask());
+    CHECK(f.history().undoDepth()==depth+1&&f.document().contentState()==content);
+    CHECK(!f.document().isModified());
+    f.undo();CHECK(f.selection()==before);f.redo();CHECK(f.selection()==loaded);
+    f.undo();
+    const auto redo=f.history().redoDepth();const auto remembered=f.document().lastSelection();
+    click(emptyId);
+    CHECK(f.selection()==before&&f.history().redoDepth()==redo&&f.document().lastSelection()==remembered);
+    CHECK(session.layerSelectionState()==target);
+    // Existing content/mask thumbnail focus must not intercept the shortcut.
+    session.setActiveLayer(sourceId);session.setEditingLayerMask(true);
+    click(sourceId);
+    CHECK(session.activeLayer()==sourceId&&session.editingLayerMask());
+    CHECK(f.selection()->equivalent(*loaded));
+    const auto same=f.selection();const auto sameDepth=f.history().undoDepth();
+    click(sourceId);CHECK(f.selection()==same&&f.history().undoDepth()==sameDepth);
+    // Fractional/negative/projective transforms use the same authoritative sampler.
+    for(const auto& transform : {core::AffineTransform{-1,0,35.25,0,1,6.5},
+                                core::AffineTransform{1,.12,9,.1,1,8,.002,.001,1}}) {
+        CHECK(session.document()->setLayerTransform(sourceId,transform));
+        click(sourceId);
+        core::PinnedDocumentSampler expected(*session.document(),sourceId,core::ColorSampleSource::ActiveLayer);
+        bool equal=true;
+        for(int y=0;y<48;++y)for(int x=0;x<64;++x)
+            equal &= f.selection()->coverageAtDocumentPixel(x,y)==expected.sample({x+.5,y+.5}).alpha;
+        CHECK(equal);
+    }
+    // A fully off-canvas source cannot clear an existing selection either.
+    CHECK(session.document()->setLayerTransform(sourceId,{1,0,-200,0,1,-200}));
+    const auto old=f.selection();click(sourceId);CHECK(f.selection()==old);
+    CHECK(session.document()->setLayerTransform(sourceId,{1,0,12,0,1,8}));
+    CHECK(std::get<core::RasterLayer>(session.document()->layer(sourceId)->payload).surface->revision()==1);
+    click(faintId);checkPixel(f.selection(),0,0,1);
+    CHECK(!f.selection()->bounds().empty()&&f.selection()->boundaryEdges().empty());
+    click(activeId);checkPixel(f.selection(),63,47,255);
+}
+
+void thumbnailAlphaSupportsTypedContentAndCancelsStaleRequests(QVulkanInstance* instance = nullptr)
+{
+    Fixture f(instance);CHECK(f.valid());if(!f.valid())return;
+    core::Document input({{800,600}});
+    core::TextLayer words;words.utf8="O";words.defaultStyle.sizePixels=36;
+    auto text=core::Layer::text("Text",words);text.localToDocument={1,0,24,0,1,16};
+    const auto textId=text.id;
+    core::ShapeLayer shape;shape.size={30,20};shape.fillColor={20,40,60,128};
+    auto vector=core::Layer::shape("Shape",shape);vector.localToDocument={1,0,80,0,1,60};
+    const auto shapeId=vector.id;
+    auto big=core::Layer::raster("Large",std::make_shared<core::ContiguousRasterSurface>(core::Extent2u{800,600},core::Rgba8{20,40,60,128}));
+    const auto bigId=big.id;
+    CHECK(input.insertLayer(0,text));CHECK(input.insertLayer(1,vector));CHECK(input.insertLayer(2,big));
+    const auto path=f.assets.filePath("typed-alpha.vulkana");CHECK(ui::saveProject(path,input));
+    CHECK(f.window.openImageFromPath(path));settle();
+    auto& session=const_cast<core::EditorSession&>(f.window.editorSession());
+    auto* view=dynamic_cast<ui::LayerListView*>(f.window.findChild<QListView*>("LayerList"));
+    auto* model=view?dynamic_cast<ui::LayerListModel*>(view->model()):nullptr;
+    CHECK(view&&model);if(!view||!model)return;
+    auto click=[&](core::LayerId id) {
+        const auto index=model->index(model->rowForLayer(id),0);view->scrollTo(index);settle();
+        QTest::mouseClick(view->viewport(),Qt::LeftButton,Qt::ControlModifier,view->thumbnailRect(index,false).center());
+    };
+    click(shapeId);QTest::qWait(50);checkPixel(f.selection(),90,70,128);
+    CHECK(std::holds_alternative<core::ShapeLayer>(session.document()->layer(shapeId)->payload));
+    click(textId);QTest::qWait(50);
+    const auto letters=f.selection();CHECK(letters&&!letters->bounds().empty());
+    CHECK(std::holds_alternative<core::TextLayer>(session.document()->layer(textId)->payload));
+    CHECK(session.activeLayer()==bigId);
+    const auto depth=f.history().undoDepth();
+    click(bigId); // Still pending: never clear the old selection while sampling.
+    CHECK(f.selection()==letters);
+    QTest::keyClick(view,Qt::Key_Escape);QTest::qWait(50);
+    CHECK(f.selection()==letters&&f.history().undoDepth()==depth);
+    click(bigId);
+    CHECK(session.document()->setLayerOpacity(bigId,.7F));QTest::qWait(50);
+    CHECK(f.selection()==letters&&f.history().undoDepth()==depth);
+    click(bigId);QTest::qWait(300);
+    checkPixel(f.selection(),799,599,128);
+    CHECK(f.history().undoDepth()==depth+1);
+    const auto owner=f.window.activeDocumentId();
+    click(bigId);
+    const auto other=f.assets.filePath("other.png");QImage image(16,16,QImage::Format_RGBA8888);image.fill(Qt::white);CHECK(image.save(other));
+    CHECK(f.window.openImageFromPath(other));QTest::qWait(50);
+    CHECK(!f.selection());
+    CHECK(f.window.activateDocument(owner));QTest::qWait(50);
+    checkPixel(f.selection(),799,599,128);
 }
 
 void marqueeControlsAreCachedStyledAndNeverResizeCanvas()
@@ -1744,9 +1884,34 @@ int main(int argc, char** argv)
     QSettings::setDefaultFormat(QSettings::IniFormat);
     QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settings.path());
     ui::applyEditorTheme(application);
+    if (application.arguments().contains("--thumbnail-alpha-native")) {
+        QVulkanInstance instance;
+        instance.setApiVersion(QVersionNumber(1,2));
+        instance.setLayers({"VK_LAYER_KHRONOS_validation"});
+        int validationMessages = 0;
+        instance.installDebugOutputFilter([&](QVulkanInstance::DebugMessageSeverityFlags severity,
+            QVulkanInstance::DebugMessageTypeFlags, const void* message) {
+            if (severity & (QVulkanInstance::WarningSeverity | QVulkanInstance::ErrorSeverity)) {
+                ++validationMessages;
+                std::cerr << static_cast<const VkDebugUtilsMessengerCallbackDataEXT*>(message)->pMessage << '\n';
+            }
+            return false;
+        });
+        CHECK(instance.create());
+        if (!instance.isValid()) return EXIT_FAILURE;
+        thumbnailAlphaReplacesAtomicallyAndKeepsLayerTargets(&instance);
+        thumbnailAlphaSupportsTypedContentAndCancelsStaleRequests(&instance);
+        instance.destroy();
+        CHECK(validationMessages == 0);
+        std::cout << "Thumbnail alpha native failures=" << failures
+                  << " validation messages=" << validationMessages << '\n';
+        return failures ? EXIT_FAILURE : EXIT_SUCCESS;
+    }
     const auto nativePreview = qEnvironmentVariable("IMAGEEDITOR_TEST_SELECTION_PREVIEW_NATIVE");
     if (!nativePreview.isEmpty() || qEnvironmentVariableIntValue("IMAGEEDITOR_TEST_SELECTION_NATIVE"))
         return captureNativeSelectionPreview(nativePreview);
+    thumbnailAlphaReplacesAtomicallyAndKeepsLayerTargets();
+    thumbnailAlphaSupportsTypedContentAndCancelsStaleRequests();
     marqueeControlsAreCachedStyledAndNeverResizeCanvas();
     livePreviewIsImmutablePixelAlignedAndOneUndoAction();
     modesLatchModifiersAndRepresentHolesAndDisconnectedRegions();

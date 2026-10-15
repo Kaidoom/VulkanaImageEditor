@@ -55,13 +55,13 @@ void togglesAndPrimary()
     s.toggleSelectedLayer(f.ids[2]);
     CHECK(s.activeLayer() == f.ids[0]);
     CHECK(s.selectionAnchor() == f.ids[2]); // A toggled-off anchor is valid.
+    const auto last = s.layerSelectionState();
     s.toggleSelectedLayer(f.ids[0]);
-    CHECK(s.selectedLayers().empty());
-    CHECK(!s.activeLayer());
+    CHECK(s.layerSelectionState() == last);
     CHECK(!s.undo());
-    CHECK(s.selectedLayers().empty()); // Unrelated history cannot repopulate it.
+    CHECK(s.layerSelectionState() == last);
     s.toggleSelectedLayer(0);
-    CHECK(s.selectedLayers().empty());
+    CHECK(s.layerSelectionState() == last);
     s.setActiveLayer(f.ids[1]);
     s.setActiveLayer(0);
     CHECK(s.activeLayer() == f.ids[1]);

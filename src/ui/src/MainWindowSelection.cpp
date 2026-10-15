@@ -1,8 +1,11 @@
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/SelectionCommands.hpp"
+#include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/CrossWindowPointerRouter.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
+#include "imageeditor/ui/LayerListModel.hpp"
+#include "imageeditor/ui/FlattenedDocument.hpp"
 #include "imageeditor/ui/ToolOptionsBar.hpp"
 #include "imageeditor/ui/ToolOptionsButton.hpp"
 #include "imageeditor/ui/ToolOptionsNumber.hpp"
@@ -17,9 +20,130 @@
 #include <QSignalBlocker>
 #include <QStatusBar>
 #include <QTimer>
+#include <QElapsedTimer>
 #include <cmath>
 
 namespace imageeditor::ui {
+struct MainWindow::LayerAlphaSelectionContext {
+    DocumentInstanceId instance{};
+    core::Revision revision{}, selectionRevision{};
+    core::SelectionState before;
+    core::Extent2u extent;
+    core::RectI region;
+    std::unique_ptr<core::PinnedDocumentSampler> sampler;
+    std::vector<core::PremultipliedColor> row;
+    std::vector<std::byte> scratch;
+    std::vector<std::uint8_t> coverage;
+    int nextRow{};
+    bool nonempty{};
+};
+
+void MainWindow::loadLayerAlphaSelection(int row)
+{
+    if (fileBusy_ || refinement_ || workspaceDialog_ || !session().document()) return;
+    const auto id = layerModel_->layerIdAt(row);
+    const auto instance = activeDocumentId();
+    if (!id) return;
+    cancelPendingEdits();
+    if (activeDocumentId() != instance || !session().document()) return;
+    const auto& doc = *session().document();
+    const auto* layer = doc.layer(*id);
+    if (!layer || std::holds_alternative<core::AdjustmentLayer>(layer->payload)) return;
+    try {
+        constexpr std::size_t maximumPixels = 64ULL * 1024 * 1024;
+        const auto extent = doc.canvas().extent;
+        if (std::uint64_t(extent.width) * extent.height > maximumPixels)
+            throw std::length_error("Layer transparency selection exceeds 64 megapixels");
+        // Only intrinsic content alpha: no layer opacity, visibility, mask,
+        // adjustment, filter, style or clipping-group contribution. Retain the
+        // layer's geometry/crop and prepare typed content independently of zoom.
+        auto source = *layer;
+        source.visible = true;
+        source.opacity = 1;
+        source.blendMode = core::BlendMode::Normal;
+        source.mask.reset(); source.adjustments.reset();
+        source.filters.reset(); source.filterCache.reset();
+        source.effects.reset(); source.effectCache.reset();
+        if (!std::holds_alternative<core::RasterLayer>(source.payload))
+            source.renderCache = prepareDocumentSampleCache(source, maximumPixels);
+        const auto surface = core::renderedSurface(source);
+        if (!surface) throw std::runtime_error("Unable to prepare layer transparency");
+        const auto size = surface->extent();
+        const auto mapping = core::renderTransform(source);
+        if (!mapping.inverted() || !mapping.validOver({0, 0, double(size.width), double(size.height)}))
+            throw std::runtime_error("Invalid layer transparency transform");
+        double left = extent.width, top = extent.height, right = 0, bottom = 0;
+        for (const auto point : std::array<core::Vec2d, 4>{{{0, 0}, {double(size.width), 0},
+                 {0, double(size.height)}, {double(size.width), double(size.height)}}}) {
+            const auto p = mapping.map(point);
+            left = std::min(left, p.x); top = std::min(top, p.y);
+            right = std::max(right, p.x); bottom = std::max(bottom, p.y);
+        }
+        const int x0 = int(std::floor(std::clamp(left - 1, 0., double(extent.width))));
+        const int y0 = int(std::floor(std::clamp(top - 1, 0., double(extent.height))));
+        const int x1 = int(std::ceil(std::clamp(right + 1, 0., double(extent.width))));
+        const int y1 = int(std::ceil(std::clamp(bottom + 1, 0., double(extent.height))));
+        if (x1 <= x0 || y1 <= y0) return;
+        auto job = std::make_shared<LayerAlphaSelectionContext>();
+        job->instance = instance; job->revision = doc.revision();
+        job->selectionRevision = doc.selectionRevision(); job->before = doc.selection();
+        job->extent = extent; job->region = {x0, y0, x1 - x0, y1 - y0};
+        const std::array<const core::Layer*, 1> layers{&source};
+        job->sampler = std::make_unique<core::PinnedDocumentSampler>(layers, extent);
+        job->row.resize(std::size_t(job->region.width));
+        job->scratch.resize(job->row.size() * 4);
+        job->coverage.resize(job->row.size() * std::size_t(job->region.height));
+        layerAlphaSelection_ = std::move(job);
+        advanceLayerAlphaSelection();
+    } catch (const std::exception& error) {
+        layerAlphaSelection_.reset();
+        statusBar()->showMessage(QString::fromUtf8(error.what()), 6000);
+    }
+}
+
+void MainWindow::advanceLayerAlphaSelection()
+{
+    const auto job = layerAlphaSelection_;
+    if (!job) return;
+    const auto* doc = session().document();
+    if (!doc || activeDocumentId() != job->instance || doc->revision() != job->revision
+        || doc->selectionRevision() != job->selectionRevision || doc->selection() != job->before
+        || selectionGesture_ || smartInteractionActive() || colorSelectionEditing_) {
+        layerAlphaSelection_.reset(); return;
+    }
+    try {
+        QElapsedTimer time; time.start();
+        std::size_t pixels = 0;
+        while (job->nextRow < job->region.height && pixels < 65536 && time.elapsed() < 8) {
+            const auto offset = std::size_t(job->nextRow) * job->row.size();
+            job->sampler->sampleRow(job->region.x, job->region.y + job->nextRow, job->row, job->scratch);
+            for (std::size_t x = 0; x < job->row.size(); ++x) {
+                const auto coverage = std::uint8_t(std::clamp(std::lround(job->row[x][3] * 255), 0L, 255L));
+                job->coverage[offset + x] = coverage;
+                job->nonempty |= coverage != 0; // Not the marching-ants threshold.
+            }
+            ++job->nextRow;
+            pixels += job->row.size();
+        }
+        if (job->nextRow < job->region.height) {
+            QTimer::singleShot(0, this, [this, weak = std::weak_ptr(job)] {
+                if (const auto pending = weak.lock(); pending && layerAlphaSelection_ == pending)
+                    advanceLayerAlphaSelection();
+            });
+            return;
+        }
+        layerAlphaSelection_.reset();
+        if (!job->nonempty) return; // Preserve selection, remembered selection and redo.
+        const auto selection = core::SelectionMask::fromR8Region(job->extent, job->region,
+            job->coverage, job->row.size());
+        if (session().execute(std::make_unique<core::SetSelectionCommand>(selection)))
+            synchronizeUi(false, false);
+    } catch (const std::exception& error) {
+        layerAlphaSelection_.reset();
+        statusBar()->showMessage(QString::fromUtf8(error.what()), 6000);
+    }
+}
+
 void MainWindow::createSelectionActions()
 {
     const std::array names { "SelectAllAction", "DeselectAction", "InvertSelectionAction",

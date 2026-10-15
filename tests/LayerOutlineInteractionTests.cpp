@@ -309,7 +309,9 @@ void dismissalAndOOnlyRevealSelectedLayers()
     const auto selection = f.session().layerSelectionState();
     const auto revision = f.document().revision(), pixels = f.surface().revision();
     const auto history = f.session().history().undoDepth();
-    for (const auto empty : {core::Vec2d {100,80}, core::Vec2d {-5,20}}) {
+    // The transformed layer reaches x=-10: (-5,20) is visible off-canvas
+    // content, not empty workspace. Use a point genuinely outside the layer.
+    for (const auto empty : {core::Vec2d {100,80}, core::Vec2d {-15,20}}) {
         f.clickCanvas(empty); CHECK(!f.outlined());
         CHECK(f.session().layerSelectionState() == selection);
         f.o(); CHECK(!f.canvas->layerOutlinesVisible() && !f.outlined());

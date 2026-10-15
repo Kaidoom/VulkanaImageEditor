@@ -311,6 +311,7 @@ bool LayerListView::event(QEvent* event)
         cancelVisibilityGesture();
         deferredSingleIndex_ = QPersistentModelIndex {};
         disclosureGesture_ = false;
+        alphaSelectionGesture_ = false;
     }
     return QListView::event(event);
 }
@@ -318,6 +319,16 @@ bool LayerListView::event(QEvent* event)
 void LayerListView::mousePressEvent(QMouseEvent* event)
 {
     const auto row = indexAt(event->position().toPoint());
+    if (event->button() == Qt::LeftButton && event->modifiers() == Qt::ControlModifier
+        && row.isValid() && !row.data(Qt::UserRole + 3).toBool()
+        && thumbnailRect(row, false).contains(event->position().toPoint())
+        && onAlphaSelectionRequested) {
+        deferredSingleIndex_ = QPersistentModelIndex{};
+        alphaSelectionGesture_ = true;
+        onAlphaSelectionRequested(row.row());
+        event->accept();
+        return; // Do not change the active layer/mask target or start a drag.
+    }
     if(row.isValid()&&onEditingTargetRequested&&row.data(LayerListModel::HasMaskRole).toBool()
         &&event->button()==Qt::LeftButton) {
         const bool mask=thumbnailRect(row,true).contains(event->position().toPoint());
@@ -401,6 +412,7 @@ void LayerListView::mouseDoubleClickEvent(QMouseEvent* event)
 
 void LayerListView::mouseMoveEvent(QMouseEvent* event)
 {
+    if (alphaSelectionGesture_) { event->accept(); return; }
     if (visibilityGestureActive_) {
         event->accept();
         return;
@@ -410,6 +422,11 @@ void LayerListView::mouseMoveEvent(QMouseEvent* event)
 
 void LayerListView::mouseReleaseEvent(QMouseEvent* event)
 {
+    if (alphaSelectionGesture_ && event->button() == Qt::LeftButton) {
+        alphaSelectionGesture_ = false;
+        event->accept();
+        return;
+    }
     if (event->button() == Qt::LeftButton && deferredSingleIndex_.isValid()) {
         const auto index = std::exchange(deferredSingleIndex_, QPersistentModelIndex {});
         if (onRowSelectionRequested)

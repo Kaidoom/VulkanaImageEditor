@@ -382,6 +382,10 @@ private:
         std::vector<core::ItemVisibilityUpdate> retainedLeafVisibility = {});
     void setActiveTool(core::ToolId tool);
     void selectLayerFromRow(int row, Qt::KeyboardModifiers modifiers = {}, bool contextSelection = false);
+    void loadLayerAlphaSelection(int row);
+    void advanceLayerAlphaSelection();
+    struct LayerAlphaSelectionContext;
+    std::shared_ptr<LayerAlphaSelectionContext> layerAlphaSelection_;
     void collapseLayerSelectionOnEmptyClick();
     void focusLayerRenameEditor(QLineEdit* editor);
     void restoreLayerRenameFocus();

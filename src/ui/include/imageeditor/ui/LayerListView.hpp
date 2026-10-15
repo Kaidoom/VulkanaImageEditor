@@ -23,6 +23,7 @@ public:
     std::function<void(int, Qt::KeyboardModifiers)> onRowSelectionRequested;
     std::function<void(int)> onContextSelectionRequested;
     std::function<void(int,bool)> onEditingTargetRequested;
+    std::function<void(int)> onAlphaSelectionRequested;
     [[nodiscard]] QRect thumbnailRect(const QModelIndex&,bool mask) const;
     std::function<void()> onEmptySpacePressed;
     // MainWindow owns the cross-native-surface keyboard bridge and global
@@ -60,6 +61,7 @@ private:
 
     bool visibilityGestureActive_ { false };
     bool disclosureGesture_ {false};
+    bool alphaSelectionGesture_ {false};
     QRect dropHint_;
     QString dropText_;
     int dropRow_ {-1};

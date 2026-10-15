@@ -327,6 +327,7 @@ bool MainWindow::settleForDocumentSwitch()
     if (activeLayerMove_ || layerTransform_ || layerCrop_) return false;
     finishSelectionNumericInput(); finishSelectionTransform(true);
     if(selectionTransform_)return false;
+    layerAlphaSelection_.reset();
     cancelColorSelection(); cancelSmartSelection();
     canvasWindow_->cancelSelectionInput(); finishSelectionGesture(true); finishSelectionRotation(false);
     pointerRouter_->cancelCapture(); canvasWindow_->cancelPanInput(); canvasWindow_->cancelColorSampling();

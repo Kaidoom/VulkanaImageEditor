@@ -76,9 +76,12 @@ void EditorSession::setLayerSelection(std::span<const LayerId> layerIds,
 
 void EditorSession::toggleSelectedLayer(LayerId layerId)
 {
-    maskTarget_.reset();
     if (!document_ || !document_->containsItem(layerId))
         return;
+    // Multi-selection toggles must not strand layer tools without a target.
+    if (selectedLayers_.size() == 1 && isLayerSelected(layerId))
+        return;
+    maskTarget_.reset();
     if (isLayerSelected(layerId)) {
         std::erase(selectedLayers_, layerId);
         if (activeLayer_ == layerId)

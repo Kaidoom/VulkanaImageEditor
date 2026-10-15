@@ -1468,6 +1468,11 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
                 && event->type() == QEvent::WindowDeactivate))
             finishSelectionGesture(true);
     }
+    if (layerAlphaSelection_ && watched == canvasWindow_
+        && (event->type() == QEvent::TabletPress || (event->type() == QEvent::MouseButtonPress
+            && static_cast<QMouseEvent*>(event)->button() == Qt::LeftButton
+            && !canvasWindow_->spacePanHeld())))
+        layerAlphaSelection_.reset();
     if (activeFill_ && watched == canvasWindow_
         && (event->type() == QEvent::TabletPress || (event->type() == QEvent::MouseButtonPress
             && static_cast<QMouseEvent*>(event)->button() == Qt::LeftButton
@@ -1532,6 +1537,11 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
         || session().activeTool() == core::ToolId::Eraser || session().activeTool() == core::ToolId::Fill);
     const bool editing = editorTextInputActive() || editableWidgetOwnsInput(widget);
     const bool blocked = QApplication::activeModalWidget() || QApplication::activePopupWidget();
+    if (ourTarget && layerAlphaSelection_ && !editing && !blocked && key->key() == Qt::Key_Escape
+        && (event->type() == QEvent::ShortcutOverride || event->type() == QEvent::KeyPress)) {
+        if (event->type() == QEvent::KeyPress) layerAlphaSelection_.reset();
+        event->accept(); return true;
+    }
     if(ourTarget && smartInteractionActive() && !blocked && key->key()==Qt::Key_Escape
         && (event->type()==QEvent::ShortcutOverride || event->type()==QEvent::KeyPress)) {
         if(event->type()==QEvent::KeyPress){cancelSmartSelection(false);updateActionState();
@@ -2510,6 +2520,9 @@ void MainWindow::createDocks()
     layerList_->setSelectionMode(QAbstractItemView::ExtendedSelection);
     static_cast<LayerListView*>(layerList_)->onRowSelectionRequested = [this](int row,Qt::KeyboardModifiers modifiers) {
         selectLayerFromRow(row,modifiers);
+    };
+    static_cast<LayerListView*>(layerList_)->onAlphaSelectionRequested = [this](int row) {
+        loadLayerAlphaSelection(row);
     };
     static_cast<LayerListView*>(layerList_)->onContextSelectionRequested = [this](int row) {
         selectLayerFromRow(row, Qt::NoModifier, true);
