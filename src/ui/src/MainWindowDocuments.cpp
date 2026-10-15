@@ -1,6 +1,7 @@
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
+#include "imageeditor/ui/WorkspaceDialog.hpp"
 #include "imageeditor/ui/LayerListModel.hpp"
 #include "imageeditor/ui/LayerTransferMimeData.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
@@ -293,7 +294,8 @@ void MainWindow::refreshDocumentTabs()
     for (const auto* name : {"SaveDocumentAction", "SaveDocumentAsAction", "ExportImageAction", "CopyCanvasToClipboardAction", "ImportImageAction", "ChangeCanvasSizeAction"})
         if (auto* action = findChild<QAction*>(name)) action->setEnabled(bool(activeDocument_));
     if (auto* action = findChild<QAction*>("ExportAgainAction")) action->setEnabled(activeDocument_ && activeDocument_->exportSettings.has_value());
-    workspace_->setWelcomeOverlay(welcome_, !activeDocument_);
+    workspace_->setWelcomeOverlay(welcome_, !activeDocument_&&!graphicsStartupPending_
+        &&!startupNewDocumentPending_&&!startupDocumentDialog_);
 }
 void MainWindow::captureDocumentView()
 {
@@ -306,7 +308,10 @@ void MainWindow::captureDocumentView()
 }
 bool MainWindow::settleForDocumentSwitch()
 {
-    if (fileBusy_ || workspaceDialog_ || cloneProcessing_ || localBlurProcessing_) return false;
+    // Programmatic document publication can run under the graphics status
+    // gate. Its input shield still blocks editor gestures and UI actions.
+    const bool startupGate=graphicsStartupPending_&&workspaceDialog_==graphicsStartupPresenter_;
+    if (fileBusy_ || (workspaceDialog_&&!startupGate) || cloneProcessing_ || localBlurProcessing_) return false;
     if (refinement_) return true; // Suspended only once a switch will actually occur.
     finishLayerRename();
     opacitySlider_->finishEditing();

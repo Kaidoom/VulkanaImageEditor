@@ -10716,4 +10716,11 @@ Escape · 전체 자르기 세션 취소
       <translation type="unfinished" />
     </message>
   </context>
+  <context>
+    <name>GraphicsStartup</name>
+    <message id="graphics.startup.aborting"><source>Aborting…</source><translation type="unfinished" /></message>
+    <message id="graphics.startup.closing"><source>Waiting for the graphics driver before closing.</source><translation type="unfinished" /></message>
+    <message id="graphics.startup.title"><source>Initializing graphics…</source><translation type="unfinished" /></message>
+    <message id="graphics.startup.detail"><source>Preparing shaders. This may take a few seconds.</source><translation type="unfinished" /></message>
+  </context>
 </TS>

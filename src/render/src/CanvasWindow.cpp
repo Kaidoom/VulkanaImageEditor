@@ -37,6 +37,8 @@ std::vector<GraphicsDeviceInfo> CanvasWindow::graphicsDevices() const
 {
     return backend_?backend_->graphicsDevices():std::vector<GraphicsDeviceInfo>{};
 }
+bool CanvasWindow::graphicsInitializing() const
+{return backend_&&backend_->stats().initializingGraphics;}
 void CanvasWindow::setTextureCacheBudget(std::uint64_t bytes)
 {
     if(scene_.textureCacheBudgetBytes==bytes)return;
@@ -110,12 +112,19 @@ core::PointerType normalizedPointerType(QPointingDevice::PointerType type) noexc
 
 } // namespace
 
-CanvasWindow::CanvasWindow()
-    : backend_(std::make_unique<VulkanCanvasBackend>(*this))
+CanvasWindow::CanvasWindow(bool presentationProbe)
+    : backend_(std::make_unique<VulkanCanvasBackend>(*this,presentationProbe))
 {
     setObjectName(QStringLiteral("VulkanCanvasWindow"));
     setTitle(QStringLiteral("ImageEditor Canvas"));
     setSurfaceType(QSurface::VulkanSurface);
+    graphicsInitializationTimer_.setInterval(30);
+    connect(&graphicsInitializationTimer_,&QTimer::timeout,this,[this] {
+        if(!backend_->pollInitialization())return;
+        graphicsInitializationTimer_.stop();
+        if(onGraphicsInitializationChanged)onGraphicsInitializationChanged(false);
+        scheduleFrame();
+    });
 
     resizeCommitTimer_.setSingleShot(true);
     resizeCommitTimer_.setInterval(kResizeSettleDelayMs);
@@ -629,6 +638,14 @@ void CanvasWindow::scheduleFrame()
             onViewportUpdated();
         if (backend_->render(scene_)) {
             scheduleFrame();
+        }
+        if(!firstFrameAnnounced_&&backend_->stats().presentQueuedFrames) {
+            firstFrameAnnounced_=true;
+            if(onFirstFramePresented)onFirstFramePresented();
+        }
+        if(graphicsInitializing()&&!graphicsInitializationTimer_.isActive()) {
+            graphicsInitializationTimer_.start();
+            if(onGraphicsInitializationChanged)onGraphicsInitializationChanged(true);
         }
     }, Qt::QueuedConnection);
 }

@@ -1,19 +1,23 @@
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/PreferencesDialog.hpp"
 #include "imageeditor/ui/PerformancePanel.hpp"
+#include "imageeditor/ui/NewDocumentDialog.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/core/BoundedParallel.hpp"
 #include "imageeditor/core/LayerCommands.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/render/GraphicsDeviceProbe.hpp"
+#include "imageeditor/render/detail/GraphicsProbeCache.hpp"
 #include <QApplication>
 #include <QAction>
 #include <QComboBox>
+#include <QCloseEvent>
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QLabel>
 #include <QProcess>
+#include <QProcessEnvironment>
 #include <QPushButton>
 #include <QSettings>
 #include <QTabWidget>
@@ -28,7 +32,7 @@ namespace c=imageeditor::core;namespace u=imageeditor::ui;namespace p=imageedito
 namespace {
 int failures{};constexpr std::size_t MiB=1024*1024;
 #define CHECK(...) do{if(!(__VA_ARGS__)){++failures;std::cerr<<"FAIL "<<__LINE__<<": " #__VA_ARGS__ "\n";}}while(false)
-template<class F>bool waitFor(F f){QElapsedTimer t;t.start();while(!f()&&t.elapsed()<6000)QTest::qWait(10);return f();}
+template<class F>bool waitFor(F f,int timeout=6000){QElapsedTimer t;t.start();while(!f()&&t.elapsed()<timeout)QTest::qWait(10);return f();}
 const QString missingGpu="gpu:ffff:ffff:0123456789abcdef0123456789abcdef";
 void choose(QWidget& owner,const char* name,int value){auto* box=owner.findChild<QComboBox*>(name);CHECK(box&&box->findData(value)>=0);if(box)box->setCurrentIndex(box->findData(value));}
 struct RetainedCommand final:c::Command {
@@ -50,6 +54,55 @@ void historyPolicy()
     CHECK(history.undoDepth()==1&&history.memoryUsed()==128*MiB&&!history.canRedo());
     history.setMemoryBudget(512*MiB);CHECK(history.undoDepth()==1); // Lost history is not resurrected.
 }
+void compatibilityCachePolicy()
+{
+    namespace d=r::detail;
+    QTemporaryDir files;QSettings settings(files.filePath("compatibility.ini"),QSettings::IniFormat);
+    d::GraphicsProbeCache cache(settings);
+    const auto key=d::graphicsPresentationCacheKey("gpu-a","driver-1","display-1",true);
+    const auto other=d::graphicsPresentationCacheKey("gpu-b","driver-1","display-1",true);
+    CHECK(key==d::graphicsPresentationCacheKey("gpu-a","driver-1","display-1",true));
+    CHECK(key!=other);
+    CHECK(key!=d::graphicsPresentationCacheKey("gpu-a","driver-2","display-1",true));
+    CHECK(key!=d::graphicsPresentationCacheKey("gpu-a","driver-1","display-2",true));
+    CHECK(key!=d::graphicsPresentationCacheKey("gpu-a","driver-1","display-1",false));
+    CHECK(d::graphicsPresentationCacheKey({},"driver-1","display-1",true).isEmpty());
+    CHECK(!cache.contains(key));cache.remember(key);cache.remember(other);CHECK(cache.contains(key)&&cache.contains(other));
+    {QSettings reopened(settings.fileName(),QSettings::IniFormat);CHECK(d::GraphicsProbeCache(reopened).contains(key));}
+    cache.beginStartup(key);cache.completeStartup(key);cache.recoverInterruptedStartup();CHECK(cache.contains(key));
+    cache.beginStartup(key);cache.completeStartup(other);cache.recoverInterruptedStartup();
+    CHECK(!cache.contains(key)&&cache.contains(other)); // Interrupted startup invalidates only its configuration.
+    cache.remember("bad entry");CHECK(!cache.contains("bad entry"));
+    for(int i=0;i<24;++i)cache.remember(d::graphicsPresentationCacheKey(QString::number(i),"driver","display",true));
+    CHECK(settings.value("graphics/presentation-v1/supported").toStringList().size()==16);
+    CHECK(!cache.contains(other));
+}
+void compatibilityCacheRoundtrip(const QString& settingsRoot)
+{
+    const auto run=[&](bool rejectHelper,bool changedDisplay,const QStringList& extra=QStringList{}) {
+        QProcess process;process.setProcessChannelMode(QProcess::MergedChannels);
+        auto env=QProcessEnvironment::systemEnvironment();
+        if(rejectHelper)env.insert("VULKANA_TEST_GPU_PROBE_TIMEOUT","1");else env.remove("VULKANA_TEST_GPU_PROBE_TIMEOUT");
+        if(changedDisplay)env.insert("KDE_SESSION_VERSION","cache-test-changed-display");
+        // Bypassing shader caches is deliberately unrelated to WSI compatibility.
+        if(rejectHelper){env.insert("__GL_SHADER_DISK_CACHE","0");env.insert("MESA_SHADER_CACHE_DISABLE","true");}
+        process.setProcessEnvironment(env);QElapsedTimer elapsed;elapsed.start();
+        QStringList args{"--native","--verify-only","--settings-root",settingsRoot};args.append(extra);
+        process.start(QCoreApplication::applicationFilePath(),args);
+        CHECK(process.waitForFinished(15000)&&process.exitStatus()==QProcess::NormalExit);
+        std::cout<<"Compatibility cache launch: "<<elapsed.elapsed()<<"ms, result "<<process.exitCode()<<'\n';
+        return process.exitCode();
+    };
+    CHECK(run(false,false)==0); // First launch verifies and records success.
+    CHECK(run(true,false)==0); // Fresh process must reuse it, even with cold shaders.
+    CHECK(run(true,true)==2); // Changed display context requires a real helper.
+    CHECK(run(true,false)==0); // Timeout did not overwrite the known-good context.
+    CHECK(run(false,false,{"--missing-probe"})==2); // Explicit diagnostic helpers bypass durable cache.
+    CHECK(run(true,false,{"--mark-startup-pending"})==0);
+    CHECK(run(true,false)==2); // No confirmed/clean completion: discard that cached success.
+    CHECK(run(false,false)==0);
+    CHECK(run(true,false)==0);
+}
 void settingsPolicy()
 {
     QSettings settings;CHECK(p::loadPerformanceSettings(settings)==p::PerformanceSettings{});
@@ -69,6 +122,30 @@ void settingsPolicy()
     CHECK(r::selectGraphicsDevice(devices,"")==1&&r::selectGraphicsDevice(devices,"two")==1);
     devices[1].availability=r::GraphicsDeviceAvailability::Unsupported;
     CHECK(!r::selectGraphicsDevice(devices,"")&&!r::selectGraphicsDevice(devices,"one"));
+    using Status=r::GraphicsProbeStatus;
+    const std::vector<r::GraphicsDeviceInfo> candidates{{"dedicated","Dedicated",10000},{"integrated","Integrated",5000},{"software","Software",500}};
+    QStringList checks;
+    auto result=r::chooseVerifiedGraphicsDevice(candidates,"dedicated",[&](const QString& id){
+        checks.append(id);return r::GraphicsProbeResult{id=="software"?Status::Supported:Status::Rejected,{}};
+    });
+    CHECK(result.device=="software"&&result.error.isEmpty());
+    CHECK(checks==QStringList({"dedicated","integrated","software"})); // Every fallback checked.
+    checks.clear();
+    result=r::chooseVerifiedGraphicsDevice(candidates,{},[&](const QString& id){
+        checks.append(id);return r::GraphicsProbeResult{checks.size()==1?Status::Inconclusive:Status::Supported,{}};
+    });
+    CHECK(result.device=="dedicated"&&checks==QStringList({"dedicated","dedicated"})); // Slow Auto winner is not rejected.
+    checks.clear();
+    result=r::chooseVerifiedGraphicsDevice(candidates,"integrated",[&](const QString& id){
+        checks.append(id);return r::GraphicsProbeResult{Status::Inconclusive,"timeout"};
+    });
+    CHECK(result.device.isEmpty()&&!result.error.isEmpty()&&checks==QStringList({"integrated","integrated"}));
+    checks.clear();
+    result=r::chooseVerifiedGraphicsDevice(candidates,"removed",[&](const QString& id){
+        checks.append(id);return r::GraphicsProbeResult{Status::Rejected,{}};
+    });
+    CHECK(result.device.isEmpty()&&!result.error.isEmpty()&&checks.size()==3);
+    CHECK(p::loadPerformanceSettings(settings)==p::PerformanceSettings{}); // No policy writes preferences.
 }
 void controls(const QString& artifacts)
 {
@@ -150,7 +227,27 @@ void integration(QVulkanInstance* instance,const QString& preferred,bool expectF
     });recoveryWatcher.start(10);window.show();
     CHECK(window.openImageFromPath(files.filePath("fixture.png")));auto first=window.activeDocumentId();
     auto* view=canvas(window);CHECK(view);if(!view)return;
-    if(instance)CHECK(waitFor([&]{return view->rendererStats().framesSubmitted>0;}));
+    if(instance) {
+        QElapsedTimer clock;clock.start();qint64 last=0,largestGap=0;int ticks=0;bool cardSeen=false;
+        QTimer heartbeat;QObject::connect(&heartbeat,&QTimer::timeout,&window,[&] {
+            const auto now=clock.elapsed();largestGap=std::max(largestGap,now-last);last=now;++ticks;
+            if(auto* card=window.findChild<QDialog*>("GraphicsInitializationCard");card&&card->isVisible()) {
+                if(!cardSeen) {
+                    CHECK(!card->findChild<QDialogButtonBox*>());
+                    QTest::keyClick(card,Qt::Key_Escape);
+                    CHECK(card->isVisible());
+                }
+                cardSeen=true;
+                const auto artifacts=qEnvironmentVariable("VULKANA_GRAPHICS_STARTUP_REVIEW");
+                if(!artifacts.isEmpty()&&!QFileInfo::exists(artifacts))CHECK(card->grab().save(artifacts));
+            }
+        });heartbeat.start(10);
+        CHECK(waitFor([&]{return view->rendererStats().framesSubmitted>0;},30000));heartbeat.stop();
+        CHECK(largestGap<1000); // Cold compilation must not stall the GUI for seconds.
+        if(clock.elapsed()>1000)CHECK(cardSeen&&ticks>30);
+        if(auto* card=window.findChild<QDialog*>("GraphicsInitializationCard"))CHECK(!card->isVisible());
+        std::cout<<"Graphics startup: elapsed="<<clock.elapsed()<<"ms GUI max gap="<<largestGap<<"ms ticks="<<ticks<<" card="<<cardSeen<<'\n';
+    }
     if(instance&&(expectFallback||preferred=="missing")) {
         CHECK(waitFor([&]{return recoveryNotices==1;}));
         checkSavedGpuInFreshProcess(QString::fromStdString(view->rendererStats().deviceId));
@@ -223,18 +320,156 @@ void integration(QVulkanInstance* instance,const QString& preferred,bool expectF
     CHECK(recoveryNotices==((instance&&(expectFallback||preferred=="missing"))?1:0));
     other.close();window.close();
 }
+void initializationLifetime(QVulkanInstance& instance,bool cancel,bool startupDialog=false)
+{
+    u::MainWindow window(&instance,false);window.setUnsavedPromptEnabled(false);window.show();
+    auto* view=canvas(window);CHECK(view);if(!view)return;
+    QElapsedTimer clock;clock.start();qint64 last=0,maxGap=0,closeAt=0;bool acted=false,repeatedClose=false,abortVisible=true;int ticks=0;
+    QTimer timer;QObject::connect(&timer,&QTimer::timeout,&window,[&] {
+        const auto now=clock.elapsed();maxGap=std::max(maxGap,now-last);last=now;++ticks;
+        if(!view->graphicsInitializing())return;
+        auto* card=window.findChild<QDialog*>("GraphicsInitializationCard");
+        if(acted) {
+            if(cancel) {
+                auto* title=card?card->findChild<QLabel*>("ToolTitle"):nullptr;
+                abortVisible&=window.isVisible()&&card&&card->isVisible()&&title&&title->text()==QStringLiteral("Aborting…");
+                if(!repeatedClose&&now-closeAt>100) {
+                    repeatedClose=true;
+                    QCloseEvent close;QCoreApplication::sendEvent(window.windowHandle(),&close);
+                }
+            }
+            return;
+        }
+        if(cancel&&(!card||!card->isVisible()))return;
+        acted=true;
+        if(cancel) {
+            // Exercise the window-manager close path after the card is visible,
+            // including a startup chooser underneath it, not just early close().
+            QElapsedTimer closeTime;closeTime.start();
+            QCloseEvent close;QCoreApplication::sendEvent(window.windowHandle(),&close);
+            CHECK(closeTime.elapsed()<200);
+            CHECK(window.isVisible()&&card->isVisible());
+            auto* title=card->findChild<QLabel*>("ToolTitle");CHECK(title&&title->text()==QStringLiteral("Aborting…"));
+            closeAt=now;
+            const auto artifacts=qEnvironmentVariable("VULKANA_GRAPHICS_STARTUP_REVIEW");
+            if(!artifacts.isEmpty())CHECK(card->grab().save(artifacts+".aborting.png"));
+        } else {
+            // Native surface changes must not free the worker's VkDevice/layout
+            // or restart the same cold compilation. The job has no swapchain.
+            view->destroy();view->create();window.resize(1420,850);
+        }
+    });timer.start(10);
+    if(startupDialog) {
+        window.showStartupDocument();
+        for(auto* dialog:window.findChildren<QDialog*>())
+            CHECK(!dynamic_cast<u::NewDocumentDialog*>(dialog)); // Eager startup UI cannot bypass the gate.
+    }
+    CHECK(waitFor([&]{return acted&&(cancel?!window.isVisible():view->rendererStats().presentQueuedFrames>0);},30000));
+    timer.stop();CHECK(acted&&ticks>0&&maxGap<1000);
+    if(cancel){CHECK(repeatedClose&&abortVisible);CHECK(view->rendererStats().presentQueuedFrames==0);}
+    if(!cancel)CHECK(view->rendererStats().resourceGeneration==1);
+    std::cout<<"Graphics initialization "<<(cancel?"close":"remap")<<": GUI max gap="<<maxGap<<"ms ticks="<<ticks<<'\n';
+    window.close();
+}
+class StartupOrderWatcher final:public QObject {
+public:
+    explicit StartupOrderWatcher(r::CanvasWindow& canvas):canvas_(canvas){}
+    bool earlyUi{},chooserSeen{},noticeSeen{},languageSeen{},welcomeSeen{};
+protected:
+    bool eventFilter(QObject* target,QEvent* event) override
+    {
+        if(event->type()!=QEvent::Show)return false;
+        const auto chooser=dynamic_cast<u::NewDocumentDialog*>(target);
+        const bool notice=target->objectName()=="StartupUpdateNotification";
+        const bool language=target->objectName()=="FirstRunLanguage";
+        const bool welcome=target->objectName()=="DocumentWelcome";
+        if(!chooser&&!notice&&!language&&!welcome)return false;
+        earlyUi|=canvas_.rendererStats().presentQueuedFrames==0||canvas_.graphicsInitializing();
+        if(chooser){chooserSeen=true;QTimer::singleShot(0,chooser,&QDialog::reject);}
+        if(language){languageSeen=true;if(auto* dialog=dynamic_cast<QDialog*>(target))QTimer::singleShot(0,dialog,&QDialog::reject);}
+        noticeSeen|=notice;
+        welcomeSeen|=welcome;
+        return false;
+    }
+private:
+    r::CanvasWindow& canvas_;
+};
+void startupGraphicsOrdering(QVulkanInstance& instance)
+{
+    const auto version=qApp->applicationVersion();qApp->setApplicationVersion("0.3.3");
+    u::MainWindow window(&instance,false);window.setUnsavedPromptEnabled(false);
+    auto* initialGate=window.findChild<QDialog*>("GraphicsInitializationCard");
+    CHECK(initialGate&&!initialGate->isHidden()&&!window.startupGraphicsReady());
+    window.show(); // Establish the native parent, without processing exposure yet.
+    CHECK(initialGate&&initialGate->isVisible());
+    auto* view=canvas(window);CHECK(view);if(!view)return;
+    StartupOrderWatcher watcher(*view);qApp->installEventFilter(&watcher);
+    const auto languageChoice=qApp->property("vulkanaOfferLanguageChoice");
+    qApp->setProperty("vulkanaOfferLanguageChoice",true);
+    // Queue startup before the first surface/expose/frame event. Auto must
+    // obey the same readiness boundary as an explicitly selected GPU.
+    window.startStartupFlow(true,nullptr,true);
+    auto* welcome=window.findChild<QWidget*>("DocumentWelcome");CHECK(welcome&&!welcome->isVisible());
+    // The preinstalled shield must block shortcuts before compilation begins,
+    // not just when the asynchronous worker eventually announces itself.
+    QTest::keyClick(&window,Qt::Key_N,Qt::ControlModifier);
+    CHECK(!watcher.chooserSeen);
+    CHECK(waitFor([&]{return watcher.chooserSeen&&watcher.noticeSeen&&watcher.languageSeen&&watcher.welcomeSeen&&window.startupGraphicsReady();},30000));
+    std::cout<<"Startup ordering: chooser="<<watcher.chooserSeen<<" language="<<watcher.languageSeen
+        <<" notice="<<watcher.noticeSeen<<" welcome="<<watcher.welcomeSeen<<" premature="<<watcher.earlyUi<<'\n';
+    CHECK(!watcher.earlyUi);
+    if(auto* card=window.findChild<QDialog*>("GraphicsInitializationCard"))CHECK(!card->isVisible());
+    CHECK(welcome&&welcome->isVisible()); // Cancelling New retains the ordinary empty-workspace actions.
+    qApp->setProperty("vulkanaOfferLanguageChoice",languageChoice);
+    qApp->setApplicationVersion(version);
+    qApp->removeEventFilter(&watcher);window.close();
+}
+void hiddenCompatibilityProbe()
+{
+    QProcess process;process.setProcessChannelMode(QProcess::MergedChannels);
+    auto environment=QProcessEnvironment::systemEnvironment();environment.insert("WAYLAND_DEBUG","client");
+    process.setProcessEnvironment(environment);
+    process.start(QCoreApplication::applicationFilePath(),{QString::fromLatin1(r::graphicsDeviceProbeOption),p::startupGraphicsDevice(),"-platform","wayland"});
+    CHECK(process.waitForFinished(15000)&&process.exitCode()==0&&process.exitStatus()==QProcess::NormalExit);
+    const auto protocol=process.readAll();
+    CHECK(protocol.contains(".attach(")&&protocol.contains(".commit(")); // Real buffer import/presentation, not a headless rendering substitute.
+    CHECK(!protocol.contains("get_toplevel")&&!protocol.contains("get_xdg_surface")); // No desktop window to flash or steal focus.
+}
+void closeBeforeGraphicsStarts(QVulkanInstance& instance)
+{
+    u::MainWindow window(&instance,false);window.setUnsavedPromptEnabled(false);window.show();
+    auto* view=canvas(window);CHECK(view);if(!view)return;
+    CHECK(!window.startupGraphicsReady()&&!view->graphicsInitializing());
+    QElapsedTimer clock;clock.start();QCloseEvent event;
+    QCoreApplication::sendEvent(window.windowHandle(),&event);
+    CHECK(clock.elapsed()<200&&!window.isVisible());
+    QTest::qWait(100);
+    CHECK(view->rendererStats().resourceGeneration==0&&view->rendererStats().presentQueuedFrames==0);
+}
 }
 int main(int argc,char** argv)
 {
     QCoreApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
     QApplication app(argc,argv);app.setQuitOnLastWindowClosed(false);
     const auto probe=app.arguments().indexOf(QString::fromLatin1(r::graphicsDeviceProbeOption));
-    if(probe>=0)return r::runGraphicsDeviceProbe(app,app.arguments().value(probe+1));
+    if(probe>=0) {
+        if(qEnvironmentVariableIsSet("VULKANA_TEST_GPU_PROBE_TIMEOUT"))return 3;
+        return r::runGraphicsDeviceProbe(app,app.arguments().value(probe+1),
+            !app.arguments().contains(QString::fromLatin1(r::graphicsDeviceProbeBasicColorOption)));
+    }
     QTemporaryDir settings;app.setOrganizationName("VulkanaTests");app.setApplicationName("Performance");
     const auto args=app.arguments();
+    if(args.contains("--probe-unavailable")) {
+        const auto checked=r::checkGraphicsDevicePresentation(missingGpu);
+        CHECK(checked.status==r::GraphicsProbeStatus::Rejected);
+        return failures?1:0; // Exact-adapter probe must not silently try Auto.
+    }
     const auto settingsRoot=args.contains("--settings-root")?args.value(args.indexOf("--settings-root")+1):settings.path();
     QSettings::setDefaultFormat(QSettings::IniFormat);QSettings::setPath(QSettings::IniFormat,QSettings::UserScope,settingsRoot);
     app.setProperty("performanceTestSettingsRoot",settingsRoot);
+    if(args.contains("--probe-cache-roundtrip")) {
+        compatibilityCacheRoundtrip(settingsRoot);return failures?1:0;
+    }
     if(args.contains("--saved-gpu")) {
         QSettings current;const auto expected=args.value(args.indexOf("--saved-gpu")+1);
         CHECK(p::loadPerformanceSettings(current).graphicsDevice==expected&&p::startupGraphicsDevice()==expected);return failures?1:0;
@@ -249,21 +484,44 @@ int main(int argc,char** argv)
     u::applyEditorTheme(app);const bool native=args.contains("--native");
     const auto preferred=args.contains("--gpu")?args.value(args.indexOf("--gpu")+1):QString{};
     if(native){QSettings s;p::PerformanceSettings v;v.graphicsDevice=preferred=="missing"?missingGpu:preferred;CHECK(p::savePerformanceSettings(s,v));
-        const auto accepted=r::verifyStartupGraphicsDevice(args.contains("--missing-probe")?QStringLiteral("/missing/vulkana-probe"):QString{});
-        if(!preferred.isEmpty()&&QGuiApplication::platformName().startsWith("wayland"))CHECK(accepted==(preferred!="missing"&&!args.contains("--expect-fallback")));
+        if(args.contains("--inconclusive-probe"))qputenv("VULKANA_TEST_GPU_PROBE_TIMEOUT","1");
+        QString error;
+        const auto accepted=r::verifyStartupGraphicsDevice(args.contains("--missing-probe")?QStringLiteral("/missing/vulkana-probe"):QString{},&error);
         CHECK(p::loadPerformanceSettings(s)==v&&p::startupPerformanceSettings()==v);
+        if(args.contains("--verify-only")) {
+            if(accepted&&args.contains("--mark-startup-pending"))r::beginGraphicsDeviceStartup(p::startupGraphicsDevice(),true);
+            return failures?1:(accepted?0:2);
+        }
+        if((args.contains("--missing-probe")||args.contains("--inconclusive-probe"))&&QGuiApplication::platformName().startsWith("wayland")) {
+            CHECK(!accepted&&!error.isEmpty());CHECK(p::startupGraphicsDevice()==v.graphicsDevice);
+            if(args.contains("--inconclusive-probe")) {
+                qunsetenv("VULKANA_TEST_GPU_PROBE_TIMEOUT");
+                CHECK(r::verifyStartupGraphicsDevice()); // Timeout was not cached as GPU rejection.
+                CHECK(p::loadPerformanceSettings(s)==v);
+            }
+            return failures?1:0; // An inconclusive helper never starts an unverified canvas.
+        }
+        CHECK(accepted);if(!accepted)return 1;
+        if(args.contains("--hidden-probe")){hiddenCompatibilityProbe();return failures?1:0;}
     }
     else {
-        settingsPolicy();historyPolicy();controls(args.contains("--artifacts")?args.value(args.indexOf("--artifacts")+1):QString{});
+        settingsPolicy();historyPolicy();compatibilityCachePolicy();controls(args.contains("--artifacts")?args.value(args.indexOf("--artifacts")+1):QString{});
         for(const auto* cap:{"0","1","2","8"}){QProcess child;child.start(QCoreApplication::applicationFilePath(),{"--workers",cap});CHECK(child.waitForFinished(15000)&&child.exitCode()==0);}
     }
     QVulkanInstance instance;int validation{};
     if(native){instance.setApiVersion(QVersionNumber(1,2));instance.setLayers({"VK_LAYER_KHRONOS_validation"});
+        if(instance.supportedExtensions().contains("VK_EXT_swapchain_colorspace"))instance.setExtensions({"VK_EXT_swapchain_colorspace"});
         instance.installDebugOutputFilter([&](auto flags,auto types,const void* message){
             if(types.testFlag(QVulkanInstance::ValidationMessage)&&(flags&(QVulkanInstance::ErrorSeverity|QVulkanInstance::WarningSeverity))) {
                 ++validation;std::cerr<<static_cast<const VkDebugUtilsMessengerCallbackDataEXT*>(message)->pMessage<<'\n';}return false;
         });if(!instance.create())return 2;}
-    integration(native?&instance:nullptr,preferred,args.contains("--expect-fallback"));CHECK(validation==0);
+    if(native&&args.contains("--graphics-early-close"))closeBeforeGraphicsStarts(instance);
+    else if(native&&args.contains("--graphics-startup-order"))startupGraphicsOrdering(instance);
+    else if(native&&(args.contains("--graphics-cancel")||args.contains("--graphics-remap")))
+        initializationLifetime(instance,args.contains("--graphics-cancel"),args.contains("--startup-dialog"));
+    else integration(native?&instance:nullptr,preferred,args.contains("--expect-fallback"));
+    CHECK(validation==0);
+    r::completeGraphicsDeviceStartup();
     if(!native)fallbackPopup(args.contains("--artifacts")?args.value(args.indexOf("--artifacts")+1):QString{});
     std::cout<<"Performance checks: "<<failures<<" failures\n";return failures?1:0;
 }

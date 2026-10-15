@@ -34,6 +34,14 @@ int main(int argc, char* argv[])
     QStringList startupArguments;
     for (int i = 0; i < argc; ++i) startupArguments.append(QString::fromLocal8Bit(argv[i]));
     const auto startup = imageeditor::platform::inspectPlatformStartup(startupArguments);
+    if(startup.coldShaderCache) {
+        // Drivers can initialize during QApplication construction. Keep these
+        // launch-local overrides in the environment so GPU probe children use
+        // the same policy. No cache files or user settings are removed.
+        qputenv("__GL_SHADER_DISK_CACHE","0");
+        qputenv("MESA_SHADER_CACHE_DISABLE","true");
+        qInfo()<<"Cold shader cache: NVIDIA/Mesa disk caches bypassed for this launch and GPU probes";
+    }
     // This survives a Qt connection failure during QApplication construction.
     qInfo().noquote() << "Qt startup: session=" << (startup.sessionType.isEmpty() ? QStringLiteral("<unset>") : startup.sessionType)
         << "selection=" << startup.selectionSource()
@@ -75,7 +83,8 @@ int main(int argc, char* argv[])
     application.setApplicationDisplayName(QStringLiteral("Vulkana Image Editor"));
     application.setWindowIcon(QIcon(QStringLiteral(":/Vulkana512.png")));
     const auto probeArgument=application.arguments().indexOf(QString::fromLatin1(imageeditor::render::graphicsDeviceProbeOption));
-    if(probeArgument>=0)return imageeditor::render::runGraphicsDeviceProbe(application,application.arguments().value(probeArgument+1));
+    if(probeArgument>=0)return imageeditor::render::runGraphicsDeviceProbe(application,application.arguments().value(probeArgument+1),
+        !application.arguments().contains(QString::fromLatin1(imageeditor::render::graphicsDeviceProbeBasicColorOption)));
     const auto& performance=imageeditor::platform::startupPerformanceSettings();
     (void)imageeditor::core::configureBoundedParallelLimit(unsigned(performance.processingThreads));
     imageeditor::ui::applyEditorTheme(application);
@@ -91,6 +100,8 @@ int main(int argc, char* argv[])
     parser.addVersionOption();
     QCommandLineOption smokeTestOption(QStringLiteral("smoke-test"),
         QStringLiteral("Exercise the desktop/Vulkan lifecycle and exit automatically."));
+    QCommandLineOption coldCacheOption(QStringLiteral("cold-cache"),
+        QStringLiteral("Bypass NVIDIA/Mesa shader disk caches for this launch without deleting them."));
     QCommandLineOption fpsOption(QStringLiteral("fps"),
         QStringLiteral("Show the actual Vulkan canvas frame rate in the status bar."));
     QCommandLineOption skipNewOption(QStringLiteral("skip-new-dialog"),
@@ -122,6 +133,7 @@ int main(int argc, char* argv[])
     parser.addOption(unregisterProjects);
     parser.addOption(forceProjectPrompt);
     parser.addOption(smokeTestOption);
+    parser.addOption(coldCacheOption);
     parser.addOption(fpsOption);
     parser.addOption(skipNewOption);
     parser.addOption(forceUpdateOption);
@@ -158,6 +170,8 @@ int main(int argc, char* argv[])
             parser.isSet(restartOption) ? 15000 : 5000);
         if (result == imageeditor::platform::SingleInstance::Result::Forwarded) {
             qInfo() << "Launch forwarded to the running Vulkana instance.";
+            if(parser.isSet(coldCacheOption))
+                qInfo()<<"--cold-cache takes effect at startup. Close Vulkana, then launch with this flag again.";
             if (parser.isSet(panelDefaultOption))
                 qInfo() << "--panel-default takes effect at startup. Close Vulkana, then launch with this flag again.";
             if (parser.isSet(testUpdateOption))
@@ -181,7 +195,20 @@ int main(int argc, char* argv[])
     for (const auto& diagnostic : imageeditor::platform::migrateLegacyUserPresets())
         qWarning().noquote() << diagnostic;
 
-    (void)imageeditor::render::verifyStartupGraphicsDevice();
+    QString graphicsCheckError;
+    // Compatibility verification has no separate progress window. Slow shader
+    // compilation is presented by the main window's initialization card.
+    const bool graphicsReady=imageeditor::render::verifyStartupGraphicsDevice({},&graphicsCheckError);
+    if(!graphicsReady) {
+        if(graphicsCheckError.isEmpty())return EXIT_SUCCESS;
+        qCritical().noquote()<<graphicsCheckError;
+        if(!parser.isSet(smokeTestOption))QMessageBox::critical(nullptr,QStringLiteral("Graphics device unavailable"),graphicsCheckError);
+        return EXIT_FAILURE;
+    }
+    // An intentional close during cold compilation is not a failed GPU start.
+    QObject::connect(&application,&QCoreApplication::aboutToQuit,[] {
+        imageeditor::render::completeGraphicsDeviceStartup();
+    });
 
     const auto platform = QGuiApplication::platformName();
     for (const auto* screen : QGuiApplication::screens()) {
@@ -297,23 +324,30 @@ int main(int argc, char* argv[])
             window.resize(1260, 780);
         }
         window.show();
-        const bool opened = !parser.positionalArguments().isEmpty()
-            && window.openImageFromPath(parser.positionalArguments().front());
-        if (opened) qInfo().noquote() << "Opened document argument:"
-            << QFileInfo(parser.positionalArguments().front()).absoluteFilePath();
-        if (!parser.isSet(smokeTestOption))
-            QTimer::singleShot(0, &window, [&window, opened, &parser, &skipNewOption, &testUpdateOption] {
-                window.startStartupFlow(!opened && !parser.isSet(skipNewOption), nullptr, parser.isSet(testUpdateOption));
-            });
-        // Every document argument opens in the shared workspace, regardless of
-        // which package or executable received the desktop launch.
-        for (const auto& path : parser.positionalArguments().mid(1)) {
-            if (window.openImageFromPath(path))
-                qInfo().noquote() << "Opened document argument:" << QFileInfo(path).absoluteFilePath();
-        }
-        if (parser.isSet(smokeTestOption)) {
-            window.runIntegrationSmokeTest();
-        }
+        // Defer startup imports too: PSD/PDF review and error dialogs must not
+        // appear over the graphics gate. Keep this timer scoped to the window.
+        QTimer readyStartup;readyStartup.setInterval(0);
+        QObject::connect(&readyStartup,&QTimer::timeout,&window,[&] {
+            if(!window.isVisible()){readyStartup.stop();return;}
+            if(!window.startupGraphicsReady()){readyStartup.setInterval(16);return;}
+            readyStartup.stop();
+            const bool opened = !parser.positionalArguments().isEmpty()
+                && window.openImageFromPath(parser.positionalArguments().front());
+            if (opened) qInfo().noquote() << "Opened document argument:"
+                << QFileInfo(parser.positionalArguments().front()).absoluteFilePath();
+            if (!parser.isSet(smokeTestOption))
+                QTimer::singleShot(0, &window, [&window, opened, &parser, &skipNewOption, &testUpdateOption] {
+                    window.startStartupFlow(!opened && !parser.isSet(skipNewOption), nullptr, parser.isSet(testUpdateOption));
+                });
+            // Every document argument opens in the shared workspace, regardless
+            // of which package or executable received the desktop launch.
+            for (const auto& path : parser.positionalArguments().mid(1)) {
+                if (window.openImageFromPath(path))
+                    qInfo().noquote() << "Opened document argument:" << QFileInfo(path).absoluteFilePath();
+            }
+            if (parser.isSet(smokeTestOption))window.runIntegrationSmokeTest();
+        });
+        readyStartup.start();
         instance.setOpenHandler([&window](const QStringList& files) { window.receiveExternalLaunch(files); });
         result = application.exec();
         instance.setOpenHandler({});

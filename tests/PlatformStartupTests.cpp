@@ -36,6 +36,15 @@ int main(int argc, char** argv)
     retainPlatformArguments(startup);
     check(platformRestartArguments().isEmpty(), "no stale automatic restart override");
     check(env.value("QT_QPA_PLATFORM") == "xcb", "diagnostics never mutate the environment");
+    check(!startup.coldShaderCache,"shader cache behavior unchanged by default");
+    startup=inspectPlatformStartup({"vulkana","--cold-cache","-platform","wayland"},env);
+    check(startup.coldShaderCache&&startup.explicitArguments==QStringList{"-platform","wayland"},"cold cache detected before Qt consumes arguments");
+    retainPlatformArguments(startup);
+    check(platformRestartArguments()==QStringList{"-platform","wayland"},"cold-cache flag is not saved as a restart preference");
+    check(!inspectPlatformStartup({"vulkana","--","--cold-cache"},env).coldShaderCache,"positional filename is not a cache flag");
+    for(const auto* option:{"-qwindowtitle","--language","--language-pack-dir","--ui-config","-platform","--internal-gpu-probe"})
+        check(!inspectPlatformStartup({"vulkana",option,"--cold-cache"},env).coldShaderCache,"option value is not a cache flag");
+    check(!env.contains("__GL_SHADER_DISK_CACHE")&&!env.contains("MESA_SHADER_CACHE_DISABLE"),"inspection remains read-only");
     std::cout << "Platform startup diagnostics/restart: " << failures << " failures\n";
     return failures ? 1 : 0;
 }

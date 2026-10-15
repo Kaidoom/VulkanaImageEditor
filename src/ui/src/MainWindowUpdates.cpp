@@ -27,6 +27,7 @@ void MainWindow::startStartupFlow(bool showNewDocument, QNetworkAccessManager* t
 {
     if (startupUiTimer_) return;
     if (!externalOpenFiles_.isEmpty()) showNewDocument = false;
+    startupNewDocumentPending_ = showNewDocument;
     if (showNewDocument && activeDocument_ && activeDocument_->untouched && !session().document()->isModified()) {
         auto placeholder = activeDocument_;
         showEmptyWorkspace();
@@ -35,7 +36,6 @@ void MainWindow::startStartupFlow(bool showNewDocument, QNetworkAccessManager* t
         documents_.clear();
         refreshDocumentTabs(); updateDocumentResources();
     }
-    startupNewDocumentPending_ = showNewDocument;
     startupUiTimer_ = new QTimer(this);
     startupUiTimer_->setSingleShot(true);
     connect(startupUiTimer_, &QTimer::timeout, this, &MainWindow::presentStartupUi);
@@ -62,7 +62,14 @@ void MainWindow::startStartupFlow(bool showNewDocument, QNetworkAccessManager* t
 
 void MainWindow::presentStartupUi()
 {
-    if (!isVisible()) return;
+    if (!isVisible()||graphicsClosePending_) return;
+    // The compiler is not yet running before the first expose/render event.
+    // Wait for a presented frame, not just for "not currently compiling", for
+    // Auto as well as explicit GPUs and for every kind of startup UI.
+    if(canvasWindow_->vulkanInstance()&&!canvasWindow_->rendererStats().presentQueuedFrames) {
+        startupUiTimer_->start(100);return;
+    }
+    if(canvasWindow_->graphicsInitializing()) {startupUiTimer_->start(100);return;}
     if (startupUpdateNoticePending_) {
         startupUpdateNoticePending_ = false;
         showStartupUpdateNotice();
@@ -75,10 +82,8 @@ void MainWindow::presentStartupUi()
         && (qApp->property("vulkanaForceProjectIntegrationPrompt").toBool()
             || !QSettings().contains(platform::projectIntegrationChoiceKey));
     if (!startupNewDocumentPending_ && !chooseLanguage && !offerIntegration) return;
-    // Let an explicit GPU choice finish its first presentation and, if needed,
-    // show the recovery notice before the other startup cards.
-    if(gpuFallbackPending_||(!platform::startupPerformanceSettings().graphicsDevice.isEmpty()
-        &&canvasWindow_->vulkanInstance()&&!canvasWindow_->rendererStats().presentQueuedFrames)) {
+    // A replacement GPU's recovery notice precedes the other startup cards.
+    if(gpuFallbackPending_) {
         startupUiTimer_->start(200);return;
     }
     if (isMinimized() || fileBusy_ || workspaceDialog_ || QApplication::activeModalWidget()

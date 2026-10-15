@@ -20,6 +20,27 @@ file(GLOB _performance_icons "${PROJECT_SOURCE_DIR}/assets/icons/*.svg")
 qt_add_resources(imageeditor_performance_tests "performance_icons" PREFIX "/" BASE "${PROJECT_SOURCE_DIR}/assets" FILES ${_performance_icons})
 add_test(NAME imageeditor_performance_tests COMMAND imageeditor_performance_tests)
 set_tests_properties(imageeditor_performance_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 90 LABELS "performance;preferences;cache;threads")
+if(NOT "$ENV{WAYLAND_DISPLAY}" STREQUAL "")
+    add_test(NAME imageeditor_wayland_gpu_cache COMMAND imageeditor_performance_tests --probe-cache-roundtrip)
+    add_test(NAME imageeditor_wayland_gpu_hidden_probe COMMAND imageeditor_performance_tests --native --hidden-probe)
+    set_tests_properties(imageeditor_wayland_gpu_cache imageeditor_wayland_gpu_hidden_probe PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=wayland" TIMEOUT 90 RUN_SERIAL TRUE LABELS "vulkan;performance;startup")
+    add_test(NAME imageeditor_wayland_gpu_cold_startup COMMAND imageeditor_performance_tests --native)
+    add_test(NAME imageeditor_wayland_gpu_cold_startup_order COMMAND imageeditor_performance_tests --native --graphics-startup-order)
+    add_test(NAME imageeditor_wayland_gpu_cold_early_close COMMAND imageeditor_performance_tests --native --graphics-early-close)
+    add_test(NAME imageeditor_wayland_gpu_cold_close COMMAND imageeditor_performance_tests --native --graphics-cancel)
+    add_test(NAME imageeditor_wayland_gpu_cold_nested_close COMMAND imageeditor_performance_tests --native --graphics-cancel --startup-dialog)
+    add_test(NAME imageeditor_wayland_gpu_cold_remap COMMAND imageeditor_performance_tests --native --graphics-remap)
+    set_tests_properties(imageeditor_wayland_gpu_cold_startup imageeditor_wayland_gpu_cold_startup_order imageeditor_wayland_gpu_cold_early_close imageeditor_wayland_gpu_cold_close imageeditor_wayland_gpu_cold_nested_close imageeditor_wayland_gpu_cold_remap PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=wayland;__GL_SHADER_DISK_CACHE=0;MESA_SHADER_CACHE_DISABLE=true" TIMEOUT 90 RUN_SERIAL TRUE LABELS "vulkan;performance;startup")
+    add_test(NAME imageeditor_wayland_gpu_fallback COMMAND imageeditor_performance_tests --native --gpu missing)
+    add_test(NAME imageeditor_wayland_gpu_inconclusive COMMAND imageeditor_performance_tests --native --missing-probe)
+    add_test(NAME imageeditor_wayland_gpu_probe_timeout COMMAND imageeditor_performance_tests --native --inconclusive-probe)
+    add_test(NAME imageeditor_wayland_gpu_probe_exact_device COMMAND imageeditor_performance_tests --probe-unavailable)
+    set_tests_properties(imageeditor_wayland_gpu_fallback imageeditor_wayland_gpu_inconclusive
+        imageeditor_wayland_gpu_probe_timeout imageeditor_wayland_gpu_probe_exact_device PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=wayland" TIMEOUT 60 RUN_SERIAL TRUE LABELS "vulkan;performance;startup")
+endif()
 
 add_executable(imageeditor_navigator_tests NavigatorTests.cpp)
 target_link_libraries(imageeditor_navigator_tests PRIVATE imageeditor_ui Qt6::Test)

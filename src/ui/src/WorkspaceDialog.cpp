@@ -110,7 +110,7 @@ void WorkspaceDialog::open(QDialog& dialog)
         || !(first->focusPolicy() & Qt::TabFocus) || !first->isEnabled() || first->isHidden()))
         first = first->nextInFocusChain();
     lastFocus_ = first;
-    focusControl(first);
+    if(host_.isVisible())focusControl(first);
 }
 
 void WorkspaceDialog::finish()
@@ -181,7 +181,11 @@ void WorkspaceDialog::restoreCardFocus()
 
 bool WorkspaceDialog::eventFilter(QObject* watched, QEvent* event)
 {
-    if (running_ && watched == &host_ && event->type() == QEvent::Close) reject();
+    // Only the top card may handle the host's close. Rejecting an underlying
+    // dialog would also tear down its nested status card, even when that card
+    // needs to remain visible while the host defers shutdown.
+    if (running_ && workspace_.modalOverlay() == this
+        && watched == &host_ && event->type() == QEvent::Close) reject();
     // A nested card owns input until it finishes, then restores this presenter.
     if (workspace_.modalOverlay() != this) return false;
     if (!running_ || !isEditorInput(event->type())) return false;

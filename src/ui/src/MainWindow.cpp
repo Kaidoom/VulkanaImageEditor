@@ -569,6 +569,7 @@ MainWindow::MainWindow(
     , persistPanelLayout_(persistWindowState && panelLayoutMode == PanelLayoutMode::Saved)
     , uiLayoutConfig_(std::move(uiLayoutConfig))
 {
+    graphicsStartupPending_=vulkanInstance!=nullptr;
     setObjectName(QStringLiteral("ImageEditorMainWindow"));
     i18n::setWindowTitle(this, i18n::text("main.window.vulkana.image.editor"));
     resize(1500, 940);
@@ -676,6 +677,8 @@ MainWindow::MainWindow(
     canvasWindow_->onStatusMessage = [this](const QString& message) {
         statusBar()->showMessage(message, 4500);
     };
+    canvasWindow_->onGraphicsInitializationChanged=[this](bool pending){graphicsInitializationChanged(pending);};
+    canvasWindow_->onFirstFramePresented=[this]{graphicsInitializationChanged(false);};
     canvasWindow_->onFilesDropped = [this](const QStringList& paths) {
         handleDroppedImages(paths);
     };
@@ -1096,10 +1099,18 @@ MainWindow::MainWindow(
     });
     initializeShortcuts();
     qApp->installEventFilter(this);
+    // Install the input/visual gate before show(), including warm-cache starts.
+    if(graphicsStartupPending_)graphicsInitializationChanged(true);
 }
 
 MainWindow::~MainWindow()
 {
+    canvasWindow_->onGraphicsInitializationChanged={};
+    canvasWindow_->onFirstFramePresented={};
+    if(graphicsStartupPresenter_){
+        if(workspaceDialog_==graphicsStartupPresenter_)workspaceDialog_=graphicsPreviousDialog_;
+        graphicsStartupPresenter_->finish();delete graphicsStartupPresenter_.data();
+    }
     workspace_->onCanvasAreaChanged={};
     if(navigatorPanel_)navigatorPanel_->shutdown();
     shutdownRefinements();
@@ -1651,6 +1662,16 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
 
 void MainWindow::closeEvent(QCloseEvent* event)
 {
+    if(canvasWindow_->graphicsInitializing()) {
+        // Driver compilation cannot be interrupted safely. Acknowledge close
+        // immediately and keep the aborting card/event loop alive until it ends.
+        if(startupUiTimer_)startupUiTimer_->stop();
+        graphicsClosePending_=true;graphicsInitializationChanged(true);event->ignore();return;
+    }
+    if(graphicsStartupPending_) {
+        // Closing before a driver job starts needs no deferred shutdown.
+        graphicsStartupPending_=false;graphicsInitializationChanged(false);
+    }
     // A host close dismisses its embedded card, then guards all documents.
     // Keep the card alive until its nested event loop unwinds normally.
     if (workspaceDialog_) workspaceDialog_->reject();
@@ -3075,8 +3096,14 @@ void MainWindow::createInitialDocument()
 
 void MainWindow::showStartupDocument()
 {
-    const QScopedValueRollback showing(startupDocumentDialog_, true);
-    createNewDocument();
+    {
+        const QScopedValueRollback showing(startupDocumentDialog_, true);
+        refreshDocumentTabs();
+        createNewDocument();
+    }
+    // Empty-workspace actions belong after cancelling the chooser, not in the
+    // transition from the graphics gate to that chooser.
+    refreshDocumentTabs();
 }
 
 void MainWindow::createNewDocument()
@@ -3308,6 +3335,9 @@ void MainWindow::logRendererDiagnostics() const
 
 void MainWindow::runIntegrationSmokeTest()
 {
+    if(canvasWindow_->vulkanInstance()&&!canvasWindow_->rendererStats().presentQueuedFrames) {
+        QTimer::singleShot(50,this,&MainWindow::runIntegrationSmokeTest);return;
+    }
     smokeFailures_.clear();
     smokeCompleted_ = false;
     // Preserve the pauses between dependent UI actions even when native window

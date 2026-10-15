@@ -2,16 +2,14 @@
 #include <QRegularExpression>
 #include <QSettings>
 #include <algorithm>
-#include <atomic>
 #include <mutex>
 #include <optional>
 #include <thread>
 namespace imageeditor::platform {
 namespace {
-std::atomic_bool automaticGraphicsDevice{};
-std::atomic_bool rejectPreferredGraphicsDevice{};
 std::mutex graphicsDeviceMutex;
 std::optional<QString> resolvedGraphicsDevice;
+std::optional<QString> verifiedGraphicsDevice;
 int memoryValue(int value) { return value<=0||value>8192?0:std::max(64,value); }
 std::uint64_t bytes(int value,int fallback) { value=memoryValue(value);return std::uint64_t(value?value:fallback)*1024*1024; }
 }
@@ -48,25 +46,22 @@ const PerformanceSettings& startupPerformanceSettings()
 {
     static const auto value=[] { QSettings settings;return loadPerformanceSettings(settings); }();return value;
 }
-void useAutomaticGraphicsDeviceForProcess(bool rejectPreferred)
+void useVerifiedGraphicsDeviceForProcess(const QString& device)
 {
-    rejectPreferredGraphicsDevice.store(rejectPreferred);automaticGraphicsDevice.store(true);
+    const std::lock_guard lock(graphicsDeviceMutex);
+    verifiedGraphicsDevice=device;
 }
 QString startupGraphicsDevice()
 {
     const std::lock_guard lock(graphicsDeviceMutex);
     if(resolvedGraphicsDevice)return *resolvedGraphicsDevice;
-    return automaticGraphicsDevice.load()?QString{}:startupPerformanceSettings().graphicsDevice;
+    return verifiedGraphicsDevice.value_or(startupPerformanceSettings().graphicsDevice);
 }
 bool acceptGraphicsDeviceFallback(const QString& device)
 {
     const std::lock_guard lock(graphicsDeviceMutex);
     if(resolvedGraphicsDevice&&*resolvedGraphicsDevice==device)return false;
     resolvedGraphicsDevice=device;return true;
-}
-QString rejectedGraphicsDevice()
-{
-    return rejectPreferredGraphicsDevice.load()?startupPerformanceSettings().graphicsDevice:QString{};
 }
 unsigned automaticProcessingThreads() { return std::clamp(std::thread::hardware_concurrency(),1U,8U); }
 unsigned resolvedObjectSelectionThreads(const PerformanceSettings& s)

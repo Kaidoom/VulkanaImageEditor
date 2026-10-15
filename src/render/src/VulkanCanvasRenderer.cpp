@@ -102,7 +102,7 @@ void VulkanCanvasRenderer::initializeDevice(const VulkanDeviceContext& context)
     samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     samplerInfo.maxLod = 0.0F;
     checkVk(vkCreateSampler(device_, &samplerInfo, nullptr, &sampler_), "create texture sampler");
-    initializeComposition();
+    initializeComposition(context.asynchronousInitialization);
 
     ++stats_.resourceGeneration;
 }
@@ -205,6 +205,9 @@ void VulkanCanvasRenderer::releaseDevice()
     if (device_ == VK_NULL_HANDLE) {
         return;
     }
+    // The job owns only a shader module and immutable device/layout handles.
+    // Never destroy those handles while the driver's compiler is using them.
+    finishInitialization();
     releaseCompositionTarget();
     if (compositionPipeline_) vkDestroyPipeline(device_, compositionPipeline_, nullptr);
     if (compositionLayout_) vkDestroyPipelineLayout(device_, compositionLayout_, nullptr);

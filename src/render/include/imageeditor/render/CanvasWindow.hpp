@@ -36,12 +36,15 @@ class VulkanCanvasBackend;
 
 class CanvasWindow final : public QWindow {
 public:
-    CanvasWindow();
+    explicit CanvasWindow(bool presentationProbe=false);
     ~CanvasWindow() override;
     std::vector<GraphicsDeviceInfo> graphicsDevices() const;
     void setTextureCacheBudget(std::uint64_t bytes);
     void clearInactiveTextures();
     std::function<void(GraphicsDeviceFallback)> onPreferredGpuUnavailable;
+    std::function<void(bool)> onGraphicsInitializationChanged;
+    std::function<void()> onFirstFramePresented;
+    bool graphicsInitializing() const;
 
     void setDocument(core::DocumentSnapshot document, bool fitToView);
     std::function<void(const core::DocumentSnapshot&)> onDocumentPresentationChanged;
@@ -304,6 +307,8 @@ private:
     CanvasScene scene_;
     std::unique_ptr<VulkanCanvasBackend> backend_;
     QTimer resizeCommitTimer_;
+    QTimer graphicsInitializationTimer_;
+    bool firstFrameAnnounced_{};
     QTimer selectionTimer_;
     bool selecting_ {false};
     bool shaping_ {false}, shapeConstruction_ {false}, explicitShapeGrab_ {false};

@@ -7,11 +7,63 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QLabel>
+#include <QProgressBar>
 #include <QScopedValueRollback>
 #include <QSettings>
 #include <QTimer>
 #include <QVBoxLayout>
 namespace imageeditor::ui {
+namespace {
+class GraphicsInitializationCard final:public QDialog {
+public:
+    explicit GraphicsInitializationCard(QWidget* parent):QDialog(parent,Qt::SubWindow){}
+    // This is a status card, not an interruptible operation. The main window's
+    // close control remains available while the driver finishes compilation.
+    void reject() override {}
+};
+}
+void MainWindow::graphicsInitializationChanged(bool pending)
+{
+    if(pending) {
+        if(!graphicsStartupPending_&&!canvasWindow_->graphicsInitializing())return;
+        if(graphicsStartupPresenter_) {
+            if(graphicsClosePending_) {
+                auto* title=graphicsStartupPresenter_->findChild<QLabel*>("ToolTitle");
+                i18n::setText(title,i18n::text("graphics.startup.aborting"));
+                auto* detail=graphicsStartupPresenter_->findChild<QLabel*>("GraphicsInitializationDetail");
+                i18n::setText(detail,i18n::text("graphics.startup.closing"));
+            }
+            return;
+        }
+        auto* presenter=new WorkspaceDialog(*workspace_,*this);
+        graphicsStartupPresenter_=presenter;graphicsPreviousDialog_=workspaceDialog_;workspaceDialog_=presenter;
+        auto* card=new GraphicsInitializationCard(presenter);card->setObjectName("GraphicsInitializationCard");
+        card->setFixedWidth(390);
+        auto* layout=new QVBoxLayout(card);layout->setContentsMargins(20,18,20,18);layout->setSpacing(12);
+        auto* title=i18n::make<QLabel>(i18n::text(graphicsClosePending_?"graphics.startup.aborting":"graphics.startup.title"));
+        title->setObjectName("ToolTitle");layout->addWidget(title);
+        auto* detail=i18n::make<QLabel>(i18n::text(graphicsClosePending_?"graphics.startup.closing":"graphics.startup.detail"));
+        detail->setObjectName("GraphicsInitializationDetail");detail->setWordWrap(true);layout->addWidget(detail);
+        auto* progress=new QProgressBar(card);progress->setObjectName("GraphicsInitializationProgress");
+        progress->setRange(0,0);progress->setTextVisible(false);layout->addWidget(progress);
+        presenter->open(*card);
+        return;
+    }
+    // Compiler completion precedes the first frame. Keep the very same card
+    // through device, pipeline and swapchain setup; never expose welcome UI in
+    // that gap. Closing is the exception: it must not require rendering a frame.
+    if(graphicsStartupPending_&&!graphicsClosePending_&&!canvasWindow_->rendererStats().presentQueuedFrames)return;
+    graphicsStartupPending_=false;
+    if(graphicsStartupPresenter_) {
+        if(workspaceDialog_==graphicsStartupPresenter_)workspaceDialog_=graphicsPreviousDialog_;
+        graphicsStartupPresenter_->finish();graphicsStartupPresenter_->deleteLater();graphicsStartupPresenter_=nullptr;graphicsPreviousDialog_=nullptr;
+    }
+    if(graphicsClosePending_) {graphicsClosePending_=false;close();}
+    else {
+        refreshDocumentTabs();
+        if(startupUiTimer_)startupUiTimer_->start(0);
+    }
+}
 void MainWindow::handleGraphicsDeviceFallback(const render::GraphicsDeviceFallback& recovery)
 {
     const auto selected=QString::fromStdString(recovery.selectedId);

@@ -59,13 +59,47 @@ or no-longer-compatible saved identity falls back to a compatible device.
 Adapters whose device/initial swapchain creation fails are excluded from further
 startup attempts and the next compatible candidate is tried; this covers hybrid
 drivers that advertise presentation support but cannot create that surface.
-On Wayland, an explicit choice first presents a tiny empty canvas in an isolated
-process using the same executable and temporary settings. This catches fatal
-cross-GPU buffer-import errors without terminating the editor. The check is
-bounded to 15 seconds, reads no documents, and never runs for Auto. Failure uses
-automatic selection until a replacement presents successfully.
-An adapter that fails the isolated presentation check is excluded for that
-process, so Auto cannot immediately retry the same failing device.
+On Wayland, previously unverified explicit choices and Auto candidates present
+a tiny cleared swapchain image on an unmapped native surface in an isolated
+process using the same executable and temporary settings. The helper never
+shows a desktop window, but still exercises compositor buffer import and commit.
+Successful results are reused across launches for the same GPU/driver inventory,
+Qt/kernel version, display configuration, relevant
+loader environment and presentation policy. Ordinary restarts and cold shader
+caches do not rerun the helper. The helper shares the canvas's device, swapchain format,
+color-space policy and synchronization path, but never initializes artwork
+shaders. Cold driver shader compilation happens in the real canvas after
+verification and cannot trip the compatibility deadline.
+The compatibility-check wait processes GUI events without a separate progress
+popup. Once a device is verified, the canvas compiles its compute compositor
+pipeline on a worker. The GUI polls completion without blocking. An animated
+initialization card is installed before the main window is shown, on both warm
+and cold starts, and remains in place until the first canvas frame is presented.
+The empty-workspace actions remain hidden behind this startup gate. Command-line
+document imports wait for it too, so import-review dialogs cannot bypass it.
+All startup dialogs and update notices wait for the first presented canvas frame,
+including the interval before shader compilation starts and when using Auto.
+The initialization card has no cancel action:
+shader compilation cannot safely be interrupted. During compilation, the window's close control
+immediately changes the card to “Aborting…” and requests shutdown after the
+driver call finishes. Underlying startup dialogs cannot dismiss that card, and
+normal startup presentation does not resume during shutdown. Device/layout
+handles stay alive until the worker is joined, including when the native surface
+is recreated during initialization.
+The helper waits for presentation and compositor confirmation, cancelling its
+deadline when a frame has been queued. The parent bounds each attempt to 15
+seconds. A timeout or inability to launch the helper is inconclusive, retried
+once, then stops startup with an explanation without changing the preference.
+A definite rejection tries the next ranked candidate, which must pass its own
+probe before use. This also gates replacements after device/swapchain creation
+fails in the real canvas. No available verified device means startup stops;
+there is no unchecked Auto fallback. Only successful checks enter the bounded
+16-entry settings cache; rejection and inconclusive results are not persisted.
+An initialization marker is cleared after the first real canvas presentation
+is confirmed, or on intentional application exit. An interrupted startup or
+observed device/swapchain initialization failure invalidates that configuration,
+so a cached result cannot cause repeated unchecked crash loops. Changes to the
+WSI contract must bump the cache policy revision in `GraphicsDeviceProbe.cpp`.
 Exclusion affects rendering eligibility, not the device inventory: detected
 adapters remain listed by name with a disabled startup-check/unsupported status.
 After successful presentation, the working device becomes the saved selection
@@ -74,6 +108,22 @@ the failed and replacement GPUs; OK resumes the normal startup flow. Preferences
 has no persistent fallback warning. Recovery preserves other resource settings
 and never overwrites a newer explicit GPU choice made while startup was pending.
 Changing this selection does not move Object Selection inference onto the GPU.
+The `imageeditor_performance_tests` suite covers ordered fallback, all-device
+rejection, timeout retry, unchanged preferences and cache invalidation. When Wayland is available,
+`ctest -R 'wayland_gpu_' --output-on-failure` also checks cold-cache startup,
+cross-process cache reuse, an unmapped helper, startup-dialog ordering,
+responsive GUI heartbeats, close requests and native-surface recreation,
+exact-device rejection, missing-device fallback, helper timeouts and a missing
+helper. The cold-cache checks disable the
+NVIDIA/Mesa shader disk caches for that child process only; they never delete
+caches or modify global driver settings. Native checks use temporary preferences.
+For manual startup testing, close Vulkana and launch its executable with
+`--cold-cache`. The flag sets `__GL_SHADER_DISK_CACHE=0` and
+`MESA_SHADER_CACHE_DISABLE=true` before Qt initializes, including for GPU probe
+children. This bypasses NVIDIA/Mesa shader disk caches for that process tree;
+it does not delete caches, clear document data or save a preference. A normal
+launch uses the normal cache policy. Shader compilation can make this diagnostic
+launch noticeably slower.
 Performance usage polling runs only while the page is visible, uses existing
 renderer counters and document accounting, and never requests a canvas frame.
 The displayed cache totals are not additive with whole-process resident RAM.

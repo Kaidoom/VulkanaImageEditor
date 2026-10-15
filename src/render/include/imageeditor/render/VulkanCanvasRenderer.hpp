@@ -12,6 +12,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <future>
 #include <span>
 #include <unordered_map>
 #include <vector>
@@ -23,6 +24,7 @@ struct VulkanDeviceContext {
     VkDevice device {VK_NULL_HANDLE};
     VkPhysicalDeviceProperties properties {};
     std::uint32_t frameSlotCount {0};
+    bool asynchronousInitialization {false}; // Native UI host only; offscreen callers remain synchronous.
 };
 
 struct VulkanSwapchainContext {
@@ -51,6 +53,7 @@ public:
     void releaseSwapchain();
     void releaseDevice();
     void recordFrame(const CanvasScene& scene, const VulkanFrameContext& frame);
+    bool pollInitialization(); // Nonblocking, called only by the owning GUI/render thread.
 
     [[nodiscard]] const RendererStats& stats() const noexcept { return stats_; }
     [[nodiscard]] std::uint64_t pendingTextureReleases() const noexcept {
@@ -166,7 +169,8 @@ private:
     [[nodiscard]] TextureResource createTexture(const core::RasterSurface& surface);
     [[nodiscard]] TextureResource createTexture(core::Extent2u extent,
         VkFormat format = VK_FORMAT_R8G8B8A8_SRGB, VkImageUsageFlags extraUsage = 0);
-    void initializeComposition();
+    void initializeComposition(bool asynchronous);
+    void finishInitialization();
     void createCompositionTarget();
     void releaseCompositionTarget();
     void recordComposition(const CanvasScene&, const VulkanFrameContext&, bool unavailable = false);
@@ -201,6 +205,8 @@ private:
     VkDescriptorSet compositionStorageSet_ {VK_NULL_HANDLE};
     VkPipelineLayout compositionLayout_ {VK_NULL_HANDLE};
     VkPipeline compositionPipeline_ {VK_NULL_HANDLE};
+    struct PipelineBuild { VkResult result; VkPipeline pipeline; };
+    std::future<PipelineBuild> compositionBuild_;
     VkDescriptorSetLayout adjustmentSetLayout_ {VK_NULL_HANDLE};
     std::vector<AdjustmentBuffers> adjustmentBuffers_;
     std::size_t clippingBytes_{0};

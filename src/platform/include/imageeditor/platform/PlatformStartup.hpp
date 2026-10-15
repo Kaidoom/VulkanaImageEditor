@@ -13,6 +13,7 @@ struct PlatformStartup {
     bool displayPresent = false;
     bool waylandDisplayPresent = false;
     bool waylandSocketPresent = false;
+    bool coldShaderCache = false; // Launch-only diagnostic, detected before Qt/driver initialization.
     [[nodiscard]] QString selectionSource() const;
 };
 [[nodiscard]] PlatformStartup inspectPlatformStartup(const QStringList& arguments,

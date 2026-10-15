@@ -158,6 +158,7 @@ public:
     // not start more requests. Transport injection keeps startup tests offline.
     void startStartupFlow(bool showNewDocument, QNetworkAccessManager* transport = nullptr,
         bool testUpdate = false);
+    [[nodiscard]] bool startupGraphicsReady() const noexcept { return !graphicsStartupPending_; }
     void logRendererDiagnostics() const;
     void runIntegrationSmokeTest();
     [[nodiscard]] bool integrationSmokePassed() const noexcept;
@@ -483,6 +484,10 @@ private:
     PerformanceUsage performanceUsage() const;
     void handleGraphicsDeviceFallback(const render::GraphicsDeviceFallback&);
     void presentGraphicsDeviceFallback();
+    void graphicsInitializationChanged(bool pending);
+    QPointer<WorkspaceDialog> graphicsStartupPresenter_,graphicsPreviousDialog_;
+    bool graphicsStartupPending_{};
+    bool graphicsClosePending_{};
     QString gpuFallbackRequested_,gpuFallbackSelected_;
     bool gpuFallbackPending_{};
     platform::PerformanceSettings performance_;

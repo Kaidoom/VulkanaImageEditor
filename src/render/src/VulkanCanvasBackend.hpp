@@ -20,7 +20,7 @@ class CanvasWindow;
 // Wayland (and best-effort XCB) details out of application code.
 class VulkanCanvasBackend final {
 public:
-    explicit VulkanCanvasBackend(CanvasWindow& window);
+    explicit VulkanCanvasBackend(CanvasWindow& window,bool presentationProbe=false);
     ~VulkanCanvasBackend();
 
     VulkanCanvasBackend(const VulkanCanvasBackend&) = delete;
@@ -33,11 +33,13 @@ public:
     // Returns true when a follow-up update should be requested, for example
     // after an out-of-date or suboptimal swapchain result.
     [[nodiscard]] bool render(const CanvasScene& scene);
+    bool pollInitialization(){return renderer_.pollInitialization();}
     const std::vector<GraphicsDeviceInfo>& graphicsDevices() const { return graphicsDevices_; }
     [[nodiscard]] RendererStats stats() const
     {
         auto result = renderer_.stats();
         result.deviceId=selectedDeviceId_;
+        if(presentationProbe_)result.deviceName=selectedDeviceName_;
         result.preferredDeviceUnavailable=preferredDeviceUnavailable_;
         result.pendingTextureReleases=renderer_.pendingTextureReleases();
         result.presentQueuedFrames = presentQueuedFrames_;
@@ -92,8 +94,9 @@ private:
     [[nodiscard]] bool hasUsableSwapchain(VkPhysicalDevice device) const;
 
     CanvasWindow& window_;
+    const bool presentationProbe_;
     std::vector<GraphicsDeviceInfo> graphicsDevices_;
-    std::string selectedDeviceId_;
+    std::string selectedDeviceId_,selectedDeviceName_;
     bool preferredDeviceUnavailable_{}, fallbackReported_{};
     std::uint64_t lastCacheClearGeneration_{}, lastTextureBudget_{512ULL*1024*1024};
     unsigned cacheDrainFrames_{};
@@ -118,6 +121,8 @@ private:
     std::vector<VkFence> imageFences_;
     bool swapchainDirty_ {true};
     std::uint64_t presentQueuedFrames_ {0}, uploadedBytesAtPresent_ {0};
+    std::uint64_t graphicsStartupAttempt_{};
+    bool startupConfirmationScheduled_{};
     std::uint64_t lastUploadPresentQueuedSteadyNanoseconds_ {0};
     bool profilePresentation_ {false};
 };

@@ -7,6 +7,7 @@
 #include <cmath>
 #include <limits>
 #include <stdexcept>
+#include <chrono>
 
 namespace imageeditor::render {
 namespace {
@@ -23,7 +24,7 @@ static_assert(sizeof(CompositePush) == 128); // Vulkan's guaranteed minimum push
 constexpr auto shaderStages = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 }
 
-void VulkanCanvasRenderer::initializeComposition()
+void VulkanCanvasRenderer::initializeComposition(bool asynchronous)
 {
     // rgba32f is a core storage-image format, not a driver blend extension or
     // an optional extended-format feature. Verify sampled/storage support.
@@ -49,13 +50,37 @@ void VulkanCanvasRenderer::initializeComposition()
     layout.pushConstantRangeCount = 1; layout.pPushConstantRanges = &push;
     checkVk(vkCreatePipelineLayout(device_,&layout,nullptr,&compositionLayout_),"create compositor pipeline layout");
     const auto shader = loadShader("composite.comp.spv");
-    VkComputePipelineCreateInfo pipeline {VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
-    pipeline.stage = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,nullptr,0,
-        VK_SHADER_STAGE_COMPUTE_BIT,shader,"main",nullptr};
-    pipeline.layout = compositionLayout_;
-    const auto result = vkCreateComputePipelines(device_,VK_NULL_HANDLE,1,&pipeline,nullptr,&compositionPipeline_);
-    vkDestroyShaderModule(device_,shader,nullptr);
-    checkVk(result,"create compositor pipeline");
+    const auto build=[device=device_,layoutHandle=compositionLayout_,shader] {
+        // No QObject, window, renderer state or shared pipeline cache is
+        // accessed by the worker. Publish the handle through the future only.
+        VkComputePipelineCreateInfo pipeline {VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
+        pipeline.stage={VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,nullptr,0,VK_SHADER_STAGE_COMPUTE_BIT,shader,"main",nullptr};
+        pipeline.layout=layoutHandle;
+        PipelineBuild result{VK_SUCCESS,VK_NULL_HANDLE};
+        result.result=vkCreateComputePipelines(device,VK_NULL_HANDLE,1,&pipeline,nullptr,&result.pipeline);
+        vkDestroyShaderModule(device,shader,nullptr);
+        return result;
+    };
+    if(asynchronous) {
+        try {compositionBuild_=std::async(std::launch::async,build);stats_.initializingGraphics=true;}
+        catch(...) {vkDestroyShaderModule(device_,shader,nullptr);throw;}
+    } else {
+        const auto result=build();compositionPipeline_=result.pipeline;
+        checkVk(result.result,"create compositor pipeline");
+    }
+}
+bool VulkanCanvasRenderer::pollInitialization()
+{
+    if(compositionBuild_.valid()&&compositionBuild_.wait_for(std::chrono::seconds(0))==std::future_status::ready)
+        finishInitialization();
+    return !stats_.initializingGraphics;
+}
+void VulkanCanvasRenderer::finishInitialization()
+{
+    if(!compositionBuild_.valid())return;
+    const auto result=compositionBuild_.get();compositionPipeline_=result.pipeline;
+    stats_.initializingGraphics=false;
+    checkVk(result.result,"create compositor pipeline");
 }
 
 void VulkanCanvasRenderer::createCompositionTarget()

@@ -23,9 +23,8 @@ bool savePerformanceSettings(QSettings&, PerformanceSettings);
 const PerformanceSettings& startupPerformanceSettings();
 // Startup recovery policy. Once a replacement has presented successfully, the
 // UI saves it as the new preference and reports the change once per process.
-void useAutomaticGraphicsDeviceForProcess(bool rejectPreferred=false);
+void useVerifiedGraphicsDeviceForProcess(const QString& device);
 QString startupGraphicsDevice();
-QString rejectedGraphicsDevice();
 bool acceptGraphicsDeviceFallback(const QString& device);
 unsigned automaticProcessingThreads();
 unsigned resolvedObjectSelectionThreads(const PerformanceSettings&);

@@ -7133,4 +7133,11 @@ Chamfer: pull corners inward; Alt also changes the opposite corner. Side handles
     <name>History</name>
     <message id="history.layer.pixel.opacity"><source>Layer pixel opacity</source><extracomment>Core history label: Layer pixel opacity</extracomment></message>
   </context>
+  <context>
+    <name>GraphicsStartup</name>
+    <message id="graphics.startup.aborting"><source>Aborting…</source></message>
+    <message id="graphics.startup.closing"><source>Waiting for the graphics driver before closing.</source></message>
+    <message id="graphics.startup.title"><source>Initializing graphics…</source></message>
+    <message id="graphics.startup.detail"><source>Preparing shaders. This may take a few seconds.</source></message>
+  </context>
 </TS>

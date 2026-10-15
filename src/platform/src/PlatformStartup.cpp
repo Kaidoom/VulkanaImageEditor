@@ -24,9 +24,13 @@ PlatformStartup inspectPlatformStartup(const QStringList& arguments, const QProc
     // occurrence winning. Skip values of Qt options so a title is not a flag.
     const QStringList valueOptions {QStringLiteral("platformpluginpath"), QStringLiteral("platformtheme"),
         QStringLiteral("qwindowgeometry"), QStringLiteral("qwindowtitle"), QStringLiteral("qwindowicon"),
-        QStringLiteral("geometry"), QStringLiteral("title"), QStringLiteral("icon")};
+        QStringLiteral("geometry"), QStringLiteral("title"), QStringLiteral("icon"),
+        QStringLiteral("ui-config"), QStringLiteral("language"), QStringLiteral("language-pack-dir"),
+        QStringLiteral("internal-gpu-probe")};
     for (int i = 1; i < arguments.size(); ++i) {
         auto option = arguments[i];
+        if(option==QStringLiteral("--"))break;
+        if(option==QStringLiteral("--cold-cache")){result.coldShaderCache=true;continue;}
         if (!option.startsWith(QLatin1Char('-'))) continue;
         option.remove(0, option.startsWith(QStringLiteral("--")) ? 2 : 1);
         if (option == QStringLiteral("platform") && i + 1 < arguments.size())
