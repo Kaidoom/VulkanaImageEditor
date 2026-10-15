@@ -254,6 +254,44 @@ B_INLINE BVec4 bCompositeAt(BVec4 backdrop,BVec4 source,float opacity,int mode,
     float x,float y,BUint seed,bool protectedCoverage)
 { return bCompositeAtSpace(backdrop,source,opacity,mode,x,y,seed,protectedCoverage,0); }
 
+// Photoshop's Fill is paint opacity, distinct from geometric coverage and
+// whole-layer opacity. These modes change the blend function before coverage
+// is applied. Do not fold Fill into source alpha before evaluating them.
+B_INLINE bool bSpecialFill(int mode)
+{ return mode==8 || (mode>=14 && mode<=17) || mode==23 || mode==24 || mode==26; }
+B_INLINE float bFillChannel(float b,float s,float fill,int mode)
+{
+    if(mode==8)return bAbs(b-s*fill);
+    if(mode==14)return b==0.0F?0.0F:bMin(1.0F,b/(1.0F-s*fill));
+    if(mode==15)return bMin(1.0F,b+s*fill);
+    if(mode==16)return b==1.0F?1.0F:bMax(0.0F,1.0F-(1.0F-b)/(1.0F-(1.0F-s)*fill));
+    if(mode==17)return bMax(0.0F,b-(1.0F-s)*fill);
+    if(mode==23) {
+        if(s<0.5F)return bMax(0.0F,1.0F-(1.0F-b)/(1.0F-(1.0F-2.0F*s)*fill));
+        return bMin(1.0F,b/(1.0F-(2.0F*s-1.0F)*fill));
+    }
+    if(mode==24)return bClamp(b+(2.0F*s-1.0F)*fill,0.0F,1.0F);
+    return bClamp((b-(1.0F-s)*fill)/(1.0F-fill),0.0F,1.0F); // Hard Mix's soft ramp.
+}
+B_INLINE BVec4 bCompositeFillAtSpace(BVec4 backdrop,BVec4 source,float opacity,int mode,
+    float x,float y,BUint seed,bool protectedCoverage,int space,float fill)
+{
+    // Exact old path at 100%, including historical endpoint/rounding behavior.
+    if(fill>=1.0F)return bCompositeAtSpace(backdrop,source,opacity,mode,x,y,seed,protectedCoverage,space);
+    if(fill<=0.0F || source.w<=0.0F || opacity<=0.0F)return backdrop;
+    if(!bSpecialFill(mode))return bCompositeAtSpace(backdrop,source,opacity*fill,mode,x,y,seed,protectedCoverage,space);
+    float shape=source.w*bClamp(opacity,0.0F,1.0F), ab=backdrop.w;
+    float paint=shape*fill, alpha=paint+ab*(1.0F-paint);
+    BVec3 cs=BVec3(bUnassociatedEncoded(source.x,source.w),bUnassociatedEncoded(source.y,source.w),bUnassociatedEncoded(source.z,source.w));
+    BVec3 cb=BVec3(bUnassociatedEncoded(backdrop.x,ab),bUnassociatedEncoded(backdrop.y,ab),bUnassociatedEncoded(backdrop.z,ab));
+    BVec3 blended=BVec3(bFillChannel(cb.x,cs.x,fill,mode),bFillChannel(cb.y,cs.y,fill,mode),bFillChannel(cb.z,cs.z,fill,mode));
+    if(space==0)blended=BVec3(bDecode(blended.x),bDecode(blended.y),bDecode(blended.z));
+    BVec4 s=bToCompositing(source,space), b=bToCompositing(backdrop,space);
+    float sourceWeight=bClamp(opacity,0.0F,1.0F)*fill*(1.0F-ab);
+    BVec3 c=BVec3(s.x,s.y,s.z)*sourceWeight+BVec3(b.x,b.y,b.z)*(1.0F-shape)+blended*(shape*ab);
+    return bFromCompositing(BVec4(c.x,c.y,c.z,alpha),space);
+}
+
 // Accumulate emitted color separately from the surviving external backdrop.
 // This is the same overlap blend, followed by Normal accumulation of its
 // effective source. It avoids subtracting nearly equal finished composites
@@ -315,3 +353,16 @@ B_INLINE BVec4 bAdjustmentBlendSpace(BVec4 original,BVec4 corrected,float streng
 B_INLINE BVec4 bAdjustmentBlend(BVec4 original,BVec4 corrected,float strength,int mode,
     float x,float y,BUint seed)
 { return bAdjustmentBlendSpace(original,corrected,strength,mode,x,y,seed,0); }
+
+B_INLINE BVec4 bAdjustmentFillBlendSpace(BVec4 original,BVec4 corrected,float strength,int mode,
+    float x,float y,BUint seed,int space,float fill)
+{
+    if(fill>=1.0F)return bAdjustmentBlendSpace(original,corrected,strength,mode,x,y,seed,space);
+    if(fill<=0.0F || original.w<=0.0F)return original;
+    if(!bSpecialFill(mode))return bAdjustmentBlendSpace(original,corrected,strength*fill,mode,x,y,seed,space);
+    if(original.x==corrected.x&&original.y==corrected.y&&original.z==corrected.z)return original;
+    BVec4 a=BVec4(bUnassociatedLinear(original.x,original.w),bUnassociatedLinear(original.y,original.w),bUnassociatedLinear(original.z,original.w),1.0F);
+    BVec4 b=BVec4(bUnassociatedLinear(corrected.x,original.w),bUnassociatedLinear(corrected.y,original.w),bUnassociatedLinear(corrected.z,original.w),1.0F);
+    BVec4 result=bCompositeFillAtSpace(a,b,strength,mode,x,y,seed,false,space,fill);
+    return BVec4(result.x*original.w,result.y*original.w,result.z*original.w,original.w);
+}

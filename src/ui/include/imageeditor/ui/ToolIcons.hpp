@@ -18,7 +18,7 @@ enum class ToolGlyph {
     Deselect, Invert, Pixels, Snapping, FitCanvas, ZoomActual, Palette, Swatches,
     Panels, DockLeft, DockRight, DockTop, DockBottom, History, Visible, Hidden, Camera,
     EffectStroke, EffectDropShadow, EffectInnerShadow, EffectOuterGlow, EffectInnerGlow,
-    EffectColorOverlay, EffectGradientOverlay, EffectBevel
+    EffectColorOverlay, EffectGradientOverlay, EffectBevel, OpacityMode
 };
 // Original code-native glyphs, rendered and cached at the requested size/DPR.
 QIcon toolGlyph(ToolGlyph glyph);

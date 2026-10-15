@@ -797,9 +797,8 @@ QStringList restrictions(const Record &r, bool localAdjustmentGroup=false) {
   if (!blend(r.blend) &&
       !(r.blend == "pass" && (r.section == 1 || r.section == 2)))
     issues << "Unsupported layer blend mode";
-  if (r.fill != 255)
-    issues << "Fill opacity is distinct from layer opacity and is not "
-              "supported in V1";
+  if (r.fill != 255 && (r.section == 1 || r.section == 2))
+    issues << "Group fill opacity requires an explicit raster/composite choice";
   if (r.mask.present &&
       (r.mask.density != 255 || r.mask.feather != 0 || (r.mask.flags & 12)))
     issues << "Mask density, feather or rendered/inverted-mask semantics "
@@ -1338,6 +1337,7 @@ PsdConversion convertPsd(const PsdInspection &in, const PsdOptions &options,
           layer.visible = rec.visible;
           layer.localToDocument = m.transform;
           layer.opacity = float(rec.opacity) / 255;
+          layer.fillOpacity = float(rec.fill) / 255;
           layer.blendMode = blend(rec.blend).value_or(core::BlendMode::Normal);
           layer.effects = m.effects;
           if (!base)

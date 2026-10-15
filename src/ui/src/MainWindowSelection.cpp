@@ -60,6 +60,7 @@ void MainWindow::loadLayerAlphaSelection(int row)
         auto source = *layer;
         source.visible = true;
         source.opacity = 1;
+        source.fillOpacity = 1;
         source.blendMode = core::BlendMode::Normal;
         source.mask.reset(); source.adjustments.reset();
         source.filters.reset(); source.filterCache.reset();

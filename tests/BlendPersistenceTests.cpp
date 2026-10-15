@@ -250,6 +250,7 @@ void compatibilityAndRejection()
     CHECK(result);
     if (result) {
         CHECK(result.document->layers()[0].blendMode == c::BlendMode::Normal);
+        CHECK(result.document->layers()[0].fillOpacity == 1);
         CHECK(result.document->canvas().compositingSpace == c::CompositingSpace::LinearSRgb);
     }
     const auto originalCanvas=manifest["canvas"].toObject();
@@ -258,6 +259,15 @@ void compatibilityAndRejection()
         writeFixture(path,manifest);CHECK(!u::loadProject(path));
     }
     manifest["canvas"]=originalCanvas;
+    for(const auto value:{QJsonValue(-.1),QJsonValue(1.1),QJsonValue(".5"),QJsonValue(QJsonValue::Null),QJsonValue(.5)}) {
+        leaf["fillOpacity"]=value;manifest["layers"]=QJsonArray{leaf};
+        writeFixture(path,manifest);CHECK(!u::loadProject(path));
+    }
+    manifest["required"]=QJsonArray{"rgba8","layer-fill-opacity-v1"};
+    writeFixture(path,manifest);result=u::loadProject(path);CHECK(result);
+    if(result)CHECK(result.document->layers()[0].fillOpacity==.5F);
+    leaf.remove("fillOpacity");manifest["layers"]=QJsonArray{leaf};
+    manifest["required"]=QJsonArray{"rgba8"};
     for (const auto value : {QJsonValue("future-mode"),QJsonValue(3),QJsonValue(QJsonValue::Null)}) {
         leaf["blendMode"] = value; manifest["layers"] = QJsonArray {leaf};
         writeFixture(path, manifest);

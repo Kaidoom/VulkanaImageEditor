@@ -4,6 +4,7 @@
 #include "imageeditor/core/RichText.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <stdexcept>
 #include <type_traits>
@@ -154,6 +155,26 @@ bool SetLayerOpacityCommand::mergeWith(const Command& other)
 
 SetLayerBlendModeCommand::SetLayerBlendModeCommand(LayerId layerId, BlendMode mode)
     : layerId_(layerId), after_(mode) {}
+
+bool SetLayerFillOpacityCommand::apply(Document& document)
+{
+    const auto* layer = document.layer(id_);
+    if (!layer || !std::isfinite(after_)) return false;
+    after_ = std::clamp(after_, 0.0F, 1.0F);
+    if (!before_) before_ = layer->fillOpacity;
+    return document.setLayerFillOpacity(id_, after_);
+}
+bool SetLayerFillOpacityCommand::undo(Document& document)
+{
+    return before_ && document.setLayerFillOpacity(id_, *before_);
+}
+bool SetLayerFillOpacityCommand::mergeWith(const Command& other)
+{
+    const auto* next = dynamic_cast<const SetLayerFillOpacityCommand*>(&other);
+    if (!next || !mergeKey_ || next->mergeKey_ != mergeKey_ || next->id_ != id_ || next->after_ == before_) return false;
+    after_ = next->after_;
+    return true;
+}
 
 bool SetLayerBlendModeCommand::apply(Document& document)
 {

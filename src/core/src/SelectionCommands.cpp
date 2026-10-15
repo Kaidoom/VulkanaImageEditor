@@ -52,8 +52,10 @@ bool LayerViaCopyCommand::apply(Document& document)
     const auto extent = raster->surface->extent();
     const auto selection = document.selection();
     const bool bakeFilters=bool(selection)&&(hasActiveSpatialFilters(source->filters)||hasActiveLayerEffects(source->effects)||(source->mask&&source->mask->enabled));
+    const bool bakeFill=bakeFilters&&hasActiveLayerEffects(source->effects);
     std::optional<Layer> filteredSource;
     if(bakeFilters)filteredSource=prepareSpatialFilterLayer(*source);
+    if(filteredSource&&!bakeFill)filteredSource->fillOpacity=1;
     std::shared_ptr<RasterSurface> surface;
     auto transform = source->localToDocument;
     if (!selection) {
@@ -129,6 +131,7 @@ bool LayerViaCopyCommand::apply(Document& document)
     }
     layer.crop=selection?std::nullopt:source->crop; // Extraction bakes visible crop once; duplication retains it.
     layer.opacity = source->opacity; // sampled pixels do not include layer opacity
+    layer.fillOpacity = bakeFill ? 1 : source->fillOpacity;
     layer.blendSeed = source->blendSeed;
     layer.blendMode = source->blendMode; // Extraction retains unblended source pixels.
     layer.visible = source->visible;

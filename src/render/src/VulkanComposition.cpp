@@ -139,6 +139,7 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
             if(!inverse)continue;
             const auto start=key.size();
             key.insert(key.end(),{layer.id,scene.documentInstance,layer.adjustmentRevision,std::bit_cast<std::uint32_t>(layer.opacity),std::uint64_t(layer.blendMode),layer.blendSeed});
+            key.push_back(std::bit_cast<std::uint32_t>(layer.fillOpacity));
             for(double v:{inverse->m00,inverse->m01,inverse->m02,inverse->m10,inverse->m11,inverse->m12,inverse->m20,inverse->m21,inverse->m22})
                 key.push_back(std::bit_cast<std::uint64_t>(v));
             CompositePush push{{float(inverse->m00),float(inverse->m01),float(inverse->m02),0},
@@ -161,6 +162,7 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
                 key.push_back(layer.mask->coverage->revision());key.push_back(layer.mask->outside);
                 for(double v:{m.m00,m.m01,m.m02,m.m10,m.m11,m.m12,m.m20,m.m21,m.m22})key.push_back(std::bit_cast<std::uint64_t>(v));
             }
+            adjustmentParameters[offset+19]=layer.fillOpacity;
             push.cropMode=int(offset+1)<<2;
             work.push_back({push,compositionTexture_.descriptorSet}); // Shader does not sample a content texture.
             leafWork.emplace(layer.id,work.back());
@@ -188,6 +190,7 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
         key.push_back(surface->id()); key.push_back(surface->revision());
         key.push_back(static_cast<std::uint32_t>(layer.blendMode));key.push_back(layer.blendSeed);
         key.push_back(std::bit_cast<std::uint32_t>(layer.opacity));
+        key.push_back(std::bit_cast<std::uint32_t>(layer.fillOpacity));
         key.push_back(layer.adjustmentRevision);
         key.push_back(layer.effectRevision);key.push_back(styled);
         const bool masked=layer.mask&&layer.mask->enabled;
@@ -270,7 +273,7 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
             push.sourceToLocalX[3]=float(cuts[2]);push.sourceToLocalY[3]=float(cuts[3]);
         }
         if(scene.pixelPreviewEnabled)push.cropMode=3; // native-pixel display sampling
-        if(!inverse->isAffine()||!pixelsToLocal.isAffine()||masked||layer.blendMode==core::BlendMode::Dissolve) {
+        if(!inverse->isAffine()||!pixelsToLocal.isAffine()||masked||layer.blendMode==core::BlendMode::Dissolve||layer.fillOpacity!=1) {
             // Bottom rows live in the existing parameter buffer, preserving
             // the guaranteed 128-byte push-constant budget. Affine dispatches
             // keep their original arithmetic and avoid the extra lookup.
@@ -288,6 +291,7 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
                     float(m.m20),float(m.m21),float(m.m22),0};
                 std::copy(values.begin(),values.end(),adjustmentParameters.begin()+std::ptrdiff_t(offset+8));
             }
+            adjustmentParameters[offset+19]=layer.fillOpacity;
             push.cropMode|=int(offset+1)<<2;
         }
         work.push_back({push,found->second.descriptorSet});
@@ -359,6 +363,7 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
             p.region={left,top,right-left,bottom-top};
             const auto old=(p.cropMode>>2)-1;
             std::array<float,20> geometry{0,0,1,0,0,0,1,0};
+            geometry[19]=1; // Fill defaults to full paint on legacy affine records.
             if(old>=0)std::copy_n(adjustmentParameters.begin()+old,20,geometry.begin());
             const auto offset=adjustmentParameters.size();
             adjustmentParameters.insert(adjustmentParameters.end(),geometry.begin(),geometry.end());

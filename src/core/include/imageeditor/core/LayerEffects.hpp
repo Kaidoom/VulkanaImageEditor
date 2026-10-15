@@ -141,5 +141,5 @@ compositeLayerEffects(PremultipliedColor backdrop, PremultipliedColor base,
                       const EffectParameters &, const LayerEffectCache *,
                       Vec2d local, float layerOpacity, BlendMode,
                       float cropCoverage = 1, bool protectedCoverage = false,
-                      CompositingSpace space = CompositingSpace::LinearSRgb) noexcept;
+                      CompositingSpace space = CompositingSpace::LinearSRgb, float fillOpacity = 1.0F) noexcept;
 } // namespace imageeditor::core

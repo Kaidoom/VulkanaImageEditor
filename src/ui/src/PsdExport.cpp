@@ -124,6 +124,7 @@ core::Layer pixelLayer(const core::Layer &original,
   l.renderCache.reset();
   l.filterCache.reset();
   l.effectCache.reset();
+  l.fillOpacity = core::hasActiveLayerEffects(original.effects)?1:original.fillOpacity;
   return l;
 }
 void omit(core::Document &d, core::LayerId id) {
@@ -235,6 +236,7 @@ FlattenedDocumentResult sourceRaster(core::Document &d, core::LayerId id,
                                      const PsdExportSnapshot &s) {
   auto *l = d.layer(id);
   auto source = *l;
+  source.fillOpacity = 1; // PSD pixels and iOpa remain separate, including typed/rasterized sources.
   source.mask.reset();
   source.effects.reset();
   source.effectCache.reset();
@@ -661,6 +663,7 @@ PsdExportResult writePsdExport(const PsdExportSnapshot &s,
       r.clipping = clipped;
       if(std::holds_alternative<core::AdjustmentLayer>(l.payload)) {
         r.tags=adjustmentRecord(l);r.tags["clbl"]=QByteArray::fromHex("01000000");
+        if(l.fillOpacity!=1)r.tags["iOpa"]=QByteArray(1,char(std::lround(l.fillOpacity*255)));
         for(int c:{-1,0,1,2})r.channels.push_back(spoolChannel(spool,c,{},0,cancel,limit));
         addMask(r,l,spool,cancel,limit);records.push_back(std::move(r));++completed;return;
       }
@@ -676,6 +679,7 @@ PsdExportResult writePsdExport(const PsdExportSnapshot &s,
       if (!effects.isEmpty())
         r.tags["lfx2"] = effects;
       r.tags["clbl"] = QByteArray::fromHex("01000000");
+      if(l.fillOpacity!=1)r.tags["iOpa"]=QByteArray(1,char(std::lround(l.fillOpacity*255)));
       for (int c : {-1, 0, 1, 2})
         r.channels.push_back(spoolChannel(spool, c, pixels.image,
                                           c == -1 ? 3 : c, cancel, limit));

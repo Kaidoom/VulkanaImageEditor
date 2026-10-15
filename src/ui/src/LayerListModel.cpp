@@ -443,7 +443,7 @@ QIcon LayerListModel::layerThumbnail(const core::Layer& layer) const
         constexpr int side=96;
         QImage image(side,side,QImage::Format_RGBA8888);image.fill(Qt::transparent);
         try {
-            auto source=layer;source.mask.reset();source.crop.reset();source.localToDocument={};
+            auto source=layer;source.mask.reset();source.crop.reset();source.localToDocument={};source.fillOpacity=1;
             const auto bounds=core::layerSourceBounds(source);
             if(surface&&!bounds.empty()) {
                 core::PreparedLayerSampler sampler(source,false);
@@ -549,6 +549,7 @@ QIcon LayerListModel::groupThumbnail(core::LayerId id) const
         hash(leaf);
         hash(visibleForPreview(layer.id));
         hash(std::bit_cast<std::uint32_t>(layer.opacity));
+        hash(std::bit_cast<std::uint32_t>(layer.fillOpacity));
         hash(static_cast<std::uint32_t>(layer.blendMode));
         hash(static_cast<std::uint32_t>(doc.canvas().compositingSpace));
         hash(layer.adjustmentRevision);

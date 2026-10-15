@@ -168,6 +168,7 @@ namespace {
         bool containsShapeStrokeV2 = false;
         bool containsLabels = false;
         bool containsBlendModes = false;
+        bool containsFillOpacity = false;
         bool containsExtendedBlendModes = false;
         bool containsBlendV3 = false;
         bool containsAdjustments = false;
@@ -187,6 +188,9 @@ namespace {
                 oldLayers[id] = value.toObject();
         }
         for (const auto& layer : doc.layers()) {
+            require(std::isfinite(layer.fillOpacity) && layer.fillOpacity >= 0 && layer.fillOpacity <= 1,
+                "Invalid layer pixel opacity; project was not saved");
+            containsFillOpacity |= layer.fillOpacity != 1;
             require(core::isValidBlendMode(layer.blendMode), "Unsupported layer blend mode; project was not saved");
             containsBlendModes |= layer.blendMode != core::BlendMode::Normal;
             containsExtendedBlendModes |= layer.blendMode >= core::BlendMode::ColorDodge;
@@ -199,6 +203,7 @@ namespace {
             const auto& t = layer.localToDocument;
             QJsonObject o { { "id", QString::number(layer.id) }, { "name", QString::fromStdString(layer.name) },
                 { "visible", layer.visible }, { "opacity", double(layer.opacity) },
+                { "fillOpacity", double(layer.fillOpacity) },
                 { "blendMode", QString::fromUtf8(core::blendModeId(layer.blendMode)) },
                 { "blendSeed", double(layer.blendSeed) },
                 { "transform", QJsonArray { t.m00, t.m01, t.m02, t.m10, t.m11, t.m12 } } };
@@ -304,6 +309,9 @@ namespace {
         canvas["compositingSpace"] = doc.canvas().compositingSpace == core::CompositingSpace::EncodedSRgb
             ? "encoded-srgb" : "linear-srgb";
         result["canvas"] = canvas;
+        if (containsFillOpacity) {
+            auto required=result["required"].toArray();required.append("layer-fill-opacity-v1");result["required"]=required;
+        }
         if (doc.canvas().compositingSpace == core::CompositingSpace::EncodedSRgb) {
             auto required = result["required"].toArray();
             required.append("encoded-srgb-compositing-v1");result["required"] = required;
@@ -479,7 +487,7 @@ namespace {
                     || capability == "blend-modes-v3" || capability == "layer-blend-modes-v1" || capability == "layer-blend-modes-v2"
                     || capability == "adjustments-v1" || capability == "adjustment-layer-v1" || capability == "spatial-filters-v1" || capability == "layer-crop-v1" || capability == "layer-crop-chamfer-v1"
                     || capability == "selection-recall-v1" || capability == "layer-effects-v1" || capability == "bevel-emboss-v1" || capability == "projective-transform-v1" || capability == "raster-local-frame-v1" || capability == "layer-mask-v1"
-                    || capability == "encoded-srgb-compositing-v1",
+                    || capability == "encoded-srgb-compositing-v1" || capability == "layer-fill-opacity-v1",
                 "Project requires unsupported capabilities");
         require(o["canvas"].isObject() && o["layers"].isArray(), "Missing canvas or layers");
         const auto canvas = o["canvas"].toObject();
@@ -555,6 +563,8 @@ namespace {
             require(!l.contains("visible") || l["visible"].isBool(), "Invalid visibility");
             p.layer.visible = l.value("visible").toBool(true);
             p.layer.opacity = float(number(l.contains("opacity") ? l["opacity"] : QJsonValue(1), 0, 1, "Invalid layer opacity"));
+            p.layer.fillOpacity = float(number(l.contains("fillOpacity") ? l["fillOpacity"] : QJsonValue(1), 0, 1, "Invalid layer pixel opacity"));
+            require(p.layer.fillOpacity == 1 || required.contains("layer-fill-opacity-v1"), "Missing pixel opacity capability");
             if (l.contains("crop")) {
                 require(required.contains("layer-crop-v1"), "Layer crop requires declared layer-crop-v1 capability");
                 require(l["crop"].isObject(), "Missing or invalid layer crop descriptor");

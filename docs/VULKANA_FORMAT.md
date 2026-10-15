@@ -43,6 +43,16 @@ composite. Unknown values/types and a missing encoded-mode capability are reject
 Saving a linear document drops that requirement, including when retained metadata
 came from an encoded document. The source pixels are not changed in either case.
 
+### Layer pixel opacity (Photoshop Fill)
+
+Each layer may store `fillOpacity`, a finite number in `[0,1]`, defaulting to
+`1`. Non-default values declare `layer-fill-opacity-v1` so older readers reject
+the file rather than silently changing its appearance. `opacity` still fades
+the complete styled layer. `fillOpacity` controls its content paint separately
+from the original coverage used to generate effects; neither property modifies
+stored RGBA, text, shapes, or masks. Fill changes invalidate composed previews,
+not source textures or effect geometry. PSD exchange maps this value to `iOpa`.
+
 ### Optional saved preview
 
 The root manifest may contain a disposable `preview` object:

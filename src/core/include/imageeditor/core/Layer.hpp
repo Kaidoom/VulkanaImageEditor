@@ -99,6 +99,7 @@ struct Layer {
     std::uint8_t colorLabel {0}; // Palette index; zero means no organizational label.
     bool visible {true};
     float opacity {1.0F};
+    float fillOpacity {1.0F}; // Content only; never changes source alpha or effect geometry.
     BlendMode blendMode {BlendMode::Normal};
     std::uint32_t blendSeed {defaultBlendSeed};
     AdjustmentState adjustments;

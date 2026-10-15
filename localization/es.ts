@@ -10675,4 +10675,43 @@ Chaflán: tira de esquinas hacia dentro; Alt cambia también la opuesta. Los lad
       <translation type="unfinished" />
     </message>
   </context>
+  <context>
+    <name>LayerOpacity</name>
+    <message id="layer.opacity.layer.prefix">
+      <source>Layer opacity: </source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layer.opacity.pixel.prefix">
+      <source>Pixel opacity: </source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layer.opacity.pixel">
+      <source>Pixel opacity</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layer.opacity.switch">
+      <source>Switch opacity control</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layer.opacity.switch.layer">
+      <source>Show Layer opacity</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layer.opacity.switch.pixel">
+      <source>Show Pixel opacity (Fill)</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layer.opacity.layer.help">
+      <source>Fade the entire layer, including its effects.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layer.opacity.pixel.help">
+      <source>Photoshop Fill: fade the layer content while keeping its effects. Some blend modes respond differently than Layer opacity.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="history.layer.pixel.opacity">
+      <source>Layer pixel opacity</source>
+      <translation type="unfinished" />
+    </message>
+  </context>
 </TS>

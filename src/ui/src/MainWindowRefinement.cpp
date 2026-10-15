@@ -823,6 +823,7 @@ void MainWindow::advanceRefinement() {
           auto l = *reference.layer(target);
           l.visible = true;
           l.opacity = 1;
+          l.fillOpacity = 1;
           l.blendMode = core::BlendMode::Normal;
           single.insertLayer(0, std::move(l));
           reference = std::move(single);

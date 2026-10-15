@@ -567,7 +567,7 @@ PremultipliedColor
 compositeLayerEffects(PremultipliedColor backdrop, PremultipliedColor base,
                       const EffectParameters &p, const LayerEffectCache *cache,
                       Vec2d local, float opacity, BlendMode mode,
-                      float cropCoverage, bool protectedCoverage, CompositingSpace space) noexcept {
+                      float cropCoverage, bool protectedCoverage, CompositingSpace space, float fillOpacity) noexcept {
   Evaluation e{p, {}, int(space)};
   if (cache)
     for (std::size_t i = 0; i < layerEffectMaskCount; ++i)
@@ -576,7 +576,7 @@ compositeLayerEffects(PremultipliedColor backdrop, PremultipliedColor base,
   const auto c =
       e.eComposite({backdrop[0], backdrop[1], backdrop[2], backdrop[3]},
                    {base[0], base[1], base[2], base[3]}, float(local.x),
-                   float(local.y), opacity, int(mode), cropCoverage, protectedCoverage);
+                   float(local.y), opacity, int(mode), cropCoverage, protectedCoverage, fillOpacity);
   return {c.x, c.y, c.z, c.w};
 }
 } // namespace imageeditor::core

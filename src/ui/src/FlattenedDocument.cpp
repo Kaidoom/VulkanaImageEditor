@@ -100,6 +100,7 @@ static FlattenedDocumentResult flattenImpl(
             if (!included(layer.id))
                 continue;
             require(std::isfinite(layer.opacity) && layer.opacity>=0 && layer.opacity<=1
+                && std::isfinite(layer.fillOpacity) && layer.fillOpacity>=0 && layer.fillOpacity<=1
                 && core::isValidBlendMode(layer.blendMode),"Invalid layer opacity or blend mode in native output");
             metadataBytes += sizeof(core::Layer) + layer.name.capacity();
             // The immutable stack and coverage planes stay shared, like the
@@ -128,6 +129,7 @@ static FlattenedDocumentResult flattenImpl(
                     // composition. Hidden/zero-opacity layers remain editable.
                     layers.back().visible=true;
                     layers.back().opacity=1;
+                    if(!core::hasActiveLayerEffects(layer.effects))layers.back().fillOpacity=1;
                     layers.back().blendMode=core::BlendMode::Normal;
                 }
             }
@@ -330,7 +332,7 @@ static FlattenedDocumentResult flattenImpl(
             if (!layer->visible || layer->opacity<=0)continue;
             if(single) {single=nullptr;break;} single=layer;
         }
-        if(single && items && !matte && (intrinsic || !core::hasClippingGroups(document.tree())) && single->opacity==1
+        if(single && items && !matte && (intrinsic || !core::hasClippingGroups(document.tree())) && single->opacity==1 && single->fillOpacity==1
             && single->blendMode==core::BlendMode::Normal && !single->crop && (!single->mask||!single->mask->enabled)
             && !core::compileAdjustmentStack(single->adjustments).active
             && !core::hasActiveSpatialFilters(single->filters)&&!core::hasActiveLayerEffects(single->effects)) {

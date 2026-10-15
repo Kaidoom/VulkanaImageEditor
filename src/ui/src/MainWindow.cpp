@@ -2501,7 +2501,24 @@ void MainWindow::createDocks()
     i18n::setToolTip(opacitySlider_, i18n::text("main.window.layer.opacity.drag.type.a.number.or.use.the"));
     opacitySlider_->setFixedHeight(30);
     opacitySlider_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    layerControlsLayout->addWidget(opacitySlider_);
+    auto* opacityRow = new QHBoxLayout;
+    opacityRow->setSpacing(5);
+    opacityModeButton_ = new QToolButton;
+    opacityModeButton_->setObjectName(QStringLiteral("LayerOpacityMode"));
+    opacityModeButton_->setIcon(toolGlyph(ToolGlyph::OpacityMode));
+    opacityModeButton_->setIconSize({16,16});
+    opacityModeButton_->setFixedSize(28,30);
+    opacityModeButton_->setCheckable(true);
+    opacityModeButton_->setFocusPolicy(Qt::NoFocus);
+    opacityRow->addWidget(opacitySlider_,1);
+    opacityRow->addWidget(opacityModeButton_);
+    layerControlsLayout->addLayout(opacityRow);
+    connect(opacityModeButton_, &QToolButton::clicked, this, [this] {
+        opacitySlider_->finishEditing();
+        activeOpacityMergeKey_ = 0;
+        pixelOpacityMode_ = !pixelOpacityMode_;
+        updateLayerControls();
+    });
     layersLayout->addWidget(layerControls);
 
     layerList_ = new LayerListView;
@@ -2668,9 +2685,12 @@ void MainWindow::createDocks()
             return;
         }
         const QScopedValueRollback publishing(publishingOpacity_, true);
-        if (executeDocumentCommand(std::make_unique<core::SetLayerOpacityCommand>(
-                *session().activeLayer(), static_cast<float>(value) / 100.0F,
-                activeOpacityMergeKey_))) {
+        std::unique_ptr<core::Command> command;
+        if (pixelOpacityMode_) command = std::make_unique<core::SetLayerFillOpacityCommand>(
+            *session().activeLayer(), float(value)/100, activeOpacityMergeKey_);
+        else command = std::make_unique<core::SetLayerOpacityCommand>(
+            *session().activeLayer(), float(value)/100, activeOpacityMergeKey_);
+        if (executeDocumentCommand(std::move(command))) {
             fileState().untouched = false;
             synchronizeUi(false, false);
         }
@@ -4472,7 +4492,11 @@ void MainWindow::updateLayerControls()
     }
     opacitySlider_->setEnabled(active != nullptr);
     if (!publishingOpacity_ || !opacitySlider_->isManualEntryActive())
-        opacitySlider_->setValue(active ? static_cast<int>(std::lround(active->opacity * 100.0F)) : 100);
+        opacitySlider_->setValue(active ? static_cast<int>(std::lround((pixelOpacityMode_?active->fillOpacity:active->opacity) * 100.0F)) : 100);
+    opacityModeButton_->setEnabled(active != nullptr && !fileBusy_);
+    opacityModeButton_->setChecked(pixelOpacityMode_);
+    i18n::setToolTip(opacityModeButton_,i18n::text(pixelOpacityMode_?"layer.opacity.switch.layer":"layer.opacity.switch.pixel"));
+    i18n::setAccessibleName(opacityModeButton_,i18n::text("layer.opacity.switch"));
     const auto* container = session().document() && session().activeLayer()
         ? session().document()->tree().container(*session().activeLayer()) : nullptr;
     // Containers organize pass-through content. They never gain an isolated
@@ -4482,7 +4506,9 @@ void MainWindow::updateLayerControls()
     else if (!container && blendModeCombo_->count() > int(core::allBlendModes.size()))
         blendModeCombo_->removeItem(int(core::allBlendModes.size()));
     blendModeCombo_->setEnabled(active != nullptr && !fileBusy_);
-    i18n::setPrefix(opacitySlider_, active && std::holds_alternative<core::AdjustmentLayer>(active->payload)?i18n::text("main.window.strength"):i18n::text("main.window.opacity"));
+    i18n::setPrefix(opacitySlider_,i18n::text(pixelOpacityMode_?"layer.opacity.pixel.prefix":"layer.opacity.layer.prefix"));
+    i18n::setAccessibleName(opacitySlider_,i18n::text(pixelOpacityMode_?"layer.opacity.pixel":"main.window.layer.opacity"));
+    i18n::setToolTip(opacitySlider_,i18n::text(pixelOpacityMode_?"layer.opacity.pixel.help":"layer.opacity.layer.help"));
     blendModeCombo_->setCurrentIndex(container ? int(core::allBlendModes.size())
         : blendModeCombo_->findData(int(active ? active->blendMode : core::BlendMode::Normal)));
     propertiesPanel_->setSelectedLayer(active, container);

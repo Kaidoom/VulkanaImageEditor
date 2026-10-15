@@ -171,7 +171,7 @@ QString nativeTextReason(const core::Layer &layer, const core::RectI &page) {
       core::hasActiveSpatialFilters(layer.filters) ||
       core::hasActiveLayerEffects(layer.effects))
     return QStringLiteral("Text adjustments, filters or effects");
-  if (layer.opacity != 1)
+  if (layer.opacity != 1 || layer.fillOpacity != 1)
     return QStringLiteral(
         "Translucent text needs linear-light raster composition");
   const auto &text = std::get<core::TextLayer>(layer.payload);

@@ -89,7 +89,8 @@ void freshProfileUsesApprovedLayout()
     auto* right=window.findChild<QSplitter*>("RightPanelSplitter");
     CHECK(workspace&&left&&right);if(!workspace||!left||!right)return;
     CHECK(workspace->leftPanelWidth()==370);CHECK(workspace->panelWidth()==551);
-    CHECK(left->count()==1&&left->widget(0)->objectName()=="LayersPanel");
+    CHECK(left->count()==2&&left->widget(0)->objectName()=="LayersPanel"
+        &&left->widget(1)->objectName()=="NavigatorPanelShell");
     CHECK(right->count()==2);if(right->count()!=2)return;
     const auto panel=[&](const char* name){return dynamic_cast<u::WorkspacePanel*>(window.findChild<QWidget*>(name));};
     auto* color=panel("ColorPanelShell");auto* swatches=panel("SwatchesPanelShell");

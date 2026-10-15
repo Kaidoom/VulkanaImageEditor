@@ -98,6 +98,33 @@ local field rather than an independent screen-space noise source.
 
 ## Exchange and consumers
 
+### Layer opacity and Pixel opacity (Fill)
+
+Each leaf layer stores two independent values. **Layer opacity** fades the
+complete styled contribution. **Pixel opacity** changes the content paint while
+retaining the original alpha silhouette for strokes, shadows, glows and bevels.
+The arrow button next to the Layers opacity control switches between them;
+switching controls is not an artwork edit. Both values have independent undo
+commands. Pass-through containers do not acquire either opacity.
+
+Pixel opacity defaults to 100%, which uses the previous composition path exactly.
+For most modes it multiplies content opacity. Difference, Color Dodge, Linear
+Dodge (Add), Color Burn, Linear Burn, Vivid Light, Linear Light and Hard Mix instead
+apply Fill inside the blend function, before shape coverage and whole-layer
+opacity. The CPU and Vulkan include the same equations from `BlendMath.inc`.
+Adjustment layers retain backdrop alpha while applying the same Fill rules to
+their correction strength/blend. Fill edits invalidate composites, not source
+pixels, filtered images or effect geometry. Raw alpha selection stays intrinsic.
+
+Interior styles retain Vulkana's existing grouped composition order. Advanced
+Photoshop style-group flags are not added by this feature. As with other
+backdrop-dependent styled modes, baking a single styled layer can approximate
+its subsequent blend; merge it with its backdrop when a baked result must retain
+the complete composition. Partial-Fill style combinations need Photoshop-authored
+reference fixtures before claiming exact Photoshop parity. Automated coverage
+checks analytical blend samples, both composition spaces, masks, clipping,
+projective transforms, adjustment layers, persistence and CPU/Vulkan agreement.
+
 CPU sampling, exports and Vulkan share the equations and integer hash. Mode
 changes invalidate composition, not original image uploads, text/shape geometry
 or bevel distance/normal data. The Vulkan parameter buffer includes the small
@@ -109,8 +136,9 @@ Descriptor enums are independently mapped to `Dslv`, `darkerColor`,
 `lighterColor`, `vividLight`, `linearLight`, `pinLight`, `hardMix`.
 PSD has no portable representation of Vulkana's seed/grid. Native modes remain
 editable; review offers existing consolidation/flatten choices for exact
-appearance. Reduced PSD Fill is still a separate unsupported semantic, never
-silently multiplied into layer opacity. No native Fill control is added here.
+appearance. PSD `iOpa` is imported/exported as Pixel opacity, separately from
+layer opacity and source alpha. Reduced group Fill remains unsupported because
+Vulkana's containers are pass-through rather than isolated style layers.
 PDF's native text path uses its existing faithful raster fallback for these modes.
 
 References: [Adobe descriptions](https://helpx.adobe.com/photoshop/desktop/repair-retouch/adjust-light-tone/blending-mode-descriptions.html),

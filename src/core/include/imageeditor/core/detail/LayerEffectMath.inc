@@ -44,29 +44,65 @@ E_INLINE BVec4 eEmission(BVec4 backdrop,BVec4 emitted,int effect,float coverage,
     if(E_PARAM(i)==0.0F)return emitted;
     return bContribution(backdrop,eColor(effect),E_PARAM(i+2)*bClamp(coverage,0.0F,1.0F),int(E_PARAM(i+1)),emitted,x,y,eSeed(effect+1));
 }
-E_INLINE BVec4 eCompositePass(BVec4 backdrop,BVec4 base,float x,float y,int mode,E_OUTPUT emitted,bool track)
+E_INLINE BVec4 ePaintInside(BVec4 paint,BVec4 color,int effect,float coverage,float x,float y)
+{
+    int i=effect*32;
+    if(E_PARAM(i)==0.0F)return paint;
+    return bCompositeAt(paint,color,E_PARAM(i+2)*bClamp(coverage,0.0F,1.0F),int(E_PARAM(i+1)),x,y,eSeed(effect+1),false);
+}
+E_INLINE BVec4 eFillPaint(BVec4 base,float fill,float x,float y)
+{
+    if(base.w<=0.0F)return BVec4(0,0,0,0);
+    // Work inside the original silhouette with an independent paint alpha.
+    // Interior effects can add paint even when the content Fill is zero.
+    BVec4 paint=BVec4(bUnassociatedLinear(base.x,base.w)*fill,bUnassociatedLinear(base.y,base.w)*fill,
+        bUnassociatedLinear(base.z,base.w)*fill,fill);
+    paint=ePaintInside(paint,eColor(5),5,1.0F,x,y);
+    paint=ePaintInside(paint,eGradient(x,y),6,1.0F,x,y);
+    paint=ePaintInside(paint,eColor(2),2,E_MASK(3),x,y);
+    paint=ePaintInside(paint,eColor(4),4,E_MASK(5),x,y);
+    if(E_PARAM(224)!=0.0F) {
+        paint=bCompositeAt(paint,BVec4(E_PARAM(232),E_PARAM(233),E_PARAM(234),E_PARAM(235)),
+            E_PARAM(242)*E_MASK(7),int(E_PARAM(241)),x,y,eSeed(9),false);
+        paint=bCompositeAt(paint,eColor(7),E_PARAM(226)*E_MASK(6),int(E_PARAM(225)),x,y,eSeed(8),false);
+    }
+    return ePaintInside(paint,eColor(0),0,E_MASK(1),x,y);
+}
+E_INLINE BVec4 eCompositePass(BVec4 backdrop,BVec4 base,float x,float y,int mode,E_OUTPUT emitted,bool track,float fill)
 {
     emitted=BVec4(0,0,0,0);
     BVec4 styled=base;
-    styled=eInside(styled,eColor(5),5,1.0F,x,y);
-    styled=eInside(styled,eGradient(x,y),6,1.0F,x,y);
-    styled=eInside(styled,eColor(2),2,E_MASK(3),x,y);
-    styled=eInside(styled,eColor(4),4,E_MASK(5),x,y);
-    if(E_PARAM(224)!=0.0F && styled.w>0.0F) {
-        float alpha=styled.w;
-        BVec4 opaque=BVec4(bUnassociatedLinear(styled.x,alpha),bUnassociatedLinear(styled.y,alpha),bUnassociatedLinear(styled.z,alpha),1.0F);
-        opaque=bCompositeAt(opaque,BVec4(E_PARAM(232),E_PARAM(233),E_PARAM(234),E_PARAM(235)),
-            E_PARAM(242)*E_MASK(7),int(E_PARAM(241)),x,y,eSeed(9),false);
-        opaque=bCompositeAt(opaque,eColor(7),E_PARAM(226)*E_MASK(6),int(E_PARAM(225)),x,y,eSeed(8),false);
-        styled=BVec4(opaque.x*alpha,opaque.y*alpha,opaque.z*alpha,alpha);
+    if(fill>=1.0F) {
+        styled=eInside(styled,eColor(5),5,1.0F,x,y);
+        styled=eInside(styled,eGradient(x,y),6,1.0F,x,y);
+        styled=eInside(styled,eColor(2),2,E_MASK(3),x,y);
+        styled=eInside(styled,eColor(4),4,E_MASK(5),x,y);
+        if(E_PARAM(224)!=0.0F && styled.w>0.0F) {
+            float alpha=styled.w;
+            BVec4 opaque=BVec4(bUnassociatedLinear(styled.x,alpha),bUnassociatedLinear(styled.y,alpha),bUnassociatedLinear(styled.z,alpha),1.0F);
+            opaque=bCompositeAt(opaque,BVec4(E_PARAM(232),E_PARAM(233),E_PARAM(234),E_PARAM(235)),
+                E_PARAM(242)*E_MASK(7),int(E_PARAM(241)),x,y,eSeed(9),false);
+            opaque=bCompositeAt(opaque,eColor(7),E_PARAM(226)*E_MASK(6),int(E_PARAM(225)),x,y,eSeed(8),false);
+            styled=BVec4(opaque.x*alpha,opaque.y*alpha,opaque.z*alpha,alpha);
+        }
+        styled=eInside(styled,eColor(0),0,E_MASK(1),x,y);
     }
-    styled=eInside(styled,eColor(0),0,E_MASK(1),x,y);
     if(track)emitted=eEmission(backdrop,emitted,1,E_MASK(2),x,y);
     BVec4 result=eOutside(backdrop,1,E_MASK(2),x,y);
     if(track)emitted=eEmission(result,emitted,3,E_MASK(4),x,y);
     result=eOutside(result,3,E_MASK(4),x,y);
-    if(track)emitted=bContribution(result,styled,1.0F,mode,emitted,x,y,eSeed(0));
-    result=bComposite(result,styled,1.0F,mode);
+    if(fill>=1.0F) {
+        if(track)emitted=bContribution(result,styled,1.0F,mode,emitted,x,y,eSeed(0));
+        result=bComposite(result,styled,1.0F,mode);
+    } else {
+        BVec4 paint=eFillPaint(base,fill,x,y);
+        if(paint.w>0.0F) {
+            BVec4 shape=BVec4(bUnassociatedLinear(paint.x,paint.w)*base.w,bUnassociatedLinear(paint.y,paint.w)*base.w,
+                bUnassociatedLinear(paint.z,paint.w)*base.w,base.w);
+            if(track)emitted=bContribution(result,shape,paint.w,mode,emitted,x,y,eSeed(0));
+            result=bCompositeFillAtSpace(result,shape,1.0F,mode,x,y,eSeed(0),false,E_SPACE,paint.w);
+        }
+    }
     if(E_PARAM(224)!=0.0F) {
         if(track)emitted=bContribution(result,BVec4(E_PARAM(232),E_PARAM(233),E_PARAM(234),E_PARAM(235)),
             E_PARAM(242)*E_MASK(9),int(E_PARAM(241)),emitted,x,y,eSeed(9));
@@ -80,10 +116,10 @@ E_INLINE BVec4 eCompositePass(BVec4 backdrop,BVec4 base,float x,float y,int mode
     return result;
 }
 E_INLINE BVec4 eComposite(BVec4 backdrop,BVec4 base,float x,float y,float opacity,int mode,
-    float coverage,bool protectedCoverage)
+    float coverage,bool protectedCoverage,float fill)
 {
     BVec4 emitted;
-    BVec4 result=eCompositePass(backdrop,base,x,y,mode==20?0:mode,emitted,mode==20&&!protectedCoverage);
+    BVec4 result=eCompositePass(backdrop,base,x,y,mode==20?0:mode,emitted,mode==20&&!protectedCoverage,fill);
     if(mode==20) {
         // Resolve the complete styled contribution against the actual backdrop.
         // Track emitted color without subtracting the surviving backdrop.

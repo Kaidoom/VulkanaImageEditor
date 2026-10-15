@@ -189,6 +189,7 @@ void main()
     effectOffset=((pc.mode&0x3fffffff)>>8)-1;
     int cropMode=pc.cropEnabled&3;
     int geometry=(pc.cropEnabled>>2)-1;
+    float fillOpacity=geometry>=0?adjustmentParameters.values[geometry+19]:1.0;
     uint blendSeed=geometry>=0?(uint(adjustmentParameters.values[geometry+3])|(uint(adjustmentParameters.values[geometry+7])<<16)):0x6d2b79f5u;
     clippingGeometry=(pc.mode&0x40000000)!=0?geometry:-1;
     int operation=clippingGeometry>=0?int(adjustmentParameters.values[clippingGeometry+20]):0;
@@ -223,6 +224,10 @@ void main()
         float strength=clamp(pc.opacity*layerCoverage(geometry,local),0,1);
         if(strength<=0)return;
         vec4 corrected=adjustSource(original,local);
+        if(fillOpacity<1.0) {
+            storeTarget(pixel,bAdjustmentFillBlendSpace(original,corrected,strength,pc.mode&255,blendLocal.x,blendLocal.y,blendSeed,compositingSpace,fillOpacity));
+            return;
+        }
         storeTarget(pixel,(pc.mode&255)==0&&compositingSpace==0?vec4(strength==1?corrected.rgb:original.rgb+(corrected.rgb-original.rgb)*strength,original.a)
             :bAdjustmentBlendSpace(original,corrected,strength,pc.mode&255,blendLocal.x,blendLocal.y,blendSeed,compositingSpace));
         return;
@@ -291,6 +296,6 @@ void main()
     if(effectOffset>=0) {
         vec2 point=vec2(dot(pc.sourceToLocalX.xyz,vec3(local,1)),dot(pc.sourceToLocalY.xyz,vec3(local,1)))/dot(sourceW,vec3(local,1));
         for(int i=0;i<10;++i)effectCoverage[i]=sampleStyleMask(i,point);
-        storeTarget(pixel,eComposite(backdrop,source,blendLocal.x,blendLocal.y,pc.opacity,pc.mode&255,cropCoverage,operation==2));
-    }else storeTarget(pixel,bCompositeAtSpace(backdrop,source*cropCoverage,pc.opacity,pc.mode&255,blendLocal.x,blendLocal.y,blendSeed,operation==2,compositingSpace));
+        storeTarget(pixel,eComposite(backdrop,source,blendLocal.x,blendLocal.y,pc.opacity,pc.mode&255,cropCoverage,operation==2,fillOpacity));
+    }else storeTarget(pixel,bCompositeFillAtSpace(backdrop,source*cropCoverage,pc.opacity,pc.mode&255,blendLocal.x,blendLocal.y,blendSeed,operation==2,compositingSpace,fillOpacity));
 }

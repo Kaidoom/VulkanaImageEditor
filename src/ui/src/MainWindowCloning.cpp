@@ -209,7 +209,7 @@ bool MainWindow::beginCloneStroke(const core::NormalizedPointerSample& sample)
         canvasWindow_->setResolvedBrushCursorAngle(*angle);
     canvasWindow_->setConstrainedBrushPosition(activeCloneStroke_->brush().constrainedPosition());
     const bool rendered = cloneSettings_.source != core::CloneSampleSource::SourceLayer;
-    const bool effects = layer->blendMode != core::BlendMode::Normal || layer->opacity != 1.0F
+    const bool effects = layer->blendMode != core::BlendMode::Normal || layer->opacity != 1.0F || layer->fillOpacity != 1.0F
         || core::hasActiveSpatialFilters(layer->filters)
         || core::hasActiveLayerEffects(layer->effects)
         || (layer->adjustments && core::compileAdjustmentStack(layer->adjustments).active);

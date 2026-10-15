@@ -1367,12 +1367,65 @@ void comparePsdCanvas(const QString& path,bool validation)
 }
 } // namespace
 
+void fillOpacityRendering(OffscreenCanvas& gpu)
+{
+    for(auto space:{c::CompositingSpace::LinearSRgb,c::CompositingSpace::EncodedSRgb}) {
+        c::Document doc({{72,56},96,space});
+        doc.insertLayer(0,c::Layer::raster("Backdrop",patterned({72,56},false)));
+        auto upper=c::Layer::raster("Fill",patterned({28,24},true));
+        upper.localToDocument={1.1,.2,20,-.15,1.2,13};upper.opacity=.63F;const auto id=upper.id;
+        doc.insertLayer(1,upper);
+        for(bool styled:{false,true}) {
+            if(styled) {
+                auto effects=std::make_shared<c::LayerEffectStack>();
+                for(auto i:{0,1,4,5})effects->items[std::size_t(i)].enabled=true;
+                effects->items[5].color={90,160,240,150};effects->items[5].opacity=.6;
+                doc.setLayerEffects(id,effects);*doc.layer(id)=c::prepareSpatialFilterLayer(*doc.layer(id));
+            }
+            auto scene=sceneFor(doc);gpu.render(scene);
+            const auto before=gpu.stats();const auto cache=doc.layer(id)->effectCache;
+            for(auto mode:c::allBlendModes)for(float fill:{0.F,.25F,.7F,1.F}) {
+                doc.setLayerBlendMode(id,mode);doc.setLayerFillOpacity(id,fill);scene.document=doc.snapshot();
+                verify(doc,scene,gpu.render(scene),"Fill / "+std::string(c::blendModeName(mode)),false);
+                check(doc.layer(id)->effectCache==cache,"Fill retains effect geometry cache");
+            }
+            check(gpu.stats().uploadedBytes==before.uploadedBytes,"Fill/mode changes never upload source RGBA");
+            check(gpu.stats().adjustmentMaskUploads==before.adjustmentMaskUploads,"Fill never uploads unchanged effect masks");
+            auto idle=gpu.stats();gpu.render(scene,false);
+            check(gpu.stats().compositionPasses==idle.compositionPasses,"idle Fill workspace reuses composition");
+        }
+        auto mask=std::make_shared<c::LayerMask>();mask->coverage=c::SelectionMask::filled({28,24},150);mask->outside=0;
+        doc.setLayerMask(id,mask);
+        auto transform=doc.layer(id)->localToDocument;transform.m20=.002;transform.m21=.001;
+        doc.setLayerTransform(id,transform);
+        auto clipped=c::Layer::raster("Clipped paint",patterned({72,56},true));clipped.fillOpacity=.45F;
+        doc.insertLayer(2,clipped);
+        const auto group=c::makeLayerId();auto tree=doc.tree();
+        tree.roots={doc.layers()[0].id,group};
+        tree.containers.push_back({group,"Clipping",c::ContainerKind::ClippingMaskGroup,c::ColorLabel::None,{id,clipped.id}});
+        check(doc.replaceStructure(doc.tree(),tree),"Fill clipping fixture");
+        for(float fill:{0.F,.3F,1.F})for(auto mode:{c::BlendMode::Normal,c::BlendMode::ColorDodge,c::BlendMode::HardMix}) {
+            doc.setLayerFillOpacity(id,fill);doc.setLayerBlendMode(id,mode);
+            auto scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"Fill clipped/projective/masked",false);
+        }
+        auto adjustment=c::Layer::adjustment("Fill adjustment");
+        auto values=std::make_shared<c::AdjustmentStack>();values->items[0].enabled=true;values->items[0].parameters=c::ExposureParameters{1};
+        adjustment.adjustments=values;doc.insertLayer(doc.layers().size(),adjustment);
+        for(float fill:{0.F,.25F,1.F})for(auto mode:c::allBlendModes) {
+            doc.setLayerFillOpacity(adjustment.id,fill);doc.setLayerBlendMode(adjustment.id,mode);
+            auto scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"Fill adjustment / "+std::string(c::blendModeName(mode)),false);
+        }
+    }
+}
+
 int main(int argc, char** argv)
 {
     bool validation = false, benchmark = false, adjustments = false, crop = false, filters = false,effects=false,masks=false,clipping=false,adjustmentLayers=false,encoded=false;
     QString psdFixture;
+    bool fillOpacity=false;
     for (int i = 1; i < argc; ++i) {
         if (std::string_view(argv[i]) == "--validation") validation = true;
+        if (std::string_view(argv[i]) == "--fill-opacity") fillOpacity = true;
         if (std::string_view(argv[i]) == "--encoded-compositing") encoded = true;
         if (std::string_view(argv[i]) == "--compare-psd"&&i+1<argc)psdFixture=QString::fromLocal8Bit(argv[++i]);
         if (std::string_view(argv[i]) == "--linear-target") linearTestTarget = true;
@@ -1400,7 +1453,8 @@ int main(int argc, char** argv)
             Review review(effects?c::layerEffectCount:filters?c::spatialFilterCount:adjustments?c::adjustmentCount+2:c::allBlendModes.size());
             {
                 OffscreenCanvas gpu(validation);
-                if(encoded) {
+                if(fillOpacity)fillOpacityRendering(gpu);
+                else if(encoded) {
                     allModesAndCacheBehavior(gpu,review,c::CompositingSpace::EncodedSRgb);
                     layerMaskRendering(gpu,c::CompositingSpace::EncodedSRgb);
                     clippingRendering(gpu,c::CompositingSpace::EncodedSRgb);

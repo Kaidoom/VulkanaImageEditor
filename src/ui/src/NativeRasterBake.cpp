@@ -67,6 +67,7 @@ void removeBakedEffects(core::Layer& baked,const core::Layer& original)
         ++baked.effectRevision;
     }
     baked.crop.reset();baked.renderCache.reset();baked.filterCache.reset();baked.effectCache.reset();
+    baked.fillOpacity=core::hasActiveLayerEffects(original.effects)?1:original.fillOpacity;
 }
 }
 RasterizeResult prepareRasterizeLayers(const core::Document& doc,const core::LayerSelectionState& selection,

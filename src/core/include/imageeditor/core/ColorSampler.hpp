@@ -21,7 +21,8 @@ private:
 
 // One prepared source image and adjustment program, independent of visibility,
 // layer opacity and blend mode. Document points may lie outside the canvas for
-// off-canvas merge/thumbnail output. adjusted=false bypasses adjustments and spatial filters;
+// off-canvas merge/thumbnail output. adjusted=false bypasses adjustments, filters,
+// styles and pixel opacity; adjusted=true includes pixel opacity in the paint.
 // crop is always an output restriction here. Use PreparedRasterSampler for raw
 // intrinsic pixels, not this rendered-appearance sampler.
 class PreparedLayerSampler {
@@ -39,6 +40,7 @@ private:
     std::optional<EffectParameters> effects_;
     std::shared_ptr<const LayerEffectCache> effectCache_;
     CompositingSpace compositingSpace_ {CompositingSpace::LinearSRgb};
+    float fillOpacity_ {1};
 };
 
 enum class ColorSampleSource { MergedVisible, ActiveLayer };
@@ -101,6 +103,7 @@ private:
         bool adjustment {false};
         std::uint32_t blendSeed {defaultBlendSeed};
         AffineTransform pixelsToLocal;
+        float fillOpacity {1};
         [[nodiscard]] bool spatialBlend() const noexcept {
             return blendMode==BlendMode::Dissolve || (effects&&(*effects)[20]!=0);
         }

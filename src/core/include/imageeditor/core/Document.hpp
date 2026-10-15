@@ -34,6 +34,7 @@ struct LayerSnapshot {
     std::string name;
     bool visible {true};
     float opacity {1.0F};
+    float fillOpacity {1.0F};
     BlendMode blendMode {BlendMode::Normal};
     std::uint32_t blendSeed {defaultBlendSeed};
     AdjustmentState adjustments;
@@ -129,6 +130,7 @@ public:
     bool moveLayer(LayerId id, std::size_t destinationIndex);
     bool setLayerVisibility(LayerId id, bool visible);
     bool setLayerOpacity(LayerId id, float opacity);
+    bool setLayerFillOpacity(LayerId id, float opacity);
     bool setLayerBlendMode(LayerId id, BlendMode mode);
     bool setLayerAdjustments(LayerId id, AdjustmentState);
     bool setAdjustmentScope(LayerId, AdjustmentScope);

@@ -788,6 +788,8 @@ private:
     QListView* layerList_ {nullptr};
     QComboBox* blendModeCombo_ {nullptr};
     CompactValueControl* opacitySlider_ {nullptr};
+    QToolButton* opacityModeButton_ {nullptr};
+    bool pixelOpacityMode_ {false}; // Panel inspection state, not document history.
     bool publishingOpacity_ {false};
     QPushButton* deleteLayerButton_ {nullptr};
     QPushButton* addMaskButton_ {nullptr};

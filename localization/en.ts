@@ -7118,4 +7118,19 @@ Chamfer: pull corners inward; Alt also changes the opposite corner. Side handles
     <message id="layer.mask.copy.done"><source>Layer mask copied.</source></message>
     <message id="layer.mask.paste.failed"><source>The layer mask could not be pasted at its original position.</source></message>
   </context>
+  <context>
+    <name>LayerOpacity</name>
+    <message id="layer.opacity.layer.prefix"><source>Layer opacity: </source></message>
+    <message id="layer.opacity.pixel.prefix"><source>Pixel opacity: </source></message>
+    <message id="layer.opacity.pixel"><source>Pixel opacity</source></message>
+    <message id="layer.opacity.switch"><source>Switch opacity control</source></message>
+    <message id="layer.opacity.switch.layer"><source>Show Layer opacity</source></message>
+    <message id="layer.opacity.switch.pixel"><source>Show Pixel opacity (Fill)</source></message>
+    <message id="layer.opacity.layer.help"><source>Fade the entire layer, including its effects.</source></message>
+    <message id="layer.opacity.pixel.help"><source>Photoshop Fill: fade the layer content while keeping its effects. Some blend modes respond differently than Layer opacity.</source></message>
+  </context>
+  <context>
+    <name>History</name>
+    <message id="history.layer.pixel.opacity"><source>Layer pixel opacity</source><extracomment>Core history label: Layer pixel opacity</extracomment></message>
+  </context>
 </TS>

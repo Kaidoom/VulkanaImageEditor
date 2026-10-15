@@ -37,7 +37,10 @@ QPixmap rasterizedGlyph(ToolGlyph glyph, const QColor& ink, const QSize& size, q
     p.setRenderHint(QPainter::Antialiasing);
     p.setPen(QPen(ink, 1.5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
     p.setBrush(Qt::NoBrush);
-    if (glyph == ToolGlyph::EffectStroke) {
+    if (glyph == ToolGlyph::OpacityMode) {
+        p.drawLine(4,7,20,7); p.drawPolyline(QPolygonF{{16,3},{20,7},{16,11}});
+        p.drawLine(4,17,20,17); p.drawPolyline(QPolygonF{{8,13},{4,17},{8,21}});
+    } else if (glyph == ToolGlyph::EffectStroke) {
         p.drawRoundedRect(QRectF(3,3,18,18),3,3);
         p.drawRoundedRect(QRectF(7,7,10,10),1,1);
     } else if (glyph == ToolGlyph::EffectDropShadow) {

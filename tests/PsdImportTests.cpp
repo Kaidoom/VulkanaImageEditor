@@ -466,8 +466,9 @@ void semanticFixtures() {
   }
   leaf.tags["iOpa"] = QByteArray(1, char(120));
   in = inspect(f::file({leaf}));
-  CHECK(!in.layers[0].editable &&
-        in.layers[0].issues.join(' ').contains("Fill opacity"));
+  CHECK(in.layers[0].editable && in.layers[0].issues.isEmpty());
+  out = convert(in);
+  CHECK(out.document && out.document->layers()[0].fillOpacity == float(120)/255);
   leaf.tags.clear();
   leaf.hidden = true;
   leaf.opacity = 83;

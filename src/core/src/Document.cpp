@@ -162,6 +162,7 @@ bool Document::replaceStructure(const LayerTree& expected, LayerTree replacement
         if (std::ranges::find(removed, l.id) == removed.end()) ids.push_back(l.id);
     for (const auto& l : added) {
         if (l.colorLabel > std::uint8_t(ColorLabel::Purple) || !isValidBlendMode(l.blendMode)
+            || !std::isfinite(l.fillOpacity) || l.fillOpacity < 0 || l.fillOpacity > 1
             || !validLayerMask(l.mask)
             || (l.crop && !validLayerCrop(*l.crop))
             || (l.adjustments && !validAdjustments(*l.adjustments))
@@ -284,6 +285,17 @@ bool Document::setLayerBlendMode(LayerId id, BlendMode mode)
     auto* target = layer(id);
     if (!target || !isValidBlendMode(mode) || target->blendMode == mode) return false;
     target->blendMode = mode;
+    touch();
+    return true;
+}
+
+bool Document::setLayerFillOpacity(LayerId id, float opacity)
+{
+    auto* target = layer(id);
+    if (!target || !std::isfinite(opacity)) return false;
+    opacity = std::clamp(opacity, 0.0F, 1.0F);
+    if (target->fillOpacity == opacity) return false;
+    target->fillOpacity = opacity;
     touch();
     return true;
 }
@@ -477,6 +489,7 @@ DocumentSnapshot Document::snapshot() const
             // potentially visible hierarchical leaves need ancestor lookup.
             .visible = source.visible && (tree_.containers.empty() || isEffectivelyVisible(source.id)),
             .opacity = source.opacity,
+            .fillOpacity = source.fillOpacity,
             .blendMode = source.blendMode,
             .blendSeed = source.blendSeed,
             .adjustments = source.adjustments,

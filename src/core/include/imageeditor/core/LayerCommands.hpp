@@ -69,6 +69,22 @@ private:
     std::optional<BlendMode> before_;
 };
 
+class SetLayerFillOpacityCommand final : public Command {
+public:
+    SetLayerFillOpacityCommand(LayerId id, float opacity, std::uint64_t mergeKey = 0)
+        : id_(id), after_(opacity), mergeKey_(mergeKey) {}
+    bool apply(Document&) override;
+    bool undo(Document&) override;
+    bool mergeWith(const Command&) override;
+    std::string_view label() const noexcept override { return "Layer pixel opacity"; }
+    std::size_t memoryCost() const noexcept override { return sizeof(*this); }
+private:
+    LayerId id_;
+    float after_;
+    std::uint64_t mergeKey_;
+    std::optional<float> before_;
+};
+
 class AddLayerCommand final : public Command {
 public:
     // Optional selection consequence stays inside the same add-layer action.
