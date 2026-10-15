@@ -25,6 +25,7 @@ public:
     std::function<void(int,bool)> onEditingTargetRequested;
     std::function<void(int)> onAlphaSelectionRequested;
     [[nodiscard]] QRect thumbnailRect(const QModelIndex&,bool mask) const;
+    [[nodiscard]] QRect effectIndicatorRect(const QModelIndex&, core::LayerEffectType) const;
     std::function<void()> onEmptySpacePressed;
     // MainWindow owns the cross-native-surface keyboard bridge and global
     // click-away completion; the row owns this ordinary Qt text editor.

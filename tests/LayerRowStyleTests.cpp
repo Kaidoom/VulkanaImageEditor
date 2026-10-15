@@ -1,4 +1,8 @@
 #include "imageeditor/ui/LayerListView.hpp"
+#include "imageeditor/ui/LayerListModel.hpp"
+#include "imageeditor/ui/Localization.hpp"
+#include "imageeditor/ui/LocalizedNames.hpp"
+#include "imageeditor/core/EffectCommands.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/ToolIcons.hpp"
 
@@ -6,6 +10,9 @@
 #include <QFont>
 #include <QImage>
 #include <QItemSelectionModel>
+#include <QLineEdit>
+#include <QHelpEvent>
+#include <QToolTip>
 #include <QPainter>
 #include <QStandardItemModel>
 #include <QTest>
@@ -292,12 +299,115 @@ void saveReview(const std::vector<QImage>& panels)
     CHECK(sheet.save(path));
     std::cout << "Layer row review: " << path.toStdString() << '\n';
 }
+
+void enabledEffectsFollowHistoryAndHideDuringRename()
+{
+    core::EditorSession session;
+    auto document = std::make_unique<core::Document>(core::CanvasSpec{.extent={32,32}});
+    auto layer = core::Layer::shape("A long editable layer name",core::ShapeLayer{});
+    const auto id = layer.id;
+    CHECK(document->insertLayer(0,std::move(layer)));
+    session.replaceDocument(std::move(document));
+    ui::LayerListModel model; model.setSession(&session);
+    ui::LayerListView view;
+    view.setObjectName("LayerList"); view.setModel(&model); view.resize(368,170); view.show(); settle();
+    const auto index = model.index(0);
+    const auto row = view.visualRect(index);
+    const auto thumbnail = view.thumbnailRect(index,false);
+    const auto eye = view.visibilityIndicatorRect(index);
+    const auto initialContent = session.document()->contentState();
+    CHECK(index.data(ui::LayerListModel::ActiveEffectsRole).toUInt() == 0);
+    CHECK(view.effectIndicatorRect(index,core::LayerEffectType::Stroke).isEmpty());
+    CHECK(view.beginRename(id)); settle();
+    const auto editorGeometry = view.renameEditor()->geometry();
+    view.finishRename(false);
+
+    auto effects = std::make_shared<core::LayerEffectStack>();
+    for (auto& effect : effects->items) effect.enabled = true;
+    CHECK(session.execute(std::make_unique<core::SetLayerEffectsCommand>(id,nullptr,effects)));
+    CHECK(index.data(ui::LayerListModel::ActiveEffectsRole).toUInt() == 255);
+    model.refresh(); settle();
+    CHECK(view.visualRect(index) == row && view.thumbnailRect(index,false) == thumbnail && view.visibilityIndicatorRect(index) == eye);
+    for (std::size_t i=0; i<core::layerEffectCount; ++i) {
+        const auto type = core::LayerEffectType(i);
+        const auto rect = view.effectIndicatorRect(index,type);
+        CHECK(row.contains(rect) && rect.size() == QSize(14,14));
+        CHECK(rect.top() == row.bottom() - 7 - rect.height());
+        CHECK(!rect.intersects(thumbnail) && !rect.intersects(eye));
+        if (i) CHECK(!rect.intersects(view.effectIndicatorRect(index,core::LayerEffectType(i-1))));
+        QHelpEvent hover(QEvent::ToolTip,rect.center(),view.viewport()->mapToGlobal(rect.center()));
+        QCoreApplication::sendEvent(view.viewport(),&hover);
+        CHECK(QToolTip::text() == ui::i18n::effectName(type));
+        QToolTip::hideText();
+    }
+    int selectedRow = -1;
+    view.onRowSelectionRequested = [&](int r,Qt::KeyboardModifiers) { selectedRow=r; };
+    QTest::mouseClick(view.viewport(),Qt::LeftButton,{},view.effectIndicatorRect(index,core::LayerEffectType::Stroke).center());
+    CHECK(selectedRow == 0); // Badges are not an extra row control.
+    CHECK(view.beginRename(id)); settle();
+    CHECK(view.renameEditor()->geometry() == editorGeometry);
+    for (std::size_t i=0;i<core::layerEffectCount;++i)
+        CHECK(view.effectIndicatorRect(index,core::LayerEffectType(i)).isEmpty());
+    view.resize(258,170); settle();
+    CHECK(view.renameEditor() && view.renameEditor()->width() > 120);
+    view.finishRename(false); settle();
+    CHECK(!view.effectIndicatorRect(index,core::LayerEffectType::Stroke).isEmpty());
+    CHECK(view.beginRename(id)); settle();
+    const auto editingContent = session.document()->contentState();
+    model.refresh(); settle(); // A live thumbnail/model update must not restore badges.
+    CHECK(view.renameEditor() && view.effectIndicatorRect(model.index(0),core::LayerEffectType::Stroke).isEmpty());
+    view.finishRename(false);
+    CHECK(session.document()->contentState() == editingContent);
+    CHECK(session.undo()); model.refresh(); settle();
+    CHECK(index.data(ui::LayerListModel::ActiveEffectsRole).toUInt() == 0);
+    CHECK(session.document()->contentState() == initialContent);
+    CHECK(session.redo()); model.refresh();
+    CHECK(index.data(ui::LayerListModel::ActiveEffectsRole).toUInt() == 255);
+    // Live preview and Cancel must be reflected without a thumbnail bake/reset.
+    core::EffectEditTransaction preview(*session.document(),id);
+    auto subset = std::make_shared<core::LayerEffectStack>(*effects);
+    subset->items[0].enabled=false; subset->items[7].enabled=false;
+    CHECK(preview.update(subset));
+    CHECK(index.data(ui::LayerListModel::ActiveEffectsRole).toUInt() == 126);
+    CHECK(preview.cancel());
+    CHECK(index.data(ui::LayerListModel::ActiveEffectsRole).toUInt() == 255);
+}
+
+void showEffectReview(Fixture& fixture)
+{
+    for (int row=0; row<4; ++row)
+        fixture.model.item(row)->setData(row == 0 ? 255 : row == 1 ? 35 : row == 2 ? 128 : 0,
+            ui::LayerListModel::ActiveEffectsRole);
+    fixture.model.item(3)->setText("No effects");
+    fixture.clearHover();
+}
+
+void effectFootersRemainSeparateAtNarrowWidths(Fixture& fixture)
+{
+    fixture.model.item(0)->setData(255,ui::LayerListModel::ActiveEffectsRole);
+    fixture.model.item(0)->setData(true,ui::LayerListModel::HasMaskRole);
+    const auto index = fixture.model.index(0,0);
+    for (int width : {228,270,368}) {
+        fixture.view.resize(width,342); settle();
+        const auto mask = fixture.view.thumbnailRect(index,true);
+        for (std::size_t i=0;i<core::layerEffectCount;++i) {
+            const auto rect = fixture.view.effectIndicatorRect(index,core::LayerEffectType(i));
+            CHECK(fixture.rowRect(0).contains(rect));
+            CHECK(rect.top() == fixture.rowRect(0).bottom() - 7 - rect.height());
+            // Glyphs have a two-unit inset; their painted interior must clear
+            // both thumbnail targets even when the footer extends under them.
+            CHECK(!rect.adjusted(2,2,-2,-2).intersects(mask));
+        }
+    }
+    fixture.model.item(0)->setData(false,ui::LayerListModel::HasMaskRole);
+}
 } // namespace
 
 int main(int argc, char** argv)
 {
     QApplication application(argc, argv);
     ui::applyEditorTheme(application);
+    enabledEffectsFollowHistoryAndHideDuringRename();
     std::vector<QImage> panels;
     for (const auto preset : {ui::ThemePreset::Dark, ui::ThemePreset::Light, ui::ThemePreset::Custom}) {
         ui::ThemeSettings settings;
@@ -315,7 +425,9 @@ int main(int argc, char** argv)
         hoverIsSubtleAndDoesNotOverrideSelection(fixture);
         if (preset == ui::ThemePreset::Custom)
             layerSelectionIsIndependentOfOtherSelectionColors(application, fixture, settings);
+        effectFootersRemainSeparateAtNarrowWidths(fixture);
         fixture.hover(0);
+        showEffectReview(fixture);
         panels.push_back(fixture.render());
     }
     saveReview(panels);

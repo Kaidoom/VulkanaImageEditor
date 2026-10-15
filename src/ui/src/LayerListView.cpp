@@ -1,4 +1,5 @@
 #include "imageeditor/ui/Localization.hpp"
+#include "imageeditor/ui/LocalizedNames.hpp"
 #include "imageeditor/ui/LayerListView.hpp"
 #include "imageeditor/ui/LayerListModel.hpp"
 #include "imageeditor/ui/ToolIcons.hpp"
@@ -23,6 +24,7 @@
 #include <QStyledItemDelegate>
 #include <QTimer>
 #include <QToolTip>
+#include <bit>
 #include <utility>
 
 namespace imageeditor::ui {
@@ -30,6 +32,26 @@ namespace {
     class LayerRowDelegate final : public QStyledItemDelegate {
     public:
         using QStyledItemDelegate::QStyledItemDelegate;
+        bool renaming(const QModelIndex& index) const {
+            const auto* view = static_cast<const LayerListView*>(parent());
+            const auto* editor = view->renameEditor();
+            return editor && editor->property("layerId") == index.data(Qt::UserRole);
+        }
+        unsigned visibleEffects(const QModelIndex& index) const {
+            return renaming(index) ? 0 : index.data(LayerListModel::ActiveEffectsRole).toUInt();
+        }
+        QRect effectRect(const QRect& row, const QRect& thumbnail, unsigned effects, core::LayerEffectType type) const {
+            const auto i = unsigned(type);
+            if (i >= core::layerEffectCount || !(effects & (1U << i))) return {};
+            // Inset the footer from the highlight's lower edge. Narrow masked
+            // rows use tighter spacing as well as smaller glyphs to stay clear
+            // of the mask thumbnail at this higher footer position.
+            const int firstX = row.right() - 23 - (std::popcount(effects) - 1) * 16;
+            const int size = firstX <= thumbnail.right() ? 10 : 14;
+            const int spacing = size == 10 ? 11 : 16;
+            const int following = std::popcount(effects >> (i + 1));
+            return {row.right() - 9 - size - following * spacing, row.bottom() - 7 - size, size, size};
+        }
         void initStyleOption(QStyleOptionViewItem* option,const QModelIndex& index) const override {
             QStyledItemDelegate::initStyleOption(option,index);
             option->decorationSize={index.data(LayerListModel::HasMaskRole).toBool()?74:34,34};
@@ -41,6 +63,18 @@ namespace {
         }
         bool helpEvent(QHelpEvent* event,QAbstractItemView* view,
             const QStyleOptionViewItem& option,const QModelIndex& index) override {
+            if (event->type() == QEvent::ToolTip) {
+                const auto effects = visibleEffects(index);
+                const auto thumbnail = decorationRect(option,index);
+                for (std::size_t i=0; i<core::layerEffectCount; ++i) {
+                    const auto type = core::LayerEffectType(i);
+                    const auto rect = effectRect(option.rect,thumbnail,effects,type);
+                    if (rect.contains(event->pos())) {
+                        QToolTip::showText(event->globalPos(),i18n::effectName(type),view->viewport(),rect);
+                        return true;
+                    }
+                }
+            }
             if(event->type()==QEvent::ToolTip && decorationRect(option,index).contains(event->pos())) {
                 QToolTip::hideText();
                 return true; // Content/mask thumbnails stay unobstructed; status shows the target help.
@@ -121,6 +155,21 @@ namespace {
             }
             if (label > 0 && label < 7)
                 painter->fillRect(QRect(option.rect.right() - 4, option.rect.top() + 5, 3, option.rect.height() - 10), layerLabelColor(core::ColorLabel(label)));
+            // A small, passive footer overlay. Never reserve name/editor space,
+            // alter hit testing, or create a child widget for each effect.
+            constexpr std::array glyphs {ToolGlyph::EffectStroke, ToolGlyph::EffectDropShadow,
+                ToolGlyph::EffectInnerShadow, ToolGlyph::EffectOuterGlow, ToolGlyph::EffectInnerGlow,
+                ToolGlyph::EffectColorOverlay, ToolGlyph::EffectGradientOverlay, ToolGlyph::EffectBevel};
+            static_assert(glyphs.size() == core::layerEffectCount);
+            auto ink = themeColor(ThemeColor::SecondaryText);
+            if (hidden) ink.setAlphaF(ink.alphaF() * .64F);
+            painter->setClipRect(option.rect,Qt::IntersectClip);
+            const auto effects = visibleEffects(index);
+            const auto thumbnail = effects ? decorationRect(option,index) : QRect{};
+            for (std::size_t i=0; i<glyphs.size(); ++i) {
+                const auto rect = effectRect(option.rect,thumbnail,effects,core::LayerEffectType(i));
+                if (!rect.isEmpty()) toolGlyph(glyphs[i],ink).paint(painter,rect);
+            }
             painter->restore();
             // Primary vs additional selected items remains readable without
             // an enclosing border; label bars on the right keep their meaning.
@@ -144,6 +193,13 @@ QRect LayerListView::thumbnailRect(const QModelIndex& index,bool mask) const
     QStyleOptionViewItem option;initViewItemOption(&option);option.rect=visualRect(index);
     const auto decoration=static_cast<LayerRowDelegate*>(itemDelegate())->decorationRect(option,index);
     return {decoration.x()+(mask?40:0),decoration.y(),34,34};
+}
+
+QRect LayerListView::effectIndicatorRect(const QModelIndex& index, core::LayerEffectType type) const
+{
+    const auto* delegate = static_cast<LayerRowDelegate*>(itemDelegate());
+    QStyleOptionViewItem option; initViewItemOption(&option); option.rect=visualRect(index);
+    return delegate->effectRect(option.rect,delegate->decorationRect(option,index),delegate->visibleEffects(index),type);
 }
 
 void LayerListView::setModel(QAbstractItemModel* next)
@@ -200,6 +256,7 @@ bool LayerListView::beginRename(core::LayerId id)
     // this editor to another row. Completion below always uses the pinned ID.
     editor->show();
     editor->raise();
+    viewport()->update(visualRect(index));
     if (onRenameEditorChanged) onRenameEditorChanged(editor);
     else editor->setFocus(Qt::OtherFocusReason);
     editor->selectAll();

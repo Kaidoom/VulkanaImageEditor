@@ -23,6 +23,8 @@ public:
     static constexpr int SelectedDescendantRole = Qt::UserRole + 7;
     static constexpr int HasMaskRole = Qt::UserRole + 8;
     static constexpr int ClippingBaseRole = Qt::UserRole + 9;
+    // Bit per enabled LayerEffectType; presentation only, never a thumbnail bake.
+    static constexpr int ActiveEffectsRole = Qt::UserRole + 10;
     explicit LayerListModel(QObject* parent = nullptr);
 
     void setSession(core::EditorSession* session);

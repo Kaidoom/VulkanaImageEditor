@@ -37,7 +37,42 @@ QPixmap rasterizedGlyph(ToolGlyph glyph, const QColor& ink, const QSize& size, q
     p.setRenderHint(QPainter::Antialiasing);
     p.setPen(QPen(ink, 1.5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
     p.setBrush(Qt::NoBrush);
-    if (glyph == ToolGlyph::Camera) {
+    if (glyph == ToolGlyph::EffectStroke) {
+        p.drawRoundedRect(QRectF(3,3,18,18),3,3);
+        p.drawRoundedRect(QRectF(7,7,10,10),1,1);
+    } else if (glyph == ToolGlyph::EffectDropShadow) {
+        auto shade = ink; shade.setAlphaF(ink.alphaF() * .45F);
+        p.fillRect(QRectF(9,9,13,13),shade);
+        p.drawRoundedRect(QRectF(3,3,13,13),2,2);
+    } else if (glyph == ToolGlyph::EffectInnerShadow) {
+        p.drawRoundedRect(QRectF(3,3,18,18),2,2);
+        auto shade = ink; shade.setAlphaF(ink.alphaF() * .55F);
+        p.fillRect(QRectF(5,5,14,4),shade); p.fillRect(QRectF(5,9,4,10),shade);
+    } else if (glyph == ToolGlyph::EffectOuterGlow) {
+        p.drawEllipse(QRectF(7,7,10,10));
+        for (int i=0;i<8;++i) {
+            p.save(); p.translate(12,12); p.rotate(i*45);
+            p.drawLine(QPointF(0,8),QPointF(0,10.5)); p.restore();
+        }
+    } else if (glyph == ToolGlyph::EffectInnerGlow) {
+        p.drawEllipse(QRectF(3,3,18,18));
+        p.drawLine(12,8,12,16); p.drawLine(8,12,16,12);
+        p.drawLine(9,9,15,15); p.drawLine(15,9,9,15);
+    } else if (glyph == ToolGlyph::EffectColorOverlay || glyph == ToolGlyph::EffectGradientOverlay) {
+        auto faint = ink; faint.setAlphaF(ink.alphaF() * .12F);
+        QLinearGradient gradient(4,20,20,4); gradient.setColorAt(0,faint); gradient.setColorAt(1,ink);
+        if (glyph == ToolGlyph::EffectGradientOverlay) p.setBrush(gradient);
+        else { auto solid = ink; solid.setAlphaF(ink.alphaF() * .65F); p.setBrush(solid); }
+        p.drawRoundedRect(QRectF(3,3,18,18),2,2);
+    } else if (glyph == ToolGlyph::EffectBevel) {
+        p.drawPolygon(QPolygonF{{12,2},{22,12},{12,22},{2,12}});
+        p.drawPolygon(QPolygonF{{12,7},{17,12},{12,17},{7,12}});
+        p.drawLine(2,12,7,12); p.drawLine(12,2,12,7);
+        p.drawLine(17,12,22,12); p.drawLine(12,17,12,22);
+        auto shade = ink; shade.setAlphaF(ink.alphaF() * .4F);
+        p.setPen(Qt::NoPen); p.setBrush(shade);
+        p.drawPolygon(QPolygonF{{2,12},{7,12},{12,17},{17,12},{22,12},{12,22}});
+    } else if (glyph == ToolGlyph::Camera) {
         p.drawPolyline(QPolygonF{{3,7},{7,7},{9,4},{15,4},{17,7},{21,7},{21,20},{3,20},{3,7}});
         p.drawEllipse(QPointF(12,13),4,4);p.drawPoint(QPointF(18,10));
     } else if (glyph == ToolGlyph::NewDocument) {

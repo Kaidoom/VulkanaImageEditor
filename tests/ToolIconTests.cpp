@@ -7,6 +7,7 @@
 #include <QPixmap>
 
 #include <cmath>
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <vector>
@@ -48,7 +49,7 @@ void iconsRenderRequestedSizesAndPreserveExplicitTint()
         icons.push_back(toolGlyph(glyph, ink));
     }
     icons.push_back(themedIcon(QStringLiteral(":/icons/text.svg"), ink));
-    for (int glyph=int(ToolGlyph::NewDocument); glyph<=int(ToolGlyph::Camera); ++glyph)
+    for (int glyph=int(ToolGlyph::NewDocument); glyph<=int(ToolGlyph::EffectBevel); ++glyph)
         icons.push_back(toolGlyph(ToolGlyph(glyph), ink));
     for (std::size_t i = 0; i < icons.size(); ++i) {
         const auto& icon = icons[i];
@@ -88,6 +89,20 @@ void iconsRenderRequestedSizesAndPreserveExplicitTint()
         // and resampling them instead of drawing at the requested resolution.
         CHECK(pixels(icon.pixmap(QSize(32, 32), 1.25)) == pixels(icon.pixmap(QSize(40, 40), 1.0)));
         CHECK(pixels(icon.pixmap(QSize(40, 40), 1.5)) == pixels(icon.pixmap(QSize(20, 20), 3.0)));
+    }
+}
+
+void effectGlyphsStayDistinctAtRowSize()
+{
+    for (const auto dpr : {1.0, 1.25, 1.5, 2.0}) {
+        std::vector<QImage> rendered;
+        for (int glyph=int(ToolGlyph::EffectStroke); glyph<=int(ToolGlyph::EffectBevel); ++glyph) {
+            auto image = pixels(toolGlyph(ToolGlyph(glyph)).pixmap({14,14},dpr));
+            CHECK(!image.isNull());
+            CHECK(std::any_of(image.constBits(),image.constBits()+image.sizeInBytes(),[](auto v) { return v != 0; }));
+            for (const auto& previous : rendered) CHECK(image != previous);
+            rendered.push_back(image);
+        }
     }
 }
 
@@ -158,6 +173,7 @@ int main(int argc, char** argv)
     QApplication application(argc, argv);
     applyEditorTheme(application);
     iconsRenderRequestedSizesAndPreserveExplicitTint();
+    effectGlyphsStayDistinctAtRowSize();
     paletteIconsFollowThemeChangesWhileExplicitIconsRetainTheirInk(application);
     saveOptionalReviewSheet();
     if (failures) return EXIT_FAILURE;

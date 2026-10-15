@@ -291,6 +291,13 @@ QVariant LayerListModel::data(const QModelIndex& index, int role) const
         return selectedAncestorFolders_.contains(*id);
     case HasMaskRole:
         return l&&bool(l->mask);
+    case ActiveEffectsRole: {
+        unsigned effects = 0;
+        if (l && l->effects)
+            for (std::size_t i = 0; i < core::layerEffectCount; ++i)
+                if (l->effects->items[i].enabled) effects |= 1U << i;
+        return effects;
+    }
     case ClippingBaseRole: {
         const auto& tree=session_->document()->tree();
         const auto p=tree.placement(*id);
