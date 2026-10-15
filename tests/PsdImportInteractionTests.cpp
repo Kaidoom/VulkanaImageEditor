@@ -275,6 +275,23 @@ int main(int argc, char **argv) {
           CHECK(canvas->rendererStats().compositionError.empty());
         }
     }
+    {
+      // A valid empty layer must pass the normal dialog without resolving an
+      // unsupported-content choice, including with the native canvas enabled.
+      psdfixture::Layer empty;
+      empty.name = "Empty pixel layer";
+      empty.rect = {0, 0, 0, 0};
+      const auto emptyPath = files.filePath("empty.psd");
+      QFile emptyFile(emptyPath);
+      CHECK(emptyFile.open(QIODevice::WriteOnly));
+      const auto emptyBytes = psdfixture::file({empty});
+      CHECK(emptyFile.write(emptyBytes) == emptyBytes.size());
+      emptyFile.close();
+      CHECK(open(window, emptyPath));
+      const auto *imported = window.editorSession().document();
+      CHECK(imported && imported->layers().size() == 1);
+      CHECK(imported && imported->layers()[0].name == "Empty pixel layer");
+    }
     if (auto sample = qEnvironmentVariable("VULKANA_PSD_REFERENCE");
         !sample.isEmpty()) {
       CHECK(open(window, sample, false, false, [&] {

@@ -781,6 +781,13 @@ bool isShape(const Record &r) {
   return (r.tags.contains("vsms") || r.tags.contains("vmsk")) &&
          (r.tags.contains("SoCo") || r.tags.contains("vscg"));
 }
+bool emptyPixelLayer(const Record &r) {
+  // Empty pixel layers have no saved raster rectangle. Typed content and fill
+  // generators may also lack pixels, but must retain their own import rules.
+  return r.bounds.isEmpty() && r.section == 0 &&
+         !r.tags.contains("TySh") && !isAdjustment(r) &&
+         !r.tags.contains("SoCo") && !r.tags.contains("vscg");
+}
 QStringList restrictions(const Record &r, bool localAdjustmentGroup=false) {
   auto issues = r.issues;
   if (r.blendIf)
@@ -1040,7 +1047,8 @@ PsdInspection inspectPsd(const QString &path,
       info.raster = info.basePixels && external.empty() && effectsOk;
       info.editable =
           typedOk && effectsOk && external.empty() &&
-          (info.container || model.text || model.shape || model.adjustment || info.basePixels);
+          (info.container || model.text || model.shape || model.adjustment ||
+           info.basePixels || emptyPixelLayer(rec));
       for (auto it = model.replacements.begin(); it != model.replacements.end();
            ++it) {
         info.fonts << it.key();
@@ -1297,6 +1305,18 @@ PsdConversion convertPsd(const PsdInspection &in, const PsdOptions &options,
           else if (m.shape)
             layer = core::Layer::shape(info.name.toStdString(),
                                        std::move(*m.shape));
+          else if (emptyPixelLayer(rec)) {
+            // Match a new empty native layer's editing area. A 1x1 placeholder
+            // would let brushes grow but incorrectly restrict Fill operations.
+            const auto extent = document->canvas().extent;
+            required = memoryAdd(required,
+                                 std::uint64_t(extent.width) * extent.height * 4);
+            admitMemory(out, limits, std::uint64_t(s.bytes.size()), required,
+                        largestScratch, preview && derivedPreview);
+            layer = core::Layer::raster(info.name.toStdString(),
+                std::make_shared<core::ContiguousRasterSurface>(
+                    extent, core::Rgba8{}));
+          }
           else {
             auto image = pixels(s, rec, job);
             if(image.colorSpace().isValid() && image.colorSpace()!=QColorSpace(QColorSpace::SRgb))

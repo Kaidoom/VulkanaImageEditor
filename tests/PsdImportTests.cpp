@@ -5,6 +5,7 @@
 #include "imageeditor/core/RichText.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/core/BasicPixelBrushStroke.hpp"
+#include "imageeditor/core/FillOperation.hpp"
 #include "imageeditor/ui/FlattenedDocument.hpp"
 #include "imageeditor/ui/ProjectFile.hpp"
 #include "imageeditor/ui/PsdImport.hpp"
@@ -890,6 +891,144 @@ void profile(const QString &path, bool chooseBasePixels = false, const QString &
             << " archive_bytes " << QFileInfo(roundTripPath).size()
             << " exact_raster_hashes " << before.size() << '\n';
 }
+void emptyPixelLayers() {
+  namespace f = psdfixture;
+  QTemporaryDir dir;
+  const auto job = std::make_shared<u::PsdJob>();
+  const auto path = dir.filePath("empty.psd");
+  auto inspect = [&](const std::vector<f::Layer> &layers) {
+    QFile file(path);
+    CHECK(file.open(QIODevice::WriteOnly));
+    const auto bytes = f::file(layers);
+    CHECK(file.write(bytes) == bytes.size());
+    file.close();
+    return u::inspectPsd(path, job);
+  };
+  f::Layer empty;
+  empty.name = "Empty pixel layer";
+  empty.rect = {0, 0, 0, 0};
+  f::Layer below, above, folder, end;
+  below.name = "Below";
+  above.name = "Above";
+  folder.name = "Folder";
+  folder.pixels = false;
+  folder.blend = "pass";
+  folder.tags["lsct"] = f::group(1);
+  end = folder;
+  end.tags["lsct"] = f::group(3);
+  for (bool channels : {true, false}) {
+    empty.pixels = channels;
+    empty.hidden = !channels;
+    empty.opacity = channels ? 255 : 128;
+    auto in = inspect({below, end, empty, above, folder});
+    CHECK(in.error.isEmpty() && in.layers.size() == 4);
+    if (!in.error.isEmpty() || in.layers.size() != 4)
+      continue;
+    CHECK(in.layers[1].name == empty.name && in.layers[1].editable &&
+          in.layers[1].issues.empty() && !in.layers[1].basePixels);
+    auto options = u::defaultPsdOptions(in);
+    CHECK(options.layers[1].route == u::PsdRoute::Editable);
+    auto output = u::convertPsd(in, options, job, {}, false);
+    CHECK(output.document && output.error.isEmpty());
+    if (!output.document)
+      continue;
+    auto &doc = *output.document;
+    CHECK(doc.layers().size() == 3 && doc.tree().containers.size() == 1);
+    const auto &layer = doc.layers()[1];
+    const auto id = layer.id;
+    CHECK(layer.name == empty.name.toStdString() &&
+          layer.visible == channels && layer.opacity == float(empty.opacity) / 255);
+    CHECK(doc.tree().containers[0].children ==
+          std::vector<c::LayerId>{id, doc.layers()[2].id});
+    CHECK(doc.tree().roots == std::vector<c::LayerId>{
+          doc.layers()[0].id, doc.tree().containers[0].id});
+    const auto surface = std::get<c::RasterLayer>(layer.payload).surface;
+    CHECK(surface->extent() == doc.canvas().extent);
+    CHECK(surface->contentBounds().empty());
+    std::array<std::byte, 4> pixel;
+    surface->copyRgba8({0, 0, 1, 1}, pixel, 4);
+    CHECK(pixel == std::array<std::byte, 4>{});
+    const auto before = u::flattenDocument(doc);
+    CHECK(before);
+    options.layers[1].route = u::PsdRoute::Skip;
+    const auto skipped = u::convertPsd(in, options, job, {}, false);
+    CHECK(skipped.document &&
+          u::flattenDocument(*skipped.document).image == before.image);
+    const auto project = dir.filePath("empty.vulkana");
+    CHECK(u::saveProject(project, doc));
+    auto reopened = u::loadProject(project);
+    CHECK(reopened.document);
+    if (!reopened.document)
+      continue;
+    auto &edited = *reopened.document;
+    CHECK(edited.tree() == doc.tree() && edited.layers()[1].name == layer.name);
+    CHECK(edited.layers()[1].visible == layer.visible &&
+          edited.layers()[1].opacity == layer.opacity);
+    CHECK(u::flattenDocument(edited).image == before.image);
+    // The layer is immediately paintable throughout the canvas.
+    const auto original = std::get<c::RasterLayer>(edited.layer(id)->payload).surface;
+    c::History history;
+    auto settings = c::proceduralBrushPreset(c::ProceduralBrushPreset::HardRound);
+    settings.sizePixels = 5;
+    c::BasicPixelBrushStroke stroke(edited, id, settings);
+    c::NormalizedPointerSample pointer;
+    pointer.documentPosition = {80, 80};
+    pointer.pressure = 1;
+    pointer.buttons = c::PointerButtonPrimary;
+    CHECK(stroke.begin(pointer));
+    CHECK(stroke.end(pointer, history) == c::RasterEditCommitResult::Committed);
+    const auto painted = std::get<c::RasterLayer>(edited.layer(id)->payload).surface;
+    CHECK(!painted->contentBounds().empty());
+    CHECK(history.undo(edited));
+    CHECK(std::get<c::RasterLayer>(edited.layer(id)->payload).surface == original);
+    CHECK(original->contentBounds().empty());
+    CHECK(u::flattenDocument(edited).image == before.image);
+    CHECK(history.redo(edited));
+    CHECK(std::get<c::RasterLayer>(edited.layer(id)->payload).surface == painted);
+    CHECK(!painted->contentBounds().empty());
+    CHECK(history.undo(edited));
+    // Fill must also work away from the origin, not just on a placeholder pixel.
+    c::FillOptions fillOptions;
+    fillOptions.mode = c::FillMode::Contiguous;
+    fillOptions.seed = {80, 80};
+    fillOptions.color = {35, 90, 180, 255};
+    c::FillOperation fill(edited, id, fillOptions);
+    while (fill.state() == c::FillState::Discovering ||
+           fill.state() == c::FillState::Applying)
+      fill.step();
+    CHECK(fill.state() == c::FillState::Ready);
+    CHECK(fill.commit(history) == c::RasterEditCommitResult::Committed);
+    CHECK(original->contentBounds() == c::RectI{0, 0, 96, 96});
+    CHECK(history.undo(edited));
+    CHECK(original->contentBounds().empty());
+  }
+  // Empty layers still count toward the import's retained-pixel budget.
+  auto in = inspect({empty});
+  auto options = u::defaultPsdOptions(in);
+  u::PsdLimits limits;
+  const std::uint64_t emptyBytes = 96 * 96 * 4;
+  limits.rasterBytes = emptyBytes - 1;
+  const auto refused = u::convertPsd(in, options, job, limits, false);
+  CHECK(!refused.document && refused.error.contains("memory"));
+  limits.rasterBytes = emptyBytes;
+  auto accepted = u::convertPsd(in, options, job, limits, false);
+  CHECK(accepted.document && accepted.rasterBytes == emptyBytes);
+  // Missing nonempty pixels, generators and unsupported text are not blanks.
+  auto missing = empty;
+  missing.rect = {0, 0, 10, 10};
+  in = inspect({missing});
+  CHECK(!in.layers[0].editable && !in.layers[0].basePixels);
+  for (const auto &tag : {"SoCo", "GdFl", "levl"}) {
+    auto generator = empty;
+    generator.tags[tag] = f::descriptor({});
+    in = inspect({generator});
+    CHECK(!in.layers[0].editable);
+  }
+  auto warped = empty;
+  warped.tags["TySh"] = f::textTag("Warp\r", "Missing-face", {}, true);
+  in = inspect({warped});
+  CHECK(!in.layers[0].editable && !in.layers[0].raster);
+}
 void compactBounds() {
   namespace f=psdfixture;
   QTemporaryDir dir;
@@ -1047,6 +1186,7 @@ int main(int argc, char **argv) {
   mergedTransparency();
   compositingRoundTrip();
   semanticFixtures();
+  emptyPixelLayers();
   compactBounds();
   if (argc >= 4 && QString::fromLocal8Bit(argv[1]) == "--sample")
     sample(QString::fromLocal8Bit(argv[2]), QString::fromLocal8Bit(argv[3]));
