@@ -4336,7 +4336,7 @@ Merged Visible samples the visible document. Active Layer samples its adjusted/c
       <extracomment>MainWindowUpdates presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
     </message>
     <message id="main.window.updates.view.update">
-      <source>View Update</source>
+      <source>Update</source>
       <extracomment>MainWindowUpdates presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
     </message>
   </context>

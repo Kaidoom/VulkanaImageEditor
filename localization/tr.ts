@@ -6484,10 +6484,10 @@ Birleşik Görünür belgeyi örnekler. Etkin Katman diğer katmanlar olmadan ay
       <translation>Kapat</translation>
     </message>
     <message id="main.window.updates.view.update">
-      <source>View Update</source>
+      <source>Update</source>
       <extracomment>MainWindowUpdates presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
-      <translation>Güncellemeyi görüntüle</translation>
+      <translation>Güncelle</translation>
     </message>
   </context>
   <context>

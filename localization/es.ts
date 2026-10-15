@@ -6485,9 +6485,9 @@ Visible combinado usa el documento visible. Capa activa usa su apariencia ajusta
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.updates.view.update">
-      <source>View Update</source>
+      <source>Update</source>
       <extracomment>MainWindowUpdates presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
-      <translation>Ver actualización</translation>
+      <translation>Actualizar</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
   </context>

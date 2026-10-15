@@ -6485,9 +6485,9 @@ Sichtbares Gesamtbild nutzt das sichtbare Dokument. Aktive Ebene nutzt die korri
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.updates.view.update">
-      <source>View Update</source>
+      <source>Update</source>
       <extracomment>MainWindowUpdates presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
-      <translation>Update ansehen</translation>
+      <translation>Aktualisieren</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
   </context>

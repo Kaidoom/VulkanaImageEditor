@@ -1757,6 +1757,8 @@ void MainWindow::closeEvent(QCloseEvent* event)
     QMainWindow::closeEvent(event);
     if (event->isAccepted()) {
         startupNewDocumentPending_ = startupUpdateNoticePending_ = false;
+        startupUpdateCheckPending_ = false;
+        dismissStartupUpdateNotice();
         if (startupUiTimer_) startupUiTimer_->stop();
         if (updateService_) { updateService_->onChanged = {}; updateService_->cancel(); }
         if (workspaceDialog_) workspaceDialog_->reject();
@@ -1976,8 +1978,9 @@ void MainWindow::showAbout()
         || activeFill_ || activeBrushStroke_ || activeCloneStroke_ || cloneProcessing_
         || activeLocalBlurStroke_ || localBlurProcessing_ || activeSpotHealStroke_ || spotHealBusyForActiveDocument())
         return;
+    startupNewDocumentPending_ = startupUpdateNoticePending_ = startupUpdateCheckPending_ = false;
+    dismissStartupUpdateNotice();
     WorkspaceDialog presenter(*workspace_, *this);
-    startupNewDocumentPending_ = startupUpdateNoticePending_ = false;
     if (startupUiTimer_) startupUiTimer_->stop();
     if (!updateService_) updateService_ = new UpdateService(QCoreApplication::applicationVersion(), this);
     AboutDialog dialog(&presenter, nullptr, UpdateService::buildPackage(), {}, updateService_);

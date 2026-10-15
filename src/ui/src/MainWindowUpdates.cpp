@@ -5,11 +5,14 @@
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/TextController.hpp"
 #include "imageeditor/ui/ProjectIntegrationDialog.hpp"
+#include "imageeditor/ui/OverlayDockWorkspace.hpp"
+#include "imageeditor/ui/ToolIcons.hpp"
 #include "imageeditor/platform/ProjectIntegration.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 
 #include <QApplication>
 #include <QDialog>
+#include <QFrame>
 #include <QComboBox>
 #include <QSettings>
 #include <QHBoxLayout>
@@ -36,19 +39,21 @@ void MainWindow::startStartupFlow(bool showNewDocument, QNetworkAccessManager* t
     startupUiTimer_ = new QTimer(this);
     startupUiTimer_->setSingleShot(true);
     connect(startupUiTimer_, &QTimer::timeout, this, &MainWindow::presentStartupUi);
+    // Startup cards must not wait for the network, including on first launch.
+    startupUiTimer_->start(0);
 
     if (!testUpdate && !platform::ServiceConfig::load().enabled()) {
-        startupUiTimer_->start(0);
         return;
     }
     // One bounded, asynchronous request per launch, independent of old versions'
     // saved timestamps. Offline startup remains silent and responsive.
     if (!updateService_) updateService_ = new UpdateService(QCoreApplication::applicationVersion(), this, transport);
+    startupUpdateCheckPending_ = true;
     updateService_->onChanged = [this] {
-        if (updateService_->busy()) return;
+        if (!startupUpdateCheckPending_ || updateService_->busy()) return;
+        startupUpdateCheckPending_ = false;
         startupUpdateNoticePending_ = updateService_->state() == UpdateService::State::Available;
-        // Queue presentation after the network callback; no modal nested event
-        // loop inside UpdateService::finish(). Failure is deliberately silent.
+        // Results are presentation-only; failure never interrupts the editor.
         startupUiTimer_->start(0);
     };
     if (testUpdate) updateService_->simulateUpdate();
@@ -58,6 +63,10 @@ void MainWindow::startStartupFlow(bool showNewDocument, QNetworkAccessManager* t
 void MainWindow::presentStartupUi()
 {
     if (!isVisible()) return;
+    if (startupUpdateNoticePending_) {
+        startupUpdateNoticePending_ = false;
+        showStartupUpdateNotice();
+    }
     if (activeDocument_ && !fileState().untouched) startupNewDocumentPending_ = false;
     const bool chooseLanguage = qApp->property("vulkanaOfferLanguageChoice").toBool()
         && !QSettings().contains(QStringLiteral("preferences/ui/language"));
@@ -65,7 +74,7 @@ void MainWindow::presentStartupUi()
         && platform::projectIntegrationAvailable(QCoreApplication::applicationFilePath())
         && (qApp->property("vulkanaForceProjectIntegrationPrompt").toBool()
             || !QSettings().contains(platform::projectIntegrationChoiceKey));
-    if (!startupNewDocumentPending_ && !startupUpdateNoticePending_ && !chooseLanguage && !offerIntegration) return;
+    if (!startupNewDocumentPending_ && !chooseLanguage && !offerIntegration) return;
     // Let an explicit GPU choice finish its first presentation and, if needed,
     // show the recovery notice before the other startup cards.
     if(gpuFallbackPending_||(!platform::startupPerformanceSettings().graphicsDevice.isEmpty()
@@ -113,54 +122,63 @@ void MainWindow::presentStartupUi()
         const QScopedValueRollback active(workspaceDialog_, &presenter);
         presenter.exec(dialog);
     }
-    if (startupUpdateNoticePending_) {
-        startupUpdateNoticePending_ = false;
-        bool openAbout = false;
-        {
-            WorkspaceDialog presenter(*workspace_, *this);
-            QDialog notification(&presenter, Qt::SubWindow);
-            notification.setObjectName(QStringLiteral("StartupUpdateNotification"));
-            i18n::setWindowTitle(&notification, i18n::text("main.window.updates.update.available"));
-            notification.setFixedWidth(390);
-            auto* layout = new QVBoxLayout(&notification);
-            layout->setContentsMargins(20, 18, 20, 18);
-            layout->setSpacing(14);
-            auto* title = i18n::make<QLabel>(i18n::text("main.window.updates.update.available"));
-            auto font = title->font(); font.setBold(true); title->setFont(font);
-            auto ink = title->palette(); ink.setColor(QPalette::WindowText, themeColor(ThemeColor::Accent)); title->setPalette(ink);
-            layout->addWidget(title);
-            auto* version = i18n::make<QLabel>(i18n::text("main.window.updates.vulkana.1.is.available").arg(updateService_->release()->version));
-            version->setObjectName(QStringLiteral("StartupUpdateVersion"));
-            version->setWordWrap(true);
-            layout->addWidget(version);
-            if (updateService_->simulated()) {
-                auto* note = i18n::make<QLabel>(i18n::text("main.window.updates.test.update.only.downloads.and.installation.are.disabled"));
-                note->setObjectName(QStringLiteral("StartupUpdateTestNote"));
-                note->setWordWrap(true);
-                layout->addWidget(note);
-            }
-            auto* buttons = new QHBoxLayout;
-            buttons->addStretch();
-            auto* dismiss = i18n::make<QPushButton>(i18n::text("main.window.updates.dismiss"));
-            dismiss->setObjectName(QStringLiteral("StartupUpdateDismiss"));
-            auto* view = i18n::make<QPushButton>(i18n::text("main.window.updates.view.update"));
-            view->setObjectName(QStringLiteral("StartupUpdateOpen"));
-            buttons->addWidget(dismiss); buttons->addWidget(view);
-            layout->addLayout(buttons);
-            connect(dismiss, &QPushButton::clicked, &notification, &QDialog::reject);
-            connect(view, &QPushButton::clicked, &notification, &QDialog::accept);
-            const QScopedValueRollback active(workspaceDialog_, &presenter);
-            openAbout = presenter.exec(notification) == QDialog::Accepted;
-        }
-        if (openAbout) {
-            startupNewDocumentPending_ = false;
-            showAbout(); // Reuses the validated release; no second HTTP request.
-            return;
-        }
-    }
     if (startupNewDocumentPending_ && isVisible()) {
         startupNewDocumentPending_ = false;
         showStartupDocument();
     }
+}
+
+void MainWindow::showStartupUpdateNotice()
+{
+    if (startupUpdateNotice_ || !updateService_ || !updateService_->release()
+        || updateService_->state() != UpdateService::State::Available) return;
+    auto* notice = new QFrame(workspace_->panelOverlay());
+    startupUpdateNotice_ = notice;
+    notice->setObjectName(QStringLiteral("StartupUpdateNotification"));
+    notice->setFocusPolicy(Qt::NoFocus);
+    notice->setAttribute(Qt::WA_ShowWithoutActivating);
+    auto* layout = new QVBoxLayout(notice);
+    layout->setContentsMargins(14, 12, 14, 12);
+    layout->setSpacing(8);
+    auto* header = new QHBoxLayout;
+    auto* icon = new QLabel;
+    icon->setPixmap(toolGlyph(ToolGlyph::Download, themeColor(ThemeColor::Accent)).pixmap(20, 20));
+    header->addWidget(icon);
+    auto* title = i18n::make<QLabel>(i18n::text("main.window.updates.update.available"));
+    auto font = title->font(); font.setBold(true); title->setFont(font);
+    title->setWordWrap(true);
+    header->addWidget(title, 1);
+    layout->addLayout(header);
+    auto* version = i18n::make<QLabel>(i18n::text("main.window.updates.vulkana.1.is.available")
+        .arg(i18n::ltrToken(updateService_->release()->version)));
+    version->setObjectName(QStringLiteral("StartupUpdateVersion"));
+    version->setWordWrap(true);
+    layout->addWidget(version);
+    if (updateService_->simulated()) {
+        auto* note = i18n::make<QLabel>(i18n::text("main.window.updates.test.update.only.downloads.and.installation.are.disabled"));
+        note->setObjectName(QStringLiteral("StartupUpdateTestNote"));
+        note->setWordWrap(true);
+        layout->addWidget(note);
+    }
+    auto* buttons = new QHBoxLayout;
+    buttons->addStretch();
+    auto* dismiss = i18n::make<QPushButton>(i18n::text("main.window.updates.dismiss"));
+    dismiss->setObjectName(QStringLiteral("StartupUpdateDismiss"));
+    auto* update = i18n::make<QPushButton>(i18n::text("main.window.updates.view.update"));
+    update->setObjectName(QStringLiteral("StartupUpdateOpen"));
+    buttons->addWidget(dismiss); buttons->addWidget(update);
+    layout->addLayout(buttons);
+    connect(dismiss, &QPushButton::clicked, this, &MainWindow::dismissStartupUpdateNotice);
+    connect(update, &QPushButton::clicked, this, &MainWindow::showAbout, Qt::QueuedConnection);
+    workspace_->setNotificationOverlay(notice, true);
+}
+
+void MainWindow::dismissStartupUpdateNotice()
+{
+    startupUpdateNoticePending_ = false;
+    if (!startupUpdateNotice_) return;
+    workspace_->setNotificationOverlay(nullptr, false);
+    startupUpdateNotice_->deleteLater();
+    startupUpdateNotice_.clear();
 }
 } // namespace imageeditor::ui

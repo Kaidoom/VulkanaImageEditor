@@ -832,6 +832,15 @@ void applyEditorTheme(QApplication& application, const ThemeSettings& settings)
             border-radius: 4px;
             padding: 6px 10px;
         }
+        QFrame#StartupUpdateNotification {
+            background: #222630;
+            border: 1px solid #343A49;
+            border-radius: 8px;
+        }
+        QFrame#StartupUpdateNotification QLabel {
+            background: transparent;
+            border: none;
+        }
         QStatusBar {
             background: #171A22;
             color: #9DA4B4;

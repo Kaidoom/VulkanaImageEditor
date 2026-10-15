@@ -6484,9 +6484,9 @@ Escape · 処理を中止
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.updates.view.update">
-      <source>View Update</source>
+      <source>Update</source>
       <extracomment>MainWindowUpdates presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
-      <translation>更新を見る</translation>
+      <translation>更新</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
   </context>

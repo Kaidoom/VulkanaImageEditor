@@ -6462,9 +6462,9 @@ Escape لإلغاء العمل الجاري
       <translatorcomment>AI-assisted draft; owner linguistic review pending.</translatorcomment>
     </message>
     <message id="main.window.updates.view.update">
-      <source>View Update</source>
+      <source>Update</source>
       <extracomment>MainWindowUpdates presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
-      <translation>عرض التحديث</translation>
+      <translation>تحديث</translation>
       <translatorcomment>AI-assisted draft; owner linguistic review pending.</translatorcomment>
     </message>
   </context>

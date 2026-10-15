@@ -503,11 +503,15 @@ private:
     FeedbackService* feedbackService_ {nullptr};
     QTimer* startupUiTimer_ {nullptr};
     bool startupNewDocumentPending_ {false}, startupUpdateNoticePending_ {false};
+    bool startupUpdateCheckPending_ {false};
+    QPointer<QWidget> startupUpdateNotice_;
     bool startupDocumentDialog_ {false}, externalOpenDraining_ {false};
     QStringList externalOpenFiles_;
     QTimer* externalOpenTimer_ {nullptr};
     void drainExternalLaunches();
     void presentStartupUi();
+    void showStartupUpdateNotice();
+    void dismissStartupUpdateNotice();
     void showPreferences();
     void showAbout();
     void showFeedback();

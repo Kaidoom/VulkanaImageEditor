@@ -2,6 +2,8 @@
 #include "imageeditor/ui/AboutDialog.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
+#include "imageeditor/ui/OverlayDockWorkspace.hpp"
+#include "imageeditor/render/CanvasWindow.hpp"
 #include "TestServiceConfig.hpp"
 #include "imageeditor/platform/ProjectIntegration.hpp"
 
@@ -26,6 +28,8 @@
 #include <QStandardPaths>
 #include <QTest>
 #include <QTimer>
+#include <QWindow>
+#include <QVulkanInstance>
 #include <algorithm>
 #include <cstring>
 #include <deque>
@@ -62,6 +66,7 @@ struct Response {
     QNetworkReply::NetworkError error {QNetworkReply::NoError};
     bool stall {false};
     qint64 declaredSize {-1};
+    int delayMs {0};
 };
 
 class Reply final : public QNetworkReply {
@@ -72,7 +77,7 @@ public:
         setRequest(request); setUrl(request.url());
         setOperation(QNetworkAccessManager::GetOperation);
         open(QIODevice::ReadOnly | QIODevice::Unbuffered);
-        QTimer::singleShot(0, this, [this] {
+        QTimer::singleShot(response_.delayMs, this, [this] {
             if (isFinished()) return;
             setAttribute(QNetworkRequest::HttpStatusCodeAttribute, response_.http);
             if (response_.declaredSize >= 0)
@@ -855,12 +860,31 @@ int main(int argc, char** argv)
     u::applyEditorTheme(app);
     if (app.arguments().contains("--live-check") || app.arguments().contains("--live-download"))
         liveCheck(app.arguments().contains("--live-download"));
+    else if (app.arguments().contains("--native-startup")) {
+        if (QApplication::platformName() == "offscreen") return 1;
+        TestServiceConfig services;
+        QVulkanInstance instance;
+        instance.setApiVersion(QVersionNumber(1, 2));
+        instance.setLayers({"VK_LAYER_KHRONOS_validation"});
+        int validationMessages = 0;
+        instance.installDebugOutputFilter([&](QVulkanInstance::DebugMessageSeverityFlags flags,
+            QVulkanInstance::DebugMessageTypeFlags types, const void* message) {
+            if (!types.testFlag(QVulkanInstance::ValidationMessage)
+                || !(flags & (QVulkanInstance::ErrorSeverity | QVulkanInstance::WarningSeverity))) return false;
+            ++validationMessages;
+            std::cerr << static_cast<const VkDebugUtilsMessengerCallbackDataEXT*>(message)->pMessage << '\n';
+            return false;
+        });
+        CHECK(instance.create());
+        if (instance.isValid()) startupNonblockingNoticeTests(&instance);
+        CHECK(validationMessages == 0);
+    }
     else { TestServiceConfig services; serviceConfigurationTests(); metadataTests(); stateAndDownloadTests(); dialogTests(); reopenedAboutLanguageTests();
 #ifdef Q_OS_LINUX
         appImageTests();
 #endif
         debTests(); windowsPortableTests();
-        startupPolicyTests(); startupPresentationTests(); startupSilentTests(); startupCloseTests();
+        startupPolicyTests(); startupPresentationTests(); startupSilentTests(); startupCloseTests(); startupNonblockingNoticeTests();
         simulatedUpdateTests(); startupSimulationTests(); projectIntegrationPromptTests(); }
     if (app.arguments().contains("--expect-deb")) CHECK(u::UpdateService::buildPackage() == u::UpdatePackage::Deb);
     std::cout << "Update checks: " << failures << " failures\n";

@@ -126,6 +126,10 @@ public:
     // hide it temporarily and restore the still-requested notification later.
     // The caller owns content/geometry; overlay must be a child of panelOverlay().
     void setPassiveOverlay(QWidget* overlay, bool visible);
+    // One nonmodal interactive notification, above docked/floating panels.
+    // Anchored at the bottom-right; only its card contributes input coverage.
+    // Temporarily hidden while a modal workspace card owns the panel plane.
+    void setNotificationOverlay(QWidget* overlay, bool visible);
     // Interactive view-state badge below the top ruler, without canvas reflow.
     void setViewModeOverlay(QWidget* overlay, bool visible);
     void setWelcomeOverlay(QWidget*, bool);
@@ -170,6 +174,8 @@ private:
     QRegion contextInteractionRegion_;
     QPointer<QWidget> passiveOverlay_;
     bool passiveOverlayRequestedVisible_ {false};
+    QPointer<QWidget> notificationOverlay_;
+    bool notificationOverlayRequestedVisible_ {false};
     QPointer<QWidget> viewModeOverlay_;
     bool viewModeOverlayRequestedVisible_ {false};
     QPointer<QWidget> modalOverlay_;

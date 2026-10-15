@@ -1010,6 +1010,19 @@ void OverlayDockWorkspace::setViewModeOverlay(QWidget* overlay, bool visible)
     updateOverlayLayoutAndStacking();
 }
 
+void OverlayDockWorkspace::setNotificationOverlay(QWidget* overlay, bool visible)
+{
+    Q_ASSERT(!overlay || overlay->parentWidget() == panelOverlay_);
+    if (notificationOverlay_ && notificationOverlay_ != overlay) {
+        notificationOverlay_->removeEventFilter(this);
+        notificationOverlay_->hide();
+    }
+    notificationOverlay_ = overlay;
+    notificationOverlayRequestedVisible_ = overlay && visible;
+    if (overlay) overlay->installEventFilter(this);
+    updateOverlayLayoutAndStacking();
+}
+
 int OverlayDockWorkspace::panelIndex(
     const WorkspacePanel* panel, PanelPlacement placement) const
 {
@@ -1540,6 +1553,8 @@ bool OverlayDockWorkspace::eventFilter(QObject* watched, QEvent* event)
             floatingPanels_.erase(found);
             floatingPanels_.push_back(panel);
             panel->raise();
+            if (notificationOverlay_ && !notificationOverlay_->isHidden()) notificationOverlay_->raise();
+            if (modalOverlay_) modalOverlay_->raise();
         }
     }
     if (watched == canvasContainer_ && event
@@ -1561,10 +1576,12 @@ bool OverlayDockWorkspace::eventFilter(QObject* watched, QEvent* event)
         && event
         && (event->type() == QEvent::Resize
             || event->type() == QEvent::Show
-            || event->type() == QEvent::Hide)) {
+            || event->type() == QEvent::Hide
+            || (watched == notificationOverlay_ && event->type() == QEvent::LayoutRequest))) {
         if (watched == panelOverlay_ || watched == leftColumn_
             || watched == rightColumn_
             || watched == toolRail_
+            || watched == notificationOverlay_
             || dynamic_cast<WorkspacePanel*>(watched)) {
             scheduleOverlayUpdate();
         }
@@ -1702,6 +1719,7 @@ void OverlayDockWorkspace::updateOverlayLayoutAndStacking()
         panelDropIndicator_->raise();
     }
     if (passiveOverlay_ && !passiveOverlay_->isHidden()) passiveOverlay_->raise();
+    if (notificationOverlay_ && !notificationOverlay_->isHidden()) notificationOverlay_->raise();
     if (modalOverlay_) {
         modalOverlay_->setGeometry(rect());
         modalOverlay_->raise();
@@ -1712,6 +1730,7 @@ QRegion OverlayDockWorkspace::calculateInteractionFootprint() const
 {
     if (modalOverlay_) return rect();
     QRegion footprint = transientInteractionRegion_ | contextInteractionRegion_;
+    if (notificationOverlay_ && !notificationOverlay_->isHidden()) footprint |= notificationOverlay_->geometry();
     if (welcomeOverlay_ && !welcomeOverlay_->isHidden()) footprint |= welcomeOverlay_->geometry();
     if (viewModeOverlay_ && !viewModeOverlay_->isHidden()) footprint |= viewModeOverlay_->geometry();
     for (int i = 0; i < 2; ++i) {
@@ -1855,6 +1874,17 @@ void OverlayDockWorkspace::updatePanelGeometry()
         viewModeOverlay_->setVisible(viewModeOverlayRequestedVisible_ && !modalOverlay_);
     }
 
+    if (notificationOverlay_) {
+        const auto area = panelOverlay_->rect().adjusted(12, 12, -12, -12);
+        notificationOverlay_->ensurePolished();
+        const int width = std::min(std::max(360, notificationOverlay_->minimumSizeHint().width()),
+                                   std::max(1, area.width()));
+        const int preferredHeight = notificationOverlay_->hasHeightForWidth()
+            ? notificationOverlay_->heightForWidth(width) : notificationOverlay_->sizeHint().height();
+        const int height = std::min(std::max(1, preferredHeight), std::max(1, area.height()));
+        notificationOverlay_->setGeometry(area.right() - width + 1, area.bottom() - height + 1, width, height);
+        notificationOverlay_->setVisible(notificationOverlayRequestedVisible_ && !modalOverlay_);
+    }
     const QRegion nextFootprint = calculateInteractionFootprint();
     const QRegion dirtyRegion = lastInteractionFootprint_ | nextFootprint;
     lastInteractionFootprint_ = nextFootprint;

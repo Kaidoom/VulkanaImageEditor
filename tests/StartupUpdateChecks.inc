@@ -82,15 +82,16 @@ void startupPresentationTests()
         bool completed = false;
         QTimer responder;
         QObject::connect(&responder, &QTimer::timeout, &window, [&] {
-            if (auto* popup = window.findChild<QDialog*>("StartupUpdateNotification"); popup && popup->isVisible()) {
+            if (auto* popup = window.findChild<QWidget*>("StartupUpdateNotification"); popup && popup->isVisible()) {
                 ++notices;
                 CHECK(!popup->isWindow() && !popup->windowHandle());
-                CHECK(popup->parentWidget()->objectName() == "WorkspaceDialogShield");
+                auto* workspace = dynamic_cast<u::OverlayDockWorkspace*>(window.findChild<QWidget*>("CanvasWorkspace"));
+                CHECK(workspace && popup->parentWidget() == workspace->panelOverlay() && !workspace->hasModalOverlay());
                 CHECK(popup->findChild<QLabel*>("StartupUpdateVersion")->text().contains("9.9.9"));
                 CHECK(!window.findChild<QDialog*>("NewDocumentDialog"));
                 auto* button = popup->findChild<QPushButton*>(viewUpdate ? "StartupUpdateOpen" : "StartupUpdateDismiss");
                 CHECK(button); if (button) button->click();
-                if (!viewUpdate && !fresh) completed = true;
+                if (!viewUpdate) completed = true;
             }
             if (auto* popup = window.findChild<QDialog*>("AboutVulkanaDialog"); popup && popup->isVisible()) {
                 ++about;
@@ -104,8 +105,9 @@ void startupPresentationTests()
             }
             if (auto* popup = window.findChild<QDialog*>("NewDocumentDialog"); popup && popup->isVisible()) {
                 ++canvases;
-                CHECK(!window.findChild<QDialog*>("StartupUpdateNotification"));
-                popup->reject(); completed = true;
+                auto* notice = window.findChild<QWidget*>("StartupUpdateNotification");
+                CHECK(!notice || !notice->isVisible());
+                popup->reject();
             }
         });
         responder.start(5);
@@ -115,7 +117,7 @@ void startupPresentationTests()
         CHECK(waitFor([&] { return completed; }, 6000));
         QTest::qWait(30);
         CHECK(notices == 1 && about == int(viewUpdate));
-        CHECK(canvases == int(fresh && !viewUpdate));
+        CHECK(canvases == int(fresh));
         CHECK(network.requests.size() == 1 && network.requests.front().transferTimeout() == 2500);
         if (fresh) CHECK(!window.editorSession().document() && window.documentCount() == 0);
         else CHECK(window.editorSession().document()->contentState() == content);
@@ -146,7 +148,7 @@ void startupSilentTests()
         QTimer responder;
         QObject::connect(&responder, &QTimer::timeout, &window, [&] {
             ++ticks;
-            CHECK(!window.findChild<QDialog*>("StartupUpdateNotification"));
+            CHECK(!window.findChild<QWidget*>("StartupUpdateNotification"));
             if (auto* popup = window.findChild<QDialog*>("NewDocumentDialog"); popup && popup->isVisible()) {
                 popup->reject(); completed = true;
             }
@@ -159,9 +161,13 @@ void startupSilentTests()
         CHECK(network.requests.size() == 1);
         CHECK(QSettings().value(startupTimeKey) == savedTimestamp);
         if (scenario == "timeout") {
-            CHECK(ticks > 20); // The event loop remains responsive while waiting.
-            CHECK(elapsed.elapsed() < 4000);
-            CHECK(!network.last || network.last->isFinished()); // deleteLater may already have reclaimed it.
+            CHECK(ticks > 0);
+            CHECK(elapsed.elapsed() < 1000); // New Canvas does not wait for the network deadline.
+            CHECK(network.last && !network.last->isFinished());
+            CHECK(waitFor([&] { return !network.last || network.last->isFinished(); }));
+            CHECK(ticks > 10); // The event loop remains usable through timeout.
+            CHECK(!window.findChild<QWidget*>("StartupUpdateNotification"));
+            CHECK(!window.findChild<QDialog*>("NewDocumentDialog"));
         }
         window.close();
     }
@@ -179,7 +185,7 @@ void startupCloseTests()
         window.close();
         CHECK(!network.last || network.last->isFinished());
         QTest::qWait(30);
-        CHECK(!window.findChild<QDialog*>("StartupUpdateNotification"));
+        CHECK(!window.findChild<QWidget*>("StartupUpdateNotification"));
         CHECK(!window.findChild<QDialog*>("NewDocumentDialog"));
     }
     // Opening About manually during the startup request takes ownership of it
@@ -206,7 +212,7 @@ void startupCloseTests()
         CHECK(sawAbout && network.requests.size() == 1);
         CHECK(!network.last || network.last->isFinished());
         CHECK(!window.findChild<QDialog*>("NewDocumentDialog"));
-        CHECK(!window.findChild<QDialog*>("StartupUpdateNotification"));
+        CHECK(!window.findChild<QWidget*>("StartupUpdateNotification"));
         window.close();
     }
     // The same shared-service handoff uses AppImage's update action, not RPM.
@@ -227,6 +233,94 @@ void startupCloseTests()
     }
 }
 
+void startupNonblockingNoticeTests(QVulkanInstance* instance = nullptr)
+{
+    Network network;
+    Response delayed{packageManifest("9.9.9")}; delayed.delayMs = 350;
+    network.responses.push_back(delayed);
+    u::MainWindow window(instance, false);
+    window.setUnsavedPromptEnabled(false); window.resize(1200, 850); window.show();
+    window.activateWindow(); window.setFocus(); QTest::qWait(30);
+    if (instance) {
+        imageeditor::render::CanvasWindow* canvas = nullptr;
+        for (auto* candidate : QGuiApplication::allWindows())
+            if (auto* found = dynamic_cast<imageeditor::render::CanvasWindow*>(candidate)) canvas = found;
+        CHECK(canvas && waitFor([&] { return canvas->rendererStats().presentQueuedFrames > 0; }, 5000));
+        // Wayland activation arrives after exposure; settle it before testing
+        // that the asynchronous notification preserves an established focus.
+        CHECK(waitFor([&] { return QApplication::focusWidget() == &window; }));
+    }
+    auto* workspace = dynamic_cast<u::OverlayDockWorkspace*>(window.findChild<QWidget*>("CanvasWorkspace"));
+    CHECK(workspace); if (!workspace) return;
+    const auto geometry = workspace->canvasContainer()->geometry();
+    const auto content = window.editorSession().document()->contentState();
+    window.startStartupFlow(false, &network);
+    CHECK(network.last && !network.last->isFinished());
+    auto* selectAll = window.findChild<QAction*>("SelectAllAction");
+    CHECK(selectAll && selectAll->isEnabled()); if (selectAll) selectAll->trigger();
+    CHECK(window.editorSession().document()->selection());
+    const auto selection = window.editorSession().document()->selection();
+    const auto history = window.editorSession().history().undoDepth();
+    auto* focus = QApplication::focusWidget();
+    CHECK(waitFor([&] {
+        auto* card = window.findChild<QWidget*>("StartupUpdateNotification");
+        return card && card->isVisible();
+    }));
+    auto* card = window.findChild<QWidget*>("StartupUpdateNotification");
+    CHECK(card); if (!card) return;
+    CHECK(!card->isWindow() && !card->windowHandle() && !workspace->hasModalOverlay());
+    CHECK(QApplication::focusWidget() == focus);
+    CHECK(workspace->canvasContainer()->geometry() == geometry);
+    CHECK(window.editorSession().document()->contentState() == content);
+    CHECK(window.editorSession().document()->selection() == selection);
+    CHECK(window.editorSession().history().undoDepth() == history);
+    CHECK(card->geometry().right() == workspace->panelOverlay()->width() - 13);
+    CHECK(card->geometry().bottom() == workspace->panelOverlay()->height() - 13);
+    CHECK(card->width() < 500 && card->height() < 200);
+    auto* dismiss = card->findChild<QPushButton*>("StartupUpdateDismiss");
+    auto* update = card->findChild<QPushButton*>("StartupUpdateOpen");
+    CHECK(dismiss && update && update->text() == "Update");
+    CHECK(dismiss && dismiss->width() >= dismiss->sizeHint().width());
+    CHECK(update && update->width() >= update->sizeHint().width());
+    // Normal editing remains available while the notice is visible.
+    auto* deselect = window.findChild<QAction*>("DeselectAction");
+    CHECK(deselect && deselect->isEnabled()); if (deselect) deselect->trigger();
+    CHECK(!window.editorSession().document()->selection());
+    window.resize(1020, 700); QTest::qWait(20);
+    CHECK(card->geometry().bottomRight() == workspace->panelOverlay()->rect().bottomRight() - QPoint(12,12));
+    if (const auto screenshot=qEnvironmentVariable("VULKANA_UPDATE_NOTICE_PREVIEW"); !screenshot.isEmpty())
+        CHECK(card->grab().save(screenshot));
+    auto& language = u::i18n::Localization::instance();
+    for (const auto* locale : {"fr", "de", "ar", "ja", "en"}) {
+        CHECK(language.setLanguage(locale)); QTest::qWait(10);
+        CHECK(update->text() == u::i18n::text("main.window.updates.view.update"));
+        CHECK(update->width() >= update->sizeHint().width() && dismiss->width() >= dismiss->sizeHint().width());
+        CHECK(card->geometry().bottomRight() == workspace->panelOverlay()->rect().bottomRight() - QPoint(12,12));
+        CHECK(card->findChild<QLabel*>("StartupUpdateVersion")->text()
+            == u::i18n::text("main.window.updates.vulkana.1.is.available").arg(u::i18n::ltrToken("9.9.9")));
+        CHECK(network.requests.size() == 1);
+    }
+    if (instance)
+        QTest::mouseClick(workspace->panelOverlay()->windowHandle(), Qt::LeftButton, {},
+            dismiss->mapTo(workspace->panelOverlay(), dismiss->rect().center()));
+    else QTest::mouseClick(dismiss, Qt::LeftButton);
+    QTest::qWait(30);
+    CHECK(!window.findChild<QWidget*>("StartupUpdateNotification"));
+    // Dismiss does not discard the validated update shown by a later About visit.
+    QTimer::singleShot(20, &window, [&] {
+        auto* about=window.findChild<QDialog*>("AboutVulkanaDialog");
+        CHECK(about && about->isVisible());
+        if (about) {
+            CHECK(about->findChild<QLabel*>("AboutUpdateStatus")->text().contains("9.9.9"));
+            about->reject();
+        }
+    });
+    window.findChild<QAction*>("AboutVulkanaAction")->trigger();
+    CHECK(network.requests.size() == 1);
+    QTest::qWait(20); CHECK(!window.findChild<QWidget*>("StartupUpdateNotification"));
+    window.close();
+}
+
 void startupSimulationTests()
 {
     for (const bool configured : {false, true}) for (const bool view : {false, true}) {
@@ -242,10 +336,11 @@ void startupSimulationTests()
         bool completed = false;
         QTimer responder;
         QObject::connect(&responder, &QTimer::timeout, &window, [&] {
-            if (auto* popup = window.findChild<QDialog*>("StartupUpdateNotification"); popup && popup->isVisible()) {
+            if (auto* popup = window.findChild<QWidget*>("StartupUpdateNotification"); popup && popup->isVisible()) {
                 ++notices;
                 CHECK(!popup->isWindow() && !popup->windowHandle());
-                CHECK(popup->parentWidget()->objectName() == "WorkspaceDialogShield");
+                auto* workspace = dynamic_cast<u::OverlayDockWorkspace*>(window.findChild<QWidget*>("CanvasWorkspace"));
+                CHECK(workspace && popup->parentWidget() == workspace->panelOverlay() && !workspace->hasModalOverlay());
                 CHECK(popup->findChild<QLabel*>("StartupUpdateTestNote"));
                 auto* button = popup->findChild<QPushButton*>(view ? "StartupUpdateOpen" : "StartupUpdateDismiss");
                 CHECK(button); if (button) button->click();

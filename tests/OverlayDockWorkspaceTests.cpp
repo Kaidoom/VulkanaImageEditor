@@ -12,6 +12,8 @@
 #include <QEventLoop>
 #include <QFocusEvent>
 #include <QLabel>
+#include <QPushButton>
+#include <QVBoxLayout>
 #include <QLayout>
 #include <QKeyEvent>
 #include <QMouseEvent>
@@ -258,6 +260,56 @@ void passiveNotificationDoesNotCreateAnInputFootprint()
     CHECK(plane->windowHandle() == surface);
     CHECK(workspace.canvasContainer()->geometry() == canvasGeometry);
     CHECK(canvas->size() == canvasSize && canvas->scene().viewport.pan() == pan && canvas->zoom() == zoom);
+}
+
+void interactiveNotificationStaysAbovePanelsWithoutBlockingCanvas()
+{
+    auto* canvas = new imageeditor::render::CanvasWindow;
+    OverlayDockWorkspace workspace(canvas);
+    auto* panel = makePanel(QStringLiteral("Layers"));
+    workspace.addPanel(panel);
+    workspace.resize(1100, 700); workspace.show(); settleLayout();
+    auto* plane = workspace.panelOverlay();
+    auto* surface = plane->windowHandle();
+    const auto canvasGeometry = workspace.canvasContainer()->geometry();
+    auto* card = new QWidget(plane);
+    auto* layout = new QVBoxLayout(card);
+    layout->addWidget(new QLabel(QStringLiteral("Update available")));
+    auto* button = new QPushButton(QStringLiteral("Dismiss")); layout->addWidget(button);
+    workspace.setNotificationOverlay(card, true); settleLayout();
+    CHECK(card->isVisible() && !card->isWindow() && !card->windowHandle());
+    CHECK(card->geometry().bottomRight() == plane->rect().bottomRight() - QPoint(12,12));
+    CHECK(surface && surface->mask().contains(card->geometry().center()));
+    CHECK(surface && !surface->mask().contains(QPoint(450,300)));
+    workspace.floatPanel(panel, QRect(card->geometry().topLeft() - QPoint(20,100), QSize(390,240)));
+    settleLayout();
+    auto above = [&] {
+        const auto* child = plane->childAt(card->geometry().center());
+        return child == card || (child && card->isAncestorOf(child));
+    };
+    CHECK(above());
+    const QPointF point(20,50);
+    QMouseEvent press(QEvent::MouseButtonPress, point, panel->mapToGlobal(point.toPoint()),
+        Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QCoreApplication::sendEvent(panel, &press); settleLayout();
+    CHECK(above()); // Activating the floating panel cannot bury the notification.
+    workspace.setPanelsSuppressed(true); settleLayout();
+    CHECK(card->isVisible() && surface->mask() == QRegion(card->geometry()));
+    QWidget modal(plane); workspace.setModalOverlay(&modal); settleLayout();
+    CHECK(card->isHidden() && surface->mask() == QRegion(workspace.rect()));
+    workspace.setModalOverlay(nullptr); settleLayout();
+    CHECK(card->isVisible() && surface->mask() == QRegion(card->geometry()));
+    workspace.resize(980,640); settleLayout();
+    CHECK(card->geometry().bottomRight() == plane->rect().bottomRight() - QPoint(12,12));
+    workspace.resize(1100,700); settleLayout();
+    QObject::connect(button, &QPushButton::clicked, &workspace, [&] {
+        workspace.setNotificationOverlay(nullptr, false);
+    });
+    button->click(); settleLayout();
+    CHECK(card->isHidden() && plane->isHidden());
+    CHECK(surface->mask().isEmpty());
+    CHECK(workspace.canvasContainer()->geometry() == canvasGeometry);
+    CHECK(plane->windowHandle() == surface);
 }
 
 void internalFloatingPanelsRemainOwnedAndRedockable()
@@ -1425,6 +1477,13 @@ int main(int argc, char* argv[])
     QApplication application(argc, argv);
     imageeditor::ui::applyEditorTheme(application);
 
+    if (application.arguments().contains("--notification-only")) {
+        interactiveNotificationStaysAbovePanelsWithoutBlockingCanvas();
+        std::cout << "Notification overlay failures=" << failures
+                  << " platform=" << application.platformName().toStdString() << '\n';
+        return failures ? EXIT_FAILURE : EXIT_SUCCESS;
+    }
+
     if (application.arguments().contains("--panel-drag-only")) {
         tabbedPanelsRetainControlsAndMoveIndependently();
         floatingPanelsParkByHeaderAndDockAtBottom();
@@ -1449,6 +1508,7 @@ int main(int argc, char* argv[])
     panelGeometryIsIndependentFromCanvas();
     temporaryPanelSuppressionPreservesLayout();
     passiveNotificationDoesNotCreateAnInputFootprint();
+    interactiveNotificationStaysAbovePanelsWithoutBlockingCanvas();
     internalFloatingPanelsRemainOwnedAndRedockable();
     toolRailStaysOverlayHostedAtEveryEdge();
     floatingResizeUsesVisibleBottomRightGrip();

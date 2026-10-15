@@ -6486,10 +6486,10 @@ Escape · Отменить обработку
       <translation>Скрыть</translation>
     </message>
     <message id="main.window.updates.view.update">
-      <source>View Update</source>
+      <source>Update</source>
       <extracomment>MainWindowUpdates presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
-      <translation>Открыть обновление</translation>
+      <translation>Обновить</translation>
     </message>
   </context>
   <context>
