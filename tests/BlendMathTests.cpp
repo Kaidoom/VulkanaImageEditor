@@ -500,6 +500,27 @@ void deterministicSweepAndStacks()
     }
 }
 #include "BlendV3Checks.inc"
+void encodedComposition()
+{
+    // Independent encoded-space source-over oracle, with asymmetric colors,
+    // partial backdrops and layer opacity. Production inputs remain linear.
+    for(auto mode:modes)for(int ai:{0,1,41,127,254,255})for(int bi:{0,27,128,255})for(float opacity:{.0F,.37F,1.F}) {
+        const Rgba8 b{71,143,221,std::uint8_t(bi)},s{174,212,255,std::uint8_t(ai)};
+        const Color cb{71/255.,143/255.,221/255.},cs{174/255.,212/255.,1};
+        const auto blend=mode==BlendMode::Normal?cs:blendReference(cb,cs,mode);
+        const double ab=bi/255.,a=ai/255.*opacity,alpha=a+ab*(1-a);
+        Pixel expected{};expected[3]=alpha;
+        if(alpha>0)for(size_t i=0;i<3;++i) {
+            const double value=(cs[i]*a*(1-ab)+cb[i]*ab*(1-a)+blend[i]*a*ab)/alpha;
+            expected[i]=linear(std::clamp(value,0.,1.))*alpha;
+        }
+        const auto actual=compositeLayer(decodeColor(b),decodeColor(s),opacity,mode,{},defaultBlendSeed,false,CompositingSpace::EncodedSRgb);
+        compare(actual,expected,4e-6);
+    }
+    const auto source=decodeColor({174,212,255,41}),black=decodeColor({0,0,0,255});
+    check(encodeColor(compositeLayer(black,source,1,BlendMode::Normal,{},defaultBlendSeed,false,CompositingSpace::EncodedSRgb))==Rgba8{28,34,41,255},"encoded low-alpha reference");
+    check(encodeColor(compositeLayer(black,source,1,BlendMode::Normal))==Rgba8{74,92,112,255},"legacy linear low-alpha reference unchanged");
+}
 } // namespace
 
 int main()
@@ -513,6 +534,7 @@ int main()
     alphaAndOpacity();
     breakpointsTiesAndClipping();
     deterministicSweepAndStacks();
+    encodedComposition();
     if (failures) std::cerr << failures << " blend-math checks failed\n";
     else std::cout << "Blend math: 20 modes, fixed references, singular endpoints, clipped gradients, alpha/opacity, nonseparable ties, and deterministic stacks passed\n";
     return failures ? EXIT_FAILURE : EXIT_SUCCESS;

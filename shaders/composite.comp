@@ -125,12 +125,25 @@ vec4 premultipliedTexel(ivec2 p)
     return vec4(vec3(bDecodeByte(int(c.r*255+.5)),bDecodeByte(int(c.g*255+.5)),bDecodeByte(int(c.b*255+.5)))*alpha,alpha);
 }
 int effectOffset;
+int compositingSpace;
 float effectCoverage[10];
+vec4 eBlend(vec4 a,vec4 b,float opacity,int mode) { return bCompositeSpace(a,b,opacity,mode,compositingSpace); }
+vec4 eBlendAt(vec4 a,vec4 b,float opacity,int mode,float x,float y,uint seed,bool protect)
+{ return bCompositeAtSpace(a,b,opacity,mode,x,y,seed,protect,compositingSpace); }
+vec4 eContribute(vec4 a,vec4 b,float opacity,int mode,vec4 emitted,float x,float y,uint seed)
+{ return bContributionSpace(a,b,opacity,mode,emitted,x,y,seed,compositingSpace); }
+#define bComposite eBlend
+#define bCompositeAt eBlendAt
+#define bContribution eContribute
 #define E_OUTPUT out BVec4
 #define E_INLINE precise
 #define E_PARAM(index) adjustmentParameters.values[effectOffset+(index)]
 #define E_MASK(index) effectCoverage[index]
+#define E_SPACE compositingSpace
 #include "imageeditor/core/detail/LayerEffectMath.inc"
+#undef bComposite
+#undef bCompositeAt
+#undef bContribution
 float sampleStyleMask(int i,vec2 local)
 {
     int meta=260+i*8;
@@ -172,6 +185,7 @@ void storeTargetSlot(int slot,ivec2 pixel,vec4 value)
 void storeTarget(ivec2 pixel,vec4 value){storeTargetSlot(0,pixel,value);}
 void main()
 {
+    compositingSpace=int(adjustmentParameters.values[512]);
     effectOffset=((pc.mode&0x3fffffff)>>8)-1;
     int cropMode=pc.cropEnabled&3;
     int geometry=(pc.cropEnabled>>2)-1;
@@ -187,12 +201,12 @@ void main()
     if (any(greaterThanEqual(offset,pc.region.zw))) return;
     ivec2 pixel = pc.region.xy + offset;
     if(operation==3){storeTarget(pixel,bClippingOpaque(loadTarget(1,pixel)));return;}
-    if(operation==6){storeTarget(pixel,bComposite(loadTarget(0,pixel),loadTarget(1,pixel),1,0));return;}
+    if(operation==6){storeTarget(pixel,bCompositeSpace(loadTarget(0,pixel),loadTarget(1,pixel),1,0,compositingSpace));return;}
     if(operation==7){storeTarget(pixel,loadTarget(1,pixel));return;}
     if(operation==4){
         vec4 styled=loadTarget(2,pixel),content=loadTarget(3,pixel),working=loadTarget(1,pixel);
-        styled=bClippingContainer(styled,content,working);
-        storeTarget(pixel,bComposite(loadTarget(0,pixel),styled,1,0));return;
+        styled=bClippingContainerSpace(styled,content,working,compositingSpace);
+        storeTarget(pixel,bCompositeSpace(loadTarget(0,pixel),styled,1,0,compositingSpace));return;
     }
     vec2 p = vec2(pixel)+vec2(0.5);
     if (any(lessThan(p,pc.canvasRect.xy)) || any(greaterThanEqual(p,pc.canvasRect.xy+pc.canvasRect.zw))) return;
@@ -209,8 +223,8 @@ void main()
         float strength=clamp(pc.opacity*layerCoverage(geometry,local),0,1);
         if(strength<=0)return;
         vec4 corrected=adjustSource(original,local);
-        storeTarget(pixel,(pc.mode&255)==0?vec4(strength==1?corrected.rgb:original.rgb+(corrected.rgb-original.rgb)*strength,original.a)
-            :bAdjustmentBlend(original,corrected,strength,pc.mode&255,blendLocal.x,blendLocal.y,blendSeed));
+        storeTarget(pixel,(pc.mode&255)==0&&compositingSpace==0?vec4(strength==1?corrected.rgb:original.rgb+(corrected.rgb-original.rgb)*strength,original.a)
+            :bAdjustmentBlendSpace(original,corrected,strength,pc.mode&255,blendLocal.x,blendLocal.y,blendSeed,compositingSpace));
         return;
     }
     if(any(isnan(local))||any(isinf(local)))return;
@@ -278,5 +292,5 @@ void main()
         vec2 point=vec2(dot(pc.sourceToLocalX.xyz,vec3(local,1)),dot(pc.sourceToLocalY.xyz,vec3(local,1)))/dot(sourceW,vec3(local,1));
         for(int i=0;i<10;++i)effectCoverage[i]=sampleStyleMask(i,point);
         storeTarget(pixel,eComposite(backdrop,source,blendLocal.x,blendLocal.y,pc.opacity,pc.mode&255,cropCoverage,operation==2));
-    }else storeTarget(pixel,bCompositeAt(backdrop,source*cropCoverage,pc.opacity,pc.mode&255,blendLocal.x,blendLocal.y,blendSeed,operation==2));
+    }else storeTarget(pixel,bCompositeAtSpace(backdrop,source*cropCoverage,pc.opacity,pc.mode&255,blendLocal.x,blendLocal.y,blendSeed,operation==2,compositingSpace));
 }

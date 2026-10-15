@@ -533,6 +533,7 @@ namespace {
 struct Evaluation {
   const EffectParameters &parameters;
   std::array<float, layerEffectMaskCount> masks;
+  int space{};
   using BVec4 = blend_detail::BVec4;
   static float bMax(float a, float b) { return std::max(a, b); }
   static float bAbs(float v) { return std::abs(v); }
@@ -541,30 +542,33 @@ struct Evaluation {
   using BUint = std::uint32_t;
   static float bUnassociatedLinear(float c,float a) { return blend_detail::bUnassociatedLinear(c,a); }
   static bool bDissolve(float p,float x,float y,BUint seed) { return blend_detail::bDissolve(p,x,y,seed); }
-  static BVec4 bComposite(BVec4 a, BVec4 b, float o, int m) { return blend_detail::bComposite(a,b,o,m); }
-  static BVec4 bContribution(BVec4 a,BVec4 b,float o,int m,BVec4 e,float x,float y,BUint seed) {
-    return blend_detail::bContribution(a,b,o,m,e,x,y,seed);
+  BVec4 bComposite(BVec4 a, BVec4 b, float o, int m) { return blend_detail::bCompositeSpace(a,b,o,m,space); }
+  BVec4 bContribution(BVec4 a,BVec4 b,float o,int m,BVec4 e,float x,float y,BUint seed) {
+    return blend_detail::bContributionSpace(a,b,o,m,e,x,y,seed,space);
   }
-  static BVec4 bCompositeAt(BVec4 a,BVec4 b,float o,int m,float x,float y,BUint seed,bool protect) {
-    return blend_detail::bCompositeAt(a,b,o,m,x,y,seed,protect);
+  BVec4 bCompositeAt(BVec4 a,BVec4 b,float o,int m,float x,float y,BUint seed,bool protect) {
+    return blend_detail::bCompositeAtSpace(a,b,o,m,x,y,seed,protect,space);
   }
+  static BVec4 bMixSpace(BVec4 a,BVec4 b,float t,int s) { return blend_detail::bMixSpace(a,b,t,s); }
 #define E_OUTPUT BVec4&
 #define E_INLINE inline
 #define E_PARAM(i) parameters[std::size_t(i)]
 #define E_MASK(i) masks[std::size_t(i)]
+#define E_SPACE space
 #include "imageeditor/core/detail/LayerEffectMath.inc"
 #undef E_OUTPUT
 #undef E_INLINE
 #undef E_PARAM
 #undef E_MASK
+#undef E_SPACE
 };
 } // namespace
 PremultipliedColor
 compositeLayerEffects(PremultipliedColor backdrop, PremultipliedColor base,
                       const EffectParameters &p, const LayerEffectCache *cache,
                       Vec2d local, float opacity, BlendMode mode,
-                      float cropCoverage, bool protectedCoverage) noexcept {
-  Evaluation e{p, {}};
+                      float cropCoverage, bool protectedCoverage, CompositingSpace space) noexcept {
+  Evaluation e{p, {}, int(space)};
   if (cache)
     for (std::size_t i = 0; i < layerEffectMaskCount; ++i)
       if (cache->masks[i])

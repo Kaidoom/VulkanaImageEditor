@@ -140,5 +140,6 @@ using EffectParameters = std::array<float, effectParameterCount>;
 compositeLayerEffects(PremultipliedColor backdrop, PremultipliedColor base,
                       const EffectParameters &, const LayerEffectCache *,
                       Vec2d local, float layerOpacity, BlendMode,
-                      float cropCoverage = 1, bool protectedCoverage = false) noexcept;
+                      float cropCoverage = 1, bool protectedCoverage = false,
+                      CompositingSpace space = CompositingSpace::LinearSRgb) noexcept;
 } // namespace imageeditor::core

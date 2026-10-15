@@ -65,10 +65,10 @@ inline PremultipliedColor clippingOpaque(PremultipliedColor c)
 // A container base has no external opacity/mode. Its subtree is evaluated on
 // transparency. Recolor only its content coverage, preserving exterior styles.
 inline PremultipliedColor clippingContainerResult(PremultipliedColor styled,
-    PremultipliedColor content, PremultipliedColor working)
+    PremultipliedColor content, PremultipliedColor working, CompositingSpace space = CompositingSpace::LinearSRgb)
 {
-    const auto result=blend_detail::bClippingContainer({styled[0],styled[1],styled[2],styled[3]},
-        {content[0],content[1],content[2],content[3]}, {working[0],working[1],working[2],working[3]});
+    const auto result=blend_detail::bClippingContainerSpace({styled[0],styled[1],styled[2],styled[3]},
+        {content[0],content[1],content[2],content[3]}, {working[0],working[1],working[2],working[3]},int(space));
     return {result.x,result.y,result.z,result.w};
 }
 // leaf(id, backdrop, contentOnly, replacement) evaluates an ordinary leaf.
@@ -76,24 +76,25 @@ inline PremultipliedColor clippingContainerResult(PremultipliedColor styled,
 // Replacing RGB never replaces alpha: fractional base coverage is applied once.
 template<class Leaf, class Raw>
 PremultipliedColor evaluateComposition(const CompositionNode& node, PremultipliedColor backdrop,
-    const Leaf& leaf, const Raw& raw, bool contentOnly=false, bool inDomain=false)
+    const Leaf& leaf, const Raw& raw, bool contentOnly=false, bool inDomain=false,
+    CompositingSpace space = CompositingSpace::LinearSRgb)
 {
     if(node.leaf)return leaf(node.id,backdrop,contentOnly,nullptr);
     if(node.isolated && !inDomain) {
-        return compositeLayer(backdrop,evaluateComposition(node,{},leaf,raw,contentOnly,true),1,BlendMode::Normal);
+        return compositeLayer(backdrop,evaluateComposition(node,{},leaf,raw,contentOnly,true,space),1,BlendMode::Normal,{},defaultBlendSeed,false,space);
     }
     if(!node.clipping) {
-        for(const auto& child:node.children)backdrop=evaluateComposition(child,backdrop,leaf,raw,contentOnly);
+        for(const auto& child:node.children)backdrop=evaluateComposition(child,backdrop,leaf,raw,contentOnly,false,space);
         return backdrop;
     }
     const auto& base=node.children.front();
     if(base.adjustment)return backdrop; // An operator supplies no clipping silhouette.
-    const auto styled=base.leaf?raw(base.id):evaluateComposition(base,{},leaf,raw,contentOnly);
-    const auto content=base.leaf||contentOnly?styled:evaluateComposition(base,{},leaf,raw,true);
+    const auto styled=base.leaf?raw(base.id):evaluateComposition(base,{},leaf,raw,contentOnly,false,space);
+    const auto content=base.leaf||contentOnly?styled:evaluateComposition(base,{},leaf,raw,true,false,space);
     auto working=clippingOpaque(styled);
     for(std::size_t i=1;i<node.children.size();++i)
-        working=evaluateComposition(node.children[i],working,leaf,raw,contentOnly);
+        working=evaluateComposition(node.children[i],working,leaf,raw,contentOnly,false,space);
     if(base.leaf)return leaf(base.id,backdrop,contentOnly,&working);
-    return compositeLayer(backdrop,clippingContainerResult(styled,content,working),1,BlendMode::Normal);
+    return compositeLayer(backdrop,clippingContainerResult(styled,content,working,space),1,BlendMode::Normal,{},defaultBlendSeed,false,space);
 }
 } // namespace imageeditor::core

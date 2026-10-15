@@ -284,8 +284,6 @@ void adjustmentModel(const PsdSource& source,const Record& rec,Model& model) {
     stack->items[0].enabled=true;stack->items[0].parameters=core::ExposureParameters{exposure};
   }
   model.adjustment=std::move(stack);model.transform={};
-  if(rec.opacity!=255 || rec.mask.present)
-    model.substitutions<<"Adjustment strength uses linear-light mixing; fractional masks/opacity may differ between editors.";
   if(source.colorSpace.isValid()&&source.colorSpace!=QColorSpace(QColorSpace::SRgb))
     model.substitutions<<"The correction is evaluated in Vulkana's sRGB working space after profile conversion.";
 }
@@ -1157,7 +1155,7 @@ PsdConversion convertPsd(const PsdInspection &in, const PsdOptions &options,
       throw Error("No valid PSD inspection");
     const auto &s = *in.source;
     auto document = std::make_unique<core::Document>(core::CanvasSpec{
-        {uint(in.size.width()), uint(in.size.height())}, in.ppi});
+        {uint(in.size.width()), uint(in.size.height())}, in.ppi, core::CompositingSpace::EncodedSRgb});
     if (options.composite) {
       if (!in.savedComposite)
         throw Unsupported("Saved compatibility composite unavailable");

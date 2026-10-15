@@ -1,6 +1,7 @@
 #pragma once
 #include "imageeditor/core/BlendMode.hpp"
 #include "imageeditor/core/ColorMath.hpp"
+#include "imageeditor/core/CompositingSpace.hpp"
 #include "imageeditor/core/RasterSurface.hpp"
 
 namespace imageeditor::core {
@@ -40,11 +41,12 @@ using BUint = std::uint32_t;
 }
 [[nodiscard]] inline PremultipliedColor compositeLayer(PremultipliedColor backdrop,
     PremultipliedColor source, float opacity, BlendMode mode,
-    Vec2d local = {}, std::uint32_t seed = defaultBlendSeed, bool protectedCoverage = false) noexcept
+    Vec2d local = {}, std::uint32_t seed = defaultBlendSeed, bool protectedCoverage = false,
+    CompositingSpace space = CompositingSpace::LinearSRgb) noexcept
 {
-    const auto c = blend_detail::bCompositeAt({backdrop[0],backdrop[1],backdrop[2],backdrop[3]},
+    const auto c = blend_detail::bCompositeAtSpace({backdrop[0],backdrop[1],backdrop[2],backdrop[3]},
         {source[0],source[1],source[2],source[3]},opacity,static_cast<int>(mode),
-        float(local.x),float(local.y),seed,protectedCoverage);
+        float(local.x),float(local.y),seed,protectedCoverage,int(space));
     return {c.x,c.y,c.z,c.w};
 }
 [[nodiscard]] inline PremultipliedColor decodeColor(Rgba8 c) noexcept

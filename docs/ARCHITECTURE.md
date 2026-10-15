@@ -78,6 +78,17 @@ Performance usage polling runs only while the page is visible, uses existing
 renderer counters and document accounting, and never requests a canvas frame.
 The displayed cache totals are not additive with whole-process resident RAM.
 
+## Document compositing
+
+Document composition is selected by `CanvasSpec::compositingSpace`, defaulting
+to the historical linear-light path. PSD opening opts into encoded sRGB. The
+same `BlendMath.inc` equations serve CPU output and Vulkan, retaining linear
+premultiplied input/output so filtering, adjustments and texture storage keep
+their existing contracts. Group/style opacity and clipping-container restoration
+use the selected space too. Snapshots and frozen documents retain the setting;
+GPU/thumbnail/adjustment-input cache keys include it. Source RGBA uploads remain
+reusable. Persistence and compatibility are specified in `VULKANA_FORMAT.md`.
+
 ## Bitmap layer masks
 
 Raster, text, shape and adjustment layers can own one immutable tiled R8 `LayerMask`.

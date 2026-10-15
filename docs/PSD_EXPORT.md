@@ -45,11 +45,14 @@ pixel layer; retain its editable approximation, consolidate an appropriate
 explicit group or use Flattened PSD. Removing a clipping base while retaining
 members is rejected, including inside a consolidation.
 
-Vulkana's blend math/linear-light alpha contract is unchanged. The 20 named
-blend modes have explicit PSD identifiers, but the receiving editor's color and
-blending settings affect recomposition. The sRGB profile does not set blend
-gamma. No global editor preferences are changed. Flattened PSD is the
-appearance-focused route when live recomposition differs.
+The saved compatibility composite uses the document's compositing space, whether
+linear-light or encoded sRGB. Layered records retain source pixels and opacity.
+Named blend modes have explicit PSD identifiers, but the receiving editor's
+color/blending settings still affect recomposition. In particular, a native
+linear-light document can differ when its editable layers are recomposed using
+conventional PSD encoded-sRGB blending. The sRGB profile does not set blend
+gamma. No global editor preferences are changed. Flattened PSD preserves the
+finished appearance when live recomposition differs.
 
 ## Text, geometry and pixels
 

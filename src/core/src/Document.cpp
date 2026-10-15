@@ -36,6 +36,8 @@ namespace {
 
 void validateCanvasSpec(const CanvasSpec& canvas)
 {
+    if (!validCompositingSpace(canvas.compositingSpace))
+        throw std::invalid_argument("Unsupported document compositing space");
     if (canvas.extent.empty()) {
         throw std::invalid_argument("Document canvas must be non-empty");
     }

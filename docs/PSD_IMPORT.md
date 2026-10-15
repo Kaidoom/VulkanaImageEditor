@@ -79,8 +79,18 @@ Color, Luminosity, Color/Linear Dodge, Color/Linear Burn, Subtract, Divide,
 Dissolve, Darker/Lighter Color, Vivid/Linear/Pin Light and Hard Mix.
 See [blend modes](BLEND_MODES.md) for comparison ties and Dissolve's stable
 native pattern, which is not pixel-identical across editors.
-Vulkana's existing linear-light composition is unchanged. Editable style edges,
-typography and blend results can differ from the saved composition.
+Opening a PSD automatically uses encoded-sRGB document compositing. This preserves
+ordinary RGB PSD alpha/opacity mixing instead of brightening transparent layers
+through linear-light accumulation. Source pixels and alpha are unchanged; image
+filtering still uses alpha-aware linear light. The mode survives `.vulkana`
+save/reopen and is shared by canvas, previews, merged sampling and exports.
+Import as Layer retains the existing destination document's mode.
+Existing native projects keep their original linear-light appearance.
+
+Custom source profiles are normalized to sRGB as described below; unusual
+Photoshop blending preferences, editable style edges, typography and unsupported
+effects can still differ from the saved composite. Saved Composite remains the
+explicit appearance-preserving fallback for those cases.
 
 Unsupported items include other isolated/styled groups, unsupported adjustment equations, ungrouped clipping (`clbl=false`), Blend
 If, knockout, non-default Fill opacity, paragraph-box/warped/vertical text,

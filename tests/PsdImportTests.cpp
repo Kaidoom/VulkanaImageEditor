@@ -10,6 +10,7 @@
 #include "imageeditor/ui/PsdImport.hpp"
 #include "imageeditor/ui/PsdImportDialog.hpp"
 #include "imageeditor/ui/QtRasterImageLoader.hpp"
+#include "imageeditor/ui/ImageExport.hpp"
 #include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
@@ -932,8 +933,53 @@ void mergedTransparency() {
   image = u::psd::composite(source, {});
   CHECK(image.pixelColor(0, 0) == QColor(200, 160, 127, 255));
 }
+void compositingRoundTrip(const QString& fixture={}) {
+  QTemporaryDir dir;QString path=fixture;
+  if(path.isEmpty()) {
+    psdfixture::Layer foreground,background;
+    foreground.name="Alpha";background.name="Black";
+    foreground.rect=background.rect={0,0,3,2};
+    for(int channel:{-1,0,1,2}) {
+      background.channelData[channel]=QByteArray(6,char(channel==-1?255:0));
+      foreground.channelData[channel]=QByteArray(6,char(channel==-1?41:channel==0?174:channel==1?212:255));
+    }
+    path=dir.filePath("alpha.psd");QFile file(path);CHECK(file.open(QIODevice::WriteOnly));
+    file.write(psdfixture::file({background,foreground},{3,2}));file.close();
+  }
+  const auto job=std::make_shared<u::PsdJob>();auto input=u::inspectPsd(path,job);CHECK(input.error.isEmpty());
+  auto output=u::convertPsd(input,u::defaultPsdOptions(input),job,{},false);CHECK(output.document);if(!output.document)return;
+  auto& document=*output.document;CHECK(document.canvas().compositingSpace==c::CompositingSpace::EncodedSRgb);
+  const auto flat=u::flattenDocument(document);CHECK(flat);if(!flat)return;
+  if(fixture.isEmpty())CHECK(flat.image.pixelColor(0,0)==QColor(28,34,41,255));
+  else {
+    const auto saved=u::psd::composite(*input.source,job).convertedToColorSpace(QColorSpace::SRgb);
+    int maximum=0;
+    for(int y=0;y<saved.height();++y)for(int x=0;x<saved.width()*4;++x)
+      maximum=std::max(maximum,std::abs(int(saved.constScanLine(y)[x])-int(flat.image.constScanLine(y)[x])));
+    std::cout<<"Saved PSD vs imported export max byte difference: "<<maximum<<'\n';CHECK(maximum<=1);
+  }
+  const auto project=dir.filePath("round-trip.vulkana");CHECK(u::saveProject(project,document));
+  auto reopened=u::loadProject(project);CHECK(reopened);if(!reopened)return;
+  CHECK(reopened.document->canvas()==document.canvas());CHECK(u::flattenDocument(*reopened.document).image==flat.image);
+  u::ExportSettings settings;settings.size=flat.image.size();
+  const auto rendered=u::renderExport(*reopened.document,settings);CHECK(rendered);
+  auto renderedPixels=rendered.image;renderedPixels.setColorSpace(flat.image.colorSpace());CHECK(renderedPixels==flat.image);
+  const std::atomic_bool cancelled{false};
+  const auto encoded=u::encodeExport(rendered.image,settings,cancelled);CHECK(encoded);
+  auto decodedPixels=QImage::fromData(encoded.bytes).convertToFormat(QImage::Format_RGBA8888);
+  decodedPixels.setColorSpace(flat.image.colorSpace());CHECK(decodedPixels==flat.image);
+  const auto snapshot=u::capturePsdExport(*reopened.document,1);
+  const auto plan=u::planPsdExport(snapshot,{},cancelled);CHECK(plan);
+  const auto psdPath=dir.filePath("round-trip.psd");CHECK(u::writePsdExport(snapshot,plan,psdPath,cancelled));
+  const auto psdInput=u::inspectPsd(psdPath,job);CHECK(psdInput.error.isEmpty());
+  const auto psdOutput=u::convertPsd(psdInput,u::defaultPsdOptions(psdInput),job,{},false);
+  CHECK(psdOutput.document);if(psdOutput.document)CHECK(u::flattenDocument(*psdOutput.document).image==flat.image);
+}
 int main(int argc, char **argv) {
   QApplication app(argc, argv);
+  if(argc>=3&&QString::fromLocal8Bit(argv[1])=="--compare-composite") {
+    compositingRoundTrip(QString::fromLocal8Bit(argv[2]));return failures?1:0;
+  }
   if (argc >= 3 && (QString::fromLocal8Bit(argv[1]) == "--profile" ||
                    QString::fromLocal8Bit(argv[1]) == "--profile-base-pixels")) {
     profile(QString::fromLocal8Bit(argv[2]),
@@ -947,6 +993,7 @@ int main(int argc, char **argv) {
   }
   unit();
   mergedTransparency();
+  compositingRoundTrip();
   semanticFixtures();
   compactBounds();
   if (argc >= 4 && QString::fromLocal8Bit(argv[1]) == "--sample")

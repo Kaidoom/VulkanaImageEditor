@@ -582,7 +582,7 @@ PsdExportPlan planPsdExport(const PsdExportSnapshot &s,
       }
     }
     p.notes << "Layered RGB recomposition depends on the receiving editor's "
-               "blend/color settings. Vulkana's linear-light result is in the "
+               "blend/color settings. The document's rendered result is in the "
                "compatibility composite; choose Flattened PSD for "
                "appearance-focused output. No global Photoshop preferences are "
                "changed.";

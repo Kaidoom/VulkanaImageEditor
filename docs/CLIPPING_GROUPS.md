@@ -18,8 +18,10 @@ transforms, editable data, masks, styles and visibility.
 
 ## Composition
 
-All calculations use the existing linear-light premultiplied-alpha contract.
-The structural plan is shared by CPU sampling/export and Vulkan dispatch.
+The external sample contract remains linear-light premultiplied alpha. Layer
+accumulation and container contribution restoration follow the document's
+compositing space (linear-light or encoded sRGB). Coverage is applied once in
+either mode. The structural plan is shared by CPU sampling/export and Vulkan.
 
 For a renderable base, let `P` be its adjusted/filtered premultiplied content,
 and `a = P.alpha`. Crop/chamfer and bitmap-mask coverage are `m`.

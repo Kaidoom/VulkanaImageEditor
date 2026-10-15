@@ -3117,7 +3117,8 @@ void MainWindow::changeCanvasSize()
 
     try {
         const auto before = document->canvas();
-        const auto after = dialog.canvasSpec();
+        auto after = dialog.canvasSpec();
+        after.compositingSpace = before.compositingSpace;
         if (!executeDocumentCommand(
                 std::make_unique<core::ChangeCanvasSpecCommand>(after))) {
             statusBar()->showMessage(i18n::text("main.window.canvas.size.unchanged"), 2500);

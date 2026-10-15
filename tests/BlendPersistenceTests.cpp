@@ -3,6 +3,8 @@
 #include "imageeditor/core/History.hpp"
 #include "imageeditor/core/LayerCommands.hpp"
 #include "imageeditor/core/SelectionCommands.hpp"
+#include "imageeditor/core/DocumentCommands.hpp"
+#include "imageeditor/ui/FlattenedDocument.hpp"
 #include "imageeditor/ui/ProjectFile.hpp"
 
 #include <QFile>
@@ -246,7 +248,16 @@ void compatibilityAndRejection()
     writeFixture(path, manifest);
     auto result = u::loadProject(path);
     CHECK(result);
-    if (result) CHECK(result.document->layers()[0].blendMode == c::BlendMode::Normal);
+    if (result) {
+        CHECK(result.document->layers()[0].blendMode == c::BlendMode::Normal);
+        CHECK(result.document->canvas().compositingSpace == c::CompositingSpace::LinearSRgb);
+    }
+    const auto originalCanvas=manifest["canvas"].toObject();
+    for(const auto value:{QJsonValue("future-space"),QJsonValue(1),QJsonValue(QJsonValue::Null),QJsonValue("encoded-srgb")}) {
+        auto canvas=originalCanvas;canvas["compositingSpace"]=value;manifest["canvas"]=canvas;
+        writeFixture(path,manifest);CHECK(!u::loadProject(path));
+    }
+    manifest["canvas"]=originalCanvas;
     for (const auto value : {QJsonValue("future-mode"),QJsonValue(3),QJsonValue(QJsonValue::Null)}) {
         leaf["blendMode"] = value; manifest["layers"] = QJsonArray {leaf};
         writeFixture(path, manifest);
@@ -295,6 +306,32 @@ void compatibilityAndRejection()
     CHECK(!result);
     CHECK(result.error.contains("Unsupported layer blend mode"));
 }
+void compositingPersistence()
+{
+    QTemporaryDir dir;
+    c::Document doc({{4,3},96});
+    doc.insertLayer(0,c::Layer::raster("Black",std::make_shared<c::ContiguousRasterSurface>(c::Extent2u{4,3},c::Rgba8{0,0,0,255})));
+    doc.insertLayer(1,c::Layer::raster("Alpha",surface()));
+    const auto old=u::flattenDocument(doc).image;
+    const auto selection=c::SelectionMask::rectangle({4,3},{1,1,2,1});doc.setSelection(selection);
+    c::History history;auto spec=doc.canvas();spec.compositingSpace=c::CompositingSpace::EncodedSRgb;
+    CHECK(history.execute(doc,std::make_unique<c::ChangeCanvasSpecCommand>(spec)));
+    CHECK(doc.snapshot().canvas.compositingSpace==spec.compositingSpace&&doc.selection()==selection);
+    const auto changed=u::flattenDocument(doc).image;CHECK(changed!=old);
+    CHECK(history.undo(doc));CHECK(u::flattenDocument(doc).image==old);
+    CHECK(history.redo(doc));CHECK(u::flattenDocument(doc).image==changed);
+    const auto file=dir.filePath("encoded.vulkana");CHECK(u::saveProject(file,doc));
+    auto loaded=u::loadProject(file);CHECK(loaded);if(!loaded)return;
+    CHECK(loaded.document->canvas()==spec);
+    CHECK(loaded.metadata["required"].toArray().contains("encoded-srgb-compositing-v1"));
+    CHECK(u::flattenDocument(*loaded.document).image==changed);
+    spec.compositingSpace=c::CompositingSpace::LinearSRgb;CHECK(loaded.document->setCanvas(spec));
+    CHECK(u::saveProject(file,*loaded.document,loaded.metadata));
+    loaded=u::loadProject(file);CHECK(loaded);if(!loaded)return;
+    CHECK(!loaded.metadata["required"].toArray().contains("encoded-srgb-compositing-v1"));
+    CHECK(loaded.document->canvas().compositingSpace==c::CompositingSpace::LinearSRgb);
+    CHECK(u::flattenDocument(*loaded.document).image==old);
+}
 }
 
 int main(int argc, char** argv)
@@ -305,6 +342,7 @@ int main(int argc, char** argv)
         copiesRetainUnblendedProperties();
         allTypesRoundTrip();
         compatibilityAndRejection();
+        compositingPersistence();
     } catch (const std::exception& error) {
         ++failures; std::cerr << error.what() << '\n';
     }

@@ -81,7 +81,7 @@ bool LayerViaCopyCommand::apply(Document& document)
         std::vector<std::byte> bytes(std::size_t(region.width) * std::size_t(region.height) * 4);
         const PreparedRasterSampler sampler(*source);
         std::optional<PreparedLayerSampler> filteredSampler;
-        if(bakeFilters)filteredSampler.emplace(*filteredSource);
+        if(bakeFilters)filteredSampler.emplace(*filteredSource,true,document.canvas().compositingSpace);
         const auto inverse=transform.inverted();
         if(!inverse)return false;
         const bool pixelAligned = !bakeFilters && transform.isAffine() && transform.m00 == 1 && transform.m11 == 1

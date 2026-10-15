@@ -312,7 +312,7 @@ static FlattenedDocumentResult flattenImpl(
         // Sampling the original document coordinates also preserves exact edge
         // decisions: translating a matrix before inversion can move a source
         // boundary a few ulps and drop a fully visible pixel.
-        const core::PinnedDocumentSampler sampler(prepared, items ? extent : canvasExtent, {}, origin, intrinsic ? nullptr : &document.tree(),items.value_or(std::span<const core::LayerId>{}));
+        const core::PinnedDocumentSampler sampler(prepared, items ? extent : canvasExtent, {}, origin, intrinsic ? nullptr : &document.tree(),items.value_or(std::span<const core::LayerId>{}),document.canvas().compositingSpace);
         samplerSetup.finish();
         ProfileStage allocation(profile?&profile->allocationMs:nullptr);
         QImage output(int(extent.width), int(extent.height), QImage::Format_RGBA8888);
@@ -439,7 +439,7 @@ static FlattenedDocumentResult flattenImpl(
                     }
                     linear={float(sum[0]),float(sum[1]),float(sum[2]),float(sum[3])};
                 }
-                if (matte) linear=core::compositeLayer(core::decodeColor(*matte),linear,1,core::BlendMode::Normal);
+                if (matte) linear=core::compositeLayer(core::decodeColor(*matte),linear,1,core::BlendMode::Normal,{},core::defaultBlendSeed,false,document.canvas().compositingSpace);
                 auto color=core::encodeColor(linear);
                 if(color.alpha==0) color={}; // Canonical transparent RGB, including rounded-to-zero alpha.
                 const auto offset = std::size_t(x) * 4;

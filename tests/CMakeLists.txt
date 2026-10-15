@@ -294,6 +294,8 @@ target_link_libraries(imageeditor_blend_rendering_tests PRIVATE imageeditor_ui V
 imageeditor_enable_warnings(imageeditor_blend_rendering_tests)
 target_compile_options(imageeditor_blend_rendering_tests PRIVATE $<$<CXX_COMPILER_ID:GNU,Clang>:-Wno-missing-field-initializers>)
 add_test(NAME imageeditor_blend_rendering_tests COMMAND imageeditor_blend_rendering_tests)
+add_test(NAME imageeditor_encoded_compositing_vulkan COMMAND imageeditor_blend_rendering_tests --encoded-compositing --validation)
+set_tests_properties(imageeditor_encoded_compositing_vulkan PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 90 RUN_SERIAL TRUE LABELS "vulkan;blend;psd")
 set_tests_properties(imageeditor_blend_rendering_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 60 RUN_SERIAL TRUE LABELS "vulkan;blend")
 add_test(NAME imageeditor_adjustment_rendering_tests COMMAND imageeditor_blend_rendering_tests --adjustments --validation)
 add_test(NAME imageeditor_spatial_filter_rendering_tests COMMAND imageeditor_blend_rendering_tests --filters --validation)

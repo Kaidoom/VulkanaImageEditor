@@ -300,6 +300,14 @@ namespace {
             layers.append(saved);
         }
         auto result = overlayJson(metadata, QJsonObject { { "format", "org.vulkana.project" }, { "version", 1 }, { "required", QJsonArray { "rgba8", "rich-text-v1" } }, { "canvas", QJsonObject { { "width", int(doc.canvas().extent.width) }, { "height", int(doc.canvas().extent.height) }, { "ppi", doc.canvas().dotsPerInch }, { "colorSpace", "srgb" }, { "pixelFormat", "rgba8-straight" } } } }).toObject();
+        auto canvas = result["canvas"].toObject();
+        canvas["compositingSpace"] = doc.canvas().compositingSpace == core::CompositingSpace::EncodedSRgb
+            ? "encoded-srgb" : "linear-srgb";
+        result["canvas"] = canvas;
+        if (doc.canvas().compositingSpace == core::CompositingSpace::EncodedSRgb) {
+            auto required = result["required"].toArray();
+            required.append("encoded-srgb-compositing-v1");result["required"] = required;
+        }
         if (containsLayerCrop) {
             auto required = result["required"].toArray();
             required.append("layer-crop-v1");
@@ -470,7 +478,8 @@ namespace {
                     || capability == "hierarchy-v1" || capability == "container-visibility-v1" || capability == "clipping-mask-group-v1"
                     || capability == "blend-modes-v3" || capability == "layer-blend-modes-v1" || capability == "layer-blend-modes-v2"
                     || capability == "adjustments-v1" || capability == "adjustment-layer-v1" || capability == "spatial-filters-v1" || capability == "layer-crop-v1" || capability == "layer-crop-chamfer-v1"
-                    || capability == "selection-recall-v1" || capability == "layer-effects-v1" || capability == "bevel-emboss-v1" || capability == "projective-transform-v1" || capability == "raster-local-frame-v1" || capability == "layer-mask-v1",
+                    || capability == "selection-recall-v1" || capability == "layer-effects-v1" || capability == "bevel-emboss-v1" || capability == "projective-transform-v1" || capability == "raster-local-frame-v1" || capability == "layer-mask-v1"
+                    || capability == "encoded-srgb-compositing-v1",
                 "Project requires unsupported capabilities");
         require(o["canvas"].isObject() && o["layers"].isArray(), "Missing canvas or layers");
         const auto canvas = o["canvas"].toObject();
@@ -479,6 +488,13 @@ namespace {
             "Unsupported document color pipeline");
         Plan result;
         result.canvas = { extent(canvas), number(canvas.value("ppi").isUndefined() ? QJsonValue(96) : canvas["ppi"], 1, 1200, "Invalid canvas resolution") };
+        const auto compositing = canvas.value("compositingSpace");
+        require(compositing.isUndefined() || compositing == "linear-srgb" || compositing == "encoded-srgb",
+            "Unsupported document compositing space");
+        if (compositing == "encoded-srgb") {
+            require(required.contains("encoded-srgb-compositing-v1"), "Missing document compositing capability");
+            result.canvas.compositingSpace = core::CompositingSpace::EncodedSRgb;
+        }
         const auto layers = o["layers"].toArray();
         require(!layers.empty() && layers.size() <= layerLimit, "Invalid layer count");
         std::set<core::LayerId> ids;

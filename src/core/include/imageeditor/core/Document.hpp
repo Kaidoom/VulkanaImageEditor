@@ -4,6 +4,7 @@
 #include "imageeditor/core/LayerTree.hpp"
 #include "imageeditor/core/SelectionMask.hpp"
 #include "imageeditor/core/SelectionEvidence.hpp"
+#include "imageeditor/core/CompositingSpace.hpp"
 
 #include <cstddef>
 #include <optional>
@@ -17,6 +18,7 @@ namespace imageeditor::core {
 struct CanvasSpec {
     Extent2u extent;
     double dotsPerInch {96.0};
+    CompositingSpace compositingSpace {CompositingSpace::LinearSRgb};
 
     friend constexpr bool operator==(const CanvasSpec&, const CanvasSpec&) = default;
 };

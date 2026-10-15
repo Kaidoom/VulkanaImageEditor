@@ -26,7 +26,7 @@ private:
 // intrinsic pixels, not this rendered-appearance sampler.
 class PreparedLayerSampler {
 public:
-    explicit PreparedLayerSampler(const Layer&, bool adjusted = true);
+    explicit PreparedLayerSampler(const Layer&, bool adjusted = true, CompositingSpace = CompositingSpace::LinearSRgb);
     [[nodiscard]] PremultipliedColor sample(Vec2d documentPoint,
         std::size_t stopBefore = adjustmentCount) const;
 private:
@@ -38,6 +38,7 @@ private:
     std::shared_ptr<const CompiledAdjustmentStack> adjustments_;
     std::optional<EffectParameters> effects_;
     std::shared_ptr<const LayerEffectCache> effectCache_;
+    CompositingSpace compositingSpace_ {CompositingSpace::LinearSRgb};
 };
 
 enum class ColorSampleSource { MergedVisible, ActiveLayer };
@@ -64,7 +65,7 @@ public:
     // inverse-map evaluation remains identical at tight off-canvas merge edges.
     PinnedDocumentSampler(std::span<const Layer* const>, Extent2u sampleExtent,
         const AffineTransform& documentToSample = {}, Vec2d sampleOrigin = {}, const LayerTree* tree = nullptr,
-        std::span<const LayerId> selectedItems = {});
+        std::span<const LayerId> selectedItems = {}, CompositingSpace = CompositingSpace::LinearSRgb);
     [[nodiscard]] bool matches(const Document&) const noexcept;
     [[nodiscard]] Rgba8 sample(Vec2d) const;
     // Continuous document coordinates, accumulated premultiplied linear RGBA.

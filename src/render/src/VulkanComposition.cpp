@@ -98,6 +98,7 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
     // composition; raster uploads retain their existing dirty-region path.
     std::vector<std::uint64_t> key;
     key.push_back(scene.documentInstance);
+    key.push_back(std::uint64_t(scene.document.canvas.compositingSpace));
     key.reserve(8+scene.document.layersBottomToTop.size()*12);
     key.push_back(frame.extent.width); key.push_back(frame.extent.height);
     for (double v : rect) key.push_back(std::bit_cast<std::uint64_t>(v));
@@ -113,7 +114,10 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
     std::vector<core::LayerId> adjustmentInputCaches;
     struct Clear {std::size_t offset,bytes;core::LayerId cache;};
     std::vector<Clear> clears;
-    std::vector<float> adjustmentParameters(512);
+    // One document-wide scalar follows the canonical decode/encode tables;
+    // keep the guaranteed 128-byte push block and per-layer uploads unchanged.
+    std::vector<float> adjustmentParameters(513);
+    adjustmentParameters[512]=float(scene.document.canvas.compositingSpace);
     for(int i=0;i<256;++i) {adjustmentParameters[std::size_t(i)]=float(core::srgbToLinear(std::uint8_t(i)));
         adjustmentParameters[std::size_t(256+i)]=float(i)/255.F;}
     if(!unavailable && !scene.pixelPreviewEnabled)prepareAdjustmentMasks(scene);
@@ -161,6 +165,7 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
             work.push_back({push,compositionTexture_.descriptorSet}); // Shader does not sample a content texture.
             leafWork.emplace(layer.id,work.back());
             leafKeys[layer.id].assign(key.begin()+std::ptrdiff_t(start),key.end());
+            leafKeys[layer.id].push_back(std::uint64_t(scene.document.canvas.compositingSpace));
             continue;
         }
         const bool bypassFilters=scene.filterBypassLayer==layer.id || scene.adjustmentBypassLayer==layer.id;
@@ -290,6 +295,7 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
             leafWork.emplace(layer.id,work.back());
             auto& leafKey=leafKeys[layer.id];leafKey.assign(key.begin()+std::ptrdiff_t(keyStart),key.end());
             leafKey.push_back(scene.documentInstance);
+            leafKey.push_back(std::uint64_t(scene.document.canvas.compositingSpace));
         }
     }
     clippingBytes_=0;

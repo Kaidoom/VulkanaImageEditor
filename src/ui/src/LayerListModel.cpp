@@ -543,6 +543,7 @@ QIcon LayerListModel::groupThumbnail(core::LayerId id) const
         hash(visibleForPreview(layer.id));
         hash(std::bit_cast<std::uint32_t>(layer.opacity));
         hash(static_cast<std::uint32_t>(layer.blendMode));
+        hash(static_cast<std::uint32_t>(doc.canvas().compositingSpace));
         hash(layer.adjustmentRevision);
         hash(layer.filterRevision);
         hash(layer.effectRevision);
@@ -619,7 +620,7 @@ QIcon LayerListModel::groupThumbnail(core::LayerId id) const
                 previewLayers.back().visible=visibleForPreview(leaf)&&(bool(core::renderedSurface(*l))||std::holds_alternative<core::AdjustmentLayer>(l->payload));
             }
             for(const auto& l:previewLayers)prepared.push_back(&l);
-            core::PinnedDocumentSampler sampler(prepared, core::Extent2u { thumbnailPixels, thumbnailPixels }, fit,{},&doc.tree());
+            core::PinnedDocumentSampler sampler(prepared, core::Extent2u { thumbnailPixels, thumbnailPixels }, fit,{},&doc.tree(),{},doc.canvas().compositingSpace);
             for (int y = 0; y < thumbnailPixels; ++y)
                 for (int x = 0; x < thumbnailPixels; ++x) {
                     const auto c = sampler.sample({ x + .5, y + .5 });

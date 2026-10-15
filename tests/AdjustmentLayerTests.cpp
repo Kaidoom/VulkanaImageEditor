@@ -214,7 +214,18 @@ int main(int argc,char** argv) {
             const auto imported=u::convertPsd(inspection,u::defaultPsdOptions(inspection),{});
             CHECK(imported.document);
             if(!imported.document)std::cerr<<imported.error.toStdString()<<'\n';
-            if(imported.document)CHECK(close(sample(*imported.document),sample(*doc)));
+            if(imported.document) {
+                CHECK(imported.document->canvas().compositingSpace==c::CompositingSpace::EncodedSRgb);
+                auto reference=*doc;auto spec=reference.canvas();spec.compositingSpace=c::CompositingSpace::EncodedSRgb;
+                reference.setCanvas(spec);
+                CHECK(close(sample(*imported.document),sample(reference)));
+            }
+            // Layered RGB reopens in PSD's encoded composition policy. The
+            // saved compatibility composite still preserves the originating
+            // native document's linear-light appearance exactly.
+            auto compositeOptions=u::defaultPsdOptions(inspection);compositeOptions.composite=true;
+            auto composite=u::convertPsd(inspection,compositeOptions,{}, {}, false);CHECK(composite.document);
+            if(composite.document)CHECK(c::encodeColor(sample(*composite.document))==c::encodeColor(sample(*doc)));
         }
         auto combined=std::make_shared<c::AdjustmentStack>(*d.layer(a.id)->adjustments);combined->items[9].enabled=true;
         d.setLayerAdjustments(a.id,combined);

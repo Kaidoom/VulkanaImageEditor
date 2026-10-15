@@ -12,3 +12,8 @@ B_INLINE BVec4 bClippingContainer(BVec4 styled,BVec4 content,BVec4 working)
         styled.y+(working.y-opaque.y)*coverage,
         styled.z+(working.z-opaque.z)*coverage,styled.w);
 }
+B_INLINE BVec4 bClippingContainerSpace(BVec4 styled,BVec4 content,BVec4 working,int space)
+{
+    return bFromCompositing(bClippingContainer(bToCompositing(styled,space),
+        bToCompositing(content,space),bToCompositing(working,space)),space);
+}

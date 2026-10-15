@@ -28,6 +28,21 @@ Layers are ordered **bottom to top**. IDs are canonical positive decimal strings
 
 The existing initial Transparent/White/Black background is actual raster content, not a second document background property.
 
+### Document compositing space
+
+`canvas.compositingSpace` is `"linear-srgb"` (the default when absent) or
+`"encoded-srgb"`. Both store straight RGBA8 sRGB and use the same alpha-aware
+linear filtering. This setting changes how layer contributions and opacity are
+combined, including styles and clipping/isolated domains. It is document data,
+not an application preference or a per-layer flag. Opening RGB PSDs chooses
+encoded sRGB; existing `.vulkana` files without the field are never reinterpreted.
+
+Encoded documents declare required capability `encoded-srgb-compositing-v1`,
+so an older application rejects them rather than displaying a silently different
+composite. Unknown values/types and a missing encoded-mode capability are rejected.
+Saving a linear document drops that requirement, including when retained metadata
+came from an encoded document. The source pixels are not changed in either case.
+
 ### Optional saved preview
 
 The root manifest may contain a disposable `preview` object:

@@ -100,6 +100,9 @@ E_INLINE BVec4 eComposite(BVec4 backdrop,BVec4 base,float x,float y,float opacit
     // One group-contribution opacity, not opacity applied repeatedly to each
     // generated pass. Final crop coverage uses this same contribution boundary.
     float a=bClamp(opacity*coverage,0.0F,1.0F);
-    return BVec4(backdrop.x+(result.x-backdrop.x)*a,backdrop.y+(result.y-backdrop.y)*a,
+    // Preserve the historical arithmetic for linear documents, including its
+    // endpoint rounding. Encoded documents mix group contribution in sRGB.
+    if(E_SPACE==0)return BVec4(backdrop.x+(result.x-backdrop.x)*a,backdrop.y+(result.y-backdrop.y)*a,
         backdrop.z+(result.z-backdrop.z)*a,backdrop.w+(result.w-backdrop.w)*a);
+    return bMixSpace(backdrop,result,a,E_SPACE);
 }

@@ -1,5 +1,5 @@
-void layerEffectRendering(OffscreenCanvas &gpu, Review &review) {
-  c::Document document({{72, 56}, 96});
+void layerEffectRendering(OffscreenCanvas &gpu, Review &review,c::CompositingSpace space=c::CompositingSpace::LinearSRgb) {
+  c::Document document({{72, 56}, 96,space});
   auto background = c::Layer::raster("Backdrop", patterned({72, 56}, false));
   document.insertLayer(0, background);
   auto layer = c::Layer::raster("Effect source", patterned({28, 24}, true));
@@ -39,7 +39,7 @@ void layerEffectRendering(OffscreenCanvas &gpu, Review &review) {
       check(c::layerEffectCacheValid(*document.layer(id)),
             "material change reuses effect geometry");
       scene.document = document.snapshot();
-      verify(document, scene, gpu.render(scene), "effect blend mode", false);
+      verify(document, scene, gpu.render(scene), std::string(c::layerEffectName(c::LayerEffectType(type)))+" / "+std::string(c::blendModeName(mode)), false);
     }
     check(gpu.stats().adjustmentMaskUploads == before.adjustmentMaskUploads,
           "effect material edits do not upload masks");

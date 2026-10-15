@@ -125,6 +125,7 @@ struct CloneReference::Impl {
     std::optional<PinnedDocumentSampler> renderedSource, renderedDestination;
     std::size_t bytes { 0 }, sourceCount { 0 };
     Extent2u canvas, rawExtent;
+    CompositingSpace compositingSpace {CompositingSpace::LinearSRgb};
     AffineTransform rawInverse, rawDocumentToLocal;
     std::optional<LayerCrop> rawCrop;
     std::shared_ptr<const RasterSurface> rawSurface;
@@ -163,6 +164,7 @@ std::optional<CloneReference> CloneReference::capture(const Document& document, 
 
         auto result = std::make_shared<Impl>();
         result->canvas = document.canvas().extent;
+        result->compositingSpace = document.canvas().compositingSpace;
         FrozenLayers frozen(limitBytes, std::move(cancelled), prepared);
         const bool rawContext = mode == CloneSampleSource::SourceLayer && sourceId == targetId;
         if (source) {
@@ -243,11 +245,11 @@ std::optional<CloneReference> CloneReference::capture(const Document& document, 
                 result->renderedSource.emplace(mode == CloneSampleSource::CurrentAndBelow
                         ? below
                         : std::span<const Layer* const>(pointers),
-                    extent);
+                    extent,AffineTransform{},Vec2d{},nullptr,std::span<const LayerId>{},result->compositingSpace);
                 result->sourceCount = result->renderedSource->sourceCount();
             }
             if (needRenderedContext)
-                result->renderedDestination.emplace(below, extent);
+                result->renderedDestination.emplace(below, extent,AffineTransform{},Vec2d{},nullptr,std::span<const LayerId>{},result->compositingSpace);
             }
         }
         result->bytes = frozen.bytes();
@@ -302,8 +304,8 @@ CloneReference CloneReference::prepared(const std::function<bool()>& cancelled, 
     const auto below = std::span<const Layer* const>(pointers.data(), result->pendingBelowCount);
     if (result->pendingSource)
         result->renderedSource.emplace(result->mode == CloneSampleSource::CurrentAndBelow
-            ? below : std::span<const Layer* const>(pointers), result->canvas);
-    if (result->pendingDestination) result->renderedDestination.emplace(below, result->canvas);
+            ? below : std::span<const Layer* const>(pointers), result->canvas,AffineTransform{},Vec2d{},nullptr,std::span<const LayerId>{},result->compositingSpace);
+    if (result->pendingDestination) result->renderedDestination.emplace(below, result->canvas,AffineTransform{},Vec2d{},nullptr,std::span<const LayerId>{},result->compositingSpace);
     result->pendingSource = result->pendingDestination = false;
     result->pendingRenderedLayers.clear();
     return CloneReference(std::move(result));

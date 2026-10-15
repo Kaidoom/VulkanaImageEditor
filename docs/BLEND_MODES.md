@@ -1,8 +1,22 @@
 # Blend modes
 
-Canonical pixels remain straight RGBA8 sRGB. Filtering and alpha composition
-use linear-light premultiplied values; named RGB blend functions operate on
-unassociated sRGB. Existing numeric IDs 0–19 and textual IDs are unchanged.
+Canonical pixels remain straight RGBA8 sRGB. Filtering uses linear-light
+premultiplied values; named RGB blend functions operate on unassociated sRGB.
+Alpha composition follows the document's `CanvasSpec::compositingSpace`:
+`LinearSRgb` retains the original linear-light behavior; `EncodedSRgb` accumulates
+coverage in encoded sRGB, as in conventional RGB PSD composition. The shared
+CPU/GLSL equations accept and return premultiplied linear values in both modes;
+only the compositing boundary changes. Alpha, source RGB and filtering are never
+rewritten to compensate for a different mode.
+
+New native documents and projects without a stored mode use `LinearSRgb`.
+Opening a PSD selects `EncodedSRgb` automatically, without another import choice.
+The mode persists in `.vulkana` and travels with snapshots, export, sampling,
+previews and isolated/clipping groups. Importing layers into an existing document
+uses that destination's mode; it does not change existing artwork's appearance.
+Mode changes invalidate composites and lower-stack caches, not source textures.
+
+Existing numeric blend IDs 0–19 and textual IDs are unchanged.
 IDs 20–26 append Dissolve, Darker Color, Lighter Color, Vivid Light, Linear Light,
 Pin Light, and Hard Mix. Projects using these operations declare
 `blend-modes-v3`; effects and non-Normal adjustment operators use the same

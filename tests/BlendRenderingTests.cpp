@@ -11,6 +11,8 @@
 #include "imageeditor/ui/NativeRasterBake.hpp"
 #include "imageeditor/ui/QtShapeRenderService.hpp"
 #include "imageeditor/ui/QtTextLayoutService.hpp"
+#include "imageeditor/ui/PsdImport.hpp"
+#include "../src/ui/src/PsdReader.hpp"
 
 #include <QCryptographicHash>
 #include <QDir>
@@ -421,7 +423,7 @@ QImage verify(const c::Document& document, const r::CanvasScene& scene, const QI
         pointers.push_back(&layer);
     }
     const c::PinnedDocumentSampler sampler(pointers,
-        {OffscreenCanvas::extent.width,OffscreenCanvas::extent.height},toFrame,{},&document.tree());
+        {OffscreenCanvas::extent.width,OffscreenCanvas::extent.height},toFrame,{},&document.tree(),{},document.canvas().compositingSpace);
     const auto rect = mapping.documentCanvasFramebufferRect();
     QImage expected(actual.size(),QImage::Format_RGBA8888);
     int worst = 0, badPixels = 0, inspected = 0;
@@ -491,9 +493,9 @@ struct Review {
     }
 };
 
-void allModesAndCacheBehavior(OffscreenCanvas& gpu, Review& review)
+void allModesAndCacheBehavior(OffscreenCanvas& gpu, Review& review,c::CompositingSpace space=c::CompositingSpace::LinearSRgb)
 {
-    c::Document document({{96,80},96});
+    c::Document document({{96,80},96,space});
     auto base = c::Layer::raster("Alpha backdrop",patterned({96,80},false));
     auto foreground = c::Layer::raster("Transformed alpha edges",patterned({48,48},true));
     foreground.localToDocument = {1.27,-.23,25.125,.19,1.11,4.375};
@@ -1117,9 +1119,9 @@ void spatialFilterRendering(OffscreenCanvas& gpu,Review& review)
     check(gpu.stats().fullUploads==originalUploads+3,"each filter result uploads once, original never reuploads");
 }
 #include "LayerEffectRenderingChecks.inc"
-void layerMaskRendering(OffscreenCanvas& gpu)
+void layerMaskRendering(OffscreenCanvas& gpu,c::CompositingSpace space=c::CompositingSpace::LinearSRgb)
 {
-    c::Document doc({{96,80},96});
+    c::Document doc({{96,80},96,space});
     auto layer=c::Layer::raster("Masked",std::make_shared<c::ContiguousRasterSurface>(c::Extent2u{96,80},c::Rgba8{90,160,220,170}));
     const auto id=layer.id;check(doc.insertLayer(0,layer),"insert mask fixture");
     auto scene=sceneFor(doc);gpu.render(scene);const auto originalUploads=gpu.stats().uploadedBytes;
@@ -1157,10 +1159,10 @@ void layerMaskRendering(OffscreenCanvas& gpu)
     verify(effectDoc,scene,gpu.render(scene),"refined projective styled mask");
     check(gpu.stats().uploadedBytes==beforeRefine,"refinement retains RGBA source texture");
 }
-void clippingRendering(OffscreenCanvas& gpu)
+void clippingRendering(OffscreenCanvas& gpu,c::CompositingSpace space=c::CompositingSpace::LinearSRgb)
 {
     {
-        c::Document doc({{96,80},96});
+        c::Document doc({{96,80},96,space});
         auto below=c::Layer::raster("Input",patterned({96,80},true));
         auto adjustment=c::Layer::adjustment("Stack exposure");
         auto state=std::make_shared<c::AdjustmentStack>();state->items[0].enabled=true;state->items[0].parameters=c::ExposureParameters{1};
@@ -1179,6 +1181,12 @@ void clippingRendering(OffscreenCanvas& gpu)
         doc.setLayerAdjustments(adjustment.id,changed);scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"adjustment cached lower input");
         check(gpu.stats().adjustmentInputBuilds==before.adjustmentInputBuilds && gpu.stats().adjustmentInputReuses>before.adjustmentInputReuses,"parameter edit reuses lower composite");
         check(gpu.stats().uploadedBytes==before.uploadedBytes,"parameter edit uploads no source pixels");
+        const auto beforeSpace=gpu.stats();auto spec=doc.canvas();
+        spec.compositingSpace=space==c::CompositingSpace::LinearSRgb?c::CompositingSpace::EncodedSRgb:c::CompositingSpace::LinearSRgb;
+        doc.setCanvas(spec);scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"compositing space invalidates lower input");
+        check(gpu.stats().adjustmentInputBuilds>beforeSpace.adjustmentInputBuilds,"mode change rebuilds cached lower composition");
+        check(gpu.stats().uploadedBytes==beforeSpace.uploadedBytes,"mode change retains source textures");
+        spec.compositingSpace=space;doc.setCanvas(spec);scene=sceneFor(doc);gpu.render(scene);
         auto above=c::Layer::raster("Above",std::make_shared<c::ContiguousRasterSurface>(c::Extent2u{16,16},c::Rgba8{180,20,90,128}));
         doc.insertLayer(doc.layers().size(),above);const auto beforeAbove=gpu.stats();scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"above operator input reuse");
         check(gpu.stats().adjustmentInputBuilds==beforeAbove.adjustmentInputBuilds,"above edit retains lower input");
@@ -1198,7 +1206,7 @@ void clippingRendering(OffscreenCanvas& gpu)
         const auto pass=gpu.stats();doc.setLayerAdjustments(adjustment.id,state);scene=sceneFor(doc);gpu.render(scene);
         check(gpu.stats().adjustmentInputBuilds==pass.adjustmentInputBuilds,"pass-through nested input reused");
     }
-    c::Document doc({{96,80},96});
+    c::Document doc({{96,80},96,space});
     auto base=c::Layer::raster("Base",std::make_shared<c::ContiguousRasterSurface>(c::Extent2u{48,45},c::Rgba8{130,90,180,128}));
     base.localToDocument={1,0,12,0,1,13};base.opacity=.6F;
     auto upper=c::Layer::raster("Upper",std::make_shared<c::ContiguousRasterSurface>(c::Extent2u{75,70},c::Rgba8{220,140,60,210}));
@@ -1262,7 +1270,7 @@ void clippingRendering(OffscreenCanvas& gpu)
     tree.roots={outside.id,base.id,upper.id,group};
     check(doc.replaceStructure(doc.tree(),tree),"empty direct container base");
     scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"empty base must not promote upper");
-    c::Document textDoc({{96,80},96});
+    c::Document textDoc({{96,80},96,space});
     c::TextLayer text;text.utf8="O8";text.defaultStyle.font.family="Noto Sans";text.defaultStyle.sizePixels=54;
     text.defaultStyle.color={255,255,255,255};auto title=c::Layer::text("Editable base",c::normalizedText(text));
     title.localToDocument={1,.15,4,-.1,1,15};title.renderCache=u::prepareDocumentSampleCache(title,1024*1024);
@@ -1332,13 +1340,41 @@ void adjustmentLayerBenchmarks(bool validation)
             <<" input_reuses "<<gpu.stats().adjustmentInputReuses<<" work_bytes "<<gpu.stats().clippingWorkingBytes<<" retained_buffer_bytes "<<gpu.stats().adjustmentBufferCapacity<<'\n';
     }
 }
+void comparePsdCanvas(const QString& path,bool validation)
+{
+    const auto job=std::make_shared<u::PsdJob>();
+    const auto inspection=u::inspectPsd(path,job);
+    check(inspection.error.isEmpty(),"inspect external PSD composite fixture");
+    auto result=u::convertPsd(inspection,u::defaultPsdOptions(inspection),job,{},false);
+    check(bool(result.document),"convert external PSD composite fixture");if(!result.document)return;
+    const auto& doc=*result.document;
+    const auto expected=u::psd::composite(*inspection.source,job).convertedToColorSpace(QColorSpace::SRgb);
+    const auto cpu=u::flattenDocument(doc);check(bool(cpu),"CPU export composite");if(!cpu)return;
+    const auto e=doc.canvas().extent;
+    OffscreenCanvas gpu(validation,{e.width,e.height});auto scene=sceneFor(doc);
+    scene.logicalViewport={double(e.width),double(e.height)};const auto actual=gpu.render(scene);
+    int cpuMax=0,gpuMax=0;std::size_t count=0;
+    for(int y=2;y<int(e.height)-2;++y)for(int x=2;x<int(e.width)-2;++x) {
+        const auto reference=expected.pixelColor(x,y),a=cpu.image.pixelColor(x,y),b=actual.pixelColor(x,y);
+        for(auto diff:{std::abs(a.red()-reference.red()),std::abs(a.green()-reference.green()),std::abs(a.blue()-reference.blue())})cpuMax=std::max(cpuMax,diff);
+        for(auto diff:{std::abs(b.red()-reference.red()),std::abs(b.green()-reference.green()),std::abs(b.blue()-reference.blue())})gpuMax=std::max(gpuMax,diff);
+        ++count;
+    }
+    check(cpuMax<=1&&gpuMax<=2,"PSD saved composite agrees with native canvas and export");
+    const auto output=qEnvironmentVariable("IMAGEEDITOR_PSD_COMPOSITE_REVIEW");
+    if(!output.isEmpty()) {QDir().mkpath(output);expected.save(output+"/saved.png");cpu.image.save(output+"/export.png");actual.save(output+"/canvas.png");}
+    std::cout<<"PSD composite: "<<count<<" pixels; CPU max="<<cpuMax<<" GPU max="<<gpuMax<<'\n';
+}
 } // namespace
 
 int main(int argc, char** argv)
 {
-    bool validation = false, benchmark = false, adjustments = false, crop = false, filters = false,effects=false,masks=false,clipping=false,adjustmentLayers=false;
+    bool validation = false, benchmark = false, adjustments = false, crop = false, filters = false,effects=false,masks=false,clipping=false,adjustmentLayers=false,encoded=false;
+    QString psdFixture;
     for (int i = 1; i < argc; ++i) {
         if (std::string_view(argv[i]) == "--validation") validation = true;
+        if (std::string_view(argv[i]) == "--encoded-compositing") encoded = true;
+        if (std::string_view(argv[i]) == "--compare-psd"&&i+1<argc)psdFixture=QString::fromLocal8Bit(argv[++i]);
         if (std::string_view(argv[i]) == "--linear-target") linearTestTarget = true;
         if (std::string_view(argv[i]) == "--benchmark") benchmark = true;
         if (std::string_view(argv[i]) == "--adjustments") adjustments = true;
@@ -1353,7 +1389,8 @@ int main(int argc, char** argv)
     QGuiApplication app(argc,argv);
     QCoreApplication::setApplicationName("VulkanaBlendRenderingTests");
     try {
-        if (benchmark && effects) bevelBenchmarks(validation);
+        if(!psdFixture.isEmpty())comparePsdCanvas(psdFixture,validation);
+        else if (benchmark && effects) bevelBenchmarks(validation);
         else if (benchmark && adjustmentLayers) adjustmentLayerBenchmarks(validation);
         else if (benchmark && clipping) clippingBenchmarks(validation);
         else if (benchmark && adjustments) adjustmentBenchmarks(validation);
@@ -1363,7 +1400,13 @@ int main(int argc, char** argv)
             Review review(effects?c::layerEffectCount:filters?c::spatialFilterCount:adjustments?c::adjustmentCount+2:c::allBlendModes.size());
             {
                 OffscreenCanvas gpu(validation);
-                if(clipping||adjustmentLayers)clippingRendering(gpu);
+                if(encoded) {
+                    allModesAndCacheBehavior(gpu,review,c::CompositingSpace::EncodedSRgb);
+                    layerMaskRendering(gpu,c::CompositingSpace::EncodedSRgb);
+                    clippingRendering(gpu,c::CompositingSpace::EncodedSRgb);
+                    layerEffectRendering(gpu,review,c::CompositingSpace::EncodedSRgb);
+                }
+                else if(clipping||adjustmentLayers)clippingRendering(gpu);
                 else if(masks)layerMaskRendering(gpu);
                 else if(effects)layerEffectRendering(gpu,review);
                 else if(filters)spatialFilterRendering(gpu,review);
