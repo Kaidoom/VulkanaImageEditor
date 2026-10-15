@@ -130,10 +130,15 @@ inline QByteArray engine(const QVariant &v) {
     return v.toBool() ? "true" : "false";
   return QByteArray::number(v.toDouble(), 'g', 15);
 }
+struct ParagraphRun {
+  int length;
+  int justification{0}; // PSD: left = 0, right = 1, center = 2.
+};
 inline QByteArray textTag(QString words,
                           QString face = "Unavailable-fixture-face",
                           QVariantList lengths = {}, bool warp = false,
-                          double fontIndex = 0) {
+                          double fontIndex = 0,
+                          std::vector<ParagraphRun> paragraphs = {}) {
   if (lengths.empty())
     lengths = {double(words.size())};
   QVariantList runs;
@@ -153,6 +158,16 @@ inline QByteArray textTag(QString words,
       {"FontSize", 16.},
       {"FillColor",
        QVariantMap{{"Type", 1.}, {"Values", QVariantList{1., 1., 0., 0.}}}}};
+  if (paragraphs.empty())
+    paragraphs.push_back({int(words.size()), 0});
+  QVariantList paragraphRuns, paragraphLengths;
+  for (const auto &paragraph : paragraphs) {
+    paragraphRuns << QVariantMap{
+        {"ParagraphSheet",
+         QVariantMap{{"Properties", QVariantMap{
+             {"Justification", double(paragraph.justification)}}}}}};
+    paragraphLengths << double(paragraph.length);
+  }
   QVariantMap body{
       {"Editor", QVariantMap{{"Text", words}}},
       {"Rendered",
@@ -162,12 +177,8 @@ inline QByteArray textTag(QString words,
       {"StyleRun",
        QVariantMap{{"RunArray", runs}, {"RunLengthArray", lengths}}},
       {"ParagraphRun",
-       QVariantMap{{"RunArray",
-                    QVariantList{QVariantMap{
-                        {"ParagraphSheet",
-                         QVariantMap{{"Properties",
-                                      QVariantMap{{"Justification", 0.}}}}}}}},
-                   {"RunLengthArray", QVariantList{double(words.size())}}}}};
+       QVariantMap{{"RunArray", paragraphRuns},
+                   {"RunLengthArray", paragraphLengths}}}};
   QVariantMap resources{{"TheNormalStyleSheet", 0.},
                         {"StyleSheetSet", QVariantList{QVariantMap{
                                               {"StyleSheetData", defaults}}}},

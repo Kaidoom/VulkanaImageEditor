@@ -566,15 +566,18 @@ void textModel(const PsdSource &s, const Record &rec, const PsdChoice &choice,
     if (length < 1 || std::floor(length) != length ||
         length > double(sourceLength - position))
       throw Error("Invalid paragraph coverage");
-    auto last = std::min(position + qsizetype(length), string.size());
-    for (qsizetype j = position; j <= last && j < string.size(); ++j)
+    const auto end = position + qsizetype(length);
+    // Runs are half-open UTF-16 ranges: the next paragraph belongs to the
+    // next run. Include the native string's end only for a trailing empty
+    // paragraph, whose alignment is carried by the stripped terminal CR.
+    for (qsizetype j = position; j < end && j <= string.size(); ++j)
       if (j == 0 || string[j - 1] == '\n')
         result.paragraphs.push_back({index.byteOffset(size_t(j)),
                                      alignment == 1 ? core::TextAlignment::Right
                                      : alignment == 2
                                          ? core::TextAlignment::Center
                                          : core::TextAlignment::Left});
-    position += qsizetype(length);
+    position = end;
   }
   if (position != sourceLength)
     throw Error("Paragraphs do not cover the text");

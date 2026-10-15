@@ -299,6 +299,58 @@ void semanticFixtures() {
   }
   const auto installed =
       QFontInfo(QFontDatabase::systemFont(QFontDatabase::GeneralFont)).family();
+  {
+    struct ParagraphCase {
+      QStringList lines;
+      std::vector<int> justifications;
+    };
+    // Runs include each terminating CR, including Photoshop's final marker.
+    // A boundary belongs to the following run, even for an empty paragraph.
+    const std::vector<ParagraphCase> cases{
+        {{"", "Sample heading", "Sample website"}, {2, 2, 2}},
+        {{"Left", "Center", "Right"}, {0, 2, 1}},
+        {{"", "", "😀 café", "第二行", "", ""}, {1, 2, 0, 1, 2, 1}},
+        {{"Trailing", ""}, {0, 1}},
+        {{"", ""}, {2, 1}}};
+    for (const auto &test : cases) {
+      std::vector<f::ParagraphRun> paragraphs;
+      std::vector<c::TextParagraph> expected;
+      std::size_t byteOffset = 0;
+      for (qsizetype i = 0; i < test.lines.size(); ++i) {
+        const int alignment = test.justifications[size_t(i)];
+        paragraphs.push_back({int(test.lines[i].size()) + 1, alignment});
+        expected.push_back({byteOffset, alignment == 1 ? c::TextAlignment::Right
+                                       : alignment == 2 ? c::TextAlignment::Center
+                                                        : c::TextAlignment::Left});
+        byteOffset += size_t(test.lines[i].toUtf8().size()) + 1;
+      }
+      f::Layer paragraphText;
+      paragraphText.tags["TySh"] = f::textTag(
+          test.lines.join('\r') + '\r', installed, {}, false, 0, paragraphs);
+      const auto inspected = inspect(f::file({paragraphText}));
+      CHECK(inspected.error.isEmpty() && inspected.layers.size() == 1);
+      if (!inspected.error.isEmpty() || inspected.layers.size() != 1)
+        continue;
+      CHECK(inspected.layers[0].editable);
+      const auto converted = convert(inspected);
+      CHECK(converted.document);
+      if (!converted.document)
+        continue;
+      const auto *native =
+          std::get_if<c::TextLayer>(&converted.document->layers()[0].payload);
+      CHECK(native);
+      if (!native)
+        continue;
+      CHECK(native->utf8 == test.lines.join('\n').toUtf8().toStdString());
+      CHECK(native->paragraphs == expected);
+      const auto project = dir.filePath("paragraphs.vulkana");
+      CHECK(u::saveProject(project, *converted.document));
+      const auto reopened = u::loadProject(project);
+      CHECK(reopened.document &&
+            std::get<c::TextLayer>(reopened.document->layers()[0].payload) ==
+                *native);
+    }
+  }
   text.tags["TySh"] = f::textTag("Present face\r", installed);
   in = inspect(f::file({text}));
   CHECK(in.layers[0].editable && in.layers[0].fonts.empty());
