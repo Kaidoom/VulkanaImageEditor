@@ -5,15 +5,29 @@
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/PsdImportDialog.hpp"
 #include "imageeditor/ui/WorkspaceDialog.hpp"
+#include <QFile>
 #include <QFileInfo>
 #include <QScopedValueRollback>
 #include <QStatusBar>
 
 namespace imageeditor::ui {
 bool MainWindow::importPsdFromPath(const QString &input, bool intoCurrent) {
-  if (fileBusy_ || workspaceDialog_ || !settleForFileOperation())
+  if (fileBusy_ || workspaceDialog_)
     return false;
   const auto path = QFileInfo(input).absoluteFilePath();
+  // A missing recent entry is an ordinary open error, not an import review.
+  // Check before settling edits or constructing the asynchronous review UI;
+  // the reader still checks again in case the file changes afterwards.
+  {
+    QFile source(path);
+    const bool opened = source.open(QIODevice::ReadOnly);
+    if (!opened || !QFileInfo(path).isFile()) {
+      reportFileError(i18n::text("main.window.files.could.not.open.1.the.current.document.was.kept")
+          .arg(path, opened ? QStringLiteral("Not a regular file") : source.errorString()));
+      return false;
+    }
+  }
+  if (!settleForFileOperation()) return false;
   const auto target = activeDocument_;
   const auto *doc = target ? target->session.document() : nullptr;
   const auto revision = doc ? doc->revision() : 0,

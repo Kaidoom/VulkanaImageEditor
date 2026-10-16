@@ -143,7 +143,10 @@ void FontFamilyPicker::filter(const QString& query)
     matches_->setStringList(filtered);
     candidate_
         = query.simplified().isEmpty() || filtered.isEmpty() ? QString { } : filtered.front();
-    lineEdit()->setToolTip(candidate_.isEmpty()
+    // Dialog owners accept an explicit result, not a return to canvas text.
+    lineEdit()->setToolTip(!onOutsidePress
+            ? i18n::text("font.family.picker.search.fonts.by.name.fragments.in.any.order")
+            : candidate_.isEmpty()
             ? i18n::text("font.family.picker.no.font.selected.click.back.into.text.to.keep")
             : i18n::text("font.family.picker.best.match.1.select.a.result.or.click.back")
                   .arg(candidate_));

@@ -434,6 +434,11 @@ void textModel(const PsdSource &s, const Record &rec, const PsdChoice &choice,
     throw Unsupported("Text engine terminal character is missing");
   string.chop(1);
   string.replace('\r', '\n');
+  // Photoshop Shift+Enter is ETX, not a paragraph return. A Unicode line
+  // separator preserves that distinction in the native/Qt text model. Both
+  // occupy one UTF-16 unit, so PSD run offsets remain valid; UTF-8 offsets are
+  // calculated below after normalization.
+  string.replace(QChar(0x0003), QChar::LineSeparator);
   core::TextLayer result;
   result.utf8 = string.toUtf8().toStdString();
   if (result.utf8.size() > core::kMaximumTextBytes)

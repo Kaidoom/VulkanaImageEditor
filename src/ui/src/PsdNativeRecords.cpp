@@ -120,6 +120,7 @@ QByteArray textRecord(const core::Layer &layer, QStringList *fonts,
   core::Utf8TextIndex index(text.utf8);
   auto string = QString::fromStdString(text.utf8);
   string.replace('\n', '\r');
+  string.replace(QChar::LineSeparator, QChar(0x0003));
   string += '\r';
   List fontSet, runs, lengths, paragraphs, paragraphLengths;
   QStringList faces;

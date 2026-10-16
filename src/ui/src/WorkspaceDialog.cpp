@@ -6,6 +6,7 @@
 #include <QApplication>
 #include <QAbstractItemView>
 #include <QComboBox>
+#include <QCompleter>
 #include <QDialog>
 #include <QDropEvent>
 #include <QEventLoop>
@@ -232,8 +233,13 @@ bool WorkspaceDialog::eventFilter(QObject* watched, QEvent* event)
             || event->type() == QEvent::InputMethod)) {
         QWidget* target = QApplication::focusWidget();
         if (popup && belongsTo(popup, dialog_)) {
-            if (auto* combo = qobject_cast<QComboBox*>(popupLogicalParent(popup)))
-                target = combo->view(); // Container is NoFocus; the list commits Enter.
+            if (auto* combo = qobject_cast<QComboBox*>(popupLogicalParent(popup))) {
+                // Editable search controls use a separate completion list.
+                // Sending native keys to their hidden ordinary combo view
+                // swallows typing/Enter instead of reaching the search popup.
+                const auto* completer = combo->completer();
+                target = completer && completer->popup() == popup ? popup : combo->view();
+            }
             else if (!target || !belongsTo(target, popup))
                 target = popup->focusWidget() ? popup->focusWidget() : popup;
         } else if (!target || !belongsTo(target, dialog_)) {

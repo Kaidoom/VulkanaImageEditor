@@ -2,11 +2,15 @@
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/PsdImportDialog.hpp"
+#include "imageeditor/ui/FontFamilyPicker.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include <QApplication>
 #include <QAction>
 #include <QComboBox>
 #include <QCheckBox>
+#include <QAbstractItemView>
+#include <QElapsedTimer>
+#include <QLineEdit>
 #include <QFile>
 #include <QLabel>
 #include <QPushButton>
@@ -32,7 +36,7 @@ int failures = 0;
   } while (false)
 bool open(u::MainWindow &window, const QString &path, bool current = false,
           bool cancel = false, std::function<void()> mutation = {},
-          bool skipUnsupported = false) {
+          bool skipUnsupported = false, bool searchFont = false) {
   QTimer driver;
   driver.setInterval(20);
   int ticks = 0;
@@ -77,6 +81,32 @@ bool open(u::MainWindow &window, const QString &path, bool current = false,
       hideGroups->setChecked(true);
       attention->setChecked(true);
       CHECK(button->isEnabled()); // View filters do not invalidate conversion.
+      if(searchFont) {
+        searchFont=false;
+        for(QTreeWidgetItemIterator row(tree);*row;++row)
+          if((*row)->text(0).endsWith(" · Text")) {tree->setCurrentItem(*row);break;}
+        auto* picker=dynamic_cast<u::FontFamilyPicker*>(card->findChild<QComboBox*>("PsdReplacementFont"));
+        CHECK(picker && picker->isVisible());
+        if(picker) {
+          const auto family=picker->currentText();
+          auto* edit=picker->lineEdit();QTest::mouseClick(edit,Qt::LeftButton);edit->selectAll();
+          QTest::keyClicks(edit,family.left(2));QTest::qWait(150);
+          CHECK(edit->text()==family.left(2) && picker->searching());
+          if(QGuiApplication::platformName()!="offscreen") {
+            CHECK(edit->hasFocus() || picker->hasFocus() || picker->completionPopup()->hasFocus());
+            // Exercise the real native focus handoff too. The offscreen
+            // backend has no window activation/keyboard focus to hand over.
+            QTest::keyClick(window.windowHandle(),Qt::Key_Space);
+            CHECK(edit->text()==family.left(2)+' ');
+            QTest::keyClick(window.windowHandle(),Qt::Key_Backspace);
+            CHECK(edit->text()==family.left(2));
+          }
+          QTest::keyClicks(edit,family.mid(2));
+          picker->showPopup();
+          QTest::keyClick(window.windowHandle(),Qt::Key_Return);QTest::qWait(20);
+          CHECK(!picker->searching() && picker->currentText()==family && picker->isVisible());
+        }
+      }
       if (const auto screenshot = qEnvironmentVariable("VULKANA_PSD_IMPORT_LAYOUT"); !screenshot.isEmpty())
         CHECK(card->grab().save(screenshot));
       button->click();
@@ -192,16 +222,41 @@ int main(int argc, char **argv) {
     window.setUnsavedPromptEnabled(false);
     window.resize(1250, 850);
     window.show();
+    if(instance) {
+      QElapsedTimer startup;startup.start();
+      while(!window.startupGraphicsReady()&&startup.elapsed()<30000)QTest::qWait(20);
+      CHECK(window.startupGraphicsReady());
+    }
     QString error;
     u::MainWindow::FileInteractions interactions;
     interactions.reportError = [&](const QString &e) { error = e; };
     window.setFileInteractions(std::move(interactions));
     const auto initialCount = window.documentCount();
     const auto initialDocument = window.activeDocumentId();
+    // A stale recent PSD path takes the same error route as a missing project,
+    // without constructing the format-specific review or changing the tab.
+    const auto missing=files.filePath("missing.psd");
+    bool showedReview=false;
+    QTimer rejectUnexpectedReview;
+    QObject::connect(&rejectUnexpectedReview,&QTimer::timeout,&window,[&] {
+      if(auto* review=window.findChild<QDialog*>("PsdImportDialog")) {
+        showedReview=true;review->reject();
+      }
+    });
+    rejectUnexpectedReview.start(10);
+    CHECK(!window.openImageFromPath(missing));
+    CHECK(!showedReview && !error.isEmpty() && error.contains(missing));
+    CHECK(!window.findChild<QDialog*>("PsdImportDialog"));
+    CHECK(window.documentCount()==initialCount && window.activeDocumentId()==initialDocument);
+    error.clear();
+    CHECK(!window.importImageAsLayerFromPath(missing));
+    CHECK(!showedReview && !error.isEmpty() && !window.findChild<QDialog*>("PsdImportDialog"));
+    rejectUnexpectedReview.stop();
+    error.clear();
     CHECK(!open(window, path, false, true));
     CHECK(window.documentCount() == initialCount &&
           window.activeDocumentId() == initialDocument);
-    CHECK(open(window, path));
+    CHECK(open(window, path, false, false, {}, false, true));
     CHECK(window.documentCount() == 1);
     const auto first = window.activeDocumentId();
     auto *context = window.documentContext(first);

@@ -10,9 +10,12 @@
 #include "imageeditor/ui/ProjectFile.hpp"
 #include "imageeditor/ui/PsdImport.hpp"
 #include "imageeditor/ui/PsdImportDialog.hpp"
+#include "imageeditor/ui/FontFamilyPicker.hpp"
 #include "imageeditor/ui/QtRasterImageLoader.hpp"
+#include "imageeditor/ui/QtTextLayoutService.hpp"
 #include "imageeditor/ui/ImageExport.hpp"
 #include <QApplication>
+#include <QAbstractItemView>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QCryptographicHash>
@@ -22,6 +25,11 @@
 #include <QFileInfo>
 #include <QFontDatabase>
 #include <QFontInfo>
+#include <QJsonDocument>
+#include <QLineEdit>
+#include <QPainter>
+#include <QTextBlock>
+#include <QTextLayout>
 #include <QPushButton>
 #include <QTemporaryDir>
 #include <QTest>
@@ -1215,6 +1223,125 @@ void mergedTransparency() {
   image = u::psd::composite(source, {});
   CHECK(image.pixelColor(0, 0) == QColor(200, 160, 127, 255));
 }
+void softTextBreaks() {
+  QTemporaryDir dir;
+  const auto job = std::make_shared<u::PsdJob>();
+  const auto family = QFontInfo(QFontDatabase::systemFont(QFontDatabase::GeneralFont)).family();
+  const QChar soft(3);
+  for (int alignment : {0,1,2}) for (bool unicode : {false,true}) {
+    const auto first = unicode ? QString::fromUtf8("café 😀") : QStringLiteral("First line");
+    const auto words = first + soft + "Second" + soft + soft + "Fourth\rLast" + soft + '\r';
+    auto expected = words.chopped(1); expected.replace('\r','\n'); expected.replace(soft,QChar::LineSeparator);
+    psdfixture::Layer layer;
+    layer.tags["TySh"] = psdfixture::textTag(words,"Missing-soft-break-fixture",
+        {double(first.size()+1),double(words.size()-first.size()-1)},false,0,
+        {{int(words.indexOf('\r')+1),alignment},{int(words.size()-words.indexOf('\r')-1),0}});
+    QFile file(dir.filePath("soft-break.psd")); CHECK(file.open(QIODevice::WriteOnly));
+    file.write(psdfixture::file({layer},{512,256})); file.close();
+    auto inspected=u::inspectPsd(file.fileName(),job);
+    CHECK(inspected.error.isEmpty() && inspected.layers.size()==1 && inspected.layers[0].editable);
+    auto options=u::defaultPsdOptions(inspected);
+    options.layers[0].replacements["Missing-soft-break-fixture"]=family;
+    auto converted=u::convertPsd(inspected,options,job,{},false);
+    CHECK(converted.document); if(!converted.document)continue;
+    const auto& native=std::get<c::TextLayer>(converted.document->layers()[0].payload);
+    CHECK(native.utf8==expected.toUtf8().toStdString());
+    CHECK(native.paragraphs.size()==2);
+    CHECK(native.paragraphs[0].alignment==(alignment==1?c::TextAlignment::Right:alignment==2?c::TextAlignment::Center:c::TextAlignment::Left));
+    CHECK(native.paragraphs[1].alignment==c::TextAlignment::Left);
+    CHECK(native.runs[1].start==size_t((first+QChar::LineSeparator).toUtf8().size()));
+    CHECK(native.runs[1].style.sizePixels==24 && native.defaultStyle.font.family==family.toStdString());
+    u::QtTextLayout layout(native);
+    CHECK(layout.document().blockCount()==2);
+    CHECK(layout.document().begin().layout()->lineCount()==4);
+    CHECK(layout.document().lastBlock().layout()->lineCount()==2);
+    CHECK(layout.text()==native); // Editing must retain soft, not paragraph, breaks.
+    const auto before=layout.caret(first.size()),after=layout.caret(first.size()+1);
+    CHECK(after.y()>before.y());
+    CHECK(u::saveProject(dir.filePath("soft.vulkana"),*converted.document));
+    const auto reopened=u::loadProject(dir.filePath("soft.vulkana")); CHECK(reopened.document);
+    if(reopened.document) CHECK(std::get<c::TextLayer>(reopened.document->layers()[0].payload)==native);
+    if(unicode)continue; // Unicode fallback glyphs are independently covered by layout tests.
+    const auto snapshot=u::capturePsdExport(*converted.document,1);
+    const std::atomic_bool cancelled{false};
+    const auto plan=u::planPsdExport(snapshot,{},cancelled); CHECK(plan);
+    if(!plan || plan.entries.empty())continue;
+    CHECK(plan.entries[0].action==u::PsdExportAction::Editable);
+    const auto exported=dir.filePath("round-trip.psd");
+    CHECK(u::writePsdExport(snapshot,plan,exported,cancelled));
+    const auto again=u::inspectPsd(exported,job); CHECK(again.source);
+    if(!again.source)continue;
+    u::psd::Reader reader(again.source->records[0].tags["TySh"]); reader.skip(52);
+    const auto descriptor=u::psd::versionedDescriptor(reader);
+    const auto engine=u::psd::engineData(descriptor["EngineData"].toByteArray());
+    CHECK(engine["EngineDict"].toMap()["Editor"].toMap()["Text"].toString()==words);
+    auto roundTrip=u::convertPsd(again,u::defaultPsdOptions(again),job,{},false);
+    CHECK(roundTrip.document);
+    if(roundTrip.document) {
+      const auto& text=std::get<c::TextLayer>(roundTrip.document->layers()[0].payload);
+      CHECK(text.utf8==native.utf8 && text.paragraphs==native.paragraphs);
+      CHECK(u::flattenDocument(*roundTrip.document).image==u::flattenDocument(*converted.document).image);
+    }
+  }
+}
+
+void replacementFontSearch() {
+  QTemporaryDir dir;
+  psdfixture::Layer first,second;
+  first.name="First";second.name="Second";
+  first.tags["TySh"]=psdfixture::textTag("First"+QString(QChar(3))+"line\r","Missing-first-face");
+  second.tags["TySh"]=psdfixture::textTag("Second\r","Missing-second-face");
+  const auto path=dir.filePath("fonts.psd");
+  QFile file(path);CHECK(file.open(QIODevice::WriteOnly));file.write(psdfixture::file({first,second}));file.close();
+  u::PsdImportDialog dialog(path,false,false,{});dialog.show();dialog.activateWindow();
+  auto* submit=dialog.findChild<QPushButton*>("PsdImport");
+  QElapsedTimer timer;timer.start();
+  while(!submit->isEnabled()&&timer.elapsed()<10000)QTest::qWait(20);
+  CHECK(submit->isEnabled());
+  auto* tree=dialog.findChild<QTreeWidget*>("PsdLayers");
+  auto* picker=dynamic_cast<u::FontFamilyPicker*>(dialog.findChild<QComboBox*>("PsdReplacementFont"));
+  CHECK(picker && tree->topLevelItemCount()==2);if(!picker||tree->topLevelItemCount()!=2)return;
+  auto* firstRow=tree->topLevelItem(0);auto* secondRow=tree->topLevelItem(1);
+  const auto selectedName=firstRow->text(0).section(" · ",0,0).toStdString();
+  tree->setCurrentItem(firstRow);
+  const auto previous=picker->currentText();
+  const auto families=QFontDatabase::families();
+  auto family=QFontInfo(QFontDatabase::systemFont(QFontDatabase::FixedFont)).family();
+  for(const auto& candidate:families)if(candidate!=previous&&candidate.toLatin1()==candidate.toUtf8()){family=candidate;break;}
+  CHECK(family!=previous);
+  auto* edit=picker->lineEdit();edit->setFocus();edit->selectAll();
+  QTest::keyClicks(edit,family.left(3));QTest::qWait(180);
+  CHECK(picker->searching() && edit->text()==family.left(3));
+  CHECK(edit->hasFocus() || picker->completionPopup()->hasFocus());
+  CHECK(picker->completionPopup()->model()->rowCount()==picker->matches(family.left(3)).size());
+  CHECK(!dialog.takeResult().document); // Typing is not a conversion or font edit.
+  QTest::keyClicks(edit,family.mid(3));
+  CHECK(edit->text()==family && picker->candidate()==family);
+  QTest::keyClick(edit,Qt::Key_Escape);QTest::qWait(20);
+  CHECK(dialog.isVisible() && !picker->searching() && picker->currentText()==previous);
+  edit->selectAll();QTest::keyClicks(edit,family);
+  tree->setCurrentItem(secondRow);QTest::qWait(20);
+  CHECK(!picker->searching() && !picker->completionPopup()->isVisible());
+  tree->setCurrentItem(firstRow);
+  CHECK(picker->currentText()==previous); // Pending input did not leak between rows.
+  edit->setFocus();edit->selectAll();QTest::keyClicks(edit,family);
+  picker->showPopup();
+  QTest::keyClick(picker->completionPopup(),Qt::Key_Return);QTest::qWait(60);
+  CHECK(!picker->searching() && picker->currentText()==family);
+  CHECK(picker->isVisible() && (edit->hasFocus() || picker->hasFocus()));
+  dialog.findChild<QCheckBox*>("PsdImportPreview")->setChecked(false);
+  submit->click();timer.restart();
+  while(!dialog.findChild<QPushButton*>("PsdConfirmImport")&&timer.elapsed()<10000)QTest::qWait(20);
+  auto* confirm=dialog.findChild<QPushButton*>("PsdConfirmImport");CHECK(confirm);
+  if(confirm)confirm->click();
+  auto result=dialog.takeResult();CHECK(result.document);
+  if(result.document) {
+    for(const auto& layer:result.document->layers()) {
+      const auto& text=std::get<c::TextLayer>(layer.payload);
+      CHECK((text.defaultStyle.font.family==family.toStdString())==(layer.name==selectedName));
+    }
+  }
+}
 void compositingRoundTrip(const QString& fixture={}) {
   QTemporaryDir dir;QString path=fixture;
   if(path.isEmpty()) {
@@ -1259,6 +1386,46 @@ void compositingRoundTrip(const QString& fixture={}) {
 }
 int main(int argc, char **argv) {
   QApplication app(argc, argv);
+  if (argc >= 4 && QString::fromLocal8Bit(argv[1]) == "--inspect-text") {
+    const auto job = std::make_shared<u::PsdJob>();
+    const auto inspected = u::inspectPsd(QString::fromLocal8Bit(argv[2]), job);
+    CHECK(inspected.error.isEmpty() && inspected.source);
+    if (!inspected.source) return 1;
+    const QString output = QString::fromLocal8Bit(argv[3]);
+    CHECK(QDir().mkpath(output));
+    auto options = u::defaultPsdOptions(inspected);
+    if (argc >= 5) for (size_t i=0; i<inspected.layers.size(); ++i)
+      for (const auto& font : inspected.layers[i].fonts)
+        options.layers[i].replacements[font] = QString::fromLocal8Bit(argv[4]);
+    for (size_t i=0; i<inspected.source->records.size(); ++i) {
+      const auto& record = inspected.source->records[i];
+      if (!record.tags.contains("TySh")) continue;
+      u::psd::Reader reader(record.tags["TySh"]); reader.skip(52);
+      const auto descriptor = u::psd::versionedDescriptor(reader);
+      const auto engine = u::psd::engineData(descriptor["EngineData"].toByteArray());
+      QFile dump(QDir(output).filePath(QString("engine-%1.json").arg(i)));
+      CHECK(dump.open(QIODevice::WriteOnly));
+      dump.write(QJsonDocument::fromVariant(engine).toJson());
+      std::cout << "Source " << record.name.toStdString() << " text UTF-8 hex: "
+                << engine["EngineDict"].toMap()["Editor"].toMap()["Text"].toString().toUtf8().toHex().toStdString() << '\n';
+    }
+    auto converted = u::convertPsd(inspected,options,job,{},false);
+    CHECK(converted.document); if(!converted.document) { std::cerr<<converted.error.toStdString();return 1; }
+    for (const auto& layer : converted.document->layers()) if(const auto* text=std::get_if<c::TextLayer>(&layer.payload)) {
+      u::QtTextLayout layout(*text); int lines=0;
+      for(auto block=layout.document().begin();block.isValid();block=block.next()) lines+=block.layout()->lineCount();
+      std::cout << "Imported " << layer.name << ": paragraphs=" << text->paragraphs.size()
+                << " visual lines=" << lines << " text=" << QString::fromStdString(text->utf8).toUtf8().toHex().toStdString() << '\n';
+    }
+    CHECK(u::saveProject(QDir(output).filePath("imported.vulkana"),*converted.document));
+    const auto flat=u::flattenDocument(*converted.document).image;
+    CHECK(flat.save(QDir(output).filePath("imported.png")));
+    QImage review(flat.size(),QImage::Format_ARGB32_Premultiplied);review.fill(Qt::white);
+    {QPainter painter(&review);painter.drawImage(0,0,flat);}
+    CHECK(review.save(QDir(output).filePath("imported-on-white.png")));
+    CHECK(u::psd::composite(*inspected.source,job).save(QDir(output).filePath("saved-composite.png")));
+    return failures?1:0;
+  }
   if(argc>=3&&QString::fromLocal8Bit(argv[1])=="--compare-composite") {
     compositingRoundTrip(QString::fromLocal8Bit(argv[2]));return failures?1:0;
   }
@@ -1277,6 +1444,8 @@ int main(int argc, char **argv) {
   mergedTransparency();
   compositingRoundTrip();
   semanticFixtures();
+  softTextBreaks();
+  replacementFontSearch();
   emptyPixelLayers();
   maskCoordinates();
   compactBounds();

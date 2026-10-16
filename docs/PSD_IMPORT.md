@@ -65,13 +65,21 @@ and transformation metadata is not applied again.
 | Feature | Native conversion |
 | --- | --- |
 | Raster content/brush artwork | Straight RGBA8 pixels at the stored extent and offset |
-| Point text | Unicode, multiline strings, per-run face/size/RGB/alpha, faux bold/italic, left/center/right paragraphs, affine text matrix and baseline |
+| Point text | Unicode, paragraph returns and Shift+Enter line breaks, per-run face/size/RGB/alpha, faux bold/italic, left/center/right paragraphs, affine text matrix and baseline |
 | Solid vector shapes | One closed polygon/rectangle or recognized four-cubic ellipse; filled or hollow; centered solid stroke; miter/round/bevel joins and butt/round/square caps |
 | Layer styles | Modern solid Stroke, Color Overlay, and Smooth Inner/Outer/Emboss; independent settings and style scale. Bevel surface/gloss contours remain distinct; shared light resolves per effect. See [Bevel & Emboss](BEVEL_EMBOSS.md) for review limits |
 | Bitmap mask | Separate grayscale coverage, its own origin/extent/outside coverage, enabled state; remains paintable and undoable |
 | Groups | Unstyled fully opaque pass-through hierarchy; visibility retained |
 | Adjustment layers | Native Invert and Exposure with zero offset/unit gamma; supported masks and strength. A Normal folder with a direct native adjustment becomes an explicit local domain |
 | Clipping chains | Sibling-scoped native Clipping Mask Groups when Blend Clipped Layers As Group (`clbl`) is enabled/default |
+
+Photoshop's Shift+Enter marker (`U+0003`) becomes a Unicode line separator
+(`U+2028`), preserving a visual line break within the same paragraph. Paragraph
+alignment and UTF-16 style ranges survive font replacement; changing fonts may
+still change glyph widths and line spacing. Font replacements use the text
+tool's ranked search picker: typing filters suggestions, while accepting a result
+changes the selected layer's font mapping. Missing files are reported before
+opening the import review.
 
 The 27 blend mappings are explicit in `PsdImport.cpp`: Normal, Multiply, Screen,
 Overlay, Soft/Hard Light, Darken/Lighten, Difference, Exclusion, Hue, Saturation,

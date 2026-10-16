@@ -1,11 +1,11 @@
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/PsdReviewText.hpp"
 #include "imageeditor/ui/PsdImportDialog.hpp"
+#include "imageeditor/ui/FontFamilyPicker.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include <QCheckBox>
 #include <QComboBox>
 #include <QFileInfo>
-#include <QFontComboBox>
 #include <QFrame>
 #include <QFormLayout>
 #include <QHeaderView>
@@ -80,7 +80,9 @@ struct PsdImportDialog::State {
   PreviewLabel *preview;
   QCheckBox *attention, *hideGroups, *allRaster, *previewEnabled;
   QComboBox *mode, *destination, *fontRequest, *action;
-  QFontComboBox *replacement;
+  FontFamilyPicker *replacement;
+  int replacementLayer{-1};
+  QString replacementFace;
   QPlainTextEdit *details;
   QProgressBar *progress;
   QPushButton *import;
@@ -184,7 +186,7 @@ struct PsdImportDialog::State {
     auto *fontRow = new QHBoxLayout;
     fontRequest = new QComboBox(&owner);
     fontRequest->setObjectName("PsdFontRequest");
-    replacement = new QFontComboBox(&owner);
+    replacement = new FontFamilyPicker(&owner);
     replacement->setObjectName("PsdReplacementFont");
     fontRow->addWidget(fontRequest, 1);
     fontRow->addWidget(replacement, 1);
@@ -290,21 +292,15 @@ struct PsdImportDialog::State {
                        auto i = selected();
                        if (i < 0 || fontRequest->currentText().isEmpty())
                          return;
-                       QSignalBlocker block(replacement);
-                       replacement->setCurrentFont(
-                           QFont(options.layers[size_t(i)].replacements.value(
-                               fontRequest->currentText())));
+                       displayReplacement();
                      });
-    QObject::connect(
-        replacement, &QFontComboBox::currentFontChanged, &owner,
-        [this](const QFont &font) {
-          auto i = selected();
-          if (refreshing || i < 0 || fontRequest->currentText().isEmpty())
-            return;
-          options.layers[size_t(i)].replacements[fontRequest->currentText()] =
-              font.family();
-          changed();
-        });
+    replacement->onFamilyChosen = [this](const QString &family) {
+      auto i = selected();
+      if (refreshing || i < 0 || fontRequest->currentText().isEmpty())
+        return;
+      options.layers[size_t(i)].replacements[fontRequest->currentText()] = family;
+      changed();
+    };
     loadJob = inspectPsdAsync(std::move(path), load, limits);
     QObject::connect(&timer, &QTimer::timeout, &owner, [this] { poll(); });
     timer.start(60);
@@ -314,6 +310,19 @@ struct PsdImportDialog::State {
     return tree->currentItem()
                ? tree->currentItem()->data(0, Qt::UserRole).toInt()
                : -1;
+  }
+  void displayReplacement() {
+    const auto i = selected();
+    const auto face = fontRequest->currentText();
+    if (i != replacementLayer || face != replacementFace) {
+      // A query belongs to one layer/font request. Never apply a pending
+      // candidate to a different row when the selection changes.
+      replacement->finishSearch(false);
+      replacementLayer = i;
+      replacementFace = face;
+    }
+    if (i >= 0 && !face.isEmpty())
+      replacement->setDisplayedFamily(options.layers[size_t(i)].replacements.value(face));
   }
   void fonts() {
     QScopedValueRollback guard(refreshing, true);
@@ -328,9 +337,11 @@ struct PsdImportDialog::State {
       fontRequest->addItems(inspection.layers[size_t(i)].fonts);
       if (const auto index = fontRequest->findText(requestedFace); index >= 0)
         fontRequest->setCurrentIndex(index);
-      replacement->setCurrentFont(
-          QFont(options.layers[size_t(i)].replacements.value(
-              fontRequest->currentText())));
+      displayReplacement();
+    } else {
+      replacement->finishSearch(false);
+      replacementLayer = -1;
+      replacementFace.clear();
     }
     fontRequest->setVisible(visible);
     replacement->setVisible(visible);
@@ -410,6 +421,9 @@ struct PsdImportDialog::State {
   }
   void filter() {
     QScopedValueRollback guard(refreshing, true);
+    // Rebuilding rows must not briefly hide the focused font field through an
+    // intermediate null selection. Publish the final selection once below.
+    QSignalBlocker selectionBlocker(tree);
     const auto previous = selected();
     tree->clear();
     rows.assign(inspection.layers.size(), nullptr);
