@@ -302,6 +302,16 @@ Original raster bytes, text content/formatting and shape geometry/style stay aut
 
 ## Evolution and validation
 
+`layerEffects` stores layer-wide booleans `pixelAlphaShapesEffects` and
+`maskEffectsAfterRendering` alongside `version` and `items`. New collections
+default to `true`/`false`. When loading older collections with these fields
+absent, both default to `true`, preserving the previous source-alpha-then-final-
+mask appearance. Any pair other than `true`/`true` declares required capability
+`layer-effects-advanced-blending-v1`, including collections with no enabled
+effect. Older readers therefore reject changed blending semantics instead of
+silently rendering them differently. Effect item version and project schema
+remain unchanged.
+
 Layer style collections additionally support the version-1 `bevel-emboss` record.
 Nondefault records declare required capability `bevel-emboss-v1`. They retain
 Structure/Lighting parameters and distinct `surface`/`gloss` objects: enabled,

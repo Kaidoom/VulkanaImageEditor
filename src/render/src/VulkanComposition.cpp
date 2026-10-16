@@ -225,7 +225,11 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
             const auto& m=layer.mask->localToMask;
             for(double v:{m.m00,m.m01,m.m02,m.m10,m.m11,m.m12,m.m20,m.m21,m.m22})key.push_back(std::bit_cast<std::uint64_t>(v));
         }
-        if(styled)for(const auto& mask:layer.effectCache->masks)key.push_back(mask?mask->coverage->revision():0);
+        if(styled) {
+            const auto frame=core::layerEffectReferenceFrame(layer);
+            for(double v:{frame.x,frame.y,frame.width,frame.height})key.push_back(std::bit_cast<std::uint64_t>(v));
+            for(const auto& mask:layer.effectCache->masks)key.push_back(mask?mask->coverage->revision():0);
+        }
         key.push_back(bypassFilters);
         key.push_back(scene.adjustmentBypassLayer==layer.id);
         key.push_back(layer.crop.has_value());

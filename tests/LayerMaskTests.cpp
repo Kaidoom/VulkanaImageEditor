@@ -509,6 +509,85 @@ void coreContracts() {
     CHECK(doc.layer(id)->mask == white);
   }
 }
+void effectConsumerContracts() {
+  // The same layer-wide mask policy must reach rendered active references,
+  // merged row/single-pixel sampling, exports, clipping groups and rasterize.
+  for(auto space:{c::CompositingSpace::LinearSRgb,c::CompositingSpace::EncodedSRgb})
+    for(bool alphaShapes:{false,true})for(bool maskAfter:{false,true})
+      for(int type:{0,1,5})for(bool clipped:{false,true}) {
+        c::Document doc({{40,32},96,space});
+        auto layer=c::Layer::raster("Masked effects",std::make_shared<c::ContiguousRasterSurface>(
+          c::Extent2u{24,20},c::Rgba8{70,140,200,210}));
+        layer.localToDocument=clipped?c::AffineTransform{1,.08,-3,.04,1,6,.001,-.001,1}
+          :c::AffineTransform{1,0,6,0,1,5};
+        layer.crop=c::LayerCrop{.25,.5,23,19};
+        layer.fillOpacity=.65F;
+        std::vector<uint8_t> coverage(24*20,255);
+        for(int y=5;y<15;++y)for(int x=8;x<16;++x)coverage[size_t(y*24+x)]=x==8?128:0;
+        auto bitmap=std::make_shared<c::LayerMask>();
+        bitmap->coverage=c::SelectionMask::fromR8({24,20},coverage,24);
+        bitmap->localToMask={1,0,.25,0,1,-.25};bitmap->outside=255;
+        layer.mask=bitmap;
+        auto effects=std::make_shared<c::LayerEffectStack>();
+        effects->pixelAlphaShapesEffects=alphaShapes;
+        effects->maskEffectsAfterRendering=maskAfter;
+        auto& effect=effects->items[size_t(type)];effect.enabled=true;
+        effect.size=3;effect.distance=4;effect.color={230,40,20,180};
+        layer.effects=effects;layer=c::prepareSpatialFilterLayer(layer);
+        CHECK(doc.insertLayer(0,layer));
+        if(clipped) {
+          auto upper=c::Layer::raster("Clipped paint",std::make_shared<c::ContiguousRasterSurface>(
+            c::Extent2u{40,32},c::Rgba8{190,100,30,128}));
+          CHECK(doc.insertLayer(1,upper));
+          auto tree=doc.tree();const auto group=c::makeLayerId();
+          tree.roots={group};tree.containers.push_back({group,"Clip",c::ContainerKind::ClippingMaskGroup,
+            c::ColorLabel::None,{layer.id,upper.id}});
+          CHECK(doc.replaceStructure(doc.tree(),tree));
+        }
+        const c::PinnedDocumentSampler merged(doc,layer.id,c::ColorSampleSource::MergedVisible);
+        const c::PreparedLayerSampler prepared(layer,true,space);
+        const c::PinnedDocumentSampler active(doc,layer.id,c::ColorSampleSource::ActiveLayer,
+          c::SampleFiltering::AlphaAware,{},c::ActiveReferenceAppearance::Rendered);
+        const auto flattened=u::flattenDocument(doc);CHECK(flattened);
+        if(!flattened)continue;
+        std::vector<c::PremultipliedColor> row(40);
+        for(int y=0;y<32;++y) {
+          merged.sampleRow(0,y,row);
+          for(int x=0;x<40;++x) {
+            const c::Vec2d point{x+.5,y+.5};
+            const auto single=merged.sampleLinear(point);
+            for(size_t component=0;component<4;++component)
+              CHECK(std::abs(single[component]-row[size_t(x)][component])<2.e-6F);
+            const auto expected=c::encodeColor(single);
+            const auto exported=flattened.image.pixelColor(x,y);
+            // File output canonicalizes RGB when tiny coverage quantizes to
+            // zero alpha; samplers retain that sub-byte contribution until then.
+            const auto filePixel=expected.alpha?expected:c::Rgba8{};
+            CHECK(exported.red()==filePixel.red&&exported.green()==filePixel.green
+              &&exported.blue()==filePixel.blue&&exported.alpha()==filePixel.alpha);
+            if(x%3==0&&y%3==0) {
+              const auto sampled=c::sampleDocumentColor(doc,layer.id,point,c::ColorSampleSource::MergedVisible);
+              CHECK(sampled.available()&&sampled.color==expected);
+              if(!clipped)for(size_t component=0;component<4;++component) {
+                CHECK(std::abs(prepared.sample(point)[component]-single[component])<2.e-6F);
+                CHECK(std::abs(active.sampleLinear(point)[component]-single[component])<2.e-6F);
+              }
+            }
+          }
+        }
+        if(!clipped&&type==0) {
+          // Baking must not apply the mask again to a stroke generated from it.
+          auto baked=u::prepareRasterizeLayers(doc,{{layer.id},layer.id,layer.id},16*1024*1024);
+          CHECK(baked.command);
+          if(baked.command) {
+            c::History history;CHECK(history.execute(doc,std::move(baked.command)));
+            CHECK(!doc.layer(layer.id)->mask&&!c::hasActiveLayerEffects(doc.layer(layer.id)->effects));
+            CHECK(u::flattenDocument(doc).image==flattened.image);
+            CHECK(history.undo(doc));CHECK(u::flattenDocument(doc).image==flattened.image);
+          }
+        }
+      }
+}
 void persistenceAndBake() {
   c::Document doc({{32, 24}, 144});
   auto r = raster();
@@ -1026,6 +1105,8 @@ int main(int argc, char **argv) {
         });
   }
   try {
+    effectConsumerContracts();
+    if(app.arguments().contains("--effect-consumers-only"))return failures?1:0;
     clipboardMappingContracts();
     clipboardWorkflow();
     expandedEditingContracts();

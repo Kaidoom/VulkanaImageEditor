@@ -1396,6 +1396,9 @@ void fillOpacityRendering(OffscreenCanvas& gpu)
         }
         auto mask=std::make_shared<c::LayerMask>();mask->coverage=c::SelectionMask::filled({28,24},150);mask->outside=0;
         doc.setLayerMask(id,mask);
+        // New layers use masks as effect geometry; prepare that changed input
+        // just as the asynchronous canvas worker does before publishing it.
+        *doc.layer(id)=c::prepareSpatialFilterLayer(*doc.layer(id));
         auto transform=doc.layer(id)->localToDocument;transform.m20=.002;transform.m21=.001;
         doc.setLayerTransform(id,transform);
         auto clipped=c::Layer::raster("Clipped paint",patterned({72,56},true));clipped.fillOpacity=.45F;

@@ -68,10 +68,35 @@ void layerEffectRendering(OffscreenCanvas &gpu, Review &review,c::CompositingSpa
     verify(document, scene, bypass, "effect-only comparison", false);
     document.layer(id)->effects = saved;
     scene.effectBypassLayer.reset();
+    std::vector<std::uint8_t> coverage(28*24,255);
+    for(int y=0;y<24;++y)for(int x=0;x<28;++x)
+      coverage[std::size_t(y*28+x)]=x>=8&&x<18&&y>=7&&y<17?0:x<5?128:255;
+    auto shapeMask=std::make_shared<c::LayerMask>();
+    shapeMask->coverage=c::SelectionMask::fromR8({28,24},coverage,28);
+    shapeMask->localToMask.m02=.25;shapeMask->localToMask.m12=-.5;
+    document.setLayerMask(id,shapeMask);
+    for(bool alpha:{true,false})for(bool after:{true,false})for(float fill:{1.F,.35F}) {
+      auto options=std::make_shared<c::LayerEffectStack>(*state);
+      options->pixelAlphaShapesEffects=alpha;options->maskEffectsAfterRendering=after;
+      document.setLayerEffects(id,options);document.setLayerFillOpacity(id,fill);
+      *document.layer(id)=c::prepareSpatialFilterLayer(*document.layer(id));
+      scene.document=document.snapshot();
+      verify(document,scene,gpu.render(scene),std::string(c::layerEffectName(c::LayerEffectType(type)))+
+          " alpha="+std::to_string(alpha)+" after="+std::to_string(after)+" fill="+std::to_string(fill),false);
+    }
+    document.setLayerMask(id,{});document.setLayerFillOpacity(id,1);
+    if(type==5) {
+      document.layer(id)->rasterEffectFrame=c::RectD{-4,-3,36,30};
+      *document.layer(id)=c::prepareSpatialFilterLayer(*document.layer(id));
+      scene.document=document.snapshot();
+      verify(document,scene,gpu.render(scene),"alpha-independent overlay after reference-frame change",false);
+      document.layer(id)->rasterEffectFrame.reset();
+    }
   }
   check(gpu.stats().fullUploads == uploads,
         "all effects reuse original source texture");
   auto all = std::make_shared<c::LayerEffectStack>();
+  all->maskEffectsAfterRendering = true; // Legacy final-mask reuse case below.
   for (auto &e : all->items) {
     e.enabled = true;
     e.size = 3;
@@ -109,6 +134,14 @@ void layerEffectRendering(OffscreenCanvas &gpu, Review &review,c::CompositingSpa
   auto transform=document.layer(id)->localToDocument;transform.m20=.002;transform.m21=-.001;
   document.setLayerTransform(id,transform);scene.document=document.snapshot();
   verify(document,scene,gpu.render(scene),"projective relief with clipping and operator",false);
+  for(bool alpha:{true,false})for(bool after:{true,false}) {
+    auto options=std::make_shared<c::LayerEffectStack>(*all);
+    options->pixelAlphaShapesEffects=alpha;options->maskEffectsAfterRendering=after;
+    document.setLayerEffects(id,options);document.setLayerFillOpacity(id,.4F);
+    *document.layer(id)=c::prepareSpatialFilterLayer(*document.layer(id));
+    scene.document=document.snapshot();
+    verify(document,scene,gpu.render(scene),"advanced blending with projective clipped base",false);
+  }
 }
 void bevelBenchmarks(bool validation) {
   for(const auto extent:{VkExtent2D{3840,2160},VkExtent2D{5120,2880}}) {

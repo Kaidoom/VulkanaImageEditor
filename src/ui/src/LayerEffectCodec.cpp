@@ -80,13 +80,21 @@ QJsonObject encodeLayerEffects(const core::LayerEffectStack &stack) {
     }
     items.append(item);
   }
-  return {{"version", int(core::layerEffectVersion)}, {"items", items}};
+  return {{"version", int(core::layerEffectVersion)}, {"items", items},
+          {"pixelAlphaShapesEffects", stack.pixelAlphaShapesEffects},
+          {"maskEffectsAfterRendering", stack.maskEffectsAfterRendering}};
 }
 core::LayerEffectState decodeLayerEffects(const QJsonObject &o) {
   require(integer(o["version"], int(core::layerEffectVersion)) ==
           int(core::layerEffectVersion));
   require(o["items"].isArray());
   auto result = std::make_shared<core::LayerEffectStack>();
+  // Older projects generated effects from source alpha, then masked the final
+  // result. Keep that appearance when these layer-wide settings are absent.
+  result->pixelAlphaShapesEffects = !o.contains("pixelAlphaShapesEffects") ||
+      boolean(o["pixelAlphaShapesEffects"]);
+  result->maskEffectsAfterRendering = !o.contains("maskEffectsAfterRendering") ||
+      boolean(o["maskEffectsAfterRendering"]);
   std::set<core::LayerEffectType> seen;
   for (const auto v : o["items"].toArray()) {
     require(v.isObject());

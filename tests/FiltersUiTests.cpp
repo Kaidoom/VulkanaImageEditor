@@ -55,6 +55,14 @@ struct Fixture {
         check(window.openImageFromPath(files.filePath("filter-ui.png")),"open fixture");
         id=session().activeLayer().value_or(0);
         check(panel&&canvas&&id,"filter UI exists");
+        if(nativeInstance&&canvas) {
+            check(QTest::qWaitForWindowExposed(&window),"native filter window exposed");
+            QElapsedTimer ready;ready.start();
+            while((!window.startupGraphicsReady()||canvas->rendererStats().framesSubmitted==0)&&ready.elapsed()<10000)
+                QTest::qWait(10);
+            check(window.startupGraphicsReady()&&canvas->rendererStats().framesSubmitted>0,
+                "native graphics startup completes before simulated input");
+        }
         if(auto* action=widget<QAction>("FilterAction_0"))action->trigger();
         settle();
     }
@@ -117,14 +125,33 @@ void effectsFooterLayout()
     auto* footer=panel.findChild<QStackedWidget*>("EffectFooter");
     auto* status=panel.findChild<QLabel*>("EffectProcessingStatus");
     auto* scroll=panel.findChild<QScrollArea*>();
+    auto* pixelAlpha=panel.findChild<QCheckBox*>("EffectPixelAlphaShapesEffects");
+    auto* maskAfter=panel.findChild<QCheckBox*>("EffectMaskEffectsAfterRendering");
+    auto* navigation=panel.findChild<QComboBox*>("EffectNavigation");
     check(footer&&status&&scroll,"effects footer and parameters exist");
     if(!footer||!status||!scroll)return;
+    check(pixelAlpha&&maskAfter&&navigation,"layer-wide blending options exist above effect navigation");
     auto* hint=qobject_cast<QLabel*>(footer->widget(0));
     check(hint&&hint->text().contains("Local pixels"),"footer starts with the local-pixel hint");
     if(!hint)return;
     panel.show();settle();
+    if(nativeInstance)check(QTest::qWaitForWindowExposed(&panel),"native effects layout window exposed");
     for(const int width:{320,440,800}) {
         panel.resize(width,650);panel.setProcessing(false);settle();
+        if(nativeInstance)QTest::qWait(50); // Allow the compositor's resize/configure round trip.
+        if(pixelAlpha&&maskAfter&&navigation) {
+            check(pixelAlpha->geometry().top()==maskAfter->geometry().top()&&
+                pixelAlpha->geometry().right()<maskAfter->geometry().left(),
+                "advanced blending options share one horizontal row");
+            check(pixelAlpha->geometry().bottom()<navigation->geometry().top()&&
+                maskAfter->geometry().bottom()<navigation->geometry().top(),
+                "layer-wide controls stay above individual effect controls");
+            for(auto* option:{pixelAlpha,maskAfter}) {
+                auto* label=option->findChild<QLabel*>();
+                check(label&&label->wordWrap()&&label->height()>=label->heightForWidth(label->width()),
+                    "advanced blending labels wrap without clipping at narrow widths");
+            }
+        }
         const auto footerBounds=footer->geometry(),parameterBounds=scroll->geometry();
         for(const double progress:{0.,.09,.5,1.}) {
             panel.setProcessing(true,progress);settle();
@@ -140,12 +167,35 @@ void effectsFooterLayout()
     check(status->isVisible()&&!hint->isVisible()&&status->text()=="Could not prepare effects","processing errors use the same footer without being hidden");
     panel.setProcessing(false);settle();
     check(hint->isVisible()&&!status->isVisible(),"clearing processing errors restores the hint");
+    if(const auto path=qEnvironmentVariable("IMAGEEDITOR_EFFECT_OPTIONS_REVIEW");!path.isEmpty()) {
+        panel.resize(320,650);settle();
+        check(panel.grab().save(path),"save narrow advanced blending controls review");
+    }
 }
 void layerEffectsUi()
 {
-    Fixture f;auto* panel=f.adjustments->effectsPanel();auto* tabs=f.widget<QTabWidget>("AdjustmentTabs");tabs->setCurrentIndex(4);settle();
+    Fixture f;auto* tabs=f.widget<QTabWidget>("AdjustmentTabs");tabs->setCurrentIndex(4);settle();
     auto* enabled=f.widget<QCheckBox>("EffectEnabled0");auto* size=f.number("Effect0Size");auto* nav=f.widget<QComboBox>("EffectNavigation");
     auto* reset=f.widget<QPushButton>("AdjustmentResetAll");auto* compare=f.widget<QPushButton>("AdjustmentCompare");
+    auto* pixelAlpha=f.widget<QCheckBox>("EffectPixelAlphaShapesEffects");
+    auto* maskAfter=f.widget<QCheckBox>("EffectMaskEffectsAfterRendering");
+    check(pixelAlpha->isChecked()&&!maskAfter->isChecked(),"new layers use pixel alpha and mask-shaped effects by default");
+    const auto blendingDepth=f.session().history().undoDepth();
+    // Clicking the wrapped label, not just its indicator, must toggle the option.
+    QTest::mouseClick(pixelAlpha,Qt::LeftButton,{},QPoint(pixelAlpha->width()-8,pixelAlpha->height()/2));
+    maskAfter->click();
+    check(f.layer().effects&&!f.layer().effects->pixelAlphaShapesEffects&&f.layer().effects->maskEffectsAfterRendering,
+        "layer-wide options edit the current layer without requiring an active effect");
+    check(f.session().history().undoDepth()==blendingDepth+2,"each layer-wide option is one undoable edit");
+    check(f.session().history().undo(f.document()),"undo mask-after-rendering option");
+    f.adjustments->setTarget(&f.layer(),false);
+    check(!pixelAlpha->isChecked()&&!maskAfter->isChecked(),"undo refreshes layer-wide controls independently");
+    check(f.session().history().redo(f.document()),"redo mask-after-rendering option");
+    f.adjustments->setTarget(&f.layer(),false);
+    check(!pixelAlpha->isChecked()&&maskAfter->isChecked(),"redo restores layer-wide controls");
+    f.widget<QPushButton>("EffectResetCurrent")->click();
+    check(!f.layer().effects->pixelAlphaShapesEffects&&f.layer().effects->maskEffectsAfterRendering,
+        "resetting one effect does not reset layer-wide blending");
     const auto start=f.session().history().undoDepth();size->setValue(9);
     check(f.layer().effects&&!f.layer().effects->items[0].enabled,"parameter edits do not auto-enable styles");
     enabled->setChecked(true);QElapsedTimer timer;timer.start();while(!c::layerEffectCacheValid(f.layer())&&timer.elapsed()<10000)QTest::qWait(10);
@@ -158,6 +208,7 @@ void layerEffectsUi()
     const auto state=f.layer().effects;const auto depth=f.session().history().undoDepth();
     for(int i=0;i<int(c::layerEffectCount);++i)nav->setCurrentIndex(i);
     check(f.layer().effects==state&&f.session().history().undoDepth()==depth,"navigation is view-only and controls persist");
+    check(!pixelAlpha->isChecked()&&maskAfter->isChecked(),"effect navigation preserves shared layer-wide controls");
     check(f.number("Effect0Size")==size,"persistent effect page");
     compare->pressed();check(f.canvas->scene().effectBypassLayer==f.id,"effects-only comparison enabled");compare->released();check(!f.canvas->scene().effectBypassLayer,"comparison release clears bypass");
     nav->setCurrentIndex(0);QTest::mousePress(size,Qt::LeftButton,{},size->valueFieldRect().center());size->setValue(12);QTest::keyClick(size,Qt::Key_Escape);QTest::mouseRelease(size,Qt::LeftButton);settle();
@@ -165,8 +216,10 @@ void layerEffectsUi()
     const auto adjustments=f.layer().adjustments;const auto filters=f.layer().filters;
     check(reset->text()=="Reset Effects","scoped reset label");reset->click();
     check(!c::hasActiveLayerEffects(f.layer().effects)&&f.layer().adjustments==adjustments&&f.layer().filters==filters,"Reset Effects does not reset adjustments/filters");
+    check(pixelAlpha->isChecked()&&!maskAfter->isChecked(),"Reset Effects restores layer-wide defaults");
     check(f.session().history().undoDepth()>start,"effect interactions recorded");
     check(f.session().history().undo(f.document()),"undo reset");f.adjustments->setTarget(&f.layer(),false);check(c::hasActiveLayerEffects(f.layer().effects),"undo restores styles");
+    check(!pixelAlpha->isChecked()&&maskAfter->isChecked(),"undo Reset Effects restores layer-wide blending");
     nav->setCurrentIndex(7);f.widget<QCheckBox>("EffectEnabled7")->setChecked(true);
     timer.restart();while(!c::layerEffectCacheValid(f.layer())&&timer.elapsed()<10000)QTest::qWait(10);
     check(c::layerEffectCacheValid(f.layer()),"native bevel async cache publication");
@@ -191,6 +244,72 @@ void layerEffectsUi()
     }
     check(c::equivalentLayerEffects(selected,f.layer().effects),"bevel curve cancellation restores edited values");
     if(const auto path=qEnvironmentVariable("IMAGEEDITOR_EFFECT_PANEL_REVIEW");!path.isEmpty())check(f.adjustments->grab().save(path),"save effects UI review");
+}
+void layerEffectOptionsTargetBinding()
+{
+    u::EffectsPanel panel;
+    auto* alpha=panel.findChild<QCheckBox*>("EffectPixelAlphaShapesEffects");
+    auto* mask=panel.findChild<QCheckBox*>("EffectMaskEffectsAfterRendering");
+    check(alpha&&mask,"layer-wide option controls available");
+    if(!alpha||!mask)return;
+    check(!alpha->isEnabled()&&!mask->isEnabled(),"layer-wide options disabled without a target");
+    auto first=c::Layer::shape("First",c::ShapeLayer{});
+    auto second=c::Layer::shape("Second",c::ShapeLayer{});
+    auto settings=std::make_shared<c::LayerEffectStack>();
+    settings->pixelAlphaShapesEffects=false;
+    settings->maskEffectsAfterRendering=true;
+    first.effects=settings;
+    int edits=0;
+    panel.onPreview=[&](c::LayerEffectState){++edits;};
+    panel.setTarget(&first);
+    check(!alpha->isChecked()&&mask->isChecked()&&edits==0,"target binding displays flags without editing");
+    panel.onInteractionStarted=[] {return false;};
+    alpha->click();mask->click();
+    check(!alpha->isChecked()&&mask->isChecked()&&edits==0,"blocked interactions restore the displayed settings");
+    panel.setTarget(&second);
+    check(alpha->isChecked()&&!mask->isChecked()&&edits==0,"changing target never transfers layer-wide flags");
+    panel.setTarget(&first);
+    check(!alpha->isChecked()&&mask->isChecked()&&edits==0,"returning to a target restores its flags");
+}
+void effectGeometryPendingInvalidation()
+{
+    Fixture f;if(!f.adjustments||!f.canvas)return;
+    f.widget<QTabWidget>("AdjustmentTabs")->setCurrentIndex(4);settle();
+    auto* timer=f.widget<QTimer>("FilterPreparationTimer");
+    f.widget<QCheckBox>("EffectPixelAlphaShapesEffects")->setChecked(false);
+    f.widget<QComboBox>("EffectNavigation")->setCurrentIndex(5);
+    f.widget<QCheckBox>("EffectEnabled5")->setChecked(true);
+    QMetaObject::invokeMethod(timer,"timeout",Qt::DirectConnection);
+    // Freeze a worker, then change only the effect frame. Pixel identity and
+    // source mapping stay the same, including in the reusable frozen snapshot.
+    const auto source=c::intrinsicSurface(f.layer());
+    const c::RectD frame{-7,-9,58,46};
+    check(f.document().setLayerRasterStorage(f.id,std::get<c::RasterLayer>(f.layer().payload).surface,
+        f.layer().rasterOrigin,frame),"change only the effect reference frame");
+    f.canvas->setDocument(f.document().snapshot(),false);
+    if(f.canvas->onFilterPreparationRequested)f.canvas->onFilterPreparationRequested();
+    const auto waitEffects=[&] {
+        QElapsedTimer elapsed;elapsed.start();
+        while(!c::layerEffectCacheValid(f.layer())&&elapsed.elapsed()<10000)QTest::qWait(10);
+        check(c::layerEffectCacheValid(f.layer()),"changed effect geometry publishes a current async result");
+    };
+    waitEffects();
+    check(c::intrinsicSurface(f.layer())==source&&f.layer().effectCache
+        &&f.layer().effectCache->paintFrame==frame,"frame-only edit refreshes frozen effects input");
+    auto first=std::make_shared<c::LayerMask>();
+    first->coverage=c::SelectionMask::filled({40,32},255);
+    check(f.document().setLayerMask(f.id,first),"set initial effect geometry mask");
+    f.widget<QComboBox>("EffectNavigation")->setCurrentIndex(0);
+    f.widget<QCheckBox>("EffectEnabled0")->setChecked(true);
+    QMetaObject::invokeMethod(timer,"timeout",Qt::DirectConnection);
+    auto second=std::make_shared<c::LayerMask>(*first);
+    second->coverage=c::SelectionMask::rectangle({40,32},{8,7,14,13},255);
+    check(f.document().setLayerMask(f.id,second),"replace mask after effect worker capture");
+    f.canvas->setDocument(f.document().snapshot(),false);
+    if(f.canvas->onFilterPreparationRequested)f.canvas->onFilterPreparationRequested();
+    waitEffects();
+    check(f.layer().effectCache&&f.layer().effectCache->geometryMask==second,
+        "stale mask result is rejected and frozen input receives current mask");
 }
 void sharedHeaderScope()
 {
@@ -495,7 +614,7 @@ int main(int argc,char** argv)
         nativeInstance=&instance;
     }
     u::applyEditorTheme(app);
-    try{effectsFooterLayout();embeddedEntryPoints();layerEffectsUi();sharedHeaderScope();compactLayoutAndEnabledRouting();completeResetAndRedo();controlsAndAsync();transformedTypedFilterAdmission();groupedEditsAndMasks();pendingInvalidationAndCancellation();}
+    try{effectsFooterLayout();embeddedEntryPoints();layerEffectsUi();layerEffectOptionsTargetBinding();effectGeometryPendingInvalidation();sharedHeaderScope();compactLayoutAndEnabledRouting();completeResetAndRedo();controlsAndAsync();transformedTypedFilterAdmission();groupedEditsAndMasks();pendingInvalidationAndCancellation();}
     catch(const std::exception& e){std::cerr<<e.what()<<'\n';++failures;}
     if(native){
         nativeInstance=nullptr;instance.destroy();settle();

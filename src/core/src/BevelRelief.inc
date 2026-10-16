@@ -1,7 +1,7 @@
 // Implementation shared with the existing effect preparation helpers, not a
 // second source renderer. All coordinates below are canonical source texels.
 std::shared_ptr<const BevelDistanceCache>
-bevelDistance(const SpatialPlane &a, const FilterPreparationOptions &options) {
+bevelDistance(const SpatialPlane &a, const FilterPreparationOptions &options, float outside) {
   auto d = std::make_shared<BevelDistanceCache>();
   d->bounds = a.bounds;
   const int w = a.bounds.width, h = a.bounds.height;
@@ -24,7 +24,7 @@ bevelDistance(const SpatialPlane &a, const FilterPreparationOptions &options) {
       for (const auto offset :
            std::array<Vec2d, 4>{{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}}) {
         const float n = at(a, a.bounds.x + x + int(offset.x),
-                           a.bounds.y + y + int(offset.y));
+                           a.bounds.y + y + int(offset.y), outside);
         peak = std::max(peak, n);
         boundary |= (alpha > 0) != (n > 0);
       }
@@ -32,7 +32,7 @@ bevelDistance(const SpatialPlane &a, const FilterPreparationOptions &options) {
         for (int dy = -2; dy <= 2; ++dy)
           for (int dx = -2; dx <= 2; ++dx)
             peak =
-                std::max(peak, at(a, a.bounds.x + x + dx, a.bounds.y + y + dy));
+                std::max(peak, at(a, a.bounds.x + x + dx, a.bounds.y + y + dy, outside));
       const float seed =
           alpha > 0 ? std::clamp(alpha / std::max(peak, 1e-6F) * .5F, .01F, .5F)
                     : .5F;
@@ -143,7 +143,7 @@ bevelNormals(const BevelDistanceCache &d, const LayerEffect &e, double density,
 void prepareBevel(LayerEffectCache &result, const LayerEffect &e,
                   const SpatialPlane &alpha, const AffineTransform &mapping,
                   const LayerEffectCache *previous,
-                  const FilterPreparationOptions &options) {
+                  const FilterPreparationOptions &options, float outside) {
   const double density = 1 / mapping.m00;
   auto stageStart = std::chrono::steady_clock::now();
   const auto elapsed = [&] {
@@ -158,7 +158,7 @@ void prepareBevel(LayerEffectCache &result, const LayerEffect &e,
       previous->bevelDistance->bounds.bottom() >= alpha.bounds.bottom())
     result.bevelDistance = previous->bevelDistance;
   else {
-    result.bevelDistance = bevelDistance(alpha, options);
+    result.bevelDistance = bevelDistance(alpha, options, outside);
     result.bevelDistanceMilliseconds = elapsed();
   }
   stageStart = std::chrono::steady_clock::now();

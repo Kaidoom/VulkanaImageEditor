@@ -438,8 +438,7 @@ PsdExportPlan planPsdExport(const PsdExportSnapshot &s,
               }
             } else if (std::holds_alternative<core::ShapeLayer>(l.payload))
               (void)shapeRecords(l, d.canvas());
-            if (l.effects && *l.effects != core::LayerEffectStack{}) {
-              (void)effectRecord(l);
+            if (!effectRecord(l).isEmpty()) {
               e.attention = true;
               e.reasons
                   << "Editable styles: edge profiles, spread/softness, "
@@ -678,6 +677,10 @@ PsdExportResult writePsdExport(const PsdExportSnapshot &s,
       auto effects = effectRecord(l);
       if (!effects.isEmpty())
         r.tags["lfx2"] = effects;
+      if (l.effects) {
+        r.tags["tsly"] = QByteArray(1, char(l.effects->pixelAlphaShapesEffects)) + QByteArray(3, '\0');
+        r.tags["lmgm"] = QByteArray(1, char(l.effects->maskEffectsAfterRendering)) + QByteArray(3, '\0');
+      }
       r.tags["clbl"] = QByteArray::fromHex("01000000");
       if(l.fillOpacity!=1)r.tags["iOpa"]=QByteArray(1,char(std::lround(l.fillOpacity*255)));
       for (int c : {-1, 0, 1, 2})

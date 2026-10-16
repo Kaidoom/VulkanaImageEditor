@@ -14,8 +14,33 @@
 #include <QScrollArea>
 #include <QStackedWidget>
 #include <QStandardItemModel>
+#include <QStyle>
 #include <QVBoxLayout>
 namespace imageeditor::ui {
+namespace {
+// Keep layer-wide options side by side without clipping their localized labels.
+// The checkbox still owns keyboard input, focus, accessibility, and all clicks.
+class WrappedEffectOption final : public QCheckBox {
+public:
+  explicit WrappedEffectOption(const i18n::Message &message) {
+    auto *row = new QHBoxLayout(this);
+    row->setContentsMargins(style()->pixelMetric(QStyle::PM_IndicatorWidth, nullptr, this) +
+                               style()->pixelMetric(QStyle::PM_CheckBoxLabelSpacing, nullptr, this),
+                           2, 0, 2);
+    auto *label = i18n::make<QLabel>(message);
+    label->setWordWrap(true);
+    label->setAttribute(Qt::WA_TransparentForMouseEvents);
+    label->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    row->addWidget(label);
+    i18n::setAccessibleName(this, message);
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+  }
+  QSize sizeHint() const override { return layout()->sizeHint(); }
+  QSize minimumSizeHint() const override { return layout()->minimumSize(); }
+protected:
+  bool hitButton(const QPoint &point) const override { return rect().contains(point); }
+};
+} // namespace
 void EffectsPanel::selectType(core::LayerEffectType type) {
   const auto index = static_cast<int>(type);
   if (index >= 0 && index < navigation_->count()) navigation_->setCurrentIndex(index);
@@ -25,6 +50,27 @@ EffectsPanel::EffectsPanel(QWidget *parent) : QWidget(parent) {
   auto *outer = new QVBoxLayout(this);
   outer->setContentsMargins(8, 8, 8, 8);
   outer->setSpacing(8);
+  auto *blending = new QHBoxLayout;
+  blending->setSpacing(12);
+  pixelAlphaShapesEffects_ = new WrappedEffectOption(
+      i18n::text("effects.panel.pixel.alpha.shapes.effects"));
+  pixelAlphaShapesEffects_->setObjectName("EffectPixelAlphaShapesEffects");
+  i18n::setToolTip(pixelAlphaShapesEffects_,
+      i18n::text("effects.panel.pixel.alpha.shapes.effects.hint"));
+  maskEffectsAfterRendering_ = new WrappedEffectOption(
+      i18n::text("effects.panel.mask.effects.after.rendering"));
+  maskEffectsAfterRendering_->setObjectName("EffectMaskEffectsAfterRendering");
+  i18n::setToolTip(maskEffectsAfterRendering_,
+      i18n::text("effects.panel.mask.effects.after.rendering.hint"));
+  blending->addWidget(pixelAlphaShapesEffects_, 1);
+  blending->addWidget(maskEffectsAfterRendering_, 1);
+  outer->addLayout(blending);
+  connect(pixelAlphaShapesEffects_, &QCheckBox::toggled, this, [this](bool value) {
+    change([&] { working_.pixelAlphaShapesEffects = value; });
+  });
+  connect(maskEffectsAfterRendering_, &QCheckBox::toggled, this, [this](bool value) {
+    change([&] { working_.maskEffectsAfterRendering = value; });
+  });
   auto *row = new QHBoxLayout;
   navigation_ = new QComboBox;
   navigation_->setObjectName("EffectNavigation");
@@ -289,8 +335,10 @@ void EffectsPanel::change(const std::function<void()> &f) {
   if (updating_)
     return;
   finishEditing();
-  if (!begin())
+  if (!begin()) {
+    refresh();
     return;
+  }
   f();
   if (onPreview)
     onPreview(std::make_shared<const core::LayerEffectStack>(working_));
@@ -335,6 +383,8 @@ void EffectsPanel::setTarget(const core::Layer *l) {
 }
 void EffectsPanel::refresh() {
   const QScopedValueRollback guard(updating_, true);
+  pixelAlphaShapesEffects_->setChecked(working_.pixelAlphaShapesEffects);
+  maskEffectsAfterRendering_->setChecked(working_.maskEffectsAfterRendering);
   for (std::size_t i = 0; i < pages_.size(); ++i) {
     pages_[i].enabled->setChecked(working_.items[i].enabled);
     static_cast<QStandardItemModel *>(navigation_->model())

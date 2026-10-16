@@ -467,6 +467,13 @@ void workspace(const QString& output, const char* initialLanguage = "en")
              "ar", "hi", "zh-Hans", "zh-Hant", "ja", "ko", "qps", "fr", "en"}) {
         service.setLanguage(language); settle();
         CHECK(effectEdits == 0);
+        for(const auto& [objectName,id]:{
+                std::pair{"EffectPixelAlphaShapesEffects","effects.panel.pixel.alpha.shapes.effects"},
+                std::pair{"EffectMaskEffectsAfterRendering","effects.panel.mask.effects.after.rendering"}}) {
+            const auto* option=window.findChild<QCheckBox*>(objectName);
+            const auto* label=option?option->findChild<QLabel*>():nullptr;
+            CHECK(option&&label&&option->accessibleName()==i::text(id)&&label->text()==i::text(id));
+        }
         for (const auto& entry : std::initializer_list<std::pair<const char*, const char*>>{
                 {"HorizontalRulerPositionMenu", "main.window.horizontal.position"},
                 {"VerticalRulerPositionMenu", "main.window.vertical.position"},

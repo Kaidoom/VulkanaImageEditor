@@ -407,6 +407,98 @@ void comparisonSheet(const QString &path) {
   painter.end();
   check(sheet.save(path), "save comparison sheet");
 }
+void advancedBlending() {
+  // An opaque rectangle with transparent padding and a separate mask hole.
+  std::vector<std::byte> pixels(64 * 64 * 4);
+  std::vector<std::uint8_t> maskPixels(64 * 64, 255);
+  for (int y = 0; y < 64; ++y) for (int x = 0; x < 64; ++x) {
+    const auto i = std::size_t(y * 64 + x);
+    pixels[i * 4] = std::byte{30}; pixels[i * 4 + 1] = std::byte{80}; pixels[i * 4 + 2] = std::byte{180};
+    pixels[i * 4 + 3] = std::byte(x >= 12 && x < 52 && y >= 12 && y < 52 ? 255 : 0);
+    if (x >= 25 && x < 39 && y >= 25 && y < 39) maskPixels[i] = 0;
+  }
+  auto layer = c::Layer::raster("Alpha and mask", std::make_shared<c::ContiguousRasterSurface>(c::Extent2u{64,64}, pixels));
+  auto mask = std::make_shared<c::LayerMask>();
+  mask->coverage = c::SelectionMask::fromR8({64,64}, maskPixels, 64);
+  layer.mask = mask;
+  for (bool pixelAlpha : {true, false}) for (bool after : {true, false}) {
+    auto state = effect(0); state->pixelAlphaShapesEffects = pixelAlpha; state->maskEffectsAfterRendering = after;
+    state->items[0].color = {255,0,0,255}; state->items[0].size = 4;
+    layer.effects = state; layer = c::prepareSpatialFilterLayer(layer);
+    c::Document snapshotDocument({{64,64},96});
+    auto unprepared = layer; unprepared.effectCache.reset();
+    check(snapshotDocument.insertLayer(0,unprepared), "insert unprepared masked style");
+    auto snapshot = c::prepareSpatialFilterLayer(snapshotDocument.snapshot().layersBottomToTop.front());
+    check(c::layerEffectCacheValid(snapshot), "snapshot effect preparation retains shape mask");
+    check(snapshot.effectCache->masks[0]->coverage->equivalent(*layer.effectCache->masks[0]->coverage),
+          "snapshot and layer prepare identical mask-shaped geometry");
+    const c::PreparedLayerSampler sampler(layer);
+    check((sampler.sample({10.5,32.5})[3] > .9F) == pixelAlpha, "rectangle stroke depends only on pixel-alpha shaping");
+    check((sampler.sample({26.5,32.5})[0] > .9F) == !after, "mask hole stroke depends only on mask geometry policy");
+    check(sampler.sample({32.5,32.5})[3] == 0, "mask continues to hide content in all four combinations");
+    const auto cache = layer.effectCache;
+    auto moved = std::make_shared<c::LayerMask>(*mask); moved->localToMask.m02 = 2;
+    layer.mask = moved;
+    check(c::layerEffectCacheValid(layer) == after, "geometry mask mapping invalidates only shape-dependent caches");
+    layer = c::prepareSpatialFilterLayer(layer);
+    check((layer.effectCache == cache) == after, "final mask reuses geometry, shape mask rebuilds it");
+    layer.mask = mask;
+  }
+  // Ignoring pixel alpha does not create an edge at the scratch-buffer border.
+  for (int type : {0,1,2,3,4,7}) {
+    auto state = effect(type); state->pixelAlphaShapesEffects = false;
+    state->items[std::size_t(type)].size = 3;
+    layer.effects = state; layer.mask.reset(); layer = c::prepareSpatialFilterLayer(layer);
+    for (const auto& geometry : layer.effectCache->masks)
+      if (geometry) check(geometry->coverage->bounds().empty(), "constant unbounded silhouette has no boundary effects");
+  }
+  // Geometry changes must reach every boundary effect, not only Stroke.
+  for (int type : {0,1,2,3,4,7}) {
+    auto state = effect(type); state->items[std::size_t(type)].size = 4;
+    layer.effects = state; layer.mask = mask; layer = c::prepareSpatialFilterLayer(layer);
+    const auto before = layer.effectCache;
+    auto shifted = std::make_shared<c::LayerMask>(*mask); shifted->localToMask.m02 = 4;
+    layer.mask = shifted; layer = c::prepareSpatialFilterLayer(layer);
+    bool different = false;
+    for (std::size_t i = 0; i < c::layerEffectMaskCount; ++i)
+      if (before->masks[i] && layer.effectCache->masks[i])
+        different |= !before->masks[i]->coverage->equivalent(*layer.effectCache->masks[i]->coverage);
+    check(different, "moving mask regenerates shared boundary-effect geometry");
+  }
+  auto half = std::make_shared<c::LayerMask>(); half->coverage = c::SelectionMask::filled({64,64},128); half->outside = 128;
+  for (bool pixelAlpha : {true,false}) for (bool after : {true,false}) {
+    auto state = effect(5); state->pixelAlphaShapesEffects = pixelAlpha; state->maskEffectsAfterRendering = after;
+    state->items[5].color = {255,0,0,255};
+    layer.effects = state; layer.mask = half; layer = c::prepareSpatialFilterLayer(layer);
+    const c::PreparedLayerSampler sampler(layer);
+    check(std::abs(sampler.sample({20.5,20.5})[3] - 128.F/255) < .00001F, "soft mask applied once to interior paint");
+    check((sampler.sample({3.5,3.5})[3] > .49F) == !pixelAlpha, "overlay can paint transparent source pixels only when alpha shaping is off");
+    check(sampler.sample({-2.5,3.5})[3] == 0, "interior paint does not fill arbitrary effect padding");
+  }
+  // Geometry policy is not a source-alpha/Fill conversion.
+  auto overlay = effect(5); overlay->pixelAlphaShapesEffects = false;
+  layer.effects = overlay; layer.mask.reset(); layer.rasterEffectFrame = c::RectD{-10,-10,84,84};
+  layer = c::prepareSpatialFilterLayer(layer);
+  check(layer.effectCache->visualBounds.x <= -10 && layer.effectCache->visualBounds.right() >= 74,
+        "alpha-independent interior paint retains its reference frame beyond compacted pixels");
+  layer.rasterEffectFrame = c::RectD{-20,-20,104,104};
+  check(!c::layerEffectCacheValid(layer), "changed alpha-independent paint frame invalidates visual bounds");
+  for (auto mode : c::allBlendModes) {
+    auto state = effect(0); state->pixelAlphaShapesEffects = false;
+    const auto parameters = c::compileLayerEffects(state,{0,0,64,64});
+    const auto source = c::decodeColor({140,80,170,100}), backdrop = c::decodeColor({90,150,60,255});
+    const auto actual = c::compositeLayerEffects(backdrop,source,parameters,nullptr,{20.5,20.5},.8F,mode,1,false,c::CompositingSpace::LinearSRgb,.4F);
+    const auto expected = c::compositeLayer(backdrop,source,.8F,mode,{20.5,20.5},c::defaultBlendSeed,false,c::CompositingSpace::LinearSRgb,.4F);
+    // Existing styled group-opacity vs per-pixel-opacity semantics differ for
+    // non-Normal modes; check full opacity to isolate alpha/Fill preservation.
+    const auto actualFull = c::compositeLayerEffects(backdrop,source,parameters,nullptr,{20.5,20.5},1,mode,1,false,c::CompositingSpace::LinearSRgb,.4F);
+    const auto expectedFull = c::compositeLayer(backdrop,source,1,mode,{20.5,20.5},c::defaultBlendSeed,false,c::CompositingSpace::LinearSRgb,.4F);
+    for (std::size_t i = 0; i < 4; ++i) {
+      check(std::abs(actualFull[i]-expectedFull[i]) < .00001F, "ignored alpha does not become Fill");
+      if (mode == c::BlendMode::Normal) check(std::abs(actual[i]-expected[i]) < .00001F,"ordinary layer opacity remains separate");
+    }
+  }
+}
 void benchmark(int width, int height) {
   auto l = fixture(std::uint32_t(width), std::uint32_t(height));
   auto s = effect(0);
@@ -452,6 +544,7 @@ int main(int argc, char **argv) {
       contracts();
       morphologyReference();
       historyAndOutput();
+      advancedBlending();
     }
   } catch (const std::exception &e) {
     check(false, e.what());

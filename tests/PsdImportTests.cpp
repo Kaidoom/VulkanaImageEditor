@@ -1416,6 +1416,70 @@ void strokePixelSizes() {
         }
     }
 }
+void advancedBlendingFlags() {
+  namespace f = psdfixture;
+  QTemporaryDir dir;
+  const auto job = std::make_shared<u::PsdJob>();
+  const auto checkFlags = [](const c::Document& document, bool alpha, bool maskAfter, bool active) {
+    CHECK(document.layers().size() == 1);
+    if (document.layers().empty()) return;
+    const auto& effects = document.layers().front().effects;
+    CHECK(effects);
+    if (!effects) return;
+    CHECK(effects->pixelAlphaShapesEffects == alpha);
+    CHECK(effects->maskEffectsAfterRendering == maskAfter);
+    CHECK(c::hasActiveLayerEffects(effects) == active);
+  };
+  for (bool alpha : {false, true}) for (bool maskAfter : {false, true})
+    for (int styleMode : {0, 1, 2}) {
+      f::Layer layer;
+      layer.tags["tsly"] = QByteArray(1, char(alpha)) + QByteArray(3, '\0');
+      layer.tags["lmgm"] = QByteArray(1, char(maskAfter)) + QByteArray(3, '\0');
+      if (styleMode) {
+        f::u32(layer.tags["lfx2"], 0);
+        layer.tags["lfx2"] += f::descriptor({
+          {"masterFXSwitch", styleMode == 2},
+          {"FrFX", QVariantMap{{"enab", true}, {"Md  ", f::enumeration("Nrml")},
+            {"Opct", f::unit(100., "#Prc")},
+            {"Clr ", QVariantMap{{"Rd  ", 255.}, {"Grn ", 0.}, {"Bl  ", 0.}}},
+            {"Sz  ", f::unit(7.)}, {"Styl", f::enumeration("OutF")},
+            {"PntT", f::enumeration("SClr")}}}});
+      }
+      const auto path = dir.filePath("advanced.psd");
+      QFile file(path); CHECK(file.open(QIODevice::WriteOnly));
+      const auto bytes = f::file({layer}); CHECK(file.write(bytes) == bytes.size()); file.close();
+      auto input = u::inspectPsd(path, job); CHECK(input.error.isEmpty());
+      auto output = u::convertPsd(input, u::defaultPsdOptions(input), job, {}, false);
+      CHECK(output.document && output.error.isEmpty()); if (!output.document) continue;
+      checkFlags(*output.document, alpha, maskAfter, styleMode == 2);
+      const auto snapshot = u::capturePsdExport(*output.document, 1);
+      const std::atomic_bool cancelled{false};
+      const auto plan = u::planPsdExport(snapshot, {}, cancelled); CHECK(plan);
+      const auto exported = dir.filePath("advanced-export.psd");
+      CHECK(u::writePsdExport(snapshot, plan, exported, cancelled));
+      input = u::inspectPsd(exported, job); CHECK(input.error.isEmpty() && input.source);
+      if (!input.source) continue;
+      CHECK(input.source->records.size() == 1);
+      const auto& record = input.source->records.front();
+      CHECK(record.tags.value("tsly") == layer.tags["tsly"]);
+      CHECK(record.tags.value("lmgm") == layer.tags["lmgm"]);
+      if (styleMode != 2) CHECK(!record.tags.contains("lfx2"));
+      output = u::convertPsd(input, u::defaultPsdOptions(input), job, {}, false);
+      CHECK(output.document && output.error.isEmpty());
+      if (output.document) checkFlags(*output.document, alpha, maskAfter, styleMode == 2);
+    }
+  // Missing PSD records use Photoshop's defaults, not legacy Vulkana defaults.
+  const auto defaultsPath = dir.filePath("defaults.psd");
+  QFile defaultsFile(defaultsPath); CHECK(defaultsFile.open(QIODevice::WriteOnly));
+  defaultsFile.write(f::file({f::Layer{}})); defaultsFile.close();
+  auto input = u::inspectPsd(defaultsPath, job);
+  auto output = u::convertPsd(input, u::defaultPsdOptions(input), job, {}, false);
+  CHECK(output.document);
+  if (output.document) {
+    const auto& state = output.document->layers().front().effects;
+    CHECK(!state || (state->pixelAlphaShapesEffects && !state->maskEffectsAfterRendering));
+  }
+}
 void compositingRoundTrip(const QString& fixture={}) {
   QTemporaryDir dir;QString path=fixture;
   if(path.isEmpty()) {
@@ -1460,6 +1524,11 @@ void compositingRoundTrip(const QString& fixture={}) {
 }
 int main(int argc, char **argv) {
   QApplication app(argc, argv);
+  if (argc >= 2 && QString::fromLocal8Bit(argv[1]) == "--advanced-blending") {
+    advancedBlendingFlags();
+    std::cout << "PSD advanced blending failures: " << failures << '\n';
+    return failures ? 1 : 0;
+  }
   if (argc >= 2 && QString::fromLocal8Bit(argv[1]) == "--stroke-pixel-sizes") {
     strokePixelSizes();
     std::cout << "PSD stroke failures: " << failures << '\n';
@@ -1473,6 +1542,8 @@ int main(int argc, char **argv) {
     std::cout<<"Canvas "<<inspected.size.width()<<'x'<<inspected.size.height()<<" PPI "<<inspected.ppi<<'\n';
     for(size_t i=0;i<inspected.source->records.size();++i) {
       const auto& record=inspected.source->records[i];
+      std::cout<<"Flags "<<record.name.toStdString()<<" tsly "<<record.tags.value("tsly").toHex().toStdString()
+               <<" lmgm "<<record.tags.value("lmgm").toHex().toStdString()<<'\n';
       for(const auto& key:{QByteArray("lfx2"),QByteArray("lmfx")}) {
         if(!record.tags.contains(key))continue;
         u::psd::Reader reader(record.tags[key]);reader.skip(4);
@@ -1486,9 +1557,40 @@ int main(int argc, char **argv) {
     auto converted=u::convertPsd(inspected,u::defaultPsdOptions(inspected),job,{},false);
     CHECK(converted.document);if(!converted.document){std::cerr<<converted.error.toStdString();return 1;}
     for(const auto& layer:converted.document->layers())if(layer.effects)
-      std::cout<<"Imported "<<layer.name<<" stroke "<<layer.effects->items[0].size<<'\n';
-    CHECK(u::saveProject(QDir(output).filePath("imported.vulkana"),*converted.document));
-    CHECK(u::flattenDocument(*converted.document).image.save(QDir(output).filePath("imported.png")));
+      std::cout<<"Imported "<<layer.name<<" stroke "<<layer.effects->items[0].size
+               <<" alphaShapes "<<layer.effects->pixelAlphaShapesEffects
+               <<" maskAfter "<<layer.effects->maskEffectsAfterRendering<<'\n';
+    const auto projectPath=QDir(output).filePath("imported.vulkana");
+    CHECK(u::saveProject(projectPath,*converted.document));
+    const auto importedImage=u::flattenDocument(*converted.document).image;
+    CHECK(importedImage.save(QDir(output).filePath("imported.png")));
+    const auto reopened=u::loadProject(projectPath);CHECK(reopened);
+    if(reopened) {
+      CHECK(u::flattenDocument(*reopened.document).image==importedImage);
+      CHECK(reopened.document->layers().size()==converted.document->layers().size());
+      for(size_t i=0;i<converted.document->layers().size()&&i<reopened.document->layers().size();++i)
+        CHECK(c::equivalentLayerEffects(converted.document->layers()[i].effects,reopened.document->layers()[i].effects));
+    }
+    const auto snapshot=u::capturePsdExport(*converted.document,1);
+    const std::atomic_bool cancelled{false};
+    u::PsdExportOptions exportOptions;exportOptions.preserveText=false;
+    const auto plan=u::planPsdExport(snapshot,exportOptions,cancelled);CHECK(plan);
+    const auto exportPath=QDir(output).filePath("roundtrip.psd");
+    CHECK(u::writePsdExport(snapshot,plan,exportPath,cancelled));
+    const auto exported=u::inspectPsd(exportPath,job);CHECK(exported.error.isEmpty());
+    const auto roundtrip=u::convertPsd(exported,u::defaultPsdOptions(exported),job,{},false);
+    CHECK(roundtrip.document);
+    if(roundtrip.document) {
+      for(const auto& layer:converted.document->layers())if(layer.effects) {
+        const auto it=std::ranges::find_if(roundtrip.document->layers(),[&](const auto& candidate){return candidate.name==layer.name;});
+        CHECK(it!=roundtrip.document->layers().end()&&it->effects);
+        if(it==roundtrip.document->layers().end()||!it->effects)continue;
+        CHECK(it->effects->pixelAlphaShapesEffects==layer.effects->pixelAlphaShapesEffects);
+        CHECK(it->effects->maskEffectsAfterRendering==layer.effects->maskEffectsAfterRendering);
+        CHECK(it->effects->items[0].size==layer.effects->items[0].size);
+      }
+      CHECK(u::flattenDocument(*roundtrip.document).image.save(QDir(output).filePath("psd-roundtrip.png")));
+    }
     CHECK(u::psd::composite(*inspected.source,job).save(QDir(output).filePath("saved-composite.png")));
     return failures?1:0;
   }
@@ -1551,6 +1653,7 @@ int main(int argc, char **argv) {
   compositingRoundTrip();
   semanticFixtures();
   strokePixelSizes();
+  advancedBlendingFlags();
   softTextBreaks();
   replacementFontSearch();
   emptyPixelLayers();

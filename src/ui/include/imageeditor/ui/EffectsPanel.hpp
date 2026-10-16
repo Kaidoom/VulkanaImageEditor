@@ -59,6 +59,8 @@ private:
   core::LayerEffectStack working_, before_;
   std::optional<core::LayerId> target_;
   std::array<Page, core::layerEffectCount> pages_;
+  QCheckBox *pixelAlphaShapesEffects_{};
+  QCheckBox *maskEffectsAfterRendering_{};
   QComboBox *navigation_{};
   QStackedWidget *stack_{};
   QStackedWidget *footer_{};

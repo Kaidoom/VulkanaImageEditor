@@ -288,18 +288,30 @@ void adjustmentModel(const PsdSource& source,const Record& rec,Model& model) {
     model.substitutions<<"The correction is evaluated in Vulkana's sRGB working space after profile conversion.";
 }
 void effects(const PsdSource &s, const Record &rec, Model &m) {
+  auto stack = std::make_shared<core::LayerEffectStack>();
+  const auto flag = [&](const QByteArray& key, bool fallback) {
+    if (!rec.tags.contains(key)) return fallback;
+    const auto bytes = rec.tags.value(key);
+    if (bytes.size() != 4 || quint8(bytes.front()) > 1)
+      throw Error("Invalid advanced layer blending flag");
+    return bytes.front() != 0;
+  };
+  stack->pixelAlphaShapesEffects = flag("tsly", true);
+  stack->maskEffectsAfterRendering = flag("lmgm", false);
   const auto key =
       rec.tags.contains("lmfx") ? QByteArray("lmfx") : QByteArray("lfx2");
   if (!rec.tags.contains(key)) {
     if (rec.tags.contains("lrFX"))
       throw Unsupported("Legacy-only layer effects are unsupported; saved "
                         "layer pixels do not include them");
+    // These settings belong to the layer, even before it has an active style.
+    // Adjustment layers have no applicable layer-effect geometry.
+    if (!isAdjustment(rec) && (rec.tags.contains("tsly") || rec.tags.contains("lmgm")))
+      m.effects = std::move(stack);
     return;
   }
   auto d = desc(rec, key, 4);
   const bool masterEnabled=d.value("masterFXSwitch", true).toBool();
-  auto stack = std::make_shared<core::LayerEffectStack>();
-  bool active = false;
   double scale = number(d.value("Scl "), 100) / 100;
   if (scale <= 0 || scale > 100)
     throw Error("Invalid style scale");
@@ -350,7 +362,7 @@ void effects(const PsdSource &s, const Record &rec, Model &m) {
           throw Unsupported("Bevel surface contour range requires composite or Base pixels only");
         m.substitutions<<"Editable Smooth bevel: surface and lighting response may differ outside Vulkana.";
         if(global)m.substitutions<<"Shared light resolved to this effect's own angle and altitude.";
-        active=true;continue;
+        continue;
       }
       if (e.empty() || !e.value("enab").toBool() ||
           !e.value("present", true).toBool() || !masterEnabled)
@@ -370,7 +382,6 @@ void effects(const PsdSource &s, const Record &rec, Model &m) {
       if (target.enabled)
         throw Unsupported("Duplicate enabled effect representation");
       target.enabled = true;
-      active = true;
       auto mode = blend(enumeration(e["Md  "]).toLatin1());
       if (!mode)
         throw Unsupported("Unsupported effect blend mode");
@@ -395,8 +406,7 @@ void effects(const PsdSource &s, const Record &rec, Model &m) {
   }
   if (!core::validLayerEffects(*stack))
     throw Unsupported("Effect dimensions exceed supported limits");
-  if (active)
-    m.effects = stack;
+  m.effects = std::move(stack);
 }
 void textModel(const PsdSource &s, const Record &rec, const PsdChoice &choice,
                Model &model) {

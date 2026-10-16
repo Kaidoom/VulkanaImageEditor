@@ -1,6 +1,7 @@
 #pragma once
 #include "imageeditor/core/BlendCompositing.hpp"
 #include "imageeditor/core/SelectionMask.hpp"
+#include "imageeditor/core/LayerMask.hpp"
 #include <functional>
 #include <string_view>
 
@@ -63,6 +64,9 @@ struct LayerEffect {
 };
 struct LayerEffectStack {
   std::uint32_t algorithmVersion{layerEffectVersion};
+  // Layer-wide blending policy, independent of the selected effect and Fill.
+  bool pixelAlphaShapesEffects{true};
+  bool maskEffectsAfterRendering{false};
   std::array<LayerEffect, layerEffectCount> items;
   LayerEffectStack();
   friend bool operator==(const LayerEffectStack &,
@@ -106,6 +110,9 @@ struct LayerEffectCache {
   Revision sourceRevision{};
   AffineTransform pixelsToLocal;
   LayerEffectState geometry;
+  LayerMaskState geometryMask;
+  Revision geometryMaskRevision{};
+  RectD paintFrame;
   // Stroke outside, stroke inside, drop shadow, inner shadow, outer glow, inner
   // glow.
   // Followed by bevel interior highlight/shadow, exterior highlight/shadow.
@@ -141,5 +148,6 @@ compositeLayerEffects(PremultipliedColor backdrop, PremultipliedColor base,
                       const EffectParameters &, const LayerEffectCache *,
                       Vec2d local, float layerOpacity, BlendMode,
                       float cropCoverage = 1, bool protectedCoverage = false,
-                      CompositingSpace space = CompositingSpace::LinearSRgb, float fillOpacity = 1.0F) noexcept;
+                      CompositingSpace space = CompositingSpace::LinearSRgb, float fillOpacity = 1.0F,
+                      float maskCoverage = 1.0F) noexcept;
 } // namespace imageeditor::core

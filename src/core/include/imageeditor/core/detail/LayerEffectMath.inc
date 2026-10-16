@@ -50,13 +50,19 @@ E_INLINE BVec4 ePaintInside(BVec4 paint,BVec4 color,int effect,float coverage,fl
     if(E_PARAM(i)==0.0F)return paint;
     return bCompositeAt(paint,color,E_PARAM(i+2)*bClamp(coverage,0.0F,1.0F),int(E_PARAM(i+1)),x,y,eSeed(effect+1),false);
 }
-E_INLINE BVec4 eFillPaint(BVec4 base,float fill,float x,float y)
+E_INLINE BVec4 eInitialPaint(BVec4 base,float fill,float shapeAlpha)
 {
-    if(base.w<=0.0F)return BVec4(0,0,0,0);
+    if(shapeAlpha<=0.0F)return BVec4(0,0,0,0);
+    if(E_PARAM(22)>0.5F)return BVec4(bUnassociatedLinear(base.x,base.w)*fill,bUnassociatedLinear(base.y,base.w)*fill,
+        bUnassociatedLinear(base.z,base.w)*fill,fill);
+    return BVec4(base.x*fill/shapeAlpha,base.y*fill/shapeAlpha,base.z*fill/shapeAlpha,base.w*fill/shapeAlpha);
+}
+E_INLINE BVec4 eFillPaint(BVec4 base,float fill,float x,float y,float shapeAlpha)
+{
+    if(shapeAlpha<=0.0F)return BVec4(0,0,0,0);
     // Work inside the original silhouette with an independent paint alpha.
     // Interior effects can add paint even when the content Fill is zero.
-    BVec4 paint=BVec4(bUnassociatedLinear(base.x,base.w)*fill,bUnassociatedLinear(base.y,base.w)*fill,
-        bUnassociatedLinear(base.z,base.w)*fill,fill);
+    BVec4 paint=eInitialPaint(base,fill,shapeAlpha);
     paint=ePaintInside(paint,eColor(5),5,1.0F,x,y);
     paint=ePaintInside(paint,eGradient(x,y),6,1.0F,x,y);
     paint=ePaintInside(paint,eColor(2),2,E_MASK(3),x,y);
@@ -68,11 +74,11 @@ E_INLINE BVec4 eFillPaint(BVec4 base,float fill,float x,float y)
     }
     return ePaintInside(paint,eColor(0),0,E_MASK(1),x,y);
 }
-E_INLINE BVec4 eCompositePass(BVec4 backdrop,BVec4 base,float x,float y,int mode,E_OUTPUT emitted,bool track,float fill)
+E_INLINE BVec4 eCompositePass(BVec4 backdrop,BVec4 base,float x,float y,int mode,E_OUTPUT emitted,bool track,float fill,float shapeAlpha)
 {
     emitted=BVec4(0,0,0,0);
     BVec4 styled=base;
-    if(fill>=1.0F) {
+    if(fill>=1.0F && E_PARAM(22)>0.5F) {
         styled=eInside(styled,eColor(5),5,1.0F,x,y);
         styled=eInside(styled,eGradient(x,y),6,1.0F,x,y);
         styled=eInside(styled,eColor(2),2,E_MASK(3),x,y);
@@ -91,14 +97,20 @@ E_INLINE BVec4 eCompositePass(BVec4 backdrop,BVec4 base,float x,float y,int mode
     BVec4 result=eOutside(backdrop,1,E_MASK(2),x,y);
     if(track)emitted=eEmission(result,emitted,3,E_MASK(4),x,y);
     result=eOutside(result,3,E_MASK(4),x,y);
-    if(fill>=1.0F) {
+    if(fill>=1.0F && E_PARAM(22)>0.5F) {
         if(track)emitted=bContribution(result,styled,1.0F,mode,emitted,x,y,eSeed(0));
         result=bComposite(result,styled,1.0F,mode);
     } else {
-        BVec4 paint=eFillPaint(base,fill,x,y);
-        if(paint.w>0.0F) {
-            BVec4 shape=BVec4(bUnassociatedLinear(paint.x,paint.w)*base.w,bUnassociatedLinear(paint.y,paint.w)*base.w,
-                bUnassociatedLinear(paint.z,paint.w)*base.w,base.w);
+        BVec4 initial=eInitialPaint(base,fill,shapeAlpha);
+        BVec4 paint=eFillPaint(base,fill,x,y,shapeAlpha);
+        if(E_PARAM(22)<0.5F && paint.x==initial.x && paint.y==initial.y && paint.z==initial.z && paint.w==initial.w) {
+            // Merely ignoring alpha for effect geometry cannot turn source alpha
+            // into Fill (notably for Color Dodge/Burn and other special modes).
+            if(track)emitted=bContribution(result,base,fill,mode,emitted,x,y,eSeed(0));
+            result=bCompositeFillAtSpace(result,base,1.0F,mode,x,y,eSeed(0),false,E_SPACE,fill);
+        } else if(paint.w>0.0F) {
+            BVec4 shape=BVec4(bUnassociatedLinear(paint.x,paint.w)*shapeAlpha,bUnassociatedLinear(paint.y,paint.w)*shapeAlpha,
+                bUnassociatedLinear(paint.z,paint.w)*shapeAlpha,shapeAlpha);
             if(track)emitted=bContribution(result,shape,paint.w,mode,emitted,x,y,eSeed(0));
             result=bCompositeFillAtSpace(result,shape,1.0F,mode,x,y,eSeed(0),false,E_SPACE,paint.w);
         }
@@ -116,10 +128,20 @@ E_INLINE BVec4 eCompositePass(BVec4 backdrop,BVec4 base,float x,float y,int mode
     return result;
 }
 E_INLINE BVec4 eComposite(BVec4 backdrop,BVec4 base,float x,float y,float opacity,int mode,
-    float coverage,bool protectedCoverage,float fill)
+    float coverage,bool protectedCoverage,float fill,float maskCoverage)
 {
+    if(E_PARAM(21)>0.5F)coverage*=maskCoverage;
+    else base=BVec4(base.x*maskCoverage,base.y*maskCoverage,base.z*maskCoverage,base.w*maskCoverage);
+    float shapeAlpha=base.w;
+    if(E_PARAM(22)<0.5F) {
+        // Interior paint may fill transparent source pixels, but never the
+        // arbitrary padding allocated for a shadow or blur.
+        float frame=bClamp(x-E_PARAM(256)+0.5F,0.0F,1.0F)*bClamp(E_PARAM(256)+E_PARAM(258)-x+0.5F,0.0F,1.0F)
+            *bClamp(y-E_PARAM(257)+0.5F,0.0F,1.0F)*bClamp(E_PARAM(257)+E_PARAM(259)-y+0.5F,0.0F,1.0F);
+        shapeAlpha=bMax(base.w,frame*(E_PARAM(21)>0.5F?1.0F:maskCoverage));
+    }
     BVec4 emitted;
-    BVec4 result=eCompositePass(backdrop,base,x,y,mode==20?0:mode,emitted,mode==20&&!protectedCoverage,fill);
+    BVec4 result=eCompositePass(backdrop,base,x,y,mode==20?0:mode,emitted,mode==20&&!protectedCoverage,fill,shapeAlpha);
     if(mode==20) {
         // Resolve the complete styled contribution against the actual backdrop.
         // Track emitted color without subtracting the surviving backdrop.

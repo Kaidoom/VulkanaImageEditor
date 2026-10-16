@@ -68,6 +68,7 @@ and transformation metadata is not applied again.
 | Point text | Unicode, paragraph returns and Shift+Enter line breaks, per-run face/size/RGB/alpha, faux bold/italic, left/center/right paragraphs, affine text matrix and baseline |
 | Solid vector shapes | One closed polygon/rectangle or recognized four-cubic ellipse; filled or hollow; centered solid stroke; miter/round/bevel joins and butt/round/square caps |
 | Layer styles | Modern solid Stroke, Color Overlay, and Smooth Inner/Outer/Emboss; independent settings. Stroke widths retain their stored document-pixel size regardless of print resolution or global style-scale metadata. Bevel surface/gloss contours remain distinct; shared light resolves per effect. See [Bevel & Emboss](BEVEL_EMBOSS.md) for review limits |
+| Advanced effect blending | `tsly` → Pixel Alpha Shapes Effects; `lmgm` → Mask Effects After Rendering. Preserved independently of enabled styles; absent records use ON/OFF respectively |
 | Bitmap mask | Separate grayscale coverage, its own origin/extent/outside coverage, enabled state; remains paintable and undoable |
 | Groups | Unstyled fully opaque pass-through hierarchy; visibility retained |
 | Adjustment layers | Native Invert and Exposure with zero offset/unit gamma; supported masks and strength. A Normal folder with a direct native adjustment becomes an explicit local domain |
@@ -108,6 +109,8 @@ styles, and bitmap-plus-vector masks. Mask density/feather, rendered/inverted
 mask flags and combined effective/component masks require explicit fallback.
 Masks use Vulkana's stable layer-local anchoring; independent unlinked-mask
 movement is not introduced by this importer.
+Legacy mask-link-derived blending in PSDs without an `lmgm` record and vector-mask
+global effect masking (`vmgm`) remain outside this supported subset.
 
 Clipping chains never cross PSD group boundaries. The original base is retained
 even when hidden. Skipping it requires dependent members to be skipped or

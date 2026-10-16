@@ -10,8 +10,16 @@ page does not enable it. Parameters can be prepared while disabled. The dropdown
 also lists the enable states. Colors belong to the effect, not foreground or
 background swatches. Folders remain organizational/pass-through containers.
 
-Reset beside Enabled restores just that effect's defaults (disabled). Reset Effects
-resets all styles without changing adjustments, filters, crop, source
+Two layer-wide controls sit above the effect dropdown. **Pixel Alpha Shapes
+Effects** includes the original pixel transparency in effect geometry (on by
+default). **Mask Effects After Rendering** uses the layer mask to hide the finished
+effects instead of shaping their boundaries (off by default). The layer mask
+still hides the pixel content in either mode. These controls are independent of
+the selected effect and of layer opacity/Pixel opacity.
+
+Reset beside Enabled restores just that effect's defaults (disabled), keeping
+both layer-wide options. Reset Effects resets all styles and both layer-wide
+options without changing adjustments, filters, crop, source
 pixels, or geometry. Hold for Before bypasses styles only, including native
 Pixel Preview. Comparison/navigation are not project edits. Numeric gestures
 and color-dialog previews use one stable-target transaction; Escape restores
@@ -26,16 +34,27 @@ blend mode, including its established unassociated-sRGB named-mode stage and
 linear-light premultiplied alpha composition. There are no new blend formulas.
 
 1. Prepare source content and the existing adjustments/Gaussian/Motion/Lens stack.
-2. Derive **all** style masks from this one pre-style alpha silhouette, before
-   crop. Effects do not feed their generated pixels into other effects' masks.
+2. Build one pre-style silhouette from pixel alpha when enabled, multiplied by
+   the layer mask when **Mask Effects After Rendering** is off. Ignoring pixel
+   alpha removes its boundaries, including the source rectangle; it does not
+   replace source pixels or their transparency. The mask's coordinate mapping,
+   enabled state, soft coverage and explicit outside value are respected.
+   All spatial styles use this same silhouette before crop. Effects never feed
+   generated pixels into another effect's geometry.
 3. Composite Drop Shadow, then Outer Glow against the actual document backdrop.
 4. Modify base color, in order: Color Overlay, Gradient Overlay, Inner Shadow,
    Inner Glow, interior Bevel & Emboss, inside Stroke. These operations retain
-   the original base alpha.
+   the original base alpha when pixel-alpha shaping is on. With it off,
+   interior paint may also cover transparent pixels within the layer's reference
+   frame; effect work-buffer padding is not an additional paint area.
 5. Composite that base with its external layer blend mode.
 6. Composite exterior Bevel & Emboss, then outside Stroke, with their own blend modes.
-7. Interpolate the original backdrop toward the complete styled result by the
-   layer opacity times final crop coverage. Overall opacity/crop apply once.
+7. When **Mask Effects After Rendering** is on, use the layer mask as final
+   coverage of the entire styled contribution. Otherwise mask the source content
+   before styling, allowing effects to appear along mask-created boundaries.
+   Interpolate the original backdrop toward the complete result by layer opacity
+   times final crop coverage. Soft masks, overall opacity and crop each apply
+   once, including clipped layers and Dissolve.
 
 Crop/chamfer remains an **output restriction**, not destructive source trimming.
 Retained content can influence a filter or shadow inside the crop; generated
@@ -45,7 +64,10 @@ once to the silhouette and again to its result. Document clipping remains final.
 Drop Shadow uses the full source silhouette behind the content: opaque content
 occludes it, translucent content deliberately permits it to show through. It is
 not additionally multiplied by `(1-alpha)` before source-over, which would double
-the occlusion. Outer Glow uses positive excess of the expanded mask over source
+the occlusion. With pixel-alpha shaping disabled, the effect shape itself occludes
+the shadow: only positive shifted-minus-shape coverage is emitted. This avoids
+casting a false rectangular shadow from the finite work buffer when the geometry
+is uniformly opaque. Outer Glow uses positive excess of the expanded mask over source
 alpha. Exterior stroke likewise uses the expanded-minus-original coverage;
 inside stroke uses `(alpha-eroded)/alpha` where alpha is positive. Inner effects
 use `(alpha-offset/softened eroded alpha)/alpha`, clamped to 0–1. The inside
@@ -130,7 +152,10 @@ discards disposable effect caches. Group/Ungroup leaves child settings intact.
 
 The existing serial, cancellable spatial-preparation worker is reused with
 immutable source snapshots, coalesced requests, and revision-checked publication.
-Source/filter results and unchanged per-effect masks are reused. Effect color,
+Source/filter results and unchanged per-effect masks are reused. Shape-mask edits
+invalidate derived geometry and stale worker results; final-mask edits reuse the
+geometry. Turning off pixel-alpha shaping uses constant exterior coverage, not
+a synthetic edge at the scratch-buffer border. Effect color,
 opacity, blend, and gradient parameters do not rebuild masks. Vulkan uses the
 existing compressed mask atlas and parameter buffers, not new source textures.
 Cursor/pan/zoom do not re-run morphology or blur; idle rendering is unchanged.

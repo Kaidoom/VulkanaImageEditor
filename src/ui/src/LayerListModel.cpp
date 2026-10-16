@@ -558,7 +558,11 @@ QIcon LayerListModel::groupThumbnail(core::LayerId id) const
         hash(layer.filterRevision);
         hash(layer.effectRevision);
         if(const auto* adjustment=std::get_if<core::AdjustmentLayer>(&layer.payload))hash(std::uint64_t(adjustment->scope));
-        if(layer.mask){hash(layer.mask->coverage->revision());hash(layer.mask->enabled);hash(layer.mask->outside);}
+        if(layer.mask){
+            hash(layer.mask->coverage->revision());hash(layer.mask->enabled);hash(layer.mask->outside);
+            const auto& m=layer.mask->localToMask;
+            for(double v:{m.m00,m.m01,m.m02,m.m10,m.m11,m.m12,m.m20,m.m21,m.m22})hash(std::bit_cast<std::uint64_t>(v));
+        }
         if(layer.effectCache)for(const auto& m:layer.effectCache->masks)if(m)hash(m->coverage->revision());
         hash(layer.crop.has_value());
         if(layer.crop)for(double v:layer.crop->corners)hash(std::bit_cast<std::uint64_t>(v));

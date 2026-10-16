@@ -31,6 +31,19 @@ bool geometryEqual(const LayerEffect &a, const LayerEffect &b, std::size_t i) {
          ((i != 1 && i != 2) ||
           (a.distance == b.distance && a.angle == b.angle));
 }
+template <class L> LayerMaskState shapeMask(const L& layer) {
+  return layer.effects && !layer.effects->maskEffectsAfterRendering &&
+                 layer.mask && layer.mask->enabled ? layer.mask : LayerMaskState{};
+}
+template <class L> bool silhouetteMatches(const LayerEffectCache& cache, const L& layer) {
+  const auto mask = shapeMask(layer);
+  return cache.geometry && layer.effects &&
+         cache.geometry->pixelAlphaShapesEffects == layer.effects->pixelAlphaShapesEffects &&
+         cache.geometry->maskEffectsAfterRendering == layer.effects->maskEffectsAfterRendering &&
+         (layer.effects->pixelAlphaShapesEffects || cache.paintFrame == layerEffectReferenceFrame(layer)) &&
+         cache.geometryMask == mask &&
+         (!mask || cache.geometryMaskRevision == mask->coverage->revision());
+}
 template <class L> bool cacheValid(const L &l) {
   if (!hasActiveLayerEffects(l.effects))
     return true;
@@ -38,7 +51,7 @@ template <class L> bool cacheValid(const L &l) {
   const auto &c = l.effectCache;
   if (!s || !c || !c->geometry || s->id() != c->sourceId ||
       s->revision() != c->sourceRevision ||
-      renderPixelsToLocal(l) != c->pixelsToLocal)
+      renderPixelsToLocal(l) != c->pixelsToLocal || !silhouetteMatches(*c, l))
     return false;
   for (std::size_t i = 0; i < 5; ++i)
     if (l.effects->items[i].enabled &&
@@ -65,11 +78,11 @@ void cancellation(const FilterPreparationOptions &o) {
   if (o.cancelled && o.cancelled())
     throw std::runtime_error("Effect preparation cancelled");
 }
-float at(const SpatialPlane &p, int x, int y) {
+float at(const SpatialPlane &p, int x, int y, float outside = 0) {
   x -= p.bounds.x;
   y -= p.bounds.y;
   return x < 0 || y < 0 || x >= p.bounds.width || y >= p.bounds.height
-             ? 0
+             ? outside
              : p.pixels[std::size_t(y) * std::size_t(p.bounds.width) + std::size_t(x)];
 }
 // Exact grayscale circular max morphology with a one-pixel analytic radial
@@ -144,7 +157,7 @@ public:
   }
 };
 SpatialPlane morph(const SpatialPlane &p, double radius, bool erode,
-                   const FilterPreparationOptions &o) {
+                   const FilterPreparationOptions &o, float outside = 0) {
   if (radius <= 0)
     return p;
   MaskMaxTree tree(p, erode);
@@ -154,21 +167,18 @@ SpatialPlane morph(const SpatialPlane &p, double radius, bool erode,
       cancellation(o);
     for (int x = 0; x < p.bounds.width; ++x) {
       float value = tree.sample(x, y, float(radius));
-      if (erode) {
-        // Outside the allocated padded plane is also transparent.
-        const auto edge =
-            std::min({x + 1, y + 1, p.bounds.width - x, p.bounds.height - y});
-        value = std::max(
-            value, std::clamp(float(radius) + 1.0F - float(edge), 0.0F, 1.0F));
-        value = 1 - value;
-      }
+      // Ignoring pixel alpha must not manufacture an edge at the work buffer.
+      const auto edge = std::min({x + 1, y + 1, p.bounds.width - x, p.bounds.height - y});
+      value = std::max(value, std::min(erode ? 1 - outside : outside,
+          std::clamp(float(radius) + 1.0F - float(edge), 0.0F, 1.0F)));
+      if (erode) value = 1 - value;
       result.pixels[std::size_t(y) * std::size_t(p.bounds.width) + std::size_t(x)] = value;
     }
   }
   return result;
 }
 SpatialPlane soften(SpatialPlane p, double radius,
-                    const FilterPreparationOptions &o) {
+                    const FilterPreparationOptions &o, float outside = 0) {
   if (radius <= 0)
     return p;
   auto filter = defaultSpatialFilter(SpatialFilterType::Gaussian);
@@ -177,8 +187,12 @@ SpatialPlane soften(SpatialPlane p, double radius,
   SpatialFilterOptions options;
   options.maxWorkingBytes = o.byteBudget;
   options.cancelled = o.cancelled;
+  // Gaussian convolution is linear. Filtering deviations from the constant
+  // exterior uses the existing zero-boundary filter without a false frame edge.
+  if (outside != 0) for (auto& value : p.pixels) value -= outside;
   auto result = filterSpatialRegion(p.view(), p.bounds, filter, options);
   require(bool(result), result.error.c_str());
+  if (outside != 0) for (auto& value : result.output.pixels) value += outside;
   return std::move(result.output);
 }
 std::shared_ptr<const LayerEffectMask> store(const SpatialPlane& plane,
@@ -292,7 +306,9 @@ bool equivalentLayerEffectGeometry(const LayerEffectState &a,
   const LayerEffectStack empty;
   const auto &x = a ? *a : empty;
   const auto &y = b ? *b : empty;
-  if (x.algorithmVersion != y.algorithmVersion)
+  if (x.algorithmVersion != y.algorithmVersion ||
+      x.pixelAlphaShapesEffects != y.pixelAlphaShapesEffects ||
+      x.maskEffectsAfterRendering != y.maskEffectsAfterRendering)
     return false;
   for (std::size_t i = 0; i < 5; ++i)
     if (x.items[i].enabled != y.items[i].enabled ||
@@ -326,10 +342,14 @@ prepareLayerEffects(const Layer &layer, const FilterPreparationOptions &o) {
   result->sourceRevision = source->revision();
   result->pixelsToLocal = mapping;
   result->geometry = layer.effects;
+  result->geometryMask = shapeMask(layer);
+  result->geometryMaskRevision = result->geometryMask ? result->geometryMask->coverage->revision() : 0;
+  result->paintFrame = layerEffectReferenceFrame(layer);
   const bool reuse = layer.effectCache &&
                      layer.effectCache->sourceId == source->id() &&
                      layer.effectCache->sourceRevision == source->revision() &&
-                     layer.effectCache->pixelsToLocal == mapping;
+                     layer.effectCache->pixelsToLocal == mapping &&
+                     silhouetteMatches(*layer.effectCache, layer);
   if (reuse) {
     result->masks = layer.effectCache->masks;
     result->bevelDistance=layer.effectCache->bevelDistance;
@@ -337,6 +357,27 @@ prepareLayerEffects(const Layer &layer, const FilterPreparationOptions &o) {
     result->bevelPrepared=layer.effectCache->bevelPrepared;
   }
   const auto e = source->extent();
+  const bool pixelAlpha = layer.effects->pixelAlphaShapesEffects;
+  const float outside = pixelAlpha ? 0 : result->geometryMask ? float(result->geometryMask->outside) / 255 : 1;
+  RectI domain{0, 0, int(e.width), int(e.height)};
+  if (!pixelAlpha && result->geometryMask) {
+    // A mask can define geometry beyond the original pixels. Include its real
+    // transformed domain, without introducing a boundary at the image extent.
+    const auto maskToLocal = result->geometryMask->localToMask.inverted();
+    const auto localToSource = mapping.inverted();
+    const auto extent = result->geometryMask->coverage->extent();
+    double left = 0, top = 0, right = e.width, bottom = e.height;
+    for (const auto p : std::array{Vec2d{0,0}, Vec2d{double(extent.width),0},
+                                  Vec2d{0,double(extent.height)}, Vec2d{double(extent.width),double(extent.height)}}) {
+      const auto q = localToSource->map(maskToLocal->map(p));
+      require(std::isfinite(q.x) && std::isfinite(q.y), "Invalid effect mask mapping");
+      left = std::min(left, std::floor(q.x)); top = std::min(top, std::floor(q.y));
+      right = std::max(right, std::ceil(q.x)); bottom = std::max(bottom, std::ceil(q.y));
+    }
+    require(right-left <= 32768 && bottom-top <= 32768,
+            "Effect mask domain exceeds supported dimensions");
+    domain = {int(left), int(top), int(right-left), int(bottom-top)};
+  }
   double margin = 1;
   for (std::size_t i = 0; i < 5; ++i)
     if (layer.effects->items[i].enabled) {
@@ -349,8 +390,7 @@ prepareLayerEffects(const Layer &layer, const FilterPreparationOptions &o) {
   const auto& bevel=layer.effects->items[7];
   if(bevelActive(bevel))margin=std::max(margin,(bevel.size+bevel.bevel.soften)*density+4);
   const int padding = int(std::ceil(margin));
-  RectI bounds{-padding, -padding, int(e.width) + padding * 2,
-               int(e.height) + padding * 2};
+  RectI bounds{domain.x-padding, domain.y-padding, domain.width+padding*2, domain.height+padding*2};
   const auto count = std::uint64_t(bounds.width) * std::uint64_t(bounds.height);
   require(
       bounds.width <= 32768 && bounds.height <= 32768 &&
@@ -360,19 +400,24 @@ prepareLayerEffects(const Layer &layer, const FilterPreparationOptions &o) {
   std::optional<SpatialPlane> silhouette;
   const auto input = [&]() -> const SpatialPlane & {
     if (!silhouette) {
-      silhouette =
-          SpatialPlane{bounds, 1, std::vector<float>(std::size_t(count))};
+      silhouette = SpatialPlane{bounds, 1, std::vector<float>(std::size_t(count), pixelAlpha ? 0.F : 1.F)};
       std::vector<std::byte> row(std::size_t(e.width) * 4);
-      for (std::uint32_t y = 0; y < e.height; ++y) {
+      if (pixelAlpha) for (std::uint32_t y = 0; y < e.height; ++y) {
         if (y % 32 == 0)
           cancellation(o);
         source->copyRgba8({0, int(y), int(e.width), 1}, row, row.size());
         for (std::uint32_t x = 0; x < e.width; ++x)
           silhouette
-              ->pixels[std::size_t(y + std::uint32_t(padding)) * std::size_t(bounds.width) +
-                       x + std::uint32_t(padding)] =
+              ->pixels[std::size_t(int(y) - bounds.y) * std::size_t(bounds.width) +
+                       std::size_t(int(x) - bounds.x)] =
               float(std::to_integer<unsigned>(row[std::size_t(x) * 4 + 3])) /
               255;
+      }
+      if (result->geometryMask) for (int y = 0; y < bounds.height; ++y) {
+        if (y % 32 == 0) cancellation(o);
+        for (int x = 0; x < bounds.width; ++x)
+          silhouette->pixels[std::size_t(y) * std::size_t(bounds.width) + std::size_t(x)] *=
+              layerMaskCoverage(result->geometryMask, mapping.map({bounds.x + x + .5, bounds.y + y + .5}));
       }
     }
     return *silhouette;
@@ -387,15 +432,15 @@ prepareLayerEffects(const Layer &layer, const FilterPreparationOptions &o) {
     const auto &alpha = input();
     const double size = effect.size * density;
     if (i == 0) {
-      const auto outside = effect.position == StrokePosition::Inside ? 0
+      const auto outerRadius = effect.position == StrokePosition::Inside ? 0
                            : effect.position == StrokePosition::Center
                                ? size / 2
                                : size;
       const auto inside = effect.position == StrokePosition::Outside  ? 0
                           : effect.position == StrokePosition::Center ? size / 2
                                                                       : size;
-      auto outer = morph(alpha, outside, false, o),
-           inner = morph(alpha, inside, true, o);
+      auto outer = morph(alpha, outerRadius, false, o, outside),
+           inner = morph(alpha, inside, true, o, outside);
       for (std::size_t p = 0; p < alpha.pixels.size(); ++p) {
         outer.pixels[p] = std::max(0.0F, outer.pixels[p] - alpha.pixels[p]);
         inner.pixels[p] = alpha.pixels[p] > 0
@@ -408,8 +453,8 @@ prepareLayerEffects(const Layer &layer, const FilterPreparationOptions &o) {
       result->masks[1] = store(std::move(inner), mapping);
     } else {
       const bool inner = i == 2 || i == 4;
-      auto mask = soften(morph(alpha, size * effect.spread, inner, o),
-                         size * (1 - effect.spread), o);
+      auto mask = soften(morph(alpha, size * effect.spread, inner, o, outside),
+                         size * (1 - effect.spread), o, outside);
       const auto radians = effect.angle * std::numbers::pi / 180;
       const double dx = (i == 1 || i == 2)
                             ? std::cos(radians) * effect.distance * density
@@ -426,15 +471,18 @@ prepareLayerEffects(const Layer &layer, const FilterPreparationOptions &o) {
           const int ix = int(std::floor(sx)), iy = int(std::floor(sy));
           const float fx = float(sx - ix), fy = float(sy - iy);
           const float value = std::lerp(
-              std::lerp(at(mask, ix, iy), at(mask, ix + 1, iy), fx),
-              std::lerp(at(mask, ix, iy + 1), at(mask, ix + 1, iy + 1), fx),
+              std::lerp(at(mask, ix, iy, outside), at(mask, ix + 1, iy, outside), fx),
+              std::lerp(at(mask, ix, iy + 1, outside), at(mask, ix + 1, iy + 1, outside), fx),
               fy);
           const float base = at(alpha, x, y);
           shifted
               .pixels[std::size_t(y - bounds.y) * std::size_t(bounds.width) + std::size_t(x - bounds.x)] =
               inner ? (base > 0 ? std::clamp((base - value) / base, 0.0F, 1.0F)
                                 : 0)
-              : i == 3 ? std::max(0.0F, value - base)
+              // Without pixel-alpha shaping the shape, not the pixels, occludes
+              // its shadow. A constant opaque exterior cannot cast a shadow of
+              // the arbitrary scratch-buffer rectangle into the document.
+              : (i == 3 || !pixelAlpha) ? std::max(0.0F, value - base)
                        : value;
         }
       }
@@ -446,16 +494,23 @@ prepareLayerEffects(const Layer &layer, const FilterPreparationOptions &o) {
   if(bevelActive(bevel)) {
     const auto* previous=reuse?layer.effectCache.get():nullptr;
     const int p=int(std::ceil((bevel.size+bevel.bevel.soften)*density+4));
-    const RectI required{-p,-p,int(e.width)+2*p,int(e.height)+2*p};
+    const RectI required{domain.x-p,domain.y-p,domain.width+2*p,domain.height+2*p};
     if(previous&&previous->bevelDistance&&previous->bevelDistance->bounds.x<=required.x&&
        previous->bevelDistance->bounds.y<=required.y&&previous->bevelDistance->bounds.right()>=required.right()&&
        previous->bevelDistance->bounds.bottom()>=required.bottom())
-      prepareBevel(*result,bevel,SpatialPlane{required,1,{}},mapping,previous,o);
-    else prepareBevel(*result,bevel,input(),mapping,previous,o);
+      prepareBevel(*result,bevel,SpatialPlane{required,1,{}},mapping,previous,o,outside);
+    else prepareBevel(*result,bevel,input(),mapping,previous,o,outside);
   }
   const auto a = mapping.map({0, 0}),
              b = mapping.map({double(e.width), double(e.height)});
   result->visualBounds = {a.x, a.y, b.x - a.x, b.y - a.y};
+  if (!pixelAlpha && !result->paintFrame.empty()) {
+    auto& v = result->visualBounds;
+    const auto& frame = result->paintFrame;
+    const double right = std::max(v.right(), frame.right()), bottom = std::max(v.bottom(), frame.bottom());
+    v.x = std::min(v.x,frame.x); v.y = std::min(v.y,frame.y);
+    v.width = right-v.x; v.height = bottom-v.y;
+  }
   for (auto i : {0, 2, 4})
     if (layer.effects->items[std::size_t(i == 0 ? 0 : i - 1)].enabled &&
         result->masks[std::size_t(i)]) {
@@ -503,6 +558,8 @@ EffectParameters compileLayerEffects(const LayerEffectState &state,
   EffectParameters p{};
   p[3]=float(seed&65535U);p[19]=float(seed>>16);
   p[20]=hasDissolveLayerEffects(state)?1.F:0.F;
+  p[21]=state && state->maskEffectsAfterRendering ? 1.F : 0.F;
+  p[22]=!state || state->pixelAlphaShapesEffects ? 1.F : 0.F;
   p[256] = float(frame.x);
   p[257] = float(frame.y);
   p[258] = float(frame.width);
@@ -567,7 +624,7 @@ PremultipliedColor
 compositeLayerEffects(PremultipliedColor backdrop, PremultipliedColor base,
                       const EffectParameters &p, const LayerEffectCache *cache,
                       Vec2d local, float opacity, BlendMode mode,
-                      float cropCoverage, bool protectedCoverage, CompositingSpace space, float fillOpacity) noexcept {
+                      float cropCoverage, bool protectedCoverage, CompositingSpace space, float fillOpacity, float maskCoverage) noexcept {
   Evaluation e{p, {}, int(space)};
   if (cache)
     for (std::size_t i = 0; i < layerEffectMaskCount; ++i)
@@ -576,7 +633,7 @@ compositeLayerEffects(PremultipliedColor backdrop, PremultipliedColor base,
   const auto c =
       e.eComposite({backdrop[0], backdrop[1], backdrop[2], backdrop[3]},
                    {base[0], base[1], base[2], base[3]}, float(local.x),
-                   float(local.y), opacity, int(mode), cropCoverage, protectedCoverage, fillOpacity);
+                   float(local.y), opacity, int(mode), cropCoverage, protectedCoverage, fillOpacity, maskCoverage);
   return {c.x, c.y, c.z, c.w};
 }
 } // namespace imageeditor::core

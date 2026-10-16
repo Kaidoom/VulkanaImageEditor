@@ -4,6 +4,7 @@
 #include "imageeditor/ui/FlattenedDocument.hpp"
 #include "imageeditor/project/ProjectPreview.hpp"
 #include "imageeditor/ui/TextClipboard.hpp"
+#include "../src/ui/src/LayerEffectCodec.hpp"
 
 #include <QBuffer>
 #include <QGuiApplication>
@@ -1155,6 +1156,74 @@ void savedPreviewsAreOptionalBoundedAndFresh()
     CHECK(!cancelled && !cancelled.error.isEmpty()); CHECK(readBytes(wide) == old);
 }
 
+void advancedEffectBlendingPersistence()
+{
+    Fixture f;
+    c::LayerEffectStack defaults;
+    CHECK(defaults.pixelAlphaShapesEffects && !defaults.maskEffectsAfterRendering);
+    auto legacyStack = defaults;
+    legacyStack.items[0].enabled = true;
+    auto legacyEffects = u::detail::encodeLayerEffects(legacyStack);
+    legacyEffects.remove("pixelAlphaShapesEffects");
+    legacyEffects.remove("maskEffectsAfterRendering");
+    auto manifest = baseManifest();
+    auto required = manifest["required"].toArray();
+    required.append("layer-effects-v1");
+    manifest["required"] = required;
+    editLayer(manifest, [&](QJsonObject& layer) { layer["layerEffects"] = legacyEffects; });
+    auto legacy = f.load(manifest);
+    CHECK(legacy);
+    if (legacy) {
+        const auto state = legacy.document->layers().front().effects;
+        CHECK(state && state->pixelAlphaShapesEffects && state->maskEffectsAfterRendering);
+        CHECK(c::hasActiveLayerEffects(state));
+        const auto path = f.path("legacy-resaved.vulkana");
+        CHECK(u::saveProject(path, *legacy.document));
+        const auto resaved = u::loadProject(path);
+        CHECK(resaved);
+        if (resaved) {
+            CHECK(c::equivalentLayerEffects(resaved.document->layers().front().effects, state));
+            CHECK(u::flattenDocument(*resaved.document).image == u::flattenDocument(*legacy.document).image);
+            CHECK(!resaved.metadata["required"].toArray().contains("layer-effects-advanced-blending-v1"));
+        }
+    }
+    for (bool alpha : {false, true}) for (bool maskAfter : {false, true})
+        for (bool active : {false, true}) {
+            auto state = std::make_shared<c::LayerEffectStack>();
+            state->pixelAlphaShapesEffects = alpha;
+            state->maskEffectsAfterRendering = maskAfter;
+            state->items[0].enabled = active;
+            const auto encoded = u::detail::encodeLayerEffects(*state);
+            CHECK(c::equivalentLayerEffects(u::detail::decodeLayerEffects(encoded), state));
+            editLayer(manifest, [&](QJsonObject& layer) { layer["layerEffects"] = encoded; });
+            manifest["required"] = required;
+            if (!alpha || !maskAfter) {
+                f.reject("undeclared advanced effect blending", manifest);
+                auto advancedRequired = required;
+                advancedRequired.append("layer-effects-advanced-blending-v1");
+                manifest["required"] = advancedRequired;
+            }
+            const auto loaded = f.load(manifest);
+            CHECK(loaded);
+            if (!loaded) continue;
+            CHECK(c::equivalentLayerEffects(loaded.document->layers().front().effects, state));
+            const auto path = f.path("advanced-effects.vulkana");
+            CHECK(u::saveProject(path, *loaded.document));
+            const auto reopened = u::loadProject(path);
+            CHECK(reopened);
+            if (reopened) {
+                CHECK(c::equivalentLayerEffects(reopened.document->layers().front().effects, state));
+                CHECK(reopened.metadata["required"].toArray().contains("layer-effects-advanced-blending-v1") == (!alpha || !maskAfter));
+            }
+        }
+    for (const auto* key : {"pixelAlphaShapesEffects", "maskEffectsAfterRendering"}) {
+        auto invalid = u::detail::encodeLayerEffects(defaults);
+        invalid[key] = "true";
+        editLayer(manifest, [&](QJsonObject& layer) { layer["layerEffects"] = invalid; });
+        f.reject("nonboolean advanced effect blending", manifest);
+    }
+}
+
 int main(int argc, char** argv)
 {
     qputenv("TZ", "UTC");
@@ -1166,6 +1235,10 @@ int main(int argc, char** argv)
 #endif
     QGuiApplication application(argc, argv);
     try {
+        if (application.arguments().contains("--advanced-effect-blending")) {
+            advancedEffectBlendingPersistence();
+            return failures ? EXIT_FAILURE : EXIT_SUCCESS;
+        }
         if (application.arguments().size() == 3 && application.arguments()[1] == "--write-failure")
             return writeFailureChild(application.arguments()[2]);
         if (application.arguments().size() == 4 && application.arguments()[1] == "--resave") {
@@ -1175,6 +1248,7 @@ int main(int argc, char** argv)
             return failures ? EXIT_FAILURE : EXIT_SUCCESS;
         }
         savedPreviewsAreOptionalBoundedAndFresh();
+        advancedEffectBlendingPersistence();
         frozenFixtureDefaultsAndZipVariants();
         rememberedSelectionRoundTrip();
         exactRasterAndRichTextRoundTrip();

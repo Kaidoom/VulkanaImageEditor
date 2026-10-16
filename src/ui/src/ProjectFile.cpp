@@ -174,7 +174,7 @@ namespace {
         bool containsAdjustments = false;
         bool containsAdjustmentLayers = false;
         bool containsSpatialFilters = false;
-        bool containsLayerEffects = false, containsBevel = false;
+        bool containsLayerEffects = false, containsBevel = false, containsAdvancedEffectBlending = false;
         bool containsLayerMasks = false;
         bool containsProjective = false;
         bool containsRasterFrame = false;
@@ -284,6 +284,7 @@ namespace {
             saved.remove("layerEffects");
             if(layer.effects) {
                 saved["layerEffects"]=detail::encodeLayerEffects(*layer.effects);
+                containsAdvancedEffectBlending |= !layer.effects->pixelAlphaShapesEffects || !layer.effects->maskEffectsAfterRendering;
                 containsLayerEffects=true;
                 containsBevel|=layer.effects->items[7]!=core::defaultLayerEffect(core::LayerEffectType::BevelEmboss);
             }
@@ -331,6 +332,7 @@ namespace {
         if (containsLayerEffects) {
             auto required=result["required"].toArray();
             required.append("layer-effects-v1");
+            if(containsAdvancedEffectBlending)required.append("layer-effects-advanced-blending-v1");
             if(containsBevel)required.append("bevel-emboss-v1");
             result["required"]=required;
         }
@@ -487,7 +489,8 @@ namespace {
                     || capability == "blend-modes-v3" || capability == "layer-blend-modes-v1" || capability == "layer-blend-modes-v2"
                     || capability == "adjustments-v1" || capability == "adjustment-layer-v1" || capability == "spatial-filters-v1" || capability == "layer-crop-v1" || capability == "layer-crop-chamfer-v1"
                     || capability == "selection-recall-v1" || capability == "layer-effects-v1" || capability == "bevel-emboss-v1" || capability == "projective-transform-v1" || capability == "raster-local-frame-v1" || capability == "layer-mask-v1"
-                    || capability == "encoded-srgb-compositing-v1" || capability == "layer-fill-opacity-v1",
+                    || capability == "encoded-srgb-compositing-v1" || capability == "layer-fill-opacity-v1"
+                    || capability == "layer-effects-advanced-blending-v1",
                 "Project requires unsupported capabilities");
         require(o["canvas"].isObject() && o["layers"].isArray(), "Missing canvas or layers");
         const auto canvas = o["canvas"].toObject();
@@ -616,6 +619,8 @@ namespace {
             if(l.contains("layerEffects")) {
                 require(required.contains("layer-effects-v1")&&l["layerEffects"].isObject(),"Invalid layer-effects capability or descriptor");
                 p.layer.effects=detail::decodeLayerEffects(l["layerEffects"].toObject());
+                require((p.layer.effects->pixelAlphaShapesEffects && p.layer.effects->maskEffectsAfterRendering)
+                    || required.contains("layer-effects-advanced-blending-v1"), "Missing advanced effect blending capability");
                 for(const auto& effect:p.layer.effects->items)
                     require((effect.blendMode<core::BlendMode::Dissolve&&effect.bevel.shadowBlend<core::BlendMode::Dissolve)
                         || (required.contains("blend-modes-v3")&&l.contains("blendSeed")),"Undeclared extended effect blending");

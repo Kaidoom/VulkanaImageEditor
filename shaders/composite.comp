@@ -289,13 +289,15 @@ void main()
     vec2 maskLocal=vec2(dot(pc.sourceToLocalX.xyz,vec3(local,1)),dot(pc.sourceToLocalY.xyz,vec3(local,1)))/dot(sourceW,vec3(local,1));
     if(spatialBlend)blendLocal=bGridPoint(blendLocal.x,blendLocal.y,pc.sourceToLocalX.xyz,pc.sourceToLocalY.xyz,sourceW).xy;
     else blendLocal=maskLocal;
-    cropCoverage*=layerCoverage(geometry,maskLocal);
+    float maskCoverage=layerCoverage(geometry,maskLocal);
+    // The clipping coverage target is scalar. Retain crop there and sample the
+    // mask independently with this same layer mapping at the styled pass.
     if(operation==1){storeTarget(pixel,source);storeTargetSlot(1,pixel,vec4(cropCoverage));return;}
     if(operation==2)cropCoverage=loadTarget(3,pixel).r;
     vec4 backdrop=loadTarget(0,pixel);
     if(effectOffset>=0) {
         vec2 point=vec2(dot(pc.sourceToLocalX.xyz,vec3(local,1)),dot(pc.sourceToLocalY.xyz,vec3(local,1)))/dot(sourceW,vec3(local,1));
         for(int i=0;i<10;++i)effectCoverage[i]=sampleStyleMask(i,point);
-        storeTarget(pixel,eComposite(backdrop,source,blendLocal.x,blendLocal.y,pc.opacity,pc.mode&255,cropCoverage,operation==2,fillOpacity));
-    }else storeTarget(pixel,bCompositeFillAtSpace(backdrop,source*cropCoverage,pc.opacity,pc.mode&255,blendLocal.x,blendLocal.y,blendSeed,operation==2,compositingSpace,fillOpacity));
+        storeTarget(pixel,eComposite(backdrop,source,blendLocal.x,blendLocal.y,pc.opacity,pc.mode&255,cropCoverage,operation==2,fillOpacity,maskCoverage));
+    }else storeTarget(pixel,bCompositeFillAtSpace(backdrop,source*(cropCoverage*maskCoverage),pc.opacity,pc.mode&255,blendLocal.x,blendLocal.y,blendSeed,operation==2,compositingSpace,fillOpacity));
 }

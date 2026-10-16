@@ -1455,6 +1455,26 @@ RGBA 包含采样的透明度。</translation>
   </context>
   <context>
     <name>EffectsPanel</name>
+    <message id="effects.panel.pixel.alpha.shapes.effects">
+      <source>Pixel Alpha Shapes Effects</source>
+      <extracomment>Layer-wide advanced blending option. Pixel alpha means the original pixels' transparency, not layer opacity or Fill.</extracomment>
+      <translation type="unfinished" />
+    </message>
+    <message id="effects.panel.pixel.alpha.shapes.effects.hint">
+      <source>Use the original pixel transparency to shape this layer's effects. Turn off to let only the mask shape effects, when applied before rendering. Pixel content and opacity are unchanged.</source>
+      <extracomment>Tooltip for a layer-wide effects geometry option. The original pixels remain transparent even when their alpha no longer shapes effects.</extracomment>
+      <translation type="unfinished" />
+    </message>
+    <message id="effects.panel.mask.effects.after.rendering">
+      <source>Mask Effects After Rendering</source>
+      <extracomment>Layer-wide advanced blending option. When enabled, the layer mask clips already-rendered effects instead of creating their boundaries.</extracomment>
+      <translation type="unfinished" />
+    </message>
+    <message id="effects.panel.mask.effects.after.rendering.hint">
+      <source>Apply the layer mask after rendering to hide both pixels and effects. Turn off to let the mask shape effect boundaries. The mask hides the layer's pixels in either mode.</source>
+      <extracomment>Tooltip for applying the layer mask after effects versus including the mask in effects geometry.</extracomment>
+      <translation type="unfinished" />
+    </message>
     <message id="effects.panel.reset">
       <source>Reset</source>
       <extracomment>EffectsPanel presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>

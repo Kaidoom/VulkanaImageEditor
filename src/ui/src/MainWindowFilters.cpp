@@ -50,6 +50,7 @@ struct MainWindow::FilterJob {
     core::SurfaceId sourceId {};
     core::Revision sourceRevision {};
     core::AffineTransform sourcePixelsToLocal;
+    core::RectD effectFrame;
     std::atomic<bool> cancelled {false};
     std::atomic<double> progress {0};
     std::shared_ptr<const core::LayerSpatialFilterCache> result;
@@ -63,10 +64,17 @@ struct MainWindow::FilterJob {
             &&core::intrinsicPixelsToLocal(layer)==sourcePixelsToLocal;
     }
     bool matches(core::Document* current,const core::Layer& layer) const {
+        const auto shapeMask=[](const core::Layer& candidate) {
+            return candidate.mask&&candidate.mask->enabled?candidate.mask:core::LayerMaskState{};
+        };
         return sourceMatches(current,layer)
             &&core::equivalentAdjustments(key.adjustments,layer.adjustments)
             &&core::equivalentSpatialFilters(key.filters,layer.filters)
-            &&core::equivalentLayerEffectGeometry(key.effects,layer.effects);
+            &&core::equivalentLayerEffectGeometry(key.effects,layer.effects)
+            &&(!core::hasActiveLayerEffects(layer.effects) || layer.effects->pixelAlphaShapesEffects
+                || effectFrame==core::layerEffectReferenceFrame(layer))
+            &&(!core::hasActiveLayerEffects(layer.effects) || layer.effects->maskEffectsAfterRendering
+                || shapeMask(key)==shapeMask(layer));
     }
 };
 
@@ -251,6 +259,8 @@ void MainWindow::advanceFilterPreparation()
     job->key.id=candidate->id;job->key.name=candidate->name;
     job->key.filters=candidate->filters;job->key.adjustments=candidate->adjustments;
     job->key.effects=candidate->effects;
+    job->key.mask=candidate->mask;
+    job->effectFrame=core::layerEffectReferenceFrame(*candidate);
     const auto source=core::intrinsicSurface(*candidate);job->sourceId=source->id();job->sourceRevision=source->revision();
     job->sourcePixelsToLocal=core::intrinsicPixelsToLocal(*candidate);
     try{
@@ -260,6 +270,7 @@ void MainWindow::advanceFilterPreparation()
             const auto preparedSource=core::intrinsicSurface(*candidate);
             job->sourceId=preparedSource->id();job->sourceRevision=preparedSource->revision();
             job->sourcePixelsToLocal=core::intrinsicPixelsToLocal(*candidate);
+            job->effectFrame=core::layerEffectReferenceFrame(*candidate);
             canvasWindow_->setDocument(document->snapshot(),false);
         }
         (void)core::preflightLayerSpatialFilters(*candidate);
@@ -267,6 +278,9 @@ void MainWindow::advanceFilterPreparation()
             auto input=std::make_shared<core::FilterInputSnapshot>(*frozenFilterInput_->input);
             input->layer.filters=candidate->filters;input->layer.adjustments=candidate->adjustments;
             input->layer.filterCache=candidate->filterCache;input->layer.effects=candidate->effects;input->layer.effectCache=candidate->effectCache;
+            input->layer.mask=candidate->mask;
+            input->layer.rasterEffectFrame=candidate->rasterEffectFrame;
+            input->layer.renderCache=candidate->renderCache;
             job->input=std::move(input);
         }else{
             frozenFilterInput_.reset();

@@ -383,7 +383,9 @@ QMap<QByteArray, QByteArray> shapeRecords(const core::Layer &layer,
           {"vstk", descriptor(stroke, "strokeStyle")}};
 }
 QByteArray effectRecord(const core::Layer &layer) {
-  if (!layer.effects || *layer.effects == core::LayerEffectStack{})
+  // Advanced blending is written in tsly/lmgm, not in the style descriptor.
+  // A flag-only layer needs neither a style fallback nor a similarity transform.
+  if (!layer.effects || layer.effects->items == core::LayerEffectStack{}.items)
     return {};
   double scale = 1;
   require(similarity(layer.localToDocument, &scale),

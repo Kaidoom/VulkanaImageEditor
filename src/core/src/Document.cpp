@@ -24,6 +24,11 @@ bool Document::setLayerMask(LayerId id,LayerMaskState state)
     auto* target=layer(id);
     if (!target || !validLayerMask(state) || target->mask==state) return false;
     target->mask=std::move(state);
+    // A shape mask is part of the effects' immutable geometry input. Release
+    // stale geometry (and its retained prior mask) rather than keeping it alive
+    // throughout subsequent mask-painting gestures.
+    if (target->effects && !target->effects->maskEffectsAfterRendering)
+        target->effectCache.reset();
     touch();
     return true;
 }

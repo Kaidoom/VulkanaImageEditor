@@ -236,6 +236,7 @@ LayerSnapshot prepareSpatialFilterLayer(const LayerSnapshot& source,const Filter
     Layer layer;
     layer.id=source.id;layer.adjustments=source.adjustments;layer.filters=source.filters;
     layer.filterCache=source.filterCache;layer.effects=source.effects;layer.effectCache=source.effectCache;
+    layer.mask=source.mask;
     layer.localToDocument=source.localToDocument;layer.renderCache=source.renderCache;
     layer.rasterOrigin=source.rasterOrigin;layer.rasterEffectFrame=source.rasterEffectFrame;
     layer.payload=std::visit([](const auto& p)->LayerPayload {
