@@ -16,6 +16,8 @@ public:
     enum class Presentation { Detailed, Compact };
     explicit ColorSelector(Presentation presentation, QWidget* parent = nullptr);
     void setColors(core::EditorColors colors);
+    void resetToBlackAndWhite();
+    void setHorizontal(bool horizontal);
     [[nodiscard]] core::EditorColors colors() const noexcept { return colors_; }
     std::function<void(core::EditorColors)> onColorsChanged;
 protected:
@@ -38,5 +40,6 @@ private:
     QPushButton* primary_;
     QPushButton* secondary_;
     QToolButton* swap_;
+    QToolButton* reset_ {nullptr};
 };
 } // namespace imageeditor::ui

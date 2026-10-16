@@ -5,6 +5,7 @@
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/LayerListView.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
+#include "imageeditor/ui/ColorSelector.hpp"
 #include "imageeditor/ui/AdjustmentCurveEditor.hpp"
 #include "imageeditor/ui/TextController.hpp"
 #include "imageeditor/ui/Theme.hpp"
@@ -12,6 +13,7 @@
 #include <QAction>
 #include <QApplication>
 #include <QComboBox>
+#include <QElapsedTimer>
 #include <QImage>
 #include <QKeyEvent>
 #include <QLabel>
@@ -25,6 +27,7 @@
 #include <QTest>
 #include <QTimer>
 #include <QTreeWidget>
+#include <QToolButton>
 #include <QVulkanInstance>
 #include <iostream>
 
@@ -56,6 +59,8 @@ void bind(u::ShortcutsPanel& panel, const QString& id, int k, Qt::KeyboardModifi
 void registry()
 {
     auto bindings = u::defaultShortcutBindings();
+    CHECK(bindings.value("ResetColorsAction")==QList<QKeySequence>{QKeySequence("D")});
+    CHECK(!(u::shortcutDefinition("ResetColorsAction")->contexts & u::TextKeys));
     for (const auto& d : u::shortcutDefinitions()) for (const auto& k : d.defaults) {
         CHECK(u::validateShortcut(d.id, k).isEmpty());
         CHECK(u::shortcutConflicts(bindings, d.id, k).isEmpty());
@@ -74,6 +79,10 @@ void registry()
     u::assignShortcut(bindings, "ErasePixelsAction", {}, false);
     QSettings settings; CHECK(u::saveShortcutBindings(settings, bindings));
     CHECK(u::loadShortcutBindings(settings) == bindings);
+    settings.clear();
+    settings.setValue("shortcuts/v1/ToolAction_brush",QStringList{"D"});
+    CHECK(u::loadShortcutBindings(settings).value("ResetColorsAction").isEmpty());
+    CHECK(u::loadShortcutBindings(settings).value("ToolAction_brush")==QList<QKeySequence>{QKeySequence("D")});
     settings.clear();
     QKeyEvent enter(QEvent::KeyPress, Qt::Key_Enter, Qt::KeypadModifier);
     CHECK(u::shortcutMatches(u::defaultShortcutBindings(), "FinishOperationAction", enter));
@@ -124,11 +133,46 @@ void application(QVulkanInstance* instance)
     auto action = [&](const char* name) { auto* a = window.findChild<QAction*>(name); CHECK(a); return a; };
     QImage image(64, 48, QImage::Format_RGBA8888); image.fill(QColor(60, 110, 190));
     const auto path = data.filePath("source.png"); CHECK(image.save(path)); CHECK(window.openImageFromPath(path));
+    if(instance) {
+        CHECK(QTest::qWaitForWindowExposed(&window));
+        QElapsedTimer ready;ready.start();
+        while((!window.startupGraphicsReady()||canvas->rendererStats().framesSubmitted==0)&&ready.elapsed()<10000)
+            QTest::qWait(10);
+        CHECK(window.startupGraphicsReady() && canvas->rendererStats().framesSubmitted>0);
+    }
     action("ToolAction_move")->trigger(); settle();
     for (const auto& d : u::shortcutDefinitions()) {
         auto* a = action(qPrintable(d.id)); if (a) CHECK(a->shortcuts() == bindings.value(d.id));
     }
     auto& session = const_cast<c::EditorSession&>(window.editorSession());
+    auto* rail=dynamic_cast<u::ColorSelector*>(window.findChild<QWidget*>("ToolRailColors"));
+    auto* detailed=dynamic_cast<u::ColorSelector*>(window.findChild<QWidget*>("ColorPanelColors"));
+    CHECK(rail && detailed);
+    const c::EditorColors colored{{20,70,160,80},{210,30,90,110},c::ColorSlot::Secondary};
+    const c::EditorColors blackWhite{{0,0,0,255},{255,255,255,255},c::ColorSlot::Primary};
+    const auto setColored=[&]{rail->setColors(colored);rail->onColorsChanged(colored);};
+    if(rail&&detailed) {
+        const auto history=session.history().undoDepth(),content=session.document()->contentState();
+        setColored();
+        if(auto* focus=QApplication::focusWidget())focus->clearFocus();
+        key(canvas,Qt::Key_D);
+        CHECK(session.colors()==blackWhite && detailed->colors()==blackWhite);
+        CHECK(session.history().undoDepth()==history && session.document()->contentState()==content);
+        setColored();rail->findChild<QToolButton*>("RailResetColors")->click();
+        CHECK(session.colors()==blackWhite);
+        setColored();
+        {
+            QLineEdit input(&window);input.show();input.setFocus();
+            QTest::keyClicks(&input,"d");
+            CHECK(input.text()=="d" && session.colors()==colored);
+        }
+        if(auto* focus=QApplication::focusWidget())focus->clearFocus();
+        action("ResetColorsAction")->trigger();
+        CHECK(session.colors()==blackWhite);
+        if(const auto path=qEnvironmentVariable("IMAGEEDITOR_TOOL_RAIL_REVIEW");!path.isEmpty()) {
+            QTest::qWait(170);CHECK(window.findChild<QWidget*>("ToolRail")->grab().save(path));
+        }
+    }
     const auto first = *session.activeLayer();
     const auto start = session.document()->layer(first)->localToDocument;
     if (auto* focus = QApplication::focusWidget()) focus->clearFocus();
@@ -293,12 +337,20 @@ void application(QVulkanInstance* instance)
         dialog->findChild<QTabWidget*>("PreferencesTabs")->setCurrentWidget(dialog->findChild<QWidget*>("ShortcutsPanel"));
         auto* p = dynamic_cast<u::ShortcutsPanel*>(dialog->findChild<QWidget*>("ShortcutsPanel"));
         bind(*p, "PixelPreviewAction", Qt::Key_Tab);
-        dialog->accept();
+        bind(*p, "ResetColorsAction", Qt::Key_F12);
+        dialog->findChild<QPushButton*>("PreferencesOk")->click();
     });
     action("PreferencesAction")->trigger();
     const auto preview = action("PixelPreviewAction")->isChecked();
     key(canvas, Qt::Key_Tab); CHECK(action("PixelPreviewAction")->isChecked() != preview);
     key(canvas, Qt::Key_Tab); CHECK(action("PixelPreviewAction")->isChecked() == preview);
+    if(rail) {
+        CHECK(action("ResetColorsAction")->shortcut()==QKeySequence("F12"));
+        CHECK(rail->findChild<QToolButton*>("RailResetColors")->toolTip().contains("F12"));
+        CHECK(u::loadShortcutBindings(settings).value("ResetColorsAction")==QList<QKeySequence>{QKeySequence("F12")});
+        setColored();key(canvas,Qt::Key_D);CHECK(session.colors()==colored);
+        key(canvas,Qt::Key_F12);CHECK(session.colors()==blackWhite);
+    }
     window.close(); settle();
     settings.clear();
 }

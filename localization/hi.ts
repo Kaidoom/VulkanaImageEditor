@@ -1416,6 +1416,17 @@ Alt+क्लिक नया स्रोत बिंदु चुनता �
   </context>
   <context>
     <name>ColorSelector</name>
+    <message id="color.selector.reset.black.white">
+      <source>Reset to Black and White</source>
+      <extracomment>Tools-panel color reset button and configurable shortcut command.</extracomment>
+      <translation type="unfinished" />
+    </message>
+    <message id="color.selector.reset.black.white.hint">
+      <source>Reset colors ({{ResetColorsAction}})
+Set primary to black and secondary to white, with primary active.</source>
+      <extracomment>Tools-panel button tooltip. Preserve the configurable shortcut token.</extracomment>
+      <translation type="unfinished" />
+    </message>
     <message id="color.selector.switch.active.color.x">
       <source>Switch active color (X)</source>
       <extracomment>ColorSelector presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>

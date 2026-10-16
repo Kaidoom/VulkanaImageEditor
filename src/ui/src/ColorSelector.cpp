@@ -83,13 +83,23 @@ ColorSelector::ColorSelector(Presentation presentation, QWidget* parent)
     i18n::setToolTip(swap_, i18n::text("color.selector.switch.active.color.x"));
     i18n::setAccessibleName(swap_, i18n::text("color.selector.switch.active.color"));
     if (compact) {
-        setFixedSize(40, 40);
+        setFixedSize(40, 64);
         primary_->setGeometry(QRect(primaryHome, QSize(24, 24)));
         secondary_->setGeometry(QRect(secondaryHome, QSize(24, 24)));
         swap_->setGeometry(28, 0, 12, 13);
         swap_->setStyleSheet(QStringLiteral("padding: 0; border: none; font-size: 8pt;"));
         primary_->setStyleSheet(QStringLiteral("padding: 0; min-height: 0; border-radius: 3px;"));
         secondary_->setStyleSheet(primary_->styleSheet());
+        auto* reset = reset_ = new QToolButton(this);
+        reset->setObjectName(QStringLiteral("RailResetColors"));
+        reset->setGeometry(8, 41, 24, 22);
+        reset->setAutoRaise(true);
+        reset->setIcon(QIcon(QStringLiteral(":/theme/reset-colors.svg")));
+        reset->setIconSize(QSize(18, 18));
+        reset->setStyleSheet(QStringLiteral("padding: 0; min-width: 0; min-height: 0;"));
+        i18n::setToolTip(reset, i18n::text("color.selector.reset.black.white.hint"));
+        i18n::setAccessibleName(reset, i18n::text("color.selector.reset.black.white"));
+        connect(reset, &QToolButton::clicked, this, &ColorSelector::resetToBlackAndWhite);
         selectionAnimation_ = new QVariantAnimation(this);
         selectionAnimation_->setDuration(150);
         selectionAnimation_->setStartValue(0.0);
@@ -141,6 +151,23 @@ void ColorSelector::setColors(core::EditorColors colors)
 {
     colors_ = colors;
     refresh();
+}
+
+void ColorSelector::resetToBlackAndWhite()
+{
+    const core::EditorColors defaults{{0, 0, 0, 255}, {255, 255, 255, 255}, core::ColorSlot::Primary};
+    if (colors_ == defaults) return;
+    colors_ = defaults;
+    publish();
+}
+
+void ColorSelector::setHorizontal(bool horizontal)
+{
+    if (presentation_ != Presentation::Compact) return;
+    // Keep the swatch animation's square untouched. In a horizontal tools
+    // panel the reset follows that square without making the whole rail taller.
+    setFixedSize(horizontal ? QSize(64, 40) : QSize(40, 64));
+    reset_->setGeometry(horizontal ? QRect(40, 9, 24, 22) : QRect(8, 41, 24, 22));
 }
 
 void ColorSelector::activateOrEdit(core::ColorSlot slot)

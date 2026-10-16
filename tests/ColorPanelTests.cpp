@@ -1,4 +1,5 @@
 #include "imageeditor/ui/ColorPanel.hpp"
+#include "imageeditor/ui/ColorSelector.hpp"
 #include "imageeditor/ui/SwatchesPanel.hpp"
 #include "imageeditor/ui/ColorPicker.hpp"
 #include "imageeditor/ui/Theme.hpp"
@@ -198,6 +199,53 @@ void gridsReflowAndShortPanelsScroll()
     CHECK(ui::UiLayoutConfig{}.color.maximum==QWIDGETSIZE_MAX);
     CHECK(ui::UiLayoutConfig{}.swatches.minimum==120);
 }
+void toolColorReset()
+{
+    ui::ColorSelector rail(ui::ColorSelector::Presentation::Compact);
+    ui::ColorPanel panel;
+    rail.show();settle();
+    auto* reset=rail.findChild<QToolButton*>("RailResetColors");
+    CHECK(reset && !reset->icon().isNull());
+    CHECK(!panel.findChild<QToolButton*>("RailResetColors"));
+    CHECK(panel.findChild<QWidget*>("ColorPanelColors")->height()==46);
+    if(!reset)return;
+    CHECK(rail.rect().contains(reset->geometry()));
+    CHECK(reset->y()>rail.findChild<QPushButton*>("RailSecondaryColor")->geometry().bottom());
+    CHECK(reset->y()>rail.findChild<QPushButton*>("RailPrimaryColor")->geometry().bottom());
+    int changes=0;
+    rail.onColorsChanged=[&](core::EditorColors colors){++changes;panel.setColors(colors);};
+    rail.setColors({{14,92,183,42},{214,43,75,83},core::ColorSlot::Secondary});
+    reset->click();settle();
+    const core::EditorColors expected{{0,0,0,255},{255,255,255,255},core::ColorSlot::Primary};
+    CHECK(rail.colors()==expected && panel.colors()==expected && changes==1);
+    reset->click();CHECK(changes==1);
+    const auto icon=reset->icon().pixmap(QSize(18,18)).toImage();
+    CHECK(icon.pixelColor(5,5).lightness()<30);
+    CHECK(icon.pixelColor(13,13).lightness()>225);
+    CHECK(icon.pixelColor(4,10).lightness()<30 && icon.pixelColor(8,13).lightness()>225);
+    // Reflection across the bottom-left/top-right diagonal must exchange the
+    // two halves, including fractional display scales and tiny icon sizes.
+    for(int logical:{12,14,16,18,20,24})for(double dpr:{1.,1.25,1.5,2.}) {
+        const auto rendered=reset->icon().pixmap(QSize(logical,logical),dpr).toImage();
+        const int side=rendered.width();CHECK(side>0 && rendered.height()==side);
+        const int inset=(side*3+17)/18;
+        for(int y=inset;y<side-inset;++y)for(int x=inset;x<side-inset;++x) {
+            const auto a=rendered.pixelColor(x,y),b=rendered.pixelColor(side-1-y,side-1-x);
+            CHECK(a.alpha()==255 && b.alpha()==255);
+            CHECK(std::abs(a.red()+b.red()-255)<=2);
+        }
+    }
+    for(bool horizontal:{true,false}) {
+        rail.setHorizontal(horizontal);settle();
+        CHECK(rail.rect().contains(reset->geometry()));
+        CHECK(!reset->geometry().intersects(rail.findChild<QPushButton*>("RailPrimaryColor")->geometry()));
+        CHECK(!reset->geometry().intersects(rail.findChild<QPushButton*>("RailSecondaryColor")->geometry()));
+        CHECK(rail.colors()==expected);
+    }
+    if(const auto path=qEnvironmentVariable("IMAGEEDITOR_COLOR_RESET_REVIEW");!path.isEmpty()) {
+        QTest::qWait(170);CHECK(rail.grab().save(path));
+    }
+}
 void colorPickerAndPanel()
 {
     ui::ColorPanel panel;
@@ -341,7 +389,7 @@ int main(int argc,char** argv)
         return failures ? 1 : 0;
     }
     defaultsAndWorkingColors();customLifecycle();gridsReflowAndShortPanelsScroll();
-    colorPickerAndPanel();modernDialogContract();
+    toolColorReset();colorPickerAndPanel();modernDialogContract();
     if(!failures)std::cout<<"Color panel: responsive grids, working colors, custom picker/persistence passed\n";
     return failures?1:0;
 }

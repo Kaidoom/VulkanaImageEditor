@@ -2463,6 +2463,11 @@ void MainWindow::createToolRail()
         colors.switchActive();
         setColors(colors);
     });
+    auto* resetColors = i18n::make<QAction>(i18n::text("color.selector.reset.black.white"), this);
+    resetColors->setObjectName(QStringLiteral("ResetColorsAction"));
+    resetColors->setAutoRepeat(false);
+    registerEditorWindowAction(resetColors);
+    connect(resetColors, &QAction::triggered, railColors_, &ColorSelector::resetToBlackAndWhite);
 
     createToolRailDockTargets();
     updateToolRailPresentation();
@@ -3068,6 +3073,7 @@ void MainWindow::updateToolRailPresentation()
     toolRail_->setMinimumHeight(0);
     toolRail_->setMaximumHeight(QWIDGETSIZE_MAX);
     toolRail_->setOrientation(vertical ? Qt::Vertical : Qt::Horizontal);
+    if (railColors_) railColors_->setHorizontal(!vertical);
     if (vertical) {
         toolRail_->setFixedWidth(54);
         toolRail_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);

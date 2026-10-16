@@ -165,6 +165,7 @@ work while editing text: committed typing is retained when switching documents.
 | Decrease brush / tool size | [ |
 | Increase brush / tool size | ] |
 | Switch active color | X |
+| Reset primary/secondary to black/white (primary active) | D |
 
 ### View & canvas
 

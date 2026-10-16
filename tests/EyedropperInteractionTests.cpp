@@ -525,7 +525,7 @@ void colorSelectorsShareSlotAndSwapSemanticsWithoutSetterFeedback()
         }
         if (compact) {
             CHECK(selector.width() <= 40);
-            CHECK(selector.height() <= 40);
+            CHECK(selector.height() <= 64);
             CHECK(primary->width() == primary->height());
             CHECK(secondary->width() == secondary->height());
         }

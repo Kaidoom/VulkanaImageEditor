@@ -89,6 +89,7 @@ const QList<ShortcutDefinition>& shortcutDefinitions()
         add("DecreaseBrushSizeAction", i18n::text("editor.shortcuts.decrease.brush.tool.size"), i18n::text("editor.shortcuts.tools"), "[", EditorKeys, true);
         add("IncreaseBrushSizeAction", i18n::text("editor.shortcuts.increase.brush.tool.size"), i18n::text("editor.shortcuts.tools"), "]", EditorKeys, true);
         add("SwapColorsAction", i18n::text("editor.shortcuts.switch.active.color"), i18n::text("editor.shortcuts.tools"), "X");
+        add("ResetColorsAction", i18n::text("color.selector.reset.black.white"), i18n::text("editor.shortcuts.tools"), "D");
         add("ChangeCanvasSizeAction", i18n::text("editor.shortcuts.change.canvas.size"), i18n::text("editor.shortcuts.view.canvas"), "Ctrl+Alt+C");
         add("FitCanvasAction", i18n::text("editor.shortcuts.fit.canvas"), i18n::text("editor.shortcuts.view.canvas"), "Ctrl+0");
         add("ActualSizeAction", i18n::text("editor.shortcuts.100.zoom"), i18n::text("editor.shortcuts.view.canvas"), "Ctrl+1");
