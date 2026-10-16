@@ -380,7 +380,10 @@ void effects(const PsdSource &s, const Record &rec, Model &m) {
       if (type == core::LayerEffectType::Stroke) {
         if (enumeration(e["PntT"]) != "SClr")
           throw Unsupported("Gradient/pattern Stroke is unsupported");
-        target.size = number(e["Sz  "]) * scale;
+        // Stroke Sz (#Pxl) is already the effective document-pixel width.
+        // Photoshop may also store Scl=416.67% at 300 PPI for a 7 px stroke;
+        // multiplying by that metadata again incorrectly produces 29.17 px.
+        target.size = number(e["Sz  "]);
         auto position = enumeration(e["Styl"]);
         if (position != "InsF" && position != "CtrF" && position != "OutF")
           throw Unsupported("Unknown Stroke position");

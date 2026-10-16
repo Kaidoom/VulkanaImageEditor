@@ -415,7 +415,7 @@ void semanticFixtures() {
   CHECK(out.document);
   if (out.document) {
     auto effect = out.document->layers()[0].effects;
-    CHECK(effect && effect->items[0].enabled && effect->items[0].size == 6 &&
+    CHECK(effect && effect->items[0].enabled && effect->items[0].size == 4 &&
           std::abs(effect->items[0].opacity - .4) < .00001);
   }
   f::Layer leaf;
@@ -1342,6 +1342,80 @@ void replacementFontSearch() {
     }
   }
 }
+void strokePixelSizes() {
+  namespace f = psdfixture;
+  QTemporaryDir dir;
+  const auto job = std::make_shared<u::PsdJob>();
+  const auto read = [&](const QString& path) {
+    const auto in = u::inspectPsd(path, job);
+    CHECK(in.error.isEmpty());
+    auto out = u::convertPsd(in, u::defaultPsdOptions(in), job, {}, false);
+    CHECK(out.error.isEmpty() && out.document);
+    return out;
+  };
+  const auto checkStroke = [](const c::Document& document, double size) {
+    CHECK(document.layers().size() == 1);
+    if (document.layers().empty()) return;
+    const auto& effects = document.layers().front().effects;
+    CHECK(effects);
+    if (!effects) return;
+    const auto& stroke = effects->items[size_t(c::LayerEffectType::Stroke)];
+    CHECK(stroke.enabled && stroke.size == size);
+  };
+  for (const auto& position : {QString("InsF"), QString("CtrF"), QString("OutF")})
+    for (double size : {7., 14.}) {
+      QImage reference;
+      for (const auto& key : {QByteArray("lfx2"), QByteArray("lmfx")})
+        for (int ppi : {72, 96, 150, 300, 600}) {
+          f::Layer layer;
+          layer.rect = {24, 24, 48, 48};
+          for (int channel : {-1, 0, 1, 2})
+            layer.channelData[channel] = QByteArray(48 * 48, char(channel == -1 ? 255 : 100));
+          const QVariantMap stroke{
+              {"enab", true}, {"present", true}, {"Md  ", f::enumeration("Nrml")},
+              {"Opct", f::unit(100., "#Prc")},
+              {"Clr ", QVariantMap{{"Rd  ", 255.}, {"Grn ", 0.}, {"Bl  ", 0.}}},
+              {"Sz  ", f::unit(size)}, {"Styl", f::enumeration(position)},
+              {"PntT", f::enumeration("SClr")}};
+          // Photoshop can record 416.67% at 300 PPI while Sz remains 7 #Pxl.
+          // Pixel width must not be multiplied by this metadata a second time.
+          QVariantMap descriptor{{"Scl ", f::unit(ppi * 100. / 72., "#Prc")},
+                                 {"masterFXSwitch", true}};
+          if (key == "lmfx") descriptor["frameFXMulti"] = QVariantList{stroke};
+          else descriptor["FrFX"] = stroke;
+          f::u32(layer.tags[key], 0);
+          layer.tags[key] += f::descriptor(descriptor);
+          const auto path = dir.filePath("stroke.psd");
+          QFile file(path); CHECK(file.open(QIODevice::WriteOnly));
+          const auto bytes = f::file({layer}, {96, 96}, ppi);
+          CHECK(file.write(bytes) == bytes.size()); file.close();
+          auto out = read(path); if (!out.document) continue;
+          checkStroke(*out.document, size);
+          CHECK(out.document->canvas().dotsPerInch == ppi);
+          const auto flat = u::flattenDocument(*out.document); CHECK(flat);
+          if (reference.isNull()) reference = flat.image;
+          else CHECK(flat.image == reference);
+          if (ppi != 300 || key != "lmfx" || position != "OutF") continue;
+
+          const auto project = dir.filePath("stroke.vulkana");
+          CHECK(u::saveProject(project, *out.document));
+          auto reopened = u::loadProject(project); CHECK(reopened);
+          if (!reopened) continue;
+          checkStroke(*reopened.document, size);
+          CHECK(u::flattenDocument(*reopened.document).image == reference);
+          const auto snapshot = u::capturePsdExport(*reopened.document, 1);
+          const std::atomic_bool cancelled{false};
+          const auto plan = u::planPsdExport(snapshot, {}, cancelled); CHECK(plan);
+          const auto exported = dir.filePath("exported.psd");
+          CHECK(u::writePsdExport(snapshot, plan, exported, cancelled));
+          // Vulkana writes Scl=100 and explicit document-pixel widths at any PPI.
+          auto roundTrip = read(exported); if (!roundTrip.document) continue;
+          checkStroke(*roundTrip.document, size);
+          CHECK(roundTrip.document->canvas() == reopened.document->canvas());
+          CHECK(u::flattenDocument(*roundTrip.document).image == reference);
+        }
+    }
+}
 void compositingRoundTrip(const QString& fixture={}) {
   QTemporaryDir dir;QString path=fixture;
   if(path.isEmpty()) {
@@ -1386,6 +1460,38 @@ void compositingRoundTrip(const QString& fixture={}) {
 }
 int main(int argc, char **argv) {
   QApplication app(argc, argv);
+  if (argc >= 2 && QString::fromLocal8Bit(argv[1]) == "--stroke-pixel-sizes") {
+    strokePixelSizes();
+    std::cout << "PSD stroke failures: " << failures << '\n';
+    return failures ? 1 : 0;
+  }
+  if (argc >= 4 && QString::fromLocal8Bit(argv[1]) == "--inspect-effects") {
+    const auto job=std::make_shared<u::PsdJob>();
+    const auto inspected=u::inspectPsd(QString::fromLocal8Bit(argv[2]),job);
+    CHECK(inspected.error.isEmpty() && inspected.source);if(!inspected.source)return 1;
+    const auto output=QString::fromLocal8Bit(argv[3]);CHECK(QDir().mkpath(output));
+    std::cout<<"Canvas "<<inspected.size.width()<<'x'<<inspected.size.height()<<" PPI "<<inspected.ppi<<'\n';
+    for(size_t i=0;i<inspected.source->records.size();++i) {
+      const auto& record=inspected.source->records[i];
+      for(const auto& key:{QByteArray("lfx2"),QByteArray("lmfx")}) {
+        if(!record.tags.contains(key))continue;
+        u::psd::Reader reader(record.tags[key]);reader.skip(4);
+        const auto descriptor=u::psd::versionedDescriptor(reader);
+        QFile dump(QDir(output).filePath(QString("effects-%1-%2.json").arg(i).arg(QString::fromLatin1(key))));
+        CHECK(dump.open(QIODevice::WriteOnly));dump.write(QJsonDocument::fromVariant(descriptor).toJson());
+        std::cout<<"Source "<<record.name.toStdString()<<" "<<key.toStdString()<<" scale "<<u::psd::number(descriptor["Scl "],100)
+                 <<" stroke "<<u::psd::number(descriptor["FrFX"].toMap()["Sz  "])<<'\n';
+      }
+    }
+    auto converted=u::convertPsd(inspected,u::defaultPsdOptions(inspected),job,{},false);
+    CHECK(converted.document);if(!converted.document){std::cerr<<converted.error.toStdString();return 1;}
+    for(const auto& layer:converted.document->layers())if(layer.effects)
+      std::cout<<"Imported "<<layer.name<<" stroke "<<layer.effects->items[0].size<<'\n';
+    CHECK(u::saveProject(QDir(output).filePath("imported.vulkana"),*converted.document));
+    CHECK(u::flattenDocument(*converted.document).image.save(QDir(output).filePath("imported.png")));
+    CHECK(u::psd::composite(*inspected.source,job).save(QDir(output).filePath("saved-composite.png")));
+    return failures?1:0;
+  }
   if (argc >= 4 && QString::fromLocal8Bit(argv[1]) == "--inspect-text") {
     const auto job = std::make_shared<u::PsdJob>();
     const auto inspected = u::inspectPsd(QString::fromLocal8Bit(argv[2]), job);
@@ -1444,6 +1550,7 @@ int main(int argc, char **argv) {
   mergedTransparency();
   compositingRoundTrip();
   semanticFixtures();
+  strokePixelSizes();
   softTextBreaks();
   replacementFontSearch();
   emptyPixelLayers();
