@@ -1,5 +1,6 @@
 #include "imageeditor/ui/PsdExport.hpp"
 #include "PsdNativeRecords.hpp"
+#include "PsdTextEngine.hpp"
 #include "imageeditor/core/RasterSurface.hpp"
 #include "imageeditor/core/RichText.hpp"
 #include "imageeditor/core/CompositionPlan.hpp"
@@ -23,14 +24,56 @@ bool translation(const core::AffineTransform &t) {
   return t.isAffine() && t.m00 == 1 && t.m11 == 1 && t.m01 == 0 && t.m10 == 0 &&
          integral(t.m02) && integral(t.m12);
 }
+struct MaskGrid {
+  QRect bounds;
+  core::AffineTransform documentToMask;
+  bool exact{};
+};
+MaskGrid maskGrid(const core::Layer &l) {
+  require(l.mask && core::validLayerMask(l.mask), "Invalid PSD mask source");
+  require(l.mask->outside == 0 || l.mask->outside == 255,
+          "PSD mask outside coverage must be black or white");
+  const auto toDocument = core::composeTransform(
+      l.localToDocument, *l.mask->localToMask.inverted());
+  const auto inverse = toDocument.inverted();
+  require(bool(inverse), "Cannot invert PSD mask mapping");
+  const auto size = l.mask->coverage->extent();
+  MaskGrid grid{{}, *inverse, translation(toDocument)};
+  // Keep an already aligned mask byte-exact. Transformed masks get their own
+  // document-pixel grid, not a destructive bake of text/pixels and styles.
+  const core::RectD support = grid.exact
+      ? core::RectD{0, 0, double(size.width), double(size.height)}
+      : core::RectD{-.5, -.5, double(size.width) + 1, double(size.height) + 1};
+  require(toDocument.validOver(support), "PSD mask crosses a projective horizon");
+  double left = INFINITY, top = INFINITY, right = -INFINITY, bottom = -INFINITY;
+  for (auto p : std::array{core::Vec2d{support.x, support.y},
+                          core::Vec2d{support.right(), support.y},
+                          core::Vec2d{support.x, support.bottom()},
+                          core::Vec2d{support.right(), support.bottom()}}) {
+    p = toDocument.map(p);
+    require(std::isfinite(p.x) && std::isfinite(p.y), "Invalid PSD mask bounds");
+    left = std::min(left, p.x); right = std::max(right, p.x);
+    top = std::min(top, p.y); bottom = std::max(bottom, p.y);
+  }
+  if (grid.exact) {
+    left = std::round(left); top = std::round(top);
+    right = left + size.width; bottom = top + size.height;
+  } else {
+    left = std::floor(left); top = std::floor(top);
+    right = std::ceil(right); bottom = std::ceil(bottom);
+  }
+  const auto width = right - left, height = bottom - top;
+  require(left >= INT32_MIN && top >= INT32_MIN && right <= INT32_MAX && bottom <= INT32_MAX &&
+              width > 0 && height > 0 && width <= 30000 && height <= 30000 &&
+              width * height <= 64. * 1024 * 1024,
+          "PSD mask exceeds supported bounds or working size");
+  grid.bounds = {int(left), int(top), int(width), int(height)};
+  return grid;
+}
 bool liveMask(const core::Layer &l) {
-  if (!l.mask)
-    return true;
-  if (l.mask->outside != 0 && l.mask->outside != 255)
-    return false; // PSD's default mask coverage is explicitly black or white.
-  const auto inverse = l.mask->localToMask.inverted();
-  return inverse &&
-         translation(core::composeTransform(l.localToDocument, *inverse));
+  if (!l.mask) return true;
+  try { (void)maskGrid(l); return true; }
+  catch (const Error &) { return false; }
 }
 bool adjusted(const core::Layer &l) {
   return l.adjustments &&
@@ -272,27 +315,29 @@ FlattenedDocumentResult sourceRaster(core::Document &d, core::LayerId id,
   return result;
 }
 void addMask(Record &r, const core::Layer &l, QIODevice &spool,
-             const std::atomic_bool &cancel, std::uint64_t limit) {
+             const std::atomic_bool &cancel, std::uint64_t limit,
+             std::uint64_t pixelLimit) {
   if (!l.mask)
     return;
-  require(liveMask(l), "Unreviewed mask transform");
+  const auto grid = maskGrid(l);
   r.mask = true;
   r.maskEnabled = l.mask->enabled;
   r.maskOutside = l.mask->outside;
-  const auto &mask = *l.mask;
-  auto size = mask.coverage->extent();
-  const auto map =
-      core::composeTransform(l.localToDocument, *mask.localToMask.inverted());
-  r.maskBounds = bounds(map.map({0, 0}), {int(size.width), int(size.height)});
-  require(size.width <= 30000 && size.height <= 30000,
-          "PSD mask exceeds standard dimensions");
-  QImage image(int(size.width), int(size.height), QImage::Format_Grayscale8);
+  r.maskBounds = grid.bounds;
+  require(std::uint64_t(grid.bounds.width()) * uint(grid.bounds.height()) <= pixelLimit,
+          "PSD mask exceeds the working-memory limit");
+  QImage image(grid.bounds.size(), QImage::Format_Grayscale8);
   require(!image.isNull(), "Cannot allocate PSD user mask");
-  for (uint y = 0; y < size.height; ++y) {
+  auto sampled = std::make_shared<core::LayerMask>(*l.mask);
+  sampled->enabled = true; // Disabled masks still retain their editable data.
+  sampled->localToMask = grid.documentToMask;
+  for (int y = 0; y < image.height(); ++y) {
     check(cancel);
-    auto row = image.scanLine(int(y));
-    for (uint x = 0; x < size.width; ++x)
-      row[x] = mask.coverage->coverageAtDocumentPixel(int(x), int(y));
+    auto row = image.scanLine(y);
+    for (int x = 0; x < image.width(); ++x)
+      row[x] = grid.exact ? l.mask->coverage->coverageAtDocumentPixel(x, y)
+          : std::uint8_t(std::clamp(std::lround(255 * core::layerMaskCoverage(sampled,
+                {double(grid.bounds.x()) + x + .5, double(grid.bounds.y()) + y + .5})), 0L, 255L));
   }
   r.channels.push_back(spoolChannel(spool, -2, image, -1, cancel, limit));
 }
@@ -445,6 +490,8 @@ PsdExportPlan planPsdExport(const PsdExportSnapshot &s,
                      "gradient interpolation/anchors and clipping differ "
                      "between editors. Use native styles for editability, or a "
                      "scoped pixel/flattened choice for appearance.";
+              if (!similarity(l.localToDocument))
+                e.reasons << "Nonuniform scaling or shear uses an area-equivalent PSD effect radius; effects remain editable.";
             }
           } catch (const Error &error) {
             e.editable = false;
@@ -461,7 +508,10 @@ PsdExportPlan planPsdExport(const PsdExportSnapshot &s,
             e.reasons
                 << (std::holds_alternative<core::AdjustmentLayer>(l.payload)
                     ? "This adjustment mask requires group consolidation or Flattened PSD."
-                    : "This mask grid or fractional outside coverage requires baking into the layer result.");
+                    : "This mask's outside coverage or bounds cannot be represented as a separate PSD mask.");
+          } else if (l.mask && !maskGrid(l).exact) {
+            e.attention = true;
+            e.reasons << "The transformed mask is resampled at document resolution and remains a separate editable layer mask.";
           }
           if (l.mask && std::holds_alternative<core::ShapeLayer>(l.payload)) {
             e.editable = false;
@@ -644,6 +694,7 @@ PsdExportResult writePsdExport(const PsdExportSnapshot &s,
     QTemporaryFile spool;
     require(spool.open(), "Cannot create PSD channel spool");
     std::vector<Record> records;
+    TextEngine textEngine;
     int completed = 0;
     const auto step = [&](const QString &stage) {
       check(cancel);
@@ -664,14 +715,14 @@ PsdExportResult writePsdExport(const PsdExportSnapshot &s,
         r.tags=adjustmentRecord(l);r.tags["clbl"]=QByteArray::fromHex("01000000");
         if(l.fillOpacity!=1)r.tags["iOpa"]=QByteArray(1,char(std::lround(l.fillOpacity*255)));
         for(int c:{-1,0,1,2})r.channels.push_back(spoolChannel(spool,c,{},0,cancel,limit));
-        addMask(r,l,spool,cancel,limit);records.push_back(std::move(r));++completed;return;
+        addMask(r,l,spool,cancel,limit,renderLimits(renderSnapshot).outputPixels);records.push_back(std::move(r));++completed;return;
       }
       auto pixels = sourceRaster(*d, id, cancel, renderSnapshot);
       require(bool(pixels), pixels.error.toUtf8().constData());
       ensureImage(pixels.image, s);
       r.bounds = bounds(pixels.origin, pixels.image.size());
       if (std::holds_alternative<core::TextLayer>(l.payload))
-        r.tags["TySh"] = textRecord(l);
+        r.tags["TySh"] = textRecord(l, nullptr, nullptr, &textEngine);
       if (std::holds_alternative<core::ShapeLayer>(l.payload))
         r.tags = shapeRecords(l, d->canvas());
       auto effects = effectRecord(l);
@@ -687,7 +738,7 @@ PsdExportResult writePsdExport(const PsdExportSnapshot &s,
         r.channels.push_back(spoolChannel(spool, c, pixels.image,
                                           c == -1 ? 3 : c, cancel, limit));
       pixels.image = {};
-      addMask(r, l, spool, cancel, limit);
+      addMask(r, l, spool, cancel, limit, renderLimits(renderSnapshot).outputPixels);
       records.push_back(std::move(r));
       ++completed;
     };
@@ -751,7 +802,7 @@ PsdExportResult writePsdExport(const PsdExportSnapshot &s,
     require(output.open(),
             "Cannot create PSD temporary output in destination directory");
     step("Writing PSD");
-    write(output, spool, records, composite.image, d->canvas(), cancel, limit);
+    write(output, spool, records, composite.image, d->canvas(), cancel, limit, textEngine.bytes());
     require(output.flush(), "Could not flush PSD output");
     step("Verifying PSD");
     verify(output, d->canvas(), int(records.size()));

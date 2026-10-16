@@ -1,9 +1,10 @@
 #pragma once
 #include "PsdWriter.hpp"
 namespace imageeditor::ui::psdwrite {
+class TextEngine;
 // Generated from current native data, never imported opaque descriptors.
 QByteArray textRecord(const core::Layer &, QStringList *fonts = nullptr,
-                      QStringList *differences = nullptr);
+                      QStringList *differences = nullptr, TextEngine *global = nullptr);
 QMap<QByteArray, QByteArray> shapeRecords(const core::Layer &,
                                           core::CanvasSpec);
 QByteArray effectRecord(const core::Layer &);

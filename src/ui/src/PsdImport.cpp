@@ -1,4 +1,5 @@
 #include "PsdReader.hpp"
+#include "PsdFontNames.hpp"
 #include "imageeditor/platform/AvailableMemory.hpp"
 #include "imageeditor/core/RichText.hpp"
 #include "imageeditor/ui/FlattenedDocument.hpp"
@@ -174,28 +175,7 @@ Map desc(const Record &r, const QByteArray &key, int prefix = 0) {
   return versionedDescriptor(reader);
 }
 QString psName(const QRawFont &font) {
-  try {
-    auto data = font.fontTable("name");
-    Reader r(data);
-    r.skip(2);
-    auto count = r.u16(), offset = r.u16();
-    if (count > 4096)
-      return {};
-    for (int i = 0; i < count; ++i) {
-      auto platform = r.u16();
-      r.skip(4);
-      auto id = r.u16(), length = r.u16(), pos = r.u16();
-      if (id != 6)
-        continue;
-      Reader all(data);
-      all.skip(qsizetype(offset) + pos);
-      auto bytes = all.take(length);
-      return platform == 0 || platform == 3 ? utf16(bytes)
-                                            : QString::fromLatin1(bytes);
-    }
-  } catch (const Error &) {
-  }
-  return {};
+  return psdFontName(font);
 }
 struct Face {
   QString family, style, postscript;
@@ -375,6 +355,8 @@ void effects(const PsdSource &s, const Record &rec, Model &m) {
         type = core::LayerEffectType::Stroke;
       else if (it.key() == "SoFi" || it.key() == "solidFillMulti")
         type = core::LayerEffectType::ColorOverlay;
+      else if (it.key() == "OrGl")
+        type = core::LayerEffectType::OuterGlow;
       else
         throw Unsupported(
             "An active effect cannot be reproduced by the saved base pixels");
@@ -401,6 +383,22 @@ void effects(const PsdSource &s, const Record &rec, Model &m) {
         target.position = position == "InsF"   ? core::StrokePosition::Inside
                           : position == "CtrF" ? core::StrokePosition::Center
                                                : core::StrokePosition::Outside;
+      } else if (type == core::LayerEffectType::OuterGlow) {
+        if (enumeration(e.value("GlwT")) != "SfBL" || e.contains("Grad") ||
+            number(e.value("Nose"), 0) != 0 || number(e.value("ShdN"), 0) != 0 ||
+            number(e.value("Inpr"), 50) != 50)
+          throw Unsupported("This Outer Glow technique, gradient, noise or range needs a saved-pixel/composite choice");
+        const auto contour = e.value("TrnS").toMap().value("Crv ").toList();
+        if (!contour.empty() && (contour.size() != 2 ||
+            number(contour[0].toMap().value("Hrzn")) != 0 || number(contour[0].toMap().value("Vrtc")) != 0 ||
+            number(contour[1].toMap().value("Hrzn")) != 255 || number(contour[1].toMap().value("Vrtc")) != 255))
+          throw Unsupported("A nonlinear Outer Glow contour needs a saved-pixel/composite choice");
+        target.size = number(e.value("blur"));
+        const auto choke = e.value("Ckmt").toMap();
+        target.spread = choke.value("unit").toString() == "#Prc"
+            ? number(e.value("Ckmt"), 0) / 100
+            : (target.size > 0 ? number(e.value("Ckmt"), 0) / target.size : 0);
+        m.substitutions << "Editable Outer Glow: softness can differ between editors.";
       }
     }
   }
@@ -504,6 +502,8 @@ void textModel(const PsdSource &s, const Record &rec, const PsdChoice &choice,
       style.font.weight = 700;
     if (properties["FauxItalic"].toBool())
       style.font.italic = true;
+    if (properties["FauxBold"].toBool() || properties["FauxItalic"].toBool())
+      style.font.style.clear(); // A fixed "Regular" face name would override these flags in Qt.
     if (properties.contains("AutoKerning") &&
         !properties["AutoKerning"].toBool())
       model.substitutions
@@ -848,19 +848,31 @@ Model modelFor(const PsdSource &s, const Record &rec, const PsdChoice &choice,
     else if (isShape(rec))
       shapeModel(s, rec, m);
   }
-  if(m.effects&&m.effects->items[7]!=core::defaultLayerEffect(core::LayerEffectType::BevelEmboss)) {
-    // PSD relief dimensions/light are in document space; native styles travel
-    // with local typed geometry. A similarity has an exact inverse for both.
-    const auto& t=m.transform;const double x=std::hypot(t.m00,t.m10),y=std::hypot(t.m01,t.m11);
-    if(!t.isAffine()||x<1e-9||std::abs(x-y)>1e-6*std::max(x,y)||
-       std::abs(t.m00*t.m01+t.m10*t.m11)>1e-6*x*y)
-      throw Unsupported("Bevel on nonuniform/sheared typed geometry requires a raster or composite choice");
-    auto stack=std::make_shared<core::LayerEffectStack>(*m.effects);auto& e=stack->items[7];
-    e.size/=x;e.bevel.soften/=x;
-    const auto radians=e.angle*std::numbers::pi/180;const auto inverse=t.inverted();
-    const auto direction=inverse->map({std::cos(radians),std::sin(radians)})-inverse->map({0,0});
-    e.angle=std::atan2(direction.y,direction.x)*180/std::numbers::pi;
-    if(!core::validLayerEffects(*stack))throw Unsupported("Local bevel dimensions exceed supported limits");
+  if(m.effects && (m.text || m.shape)) {
+    // PSD style dimensions are in document pixels. Native effects travel with
+    // local geometry; undo the export scale instead of growing them on every
+    // round trip. Nonuniform transforms have only an isotropic PSD equivalent.
+    const auto& t=m.transform;
+    const auto inverse=t.inverted();
+    if(!t.isAffine() || !inverse)
+      throw Unsupported("Styles on projective typed geometry require a raster or composite choice");
+    const double scale=std::sqrt(std::abs(t.m00*t.m11-t.m01*t.m10));
+    const double sx=std::hypot(t.m00,t.m10),sy=std::hypot(t.m01,t.m11);
+    if(std::abs(sx-sy)>1e-6*std::max(sx,sy) || std::abs(t.m00*t.m01+t.m10*t.m11)>1e-6*sx*sy)
+      m.substitutions<<"Editable styles on nonuniform or sheared geometry use an area-equivalent local radius.";
+    auto stack=std::make_shared<core::LayerEffectStack>(*m.effects);
+    for(size_t i=0;i<core::layerEffectCount;++i) {
+      auto& e=stack->items[i];
+      if(e==core::defaultLayerEffect(core::LayerEffectType(i)))continue;
+      e.size/=scale;
+      if(i==7) {
+        e.bevel.soften/=scale;
+        const auto radians=e.angle*std::numbers::pi/180;
+        const auto direction=inverse->map({std::cos(radians),std::sin(radians)})-inverse->map({0,0});
+        e.angle=std::atan2(direction.y,direction.x)*180/std::numbers::pi;
+      }
+    }
+    if(!core::validLayerEffects(*stack))throw Unsupported("Local effect dimensions exceed supported limits");
     m.effects=std::move(stack);
   }
   return m;

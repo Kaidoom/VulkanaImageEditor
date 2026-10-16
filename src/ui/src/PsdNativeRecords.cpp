@@ -1,39 +1,21 @@
 #include "PsdNativeRecords.hpp"
 #include "PsdReader.hpp"
+#include "PsdFontNames.hpp"
+#include "PsdTextEngine.hpp"
 #include "imageeditor/ui/QtTextLayoutService.hpp"
 #include <QFontDatabase>
 #include <QRawFont>
 #include <QTextBlock>
 #include <QTextLayout>
 #include <bit>
+#include <map>
 
 namespace imageeditor::ui::psdwrite {
 namespace {
 using Map = QVariantMap;
 using List = QVariantList;
 QString faceName(const QRawFont &font) {
-  // The actual resolved SFNT name, not QFont's possibly substituted request.
-  try {
-    auto data = font.fontTable("name");
-    psd::Reader r(data);
-    r.skip(2);
-    auto count = r.u16(), offset = r.u16();
-    require(count <= 4096, "Invalid font name table");
-    for (int i = 0; i < count; ++i) {
-      auto platform = r.u16();
-      r.skip(4);
-      auto id = r.u16(), length = r.u16(), pos = r.u16();
-      if (id != 6)
-        continue;
-      psd::Reader name(data);
-      name.skip(qsizetype(offset) + pos);
-      auto bytes = name.take(length);
-      return platform == 0 || platform == 3 ? psd::utf16(bytes)
-                                            : QString::fromLatin1(bytes);
-    }
-  } catch (const std::exception &) {
-  }
-  return {};
+  return psdFontName(font);
 }
 Map fill(core::Rgba8 c) {
   return {{"Type", 1},
@@ -58,18 +40,18 @@ Map paragraph(int align, double leading = 1.2) {
           {"KinsokuOrder", 0},
           {"EveryLineComposer", false}};
 }
-Map style(const core::TextStyle &s, int font) {
+Map style(const core::TextStyle &s, int font, const QRawFont &face) {
   return {{"Font", font},
           {"FontSize", s.sizePixels},
-          {"FauxBold", false},
-          {"FauxItalic", false},
+          {"FauxBold", s.font.weight >= QFont::Bold && psdFontWeight(face) < QFont::Bold},
+          {"FauxItalic", s.font.italic && !psdFontItalic(face)},
           {"AutoLeading", true},
           {"Leading", 0.},
           {"HorizontalScale", 1.},
           {"VerticalScale", 1.},
           {"Tracking", 0},
           {"AutoKerning", true},
-          {"Kerning", 0.},
+          {"Kerning", 0},
           {"BaselineShift", 0.},
           {"FontCaps", 0},
           {"FontBaseline", 0},
@@ -112,7 +94,7 @@ bool similarity(const core::AffineTransform &t, double *scale) {
   return true;
 }
 QByteArray textRecord(const core::Layer &layer, QStringList *fonts,
-                      QStringList *differences) {
+                      QStringList *differences, TextEngine *global) {
   require(layer.localToDocument.isAffine(),
           "Projective text must be baked into pixels");
   auto text = core::normalizedText(std::get<core::TextLayer>(layer.payload));
@@ -128,6 +110,22 @@ QByteArray textRecord(const core::Layer &layer, QStringList *fonts,
   if (styles.empty())
     styles.push_back({0, 0, text.defaultStyle});
   Map defaults;
+  const auto appendRun = [&](const core::TextStyle &s, const QRawFont &raw, int length) {
+    require(runs.size() < qsizetype(core::kMaximumTextRuns), "PSD font-run count exceeds the editable text limit");
+    const auto name = faceName(raw);
+    require(raw.isValid() && !name.isEmpty(),
+            "Resolved font has no usable PostScript identity; rasterize this text");
+    int f = int(faces.indexOf(name));
+    if (f < 0) {
+      f = int(faces.size());
+      faces << name;
+      fontSet << Map{{"Name", name}, {"Script", 0}, {"FontType", 0}, {"Synthetic", 0}};
+    }
+    auto properties = style(s, f, raw);
+    if (runs.empty()) defaults = properties;
+    runs << Map{{"StyleSheet", Map{{"StyleSheetData", properties}}}};
+    lengths << length;
+  };
   for (size_t i = 0; i < styles.size(); ++i) {
     const auto &s = styles[i];
     auto font = QtTextLayout::format(s.style).font();
@@ -136,43 +134,55 @@ QByteArray textRecord(const core::Layer &layer, QStringList *fonts,
     require(
         raw.isValid() && !name.isEmpty(),
         "Resolved font has no usable PostScript identity; rasterize this text");
-    require(
-        int(raw.weight()) == s.style.font.weight &&
-            (raw.style() != QFont::StyleNormal) == s.style.font.italic,
-        "Synthetic bold/italic has no tested PSD mapping; rasterize this text");
     const int first = int(index.utf16Offset(s.start)),
               last = int(index.utf16Offset(s.start + s.length));
+    // A requested family need not contain every character. Keep text editable
+    // by recording the faces actually used by Qt, in logical UTF-16 order.
+    // Glyph cluster indices preserve ligatures, surrogate pairs and bidi runs;
+    // visual glyph order is not text order. No canonical text is modified.
+    std::map<int, QRawFont> resolved{{first, raw}};
     for (auto block = layout.document().begin(); block.isValid();
          block = block.next()) {
       const auto a = std::max(first, block.position()),
                  b = std::min(last, block.position() + block.length() - 1);
       if (b <= a)
         continue;
-      for (auto &glyphRun :
-           block.layout()->glyphRuns(a - block.position(), b - a))
-        require(faceName(glyphRun.rawFont()) == name,
-                "This run uses fallback fonts; rasterize it to preserve the "
-                "actual glyphs");
+      for (const auto &glyphRun : block.layout()->glyphRuns(
+               a - block.position(), b - a, QTextLayout::RetrieveAll)) {
+        const auto actual = glyphRun.rawFont();
+        const auto actualName = faceName(actual);
+        require(actual.isValid() && !actualName.isEmpty(),
+                "A rendered font has no usable PostScript identity");
+        for (auto offset : glyphRun.stringIndexes()) {
+          // A range can start inside a shaped cluster; retain its font without
+          // creating a run before the requested formatting boundary.
+          const auto position = int(std::clamp<qsizetype>(
+              block.position() + offset, a, b - 1));
+          resolved.insert_or_assign(position, actual);
+        }
+        if (differences && actualName != name) {
+          const auto note = QStringLiteral("Characters rendered with fallback face %1 are exported as editable text using that face.").arg(actualName);
+          if (!differences->contains(note)) *differences << note;
+        }
+      }
     }
     if (differences &&
-        (!s.style.font.originalFace.empty() ||
+        ((!s.style.font.originalFace.empty() &&
+          name.compare(QString::fromStdString(s.style.font.originalFace),
+                       Qt::CaseInsensitive) != 0) ||
          raw.familyName().compare(QString::fromStdString(s.style.font.family),
                                   Qt::CaseInsensitive) != 0))
       *differences << QStringLiteral("Current resolved face %1 is exported, "
                                      "not the original font request.")
                           .arg(name);
-    int f = int(faces.indexOf(name));
-    if (f < 0) {
-      f = int(faces.size());
-      faces << name;
-      fontSet << Map{
-          {"Name", name}, {"Script", 0}, {"FontType", 0}, {"Synthetic", 0}};
+    for (auto begin = resolved.begin(); begin != resolved.end();) {
+      auto end = std::next(begin);
+      while (end != resolved.end() && end->second == begin->second) ++end;
+      const int until = end == resolved.end() ? last : end->first;
+      appendRun(s.style, begin->second, until - begin->first +
+          (end == resolved.end() && i + 1 == styles.size() ? 1 : 0));
+      begin = end;
     }
-    auto properties = style(s.style, f);
-    if (i == 0)
-      defaults = properties;
-    runs << Map{{"StyleSheet", Map{{"StyleSheetData", properties}}}};
-    lengths << last - first + (i + 1 == styles.size() ? 1 : 0);
   }
   for (auto block = layout.document().begin(); block.isValid();
        block = block.next()) {
@@ -192,7 +202,7 @@ QByteArray textRecord(const core::Layer &layer, QStringList *fonts,
     paragraphs << Map{
         {"ParagraphSheet",
          Map{{"DefaultStyleSheet", 0}, {"Properties", paragraph(a, leading)}}},
-        {"Adjustments", Map{{"Axis", List{1, 0, 1}}, {"XY", List{0, 0}}}}};
+        {"Adjustments", Map{{"Axis", List{1., 0., 1.}}, {"XY", List{0., 0.}}}}};
     paragraphLengths << block.length();
   }
   auto block = layout.document().begin();
@@ -244,8 +254,8 @@ QByteArray textRecord(const core::Layer &layer, QStringList *fonts,
       {"ParagraphRun", Map{{"DefaultRunData",
                             Map{{"ParagraphSheet", Map{{"DefaultStyleSheet", 0},
                                                        {"Properties", Map{}}}},
-                                {"Adjustments", Map{{"Axis", List{1, 0, 1}},
-                                                    {"XY", List{0, 0}}}}}},
+                                {"Adjustments", Map{{"Axis", List{1., 0., 1.}},
+                                                    {"XY", List{0., 0.}}}}}},
                            {"RunArray", paragraphs},
                            {"RunLengthArray", paragraphLengths},
                            {"IsJoinable", 1}}},
@@ -271,7 +281,7 @@ QByteArray textRecord(const core::Layer &layer, QStringList *fonts,
        {"textGridding", enumeration("textGridding", "None")},
        {"Ornt", enumeration("Ornt", "Hrzn")},
        {"AntA", enumeration("Annt", "AnSm")},
-       {"TextIndex", 0},
+       {"TextIndex", global ? global->append(engineDict, resources) : 0},
        {"EngineData", engine(Map{{"EngineDict", engineDict},
                                  {"ResourceDict", resources},
                                  {"DocumentResources", resources}})}},
@@ -388,8 +398,14 @@ QByteArray effectRecord(const core::Layer &layer) {
   if (!layer.effects || layer.effects->items == core::LayerEffectStack{}.items)
     return {};
   double scale = 1;
-  require(similarity(layer.localToDocument, &scale),
-          "Transformed styles need a reviewed raster fallback");
+  if (!similarity(layer.localToDocument, &scale)) {
+    const auto& t = layer.localToDocument;
+    require(t.isAffine() && t.inverted().has_value(),
+            "Projective styles need a reviewed raster fallback");
+    // PSD has one isotropic effect radius. Preserve editable styles under
+    // nonuniform scaling/shear using their area-equivalent radius.
+    scale = std::sqrt(std::abs(t.m00 * t.m11 - t.m01 * t.m10));
+  }
   Map effects{{"masterFXSwitch", true}, {"Scl ", unit(100, "#Prc")}};
   for (size_t i = 0; i < core::layerEffectCount; ++i) {
     auto &e = layer.effects->items[i];
@@ -465,7 +481,7 @@ QByteArray effectRecord(const core::Layer &layer) {
             360.);
         effect["uglg"] = false;
         effect["lagl"] = unit(angle, "#Ang");
-        effect["Dstn"] = unit(e.distance * scale);
+        effect["Dstn"] = unit(e.distance * std::hypot(direction.x, direction.y));
         if (i == 1)
           effect["layerConceals"] = true;
       } else {

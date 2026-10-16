@@ -5,6 +5,7 @@
 #include <QVariant>
 
 namespace imageeditor::ui::psdwrite {
+struct EngineName { QByteArray value; };
 struct Error : std::runtime_error {
   using std::runtime_error::runtime_error;
 };
@@ -19,7 +20,7 @@ QVariantMap enumeration(const char *type, const char *value);
 QVariantMap unit(double, const char * = "#Pxl");
 QVariantMap rgb(core::Rgba8);
 QByteArray descriptor(const QVariantMap &, const char *classId);
-QByteArray engine(const QVariant &);
+QByteArray engine(const QVariant &, bool singleLine = false);
 QByteArray blend(core::BlendMode, bool descriptor = false);
 struct Channel {
   int id{};
@@ -45,7 +46,8 @@ Channel spoolChannel(QIODevice &, int id, const QImage &, int component,
                      const std::atomic_bool &, std::uint64_t fileLimit);
 void write(QIODevice &, QIODevice &spool, const std::vector<Record> &,
            const QImage &composite, core::CanvasSpec, const std::atomic_bool &,
-           std::uint64_t fileLimit);
+           std::uint64_t fileLimit, const QByteArray &textEngine = {});
 // Independent seek-based structural walk before publication; no full-file copy.
 void verify(QIODevice &, core::CanvasSpec, int records);
 } // namespace imageeditor::ui::psdwrite
+Q_DECLARE_METATYPE(imageeditor::ui::psdwrite::EngineName)

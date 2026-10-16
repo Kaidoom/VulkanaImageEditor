@@ -14,10 +14,10 @@ desktop Photoshop 2020+; this is not a claim that every release has been tested.
 | Native content | Layered output | When conversion is needed |
 | --- | --- | --- |
 | Raster | Exact samples for integer translations; native-size channels and off-canvas offsets | Other affine/projective transforms baked once from the source at document resolution; original pre-transform resolution is not retained |
-| Text | Fresh type/engine records, Unicode, rich font/size/color runs, paragraph returns and Shift+Enter line breaks, paragraph alignment and affine placement | Projective text, actual glyph fallback inside a run or synthetic faces become a reviewed pixel choice; Rasterize all text is also available |
+| Text | Fresh per-layer and document-level text-engine records, Unicode, rich font/size/color runs, paragraph returns and Shift+Enter line breaks, paragraph alignment and affine placement; resolved fallback faces and synthetic bold/italic remain editable | Projective text or fonts without a usable PostScript identity require pixels; Rasterize all text is also available |
 | Shapes | Rectangle, ellipse, simple polygon/triangle; solid or no fill, centered solid geometric stroke | Rounded rectangle/line, translucent fill, projective geometry or nonuniform/sheared stroke becomes pixels |
-| Bitmap mask | Separate user channel with independent rectangle, black/white outside coverage and enabled state; original covered pixels retained | Non-integer/transformed grids, fractional outside coverage, or combined vector geometry plus bitmap mask are baked together with layer processing |
-| Styles | Fresh editable Stroke, Drop/Inner Shadow, Outer/Inner Glow, Color Overlay, two-color Gradient Overlay and Smooth Bevel & Emboss records | Editable **approximations**, requiring review: edge profiles, softness/spread, gradient interpolation/anchors, bevel lighting/contours and clipping differ. Nonuniform/projective style transforms require fallback |
+| Bitmap mask | Separate user channel with independent rectangle, black/white outside coverage and enabled state; transformed grids are resampled independently at document resolution | Fractional outside coverage or combined vector geometry plus bitmap mask require baking together with layer processing |
+| Styles | Fresh editable Stroke, Drop/Inner Shadow, Outer/Inner Glow, Color Overlay, two-color Gradient Overlay and Smooth Bevel & Emboss records | Editable **approximations**, requiring review: edge profiles, softness/spread, gradient interpolation/anchors, bevel lighting/contours and clipping differ. Nonuniform affine transforms use an area-equivalent style radius; projective transforms require fallback |
 | Advanced effect blending | Pixel Alpha Shapes Effects and Mask Effects After Rendering use the layer-wide `tsly` and `lmgm` records, including when all styles are disabled | Vector-mask global effect masking is not represented |
 | Adjustment layers | Native Invert / Exposure (zero offset, unit gamma), supported masks and strength; scope-owned local domains become Normal folders | Multiple corrections, other equations or unsupported masks require enclosing consolidation/Flattened PSD; fractional strength can differ between editors. See [adjustment layers](ADJUSTMENT_LAYERS.md) |
 | Per-layer corrections, spatial filters, crop/chamfer | Their result, not fake adjustment layers or Smart Filters | Baked together with the layer mask/styles in native processing order; baked state removed from the exported record |
@@ -64,6 +64,21 @@ with UTF-16 lengths, including surrogate pairs and the engine terminal character
 Sizes are document-pixel em sizes; the baseline and affine matrix come from the
 existing text layout. Document PPI is separate from monitor DPI. Multiline leading
 is approximate across text engines and explicitly reviewed.
+
+Each exported type layer has a unique `TextIndex` connecting its `TySh` record
+to the document's `Txt2` text object. Both use the same current text, resolved
+fonts and UTF-16 runs. The format-7 environment includes the default sheets and
+composition tables needed by Photoshop; it contains no imported document text
+or glyph cache. Photoshop composes the editable text from its model rather than
+being forced through its legacy text-update path. New documents, edited text and
+reordered layers regenerate these records on every export.
+
+Text-engine metrics retain real-number tokens (`64.0`, not `64`), while indices
+and run lengths remain integers. In `Txt2`, class/version markers precede their
+properties, and run unit flags specify document pixels rather than PPI-dependent
+points. Independent checks cover these distinctions: Vulkana's own importer is
+not sufficient to establish Photoshop compatibility. Differences in font versions,
+shaping and rasterization can still affect layout across editors.
 
 Vector paths are generated from current native geometry, never traced from the
 preview. Layer channels omit any mask or style that remains live. User mask

@@ -288,18 +288,26 @@ QByteArray descriptor(const QVariantMap &m, const char *cls) {
   object(b, data, 0);
   return b;
 }
-QByteArray engine(const QVariant &v) {
+QByteArray engine(const QVariant &v, bool singleLine) {
+  if (v.metaType() == QMetaType::fromType<EngineName>())
+    return '/' + v.value<EngineName>().value;
   if (v.metaType().id() == QMetaType::QVariantMap) {
-    QByteArray b = "<<\n";
+    QByteArray b = singleLine ? "<< " : "<<\n";
     auto m = v.toMap();
+    // Txt2 class/version markers must precede the instance fields. QMap's
+    // lexical order would put /99 last, preventing Photoshop from creating
+    // the resource before reading its properties.
+    for (const auto &key : {QStringLiteral("99"), QStringLiteral("98")})
+      if (m.contains(key))
+        b += "/" + key.toLatin1() + " " + engine(m.take(key), singleLine) + (singleLine ? " " : "\n");
     for (auto i = m.begin(); i != m.end(); ++i)
-      b += "/" + i.key().toLatin1() + " " + engine(i.value()) + "\n";
+      b += "/" + i.key().toLatin1() + " " + engine(i.value(), singleLine) + (singleLine ? " " : "\n");
     return b + ">>";
   }
   if (v.metaType().id() == QMetaType::QVariantList) {
     QByteArray b = "[ ";
     for (auto &x : v.toList())
-      b += engine(x) + " ";
+      b += engine(x, singleLine) + " ";
     return b + "]";
   }
   if (v.metaType().id() == QMetaType::QString) {
@@ -315,12 +323,19 @@ QByteArray engine(const QVariant &v) {
   }
   if (v.metaType().id() == QMetaType::Bool)
     return v.toBool() ? "true" : "false";
-  // EngineData accepts decimal tokens, not C-style scientific notation.
+  if (v.metaType().id() != QMetaType::Double &&
+      v.metaType().id() != QMetaType::Float)
+    return QByteArray::number(v.toLongLong());
+  // EngineData distinguishes integer and real tokens. A whole-valued real
+  // (FontSize, scale, colour component, etc.) must retain its decimal point;
+  // otherwise Photoshop can discard the value when rebuilding editable text.
+  // Scientific notation is not part of this format.
+  require(std::isfinite(v.toDouble()), "Invalid text engine number");
   auto s = QByteArray::number(v.toDouble(), 'f', 8);
   while (s.endsWith('0'))
     s.chop(1);
   if (s.endsWith('.'))
-    s.chop(1);
+    s += '0';
   return s;
 }
 QByteArray blend(core::BlendMode b, bool desc) {
@@ -397,7 +412,7 @@ Channel spoolChannel(QIODevice &device, int id, const QImage &image,
 void write(QIODevice &device, QIODevice &spool,
            const std::vector<Record> &records, const QImage &composite,
            core::CanvasSpec canvas, const std::atomic_bool &cancel,
-           std::uint64_t limit) {
+           std::uint64_t limit, const QByteArray &textEngine) {
   require(!records.empty() && records.size() <= 32767,
           "PSD layer record count outside standard limits");
   Output out(device, limit);
@@ -447,6 +462,14 @@ void write(QIODevice &device, QIODevice &spool,
   out.pad(2);
   out.patch(info, out.pos() - info - 4);
   out.n32(0);
+  if (!textEngine.isEmpty()) {
+    check(cancel);
+    require(quint64(textEngine.size()) <= UINT32_MAX, "PSD text engine block too large");
+    out.bytes("8BIMTxt2");
+    out.n32(quint32(textEngine.size()));
+    out.bytes(textEngine);
+    out.bytes(QByteArray((4 - textEngine.size() % 4) % 4, '\0'));
+  }
   out.patch(outer, out.pos() - outer - 4);
   // The merged transparency channel is white-matted in encoded RGB. Layer
   // channels above remain straight, including hidden RGB at alpha zero.

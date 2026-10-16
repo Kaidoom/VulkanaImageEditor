@@ -98,6 +98,7 @@ add_library(imageeditor_ui STATIC
     src/PsdReader.cpp
     src/PsdWriter.cpp
     src/PsdNativeRecords.cpp
+    src/PsdTextEngine.cpp
     src/PsdExport.cpp
     src/PsdExportPanel.cpp
     src/PsdImport.cpp

@@ -1,4 +1,5 @@
 #include "../src/ui/src/PsdNativeRecords.hpp"
+#include "../src/ui/src/PsdTextEngine.hpp"
 #include "../src/ui/src/PsdReader.hpp"
 #include "../src/ui/src/PsdWriter.hpp"
 #include "imageeditor/core/RichText.hpp"
@@ -20,8 +21,10 @@
 #include <QPushButton>
 #include <QTemporaryDir>
 #include <QTreeWidget>
+#include <QTextBoundaryFinder>
 #include <cstring>
 #include <iostream>
+#include <limits>
 
 namespace c = imageeditor::core;
 namespace u = imageeditor::ui;
@@ -56,6 +59,91 @@ bool same(const QImage &x, const QImage &y) {
                     size_t(a.width()) * 4))
       return false;
   return true;
+}
+void engineNumbers() {
+  using u::psdwrite::engine;
+  // Photoshop's text engine differentiates real metrics from integer indices.
+  // Our permissive reader accepts both, so assert the on-disk tokens directly.
+  CHECK(engine(64.) == "64.0");
+  CHECK(engine(1.) == "1.0");
+  CHECK(engine(0.) == "0.0");
+  CHECK(engine(-24.) == "-24.0");
+  CHECK(engine(.583) == "0.583");
+  CHECK(engine(0.00001) == "0.00001");
+  CHECK(engine(64) == "64");
+  CHECK(engine(true) == "true");
+  CHECK(engine(QVariantList{1., 0., 1.}) == "[ 1.0 0.0 1.0 ]");
+  CHECK(engine(QVariantList{1, 14}) == "[ 1 14 ]");
+  CHECK(engine(QVariant::fromValue(u::psdwrite::EngineName{"nil"})) == "/nil");
+  CHECK(engine(QVariantMap{{"0", 3}, {"99", QVariant::fromValue(u::psdwrite::EngineName{"CoolTypeFont"})}}, true)
+        == "<< /99 /CoolTypeFont /0 3 >>");
+  // Compact global records must not replace newline bytes inside UTF-16 text.
+  const auto str = QString::fromUtf8("A\nΩ");
+  CHECK(engine(str, true) == engine(str));
+  bool rejected = false;
+  try { (void)engine(std::numeric_limits<double>::infinity()); }
+  catch (const u::psdwrite::Error&) { rejected = true; }
+  CHECK(rejected);
+}
+u::PsdExportResult write(c::Document &, QString, u::PsdExportOptions);
+void modernText(QString dir) {
+  for (const double ppi : {72., 300.}) {
+    c::Document doc({{420, 220}, ppi, c::CompositingSpace::EncodedSRgb});
+    c::TextLayer t;
+    t.utf8 = "Hello Vulkana";
+    t.defaultStyle.font.family = QFontDatabase::systemFont(QFontDatabase::GeneralFont).family().toStdString();
+    t.defaultStyle.sizePixels = 32;
+    auto first = c::Layer::text("First", c::normalizedText(t));
+    first.localToDocument.m02 = 20; first.localToDocument.m12 = 10;
+    CHECK(doc.insertLayer(0, first));
+    t.utf8 = "Changed café\nSecond line";
+    t.defaultStyle.sizePixels = 21.5;
+    auto second = c::Layer::text("Second", c::normalizedText(t));
+    second.localToDocument.m02 = 10; second.localToDocument.m12 = 100;
+    CHECK(doc.insertLayer(0, second));
+    // Each export has a fresh, dense index space, even after text edits.
+    u::psdwrite::TextEngine global;
+    for (const auto& layer : doc.layers()) {
+      const auto bytes = u::psdwrite::textRecord(layer, nullptr, nullptr, &global);
+      u::psd::Reader reader(bytes);
+      reader.skip(2 + 6 * 8 + 2);
+      const auto descriptor = u::psd::versionedDescriptor(reader);
+      CHECK(descriptor["TextIndex"].toInt() >= 0 && descriptor["TextIndex"].toInt() < 2);
+    }
+    const auto data = u::psd::engineData("<< " + global.bytes() + " >>");
+    const auto resources = data["0"].toMap(), body = data["1"].toMap();
+    CHECK(data["98"].toMap()["0"].toInt() == 7);
+    const auto objects = body["1"].toList();
+    CHECK(objects.size() == 2);
+    CHECK(resources["8"].toMap()["0"].toList().size() == 2);
+    CHECK(resources["1"].toMap()["0"].toList().size() == 1); // shared face, differing sizes
+    for (qsizetype i = 0; i < objects.size(); ++i) {
+      const auto object = objects[i].toMap();
+      CHECK(!object["1"].toMap().contains("2")); // no composed glyph cache
+      CHECK(object["1"].toMap()["0"].toList().front().toMap()["0"].toInt() == i);
+      const auto model = object["0"].toMap();
+      CHECK(model["0"].toString().endsWith('\r'));
+      const auto runs = model["6"].toMap()["0"].toList();
+      int length = 0;
+      for (const auto& run : runs) {
+        length += run.toMap()["1"].toInt();
+        CHECK(run.toMap()["0"].toMap()["0"].toMap()["5"].toInt() == 0);
+      }
+      CHECK(length == model["0"].toString().size());
+    }
+    const auto path = dir + QString("/modern-text-%1.psd").arg(ppi);
+    write(doc, path, {});
+    const auto inspection = u::inspectPsd(path, std::make_shared<u::PsdJob>());
+    auto imported = u::convertPsd(inspection, u::defaultPsdOptions(inspection), std::make_shared<u::PsdJob>(), {}, false);
+    CHECK(imported.document && imported.document->layers().size() == 2);
+    if (!imported.document) continue;
+    std::atomic_bool cancel = false;
+    const auto plan = u::planPsdExport(u::capturePsdExport(*imported.document, 5), {}, cancel);
+    CHECK(plan);
+    for (const auto& entry : plan.entries)
+      CHECK(!entry.reasons.join(';').contains("not the original font request"));
+  }
+  CHECK(u::psdwrite::TextEngine{}.bytes().isEmpty());
 }
 std::shared_ptr<const u::PsdSource> parse(QString path) {
   auto i = u::inspectPsd(path, std::make_shared<u::PsdJob>());
@@ -182,6 +270,129 @@ void masks(QString dir) {
   p = u::planPsdExport(u::capturePsdExport(d, 89), {}, cancel);
   CHECK(p && p.needsReview &&
         p.entries.front().action == u::PsdExportAction::Pixels);
+}
+void transformedMasks(QString dir) {
+  const std::array<c::AffineTransform, 4> transforms{
+      c::AffineTransform{1.12, 0, 12.35, 0, .91, 7.75},
+      c::AffineTransform{-.9, .35, 35.25, .3, 1.1, -4.5},
+      c::AffineTransform{1, .1, -8.2, .05, 1, 5.1, .003, -.002, 1},
+      c::AffineTransform{1, 0, -9.5, 0, 1, -7.25}};
+  for (size_t n = 0; n < transforms.size(); ++n) {
+    c::Document doc({{48, 40}, 96, c::CompositingSpace::EncodedSRgb});
+    auto layer = raster("Transformed mask", {20, 18}, {180, 80, 40, 255});
+    layer.localToDocument = n == 2 ? c::AffineTransform{} : transforms[n];
+    auto mask = std::make_shared<c::LayerMask>();
+    std::vector<std::uint8_t> bytes(12 * 9);
+    for (size_t i = 0; i < bytes.size(); ++i) bytes[i] = std::uint8_t((i * 61) % 256);
+    mask->coverage = c::SelectionMask::fromR8({12, 9}, bytes, 12);
+    mask->outside = n % 2 ? 255 : 0;
+    mask->enabled = n != 2;
+    mask->localToMask = n == 2 ? transforms[n] : c::AffineTransform{1, .08, -2.4, 0, .95, 1.3};
+    layer.mask = mask;
+    auto effects = std::make_shared<c::LayerEffectStack>();
+    auto& glow = effects->items[size_t(c::LayerEffectType::OuterGlow)];
+    glow.enabled = true; glow.size = 3; glow.blendMode = c::BlendMode::Screen;
+    layer.effects = effects;
+    CHECK(doc.insertLayer(0, layer));
+    std::atomic_bool cancel = false;
+    auto plan = u::planPsdExport(u::capturePsdExport(doc, 91), {}, cancel);
+    CHECK(plan && plan.entries.front().action == u::PsdExportAction::Editable);
+    const auto path = dir + QString("/transformed-mask-%1.psd").arg(n);
+    write(doc, path);
+    auto source = parse(path);
+    if (!source) continue;
+    const auto& record = source->records.front();
+    CHECK(record.mask.present && record.mask.outside == mask->outside);
+    CHECK(bool(record.mask.flags & 2) == !mask->enabled);
+    CHECK(record.tags.contains("lfx2"));
+    auto job = std::make_shared<u::PsdJob>();
+    auto inspection = u::inspectPsd(path, job);
+    auto imported = u::convertPsd(inspection, u::defaultPsdOptions(inspection), job, {}, false);
+    CHECK(imported.document && imported.document->layers().size() == 1);
+    if (!imported.document) continue;
+    const auto& result = imported.document->layers().front();
+    CHECK(result.mask && result.effects);
+    if (!result.mask || !result.effects) continue;
+    CHECK(result.effects->items[size_t(c::LayerEffectType::OuterGlow)].enabled);
+    CHECK(result.effects->items[size_t(c::LayerEffectType::OuterGlow)].blendMode == c::BlendMode::Screen);
+    auto before = std::make_shared<c::LayerMask>(*mask);
+    auto after = std::make_shared<c::LayerMask>(*result.mask);
+    before->enabled = after->enabled = true;
+    const auto invBefore = *layer.localToDocument.inverted();
+    const auto invAfter = *result.localToDocument.inverted();
+    const auto frame = record.mask.bounds.adjusted(-2, -2, 2, 2);
+    for (int y = frame.top(); y <= frame.bottom(); ++y)
+      for (int x = frame.left(); x <= frame.right(); ++x) {
+        const c::Vec2d p{x + .5, y + .5};
+        CHECK(std::abs(c::layerMaskCoverage(before, invBefore.map(p)) -
+                       c::layerMaskCoverage(after, invAfter.map(p))) <= .501F / 255);
+      }
+    CHECK(doc.layer(layer.id)->mask == mask && doc.layer(layer.id)->effects == effects);
+  }
+}
+void editableFallbackText(QString dir) {
+  if (!QFontDatabase::families().contains("Droid Sans Tamil")) {
+    std::cout << "Fallback-face fixture skipped: Droid Sans Tamil is not installed\n";
+    return;
+  }
+  for (const auto& words : {QStringLiteral("Flower"), QString::fromUtf8("fi é தமிழ்\nA🞀")}) {
+    c::Document doc({{360, 180}, 96, c::CompositingSpace::EncodedSRgb});
+    c::TextLayer text;
+    text.utf8 = words.toStdString();
+    text.defaultStyle.font = {"Droid Sans Tamil", "", 700, false};
+    text.defaultStyle.sizePixels = 32;
+    text.defaultStyle.color = {240, 120, 60, 255};
+    auto layer = c::Layer::text("Editable fallback", c::normalizedText(text));
+    layer.localToDocument = {1.1, 0, 8.3, 0, 1.07, 10.4};
+    auto mask = std::make_shared<c::LayerMask>();
+    mask->coverage = c::SelectionMask::rectangle({320, 140}, {3, 5, 290, 120});
+    mask->outside = 255; layer.mask = mask;
+    auto effects = std::make_shared<c::LayerEffectStack>();
+    auto& glow = effects->items[size_t(c::LayerEffectType::OuterGlow)];
+    glow.enabled = true; glow.blendMode = c::BlendMode::Screen; glow.size = 4;
+    layer.effects = effects;
+    CHECK(doc.insertLayer(0, layer));
+    std::atomic_bool cancel = false;
+    auto plan = u::planPsdExport(u::capturePsdExport(doc, 92), {}, cancel);
+    CHECK(plan && plan.entries.front().editable && plan.entries.front().action == u::PsdExportAction::Editable);
+    CHECK(plan.entries.front().reasons.join(';').contains("fallback face"));
+    const auto path = dir + (words == "Flower" ? "/fallback-text.psd" : "/fallback-unicode.psd");
+    write(doc, path);
+    auto source = parse(path);
+    if (!source) continue;
+    const auto& record = source->records.front();
+    CHECK(record.tags.contains("TySh") && record.tags.contains("lfx2") && record.mask.present);
+    u::psd::Reader reader(record.tags["TySh"]);
+    reader.skip(2 + 6 * 8 + 2);
+    const auto descriptor = u::psd::versionedDescriptor(reader);
+    const auto engine = u::psd::engineData(descriptor["EngineData"].toByteArray());
+    const auto runs = engine["EngineDict"].toMap()["StyleRun"].toMap();
+    const auto lengths = runs["RunLengthArray"].toList();
+    int end = 0;
+    QTextBoundaryFinder graphemes(QTextBoundaryFinder::Grapheme, words);
+    for (const auto& length : lengths) {
+      CHECK(length.toInt() > 0);
+      end += length.toInt();
+      if (end < words.size()) {
+        CHECK(!words[end].isLowSurrogate());
+        graphemes.setPosition(end); CHECK(graphemes.isAtBoundary());
+      }
+    }
+    CHECK(end == words.size() + 1);
+    auto job = std::make_shared<u::PsdJob>();
+    auto inspection = u::inspectPsd(path, job);
+    auto imported = u::convertPsd(inspection, u::defaultPsdOptions(inspection), job, {}, false);
+    CHECK(imported.document && imported.document->layers().size() == 1);
+    if (!imported.document) continue;
+    const auto& result = imported.document->layers().front();
+    const auto* editable = std::get_if<c::TextLayer>(&result.payload);
+    CHECK(editable && editable->utf8 == text.utf8 && result.mask && result.effects);
+    if (editable) for (const auto& run : editable->runs) {
+      CHECK(run.style.color == text.defaultStyle.color && run.style.sizePixels == text.defaultStyle.sizePixels);
+      CHECK(run.style.font.weight == text.defaultStyle.font.weight);
+    }
+    CHECK(doc.layer(layer.id)->mask == mask && doc.layer(layer.id)->effects == effects);
+  }
 }
 c::Document editableFixture() {
   c::Document d({{480, 360}, 144});
@@ -794,9 +1005,13 @@ int main(int argc, char **argv) {
   }
   QString dir = argc > 1 ? QString::fromLocal8Bit(argv[1]) : temporary.path();
   QDir().mkpath(dir);
+  engineNumbers();
+  modernText(dir);
   blendV3Psd(dir);
   exact(dir);
   masks(dir);
+  transformedMasks(dir);
+  editableFallbackText(dir);
   editable(dir);
   safety(dir);
   variants(dir);
