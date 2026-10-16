@@ -128,6 +128,10 @@ PreferencesDialog::PreferencesDialog(PreferencesState initial, QWidget* parent)
     collapseLayerSelectionOnEmptyClick_->setObjectName(QStringLiteral("CollapseLayerSelectionOnEmptyClick"));
     i18n::setToolTip(collapseLayerSelectionOnEmptyClick_, i18n::text("preferences.dialog.collapse.multiple.selected.layers.when.clicking.outside.the.canvas"));
     generalLayout->addWidget(collapseLayerSelectionOnEmptyClick_);
+    layerInfoVisible_ = i18n::make<QCheckBox>(i18n::text("preferences.layer.info"), general);
+    layerInfoVisible_->setObjectName(QStringLiteral("ShowLayerInfo"));
+    i18n::setToolTip(layerInfoVisible_, i18n::text("preferences.layer.info.hint"));
+    generalLayout->addWidget(layerInfoVisible_);
     auto* nudgeRow = new QHBoxLayout;
     nudgeRow->addWidget(i18n::make<QLabel>(i18n::text("preferences.dialog.shift.nudge.distance"), general));
     shiftNudgePixels_ = new ToolOptionsNumber(general);
@@ -184,6 +188,9 @@ PreferencesDialog::PreferencesDialog(PreferencesState initial, QWidget* parent)
     connect(layerOutlinesVisible_, &QCheckBox::toggled, this, [this](bool enabled) {
         draft_.layerOutlinesVisible = enabled; preview();
     });
+    connect(layerInfoVisible_, &QCheckBox::toggled, this, [this](bool enabled) {
+        draft_.layerInfoVisible = enabled; preview();
+    });
     connect(collapseLayerSelectionOnEmptyClick_, &QCheckBox::toggled, this, [this](bool enabled) {
         draft_.collapseLayerSelectionOnEmptyClick = enabled; preview();
     });
@@ -208,6 +215,8 @@ void PreferencesDialog::refresh()
     advancedMeasurementReadout_->setChecked(draft_.advancedMeasurementReadout);
     const QSignalBlocker outlineBlocker(layerOutlinesVisible_);
     layerOutlinesVisible_->setChecked(draft_.layerOutlinesVisible);
+    const QSignalBlocker layerInfoBlocker(layerInfoVisible_);
+    layerInfoVisible_->setChecked(draft_.layerInfoVisible);
     const QSignalBlocker collapseBlocker(collapseLayerSelectionOnEmptyClick_);
     collapseLayerSelectionOnEmptyClick_->setChecked(draft_.collapseLayerSelectionOnEmptyClick);
     const QSignalBlocker nudgeBlocker(shiftNudgePixels_);

@@ -783,6 +783,31 @@ void toolHintPositionPreviewsAppliesAndRollsBack()
     CHECK(reopened.findChild<QComboBox*>("ToolHintPosition")->currentIndex()==1);
 }
 
+void layerInfoPreviewsAppliesAndRollsBack()
+{
+    PreferencesState initial;
+    CHECK(initial.layerInfoVisible);
+    PreferencesDialog dialog(initial);
+    auto* checkbox=dialog.findChild<QCheckBox*>("ShowLayerInfo");
+    auto* apply=dialog.findChild<QPushButton*>("PreferencesApply");
+    CHECK(checkbox && apply); if(!checkbox || !apply)return;
+    CHECK(checkbox->isChecked() && checkbox->text()=="Show layer info");
+    CHECK(checkbox->toolTip().contains("blend modes") && checkbox->toolTip().contains("effect icons"));
+    dialog.show(); QCoreApplication::processEvents();
+    CHECK(checkbox->isVisible() && checkbox->parentWidget()->rect().contains(checkbox->geometry()));
+    const auto review = qEnvironmentVariable("IMAGEEDITOR_LAYER_INFO_PREFERENCES_REVIEW");
+    if (!review.isEmpty()) CHECK(dialog.grab().save(review));
+    auto displayed=initial, saved=initial;
+    dialog.onPreview=[&](const PreferencesState& state){displayed=state;};
+    dialog.onApply=[&](const PreferencesState& state){saved=state;return true;};
+    checkbox->click(); CHECK(!displayed.layerInfoVisible && saved.layerInfoVisible);
+    apply->click(); CHECK(!saved.layerInfoVisible);
+    checkbox->click(); CHECK(displayed.layerInfoVisible);
+    dialog.reject(); CHECK(displayed==saved);
+    PreferencesDialog reopened(saved);
+    CHECK(!reopened.findChild<QCheckBox*>("ShowLayerInfo")->isChecked());
+}
+
 void measurementReadoutFailedApplyKeepsTheLastSuccessfulSnapshot()
 {
     const PreferencesState initial;
@@ -958,6 +983,7 @@ int main(int argc, char* argv[])
     unchangedCancelDoesNotPublishARollback();
     measurementReadoutSharesPreviewApplyAndRollbackWithoutDependingOnTheme();
     toolHintPositionPreviewsAppliesAndRollsBack();
+    layerInfoPreviewsAppliesAndRollsBack();
     measurementReadoutFailedApplyKeepsTheLastSuccessfulSnapshot();
     propertiesScrollbarsReusePreferencesStyling(application);
     allScrollAreasUseSharedModernStyling(application);

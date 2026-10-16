@@ -24,6 +24,7 @@ struct PreferencesState {
     int toolHintPosition = 1; // Left, Center (default), Disabled; UI-only preference.
     QString language = QStringLiteral("system");
     platform::PerformanceSettings performance {};
+    bool layerInfoVisible = true;
     bool operator==(const PreferencesState&) const = default;
 };
 class PreferencesDialog final : public QDialog {
@@ -47,6 +48,7 @@ private:
     QComboBox* language_ {};
     QCheckBox* advancedMeasurementReadout_ {};
     QCheckBox* layerOutlinesVisible_ {};
+    QCheckBox* layerInfoVisible_ {};
     QCheckBox* collapseLayerSelectionOnEmptyClick_ {};
     QDoubleSpinBox* shiftNudgePixels_ {};
     QComboBox* toolHintPosition_ {};

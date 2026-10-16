@@ -10721,4 +10721,9 @@ Chanfro: puxe cantos para dentro; Alt muda também o oposto. Laterais redimensio
     <message id="graphics.startup.title"><source>Initializing graphics…</source><translation type="unfinished" /></message>
     <message id="graphics.startup.detail"><source>Preparing shaders. This may take a few seconds.</source><translation type="unfinished" /></message>
   </context>
+  <context>
+    <name>LayerInfo</name>
+    <message id="preferences.layer.info"><source>Show layer info</source><translation type="unfinished" /></message>
+    <message id="preferences.layer.info.hint"><source>Show non-Normal blend modes and active effect icons on layer rows.</source><translation type="unfinished" /></message>
+  </context>
 </TS>

@@ -7140,4 +7140,9 @@ Chamfer: pull corners inward; Alt also changes the opposite corner. Side handles
     <message id="graphics.startup.title"><source>Initializing graphics…</source></message>
     <message id="graphics.startup.detail"><source>Preparing shaders. This may take a few seconds.</source></message>
   </context>
+  <context>
+    <name>LayerInfo</name>
+    <message id="preferences.layer.info"><source>Show layer info</source></message>
+    <message id="preferences.layer.info.hint"><source>Show non-Normal blend modes and active effect icons on layer rows.</source></message>
+  </context>
 </TS>

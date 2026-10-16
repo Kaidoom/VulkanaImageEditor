@@ -25,6 +25,7 @@ public:
     static constexpr int ClippingBaseRole = Qt::UserRole + 9;
     // Bit per enabled LayerEffectType; presentation only, never a thumbnail bake.
     static constexpr int ActiveEffectsRole = Qt::UserRole + 10;
+    static constexpr int BlendModeRole = Qt::UserRole + 11;
     explicit LayerListModel(QObject* parent = nullptr);
 
     void setSession(core::EditorSession* session);

@@ -11,6 +11,7 @@
 #include <QDragMoveEvent>
 #include <QDropEvent>
 #include <QEvent>
+#include <QFontInfo>
 #include <QHelpEvent>
 #include <QIcon>
 #include <QKeyEvent>
@@ -38,7 +39,31 @@ namespace {
             return editor && editor->property("layerId") == index.data(Qt::UserRole);
         }
         unsigned visibleEffects(const QModelIndex& index) const {
-            return renaming(index) ? 0 : index.data(LayerListModel::ActiveEffectsRole).toUInt();
+            const auto* view = static_cast<const LayerListView*>(parent());
+            return !view->layerInfoVisible() || renaming(index) ? 0 : index.data(LayerListModel::ActiveEffectsRole).toUInt();
+        }
+        QFont infoFont(const QStyleOptionViewItem& option) const {
+            auto font = option.font;
+            if (font.pointSizeF() > 0) font.setPointSizeF(std::max(7.0, font.pointSizeF() - 2));
+            else font.setPixelSize(std::max(9, font.pixelSize() - 2));
+            font.setBold(false);
+            // Keep measurement and painting identical on widget and image
+            // paint devices, which can have different logical DPI defaults.
+            font.setPixelSize(QFontInfo(font).pixelSize());
+            return font;
+        }
+        QRect blendRect(const QStyleOptionViewItem& option, const QModelIndex& index) const {
+            const auto* view = static_cast<const LayerListView*>(parent());
+            const auto text = view->blendModeIndicatorText(index);
+            if (text.isEmpty()) return {};
+            const QFontMetrics metrics(infoFont(option));
+            const int right = option.rect.right() - 10;
+            const int available = right - decorationRect(option,index).right() - 8;
+            if (available < metrics.horizontalAdvance(QStringLiteral("…"))) return {};
+            // Allow for fractional glyph advances before integer rounding;
+            // otherwise elidedText can shorten a label that has room to fit.
+            const int width = std::min(available, metrics.horizontalAdvance(text) + 2);
+            return {right - width + 1, option.rect.top() + 5, width, metrics.height()};
         }
         QRect effectRect(const QRect& row, const QRect& thumbnail, unsigned effects, core::LayerEffectType type) const {
             const auto i = unsigned(type);
@@ -64,6 +89,12 @@ namespace {
         bool helpEvent(QHelpEvent* event,QAbstractItemView* view,
             const QStyleOptionViewItem& option,const QModelIndex& index) override {
             if (event->type() == QEvent::ToolTip) {
+                const auto blend = blendRect(option,index);
+                if (blend.contains(event->pos())) {
+                    const auto* layers = static_cast<const LayerListView*>(parent());
+                    QToolTip::showText(event->globalPos(),layers->blendModeIndicatorText(index),view->viewport(),blend);
+                    return true;
+                }
                 const auto effects = visibleEffects(index);
                 const auto thumbnail = decorationRect(option,index);
                 for (std::size_t i=0; i<core::layerEffectCount; ++i) {
@@ -170,6 +201,16 @@ namespace {
                 const auto rect = effectRect(option.rect,thumbnail,effects,core::LayerEffectType(i));
                 if (!rect.isEmpty()) toolGlyph(glyphs[i],ink).paint(painter,rect);
             }
+            // Header and footer are passive overlays; neither consumes rename
+            // space or changes the row's selection/drag/thumbnail hit targets.
+            const auto blend = blendRect(option,index);
+            if (!blend.isEmpty()) {
+                painter->setFont(infoFont(option));
+                painter->setPen(ink);
+                const auto* view = static_cast<const LayerListView*>(parent());
+                painter->drawText(blend,Qt::AlignRight | Qt::AlignTop,
+                    painter->fontMetrics().elidedText(view->blendModeIndicatorText(index),Qt::ElideRight,blend.width()));
+            }
             painter->restore();
             // Primary vs additional selected items remains readable without
             // an enclosing border; label bars on the right keep their meaning.
@@ -186,6 +227,39 @@ LayerListView::LayerListView(QWidget* parent)
     : QListView(parent)
 {
     setItemDelegate(new LayerRowDelegate(this));
+    refreshBlendModeNames();
+    connect(&i18n::Localization::instance(),&i18n::Localization::languageChanged,
+        this,&LayerListView::refreshBlendModeNames);
+}
+
+void LayerListView::refreshBlendModeNames()
+{
+    for (const auto mode : core::allBlendModes)
+        blendModeNames_[unsigned(mode)] = i18n::blendName(mode);
+    viewport()->update();
+}
+
+void LayerListView::setLayerInfoVisible(bool visible)
+{
+    if (layerInfoVisible_ == visible) return;
+    layerInfoVisible_ = visible;
+    QToolTip::hideText();
+    viewport()->update();
+}
+
+QString LayerListView::blendModeIndicatorText(const QModelIndex& index) const
+{
+    if (!layerInfoVisible_ || static_cast<const LayerRowDelegate*>(itemDelegate())->renaming(index)) return {};
+    const auto data = index.data(LayerListModel::BlendModeRole);
+    if (!data.isValid()) return {};
+    const auto mode = core::BlendMode(data.toUInt());
+    return mode != core::BlendMode::Normal && core::isValidBlendMode(mode) ? blendModeNames_[unsigned(mode)] : QString{};
+}
+
+QRect LayerListView::blendModeIndicatorRect(const QModelIndex& index) const
+{
+    QStyleOptionViewItem option; initViewItemOption(&option); option.rect = visualRect(index);
+    return static_cast<const LayerRowDelegate*>(itemDelegate())->blendRect(option,index);
 }
 
 QRect LayerListView::thumbnailRect(const QModelIndex& index,bool mask) const

@@ -899,6 +899,8 @@ MainWindow::MainWindow(
             QStringLiteral("preferences/canvas/selectedLayerOutlines"), true).toBool());
         collapseLayerSelectionOnEmptyClick_ = settings.value(
             QStringLiteral("preferences/canvas/collapseLayerSelectionOnEmptyClick"), true).toBool();
+        static_cast<LayerListView*>(layerList_)->setLayerInfoVisible(settings.value(
+            QStringLiteral("preferences/ui/showLayerInfo"), true).toBool());
         shiftNudgePixels_ = std::clamp(settings.value(
             QStringLiteral("preferences/canvas/shiftNudgePixels"), 10).toInt(), 1, 1000);
         toolHintPosition_ = std::clamp(settings.value(
@@ -1698,6 +1700,7 @@ void MainWindow::closeEvent(QCloseEvent* event)
         settings.setValue(QStringLiteral("preferences/canvas/collapseLayerSelectionOnEmptyClick"), collapseLayerSelectionOnEmptyClick_);
         settings.setValue(QStringLiteral("preferences/canvas/shiftNudgePixels"), shiftNudgePixels_);
         settings.setValue(QStringLiteral("preferences/ui/toolHintPosition"), toolHintPosition_);
+        settings.setValue(QStringLiteral("preferences/ui/showLayerInfo"), static_cast<LayerListView*>(layerList_)->layerInfoVisible());
         settings.setValue(QStringLiteral("window/geometry"), saveGeometry());
         if (persistPanelLayout_) {
             settings.setValue(QStringLiteral("view/rulers/horizontalFarEdge"), workspace_->rulerFarEdge(Qt::Horizontal));
@@ -1953,7 +1956,8 @@ void MainWindow::showPreferences()
     QSettings preferences;
     PreferencesDialog dialog(PreferencesState {currentThemeSettings(), canvasWindow_->advancedMeasurementReadout(),
         canvasWindow_->layerOutlinesVisible(), collapseLayerSelectionOnEmptyClick_, shiftNudgePixels_, shortcuts_, toolHintPosition_,
-        i18n::Localization::instance().preference(),platform::loadPerformanceSettings(preferences)}, &presenter);
+        i18n::Localization::instance().preference(),platform::loadPerformanceSettings(preferences),
+        static_cast<LayerListView*>(layerList_)->layerInfoVisible()}, &presenter);
     dialog.performancePanel()->setGraphicsDevices(canvasWindow_->graphicsDevices());
     dialog.performancePanel()->readUsage=[this]{return performanceUsage();};
     dialog.performancePanel()->onClearCaches=[this]{clearInactiveCaches();};
@@ -1966,6 +1970,7 @@ void MainWindow::showPreferences()
         canvasWindow_->setAdvancedMeasurementReadout(value.advancedMeasurementReadout);
         layerOutlinesAction_->setChecked(value.layerOutlinesVisible);
         collapseLayerSelectionOnEmptyClick_ = value.collapseLayerSelectionOnEmptyClick;
+        static_cast<LayerListView*>(layerList_)->setLayerInfoVisible(value.layerInfoVisible);
         shiftNudgePixels_ = value.shiftNudgePixels;
         toolHintPosition_ = value.toolHintPosition;
         updateStatusNotification();
@@ -1979,10 +1984,13 @@ void MainWindow::showPreferences()
         settings.setValue(QStringLiteral("preferences/canvas/collapseLayerSelectionOnEmptyClick"), value.collapseLayerSelectionOnEmptyClick);
         settings.setValue(QStringLiteral("preferences/canvas/shiftNudgePixels"), value.shiftNudgePixels);
         settings.setValue(QStringLiteral("preferences/ui/toolHintPosition"), value.toolHintPosition);
+        settings.setValue(QStringLiteral("preferences/ui/showLayerInfo"), value.layerInfoVisible);
         if(!saveShortcutBindings(settings,value.shortcuts)||!saveThemeSettings(settings,value.theme)
             ||!platform::savePerformanceSettings(settings,value.performance))return false;
-        for(auto* widget:QApplication::topLevelWidgets())if(auto* editor=dynamic_cast<MainWindow*>(widget))
+        for(auto* widget:QApplication::topLevelWidgets())if(auto* editor=dynamic_cast<MainWindow*>(widget)) {
             editor->applyPerformanceMemory(value.performance);
+            static_cast<LayerListView*>(editor->layerList_)->setLayerInfoVisible(value.layerInfoVisible);
+        }
         return true;
     };
     const QScopedValueRollback active(workspaceDialog_, &presenter);

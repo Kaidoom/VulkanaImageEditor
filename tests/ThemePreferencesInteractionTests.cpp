@@ -2,6 +2,7 @@
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/PreferencesDialog.hpp"
+#include "imageeditor/ui/LayerListView.hpp"
 #include "imageeditor/ui/Theme.hpp"
 
 #include <QAction>
@@ -52,11 +53,11 @@ void settle()
     QCoreApplication::sendPostedEvents();
     QCoreApplication::processEvents();
 }
-template<class Predicate> bool waitUntil(Predicate predicate)
+template<class Predicate> bool waitUntil(Predicate predicate, int timeout = 5000)
 {
     QElapsedTimer timer;
     timer.start();
-    while (!predicate() && timer.elapsed() < 5000) QTest::qWait(10);
+    while (!predicate() && timer.elapsed() < timeout) QTest::qWait(10);
     return predicate();
 }
 core::Rgba8 rgba(QColor color)
@@ -133,6 +134,7 @@ void preferencesUseTheWorkspaceModalPlaneAndOnlyInvalidatePresentation(QVulkanIn
     window.resize(1440, 920);
     window.show();
     window.activateWindow();
+    CHECK(waitUntil([&] { return window.startupGraphicsReady(); }, 30000));
     settle();
     render::CanvasWindow* canvas = nullptr;
     for (auto* candidate : QGuiApplication::allWindows()) {
@@ -229,6 +231,8 @@ void preferencesUseTheWorkspaceModalPlaneAndOnlyInvalidatePresentation(QVulkanIn
     CHECK(preferences && preferences->isEnabled());
     if (!preferences || !preferences->isEnabled()) { window.close(); return; }
     auto* preferencesAction = const_cast<QAction*>(preferences);
+    auto* layerRows = dynamic_cast<ui::LayerListView*>(window.findChild<QListView*>("LayerList"));
+    CHECK(layerRows && layerRows->layerInfoVisible());
 
     // An unchanged Cancel must not repaint/repolish the entire application.
     StyleChangeCounter styleChanges;
@@ -255,11 +259,14 @@ void preferencesUseTheWorkspaceModalPlaneAndOnlyInvalidatePresentation(QVulkanIn
         auto* dialog=visiblePreferences(window); CHECK(dialog); if(!dialog)return;
         qApp->installEventFilter(&styleChanges);
         dialog->findChild<QCheckBox*>("AdvancedMeasurementReadout")->click();
+        dialog->findChild<QCheckBox*>("ShowLayerInfo")->click();
+        CHECK(layerRows && !layerRows->layerInfoVisible());
         dialog->reject();
     });
     preferencesAction->trigger();
     qApp->removeEventFilter(&styleChanges);
     CHECK(styleChanges.changes==0);
+    CHECK(layerRows && layerRows->layerInfoVisible());
     unchanged();
 
     ui::ThemeSettings applied;
@@ -343,13 +350,18 @@ void preferencesUseTheWorkspaceModalPlaneAndOnlyInvalidatePresentation(QVulkanIn
         renderedWithoutUploads();
         optionalScreenshot(window, QStringLiteral("-custom"));
         applied = dialog->draft().theme;
+        dialog->findChild<QCheckBox*>("ShowLayerInfo")->click();
+        CHECK(layerRows && !layerRows->layerInfoVisible());
         apply->click();
         CHECK(dialog->isVisible());
         store.sync();
         CHECK(ui::loadThemeSettings(store) == applied);
+        CHECK(!store.value("preferences/ui/showLayerInfo",true).toBool());
         unchanged();
 
         choosePreset(*preset, ui::ThemePreset::Light);
+        dialog->findChild<QCheckBox*>("ShowLayerInfo")->click();
+        CHECK(layerRows && layerRows->layerInfoVisible());
         renderedWithoutUploads();
         cancel->click();
     });
@@ -357,6 +369,7 @@ void preferencesUseTheWorkspaceModalPlaneAndOnlyInvalidatePresentation(QVulkanIn
     CHECK(opened);
     settle();
     CHECK(ui::currentThemeSettings() == applied);
+    CHECK(layerRows && !layerRows->layerInfoVisible());
     sceneUsesTheme();
     renderedWithoutUploads();
 
@@ -369,6 +382,7 @@ void preferencesUseTheWorkspaceModalPlaneAndOnlyInvalidatePresentation(QVulkanIn
         if (!dialog) return;
         reopened = true;
         CHECK(dialog->draft().theme == applied);
+        CHECK(!dialog->findChild<QCheckBox*>("ShowLayerInfo")->isChecked());
         auto* preset = dialog->findChild<QComboBox*>(QStringLiteral("ThemePresetCombo"));
         CHECK(preset);
         if (preset) choosePreset(*preset, ui::ThemePreset::Dark);
@@ -391,6 +405,11 @@ void preferencesUseTheWorkspaceModalPlaneAndOnlyInvalidatePresentation(QVulkanIn
               << ", swapchain recreations=" << canvas->rendererStats().swapchainGeneration - stats.swapchainGeneration << '\n';
     window.close();
     settle();
+    ui::MainWindow restored(nullptr, true, false);
+    restored.setUnsavedPromptEnabled(false);
+    auto* restoredRows=dynamic_cast<ui::LayerListView*>(restored.findChild<QListView*>("LayerList"));
+    CHECK(restoredRows && !restoredRows->layerInfoVisible());
+    restored.close();
 }
 }
 

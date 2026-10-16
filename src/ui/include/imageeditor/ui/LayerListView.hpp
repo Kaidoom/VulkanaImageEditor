@@ -26,6 +26,10 @@ public:
     std::function<void(int)> onAlphaSelectionRequested;
     [[nodiscard]] QRect thumbnailRect(const QModelIndex&,bool mask) const;
     [[nodiscard]] QRect effectIndicatorRect(const QModelIndex&, core::LayerEffectType) const;
+    [[nodiscard]] QRect blendModeIndicatorRect(const QModelIndex&) const;
+    [[nodiscard]] QString blendModeIndicatorText(const QModelIndex&) const;
+    void setLayerInfoVisible(bool);
+    [[nodiscard]] bool layerInfoVisible() const noexcept { return layerInfoVisible_; }
     std::function<void()> onEmptySpacePressed;
     // MainWindow owns the cross-native-surface keyboard bridge and global
     // click-away completion; the row owns this ordinary Qt text editor.
@@ -59,7 +63,10 @@ private:
     bool beginVisibilityGesture(QMouseEvent* event);
     void cancelVisibilityGesture() noexcept;
     void updateRenameGeometry();
+    void refreshBlendModeNames();
 
+    bool layerInfoVisible_ {true};
+    std::array<QString, core::allBlendModes.size()> blendModeNames_;
     bool visibilityGestureActive_ { false };
     bool disclosureGesture_ {false};
     bool alphaSelectionGesture_ {false};

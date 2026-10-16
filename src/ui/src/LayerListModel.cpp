@@ -291,6 +291,8 @@ QVariant LayerListModel::data(const QModelIndex& index, int role) const
         return selectedAncestorFolders_.contains(*id);
     case HasMaskRole:
         return l&&bool(l->mask);
+    case BlendModeRole:
+        return l ? QVariant(unsigned(l->blendMode)) : QVariant{};
     case ActiveEffectsRole: {
         unsigned effects = 0;
         if (l && l->effects)

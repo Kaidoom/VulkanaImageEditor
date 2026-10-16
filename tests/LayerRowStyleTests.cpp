@@ -3,6 +3,7 @@
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/LocalizedNames.hpp"
 #include "imageeditor/core/EffectCommands.hpp"
+#include "imageeditor/core/LayerCommands.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/ToolIcons.hpp"
 
@@ -12,6 +13,7 @@
 #include <QItemSelectionModel>
 #include <QLineEdit>
 #include <QHelpEvent>
+#include <QHoverEvent>
 #include <QToolTip>
 #include <QPainter>
 #include <QStandardItemModel>
@@ -43,6 +45,9 @@ void settle()
 {
     QCoreApplication::sendPostedEvents();
     QCoreApplication::processEvents();
+    // Native XCB/Wayland exposure, hover, and language-change events arrive
+    // asynchronously, unlike the offscreen widget backend.
+    QTest::qWait(10);
 }
 
 int colorDistance(QColor a, QColor b)
@@ -114,6 +119,7 @@ struct Fixture {
         view.selectionModel()->select(model.index(1, 0), QItemSelectionModel::Select);
         view.selectionModel()->select(model.index(2, 0), QItemSelectionModel::Select);
         view.show();
+        CHECK(QTest::qWaitForWindowExposed(&view));
         settle();
         clearHover();
     }
@@ -123,13 +129,18 @@ struct Fixture {
 
     void hover(int row)
     {
-        QTest::mouseMove(view.viewport(), rowRect(row).center());
+        const auto pos = rowRect(row).center();
+        // Test the widget's hover styling without depending on whether the
+        // compositor permits synthetic global cursor warps (e.g. XWayland).
+        QHoverEvent event(QEvent::HoverMove,pos,view.viewport()->mapToGlobal(pos),QPointF(-1,-1));
+        QCoreApplication::sendEvent(view.viewport(),&event);
         settle();
     }
 
     void clearHover()
     {
-        QTest::mouseMove(view.viewport(), QPoint(view.viewport()->width() / 2, view.viewport()->height() - 2));
+        QEvent event(QEvent::HoverLeave);
+        QCoreApplication::sendEvent(view.viewport(),&event);
         settle();
     }
 
@@ -379,6 +390,9 @@ void showEffectReview(Fixture& fixture)
         fixture.model.item(row)->setData(row == 0 ? 255 : row == 1 ? 35 : row == 2 ? 128 : 0,
             ui::LayerListModel::ActiveEffectsRole);
     fixture.model.item(3)->setText("No effects");
+    fixture.model.item(0)->setData(unsigned(core::BlendMode::Multiply),ui::LayerListModel::BlendModeRole);
+    fixture.model.item(1)->setData(unsigned(core::BlendMode::LinearDodge),ui::LayerListModel::BlendModeRole);
+    fixture.model.item(2)->setData(unsigned(core::BlendMode::Screen),ui::LayerListModel::BlendModeRole);
     fixture.clearHover();
 }
 
@@ -401,13 +415,117 @@ void effectFootersRemainSeparateAtNarrowWidths(Fixture& fixture)
     }
     fixture.model.item(0)->setData(false,ui::LayerListModel::HasMaskRole);
 }
+
+void blendLabelsFollowHistoryRenameAndLayerInfoPreference()
+{
+    core::EditorSession session;
+    auto document = std::make_unique<core::Document>(core::CanvasSpec{.extent={32,32}});
+    auto layer = core::Layer::shape("A long editable layer name",core::ShapeLayer{});
+    const auto id = layer.id;
+    CHECK(document->insertLayer(0,std::move(layer)));
+    session.replaceDocument(std::move(document));
+    ui::LayerListModel model; model.setSession(&session);
+    ui::LayerListView view; view.setObjectName("LayerList"); view.setModel(&model);
+    view.resize(368,170); view.show(); settle();
+    const auto index = model.index(0);
+    CHECK(view.layerInfoVisible());
+    CHECK(index.data(ui::LayerListModel::BlendModeRole).toUInt() == unsigned(core::BlendMode::Normal));
+    CHECK(view.blendModeIndicatorText(index).isEmpty() && view.blendModeIndicatorRect(index).isEmpty());
+    const auto row = view.visualRect(index), eye = view.visibilityIndicatorRect(index);
+    const auto thumbnail = view.thumbnailRect(index,false);
+    CHECK(view.beginRename(id)); settle();
+    const auto editor = view.renameEditor()->geometry();
+    view.finishRename(false);
+    CHECK(session.execute(std::make_unique<core::SetLayerBlendModeCommand>(id,core::BlendMode::LinearDodge)));
+    model.refresh(); settle();
+    CHECK(view.blendModeIndicatorText(index) == ui::i18n::blendName(core::BlendMode::LinearDodge));
+    const auto label = view.blendModeIndicatorRect(index);
+    CHECK(!label.isEmpty() && row.contains(label));
+    CHECK(label.right() == row.right()-10 && label.top() == row.top()+5);
+    CHECK(!label.intersects(thumbnail) && !label.intersects(eye));
+    CHECK(view.visualRect(index) == row);
+    QHelpEvent hover(QEvent::ToolTip,label.center(),view.viewport()->mapToGlobal(label.center()));
+    QCoreApplication::sendEvent(view.viewport(),&hover);
+    CHECK(QToolTip::text() == view.blendModeIndicatorText(index));
+    QToolTip::hideText();
+    int selected = -1;
+    view.onRowSelectionRequested = [&](int r,Qt::KeyboardModifiers) { selected=r; };
+    QTest::mouseClick(view.viewport(),Qt::LeftButton,{},label.center());
+    CHECK(selected == 0);
+    CHECK(view.beginRename(id)); settle();
+    CHECK(view.renameEditor()->geometry() == editor && view.blendModeIndicatorRect(index).isEmpty());
+    model.refresh(); settle();
+    CHECK(view.renameEditor() && view.blendModeIndicatorText(index).isEmpty());
+    view.finishRename(false);
+    CHECK(!view.blendModeIndicatorRect(index).isEmpty());
+    CHECK(session.undo()); model.refresh(); settle();
+    CHECK(view.blendModeIndicatorRect(index).isEmpty());
+    CHECK(session.redo()); model.refresh(); settle();
+    CHECK(!view.blendModeIndicatorRect(index).isEmpty());
+    auto effects = std::make_shared<core::LayerEffectStack>();
+    effects->items[0].enabled = true;
+    CHECK(session.execute(std::make_unique<core::SetLayerEffectsCommand>(id,nullptr,effects)));
+    model.refresh(); settle();
+    const auto content = session.document()->contentState();
+    const auto history = session.history().undoDepth();
+    view.setLayerInfoVisible(false); settle();
+    CHECK(view.blendModeIndicatorRect(index).isEmpty() && view.blendModeIndicatorText(index).isEmpty());
+    CHECK(view.effectIndicatorRect(index,core::LayerEffectType::Stroke).isEmpty());
+    view.setLayerInfoVisible(true); settle();
+    CHECK(!view.blendModeIndicatorRect(index).isEmpty());
+    CHECK(!view.effectIndicatorRect(index,core::LayerEffectType::Stroke).isEmpty());
+    CHECK(view.visualRect(index) == row && view.thumbnailRect(index,false) == thumbnail);
+    CHECK(session.document()->contentState() == content && session.history().undoDepth() == history);
+    // A different tab/session keeps the view preference but reads its own mode.
+    core::EditorSession empty;
+    view.setLayerInfoVisible(false);
+    model.setSession(&empty); model.setSession(&session); settle();
+    CHECK(!view.layerInfoVisible() && view.blendModeIndicatorRect(model.index(0)).isEmpty());
+    view.setLayerInfoVisible(true);
+    CHECK(!view.blendModeIndicatorRect(model.index(0)).isEmpty());
+}
+
+void blendLabelsFitAndRetranslate(Fixture& fixture)
+{
+    auto& language = ui::i18n::Localization::instance();
+    auto* item = fixture.model.item(0);
+    item->setData(unsigned(core::BlendMode::LinearDodge),ui::LayerListModel::BlendModeRole);
+    item->setData(true,ui::LayerListModel::HasMaskRole);
+    const auto index = fixture.model.index(0,0);
+    for (const auto* locale : {"en","fr","ar"}) {
+        CHECK(language.setLanguage(QString::fromLatin1(locale))); settle();
+        CHECK(fixture.view.blendModeIndicatorText(index) == ui::i18n::blendName(core::BlendMode::LinearDodge));
+        for (int width : {228,270,368}) {
+            fixture.view.resize(width,342); settle();
+            const auto label = fixture.view.blendModeIndicatorRect(index);
+            CHECK(!label.isEmpty() && fixture.rowRect(0).contains(label));
+            CHECK(!label.intersects(fixture.view.thumbnailRect(index,true)));
+            CHECK(!label.intersects(fixture.view.effectIndicatorRect(index,core::LayerEffectType::Stroke)));
+            const auto visible = fixture.render();
+            fixture.view.setLayerInfoVisible(false);
+            const auto hidden = fixture.render();
+            CHECK(visible.copy(label) != hidden.copy(label));
+            fixture.view.setLayerInfoVisible(true);
+        }
+    }
+    CHECK(language.setLanguage("en")); settle();
+    item->setData(unsigned(core::BlendMode::Normal),ui::LayerListModel::BlendModeRole);
+    CHECK(fixture.view.blendModeIndicatorRect(index).isEmpty());
+    item->setData(999,ui::LayerListModel::BlendModeRole);
+    CHECK(fixture.view.blendModeIndicatorText(index).isEmpty());
+    item->setData({},ui::LayerListModel::BlendModeRole);
+    item->setData(false,ui::LayerListModel::HasMaskRole);
+}
 } // namespace
 
 int main(int argc, char** argv)
 {
     QApplication application(argc, argv);
+    ui::i18n::Localization::instance().initialize();
+    ui::i18n::Localization::instance().setLanguage("en");
     ui::applyEditorTheme(application);
     enabledEffectsFollowHistoryAndHideDuringRename();
+    blendLabelsFollowHistoryRenameAndLayerInfoPreference();
     std::vector<QImage> panels;
     for (const auto preset : {ui::ThemePreset::Dark, ui::ThemePreset::Light, ui::ThemePreset::Custom}) {
         ui::ThemeSettings settings;
@@ -426,6 +544,7 @@ int main(int argc, char** argv)
         if (preset == ui::ThemePreset::Custom)
             layerSelectionIsIndependentOfOtherSelectionColors(application, fixture, settings);
         effectFootersRemainSeparateAtNarrowWidths(fixture);
+        blendLabelsFitAndRetranslate(fixture);
         fixture.hover(0);
         showEffectReview(fixture);
         panels.push_back(fixture.render());
