@@ -42,6 +42,7 @@ add_library(imageeditor_ui STATIC
     src/LayerMaskClipboard.cpp
     src/LayerListModel.cpp
     src/LayerListView.cpp
+    src/LayerDrag.cpp
     src/MainWindow.cpp
     src/MemoryStatusLabel.cpp
     src/MainWindowCrop.cpp

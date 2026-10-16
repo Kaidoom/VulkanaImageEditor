@@ -1418,13 +1418,14 @@ Alt+클릭으로 새 원본 지점을 지정합니다.</translation>
     <message id="color.selector.reset.black.white">
       <source>Reset to Black and White</source>
       <extracomment>Tools-panel color reset button and configurable shortcut command.</extracomment>
-      <translation type="unfinished" />
+      <translation>흑백으로 초기화</translation>
     </message>
     <message id="color.selector.reset.black.white.hint">
       <source>Reset colors ({{ResetColorsAction}})
 Set primary to black and secondary to white, with primary active.</source>
       <extracomment>Tools-panel button tooltip. Preserve the configurable shortcut token.</extracomment>
-      <translation type="unfinished" />
+      <translation>색상 초기화 ({{ResetColorsAction}})
+기본색을 검정, 보조색을 흰색으로 설정하고 기본색을 활성화합니다.</translation>
     </message>
     <message id="color.selector.switch.active.color.x">
       <source>Switch active color (X)</source>
@@ -1469,22 +1470,22 @@ RGBA에는 추출한 알파도 포함됩니다.</translation>
     <message id="effects.panel.pixel.alpha.shapes.effects">
       <source>Pixel Alpha Shapes Effects</source>
       <extracomment>Layer-wide advanced blending option. Pixel alpha means the original pixels' transparency, not layer opacity or Fill.</extracomment>
-      <translation type="unfinished" />
+      <translation>픽셀 알파로 효과 모양 결정</translation>
     </message>
     <message id="effects.panel.pixel.alpha.shapes.effects.hint">
       <source>Use the original pixel transparency to shape this layer's effects. Turn off to let only the mask shape effects, when applied before rendering. Pixel content and opacity are unchanged.</source>
       <extracomment>Tooltip for a layer-wide effects geometry option. The original pixels remain transparent even when their alpha no longer shapes effects.</extracomment>
-      <translation type="unfinished" />
+      <translation>원본 픽셀의 투명도로 레이어 효과의 모양을 결정합니다. 끄면 렌더링 전에 적용되는 마스크만 효과 모양을 결정합니다. 픽셀 내용과 불투명도는 바뀌지 않습니다.</translation>
     </message>
     <message id="effects.panel.mask.effects.after.rendering">
       <source>Mask Effects After Rendering</source>
       <extracomment>Layer-wide advanced blending option. When enabled, the layer mask clips already-rendered effects instead of creating their boundaries.</extracomment>
-      <translation type="unfinished" />
+      <translation>렌더링 후 효과에 마스크 적용</translation>
     </message>
     <message id="effects.panel.mask.effects.after.rendering.hint">
       <source>Apply the layer mask after rendering to hide both pixels and effects. Turn off to let the mask shape effect boundaries. The mask hides the layer's pixels in either mode.</source>
       <extracomment>Tooltip for applying the layer mask after effects versus including the mask in effects geometry.</extracomment>
-      <translation type="unfinished" />
+      <translation>렌더링 후 레이어 마스크를 적용하여 픽셀과 효과를 모두 가립니다. 끄면 마스크가 효과 경계를 결정합니다. 두 모드 모두 마스크로 레이어 픽셀을 가립니다.</translation>
     </message>
     <message id="effects.panel.reset">
       <source>Reset</source>
@@ -10689,74 +10690,74 @@ Escape · 전체 자르기 세션 취소
     <name>LayerMaskClipboard</name>
     <message id="layer.mask.copy">
       <source>Copy layer mask</source>
-      <translation type="unfinished" />
+      <translation>레이어 마스크 복사</translation>
     </message>
     <message id="layer.mask.paste">
       <source>Paste layer mask</source>
-      <translation type="unfinished" />
+      <translation>레이어 마스크 붙여넣기</translation>
     </message>
     <message id="layer.mask.paste.hint">
       <source>Replace masks on the selected layers, keeping the copied mask's canvas position. Undo restores the previous masks.</source>
-      <translation type="unfinished" />
+      <translation>복사한 마스크의 캔버스 위치를 유지하며 선택한 레이어의 마스크를 바꿉니다. 실행 취소하면 이전 마스크가 복원됩니다.</translation>
     </message>
     <message id="layer.mask.copy.done">
       <source>Layer mask copied.</source>
-      <translation type="unfinished" />
+      <translation>레이어 마스크를 복사했습니다.</translation>
     </message>
     <message id="layer.mask.paste.failed">
       <source>The layer mask could not be pasted at its original position.</source>
-      <translation type="unfinished" />
+      <translation>레이어 마스크를 원래 위치에 붙여넣을 수 없습니다.</translation>
     </message>
   </context>
   <context>
     <name>LayerOpacity</name>
     <message id="layer.opacity.layer.prefix">
       <source>Layer opacity: </source>
-      <translation type="unfinished" />
+      <translation>레이어 불투명도: </translation>
     </message>
     <message id="layer.opacity.pixel.prefix">
       <source>Pixel opacity: </source>
-      <translation type="unfinished" />
+      <translation>픽셀 불투명도: </translation>
     </message>
     <message id="layer.opacity.pixel">
       <source>Pixel opacity</source>
-      <translation type="unfinished" />
+      <translation>픽셀 불투명도</translation>
     </message>
     <message id="layer.opacity.switch">
       <source>Switch opacity control</source>
-      <translation type="unfinished" />
+      <translation>불투명도 조절 전환</translation>
     </message>
     <message id="layer.opacity.switch.layer">
       <source>Show Layer opacity</source>
-      <translation type="unfinished" />
+      <translation>레이어 불투명도 표시</translation>
     </message>
     <message id="layer.opacity.switch.pixel">
       <source>Show Pixel opacity (Fill)</source>
-      <translation type="unfinished" />
+      <translation>픽셀 불투명도(칠) 표시</translation>
     </message>
     <message id="layer.opacity.layer.help">
       <source>Fade the entire layer, including its effects.</source>
-      <translation type="unfinished" />
+      <translation>효과를 포함한 레이어 전체의 불투명도를 낮춥니다.</translation>
     </message>
     <message id="layer.opacity.pixel.help">
       <source>Photoshop Fill: fade the layer content while keeping its effects. Some blend modes respond differently than Layer opacity.</source>
-      <translation type="unfinished" />
+      <translation>Photoshop 칠: 효과는 유지하면서 레이어 내용의 불투명도만 낮춥니다. 일부 혼합 모드에서는 레이어 불투명도와 다른 결과가 나타납니다.</translation>
     </message>
     <message id="history.layer.pixel.opacity">
       <source>Layer pixel opacity</source>
-      <translation type="unfinished" />
+      <translation>레이어 픽셀 불투명도</translation>
     </message>
   </context>
   <context>
     <name>GraphicsStartup</name>
-    <message id="graphics.startup.aborting"><source>Aborting…</source><translation type="unfinished" /></message>
-    <message id="graphics.startup.closing"><source>Waiting for the graphics driver before closing.</source><translation type="unfinished" /></message>
-    <message id="graphics.startup.title"><source>Initializing graphics…</source><translation type="unfinished" /></message>
-    <message id="graphics.startup.detail"><source>Preparing shaders. This may take a few seconds.</source><translation type="unfinished" /></message>
+    <message id="graphics.startup.aborting"><source>Aborting…</source><translation>중단하는 중…</translation></message>
+    <message id="graphics.startup.closing"><source>Waiting for the graphics driver before closing.</source><translation>종료하기 전에 그래픽 드라이버를 기다리는 중입니다.</translation></message>
+    <message id="graphics.startup.title"><source>Initializing graphics…</source><translation>그래픽 초기화 중…</translation></message>
+    <message id="graphics.startup.detail"><source>Preparing shaders. This may take a few seconds.</source><translation>셰이더 준비 중입니다. 몇 초 정도 걸릴 수 있습니다.</translation></message>
   </context>
   <context>
     <name>LayerInfo</name>
-    <message id="preferences.layer.info"><source>Show layer info</source><translation type="unfinished" /></message>
-    <message id="preferences.layer.info.hint"><source>Show non-Normal blend modes and active effect icons on layer rows.</source><translation type="unfinished" /></message>
+    <message id="preferences.layer.info"><source>Show layer info</source><translation>레이어 정보 표시</translation></message>
+    <message id="preferences.layer.info.hint"><source>Show non-Normal blend modes and active effect icons on layer rows.</source><translation>레이어 행에 표준 이외의 혼합 모드와 활성 효과 아이콘을 표시합니다.</translation></message>
   </context>
 </TS>

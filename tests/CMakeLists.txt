@@ -5,6 +5,23 @@ add_test(NAME imageeditor_readme_translation_tools COMMAND "${Python3_EXECUTABLE
 set_tests_properties(imageeditor_readme_translations imageeditor_readme_translation_tools
     PROPERTIES TIMEOUT 30 LABELS "documentation;localization")
 
+add_executable(imageeditor_layer_drag_tests LayerDragTests.cpp)
+target_link_libraries(imageeditor_layer_drag_tests PRIVATE imageeditor_ui Qt6::Test)
+imageeditor_enable_warnings(imageeditor_layer_drag_tests)
+add_test(NAME imageeditor_layer_drag_tests COMMAND imageeditor_layer_drag_tests)
+set_tests_properties(imageeditor_layer_drag_tests PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30 LABELS "layers;input;widgets")
+if(NOT WIN32)
+    foreach(platform wayland xcb)
+        if((platform STREQUAL "wayland" AND NOT "$ENV{WAYLAND_DISPLAY}" STREQUAL "")
+            OR (platform STREQUAL "xcb" AND NOT "$ENV{DISPLAY}" STREQUAL ""))
+            add_test(NAME imageeditor_${platform}_layer_drag COMMAND imageeditor_layer_drag_tests)
+            set_tests_properties(imageeditor_${platform}_layer_drag PROPERTIES
+                ENVIRONMENT "QT_QPA_PLATFORM=${platform}" TIMEOUT 30 RUN_SERIAL TRUE LABELS "layers;input;native")
+        endif()
+    endforeach()
+endif()
+
 if(WIN32)
     include(WindowsTests.cmake)
     return()
@@ -349,6 +366,17 @@ target_link_libraries(imageeditor_document_tabs_tests PRIVATE imageeditor_ui Qt6
 imageeditor_enable_warnings(imageeditor_document_tabs_tests)
 add_test(NAME imageeditor_document_tabs_tests COMMAND imageeditor_document_tabs_tests)
 set_tests_properties(imageeditor_document_tabs_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30 LABELS "documents;tabs;widgets")
+add_test(NAME imageeditor_layer_drag_documents COMMAND imageeditor_document_tabs_tests --layer-drag)
+set_tests_properties(imageeditor_layer_drag_documents PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30 LABELS "layers;documents;input")
+foreach(platform wayland xcb)
+    if((platform STREQUAL "wayland" AND NOT "$ENV{WAYLAND_DISPLAY}" STREQUAL "")
+        OR (platform STREQUAL "xcb" AND NOT "$ENV{DISPLAY}" STREQUAL ""))
+        add_test(NAME imageeditor_${platform}_layer_drag_documents COMMAND imageeditor_document_tabs_tests --layer-drag)
+        set_tests_properties(imageeditor_${platform}_layer_drag_documents PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=${platform}" TIMEOUT 30 RUN_SERIAL TRUE LABELS "layers;documents;native")
+    endif()
+endforeach()
 add_executable(imageeditor_document_transfer_tests DocumentTransferTests.cpp)
 target_link_libraries(imageeditor_document_transfer_tests PRIVATE imageeditor_ui)
 imageeditor_enable_warnings(imageeditor_document_transfer_tests)

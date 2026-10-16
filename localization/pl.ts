@@ -1420,13 +1420,14 @@ Alt+klik ustawia nowy punkt źródłowy.</translation>
     <message id="color.selector.reset.black.white">
       <source>Reset to Black and White</source>
       <extracomment>Tools-panel color reset button and configurable shortcut command.</extracomment>
-      <translation type="unfinished" />
+      <translation>Przywróć czerń i biel</translation>
     </message>
     <message id="color.selector.reset.black.white.hint">
       <source>Reset colors ({{ResetColorsAction}})
 Set primary to black and secondary to white, with primary active.</source>
       <extracomment>Tools-panel button tooltip. Preserve the configurable shortcut token.</extracomment>
-      <translation type="unfinished" />
+      <translation>Resetuj kolory ({{ResetColorsAction}})
+Ustaw kolor podstawowy na czarny, a dodatkowy na biały. Aktywuj kolor podstawowy.</translation>
     </message>
     <message id="color.selector.switch.active.color.x">
       <source>Switch active color (X)</source>
@@ -1471,22 +1472,22 @@ RGBA zawiera pobraną alfę.</translation>
     <message id="effects.panel.pixel.alpha.shapes.effects">
       <source>Pixel Alpha Shapes Effects</source>
       <extracomment>Layer-wide advanced blending option. Pixel alpha means the original pixels' transparency, not layer opacity or Fill.</extracomment>
-      <translation type="unfinished" />
+      <translation>Alfa pikseli kształtuje efekty</translation>
     </message>
     <message id="effects.panel.pixel.alpha.shapes.effects.hint">
       <source>Use the original pixel transparency to shape this layer's effects. Turn off to let only the mask shape effects, when applied before rendering. Pixel content and opacity are unchanged.</source>
       <extracomment>Tooltip for a layer-wide effects geometry option. The original pixels remain transparent even when their alpha no longer shapes effects.</extracomment>
-      <translation type="unfinished" />
+      <translation>Użyj oryginalnej przezroczystości pikseli do kształtowania efektów warstwy. Wyłącz, aby efekty kształtowała tylko maska nakładana przed renderowaniem. Zawartość pikseli i krycie pozostają bez zmian.</translation>
     </message>
     <message id="effects.panel.mask.effects.after.rendering">
       <source>Mask Effects After Rendering</source>
       <extracomment>Layer-wide advanced blending option. When enabled, the layer mask clips already-rendered effects instead of creating their boundaries.</extracomment>
-      <translation type="unfinished" />
+      <translation>Maskuj efekty po renderowaniu</translation>
     </message>
     <message id="effects.panel.mask.effects.after.rendering.hint">
       <source>Apply the layer mask after rendering to hide both pixels and effects. Turn off to let the mask shape effect boundaries. The mask hides the layer's pixels in either mode.</source>
       <extracomment>Tooltip for applying the layer mask after effects versus including the mask in effects geometry.</extracomment>
-      <translation type="unfinished" />
+      <translation>Nałóż maskę warstwy po renderowaniu, aby ukryć zarówno piksele, jak i efekty. Wyłącz, aby maska kształtowała granice efektów. W obu trybach maska ukrywa piksele warstwy.</translation>
     </message>
     <message id="effects.panel.reset">
       <source>Reset</source>
@@ -10691,74 +10692,74 @@ Escape · Anuluj sesję
     <name>LayerMaskClipboard</name>
     <message id="layer.mask.copy">
       <source>Copy layer mask</source>
-      <translation type="unfinished" />
+      <translation>Kopiuj maskę warstwy</translation>
     </message>
     <message id="layer.mask.paste">
       <source>Paste layer mask</source>
-      <translation type="unfinished" />
+      <translation>Wklej maskę warstwy</translation>
     </message>
     <message id="layer.mask.paste.hint">
       <source>Replace masks on the selected layers, keeping the copied mask's canvas position. Undo restores the previous masks.</source>
-      <translation type="unfinished" />
+      <translation>Zastąp maski zaznaczonych warstw, zachowując położenie skopiowanej maski na płótnie. Cofnięcie przywraca poprzednie maski.</translation>
     </message>
     <message id="layer.mask.copy.done">
       <source>Layer mask copied.</source>
-      <translation type="unfinished" />
+      <translation>Skopiowano maskę warstwy.</translation>
     </message>
     <message id="layer.mask.paste.failed">
       <source>The layer mask could not be pasted at its original position.</source>
-      <translation type="unfinished" />
+      <translation>Nie można wkleić maski warstwy w jej pierwotnym położeniu.</translation>
     </message>
   </context>
   <context>
     <name>LayerOpacity</name>
     <message id="layer.opacity.layer.prefix">
       <source>Layer opacity: </source>
-      <translation type="unfinished" />
+      <translation>Krycie warstwy: </translation>
     </message>
     <message id="layer.opacity.pixel.prefix">
       <source>Pixel opacity: </source>
-      <translation type="unfinished" />
+      <translation>Krycie pikseli: </translation>
     </message>
     <message id="layer.opacity.pixel">
       <source>Pixel opacity</source>
-      <translation type="unfinished" />
+      <translation>Krycie pikseli</translation>
     </message>
     <message id="layer.opacity.switch">
       <source>Switch opacity control</source>
-      <translation type="unfinished" />
+      <translation>Przełącz rodzaj krycia</translation>
     </message>
     <message id="layer.opacity.switch.layer">
       <source>Show Layer opacity</source>
-      <translation type="unfinished" />
+      <translation>Pokaż krycie warstwy</translation>
     </message>
     <message id="layer.opacity.switch.pixel">
       <source>Show Pixel opacity (Fill)</source>
-      <translation type="unfinished" />
+      <translation>Pokaż krycie pikseli (wypełnienie)</translation>
     </message>
     <message id="layer.opacity.layer.help">
       <source>Fade the entire layer, including its effects.</source>
-      <translation type="unfinished" />
+      <translation>Zmniejsz widoczność całej warstwy wraz z efektami.</translation>
     </message>
     <message id="layer.opacity.pixel.help">
       <source>Photoshop Fill: fade the layer content while keeping its effects. Some blend modes respond differently than Layer opacity.</source>
-      <translation type="unfinished" />
+      <translation>Wypełnienie w Photoshopie: zmniejsza widoczność zawartości warstwy, zachowując jej efekty. Niektóre tryby mieszania reagują inaczej niż na krycie warstwy.</translation>
     </message>
     <message id="history.layer.pixel.opacity">
       <source>Layer pixel opacity</source>
-      <translation type="unfinished" />
+      <translation>Krycie pikseli warstwy</translation>
     </message>
   </context>
   <context>
     <name>GraphicsStartup</name>
-    <message id="graphics.startup.aborting"><source>Aborting…</source><translation type="unfinished" /></message>
-    <message id="graphics.startup.closing"><source>Waiting for the graphics driver before closing.</source><translation type="unfinished" /></message>
-    <message id="graphics.startup.title"><source>Initializing graphics…</source><translation type="unfinished" /></message>
-    <message id="graphics.startup.detail"><source>Preparing shaders. This may take a few seconds.</source><translation type="unfinished" /></message>
+    <message id="graphics.startup.aborting"><source>Aborting…</source><translation>Przerywanie…</translation></message>
+    <message id="graphics.startup.closing"><source>Waiting for the graphics driver before closing.</source><translation>Oczekiwanie na sterownik graficzny przed zamknięciem.</translation></message>
+    <message id="graphics.startup.title"><source>Initializing graphics…</source><translation>Inicjalizacja grafiki…</translation></message>
+    <message id="graphics.startup.detail"><source>Preparing shaders. This may take a few seconds.</source><translation>Przygotowywanie shaderów. Może to potrwać kilka sekund.</translation></message>
   </context>
   <context>
     <name>LayerInfo</name>
-    <message id="preferences.layer.info"><source>Show layer info</source><translation type="unfinished" /></message>
-    <message id="preferences.layer.info.hint"><source>Show non-Normal blend modes and active effect icons on layer rows.</source><translation type="unfinished" /></message>
+    <message id="preferences.layer.info"><source>Show layer info</source><translation>Pokaż informacje o warstwach</translation></message>
+    <message id="preferences.layer.info.hint"><source>Show non-Normal blend modes and active effect icons on layer rows.</source><translation>Pokaż tryby mieszania inne niż Normalny i ikony aktywnych efektów w wierszach warstw.</translation></message>
   </context>
 </TS>

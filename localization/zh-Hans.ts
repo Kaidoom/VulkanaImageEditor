@@ -1418,13 +1418,14 @@ Alt+单击设置新源点。</translation>
     <message id="color.selector.reset.black.white">
       <source>Reset to Black and White</source>
       <extracomment>Tools-panel color reset button and configurable shortcut command.</extracomment>
-      <translation type="unfinished" />
+      <translation>重置为黑白</translation>
     </message>
     <message id="color.selector.reset.black.white.hint">
       <source>Reset colors ({{ResetColorsAction}})
 Set primary to black and secondary to white, with primary active.</source>
       <extracomment>Tools-panel button tooltip. Preserve the configurable shortcut token.</extracomment>
-      <translation type="unfinished" />
+      <translation>重置颜色（{{ResetColorsAction}}）
+将主色设为黑色、副色设为白色，并启用主色。</translation>
     </message>
     <message id="color.selector.switch.active.color.x">
       <source>Switch active color (X)</source>
@@ -1469,22 +1470,22 @@ RGBA 包含采样的透明度。</translation>
     <message id="effects.panel.pixel.alpha.shapes.effects">
       <source>Pixel Alpha Shapes Effects</source>
       <extracomment>Layer-wide advanced blending option. Pixel alpha means the original pixels' transparency, not layer opacity or Fill.</extracomment>
-      <translation type="unfinished" />
+      <translation>像素透明度决定效果形状</translation>
     </message>
     <message id="effects.panel.pixel.alpha.shapes.effects.hint">
       <source>Use the original pixel transparency to shape this layer's effects. Turn off to let only the mask shape effects, when applied before rendering. Pixel content and opacity are unchanged.</source>
       <extracomment>Tooltip for a layer-wide effects geometry option. The original pixels remain transparent even when their alpha no longer shapes effects.</extracomment>
-      <translation type="unfinished" />
+      <translation>用原始像素的透明度决定图层效果的形状。关闭后，仅在渲染前应用的蒙版决定效果形状。像素内容和不透明度不变。</translation>
     </message>
     <message id="effects.panel.mask.effects.after.rendering">
       <source>Mask Effects After Rendering</source>
       <extracomment>Layer-wide advanced blending option. When enabled, the layer mask clips already-rendered effects instead of creating their boundaries.</extracomment>
-      <translation type="unfinished" />
+      <translation>渲染后遮罩效果</translation>
     </message>
     <message id="effects.panel.mask.effects.after.rendering.hint">
       <source>Apply the layer mask after rendering to hide both pixels and effects. Turn off to let the mask shape effect boundaries. The mask hides the layer's pixels in either mode.</source>
       <extracomment>Tooltip for applying the layer mask after effects versus including the mask in effects geometry.</extracomment>
-      <translation type="unfinished" />
+      <translation>渲染后应用图层蒙版，同时遮住像素和效果。关闭后，蒙版会决定效果边界。两种模式下蒙版都会遮住图层像素。</translation>
     </message>
     <message id="effects.panel.reset">
       <source>Reset</source>
@@ -10689,74 +10690,74 @@ Escape 取消整次裁切
     <name>LayerMaskClipboard</name>
     <message id="layer.mask.copy">
       <source>Copy layer mask</source>
-      <translation type="unfinished" />
+      <translation>复制图层蒙版</translation>
     </message>
     <message id="layer.mask.paste">
       <source>Paste layer mask</source>
-      <translation type="unfinished" />
+      <translation>粘贴图层蒙版</translation>
     </message>
     <message id="layer.mask.paste.hint">
       <source>Replace masks on the selected layers, keeping the copied mask's canvas position. Undo restores the previous masks.</source>
-      <translation type="unfinished" />
+      <translation>替换所选图层的蒙版，保持复制的蒙版在画布上的位置。撤销可恢复原来的蒙版。</translation>
     </message>
     <message id="layer.mask.copy.done">
       <source>Layer mask copied.</source>
-      <translation type="unfinished" />
+      <translation>已复制图层蒙版。</translation>
     </message>
     <message id="layer.mask.paste.failed">
       <source>The layer mask could not be pasted at its original position.</source>
-      <translation type="unfinished" />
+      <translation>无法将图层蒙版粘贴到原来的位置。</translation>
     </message>
   </context>
   <context>
     <name>LayerOpacity</name>
     <message id="layer.opacity.layer.prefix">
       <source>Layer opacity: </source>
-      <translation type="unfinished" />
+      <translation>图层不透明度： </translation>
     </message>
     <message id="layer.opacity.pixel.prefix">
       <source>Pixel opacity: </source>
-      <translation type="unfinished" />
+      <translation>像素不透明度： </translation>
     </message>
     <message id="layer.opacity.pixel">
       <source>Pixel opacity</source>
-      <translation type="unfinished" />
+      <translation>像素不透明度</translation>
     </message>
     <message id="layer.opacity.switch">
       <source>Switch opacity control</source>
-      <translation type="unfinished" />
+      <translation>切换不透明度控制</translation>
     </message>
     <message id="layer.opacity.switch.layer">
       <source>Show Layer opacity</source>
-      <translation type="unfinished" />
+      <translation>显示图层不透明度</translation>
     </message>
     <message id="layer.opacity.switch.pixel">
       <source>Show Pixel opacity (Fill)</source>
-      <translation type="unfinished" />
+      <translation>显示像素不透明度（填充）</translation>
     </message>
     <message id="layer.opacity.layer.help">
       <source>Fade the entire layer, including its effects.</source>
-      <translation type="unfinished" />
+      <translation>降低整个图层（包括效果）的不透明度。</translation>
     </message>
     <message id="layer.opacity.pixel.help">
       <source>Photoshop Fill: fade the layer content while keeping its effects. Some blend modes respond differently than Layer opacity.</source>
-      <translation type="unfinished" />
+      <translation>Photoshop 填充：降低图层内容的不透明度，同时保留效果。在某些混合模式下，其作用与图层不透明度不同。</translation>
     </message>
     <message id="history.layer.pixel.opacity">
       <source>Layer pixel opacity</source>
-      <translation type="unfinished" />
+      <translation>图层像素不透明度</translation>
     </message>
   </context>
   <context>
     <name>GraphicsStartup</name>
-    <message id="graphics.startup.aborting"><source>Aborting…</source><translation type="unfinished" /></message>
-    <message id="graphics.startup.closing"><source>Waiting for the graphics driver before closing.</source><translation type="unfinished" /></message>
-    <message id="graphics.startup.title"><source>Initializing graphics…</source><translation type="unfinished" /></message>
-    <message id="graphics.startup.detail"><source>Preparing shaders. This may take a few seconds.</source><translation type="unfinished" /></message>
+    <message id="graphics.startup.aborting"><source>Aborting…</source><translation>正在中止…</translation></message>
+    <message id="graphics.startup.closing"><source>Waiting for the graphics driver before closing.</source><translation>正在等待图形驱动完成后关闭。</translation></message>
+    <message id="graphics.startup.title"><source>Initializing graphics…</source><translation>正在初始化图形…</translation></message>
+    <message id="graphics.startup.detail"><source>Preparing shaders. This may take a few seconds.</source><translation>正在准备着色器，可能需要几秒钟。</translation></message>
   </context>
   <context>
     <name>LayerInfo</name>
-    <message id="preferences.layer.info"><source>Show layer info</source><translation type="unfinished" /></message>
-    <message id="preferences.layer.info.hint"><source>Show non-Normal blend modes and active effect icons on layer rows.</source><translation type="unfinished" /></message>
+    <message id="preferences.layer.info"><source>Show layer info</source><translation>显示图层信息</translation></message>
+    <message id="preferences.layer.info.hint"><source>Show non-Normal blend modes and active effect icons on layer rows.</source><translation>在图层行显示非“正常”混合模式和已启用的效果图标。</translation></message>
   </context>
 </TS>

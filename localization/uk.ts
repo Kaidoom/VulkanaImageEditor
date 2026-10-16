@@ -1420,13 +1420,14 @@ Alt+клік задає нову точку джерела.</translation>
     <message id="color.selector.reset.black.white">
       <source>Reset to Black and White</source>
       <extracomment>Tools-panel color reset button and configurable shortcut command.</extracomment>
-      <translation type="unfinished" />
+      <translation>Скинути на чорний і білий</translation>
     </message>
     <message id="color.selector.reset.black.white.hint">
       <source>Reset colors ({{ResetColorsAction}})
 Set primary to black and secondary to white, with primary active.</source>
       <extracomment>Tools-panel button tooltip. Preserve the configurable shortcut token.</extracomment>
-      <translation type="unfinished" />
+      <translation>Скинути кольори ({{ResetColorsAction}})
+Установити основний колір чорним, а додатковий — білим. Зробити основний колір активним.</translation>
     </message>
     <message id="color.selector.switch.active.color.x">
       <source>Switch active color (X)</source>
@@ -1471,22 +1472,22 @@ RGBA містить альфа зразка.</translation>
     <message id="effects.panel.pixel.alpha.shapes.effects">
       <source>Pixel Alpha Shapes Effects</source>
       <extracomment>Layer-wide advanced blending option. Pixel alpha means the original pixels' transparency, not layer opacity or Fill.</extracomment>
-      <translation type="unfinished" />
+      <translation>Альфа пікселів визначає форму ефектів</translation>
     </message>
     <message id="effects.panel.pixel.alpha.shapes.effects.hint">
       <source>Use the original pixel transparency to shape this layer's effects. Turn off to let only the mask shape effects, when applied before rendering. Pixel content and opacity are unchanged.</source>
       <extracomment>Tooltip for a layer-wide effects geometry option. The original pixels remain transparent even when their alpha no longer shapes effects.</extracomment>
-      <translation type="unfinished" />
+      <translation>Використовувати початкову прозорість пікселів для форми ефектів шару. Вимкніть, щоб форму визначала лише маска, застосована до рендерингу. Вміст пікселів і непрозорість не змінюються.</translation>
     </message>
     <message id="effects.panel.mask.effects.after.rendering">
       <source>Mask Effects After Rendering</source>
       <extracomment>Layer-wide advanced blending option. When enabled, the layer mask clips already-rendered effects instead of creating their boundaries.</extracomment>
-      <translation type="unfinished" />
+      <translation>Маскувати ефекти після рендерингу</translation>
     </message>
     <message id="effects.panel.mask.effects.after.rendering.hint">
       <source>Apply the layer mask after rendering to hide both pixels and effects. Turn off to let the mask shape effect boundaries. The mask hides the layer's pixels in either mode.</source>
       <extracomment>Tooltip for applying the layer mask after effects versus including the mask in effects geometry.</extracomment>
-      <translation type="unfinished" />
+      <translation>Застосовувати маску шару після рендерингу, приховуючи і пікселі, і ефекти. Вимкніть, щоб маска визначала межі ефектів. В обох режимах маска приховує пікселі шару.</translation>
     </message>
     <message id="effects.panel.reset">
       <source>Reset</source>
@@ -10691,74 +10692,74 @@ Escape · Скасувати сеанс
     <name>LayerMaskClipboard</name>
     <message id="layer.mask.copy">
       <source>Copy layer mask</source>
-      <translation type="unfinished" />
+      <translation>Копіювати маску шару</translation>
     </message>
     <message id="layer.mask.paste">
       <source>Paste layer mask</source>
-      <translation type="unfinished" />
+      <translation>Вставити маску шару</translation>
     </message>
     <message id="layer.mask.paste.hint">
       <source>Replace masks on the selected layers, keeping the copied mask's canvas position. Undo restores the previous masks.</source>
-      <translation type="unfinished" />
+      <translation>Замінити маски вибраних шарів, зберігши положення скопійованої маски на полотні. Скасування поверне попередні маски.</translation>
     </message>
     <message id="layer.mask.copy.done">
       <source>Layer mask copied.</source>
-      <translation type="unfinished" />
+      <translation>Маску шару скопійовано.</translation>
     </message>
     <message id="layer.mask.paste.failed">
       <source>The layer mask could not be pasted at its original position.</source>
-      <translation type="unfinished" />
+      <translation>Не вдалося вставити маску шару в початкове положення.</translation>
     </message>
   </context>
   <context>
     <name>LayerOpacity</name>
     <message id="layer.opacity.layer.prefix">
       <source>Layer opacity: </source>
-      <translation type="unfinished" />
+      <translation>Непрозорість шару: </translation>
     </message>
     <message id="layer.opacity.pixel.prefix">
       <source>Pixel opacity: </source>
-      <translation type="unfinished" />
+      <translation>Непрозорість пікселів: </translation>
     </message>
     <message id="layer.opacity.pixel">
       <source>Pixel opacity</source>
-      <translation type="unfinished" />
+      <translation>Непрозорість пікселів</translation>
     </message>
     <message id="layer.opacity.switch">
       <source>Switch opacity control</source>
-      <translation type="unfinished" />
+      <translation>Перемкнути тип непрозорості</translation>
     </message>
     <message id="layer.opacity.switch.layer">
       <source>Show Layer opacity</source>
-      <translation type="unfinished" />
+      <translation>Показати непрозорість шару</translation>
     </message>
     <message id="layer.opacity.switch.pixel">
       <source>Show Pixel opacity (Fill)</source>
-      <translation type="unfinished" />
+      <translation>Показати непрозорість пікселів (заливку)</translation>
     </message>
     <message id="layer.opacity.layer.help">
       <source>Fade the entire layer, including its effects.</source>
-      <translation type="unfinished" />
+      <translation>Зменшити видимість усього шару, включно з ефектами.</translation>
     </message>
     <message id="layer.opacity.pixel.help">
       <source>Photoshop Fill: fade the layer content while keeping its effects. Some blend modes respond differently than Layer opacity.</source>
-      <translation type="unfinished" />
+      <translation>Заливка Photoshop: зменшує видимість вмісту шару, зберігаючи ефекти. Деякі режими накладання реагують інакше, ніж на непрозорість шару.</translation>
     </message>
     <message id="history.layer.pixel.opacity">
       <source>Layer pixel opacity</source>
-      <translation type="unfinished" />
+      <translation>Непрозорість пікселів шару</translation>
     </message>
   </context>
   <context>
     <name>GraphicsStartup</name>
-    <message id="graphics.startup.aborting"><source>Aborting…</source><translation type="unfinished" /></message>
-    <message id="graphics.startup.closing"><source>Waiting for the graphics driver before closing.</source><translation type="unfinished" /></message>
-    <message id="graphics.startup.title"><source>Initializing graphics…</source><translation type="unfinished" /></message>
-    <message id="graphics.startup.detail"><source>Preparing shaders. This may take a few seconds.</source><translation type="unfinished" /></message>
+    <message id="graphics.startup.aborting"><source>Aborting…</source><translation>Переривання…</translation></message>
+    <message id="graphics.startup.closing"><source>Waiting for the graphics driver before closing.</source><translation>Очікування графічного драйвера перед закриттям.</translation></message>
+    <message id="graphics.startup.title"><source>Initializing graphics…</source><translation>Ініціалізація графіки…</translation></message>
+    <message id="graphics.startup.detail"><source>Preparing shaders. This may take a few seconds.</source><translation>Підготовка шейдерів. Це може тривати кілька секунд.</translation></message>
   </context>
   <context>
     <name>LayerInfo</name>
-    <message id="preferences.layer.info"><source>Show layer info</source><translation type="unfinished" /></message>
-    <message id="preferences.layer.info.hint"><source>Show non-Normal blend modes and active effect icons on layer rows.</source><translation type="unfinished" /></message>
+    <message id="preferences.layer.info"><source>Show layer info</source><translation>Показувати відомості про шари</translation></message>
+    <message id="preferences.layer.info.hint"><source>Show non-Normal blend modes and active effect icons on layer rows.</source><translation>Показувати режими накладання, крім «Звичайного», і значки активних ефектів у рядках шарів.</translation></message>
   </context>
 </TS>

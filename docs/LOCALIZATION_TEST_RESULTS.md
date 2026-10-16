@@ -2,7 +2,7 @@
 
 All 16 language choices are enabled: en, fr, es, de, it, pt-BR, pl, tr, ru, uk,
 ar, hi, zh-Hans, zh-Hant, ja and ko. Each non-English catalog contains a first
-translation of all **1,731 active English entries**, including the required
+translation of all **1,757 active English entries**, including the required
 plural forms. Retired contributor entries remain in the catalogs but do not
 count toward active coverage.
 
@@ -16,6 +16,11 @@ project registration, canvas clipboard copying, screenshot capture/cropping,
 and Performance preferences. Existing completed translations are retained.
 Technical GPU names remain isolated left-to-right in Arabic messages; numeric
 values, units, source pixels and selection coordinates remain unchanged.
+
+The 0.3.4 update adds 26 translations per non-English language for mask copying,
+Pixel opacity (Fill), advanced effects blending, graphics initialization, layer
+info, and the black/white color reset. Existing translations and contributor
+corrections are retained. README translations remain synchronized with English.
 
 ## Recorded technical checks
 
@@ -32,6 +37,9 @@ desktop configuration or a claim that every page has been visually reviewed.
 | Linux, Qt 6.11.2; 2026-10-14 | 9/9 focused Release checks passed: catalogs, authoring, installed lookup/staging, runtime, preferences, Performance, screenshots and updates; 2/2 focused Debug checks passed |
 | Native Wayland at 125% and XCB at 150%; 2026-10-14 | Widget/localization checks passed, including new Performance, screenshot and registration layouts, repeated language switches and unchanged crop/settings |
 | Windows 11 x64, Qt 6.10.3; 2026-10-14 | Localization, screenshot and Performance tests passed with the 0.3.3 test build and compiled packs |
+| Fedora 44, Qt 6.11.2, NVIDIA RTX 4080; 2026-10-16 | 27/27 focused Release and 13/13 Debug checks passed; after fixing exact no-op compositing, 8/8 Release and 9/9 Debug blend/effect/PSD checks passed |
+| Native Wayland at 125% and XCB at 150%; 2026-10-16 | Localization switching/layout checks passed, including French/Arabic review; layer wheel/edge/cancel/cross-document drag passed on both; 12 startup/cache/fallback cases passed |
+| Windows 11, Qt 6.10.3, NVIDIA RTX 3050 Ti; 2026-10-16 | 35/35 Release checks passed, plus native wheel/cross-document drag and startup gating/early-close checks; portable relocation, offline model and codec checks passed |
 
 The tested Qt translation distributions have no Hindi Qt dialog catalog.
 Vulkana-owned Hindi controls are translated; some Qt-owned dialogs fall back to

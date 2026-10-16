@@ -11,6 +11,7 @@
 class QEvent;
 class QMouseEvent;
 class QLineEdit;
+class QMimeData;
 
 namespace imageeditor::ui {
 
@@ -52,6 +53,7 @@ protected:
     void mouseMoveEvent(QMouseEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
     void keyPressEvent(QKeyEvent*) override;
+    void wheelEvent(QWheelEvent*) override;
     void dragMoveEvent(QDragMoveEvent*) override;
     void dragLeaveEvent(QDragLeaveEvent*) override;
     void dropEvent(QDropEvent*) override;
@@ -64,6 +66,8 @@ private:
     void cancelVisibilityGesture() noexcept;
     void updateRenameGeometry();
     void refreshBlendModeNames();
+    bool updateDropTarget(const QPoint&, const QMimeData*, Qt::DropAction);
+    void clearDropTarget();
 
     bool layerInfoVisible_ {true};
     std::array<QString, core::allBlendModes.size()> blendModeNames_;
@@ -74,6 +78,10 @@ private:
     QString dropText_;
     int dropRow_ {-1};
     QModelIndex dropParent_;
+    QPointer<const QMimeData> dropMime_;
+    QPoint dropPosition_;
+    Qt::DropAction dropAction_ {Qt::IgnoreAction};
+    QPoint dragPosition_;
     QPersistentModelIndex deferredSingleIndex_;
     QPointer<QLineEdit> renameEditor_;
     core::LayerId renameId_ {0};

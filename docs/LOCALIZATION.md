@@ -184,12 +184,14 @@ for their distribution.
 
 ## Coverage and known remaining work
 
-The catalogs have **1,731 English entries**, with translations in all 15 other
+The catalogs have **1,757 English entries**, with translations in all 15 other
 languages for every cataloged entry. It covers menus/tools, Properties, Adjustments/Effects,
 layer/mask actions, preferences, shortcuts, update/feedback UI, Refine Selection,
 selection tools, undo presentation, and the primary save/import/export controls
 and prompts, project-file registration, canvas clipboard copying, screenshot
-capture/cropping, and Performance preferences. This is **not a claim of complete
+capture/cropping, Performance preferences, mask copying, Pixel opacity (Fill),
+advanced effects blending, graphics initialization, layer info, and color reset.
+This is **not a claim of complete
 application-string coverage**.
 
 The scope is the interface people use to edit and make decisions, not

@@ -1,5 +1,7 @@
 # Native Windows coverage. Linux-specific resource-limit/desktop harnesses stay
 # in the full suite; shared behavior is tested from its original test sources.
+set_tests_properties(imageeditor_layer_drag_tests PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=windows;QT_FORCE_STDERR_LOGGING=1" RUN_SERIAL TRUE)
 add_executable(imageeditor_windows_thumbnail_tests WindowsThumbnailTests.cpp)
 set_target_properties(imageeditor_windows_thumbnail_tests PROPERTIES AUTOMOC OFF AUTOUIC OFF
     MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
@@ -42,6 +44,9 @@ add_test(NAME imageeditor_windows_thumbnail_provider COMMAND "${Python3_EXECUTAB
 set_tests_properties(imageeditor_windows_thumbnail_provider PROPERTIES TIMEOUT 90 LABELS "project;thumbnail;windows")
 vulkana_windows_test(imageeditor_project_lifecycle_tests ProjectLifecycleTests.cpp)
 vulkana_windows_test(imageeditor_document_tabs_tests DocumentTabsTests.cpp)
+add_test(NAME imageeditor_windows_document_layer_drag COMMAND imageeditor_document_tabs_tests --layer-drag)
+set_tests_properties(imageeditor_windows_document_layer_drag PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=windows;QT_FORCE_STDERR_LOGGING=1" TIMEOUT 60 RUN_SERIAL TRUE LABELS "layers;input;tabs;windows")
 vulkana_windows_test(imageeditor_document_transfer_tests DocumentTransferTests.cpp)
 vulkana_windows_test(imageeditor_layer_mask_tests LayerMaskTests.cpp)
 vulkana_windows_test(imageeditor_adjustment_layer_tests AdjustmentLayerTests.cpp)
@@ -61,7 +66,19 @@ target_compile_definitions(imageeditor_update_tests PRIVATE
 vulkana_windows_test(imageeditor_blend_math_tests BlendMathTests.cpp)
 vulkana_windows_test(imageeditor_blend_persistence_tests BlendPersistenceTests.cpp)
 target_link_libraries(imageeditor_blend_persistence_tests PRIVATE MINIZIP::minizip-ng)
+vulkana_windows_test(imageeditor_fill_opacity_tests FillOpacityTests.cpp)
+vulkana_windows_test(imageeditor_psd_import_tests PsdImportTests.cpp)
+target_link_libraries(imageeditor_psd_import_tests PRIVATE ZLIB::ZLIB)
+vulkana_windows_test(imageeditor_psd_import_interaction_tests PsdImportInteractionTests.cpp)
 vulkana_windows_test(imageeditor_psd_export_tests PsdExportTests.cpp)
+vulkana_windows_test(imageeditor_blend_rendering_tests BlendRenderingTests.cpp)
+target_link_libraries(imageeditor_blend_rendering_tests PRIVATE Vulkan::Vulkan)
+foreach(mode fill-opacity effects encoded-compositing)
+    string(REPLACE "-" "_" name "${mode}")
+    add_test(NAME imageeditor_${name}_vulkan COMMAND imageeditor_blend_rendering_tests --${mode} --validation)
+    set_tests_properties(imageeditor_${name}_vulkan PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=windows;QT_FORCE_STDERR_LOGGING=1" TIMEOUT 180 RUN_SERIAL TRUE LABELS "vulkan;blend;effects")
+endforeach()
 vulkana_windows_test(imageeditor_pdf_export_tests PdfExportTests.cpp)
 target_link_libraries(imageeditor_pdf_export_tests PRIVATE Qt6::Pdf qpdf::libqpdf)
 set_tests_properties(imageeditor_pdf_export_tests PROPERTIES TIMEOUT 180)

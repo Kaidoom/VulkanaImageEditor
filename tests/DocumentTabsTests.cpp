@@ -2,6 +2,7 @@
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/NewDocumentDialog.hpp"
 #include "imageeditor/ui/LayerListModel.hpp"
+#include "imageeditor/ui/LayerListView.hpp"
 #include "imageeditor/ui/LayerTransferMimeData.hpp"
 #include "imageeditor/ui/TextController.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
@@ -9,6 +10,7 @@
 #include "imageeditor/core/LayerCommands.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
+#include "LayerDragTestSupport.hpp"
 #include <QAction>
 #include <QApplication>
 #include <QImage>
@@ -25,6 +27,9 @@
 #include <QKeyEvent>
 #include <QDragMoveEvent>
 #include <QMouseEvent>
+#include <QScrollBar>
+#include <QScopedValueRollback>
+#include <QWheelEvent>
 #include <iostream>
 namespace u=imageeditor::ui;
 namespace c=imageeditor::core;
@@ -151,14 +156,108 @@ void checkDragInteractions(const QString& imagePath, const QString& projectPath)
     CHECK(window.editorSession().document()->layers().size()==layers+1);
     window.close();
 }
+void checkLayerWheelTransfer(const QString& imagePath)
+{
+    u::MainWindow window(nullptr,false,false);
+    window.setUnsavedPromptEnabled(false);
+    window.resize(1400,900);
+    window.show();
+    CHECK(QTest::qWaitForWindowExposed(&window));
+    CHECK(window.openImageFromPath(imagePath));
+    const auto source = window.activeDocumentId();
+    CHECK(window.openImageFromPath(imagePath));
+    const auto destination = window.activeDocumentId();
+    auto* destinationDoc = const_cast<c::EditorSession&>(window.editorSession()).document();
+    for (int i=0; i<35; ++i) CHECK(destinationDoc->insertLayer(destinationDoc->layers().size(),
+        c::Layer::raster("Destination " + std::to_string(i),
+            std::make_shared<c::ContiguousRasterSurface>(c::Extent2u{2,2}))));
+    const auto originalCount = destinationDoc->layers().size();
+    CHECK(window.activateDocument(source));
+    auto* view = dynamic_cast<u::LayerListView*>(window.findChild<QListView*>("LayerList"));
+    auto* model = view ? dynamic_cast<u::LayerListModel*>(view->model()) : nullptr;
+    auto* tabs = window.findChild<QTabBar*>("DocumentTabs");
+    auto* workspace = dynamic_cast<u::OverlayDockWorkspace*>(window.findChild<QWidget*>("CanvasWorkspace"));
+    CHECK(view && model && tabs && workspace);
+    if (!view || !model || !tabs || !workspace) return;
+    QTest::qWait(75);
+    const auto mouse = [&](QEvent::Type type, QPoint global, Qt::MouseButton button = Qt::NoButton) {
+        auto* host = workspace->panelOverlay()->windowHandle();
+        QMouseEvent event(type,host->mapFromGlobal(global),global,button,
+            type == QEvent::MouseButtonRelease ? Qt::NoButton : Qt::LeftButton,Qt::NoModifier);
+        QApplication::sendEvent(host,&event);
+    };
+    // Exercise a single uninterrupted gesture: source -> tab hover -> scrolled
+    // destination list, then source -> tab hover -> native canvas carrier.
+    for (bool ontoCanvas : {false,true}) {
+        QScopedValueRollback scripted(static_cast<LayerDragTestApplication*>(qApp)->scriptedDrag,true);
+        CHECK(window.activateDocument(source));
+        QTest::qWait(30);
+        bool ran=false, inMove=false;
+        QTimer work;
+        work.setSingleShot(true);
+        QObject::connect(&work,&QTimer::timeout,[&] {
+            ran=true;
+            CHECK(inMove);
+            const int targetIndex=window.documentIds().front()==destination?0:1;
+            const auto tabGlobal=tabs->mapToGlobal(tabs->tabRect(targetIndex).center());
+            mouse(QEvent::MouseMove,tabGlobal);
+            QTest::qWait(600);
+            CHECK(window.activeDocumentId()==destination);
+            QPoint dropGlobal;
+            if (ontoCanvas) dropGlobal=workspace->canvasContainer()->mapToGlobal(workspace->canvasContainer()->rect().center());
+            else {
+                const auto p=view->viewport()->rect().center();
+                dropGlobal=view->viewport()->mapToGlobal(p);
+                mouse(QEvent::MouseMove,dropGlobal);
+                for(int i=0;i<5;++i) {
+                    QWheelEvent wheel(p,dropGlobal,{},QPoint(0,-120),Qt::LeftButton,Qt::NoModifier,Qt::NoScrollPhase,false);
+                    QApplication::sendEvent(view->viewport(),&wheel);
+                }
+                CHECK(view->verticalScrollBar()->value()>0);
+            }
+            mouse(QEvent::MouseMove,dropGlobal);
+            mouse(QEvent::MouseButtonRelease,dropGlobal,Qt::LeftButton);
+            QTest::keyClick(view->viewport(),Qt::Key_Escape);
+        });
+        const auto start=view->viewport()->mapToGlobal(view->visualRect(model->index(0)).center());
+        const auto sourceMouse=[&](QEvent::Type type,QPoint global,Qt::MouseButton button=Qt::NoButton) {
+            QMouseEvent event(type,view->viewport()->mapFromGlobal(global),global,button,Qt::LeftButton,Qt::NoModifier);
+            QApplication::sendEvent(view->viewport(),&event);
+        };
+        sourceMouse(QEvent::MouseButtonPress,start,Qt::LeftButton);
+        work.start(30);
+        inMove=true;
+        sourceMouse(QEvent::MouseMove,start+QPoint(0,30));
+        if(!ran)sourceMouse(QEvent::MouseMove,start+QPoint(0,40));
+        inMove=false;
+        CHECK(ran);
+        QTest::qWait(30);
+        CHECK(window.activeDocumentId()==destination);
+        CHECK(destinationDoc->layers().size()==originalCount+1);
+        CHECK(window.editorSession().history().undoDepth()==1);
+        CHECK(window.documentContext(source)->session.document()->layers().size()==1);
+        CHECK(window.documentContext(source)->session.history().undoDepth()==0);
+        CHECK(!QWidget::mouseGrabber() && !QApplication::overrideCursor());
+        CHECK(const_cast<c::EditorSession&>(window.editorSession()).undo());
+        CHECK(destinationDoc->layers().size()==originalCount);
+    }
+    window.close();
+}
+
 int main(int argc,char** argv)
 {
     QCoreApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
-    QApplication app(argc,argv); app.setQuitOnLastWindowClosed(false);
+    LayerDragTestApplication app(argc,argv); app.setQuitOnLastWindowClosed(false);
     app.setOrganizationName("ImageEditorTests");app.setApplicationName("DocumentTabs");
     QStandardPaths::setTestModeEnabled(true);QTemporaryDir dir;
     QSettings::setDefaultFormat(QSettings::IniFormat);QSettings::setPath(QSettings::IniFormat,QSettings::UserScope,dir.path());
     u::applyEditorTheme(app);
+    if(app.arguments().contains("--layer-drag")) {
+        QImage image(40,30,QImage::Format_RGBA8888);image.fill(Qt::red);
+        const auto path=dir.filePath("drag.png");CHECK(image.save(path));
+        checkLayerWheelTransfer(path);
+        return failures?EXIT_FAILURE:EXIT_SUCCESS;
+    }
     u::MainWindow window(nullptr,false);window.setUnsavedPromptEnabled(false);window.resize(1300,850);window.show();
     auto* tabs=window.findChild<QTabBar*>("DocumentTabs");CHECK(tabs&&window.documentCount()==1);
     QImage image(40,30,QImage::Format_RGBA8888);image.fill(Qt::red);const auto path=dir.filePath("same.png");CHECK(image.save(path));

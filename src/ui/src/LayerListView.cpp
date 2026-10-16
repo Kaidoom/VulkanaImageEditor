@@ -4,10 +4,10 @@
 #include "imageeditor/ui/LayerListModel.hpp"
 #include "imageeditor/ui/ToolIcons.hpp"
 #include "imageeditor/ui/Theme.hpp"
+#include "LayerDrag.hpp"
 
 #include <QAbstractItemModel>
 #include <QApplication>
-#include <QDrag>
 #include <QDragMoveEvent>
 #include <QDropEvent>
 #include <QEvent>
@@ -17,6 +17,7 @@
 #include <QKeyEvent>
 #include <QLineEdit>
 #include <QMouseEvent>
+#include <QMimeData>
 #include <QPainter>
 #include <QScrollBar>
 #include <QSignalBlocker>
@@ -25,7 +26,9 @@
 #include <QStyledItemDelegate>
 #include <QTimer>
 #include <QToolTip>
+#include <QWheelEvent>
 #include <bit>
+#include <memory>
 #include <utility>
 
 namespace imageeditor::ui {
@@ -279,6 +282,7 @@ QRect LayerListView::effectIndicatorRect(const QModelIndex& index, core::LayerEf
 void LayerListView::setModel(QAbstractItemModel* next)
 {
     if (next == model()) return;
+    clearDropTarget();
     finishRename(false);
     for (const auto& connection : renameModelConnections_) disconnect(connection);
     renameModelConnections_ = {};
@@ -406,6 +410,15 @@ void LayerListView::scrollContentsBy(int dx, int dy)
 {
     QListView::scrollContentsBy(dx, dy);
     updateRenameGeometry();
+    if (dropMime_) updateDropTarget(dropPosition_, dropMime_, dropAction_);
+}
+
+void LayerListView::wheelEvent(QWheelEvent* event)
+{
+    if (verticalScrollMode() == ScrollPerPixel && event->pixelDelta().y() != 0) {
+        verticalScrollBar()->setValue(verticalScrollBar()->value() - event->pixelDelta().y());
+        event->accept();
+    } else QListView::wheelEvent(event);
 }
 
 QRect LayerListView::visibilityIndicatorRect(const QModelIndex& index) const
@@ -543,6 +556,7 @@ void LayerListView::mouseDoubleClickEvent(QMouseEvent* event)
 
 void LayerListView::mouseMoveEvent(QMouseEvent* event)
 {
+    dragPosition_ = event->globalPosition().toPoint();
     if (alphaSelectionGesture_) { event->accept(); return; }
     if (visibilityGestureActive_) {
         event->accept();
@@ -656,14 +670,27 @@ void LayerListView::dragMoveEvent(QDragMoveEvent* event)
     // Retain Qt's autoscroll/state machinery, but own slot feedback/admission.
     setDropIndicatorShown(false);
     QListView::dragMoveEvent(event);
-    const auto index = indexAt(event->position().toPoint());
+    const auto* layers = dynamic_cast<LayerListModel*>(model());
+    const auto action = layers && layers->onCanTransfer && layers->onCanTransfer(event->mimeData()) ? Qt::CopyAction : Qt::MoveAction;
+    if (updateDropTarget(event->position().toPoint(), event->mimeData(), action)) {
+        event->setDropAction(action);
+        event->accept();
+    } else event->ignore();
+}
+
+bool LayerListView::updateDropTarget(const QPoint& position, const QMimeData* mime, Qt::DropAction action)
+{
+    dropPosition_ = position;
+    dropMime_ = mime;
+    dropAction_ = action;
+    const auto index = indexAt(position);
     dropRow_ = -1;
     dropParent_ = { };
     dropText_.clear();
     dropHint_ = { };
     if (index.isValid()) {
         const auto r = visualRect(index);
-        const auto y = event->position().y();
+        const auto y = position.y();
         const auto indent = index.data(Qt::UserRole + 2).toInt();
         if (index.data(Qt::UserRole + 3).toBool() && y > r.top() + r.height() * .25 && y < r.bottom() - r.height() * .25) {
             dropParent_ = index;
@@ -676,40 +703,47 @@ void LayerListView::dragMoveEvent(QDragMoveEvent* event)
             dropHint_ = QRect(r.left() + indent, below ? r.bottom() - 1 : r.top(), r.width() - indent - 3, 2);
         }
     }
-    if (!index.isValid())
+    if (model() && !index.isValid())
         dropHint_ = QRect(2, model()->rowCount() ? visualRect(model()->index(model()->rowCount() - 1, 0)).bottom() : 2, viewport()->width() - 4, 2);
-    const auto* layers = dynamic_cast<LayerListModel*>(model());
-    const auto action = layers && layers->onCanTransfer && layers->onCanTransfer(event->mimeData()) ? Qt::CopyAction : Qt::MoveAction;
-    if (model()->canDropMimeData(event->mimeData(), action, dropRow_, 0, dropParent_)) {
-        event->setDropAction(action);
-        event->accept();
-    } else {
-        event->ignore();
+    const bool allowed = model() && viewport()->rect().contains(position)
+        && model()->canDropMimeData(mime, action, dropRow_, 0, dropParent_);
+    if (!allowed) {
         dropHint_ = { };
         dropText_.clear();
     }
     viewport()->update();
+    return allowed;
 }
-void LayerListView::dragLeaveEvent(QDragLeaveEvent* event)
+
+void LayerListView::clearDropTarget()
 {
+    stopAutoScroll();
+    dropMime_.clear();
     dropHint_ = { };
+    dropParent_ = { };
     dropText_.clear();
     viewport()->update();
+}
+
+void LayerListView::dragLeaveEvent(QDragLeaveEvent* event)
+{
+    clearDropTarget();
     QListView::dragLeaveEvent(event);
 }
 void LayerListView::dropEvent(QDropEvent* event)
 {
     const auto* layers = dynamic_cast<LayerListModel*>(model());
     const auto action = layers && layers->onCanTransfer && layers->onCanTransfer(event->mimeData()) ? Qt::CopyAction : Qt::MoveAction;
-    if (!dropHint_.isEmpty() && model()->dropMimeData(event->mimeData(), action, dropRow_, 0, dropParent_)) {
+    // Re-hit-test even without a pointer move: wheel/edge scrolling and model
+    // publication may have moved another row underneath the stationary cursor.
+    const bool allowed = updateDropTarget(event->position().toPoint(), event->mimeData(), action);
+    dropMime_.clear();
+    if (allowed && model()->dropMimeData(event->mimeData(), action, dropRow_, 0, dropParent_)) {
         event->setDropAction(action);
         event->accept();
     } else
         event->ignore();
-    dropHint_ = { };
-    dropParent_ = { };
-    dropText_.clear();
-    viewport()->update();
+    clearDropTarget();
     setState(NoState);
 }
 void LayerListView::startDrag(Qt::DropActions)
@@ -718,22 +752,20 @@ void LayerListView::startDrag(Qt::DropActions)
     const auto indexes = selectionModel()->selectedIndexes();
     if (indexes.isEmpty())
         return;
-    auto* drag = new QDrag(this);
-    drag->setMimeData(model()->mimeData(indexes));
+    const std::unique_ptr<QMimeData> mime(model()->mimeData(indexes));
+    if (!mime) return;
     QPixmap preview(180, 36);
     preview.fill(palette().color(QPalette::AlternateBase));
     QPainter p(&preview);
     p.setPen(palette().text().color());
     p.drawText(preview.rect().adjusted(10, 0, -6, 0), Qt::AlignVCenter, indexes.size() == 1 ? indexes.front().data().toString() : i18n::text("layer.list.view.1.selected.items").arg(indexes.size()));
     p.end();
-    drag->setPixmap(preview);
-    drag->setHotSpot({ 12, 18 });
     // The model already performs one atomic move. QAbstractItemView's default
     // startDrag can attempt a second source-row removal after MoveAction.
-    drag->exec(Qt::MoveAction | Qt::CopyAction, Qt::MoveAction);
-    drag->deleteLater();
-    dropHint_ = { };
-    dropText_.clear();
+    const QPointer<LayerListView> guard(this);
+    dragLayers(viewport(), mime.get(), preview, dragPosition_);
+    if (!guard) return;
+    clearDropTarget();
     setState(NoState);
     viewport()->update();
 }

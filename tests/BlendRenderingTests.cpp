@@ -1421,6 +1421,36 @@ void fillOpacityRendering(OffscreenCanvas& gpu)
     }
 }
 
+void transparentStylesPreserveBackdrop(OffscreenCanvas& gpu)
+{
+    c::Document doc({{96,80},96,c::CompositingSpace::EncodedSRgb});
+    auto backdrop=c::Layer::raster("Backdrop",std::make_shared<c::ContiguousRasterSurface>(
+        c::Extent2u{96,80},c::Rgba8{35,115,195,255}));
+    auto empty=c::Layer::raster("Transparent styled layer",std::make_shared<c::ContiguousRasterSurface>(
+        c::Extent2u{96,80},c::Rgba8{255,0,255,0}));
+    empty.opacity=.6F;
+    auto upper=c::Layer::raster("Hard Mix",std::make_shared<c::ContiguousRasterSurface>(
+        c::Extent2u{96,80},c::Rgba8{220,140,60,210}));
+    upper.blendMode=c::BlendMode::HardMix;
+    for(const auto& layer:{backdrop,empty,upper})check(doc.insertLayer(doc.layers().size(),layer),"transparent styles fixture insertion");
+    doc.setLayerVisibility(empty.id,false);
+    auto scene=sceneFor(doc);
+    const auto expectedGpu=gpu.render(scene);
+    const auto expectedExport=u::flattenDocument(doc).image;
+    for(std::size_t type=0;type<c::layerEffectCount;++type) {
+        auto effects=std::make_shared<c::LayerEffectStack>();
+        effects->items[type].enabled=true;
+        doc.setLayerEffects(empty.id,effects);
+        *doc.layer(empty.id)=c::prepareSpatialFilterLayer(*doc.layer(empty.id));
+        doc.setLayerVisibility(empty.id,true);
+        scene=sceneFor(doc);
+        const auto actual=gpu.render(scene);
+        check(actual==expectedGpu,"transparent styles preserve exact canvas before Hard Mix");
+        check(u::flattenDocument(doc).image==expectedExport,"transparent styles preserve exact export before Hard Mix");
+        verify(doc,scene,actual,"transparent styles before Hard Mix");
+    }
+}
+
 int main(int argc, char** argv)
 {
     bool validation = false, benchmark = false, adjustments = false, crop = false, filters = false,effects=false,masks=false,clipping=false,adjustmentLayers=false,encoded=false;
@@ -1458,6 +1488,7 @@ int main(int argc, char** argv)
                 OffscreenCanvas gpu(validation);
                 if(fillOpacity)fillOpacityRendering(gpu);
                 else if(encoded) {
+                    transparentStylesPreserveBackdrop(gpu);
                     allModesAndCacheBehavior(gpu,review,c::CompositingSpace::EncodedSRgb);
                     layerMaskRendering(gpu,c::CompositingSpace::EncodedSRgb);
                     clippingRendering(gpu,c::CompositingSpace::EncodedSRgb);

@@ -69,6 +69,19 @@ void contracts() {
       check(std::abs(result[std::size_t(i)] - reference[std::size_t(i)]) < 1e-6,
             "disabled identity all blend modes");
   }
+  // Empty style geometry must preserve the floating-point backdrop exactly,
+  // not just its eventual RGBA8 value. A later Hard Mix can amplify a single
+  // transfer-function rounding difference into a visible color change.
+  for (int code = 0; code <= 255; ++code) {
+    const auto value = static_cast<std::uint8_t>(code);
+    const auto backdrop = c::decodeColor({value, value, value, 190});
+    for (float opacity : {.1F, .6F, .99F}) {
+      const auto result = c::compositeLayerEffects(backdrop, {}, disabled,
+          nullptr, {}, opacity, c::BlendMode::Normal, 1, false,
+          c::CompositingSpace::EncodedSRgb);
+      check(result == backdrop, "empty encoded style preserves exact backdrop");
+    }
+  }
   l.effects = effect(5);
   auto state = std::make_shared<c::LayerEffectStack>(*l.effects);
   state->items[5].color = {10, 230, 70, 255};

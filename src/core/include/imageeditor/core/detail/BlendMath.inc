@@ -191,6 +191,10 @@ B_INLINE BVec4 bMixSpace(BVec4 before,BVec4 after,float amount,int space)
 {
     if(amount<=0.0f)return before;
     if(amount>=1.0f)return after;
+    // An empty styled contribution must not round-trip an unchanged backdrop
+    // through the transfer function. Even one ulp can change a later Hard Mix
+    // decision at an exact complementary-color boundary.
+    if(before.x==after.x && before.y==after.y && before.z==after.z && before.w==after.w)return before;
     before=bToCompositing(before,space);after=bToCompositing(after,space);
     return bFromCompositing(BVec4(before.x+(after.x-before.x)*amount,before.y+(after.y-before.y)*amount,
         before.z+(after.z-before.z)*amount,before.w+(after.w-before.w)*amount),space);

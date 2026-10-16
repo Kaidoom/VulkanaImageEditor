@@ -1419,13 +1419,14 @@ Alt+क्लिक नया स्रोत बिंदु चुनता �
     <message id="color.selector.reset.black.white">
       <source>Reset to Black and White</source>
       <extracomment>Tools-panel color reset button and configurable shortcut command.</extracomment>
-      <translation type="unfinished" />
+      <translation>काला और सफ़ेद रीसेट करें</translation>
     </message>
     <message id="color.selector.reset.black.white.hint">
       <source>Reset colors ({{ResetColorsAction}})
 Set primary to black and secondary to white, with primary active.</source>
       <extracomment>Tools-panel button tooltip. Preserve the configurable shortcut token.</extracomment>
-      <translation type="unfinished" />
+      <translation>रंग रीसेट करें ({{ResetColorsAction}})
+प्राथमिक रंग काला और द्वितीयक रंग सफ़ेद करें; प्राथमिक रंग सक्रिय रहेगा।</translation>
     </message>
     <message id="color.selector.switch.active.color.x">
       <source>Switch active color (X)</source>
@@ -1470,22 +1471,22 @@ RGBA में नमूने का अल्फ़ा शामिल है�
     <message id="effects.panel.pixel.alpha.shapes.effects">
       <source>Pixel Alpha Shapes Effects</source>
       <extracomment>Layer-wide advanced blending option. Pixel alpha means the original pixels' transparency, not layer opacity or Fill.</extracomment>
-      <translation type="unfinished" />
+      <translation>पिक्सेल अल्फ़ा से प्रभाव का आकार</translation>
     </message>
     <message id="effects.panel.pixel.alpha.shapes.effects.hint">
       <source>Use the original pixel transparency to shape this layer's effects. Turn off to let only the mask shape effects, when applied before rendering. Pixel content and opacity are unchanged.</source>
       <extracomment>Tooltip for a layer-wide effects geometry option. The original pixels remain transparent even when their alpha no longer shapes effects.</extracomment>
-      <translation type="unfinished" />
+      <translation>इस परत के प्रभावों का आकार मूल पिक्सेल की पारदर्शिता से तय करें। बंद करने पर केवल रेंडरिंग से पहले लागू मास्क उनका आकार तय करता है। पिक्सेल सामग्री और अपारदर्शिता नहीं बदलती।</translation>
     </message>
     <message id="effects.panel.mask.effects.after.rendering">
       <source>Mask Effects After Rendering</source>
       <extracomment>Layer-wide advanced blending option. When enabled, the layer mask clips already-rendered effects instead of creating their boundaries.</extracomment>
-      <translation type="unfinished" />
+      <translation>रेंडरिंग के बाद प्रभावों पर मास्क</translation>
     </message>
     <message id="effects.panel.mask.effects.after.rendering.hint">
       <source>Apply the layer mask after rendering to hide both pixels and effects. Turn off to let the mask shape effect boundaries. The mask hides the layer's pixels in either mode.</source>
       <extracomment>Tooltip for applying the layer mask after effects versus including the mask in effects geometry.</extracomment>
-      <translation type="unfinished" />
+      <translation>रेंडरिंग के बाद परत मास्क लगाकर पिक्सेल और प्रभाव दोनों छिपाएँ। बंद करने पर मास्क प्रभावों की सीमाएँ तय करता है। दोनों स्थितियों में मास्क परत के पिक्सेल छिपाता है।</translation>
     </message>
     <message id="effects.panel.reset">
       <source>Reset</source>
@@ -10690,74 +10691,74 @@ Escape · पूरा क्रॉप सत्र रद्द
     <name>LayerMaskClipboard</name>
     <message id="layer.mask.copy">
       <source>Copy layer mask</source>
-      <translation type="unfinished" />
+      <translation>परत मास्क कॉपी करें</translation>
     </message>
     <message id="layer.mask.paste">
       <source>Paste layer mask</source>
-      <translation type="unfinished" />
+      <translation>परत मास्क पेस्ट करें</translation>
     </message>
     <message id="layer.mask.paste.hint">
       <source>Replace masks on the selected layers, keeping the copied mask's canvas position. Undo restores the previous masks.</source>
-      <translation type="unfinished" />
+      <translation>कॉपी किए मास्क की कैनवास पर स्थिति बनाए रखते हुए चुनी हुई परतों के मास्क बदलें। पूर्ववत करने पर पुराने मास्क लौट आते हैं।</translation>
     </message>
     <message id="layer.mask.copy.done">
       <source>Layer mask copied.</source>
-      <translation type="unfinished" />
+      <translation>परत मास्क कॉपी किया गया।</translation>
     </message>
     <message id="layer.mask.paste.failed">
       <source>The layer mask could not be pasted at its original position.</source>
-      <translation type="unfinished" />
+      <translation>परत मास्क को उसकी मूल स्थिति पर पेस्ट नहीं किया जा सका।</translation>
     </message>
   </context>
   <context>
     <name>LayerOpacity</name>
     <message id="layer.opacity.layer.prefix">
       <source>Layer opacity: </source>
-      <translation type="unfinished" />
+      <translation>परत अपारदर्शिता: </translation>
     </message>
     <message id="layer.opacity.pixel.prefix">
       <source>Pixel opacity: </source>
-      <translation type="unfinished" />
+      <translation>पिक्सेल अपारदर्शिता: </translation>
     </message>
     <message id="layer.opacity.pixel">
       <source>Pixel opacity</source>
-      <translation type="unfinished" />
+      <translation>पिक्सेल अपारदर्शिता</translation>
     </message>
     <message id="layer.opacity.switch">
       <source>Switch opacity control</source>
-      <translation type="unfinished" />
+      <translation>अपारदर्शिता नियंत्रण बदलें</translation>
     </message>
     <message id="layer.opacity.switch.layer">
       <source>Show Layer opacity</source>
-      <translation type="unfinished" />
+      <translation>परत अपारदर्शिता दिखाएँ</translation>
     </message>
     <message id="layer.opacity.switch.pixel">
       <source>Show Pixel opacity (Fill)</source>
-      <translation type="unfinished" />
+      <translation>पिक्सेल अपारदर्शिता (Fill) दिखाएँ</translation>
     </message>
     <message id="layer.opacity.layer.help">
       <source>Fade the entire layer, including its effects.</source>
-      <translation type="unfinished" />
+      <translation>प्रभावों सहित पूरी परत की अपारदर्शिता घटाएँ।</translation>
     </message>
     <message id="layer.opacity.pixel.help">
       <source>Photoshop Fill: fade the layer content while keeping its effects. Some blend modes respond differently than Layer opacity.</source>
-      <translation type="unfinished" />
+      <translation>Photoshop Fill: प्रभावों को बनाए रखते हुए परत की सामग्री की अपारदर्शिता घटाएँ। कुछ ब्लेंड मोड पर इसका असर परत अपारदर्शिता से अलग होता है।</translation>
     </message>
     <message id="history.layer.pixel.opacity">
       <source>Layer pixel opacity</source>
-      <translation type="unfinished" />
+      <translation>परत की पिक्सेल अपारदर्शिता</translation>
     </message>
   </context>
   <context>
     <name>GraphicsStartup</name>
-    <message id="graphics.startup.aborting"><source>Aborting…</source><translation type="unfinished" /></message>
-    <message id="graphics.startup.closing"><source>Waiting for the graphics driver before closing.</source><translation type="unfinished" /></message>
-    <message id="graphics.startup.title"><source>Initializing graphics…</source><translation type="unfinished" /></message>
-    <message id="graphics.startup.detail"><source>Preparing shaders. This may take a few seconds.</source><translation type="unfinished" /></message>
+    <message id="graphics.startup.aborting"><source>Aborting…</source><translation>बंद किया जा रहा है…</translation></message>
+    <message id="graphics.startup.closing"><source>Waiting for the graphics driver before closing.</source><translation>बंद होने से पहले ग्राफ़िक्स ड्राइवर की प्रतीक्षा हो रही है।</translation></message>
+    <message id="graphics.startup.title"><source>Initializing graphics…</source><translation>ग्राफ़िक्स शुरू हो रहे हैं…</translation></message>
+    <message id="graphics.startup.detail"><source>Preparing shaders. This may take a few seconds.</source><translation>शेडर तैयार हो रहे हैं। इसमें कुछ सेकंड लग सकते हैं।</translation></message>
   </context>
   <context>
     <name>LayerInfo</name>
-    <message id="preferences.layer.info"><source>Show layer info</source><translation type="unfinished" /></message>
-    <message id="preferences.layer.info.hint"><source>Show non-Normal blend modes and active effect icons on layer rows.</source><translation type="unfinished" /></message>
+    <message id="preferences.layer.info"><source>Show layer info</source><translation>परत की जानकारी दिखाएँ</translation></message>
+    <message id="preferences.layer.info.hint"><source>Show non-Normal blend modes and active effect icons on layer rows.</source><translation>परत की पंक्तियों में सामान्य के अलावा अन्य ब्लेंड मोड और सक्रिय प्रभावों के आइकन दिखाएँ।</translation></message>
   </context>
 </TS>

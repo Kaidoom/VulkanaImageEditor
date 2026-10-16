@@ -559,6 +559,7 @@ OverlayDockWorkspace::OverlayDockWorkspace(
 
     canvasContainer_ = QWidget::createWindowContainer(canvasWindow_, this);
     canvasContainer_->setObjectName(QStringLiteral("VulkanCanvasContainer"));
+    canvasContainer_->setAcceptDrops(true);
     canvasContainer_->setAttribute(Qt::WA_NativeWindow);
     Q_ASSERT(canvasContainer_->testAttribute(Qt::WA_NativeWindow));
     // The shared theme's VulkanCanvasContainer rule owns the fallback surface.
