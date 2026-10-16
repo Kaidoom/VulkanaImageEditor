@@ -790,16 +790,24 @@ void uiContracts() {
     if(router)CHECK(router->captureDomain()==u::CrossWindowPointerRouter::CaptureDomain::None);
     CHECK(session.editingLayerMask()==mask);
   }
-  const auto contextMenu = [&](bool mask) {
+  const auto unrelatedSelection = c::SelectionMask::rectangle({32, 24}, {1, 1, 4, 3});
+  session.document()->setSelection(unrelatedSelection);
+  const auto originalMask = session.document()->layer(id)->mask;
+  enum class MenuOpening { Press, Release, Keyboard };
+  const auto contextMenu = [&](bool mask, MenuOpening opening = MenuOpening::Release,
+                               bool refinementEnabled = true, bool launchRefinement = false) {
     const auto point =
         view->thumbnailRect(model->index(model->rowForLayer(id)), mask)
             .center();
     const auto history = session.history().undoDepth();
-    QTest::mousePress(view->viewport(), Qt::RightButton, {}, point);
-    if (router)
-      CHECK(router->captureDomain() ==
-            u::CrossWindowPointerRouter::CaptureDomain::Widget);
-    QTest::mouseRelease(view->viewport(), Qt::RightButton, {}, point);
+    if (opening != MenuOpening::Keyboard) {
+      QTest::mousePress(view->viewport(), Qt::RightButton, {}, point);
+      if (router)
+        CHECK(router->captureDomain() ==
+              u::CrossWindowPointerRouter::CaptureDomain::Widget);
+      if (opening == MenuOpening::Release)
+        QTest::mouseRelease(view->viewport(), Qt::RightButton, {}, point);
+    }
     bool inspected = false;
     QTimer::singleShot(0, &window, [&] {
       auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
@@ -811,31 +819,61 @@ void uiContracts() {
       CHECK(menu->parentWidget() == u::popupTopLevelOwner(view));
       CHECK(menu->objectName() ==
             (mask ? "LayerMaskContextMenu" : "LayerContextMenu"));
+      if (router)
+        CHECK(router->captureDomain() == u::CrossWindowPointerRouter::CaptureDomain::None);
       QStringList names;
       for (auto *action : menu->actions())
         names << action->objectName();
-      if (mask)
+      auto* refine = window.findChild<QAction*>("RefineMaskAction");
+      if (mask) {
         CHECK(names ==
               QStringList({"DeleteLayerMaskAction", "EnableLayerMaskAction",
                            "ApplyLayerMaskAction", "MaskToSelectionAction", "InvertLayerMaskAction", "CopyLayerMaskAction", "PasteLayerMaskAction", "RefineMaskAction"}));
-      else
+        CHECK(refine && refine->isEnabled() == refinementEnabled);
+      } else
         CHECK(names.contains("DuplicateLayersAction") &&
               names.contains("DeleteSelectedLayersAction") &&
               names.contains("ContextNewLayerFolderAction"));
       menu->close();
+      if (launchRefinement && refine && refine->isEnabled()) refine->trigger();
     });
     // QTest does not synthesize a platform context-menu event from right-click.
-    QContextMenuEvent event(QContextMenuEvent::Mouse, point,
+    QContextMenuEvent event(opening == MenuOpening::Keyboard ? QContextMenuEvent::Keyboard : QContextMenuEvent::Mouse, point,
                             view->viewport()->mapToGlobal(point));
     QApplication::sendEvent(view->viewport(), &event);
+    if (opening == MenuOpening::Press)
+      QTest::mouseRelease(view->viewport(), Qt::RightButton, {}, point);
     CHECK(inspected);
     CHECK(session.editingLayerMask() == mask);
     CHECK(session.history().undoDepth() == history);
+    CHECK(session.document()->selection() == unrelatedSelection);
+    CHECK(session.document()->layer(id)->mask == originalMask);
+    if (launchRefinement) {
+      auto* panel = window.findChild<QWidget*>("RefineSelectionWorkspace");
+      CHECK(panel && !panel->isHidden());
+      if (panel) panel->findChild<QPushButton*>("RefineCancel")->click();
+      QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+      CHECK(session.document()->selection() == unrelatedSelection);
+      CHECK(session.document()->layer(id)->mask == originalMask);
+      CHECK(session.history().undoDepth() == history);
+    }
   };
-  // The first right-click immediately after selecting the mask must work.
-  contextMenu(true);
+  // Platforms may open on press or release. Both must be ready immediately,
+  // without first opening Select or replacing an unrelated pixel selection.
+  contextMenu(true, MenuOpening::Press, true, true);
   contextMenu(false);
   contextMenu(true);
+  contextMenu(true, MenuOpening::Keyboard);
+  auto* transform = window.findChild<QAction*>("LayerTransformAction");
+  CHECK(transform && transform->isEnabled());
+  transform->trigger();
+  CHECK(transform->isChecked());
+  contextMenu(true, MenuOpening::Keyboard, false);
+  CHECK(transform->isChecked());
+  QTest::keyClick(view, Qt::Key_Escape);
+  CHECK(!transform->isChecked());
+  contextMenu(true, MenuOpening::Press);
+  session.document()->setSelection({});
   r::CanvasWindow *canvas = nullptr;
   for (auto *w : QGuiApplication::allWindows())
     if (w->objectName() == "VulkanCanvasWindow")

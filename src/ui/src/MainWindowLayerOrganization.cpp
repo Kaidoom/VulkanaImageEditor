@@ -21,10 +21,24 @@
 #include <QStatusBar>
 #include <algorithm>
 #include <cstring>
+#include <functional>
 
 namespace imageeditor::ui {
 namespace {
     using namespace core;
+    class LayerItemMenu final : public QMenu {
+    public:
+        using QMenu::QMenu;
+        std::function<void()> refreshActions;
+    protected:
+        void showEvent(QShowEvent* event) override
+        {
+            // Application event filters have now handed pointer capture to the
+            // popup. aboutToShow is too early for menus opened on right press.
+            if (refreshActions) refreshActions();
+            QMenu::showEvent(event);
+        }
+    };
     void eraseSubtree(LayerTree& tree, LayerId id)
     {
         if (const auto* c = tree.container(id)) {
@@ -348,7 +362,7 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
         session().setEditingLayerMask(maskThumbnail);
         synchronizeUi(false,false);
     }
-    QMenu menu(layerList_);
+    LayerItemMenu menu(layerList_);
     const auto menuInstance=activeDocumentId();
     const auto menuSelection=session().layerSelectionState();
     const auto addMaskAction=[&](size_t i) {
@@ -368,6 +382,7 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
         // This thumbnail already owns a mask: offer only operations on it.
         for(size_t i=2;i<maskActions_.size();++i)addMaskAction(i);
         menu.addAction(refineMaskAction_);
+        menu.refreshActions = [this] { refreshRefinementActions(); };
         menu.exec(layerList_->viewport()->mapToGlobal(point));
         return;
     }
