@@ -111,12 +111,14 @@ protected:
 NavigatorPanel::NavigatorPanel(QWidget* parent) : QWidget(parent)
 {
     setObjectName(QStringLiteral("NavigatorPanel"));
-    auto* layout=new QVBoxLayout(this);layout->setContentsMargins(6,4,6,6);layout->setSpacing(4);
+    auto* layout=new QVBoxLayout(this);layout->setContentsMargins(6,4,6,2);layout->setSpacing(2);
     view_=new NavigatorView(this);layout->addWidget(view_,1);
-    auto* row=new QHBoxLayout;row->setSpacing(8);
+    auto* row=new QHBoxLayout;row->setSpacing(6);
     zoom_=new QSlider(Qt::Horizontal,this);zoom_->setObjectName(QStringLiteral("NavigatorZoom"));
     zoom_->setLayoutDirection(Qt::LeftToRight);zoom_->setRange(0,1000);
     zoom_->setSingleStep(10);zoom_->setPageStep(50);
+    // Keep a comfortable input area around the slimmer painted track/handle.
+    zoom_->setFixedHeight(22);
     i18n::setToolTip(zoom_,i18n::text("navigator.zoom"));
     i18n::property(zoom_,"accessibleName",i18n::text("navigator.zoom"));
     percentage_=new QLabel(this);percentage_->setObjectName(QStringLiteral("NavigatorZoomPercent"));
@@ -125,8 +127,8 @@ NavigatorPanel::NavigatorPanel(QWidget* parent) : QWidget(parent)
     percentage_->setMinimumWidth(percentage_->fontMetrics().horizontalAdvance(QStringLiteral("6400.0%")));
     reset_=new QToolButton(this);reset_->setObjectName(QStringLiteral("NavigatorResetView"));
     reset_->setIcon(toolGlyph(ToolGlyph::ResetCrop));reset_->setIconSize({16,16});
-    reset_->setFixedSize(24,24);reset_->setAutoRaise(true);reset_->setFocusPolicy(Qt::NoFocus);
-    reset_->setStyleSheet(QStringLiteral("QToolButton { padding: 2px; border-radius: 4px; }"));
+    reset_->setFixedSize(22,22);reset_->setAutoRaise(true);reset_->setFocusPolicy(Qt::NoFocus);
+    reset_->setStyleSheet(QStringLiteral("QToolButton { padding: 1px; border-radius: 4px; }"));
     i18n::setToolTip(reset_,i18n::text("navigator.reset.view"));
     i18n::property(reset_,"accessibleName",i18n::text("navigator.reset.view"));
     connect(reset_,&QToolButton::clicked,this,[this]{if(onResetView)onResetView();});

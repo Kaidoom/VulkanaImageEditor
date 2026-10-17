@@ -755,6 +755,20 @@ void applyEditorTheme(QApplication& application, const ThemeSettings& settings)
         QSlider:focus::handle:horizontal {
             border-color: #FFFFFF;
         }
+        QSlider#NavigatorZoom::groove:horizontal {
+            height: 2px;
+            border-radius: 1px;
+        }
+        QSlider#NavigatorZoom::sub-page:horizontal {
+            border-radius: 1px;
+        }
+        QSlider#NavigatorZoom::handle:horizontal {
+            border-width: 1px;
+            width: 10px;
+            height: 10px;
+            margin: -5px 0;
+            border-radius: 6px;
+        }
 
         QCheckBox:focus {
             color: #FFFFFF;

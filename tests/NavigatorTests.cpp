@@ -12,6 +12,7 @@
 #include <QSettings>
 #include <QSlider>
 #include <QStandardPaths>
+#include <QStyleOptionSlider>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QToolButton>
@@ -105,7 +106,12 @@ void widgetMapping()
     CHECK(near(center.x,after.x) && near(center.y,after.y));
     // Keep the real viewport outline beyond the image, rather than drawing a
     // false edge on the canvas border. Pasteboard is also a navigation target.
-    view.setZoom(2);panel.onNavigate({75,100});
+    view.setZoom(2);
+    // Keep the off-canvas edge inside the preview even when the footer gives
+    // the image more room and reduces horizontal letterboxing.
+    const auto offCanvasCenter=area.width()/(2*view.zoom())
+        -panel.imageRect().left()*.5/panel.imageRect().width()*1000;
+    panel.onNavigate({offCanvasCenter,100});
     const auto outline=panel.visibleRect(),image=panel.imageRect();
     CHECK(outline.left()<image.left() && outline.left()>0);
     const auto painted=canvas->grab().toImage();const auto dpr=painted.devicePixelRatio();
@@ -122,7 +128,7 @@ void widgetMapping()
     sendMouse(canvas,QEvent::MouseMove,end,Qt::NoButton,Qt::LeftButton);
     sendMouse(canvas,QEvent::MouseButtonRelease,end,Qt::LeftButton,Qt::NoButton);
     const auto outside=view.viewportToDocument({area.center().x(),area.center().y()},{1000,500},viewport);
-    CHECK(near(outside.x,-925)); // Not clamped at document X=0.
+    CHECK(near(outside.x,offCanvasCenter-1000)); // Not clamped at document X=0.
     int resetCount=0;panel.onResetView=[&]{++resetCount;};
     auto* reset=panel.findChild<QToolButton*>("NavigatorResetView");
     CHECK(reset && reset->isEnabled() && !reset->icon().isNull());
@@ -130,6 +136,24 @@ void widgetMapping()
     auto* percentage=panel.findChild<QWidget*>("NavigatorZoomPercent");
     CHECK(percentage && zoom->geometry().right()<percentage->geometry().left());
     CHECK(percentage && percentage->geometry().right()<reset->geometry().left());
+    CHECK(zoom->height()==22 && reset->size()==QSize(22,22));
+    CHECK(panel.height()-canvas->geometry().bottom()-1<=26);
+    CHECK(std::abs(zoom->geometry().center().y()-reset->geometry().center().y())<=1);
+    CHECK(std::abs(percentage->geometry().center().y()-reset->geometry().center().y())<=1);
+    QStyleOptionSlider sliderStyle;sliderStyle.initFrom(zoom);sliderStyle.orientation=Qt::Horizontal;
+    sliderStyle.state|=QStyle::State_Horizontal;
+    sliderStyle.minimum=zoom->minimum();sliderStyle.maximum=zoom->maximum();
+    sliderStyle.sliderPosition=zoom->value();sliderStyle.sliderValue=zoom->value();
+    const auto groove=zoom->style()->subControlRect(QStyle::CC_Slider,&sliderStyle,QStyle::SC_SliderGroove,zoom);
+    const auto handle=zoom->style()->subControlRect(QStyle::CC_Slider,&sliderStyle,QStyle::SC_SliderHandle,zoom);
+    CHECK(groove.height()==2 && handle.width()==12 && handle.height()==12);
+    const auto oldZoom=zoom->value();
+    sendMouse(zoom,QEvent::MouseButtonPress,handle.center(),Qt::LeftButton,Qt::LeftButton);
+    sendMouse(zoom,QEvent::MouseMove,handle.center()+QPoint(16,0),Qt::NoButton,Qt::LeftButton);
+    sendMouse(zoom,QEvent::MouseButtonRelease,handle.center()+QPoint(16,0),Qt::LeftButton,Qt::NoButton);
+    CHECK(zoom->value()>oldZoom);
+    const auto draggedZoom=zoom->value();QTest::keyClick(zoom,Qt::Key_Left);
+    CHECK(zoom->value()<draggedZoom);
     QTest::mouseClick(reset,Qt::LeftButton);CHECK(resetCount==1);
     const auto renders=panel.completedRenders();QTest::qWait(150);CHECK(panel.completedRenders()==renders);
     panel.hide();CHECK(doc.setLayerOpacity(doc.layers()[0].id,.4F));panel.setDocument(4,doc.snapshot());
