@@ -19,11 +19,15 @@
 #include "imageeditor/ui/ToolIcons.hpp"
 #include <QApplication>
 #include <QElapsedTimer>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QImageReader>
 #include <QJsonArray>
 #include <QMenu>
+#include <QLabel>
+#include <QProgressBar>
 #include <QMessageBox>
 #include <QProgressDialog>
 #include <QProcess>
@@ -34,6 +38,7 @@
 #include <QStatusBar>
 #include <QTimer>
 #include <QWindow>
+#include <QVBoxLayout>
 
 namespace imageeditor::ui {
 void MainWindow::receiveExternalLaunch(const QStringList& files)
@@ -288,26 +293,56 @@ bool MainWindow::saveDocument(bool saveAs)
     layersUi["collapsedFolders"] = collapsed; // Write [] too, clearing old state.
     ui["layers"] = layersUi;
     metadata["ui"] = ui;
+    // Do not restore a stale success notice if this save is cancelled, and
+    // restart the normal notification lifetime even for the same filename.
+    statusBar()->clearMessage();
     ProjectIoResult result;
     {
         QScopedValueRollback busy(fileBusy_, true);
-        QProgressDialog progress(i18n::text("main.window.files.saving.and.verifying.project"), QStringLiteral("Cancel"), 0, 1000, this);
-        progress.setWindowModality(Qt::WindowModal);
-        progress.setMinimumDuration(350);
-        progress.setAutoClose(false);
-        progress.setAutoReset(false);
-        QScopedValueRollback progressPointer(fileProgress_, &progress);
-        QElapsedTimer cadence;
-        cadence.start();
+        // Serialization reads live document data, so keep the edit barrier.
+        // Present on the existing workspace plane, not as a native window.
+        WorkspaceDialog presenter(*workspace_, *this);
+        QDialog progress(&presenter, Qt::SubWindow);
+        progress.setObjectName(QStringLiteral("ProjectSaveProgress"));
+        progress.hide();
+        progress.setFixedWidth(400);
+        auto* layout = new QVBoxLayout(&progress);
+        layout->setContentsMargins(18, 16, 18, 16);
+        layout->setSpacing(12);
+        const auto message = i18n::text("main.window.files.saving.and.verifying.project");
+        i18n::setWindowTitle(&progress, message);
+        auto* title = i18n::make<QLabel>(message, &progress);
+        title->setObjectName(QStringLiteral("ToolTitle"));
+        title->setWordWrap(true);
+        layout->addWidget(title);
+        auto* bar = new QProgressBar(&progress);
+        bar->setObjectName(QStringLiteral("ProjectSaveProgressBar"));
+        bar->setRange(0, 1000);
+        bar->setValue(0);
+        bar->setLocale(QLocale::c());
+        i18n::setAccessibleName(bar, message);
+        layout->addWidget(bar);
+        auto* buttons = new i18n::ButtonBox(QDialogButtonBox::Cancel, &progress);
+        layout->addWidget(buttons);
+        bool cancelled = false;
+        connect(buttons, &QDialogButtonBox::rejected, &progress, &QDialog::reject);
+        connect(&progress, &QDialog::rejected, &progress, [&] { cancelled = true; });
+        QScopedValueRollback<QWidget*> progressPointer(fileProgress_, &progress);
+        QScopedValueRollback activeDialog(workspaceDialog_, &presenter);
+        const auto finishPopup = qScopeGuard([&] { presenter.finish(); });
+        QElapsedTimer cadence, elapsed;
+        cadence.start(); elapsed.start();
         result = saveProject(path, *session().document(), metadata, [&](quint64 done, quint64 total) {
             if (fileInteractions_.progress && !fileInteractions_.progress(done, total))
                 return false;
             if (cadence.elapsed() >= 16) {
-                progress.setValue(int(done * 1000 / std::max<quint64>(total, 1)));
+                bar->setValue(int(done * 1000 / std::max<quint64>(total, 1)));
+                if (!cancelled && !presenter.active() && elapsed.elapsed() >= 350)
+                    presenter.open(progress);
                 QApplication::processEvents(QEventLoop::AllEvents, 5);
                 cadence.restart();
             }
-            return !progress.wasCanceled();
+            return !cancelled;
         });
     }
     if (!result) {
@@ -356,7 +391,7 @@ bool MainWindow::openDocumentFromPath(const QString& filePath)
             progress.setMinimumDuration(350);
             progress.setAutoClose(false);
             progress.setAutoReset(false);
-            QScopedValueRollback progressPointer(fileProgress_, &progress);
+            QScopedValueRollback<QWidget*> progressPointer(fileProgress_, &progress);
             QElapsedTimer cadence;
             cadence.start();
             auto result = loadProject(path, [&](quint64 done, quint64 total) {

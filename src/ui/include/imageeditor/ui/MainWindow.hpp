@@ -64,7 +64,6 @@ class QToolBar;
 class QVulkanInstance;
 class QTimer;
 class QMenu;
-class QProgressDialog;
 class QNetworkAccessManager;
 class QTabBar;
 class QMimeData;
@@ -521,7 +520,7 @@ private:
     void showAbout();
     void showFeedback();
     void refreshThemeAppearance();
-    QProgressDialog* fileProgress_ {nullptr};
+    QWidget* fileProgress_ {nullptr};
     QMenu* recentMenu_ {nullptr};
     std::unique_ptr<TextController> textController_;
     ShapeOptionsPage* shapeOptionsPage_ {nullptr};

@@ -487,7 +487,7 @@ void MainWindow::mergeLayerItems()
         FlattenedDocumentResult result;
         {
             const QScopedValueRollback busy(fileBusy_, true);
-            const QScopedValueRollback active(fileProgress_, &progress);
+            const QScopedValueRollback<QWidget*> active(fileProgress_, &progress);
             result = flattenLayerItems(doc, ids, [&](std::uint64_t done, std::uint64_t total) {
                 if(timer.elapsed()>=12){progress.setValue(int(done*1000/std::max<std::uint64_t>(total,1)));QApplication::processEvents();timer.restart();}
                 return !progress.wasCanceled(); }, limits);
@@ -526,7 +526,7 @@ void MainWindow::rasterizeLayerItems()
     RasterizeResult result;
     {
         const QScopedValueRollback busy(fileBusy_,true);
-        const QScopedValueRollback active(fileProgress_,&progress);
+        const QScopedValueRollback<QWidget*> active(fileProgress_,&progress);
         result=prepareRasterizeLayers(doc,selection,session().history().memoryBudget(),[&](auto done,auto total){
             if(timer.elapsed()>=12){progress.setValue(int(done*1000/std::max<std::uint64_t>(total,1)));QApplication::processEvents();timer.restart();}
             return !progress.wasCanceled();

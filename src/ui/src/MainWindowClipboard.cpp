@@ -33,7 +33,7 @@ void MainWindow::copyCanvasToClipboard()
         progress.setWindowModality(Qt::WindowModal);
         progress.setMinimumDuration(250);
         progress.setAutoClose(false); progress.setAutoReset(false);
-        const QScopedValueRollback active(fileProgress_, &progress);
+        const QScopedValueRollback<QWidget*> active(fileProgress_, &progress);
         QElapsedTimer cadence; cadence.start();
         result = renderExport(*owner->session.document(), settings, [&](auto done, auto total) {
             if (fileInteractions_.progress && !fileInteractions_.progress(done, total)) return false;

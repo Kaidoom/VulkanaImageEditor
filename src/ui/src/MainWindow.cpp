@@ -1424,7 +1424,7 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
     // File serialization pumps progress/cancel events, but owns an edit
     // exclusion barrier. Paint/expose and the progress dialog remain live.
     if (fileBusy_ && ourTarget && !(fileProgress_ && widget
-        && (widget == fileProgress_ || widget->window() == fileProgress_))) {
+        && (widget == fileProgress_ || fileProgress_->isAncestorOf(widget)))) {
         switch (event->type()) {
         case QEvent::KeyPress: case QEvent::KeyRelease: case QEvent::ShortcutOverride:
         case QEvent::MouseButtonPress: case QEvent::MouseButtonDblClick: case QEvent::MouseButtonRelease:

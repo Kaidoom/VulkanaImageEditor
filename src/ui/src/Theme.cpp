@@ -258,7 +258,8 @@ void applyEditorTheme(QApplication& application, const ThemeSettings& settings)
         QMainWindow, QDialog {
             background: #151820;
         }
-        QDialog#NewDocumentDialog, QDialog#PreferencesDialog, QDialog#ExportDialog, QDialog#AboutVulkanaDialog {
+        QDialog#NewDocumentDialog, QDialog#PreferencesDialog, QDialog#ExportDialog, QDialog#AboutVulkanaDialog,
+        QDialog#ProjectSaveProgress {
             border: 1px solid #343A49;
             border-radius: 10px;
         }

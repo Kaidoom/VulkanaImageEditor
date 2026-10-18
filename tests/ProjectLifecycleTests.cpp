@@ -3,21 +3,29 @@
 #include "imageeditor/ui/NewDocumentDialog.hpp"
 #include "imageeditor/ui/ProjectFile.hpp"
 #include "imageeditor/ui/RecentFiles.hpp"
+#include "imageeditor/ui/WorkspaceDialog.hpp"
+#include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/platform/PlatformStartup.hpp"
 
 #include <QAction>
 #include <QApplication>
 #include <QColor>
 #include <QDialog>
+#include <QDialogButtonBox>
 #include <QDoubleSpinBox>
 #include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
 #include <QLineEdit>
+#include <QLabel>
 #include <QMenu>
+#include <QProgressBar>
+#include <QProgressDialog>
+#include <QPushButton>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QStatusBar>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTimer>
@@ -600,6 +608,84 @@ void progressCannotMutateDocumentThroughMoveOrUndo()
         CHECK(loaded.document->layers().front().opacity == opacity);
     }
 }
+void savingUsesOwnedProgressAndKeepsCancellationSafe()
+{
+    ui::applyEditorTheme(*qApp);
+    Fixture f;
+    f.show();
+    const auto path = f.saveAs();
+    const auto originalFile = fileBytes(path);
+    f.modify();
+    const State before(f);
+    // Slow only the first callback, independent of disk speed or file size.
+    // Exercise the real input route while fileBusy_ is protecting live data.
+    for (int action = 0; action < 3; ++action) {
+        bool delayed = false, visited = false, captured = false;
+        int highestProgress = 0;
+        f.duringProgress = [&] {
+            auto* card = f.window.findChild<QDialog*>(QStringLiteral("ProjectSaveProgress"));
+            CHECK(card);
+            if (!delayed) {
+                CHECK(card && card->isHidden()); // no flash for quick saves
+                delayed = true;
+                QTest::qWait(370);
+                return;
+            }
+            if (!card || !card->isVisible()) return;
+            auto* bar = card->findChild<QProgressBar*>(QStringLiteral("ProjectSaveProgressBar"));
+            if (bar) highestProgress = std::max(highestProgress, bar->value());
+            if (action == 2) {
+                QTest::qWait(18); // allow several real progress updates
+                const auto output = qEnvironmentVariable("VULKANA_SAVE_PROGRESS_SCREENSHOT");
+                if (!captured && bar && bar->value() > 0 && !output.isEmpty()) {
+                    CHECK(card->grab().save(output));
+                    captured = true;
+                }
+            }
+            if (visited) return;
+            visited = true;
+            CHECK(!card->isWindow() && !card->windowHandle());
+            CHECK(!QApplication::topLevelWidgets().contains(card));
+            CHECK(!f.window.findChild<QProgressDialog*>());
+            auto* presenter = dynamic_cast<ui::WorkspaceDialog*>(card->parentWidget());
+            CHECK(presenter && presenter->active());
+            CHECK(bar && bar->minimum() == 0 && bar->maximum() == 1000);
+            CHECK(bar && bar->value() >= 0 && bar->value() <= 1000);
+            CHECK(bar && bar->isTextVisible() && bar->text().contains('%'));
+            CHECK(!f.window.saveDocument()); // no reentrant save or tab close
+            CHECK(!f.window.closeDocument(f.window.activeDocumentId()));
+            before.verify(f);
+            if (action == 0) {
+                auto* buttons = card->findChild<QDialogButtonBox*>();
+                CHECK(buttons && buttons->button(QDialogButtonBox::Cancel));
+                if (buttons) QTest::mouseClick(buttons->button(QDialogButtonBox::Cancel), Qt::LeftButton);
+            } else if (action == 1) {
+                QTest::keyClick(card, Qt::Key_Escape);
+            }
+        };
+        const auto saved = f.window.saveDocument();
+        f.duringProgress = {};
+        CHECK(visited && saved == (action == 2));
+        CHECK(!f.window.findChild<QDialog*>(QStringLiteral("ProjectSaveProgress")));
+        CHECK(f.errors.isEmpty());
+        if (action < 2) {
+            before.verify(f);
+            CHECK(fileBytes(path) == originalFile);
+            CHECK(f.window.statusBar()->currentMessage().isEmpty());
+        } else {
+            CHECK(highestProgress > 0);
+            CHECK(!f.session().document()->isModified());
+            CHECK(f.session().document()->contentState() == before.content);
+            CHECK(f.session().history().undoDepth() == before.undo);
+            const auto loaded = ui::loadProject(path);
+            CHECK(loaded && loaded.document->layers().front().visible == before.visible);
+            auto* notice = f.window.findChild<QLabel*>(QStringLiteral("StatusNotification"));
+            CHECK(notice && notice->isVisible());
+            CHECK(notice && notice->text() == f.window.statusBar()->currentMessage());
+            CHECK(notice && notice->text().contains(QFileInfo(path).fileName()));
+        }
+    }
+}
 void updateRestartGuards()
 {
     Fixture first, second;
@@ -712,6 +798,7 @@ int main(int argc, char** argv)
         recentMenuUsesTheSameUnsavedGuard();
         saveShortcutsReachPersistenceFromEditableFields();
         progressCannotMutateDocumentThroughMoveOrUndo();
+        savingUsesOwnedProgressAndKeepsCancellationSafe();
         updateRestartGuards();
         externalLaunchesUseExistingWorkspace();
     } catch (const std::exception& error) {
