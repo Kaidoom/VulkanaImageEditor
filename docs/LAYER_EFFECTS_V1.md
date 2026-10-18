@@ -106,6 +106,18 @@ in [Bevel & Emboss](BEVEL_EMBOSS.md).
 
 ### Gradients
 
+The Swatches panel contains collapsible **Swatches**, **Gradient**, and **Custom**
+sections. Gradient tiles add or enable Gradient Overlay on the active raster,
+text, or shape layer. They replace only its color ramp; blend mode, opacity,
+angle, scale, and direction remain unchanged. Paint colors and other effects are
+unaffected. Custom swatches continue to store solid colors.
+
+In Effects, click the gradient preview to add a color stop, drag a marker to move
+it, click a marker to edit its color, or right-click to remove it. At least two
+stops remain. Up/Down selects neighboring stops, Left/Right moves the selected
+stop, and Enter opens its color picker. Each drag or color edit is one undo step;
+Escape cancels an active drag. There are no separate opacity-stop controls.
+
 The reference rectangle is raster intrinsic extent, shape geometry size, or text
 layout logical extent, in local coordinates starting at (0,0). Filter/style cache
 padding, pan/zoom, and crop never shift this frame. Linear gradients project onto
@@ -113,11 +125,15 @@ the specified angle across that rectangle; radial gradients use its centered
 elliptical normalized radius. Scale changes the span/radius; Reverse swaps the
 parameter direction. Endpoints clamp outside the span.
 
-Endpoint RGB is decoded to linear light and premultiplied by endpoint alpha
+Stop RGB is decoded to linear light and premultiplied by stop alpha
 before interpolation. Both associated color and alpha interpolate as floats;
-transparent endpoint RGB is irrelevant. The result goes through the normal
+transparent stop RGB is irrelevant. The result goes through the normal
 blend function, using its alpha as color-effect strength, while base coverage
 remains unchanged. No intermediate gradient bitmap or RGBA8 quantization is used.
+The ramp supports up to 256 ordered stops, including coincident stops for hard
+transitions. Existing two-color gradients retain their original interpolation.
+Projects with explicit stops declare `multi-stop-gradient-v1` so older readers
+reject unsupported data instead of silently losing colors.
 
 ## Consumers and destructive operations
 

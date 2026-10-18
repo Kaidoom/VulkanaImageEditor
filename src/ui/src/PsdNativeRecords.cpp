@@ -512,20 +512,21 @@ QByteArray effectRecord(const core::Layer &layer) {
                            {"Hrzn", unit(0, "#Prc")},
                            {"Vrtc", unit(0, "#Prc")}};
       List colors, alpha;
-      for (int endpoint = 0; endpoint < 2; ++endpoint) {
-        auto color = endpoint ? e.secondColor : e.color;
+      for (const auto& stop : core::effectiveGradientStops(e)) {
+        const auto color = stop.color;
+        const auto location = int(std::lround(stop.position * 4096));
         colors << Map{{"$class", "Clrt"},
                       {"Clr ", rgb(color)},
                       {"Type", enumeration("Clry", "UsrS")},
-                      {"Lctn", endpoint * 4096},
+                      {"Lctn", location},
                       {"Mdpn", 50}};
         alpha << Map{{"$class", "TrnS"},
                      {"Opct", unit(color.alpha * 100. / 255, "#Prc")},
-                     {"Lctn", endpoint * 4096},
+                     {"Lctn", location},
                      {"Mdpn", 50}};
       }
       effect["Grad"] = Map{{"$class", "Grdn"},
-                           {"Nm  ", QString("Vulkana two-color gradient")},
+                           {"Nm  ", QString("Vulkana gradient")},
                            {"GrdF", enumeration("GrdF", "CstS")},
                            {"Intr", 4096},
                            {"Clrs", colors},

@@ -12,6 +12,7 @@ add_library(imageeditor_ui STATIC
     src/SpatialFilterCodec.cpp
     src/LayerEffectCodec.cpp
     src/AdjustmentCurveEditor.cpp
+    src/GradientStopEditor.cpp
     src/AdjustmentHistograms.cpp
     src/AdjustmentsPanel.cpp
     src/FiltersPanel.cpp

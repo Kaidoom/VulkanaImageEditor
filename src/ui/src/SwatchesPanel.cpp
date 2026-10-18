@@ -1,10 +1,11 @@
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/SwatchesPanel.hpp"
+#include "imageeditor/ui/CollapsibleSection.hpp"
 #include "imageeditor/ui/PopupOwnership.hpp"
 #include "imageeditor/ui/ToolIcons.hpp"
 
 #include "imageeditor/ui/ColorDialog.hpp"
-#include <QLabel>
+#include <QImage>
 #include <QListWidget>
 #include <QPainter>
 #include <QPushButton>
@@ -22,6 +23,8 @@
 namespace imageeditor::ui {
 namespace {
 constexpr int swatchExtent = 28;
+constexpr QSize gradientTileSize {64, 30};
+constexpr int gradientPreviewRole = Qt::UserRole + 1;
 const auto customSwatchesKey = QStringLiteral("editor/custom-swatches-v1");
 
 // Black-to-white first, followed by hue families, each dark to light.
@@ -39,6 +42,90 @@ constexpr std::array<QRgb, 50> defaultSwatches {
     0xff550080, 0xff9933cc, 0xffbb88ee, 0xffe6ccff,
     0xff800055, 0xffee3399, 0xffff88bb, 0xffffcce6,
 };
+
+std::vector<core::GradientStop> gradient(std::initializer_list<QRgb> colors)
+{
+    std::vector<core::GradientStop> result;
+    result.reserve(colors.size());
+    for (const auto rgb : colors) {
+        result.push_back({double(result.size()) / double(colors.size() - 1),
+            {std::uint8_t(qRed(rgb)), std::uint8_t(qGreen(rgb)),
+                std::uint8_t(qBlue(rgb)), 255}});
+    }
+    return result;
+}
+
+const std::vector<std::vector<core::GradientStop>>& gradientPresets()
+{
+    // Each family flows from subdued to vivid. These are editable color ramps,
+    // not serialized preset identifiers or changes to the editor's paint colors.
+    static const std::vector<std::vector<core::GradientStop>> presets {
+        // Grays.
+        gradient({0x000000, 0xffffff}),
+        gradient({0x171b21, 0x78818b, 0xf0f3f5}),
+        gradient({0x302a28, 0xaba299, 0xf5eee4}),
+        gradient({0x303944, 0xb6c0cb, 0xffffff, 0x828d9a}),
+        // Blues.
+        gradient({0x071b3d, 0x1661b5, 0x91dcff}),
+        gradient({0x173c71, 0x00a4c7, 0xb6f4ed}),
+        gradient({0x162354, 0x4767df, 0xc2c9ff}),
+        gradient({0x003b69, 0x23a9d1, 0xdaf8ff}),
+        // Purples.
+        gradient({0x25123d, 0x714aaa, 0xddd0ff}),
+        gradient({0x39195b, 0xa044c3, 0xf6b8ef}),
+        gradient({0x1f2364, 0x7355cd, 0xd0a5ef}),
+        gradient({0x482a60, 0x997aa8, 0xeadde9}),
+        // Pinks.
+        gradient({0x6d204b, 0xde5f94, 0xffc9df}),
+        gradient({0xa03062, 0xf27f9e, 0xffdabd}),
+        gradient({0x773a67, 0xbd7ba0, 0xf9dce7}),
+        gradient({0xbd315c, 0xff81a6, 0xffe3eb}),
+        // Oranges.
+        gradient({0x713018, 0xe87826, 0xffd886}),
+        gradient({0xcd5124, 0xffa345, 0xffedb0}),
+        gradient({0x9b4027, 0xea9270, 0xffddbc}),
+        gradient({0x64273c, 0xe46b45, 0xffcb62}),
+        // Reds.
+        gradient({0x4b1321, 0xc13b45, 0xff9890}),
+        gradient({0x8b1829, 0xed414e, 0xffb8a8}),
+        gradient({0x5e1d34, 0xba5669, 0xf4b2aa}),
+        gradient({0xb52432, 0xf36a45, 0xffbc70}),
+        // Greens.
+        gradient({0x123c32, 0x2b8b68, 0xb8e4aa}),
+        gradient({0x235344, 0x65b28b, 0xd5f5d4}),
+        gradient({0x354b25, 0x93ac50, 0xf1edac}),
+        gradient({0x07535a, 0x26a596, 0xc5f5d2}),
+        // Clouds.
+        gradient({0x8ca6c5, 0xd8e8f5, 0xffffff}),
+        gradient({0xa9a5c4, 0xe1d8ed, 0xfff4eb}),
+        gradient({0xaccdcf, 0xe2eee7, 0xffffff}),
+        gradient({0xc9a9a9, 0xf4e1d5, 0xfffaf3}),
+        // Iridescence.
+        gradient({0x8edee0, 0xc3b3f1, 0xf9bbdb, 0xffe9b5}),
+        gradient({0x8bbbe4, 0xc4f0e6, 0xf2dcfc, 0xe9acc8}),
+        gradient({0xb7a8e8, 0xf8d2db, 0xf8edc5, 0xa7e3db, 0x8fb3e5}),
+        gradient({0x547bb6, 0x8bcbbd, 0xe4dcae, 0xd8a0c1, 0x8c6ca9}),
+        // Pastels.
+        gradient({0xf0b9cc, 0xd6c4ec, 0xb9d8f4}),
+        gradient({0xffd5b7, 0xffedc7, 0xd5e6bc}),
+        gradient({0xb9e3d9, 0xc6d8ef, 0xe4cff0}),
+        gradient({0xf5c4bc, 0xf9e2c7, 0xdde9d2, 0xc8e3eb}),
+    };
+    return presets;
+}
+
+QImage gradientPreview(const std::vector<core::GradientStop>& stops)
+{
+    auto effect = core::defaultLayerEffect(core::LayerEffectType::GradientOverlay);
+    effect.gradientStops = stops;
+    QImage image(256, 1, QImage::Format_ARGB32_Premultiplied);
+    for (int x = 0; x < image.width(); ++x) {
+        const auto color = core::encodeColor(
+            core::sampleLayerEffectGradient(effect, double(x) / (image.width() - 1)));
+        image.setPixelColor(x, 0, QColor(color.red, color.green, color.blue, color.alpha));
+    }
+    return image;
+}
 
 QColor swatchColor(const QListWidgetItem* item)
 {
@@ -58,15 +145,17 @@ void setSwatchColor(QListWidgetItem* item, const QColor& color)
 
 class SwatchDelegate final : public QStyledItemDelegate {
 public:
-    using QStyledItemDelegate::QStyledItemDelegate;
+    explicit SwatchDelegate(QSize tileSize, QObject* parent)
+        : QStyledItemDelegate(parent), tileSize_(tileSize) {}
     QSize sizeHint(const QStyleOptionViewItem&, const QModelIndex&) const override
     {
-        return {swatchExtent, swatchExtent};
+        return tileSize_;
     }
     void paint(QPainter* painter, const QStyleOptionViewItem& option,
         const QModelIndex& index) const override
     {
         painter->save();
+        if (!(option.state & QStyle::State_Enabled)) painter->setOpacity(.45);
         const auto area = option.rect.adjusted(3, 3, -3, -3);
         painter->setClipRect(area);
         for (int y = area.top(); y <= area.bottom(); y += 5)
@@ -74,7 +163,13 @@ public:
                 painter->fillRect(x, y, 5, 5,
                     ((x - area.left()) / 5 + (y - area.top()) / 5) % 2
                         ? QColor(94, 98, 111) : QColor(160, 164, 175));
-        painter->fillRect(area, index.data(Qt::UserRole).value<QColor>());
+        const auto preview = index.data(gradientPreviewRole).value<QImage>();
+        if (preview.isNull()) {
+            painter->fillRect(area, index.data(Qt::UserRole).value<QColor>());
+        } else {
+            painter->setRenderHint(QPainter::SmoothPixmapTransform);
+            painter->drawImage(area, preview);
+        }
         painter->setClipping(false);
         painter->setBrush(Qt::NoBrush);
         painter->setPen(option.palette.color(QPalette::Mid));
@@ -86,13 +181,16 @@ public:
         }
         painter->restore();
     }
+private:
+    QSize tileSize_;
 };
 
 // Like the brush shelf, fixed-size tiles reflow while the containing panel is
 // the only scroll area. No nested scrolling or per-swatch child widgets.
 class SwatchGrid final : public QListWidget {
 public:
-    explicit SwatchGrid(QWidget* parent) : QListWidget(parent)
+    explicit SwatchGrid(QWidget* parent, QSize tileSize = {swatchExtent, swatchExtent})
+        : QListWidget(parent)
     {
         setViewMode(QListView::IconMode);
         setFlow(QListView::LeftToRight);
@@ -100,7 +198,7 @@ public:
         setResizeMode(QListView::Adjust);
         setWrapping(true);
         setUniformItemSizes(true);
-        setGridSize({swatchExtent, swatchExtent});
+        setGridSize(tileSize);
         setSpacing(0);
         setFrameShape(QFrame::NoFrame);
         setSelectionMode(QAbstractItemView::SingleSelection);
@@ -110,7 +208,7 @@ public:
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         setMouseTracking(true);
         setStyleSheet(QStringLiteral("QListWidget { background: transparent; border: none; padding: 0; }"));
-        setItemDelegate(new SwatchDelegate(this));
+        setItemDelegate(new SwatchDelegate(tileSize, this));
         connect(model(), &QAbstractItemModel::rowsInserted, this, [this] { updateHeight(); });
         connect(model(), &QAbstractItemModel::rowsRemoved, this, [this] { updateHeight(); });
         updateHeight();
@@ -124,9 +222,9 @@ protected:
 private:
     void updateHeight()
     {
-        const int columns = std::max(1, viewport()->width() / swatchExtent);
+        const int columns = std::max(1, viewport()->width() / gridSize().width());
         const int rows = std::max(1, (count() + columns - 1) / columns);
-        setFixedHeight(rows * swatchExtent);
+        setFixedHeight(rows * gridSize().height());
     }
 };
 } // namespace
@@ -146,17 +244,52 @@ SwatchesPanel::SwatchesPanel(QWidget* parent) : QWidget(parent)
     auto* body = new QWidget;
     auto* content = new QVBoxLayout(body);
     content->setContentsMargins(12, 12, 12, 12);
-    content->addWidget(i18n::make<QLabel>(i18n::text("swatches.panel.swatches"), body));
+    content->setSpacing(9);
+    QVBoxLayout* defaultsContent = nullptr;
+    content->addWidget(collapsibleSection(i18n::text("swatches.panel.swatches"),
+        QStringLiteral("ColorSwatches"), defaultsContent));
     defaults_ = new SwatchGrid(body);
     defaults_->setObjectName(QStringLiteral("DefaultColorSwatches"));
     i18n::setAccessibleName(defaults_, i18n::text("swatches.panel.default.color.swatches"));
     for (const auto rgb : defaultSwatches)
         setSwatchColor(new QListWidgetItem(defaults_), QColor::fromRgba(rgb));
-    content->addWidget(defaults_);
+    defaultsContent->addWidget(defaults_);
 
+    QVBoxLayout* gradientContent = nullptr;
+    content->addWidget(collapsibleSection(i18n::text("swatches.panel.gradient"),
+        QStringLiteral("GradientSwatches"), gradientContent));
+    gradients_ = new SwatchGrid(body, gradientTileSize);
+    gradients_->setObjectName(QStringLiteral("GradientSwatches"));
+    i18n::setAccessibleName(gradients_, i18n::text("swatches.panel.gradient.swatches"));
+    for (const auto& preset : gradientPresets()) {
+        auto* item = new QListWidgetItem(gradients_);
+        item->setData(gradientPreviewRole, gradientPreview(preset));
+    }
+    const auto updateGradientLabels = [this] {
+        for (int i = 0; i < gradients_->count(); ++i) {
+            const auto label = i18n::text("swatches.panel.gradient.preset").arg(i + 1);
+            auto* item = gradients_->item(i);
+            item->setData(Qt::AccessibleTextRole, QString(label));
+            item->setToolTip(label);
+        }
+    };
+    updateGradientLabels();
+    connect(&i18n::Localization::instance(), &i18n::Localization::languageChanged,
+        this, updateGradientLabels);
+    gradientContent->addWidget(gradients_);
+    // Mouse clicks and keyboard activation apply a preset. Merely navigating
+    // the grid with arrows does not create a series of undoable layer edits.
+    connect(gradients_, &QListWidget::itemClicked, this,
+        [this](QListWidgetItem* item) { chooseGradient(gradients_->row(item)); });
+    connect(gradients_, &QListWidget::itemActivated, this,
+        [this](QListWidgetItem* item) { chooseGradient(gradients_->row(item)); });
+    setGradientEnabled(false);
+
+    QVBoxLayout* customContent = nullptr;
+    content->addWidget(collapsibleSection(i18n::text("swatches.panel.custom"),
+        QStringLiteral("CustomSwatches"), customContent));
     auto* customRow = new QHBoxLayout;
     customRow->setSpacing(6);
-    customRow->addWidget(i18n::make<QLabel>(i18n::text("swatches.panel.custom"), body));
     customRow->addStretch();
     auto* add = new QPushButton(toolGlyph(ToolGlyph::Plus), QString(), body);
     add->setObjectName(QStringLiteral("AddCustomSwatch"));
@@ -165,13 +298,15 @@ SwatchesPanel::SwatchesPanel(QWidget* parent) : QWidget(parent)
     delete_->setObjectName(QStringLiteral("DeleteCustomSwatch"));
     i18n::setToolTip(delete_, i18n::text("swatches.panel.delete.selected.custom.color"));
     for (auto* button : {add, delete_}) {
-        button->setStyleSheet(QStringLiteral("QPushButton { padding: 0; min-width: 0; min-height: 0; }"));
+        // QSS minimum sizes are reapplied on polish, overriding setFixedSize's
+        // minimum. Keep the 26x24 content plus the theme's one-pixel border.
+        button->setStyleSheet(QStringLiteral("QPushButton { padding: 0; min-width: 26px; min-height: 24px; }"));
         button->setFixedSize(28, 26);
         button->setIconSize({18, 18});
         button->setAccessibleName(button->toolTip());
         customRow->addWidget(button);
     }
-    content->addLayout(customRow);
+    customContent->addLayout(customRow);
     custom_ = new SwatchGrid(body);
     custom_->setObjectName(QStringLiteral("CustomColorSwatches"));
     i18n::setAccessibleName(custom_, i18n::text("swatches.panel.custom.color.swatches"));
@@ -181,7 +316,7 @@ SwatchesPanel::SwatchesPanel(QWidget* parent) : QWidget(parent)
         if (color.isValid())
             setSwatchColor(new QListWidgetItem(custom_), color);
     }
-    content->addWidget(custom_);
+    customContent->addWidget(custom_);
     content->addStretch(1);
     scroll->setWidget(body);
     layout->addWidget(scroll);
@@ -232,6 +367,24 @@ void SwatchesPanel::setForegroundColor(core::Rgba8 color)
     auto colors = colors_;
     colors.setColor(colors.active, color);
     setColors(colors);
+}
+
+void SwatchesPanel::setGradientEnabled(bool enabled)
+{
+    gradients_->setEnabled(enabled);
+    const auto hint = i18n::text(enabled ? "swatches.panel.gradient.apply.hint"
+        : "swatches.panel.gradient.disabled.hint");
+    i18n::setToolTip(gradients_, hint);
+    // The enabled header also exposes the explanation when the grid is disabled.
+    if (auto* header = findChild<QToolButton*>("GradientSwatchesSectionHeader"))
+        i18n::setToolTip(header, hint);
+}
+
+void SwatchesPanel::chooseGradient(int row)
+{
+    const auto& presets = gradientPresets();
+    if (!gradients_->isEnabled() || row < 0 || std::size_t(row) >= presets.size()) return;
+    if (onGradientSelected) onGradientSelected(presets[std::size_t(row)]);
 }
 
 void SwatchesPanel::chooseSwatch(QListWidget* grid)

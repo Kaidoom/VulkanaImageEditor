@@ -1156,6 +1156,84 @@ void savedPreviewsAreOptionalBoundedAndFresh()
     CHECK(!cancelled && !cancelled.error.isEmpty()); CHECK(readBytes(wide) == old);
 }
 
+void multiStopGradientPersistence()
+{
+    Fixture f;
+    auto state = std::make_shared<c::LayerEffectStack>();
+    state->maskEffectsAfterRendering = true;
+    auto& gradient = state->items[std::size_t(c::LayerEffectType::GradientOverlay)];
+    gradient.enabled = true;
+    gradient.color = {12, 30, 90, 180};
+    gradient.secondColor = {250, 180, 80, 255};
+    gradient.angle = 0;
+    // An old two-color document remains endpoint-based and requires no new capability.
+    auto manifest = baseManifest();
+    auto required = manifest["required"].toArray();
+    required.append("layer-effects-v1");
+    manifest["required"] = required;
+    auto encoded = u::detail::encodeLayerEffects(*state);
+    CHECK(!encoded["items"].toArray()[6].toObject().contains("gradientStops"));
+    editLayer(manifest, [&](QJsonObject& layer) { layer["layerEffects"] = encoded; });
+    const auto legacy = f.load(manifest);
+    CHECK(legacy);
+    if (legacy) {
+        CHECK(c::equivalentLayerEffects(legacy.document->layers().front().effects, state));
+        const auto path = f.path("legacy-gradient.vulkana");
+        CHECK(u::saveProject(path, *legacy.document));
+        const auto reopened = u::loadProject(path);
+        CHECK(reopened);
+        if (reopened) {
+            CHECK(!reopened.metadata["required"].toArray().contains("multi-stop-gradient-v1"));
+            CHECK(u::flattenDocument(*reopened.document).image == u::flattenDocument(*legacy.document).image);
+        }
+    }
+    gradient.gradientStops = {{.1, {30, 80, 220, 80}}, {.4, {70, 220, 160, 255}},
+                              {.4, {230, 70, 120, 255}}, {.85, {250, 220, 120, 255}}};
+    encoded = u::detail::encodeLayerEffects(*state);
+    CHECK(c::equivalentLayerEffects(u::detail::decodeLayerEffects(encoded), state));
+    editLayer(manifest, [&](QJsonObject& layer) { layer["layerEffects"] = encoded; });
+    f.reject("undeclared multi-stop gradient", manifest);
+    required.append("multi-stop-gradient-v1");
+    manifest["required"] = required;
+    const auto loaded = f.load(manifest);
+    CHECK(loaded);
+    if (loaded) {
+        const auto path = f.path("multi-stop-gradient.vulkana");
+        CHECK(u::saveProject(path, *loaded.document));
+        const auto reopened = u::loadProject(path);
+        CHECK(reopened);
+        if (reopened) {
+            CHECK(c::equivalentLayerEffects(reopened.document->layers().front().effects, state));
+            CHECK(reopened.metadata["required"].toArray().contains("multi-stop-gradient-v1"));
+            CHECK(u::flattenDocument(*reopened.document).image == u::flattenDocument(*loaded.document).image);
+        }
+    }
+    for (int variant = 0; variant < 10; ++variant) {
+        auto bad = encoded;
+        auto items = bad["items"].toArray();
+        auto item = items[6].toObject();
+        auto stops = item["gradientStops"].toArray();
+        auto first = stops[0].toObject();
+        if (variant == 0) stops = {};
+        if (variant == 1) stops = {first};
+        if (variant == 2) while (std::size_t(stops.size()) <= c::maximumGradientStops) stops.append(stops.last());
+        if (variant == 3) first["position"] = "0.1";
+        if (variant == 4) first["position"] = -0.01;
+        if (variant == 5) first["position"] = 1.01;
+        if (variant == 6) first["position"] = .6;
+        if (variant == 7) first["color"] = QJsonArray{300, 0, 0, 255};
+        if (variant >= 3 && variant <= 7) stops[0] = first;
+        item["gradientStops"] = variant == 8 ? QJsonValue("invalid") : QJsonValue(stops);
+        items[6] = item;
+        if (variant == 9) {
+            auto stroke = items[0].toObject(); stroke["gradientStops"] = stops; items[0] = stroke;
+        }
+        bad["items"] = items;
+        editLayer(manifest, [&](QJsonObject& layer) { layer["layerEffects"] = bad; });
+        f.reject("invalid multi-stop gradient", manifest);
+    }
+}
+
 void advancedEffectBlendingPersistence()
 {
     Fixture f;
@@ -1235,6 +1313,10 @@ int main(int argc, char** argv)
 #endif
     QGuiApplication application(argc, argv);
     try {
+        if (application.arguments().contains("--gradient-stops")) {
+            multiStopGradientPersistence();
+            return failures ? EXIT_FAILURE : EXIT_SUCCESS;
+        }
         if (application.arguments().contains("--advanced-effect-blending")) {
             advancedEffectBlendingPersistence();
             return failures ? EXIT_FAILURE : EXIT_SUCCESS;
@@ -1248,6 +1330,7 @@ int main(int argc, char** argv)
             return failures ? EXIT_FAILURE : EXIT_SUCCESS;
         }
         savedPreviewsAreOptionalBoundedAndFresh();
+        multiStopGradientPersistence();
         advancedEffectBlendingPersistence();
         frozenFixtureDefaultsAndZipVariants();
         rememberedSelectionRoundTrip();

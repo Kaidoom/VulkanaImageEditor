@@ -189,14 +189,18 @@ std::int32_t VulkanCanvasRenderer::appendAdjustmentParameters(const core::LayerS
 std::int32_t VulkanCanvasRenderer::appendEffectParameters(const core::LayerSnapshot& layer,std::vector<float>& values)
 {
     const auto offset=values.size();
-    if((offset+core::effectParameterCount+core::layerEffectMaskCount*8)*sizeof(float)>parameterBudget)
-        throw std::length_error("Layer effect parameters exceed GPU budget");
     const auto program=core::compileLayerEffects(layer.effects,core::layerEffectReferenceFrame(layer),layer.blendSeed);
-    values.insert(values.end(),program.begin(),program.end());values.resize(values.size()+core::layerEffectMaskCount*8,0);
+    // The CPU program reserves the maximum stop table, but GPU uploads need
+    // only its populated prefix. Legacy styles keep their original footprint.
+    const auto parameterCount=std::size_t(program[23]);
+    if((offset+parameterCount+core::layerEffectMaskCount*8)*sizeof(float)>parameterBudget)
+        throw std::length_error("Layer effect parameters exceed GPU budget");
+    values.insert(values.end(),program.begin(),program.begin()+std::ptrdiff_t(parameterCount));
+    values.resize(values.size()+core::layerEffectMaskCount*8,0);
     for(std::size_t i=0;i<core::layerEffectMaskCount;++i)if(const auto& mask=layer.effectCache->masks[i]) {
         const auto found=std::find(adjustmentMasks_.begin(),adjustmentMasks_.end(),mask->coverage);
         if(found==adjustmentMasks_.end())throw std::runtime_error("Missing prepared layer effect mask");
-        const auto n=offset+core::effectParameterCount+i*8;const auto& t=mask->localToMask;
+        const auto n=offset+parameterCount+i*8;const auto& t=mask->localToMask;
         values[n]=float(t.m00);values[n+1]=float(t.m01);values[n+2]=float(t.m02);
         values[n+4]=float(t.m10);values[n+5]=float(t.m11);values[n+6]=float(t.m12);
         values[n+3]=std::bit_cast<float>(adjustmentMaskOffsets_[std::size_t(found-adjustmentMasks_.begin())]);

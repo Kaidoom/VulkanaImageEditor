@@ -18,6 +18,12 @@ enum class LayerEffectType : std::uint32_t {
 };
 enum class StrokePosition : std::uint32_t { Inside, Center, Outside };
 enum class GradientType : std::uint32_t { Linear, Radial };
+struct GradientStop {
+  double position{};
+  Rgba8 color;
+  friend bool operator==(const GradientStop &, const GradientStop &) = default;
+};
+inline constexpr std::size_t maximumGradientStops = 256;
 inline constexpr std::size_t layerEffectCount = 8;
 inline constexpr std::size_t layerEffectMaskCount = 10;
 inline constexpr std::uint32_t layerEffectVersion = 1;
@@ -54,6 +60,9 @@ struct LayerEffect {
   BlendMode blendMode{BlendMode::Normal};
   double opacity{1};
   Rgba8 color{255, 255, 255, 255}, secondColor{0, 0, 0, 255};
+  // Empty retains the original two-color gradient and its exact interpolation.
+  // Equal positions form a hard transition, with the later stop owning the edge.
+  std::vector<GradientStop> gradientStops;
   double size{6}, angle{45}, distance{8}, spread{0}; // spread/choke in [0,1]
   StrokePosition position{StrokePosition::Outside};
   GradientType gradient{GradientType::Linear};
@@ -75,6 +84,9 @@ struct LayerEffectStack {
 using LayerEffectState = std::shared_ptr<const LayerEffectStack>;
 [[nodiscard]] std::size_t layerEffectMemoryCost(const LayerEffectState&) noexcept;
 [[nodiscard]] LayerEffect defaultLayerEffect(LayerEffectType);
+[[nodiscard]] std::vector<GradientStop> effectiveGradientStops(const LayerEffect &);
+// Sample the untransformed ramp; direction/scale/reverse belong to its placement.
+[[nodiscard]] PremultipliedColor sampleLayerEffectGradient(const LayerEffect &, double) noexcept;
 [[nodiscard]] std::string_view layerEffectName(LayerEffectType) noexcept;
 [[nodiscard]] std::string_view layerEffectIdentifier(LayerEffectType) noexcept;
 [[nodiscard]] std::optional<LayerEffectType>
@@ -138,8 +150,11 @@ struct FilterPreparationOptions;
 prepareLayerEffects(const Layer &, const FilterPreparationOptions &);
 [[nodiscard]] float sampleEffectMask(const LayerEffectMask &, Vec2d) noexcept;
 inline constexpr std::size_t effectParameterStride = 32;
-inline constexpr std::size_t effectParameterCount =
+inline constexpr std::size_t effectGradientStopOffset =
     layerEffectCount * effectParameterStride + 4;
+inline constexpr std::size_t effectGradientStopStride = 5;
+inline constexpr std::size_t effectParameterCount =
+    effectGradientStopOffset + maximumGradientStops * effectGradientStopStride;
 using EffectParameters = std::array<float, effectParameterCount>;
 [[nodiscard]] EffectParameters compileLayerEffects(const LayerEffectState &,
                                                    RectD referenceFrame, std::uint32_t seed = defaultBlendSeed);

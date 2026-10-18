@@ -4,6 +4,7 @@
 #include "imageeditor/ui/BlendModeCombo.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
 #include "imageeditor/ui/AdjustmentCurveEditor.hpp"
+#include "imageeditor/ui/GradientStopEditor.hpp"
 #include "imageeditor/ui/CurrentPageStack.hpp"
 #include <QCheckBox>
 #include <QComboBox>
@@ -115,9 +116,28 @@ EffectsPanel::EffectsPanel(QWidget *parent) : QWidget(parent) {
         i, "Blend", i18n::text("effects.panel.blend"),
         [this, i] { return working_.items[i].blendMode; },
         [this, i](core::BlendMode v) { working_.items[i].blendMode = v; });
-    color(i, false, blendRow);
-    if (i == 6)
-      color(i, true, blendRow);
+    if(i!=6)color(i, false, blendRow);
+    else {
+      gradientEditor_=new GradientStopEditor;
+      page.layout->addWidget(gradientEditor_);
+      gradientEditor_->onInteractionStarted=[this]{return begin();};
+      gradientEditor_->onStopsChanged=[this](const auto& stops) {
+        auto& effect=working_.items[6];
+        effect.gradientStops=stops;
+        effect.color=stops.front().color;effect.secondColor=stops.back().color;
+        if(onPreview)onPreview(std::make_shared<const core::LayerEffectStack>(working_));
+      };
+      gradientEditor_->onInteractionFinished=[this](bool commit){finishEditing(commit);};
+      gradientEditor_->onColorRequested=[this](std::size_t stop) {
+        finishEditing();
+        if(onGradientColorRequested)onGradientColorRequested(stop);
+      };
+      const auto previous=page.refresh;
+      page.refresh=[this,previous] {
+        if(previous)previous();
+        gradientEditor_->setStops(core::effectiveGradientStops(working_.items[6]));
+      };
+    }
     if (i == 0)
       choices(
           i, i18n::text("effects.panel.position"), {i18n::text("effects.panel.inside"), i18n::text("effects.panel.center"), i18n::text("effects.panel.outside")},
@@ -352,6 +372,7 @@ void EffectsPanel::finishEditing(bool commit) {
   const bool had = editing_;
   editing_ = false;
   if(contourEditor_)contourEditor_->finishInteraction(commit);
+  if(gradientEditor_)gradientEditor_->finishInteraction(commit);
   for (auto &p : pages_)
     for (auto *n : p.numbers)
       n->finishEditing(commit, true);

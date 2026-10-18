@@ -175,6 +175,7 @@ namespace {
         bool containsAdjustmentLayers = false;
         bool containsSpatialFilters = false;
         bool containsLayerEffects = false, containsBevel = false, containsAdvancedEffectBlending = false;
+        bool containsMultiStopGradient = false;
         bool containsLayerMasks = false;
         bool containsProjective = false;
         bool containsRasterFrame = false;
@@ -287,6 +288,7 @@ namespace {
                 containsAdvancedEffectBlending |= !layer.effects->pixelAlphaShapesEffects || !layer.effects->maskEffectsAfterRendering;
                 containsLayerEffects=true;
                 containsBevel|=layer.effects->items[7]!=core::defaultLayerEffect(core::LayerEffectType::BevelEmboss);
+                containsMultiStopGradient |= !layer.effects->items[std::size_t(core::LayerEffectType::GradientOverlay)].gradientStops.empty();
             }
             if(layer.filters) {
                 saved["spatialFilters"]=detail::encodeSpatialFilters(*layer.filters,layer.id);
@@ -334,6 +336,7 @@ namespace {
             required.append("layer-effects-v1");
             if(containsAdvancedEffectBlending)required.append("layer-effects-advanced-blending-v1");
             if(containsBevel)required.append("bevel-emboss-v1");
+            if(containsMultiStopGradient)required.append("multi-stop-gradient-v1");
             result["required"]=required;
         }
         if (containsSpatialFilters) {
@@ -490,7 +493,7 @@ namespace {
                     || capability == "adjustments-v1" || capability == "adjustment-layer-v1" || capability == "spatial-filters-v1" || capability == "layer-crop-v1" || capability == "layer-crop-chamfer-v1"
                     || capability == "selection-recall-v1" || capability == "layer-effects-v1" || capability == "bevel-emboss-v1" || capability == "projective-transform-v1" || capability == "raster-local-frame-v1" || capability == "layer-mask-v1"
                     || capability == "encoded-srgb-compositing-v1" || capability == "layer-fill-opacity-v1"
-                    || capability == "layer-effects-advanced-blending-v1",
+                    || capability == "layer-effects-advanced-blending-v1" || capability == "multi-stop-gradient-v1",
                 "Project requires unsupported capabilities");
         require(o["canvas"].isObject() && o["layers"].isArray(), "Missing canvas or layers");
         const auto canvas = o["canvas"].toObject();
@@ -625,6 +628,8 @@ namespace {
                     require((effect.blendMode<core::BlendMode::Dissolve&&effect.bevel.shadowBlend<core::BlendMode::Dissolve)
                         || (required.contains("blend-modes-v3")&&l.contains("blendSeed")),"Undeclared extended effect blending");
                 require(p.layer.effects->items[7]==core::defaultLayerEffect(core::LayerEffectType::BevelEmboss)||required.contains("bevel-emboss-v1"),"Missing bevel effect capability");
+                require(p.layer.effects->items[std::size_t(core::LayerEffectType::GradientOverlay)].gradientStops.empty()
+                    || required.contains("multi-stop-gradient-v1"), "Missing multi-stop gradient capability");
             }
             if(l.contains("spatialFilters")) {
                 require(required.contains("spatial-filters-v1"),"Spatial filters require declared spatial-filters-v1 capability");

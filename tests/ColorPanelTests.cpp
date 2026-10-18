@@ -6,6 +6,7 @@
 #include "imageeditor/ui/UiLayoutConfig.hpp"
 
 #include <QApplication>
+#include <QImage>
 #include "imageeditor/ui/ColorDialog.hpp"
 #include <QListWidget>
 #include <QLineEdit>
@@ -40,6 +41,7 @@ void settle()
 struct Panel {
     ui::SwatchesPanel panel;
     QListWidget* defaults = panel.findChild<QListWidget*>("DefaultColorSwatches");
+    QListWidget* gradients = panel.findChild<QListWidget*>("GradientSwatches");
     QListWidget* custom = panel.findChild<QListWidget*>("CustomColorSwatches");
     QPushButton* add = panel.findChild<QPushButton*>("AddCustomSwatch");
     QPushButton* remove = panel.findChild<QPushButton*>("DeleteCustomSwatch");
@@ -48,7 +50,7 @@ struct Panel {
         panel.resize(340, 500);
         panel.show();
         settle();
-        CHECK(defaults && custom && add && remove);
+        CHECK(defaults && gradients && custom && add && remove);
     }
     imageeditor::ui::ColorDialog* picker() { return panel.findChild<imageeditor::ui::ColorDialog*>("CustomSwatchColorDialog"); }
     void click(QListWidget* grid, int row)
@@ -199,6 +201,125 @@ void gridsReflowAndShortPanelsScroll()
     CHECK(ui::UiLayoutConfig{}.color.maximum==QWIDGETSIZE_MAX);
     CHECK(ui::UiLayoutConfig{}.swatches.minimum==120);
 }
+void gradientsAndCollapsibleSections()
+{
+    QSettings().remove(key);
+    Panel p;
+    p.panel.resize(340, 900); settle();
+    CHECK(p.gradients->count() == 40);
+    CHECK(p.gradients->gridSize() == QSize(64, 30));
+    CHECK(!p.gradients->isEnabled());
+    CHECK(p.defaults->isEnabled() && p.custom->isEnabled() && p.add->isEnabled());
+    int colorsChanged = 0, gradientsApplied = 0;
+    const core::EditorColors colors {{12, 34, 56, 200}, {78, 90, 123, 140}, core::ColorSlot::Secondary};
+    p.panel.setColors(colors);
+    p.panel.onColorsChanged = [&](auto) { ++colorsChanged; };
+    std::vector<core::GradientStop> selected;
+    p.panel.onGradientSelected = [&](const auto& stops) { ++gradientsApplied; selected = stops; };
+    p.click(p.gradients, 0);
+    CHECK(gradientsApplied == 0 && colorsChanged == 0 && p.panel.colors() == colors);
+    p.panel.setGradientEnabled(true);
+    p.click(p.gradients, 0);
+    CHECK(gradientsApplied == 1 && selected.size() == 2);
+    CHECK(selected.front().position == 0 && selected.back().position == 1);
+    CHECK(selected.front().color == core::Rgba8(0, 0, 0, 255));
+    CHECK(selected.back().color == core::Rgba8(255, 255, 255, 255));
+    CHECK(p.panel.colors() == colors && colorsChanged == 0);
+    // The same preset remains available after editing an existing overlay.
+    p.click(p.gradients, 0);
+    CHECK(gradientsApplied == 2);
+    p.gradients->setFocus();
+    QTest::keyClick(p.gradients, Qt::Key_Right); settle();
+    CHECK(gradientsApplied == 2);
+    QTest::keyClick(p.gradients, Qt::Key_Return); settle();
+    CHECK(gradientsApplied == 3 && selected.size() == 3);
+    // Every thumbnail uses the renderer's interpolation, cached outside paint.
+    for (int i = 0; i < p.gradients->count(); ++i) {
+        p.click(p.gradients, i);
+        CHECK(selected.size() >= 2 && selected.size() <= core::maximumGradientStops);
+        for (std::size_t j = 0; j < selected.size(); ++j) {
+            CHECK(selected[j].color.alpha == 255);
+            if (j) CHECK(selected[j].position > selected[j - 1].position);
+        }
+        core::LayerEffect effect;
+        effect.gradientStops = selected;
+        const auto preview = p.gradients->item(i)->data(Qt::UserRole + 1).value<QImage>();
+        CHECK(preview.size() == QSize(256, 1));
+        for (int x : {0, 63, 127, 191, 255}) {
+            const auto expected = core::encodeColor(core::sampleLayerEffectGradient(effect, x / 255.));
+            CHECK(preview.pixelColor(x, 0) == QColor(expected.red, expected.green, expected.blue, expected.alpha));
+        }
+    }
+    CHECK(p.panel.colors() == colors && colorsChanged == 0);
+    for (const char* name : {"ColorSwatches", "GradientSwatches", "CustomSwatches"}) {
+        auto* header = p.panel.findChild<QToolButton*>(QString::fromLatin1(name) + "SectionHeader");
+        auto* body = p.panel.findChild<QWidget*>(QString::fromLatin1(name) + "SectionBody");
+        CHECK(header && body);
+        if (!header || !body) continue;
+        CHECK(header->property("propertiesSectionHeader").toBool());
+        CHECK(header->isChecked() && body->isVisible());
+        header->click(); settle();
+        CHECK(!body->isVisible() && header->arrowType() == Qt::RightArrow);
+        header->click(); settle();
+        CHECK(body->isVisible() && header->arrowType() == Qt::DownArrow);
+    }
+    const int appliedBeforeDisable = gradientsApplied;
+    p.panel.setGradientEnabled(false);
+    p.click(p.gradients, 0);
+    CHECK(gradientsApplied == appliedBeforeDisable);
+    CHECK(p.defaults->isEnabled() && p.add->isEnabled());
+    p.click(p.defaults, 9);
+    CHECK(colorsChanged == 1 && p.panel.colors().primary == colors.primary);
+    CHECK(p.panel.colors().secondary == core::Rgba8(255, 255, 255, 255));
+    int narrowHeight = 0;
+    for (int width : {280, 560, 340}) {
+        p.panel.resize(width, 640); settle();
+        p.gradients->doItemsLayout(); settle();
+        CHECK(p.gradients->horizontalScrollBar()->maximum() == 0);
+        CHECK(p.gradients->verticalScrollBar()->maximum() == 0);
+        for (int i = 0; i < p.gradients->count(); ++i)
+            CHECK(p.gradients->viewport()->rect().contains(p.gradients->visualItemRect(p.gradients->item(i))));
+        if (width == 280) narrowHeight = p.gradients->height();
+        if (width == 560) CHECK(p.gradients->height() < narrowHeight);
+    }
+    if (const auto path = qEnvironmentVariable("IMAGEEDITOR_GRADIENT_SWATCH_REVIEW"); !path.isEmpty()) {
+        p.panel.setGradientEnabled(true);
+        p.panel.resize(340, 720); settle();
+        p.panel.findChild<QScrollArea*>()->verticalScrollBar()->setValue(0);
+        CHECK(p.panel.grab().save(path));
+    }
+}
+void customSectionKeepsItsToolbarAndGridTogether()
+{
+    QSettings().setValue(key,QStringList{"#ffffe330"});
+    Panel p;
+    auto* body=p.panel.findChild<QWidget*>("CustomSwatchesSectionBody");
+    auto* header=p.panel.findChild<QToolButton*>("CustomSwatchesSectionHeader");
+    auto* scroll=p.panel.findChild<QScrollArea*>();
+    CHECK(body && header && scroll);
+    if(!body || !header || !scroll)return;
+    for(const auto size:{QSize(640,120),QSize(640,800),QSize(280,120),QSize(280,700),
+                         QSize(340,200),QSize(640,120),QSize(640,800)}) {
+        p.panel.resize(size);settle();
+        for(auto* button:{p.add,p.remove}) {
+            const QRect bounds(button->mapTo(body,QPoint{}),button->size());
+            CHECK(button->size()==QSize(28,26));
+            CHECK(bounds.top()==0);
+            CHECK(body->rect().contains(bounds));
+            CHECK(p.custom->mapTo(body,QPoint{}).y()==bounds.bottom()+1+9);
+        }
+        scroll->verticalScrollBar()->setValue(scroll->verticalScrollBar()->maximum());settle();
+        CHECK(p.add->visibleRegion().boundingRect()==p.add->rect());
+        CHECK(p.remove->visibleRegion().boundingRect()==p.remove->rect());
+        CHECK(p.custom->viewport()->rect().contains(p.custom->visualItemRect(p.custom->item(0))));
+        header->click();settle();header->click();settle();
+    }
+    if(const auto path=qEnvironmentVariable("IMAGEEDITOR_CUSTOM_SWATCH_REVIEW");!path.isEmpty()) {
+        p.panel.resize(640,150);settle();
+        scroll->verticalScrollBar()->setValue(scroll->verticalScrollBar()->maximum());settle();
+        CHECK(p.panel.grab().save(path));
+    }
+}
 void toolColorReset()
 {
     ui::ColorSelector rail(ui::ColorSelector::Presentation::Compact);
@@ -220,9 +341,15 @@ void toolColorReset()
     CHECK(rail.colors()==expected && panel.colors()==expected && changes==1);
     reset->click();CHECK(changes==1);
     const auto icon=reset->icon().pixmap(QSize(18,18)).toImage();
-    CHECK(icon.pixelColor(5,5).lightness()<30);
-    CHECK(icon.pixelColor(13,13).lightness()>225);
-    CHECK(icon.pixelColor(4,10).lightness()<30 && icon.pixelColor(8,13).lightness()>225);
+    // QImage coordinates are physical pixels; these probes describe the
+    // requested 18-DIP icon, including fractional desktop display scales.
+    const auto iconColor = [&icon](int x, int y) {
+        return icon.pixelColor(int((x + .5) * icon.devicePixelRatio()),
+            int((y + .5) * icon.devicePixelRatio()));
+    };
+    CHECK(iconColor(5,5).lightness()<30);
+    CHECK(iconColor(13,13).lightness()>225);
+    CHECK(iconColor(4,10).lightness()<30 && iconColor(8,13).lightness()>225);
     // Reflection across the bottom-left/top-right diagonal must exchange the
     // two halves, including fractional display scales and tiny icon sizes.
     for(int logical:{12,14,16,18,20,24})for(double dpr:{1.,1.25,1.5,2.}) {
@@ -388,7 +515,8 @@ int main(int argc,char** argv)
         if (!failures) std::cout << "Native XCB screen picker: sample, alpha, Escape and close/reopen passed\n";
         return failures ? 1 : 0;
     }
-    defaultsAndWorkingColors();customLifecycle();gridsReflowAndShortPanelsScroll();
+    defaultsAndWorkingColors();customLifecycle();gridsReflowAndShortPanelsScroll();gradientsAndCollapsibleSections();
+    customSectionKeepsItsToolbarAndGridTogether();
     toolColorReset();colorPickerAndPanel();modernDialogContract();
     if(!failures)std::cout<<"Color panel: responsive grids, working colors, custom picker/persistence passed\n";
     return failures?1:0;

@@ -2518,6 +2518,7 @@ void MainWindow::createDocks()
     swatchesPanel_ = new SwatchesPanel;
     swatchesPanel_->setColors(session().colors());
     swatchesPanel_->onColorsChanged = [this](core::EditorColors colors) { setColors(colors); };
+    swatchesPanel_->onGradientSelected = [this](const auto& stops) { applyGradientPreset(stops); };
     swatchesPanelShell_ = new WorkspacePanel(i18n::text("main.window.swatches"), swatchesPanel_);
     swatchesPanelShell_->setObjectName(QStringLiteral("SwatchesPanelShell"));
     swatchesPanelShell_->setHeightRange(uiLayoutConfig_.swatches.minimum, uiLayoutConfig_.swatches.maximum);
@@ -4672,6 +4673,8 @@ void MainWindow::updateActionState()
     if(shapeCreation_ || shapeResize_) {undoAction_->setEnabled(true);redoAction_->setEnabled(false);transformAction_->setEnabled(false);}
     const bool canDeleteLayer = session().document() && !fileBusy_ && !session().selectedLayers().empty()
         && session().document()->expandedLayers(session().selectedLayers()).size() < session().document()->layers().size();
+    if(swatchesPanel_)swatchesPanel_->setGradientEnabled(layer && !fileBusy_
+        && !std::holds_alternative<core::AdjustmentLayer>(layer->payload));
     const auto* activeContainer=session().document() && session().activeLayer()?session().document()->tree().container(*session().activeLayer()):nullptr;
     newFolderAction_->setEnabled(session().document() && !fileBusy_);
     newAdjustmentLayerAction_->setEnabled(session().document() && !fileBusy_);

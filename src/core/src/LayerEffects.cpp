@@ -242,6 +242,33 @@ LayerEffectStack::LayerEffectStack() {
   for (std::size_t i = 0; i < items.size(); ++i)
     items[i] = defaultLayerEffect(LayerEffectType(i));
 }
+std::vector<GradientStop> effectiveGradientStops(const LayerEffect &effect) {
+  if (!effect.gradientStops.empty()) return effect.gradientStops;
+  return {{0, effect.color}, {1, effect.secondColor}};
+}
+PremultipliedColor sampleLayerEffectGradient(const LayerEffect &effect, double position) noexcept {
+  const float t = std::isfinite(position) ? float(std::clamp(position, 0., 1.)) : 0.F;
+  const auto mix = [](Rgba8 first, Rgba8 second, float amount) {
+    const auto a = decodeColor(first), b = decodeColor(second);
+    PremultipliedColor result;
+    for (std::size_t i = 0; i < result.size(); ++i)
+      result[i] = a[i] * (1 - amount) + b[i] * amount;
+    return result;
+  };
+  const auto &stops = effect.gradientStops;
+  if (stops.empty()) return mix(effect.color, effect.secondColor, t);
+  // Compare the same float positions used by the GPU, including stops so close
+  // that they coincide after compilation. upper_bound gives deterministic hard
+  // edges without dividing by a zero-width segment.
+  const auto next = std::upper_bound(stops.begin(), stops.end(), t,
+      [](float value, const GradientStop &stop) { return value < float(stop.position); });
+  if (next == stops.begin()) return decodeColor(stops.front().color);
+  if (next == stops.end()) return decodeColor(stops.back().color);
+  const auto &previous = *(next - 1);
+  return mix(previous.color, next->color,
+      std::clamp((t - float(previous.position)) /
+          (float(next->position) - float(previous.position)), 0.F, 1.F));
+}
 std::string_view layerEffectName(LayerEffectType t) noexcept {
   return names[std::size_t(t)];
 }
@@ -258,7 +285,19 @@ layerEffectFromIdentifier(std::string_view value) noexcept {
 bool validLayerEffects(const LayerEffectStack &s) noexcept {
   if (s.algorithmVersion != layerEffectVersion)
     return false;
-  for (const auto &e : s.items) {
+  for (std::size_t effect = 0; effect < s.items.size(); ++effect) {
+    const auto &e = s.items[effect];
+    if (!e.gradientStops.empty()) {
+      if (effect != std::size_t(LayerEffectType::GradientOverlay) ||
+          e.gradientStops.size() < 2 || e.gradientStops.size() > maximumGradientStops)
+        return false;
+      double previous = -1;
+      for (const auto &stop : e.gradientStops) {
+        if (!std::isfinite(stop.position) || stop.position < 0 || stop.position > 1 ||
+            stop.position < previous) return false;
+        previous = stop.position;
+      }
+    }
     const auto& b=e.bevel;
     if(b.version!=1 || std::uint32_t(b.style)>2 || !std::isfinite(b.depth) ||
        b.depth<0 || b.depth>10 || !std::isfinite(b.soften) || b.soften<0 || b.soften>64 ||
@@ -560,6 +599,7 @@ EffectParameters compileLayerEffects(const LayerEffectState &state,
   p[20]=hasDissolveLayerEffects(state)?1.F:0.F;
   p[21]=state && state->maskEffectsAfterRendering ? 1.F : 0.F;
   p[22]=!state || state->pixelAlphaShapesEffects ? 1.F : 0.F;
+  p[23]=float(effectGradientStopOffset);
   p[256] = float(frame.x);
   p[257] = float(frame.y);
   p[258] = float(frame.width);
@@ -579,6 +619,18 @@ EffectParameters compileLayerEffects(const LayerEffectState &state,
       p[i + 14] = float(std::sin(e.angle * std::numbers::pi / 180));
       p[i + 15] = float(e.scale);
       p[i + 16] = e.reverse ? 1.0F : 0.0F;
+      if (n == std::size_t(LayerEffectType::GradientOverlay) && !e.gradientStops.empty()) {
+        const auto count = std::min(e.gradientStops.size(), maximumGradientStops);
+        p[i + 17] = float(count);
+        p[i + 18] = float(effectGradientStopOffset);
+        p[23] = float(effectGradientStopOffset + count * effectGradientStopStride);
+        for (std::size_t stop = 0; stop < count; ++stop) {
+          const auto at = effectGradientStopOffset + stop * effectGradientStopStride;
+          p[at] = float(e.gradientStops[stop].position);
+          const auto color = decodeColor(e.gradientStops[stop].color);
+          std::copy(color.begin(), color.end(), p.begin() + std::ptrdiff_t(at + 1));
+        }
+      }
       if(n==7) {
         p[i]=bevelActive(e)?1.F:0.F;
         p[i+17]=float(e.bevel.shadowBlend);p[i+18]=float(e.bevel.shadowOpacity);

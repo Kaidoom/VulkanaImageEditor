@@ -19,6 +19,7 @@
 #include <QTemporaryDir>
 #include <chrono>
 #include <iostream>
+#include <limits>
 #include <sys/resource.h>
 namespace c = imageeditor::core;
 namespace u = imageeditor::ui;
@@ -53,6 +54,97 @@ std::shared_ptr<c::LayerEffectStack> effect(int i) {
   auto s = std::make_shared<c::LayerEffectStack>();
   s->items[std::size_t(i)].enabled = true;
   return s;
+}
+void gradientContracts() {
+  auto state = effect(6);
+  auto &gradient = state->items[6];
+  gradient.angle = 0;
+  gradient.color = {240, 30, 90, 64};
+  gradient.secondColor = {10, 170, 220, 230};
+  check(c::effectiveGradientStops(gradient) == std::vector<c::GradientStop>{
+      {0, gradient.color}, {1, gradient.secondColor}}, "legacy gradients expose editable endpoints");
+  const auto first = c::decodeColor(gradient.color), last = c::decodeColor(gradient.secondColor);
+  for (int step = 0; step <= 256; ++step) {
+    const float t = float(step) / 256;
+    auto expected = first;
+    for (std::size_t i = 0; i < 4; ++i) expected[i] = first[i] * (1 - t) + last[i] * t;
+    check(c::sampleLayerEffectGradient(gradient, t) == expected,
+          "legacy gradient interpolation remains bit-for-bit identical");
+  }
+  const auto legacy = c::compileLayerEffects(state, {0,0,100,100});
+  check(legacy[23] == float(c::effectGradientStopOffset), "legacy GPU program needs no stop-table storage");
+  gradient.gradientStops = c::effectiveGradientStops(gradient);
+  const auto explicitEndpoints = c::compileLayerEffects(state, {0,0,100,100});
+  check(explicitEndpoints[23] == float(c::effectGradientStopOffset + 2*c::effectGradientStopStride),
+        "compiled program locates mask metadata after populated stop table");
+  for (int step = 0; step <= 256; ++step) {
+    const c::Vec2d local{100. * step / 256, 50};
+    const auto base = c::decodeColor({0,0,0,255});
+    check(c::compositeLayerEffects({},base,legacy,nullptr,local,1,c::BlendMode::Normal) ==
+          c::compositeLayerEffects({},base,explicitEndpoints,nullptr,local,1,c::BlendMode::Normal),
+          "explicit endpoint stops preserve legacy compiled output exactly");
+  }
+  gradient.gradientStops = {{.125,{255,0,0,255}}, {.5,{0,255,0,255}},
+                            {.5,{0,0,255,255}}, {.875,{255,255,255,255}}};
+  check(c::validLayerEffects(*state), "duplicate stop positions are valid hard transitions");
+  check(c::sampleLayerEffectGradient(gradient,0) == c::decodeColor({255,0,0,255}),
+        "gradient extends its first color before the first stop");
+  check(c::sampleLayerEffectGradient(gradient,1) == c::decodeColor({255,255,255,255}),
+        "gradient extends its final color after the last stop");
+  check(c::sampleLayerEffectGradient(gradient,.5) == c::decodeColor({0,0,255,255}),
+        "last coincident stop owns the exact hard transition");
+  const auto multi = c::compileLayerEffects(state,{0,0,100,100});
+  for (int step = 0; step <= 256; ++step) {
+    const double t = double(step) / 256;
+    const auto expected = c::sampleLayerEffectGradient(gradient,t);
+    const auto actual = c::compositeLayerEffects({},c::decodeColor({0,0,0,255}),multi,
+        nullptr,{t*100,50},1,c::BlendMode::Normal);
+    for (std::size_t i = 0; i < 4; ++i)
+      check(std::abs(actual[i]-expected[i]) < .000002F,
+            "compiled multi-stop renderer agrees with the preview sampler");
+  }
+  gradient.gradientStops = {{0,{255,0,0,0}}, {.5,{0,0,255,255}}, {1,{0,255,0,128}}};
+  const auto transparentMix = c::sampleLayerEffectGradient(gradient,.25);
+  check(transparentMix == c::PremultipliedColor{0,0,.5F,.5F},
+        "transparent stops do not leak hidden color through interpolation");
+  auto layer = fixture(); layer.effects = state; layer = c::prepareSpatialFilterLayer(layer);
+  const auto prepared = layer.effects;
+  auto edited = std::make_shared<c::LayerEffectStack>(*state);
+  edited->items[6].gradientStops[1] = {.7,{25,70,180,255}};
+  layer.effects = edited;
+  check(c::equivalentLayerEffectGeometry(prepared,edited) && c::layerEffectCacheValid(layer) &&
+        c::prepareLayerEffects(layer,{}) == layer.effectCache,
+        "gradient stop edits reuse all prepared effect geometry");
+  auto noStops = std::make_shared<c::LayerEffectStack>();
+  auto withStops = std::make_shared<c::LayerEffectStack>(*noStops);
+  withStops->items[6].gradientStops.reserve(37);
+  check(c::layerEffectMemoryCost(withStops)-c::layerEffectMemoryCost(noStops) ==
+        withStops->items[6].gradientStops.capacity()*sizeof(c::GradientStop),
+        "effect memory budgets include allocated gradient stops");
+  for (auto stops : {std::vector<c::GradientStop>{{0,{}}},
+                    std::vector<c::GradientStop>{{-.1,{}},{1,{}}},
+                    std::vector<c::GradientStop>{{0,{}},{1.1,{}}},
+                    std::vector<c::GradientStop>{{1,{}},{0,{}}},
+                    std::vector<c::GradientStop>{{0,{}},{std::numeric_limits<double>::quiet_NaN(),{}}},
+                    std::vector<c::GradientStop>{{0,{}},{std::numeric_limits<double>::infinity(),{}}}}) {
+    gradient.gradientStops = std::move(stops);
+    check(!c::validLayerEffects(*state), "invalid gradient stop data rejected");
+  }
+  gradient.gradientStops.clear();
+  for (std::size_t i = 0; i < c::maximumGradientStops; ++i)
+    gradient.gradientStops.push_back({double(i)/double(c::maximumGradientStops-1),{20,40,80,255}});
+  check(c::validLayerEffects(*state), "maximum gradient stop count supported");
+  const auto fullTableSample = c::sampleLayerEffectGradient(gradient,.5);
+  const auto constantColor = c::decodeColor({20,40,80,255});
+  for (std::size_t i = 0; i < 4; ++i)
+    check(std::abs(fullTableSample[i]-constantColor[i]) < 1e-7F,
+          "full stop table sampled correctly within float interpolation precision");
+  gradient.gradientStops.push_back({1,{}});
+  check(!c::validLayerEffects(*state), "excessive gradient stop count rejected");
+  gradient.gradientStops.clear();
+  check(c::validLayerEffects(*state), "empty stops retain valid legacy gradient");
+  state->items[0].gradientStops = {{0,{0,0,0,255}},{1,{255,255,255,255}}};
+  check(!c::validLayerEffects(*state), "gradient stops rejected on effects that do not render gradients");
 }
 void contracts() {
   auto l = fixture();
@@ -177,6 +269,9 @@ void historyAndOutput() {
   s->items[1].enabled = true;
   s->items[5].enabled = true;
   s->items[5].color = {20, 130, 230, 200};
+  s->items[6].enabled = true;
+  s->items[6].opacity = .4;
+  s->items[6].gradientStops = {{0,{25,60,180,255}}, {.3,{240,150,80,255}}, {1,{180,20,90,180}}};
   {
     c::EffectEditTransaction edit(doc, id);
     check(edit.update(s), "start preview");
@@ -555,6 +650,7 @@ int main(int argc, char **argv) {
       benchmark(std::stoi(argv[1]), std::stoi(argv[2]));
     else {
       contracts();
+      gradientContracts();
       morphologyReference();
       historyAndOutput();
       advancedBlending();

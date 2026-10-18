@@ -168,6 +168,65 @@ u::PsdExportResult write(c::Document &d, QString path,
     std::cerr << result.error.toStdString() << "\n";
   return result;
 }
+void gradientStops(QString dir) {
+  for (bool multi : {false, true}) {
+    c::Document document({{48, 24}, 72, c::CompositingSpace::EncodedSRgb});
+    auto layer = raster("Gradient", {48, 24}, {255, 255, 255, 255});
+    auto effects = std::make_shared<c::LayerEffectStack>();
+    auto& gradient = effects->items[std::size_t(c::LayerEffectType::GradientOverlay)];
+    gradient.enabled = true;
+    gradient.angle = 0;
+    gradient.color = {30, 50, 160, 255};
+    gradient.secondColor = {240, 200, 60, 255};
+    if (multi) gradient.gradientStops = {{0, gradient.color}, {.25, {90, 200, 200, 255}},
+                                         {.75, {220, 70, 120, 255}}, {1, gradient.secondColor}};
+    layer.effects = effects;
+    CHECK(document.insertLayer(0, layer));
+    const auto path = dir + (multi ? "/gradient-stops.psd" : "/gradient-endpoints.psd");
+    CHECK(write(document, path));
+    auto source = parse(path); CHECK(source && source->records.size() == 1);
+    if (!source || source->records.empty()) continue;
+    u::psd::Reader reader(source->records.front().tags["lfx2"]); reader.skip(4);
+    const auto effect = u::psd::versionedDescriptor(reader)["GrFl"].toMap();
+    const auto ramp = effect["Grad"].toMap();
+    const auto stops = ramp["Clrs"].toList(), opacity = ramp["Trns"].toList();
+    const auto expected = c::effectiveGradientStops(gradient);
+    CHECK(stops.size() == qsizetype(expected.size()) && opacity.size() == stops.size());
+    for (qsizetype i = 0; i < stops.size() && i < qsizetype(expected.size()); ++i) {
+      const auto stop = stops[i].toMap(), rgb = stop["Clr "].toMap();
+      CHECK(u::psd::number(stop["Lctn"]) == expected[std::size_t(i)].position * 4096);
+      CHECK(u::psd::number(stop["Mdpn"]) == 50);
+      CHECK(u::psd::number(rgb["Rd  "]) == expected[std::size_t(i)].color.red);
+      CHECK(u::psd::number(rgb["Grn "]) == expected[std::size_t(i)].color.green);
+      CHECK(u::psd::number(rgb["Bl  "]) == expected[std::size_t(i)].color.blue);
+      CHECK(u::psd::number(opacity[i].toMap()["Opct"]) == 100);
+    }
+    const auto job = std::make_shared<u::PsdJob>();
+    const auto inspection = u::inspectPsd(path, job);
+    CHECK(inspection.error.isEmpty() && inspection.layers.front().editable);
+    const auto imported = u::convertPsd(inspection, u::defaultPsdOptions(inspection), job, {}, false);
+    CHECK(imported.document);
+    if (imported.document) {
+      CHECK(imported.document->layers().front().effects->items[6].gradientStops == expected);
+      CHECK(same(u::flattenDocument(document).image, u::flattenDocument(*imported.document).image));
+    }
+  }
+  // Existing alpha-bearing endpoint gradients still export their opacity data.
+  // Import currently accepts the colors and explicitly reports ignored opacity stops.
+  auto layer = raster("Transparent endpoints", {16, 8}, {255, 255, 255, 255});
+  auto effects = std::make_shared<c::LayerEffectStack>();
+  auto& gradient = effects->items[6]; gradient.enabled = true;
+  gradient.color = {0, 0, 255, 40}; gradient.secondColor = {255, 0, 0, 190};
+  layer.effects = effects;
+  u::psd::Reader reader(u::psdwrite::effectRecord(layer)); reader.skip(4);
+  const auto opacity = u::psd::versionedDescriptor(reader)["GrFl"].toMap()["Grad"].toMap()["Trns"].toList();
+  CHECK(opacity.size() == 2);
+  if (opacity.size() == 2) {
+    CHECK(std::abs(u::psd::number(opacity[0].toMap()["Opct"]) - 40 * 100. / 255) < 1e-9);
+    CHECK(std::abs(u::psd::number(opacity[1].toMap()["Opct"]) - 190 * 100. / 255) < 1e-9);
+  }
+}
+
 void exact(QString dir) {
   c::Document doc({{260, 12}, 300});
   auto l = raster("Samples α", {260, 5}, {0, 0, 0, 0}, {-4, 3});
@@ -999,6 +1058,11 @@ void reference(QString path, QString output) {
 int main(int argc, char **argv) {
   QApplication app(argc, argv);
   QTemporaryDir temporary;
+  if (argc >= 2 && QString::fromLocal8Bit(argv[1]) == "--gradient-stops") {
+    gradientStops(temporary.path());
+    std::cout << "PSD gradient export failures: " << failures << '\n';
+    return failures ? 1 : 0;
+  }
   if (argc > 3 && QString::fromLocal8Bit(argv[1]) == "--reference") {
     reference(QString::fromLocal8Bit(argv[2]), QString::fromLocal8Bit(argv[3]));
     return failures ? 1 : 0;
@@ -1008,6 +1072,7 @@ int main(int argc, char **argv) {
   engineNumbers();
   modernText(dir);
   blendV3Psd(dir);
+  gradientStops(dir);
   exact(dir);
   masks(dir);
   transformedMasks(dir);

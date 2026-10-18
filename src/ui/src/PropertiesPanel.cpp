@@ -6,6 +6,7 @@
 #include "imageeditor/ui/BrushComponentPicker.hpp"
 #include "imageeditor/ui/BrushPresetGrid.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
+#include "imageeditor/ui/CollapsibleSection.hpp"
 #include "imageeditor/ui/EditorShortcuts.hpp"
 #include "imageeditor/ui/LayerInfoPanel.hpp"
 #include "imageeditor/ui/ToolShortcutHints.hpp"
@@ -101,40 +102,6 @@ CompactValueControl* grainValueControl(const QString& objectName,
     control->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     i18n::setAccessibleName(control, label);
     return control;
-}
-
-QWidget* collapsibleSection(const i18n::Message& title,
-    const QString& objectName, QVBoxLayout*& sectionLayout)
-{
-    auto* container = new QWidget;
-    container->setObjectName(objectName + QStringLiteral("Section"));
-    auto* layout = new QVBoxLayout(container);
-    layout->setContentsMargins(0, 0, 0, 0);
-    layout->setSpacing(kControlSpacing);
-
-    auto* header = new QToolButton(container);
-    header->setObjectName(objectName + QStringLiteral("SectionHeader"));
-    header->setProperty("propertiesSectionHeader", true);
-    i18n::setText(header, title);
-    header->setCheckable(true);
-    header->setChecked(true);
-    header->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-    header->setArrowType(Qt::DownArrow);
-    header->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    layout->addWidget(header);
-
-    auto* body = new QWidget(container);
-    body->setObjectName(objectName + QStringLiteral("SectionBody"));
-    sectionLayout = new QVBoxLayout(body);
-    sectionLayout->setContentsMargins(8, 0, 0, 0);
-    sectionLayout->setSpacing(kControlSpacing);
-    layout->addWidget(body);
-    QObject::connect(header, &QToolButton::toggled, body, &QWidget::setVisible);
-    QObject::connect(header, &QToolButton::toggled, header,
-        [header](bool expanded) {
-            header->setArrowType(expanded ? Qt::DownArrow : Qt::RightArrow);
-        });
-    return container;
 }
 
 } // namespace

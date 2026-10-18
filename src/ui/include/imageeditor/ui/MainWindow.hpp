@@ -324,6 +324,8 @@ private:
     void previewEffectEdit(core::LayerEffectState);
     void finishEffectEdit(bool commit);
     void chooseEffectColor(core::LayerEffectType,bool second);
+    void chooseGradientStopColor(std::size_t);
+    void applyGradientPreset(const std::vector<core::GradientStop>&);
     bool beginFilterEdit(core::SpatialFilterType);
     void previewFilterEdit(core::SpatialFilterState);
     void finishFilterEdit(bool commit);

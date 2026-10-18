@@ -60,6 +60,27 @@ void layerEffectRendering(OffscreenCanvas &gpu, Review &review,c::CompositingSpa
       document.setLayerEffects(id,changed);*document.layer(id)=c::prepareSpatialFilterLayer(*document.layer(id));
       scene.document=document.snapshot();verify(document,scene,gpu.render(scene),"bevel styles and independent contours",false);
     }
+    if(type==6) {
+      const auto beforeStops=gpu.stats();
+      for(auto kind:{c::GradientType::Linear,c::GradientType::Radial})for(bool reverse:{false,true}) {
+        auto changed=std::make_shared<c::LayerEffectStack>(*state);auto& gradient=changed->items[6];
+        gradient.gradient=kind;gradient.reverse=reverse;gradient.scale=.7;
+        gradient.gradientStops={{.125,{255,0,0,0}},{.3,{70,190,240,255}},
+            {.5,{230,160,80,255}},{.5,{150,30,170,230}},{.875,{10,30,110,255}}};
+        document.setLayerEffects(id,changed);
+        check(c::layerEffectCacheValid(*document.layer(id)),"gradient stops keep cached GPU geometry");
+        scene.document=document.snapshot();
+        verify(document,scene,gpu.render(scene),"multi-stop gradient with hard transition and transparent stop",false);
+      }
+      auto changed=std::make_shared<c::LayerEffectStack>(*state);auto& gradient=changed->items[6];
+      for(std::size_t stop=0;stop<c::maximumGradientStops;++stop)
+        gradient.gradientStops.push_back({double(stop)/double(c::maximumGradientStops-1),
+            {std::uint8_t(stop),std::uint8_t(255-stop),std::uint8_t(stop/2),255}});
+      document.setLayerEffects(id,changed);scene.document=document.snapshot();
+      verify(document,scene,gpu.render(scene),"full 256-stop gradient table",false);
+      check(gpu.stats().adjustmentMaskUploads==beforeStops.adjustmentMaskUploads,
+            "gradient stop edits do not upload masks");
+    }
     scene.effectBypassLayer = id;
     scene.document = document.snapshot();
     const auto bypass = gpu.render(scene);

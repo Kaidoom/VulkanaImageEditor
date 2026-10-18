@@ -6,10 +6,12 @@ std::size_t layerEffectMemoryCost(const LayerEffectState &state) noexcept {
   if (!state)
     return 0;
   std::size_t bytes = sizeof(LayerEffectStack);
-  for (const auto &e : state->items)
+  for (const auto &e : state->items) {
     bytes +=
         (e.bevel.surface.points.capacity() + e.bevel.gloss.points.capacity()) *
         sizeof(EffectContourPoint);
+    bytes += e.gradientStops.capacity() * sizeof(GradientStop);
+  }
   return bytes;
 }
 bool validEffectContour(const EffectContour &c) noexcept {

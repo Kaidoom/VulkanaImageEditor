@@ -38,12 +38,15 @@ void MainWindow::createEffectsPanel() {
   effectsPanel_->onColorRequested = [this](auto type, bool second) {
     chooseEffectColor(type, second);
   };
+  effectsPanel_->onGradientColorRequested = [this](std::size_t stop) {
+    chooseGradientStopColor(stop);
+  };
 }
 bool MainWindow::beginEffectEdit() {
   if (fileBusy_ || !session().document() || !session().activeLayer())
     return false;
   if (const auto* layer=session().document()->layer(*session().activeLayer());
-      layer && std::holds_alternative<core::AdjustmentLayer>(layer->payload))
+      !layer || std::holds_alternative<core::AdjustmentLayer>(layer->payload))
     return false;
   if (effectEdit_)
     return effectEdit_->active() &&
@@ -172,5 +175,52 @@ void MainWindow::chooseEffectColor(core::LayerEffectType type, bool second) {
           });
   const QScopedValueRollback active(workspaceDialog_, &presenter);
   finishEffectEdit(presenter.exec(dialog) == QDialog::Accepted);
+}
+void MainWindow::applyGradientPreset(const std::vector<core::GradientStop>& stops) {
+  if(workspaceDialog_ || stops.size()<2 || stops.size()>core::maximumGradientStops)return;
+  if(effectsPanel_)effectsPanel_->finishEditing();
+  if(!beginEffectEdit())return;
+  const auto* layer=session().document()->layer(effectEdit_->target());
+  auto state=layer->effects?*layer->effects:core::LayerEffectStack{};
+  auto& effect=state.items[std::size_t(core::LayerEffectType::GradientOverlay)];
+  effect.enabled=true;effect.gradientStops=stops;
+  effect.color=stops.front().color;effect.secondColor=stops.back().color;
+  if(layer->effects && state==*layer->effects) {
+    finishEffectEdit(true);
+    effectsPanel_->selectType(core::LayerEffectType::GradientOverlay);
+    return;
+  }
+  previewEffectEdit(std::make_shared<const core::LayerEffectStack>(std::move(state)));
+  finishEffectEdit(true);
+  effectsPanel_->selectType(core::LayerEffectType::GradientOverlay);
+}
+void MainWindow::chooseGradientStopColor(std::size_t stop) {
+  if(workspaceDialog_ || !beginEffectEdit())return;
+  const auto instance=activeDocumentId();
+  const auto target=effectEdit_->target();
+  const auto* layer=session().document()->layer(target);
+  auto original=layer->effects?*layer->effects:core::LayerEffectStack{};
+  auto& effect=original.items[std::size_t(core::LayerEffectType::GradientOverlay)];
+  effect.gradientStops=core::effectiveGradientStops(effect);
+  if(stop>=effect.gradientStops.size()){finishEffectEdit(false);return;}
+  const auto initial=effect.gradientStops[stop].color;
+  WorkspaceDialog presenter(*workspace_,*this);
+  ColorDialog dialog(QColor(initial.red,initial.green,initial.blue),&presenter);
+  dialog.setObjectName("GradientStopColorDialog");
+  dialog.setOptions(ColorDialog::DontUseNativeDialog);
+  i18n::setWindowTitle(&dialog,i18n::text("effects.gradient.stop.color"));
+  connect(&dialog,&ColorDialog::currentColorChanged,this,
+      [this,instance,target,stop,original,initial](QColor color) {
+        if(activeDocumentId()!=instance || !effectEdit_ || effectEdit_->target()!=target || !color.isValid())return;
+        auto state=original;
+        auto& e=state.items[std::size_t(core::LayerEffectType::GradientOverlay)];
+        e.gradientStops[stop].color={std::uint8_t(color.red()),std::uint8_t(color.green()),
+            std::uint8_t(color.blue()),initial.alpha};
+        e.color=e.gradientStops.front().color;e.secondColor=e.gradientStops.back().color;
+        previewEffectEdit(std::make_shared<const core::LayerEffectStack>(std::move(state)));
+      });
+  const QScopedValueRollback active(workspaceDialog_,&presenter);
+  const bool accepted=presenter.exec(dialog)==QDialog::Accepted;
+  if(activeDocumentId()==instance && effectEdit_ && effectEdit_->target()==target)finishEffectEdit(accepted);
 }
 } // namespace imageeditor::ui

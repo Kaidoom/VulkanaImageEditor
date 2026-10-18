@@ -7211,4 +7211,15 @@ Chamfer: pull corners inward; Alt also changes the opposite corner. Side handles
     <message id="properties.shortcuts.middle"><source>Middle mouse</source></message>
     <message id="properties.shortcuts.pan"><source>Pan canvas</source></message>
   </context>
+  <context>
+    <name>GradientEditor</name>
+    <message id="effects.gradient.editor"><source>Gradient colors</source></message>
+    <message id="effects.gradient.editor.hint"><source>Click the gradient to add a color. Drag a stop to move it, click a stop to edit its color, or right-click to remove it.</source></message>
+    <message id="effects.gradient.stop.color"><source>Gradient color</source></message>
+    <message id="swatches.panel.gradient"><source>Gradient</source></message>
+    <message id="swatches.panel.gradient.swatches"><source>Gradient presets</source></message>
+    <message id="swatches.panel.gradient.apply.hint"><source>Apply a gradient overlay. Adjust its colors in Effects.</source></message>
+    <message id="swatches.panel.gradient.disabled.hint"><source>Select a compatible layer to apply a gradient overlay.</source></message>
+    <message id="swatches.panel.gradient.preset"><source>Gradient %1</source></message>
+  </context>
 </TS>

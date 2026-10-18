@@ -74,6 +74,14 @@ and transformation metadata is not applied again.
 | Adjustment layers | Native Invert and Exposure with zero offset/unit gamma; supported masks and strength. A Normal folder with a direct native adjustment becomes an explicit local domain |
 | Clipping chains | Sibling-scoped native Clipping Mask Groups when Blend Clipped Layers As Group (`clbl`) is enabled/default |
 
+Gradient Overlay imports up to 256 explicit color stops in layer-aligned linear
+and radial gradients, preserving angle, scale, reverse, effect opacity, and blend
+mode. Separate opacity stops are ignored; non-opaque ramps receive a review note.
+Custom stop midpoints use linear interpolation and dithering is not applied,
+with review notes when present. Noise gradients, other styles, offsets, and
+foreground/background-dependent stops require an explicit fallback choice.
+The imported colors remain editable in the multi-stop Effects preview.
+
 Photoshop's Shift+Enter marker (`U+0003`) becomes a Unicode line separator
 (`U+2028`), preserving a visual line break within the same paragraph. Paragraph
 alignment and UTF-16 style ranges survive font replacement; changing fonts may

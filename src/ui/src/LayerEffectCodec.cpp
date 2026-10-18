@@ -71,6 +71,12 @@ QJsonObject encodeLayerEffects(const core::LayerEffectStack &stack) {
         {"gradient", int(e.gradient)},
         {"scale", e.scale},
         {"reverse", e.reverse}};
+    if (!e.gradientStops.empty()) {
+      QJsonArray stops;
+      for (const auto& stop : e.gradientStops)
+        stops.append(QJsonObject{{"position", stop.position}, {"color", color(stop.color)}});
+      item["gradientStops"] = stops;
+    }
     if(i==std::size_t(core::LayerEffectType::BevelEmboss)) {
       const auto& b=e.bevel;
       item["bevel"]=QJsonObject{{"version",int(b.version)},{"style",int(b.style)},
@@ -119,6 +125,16 @@ core::LayerEffectState decodeLayerEffects(const QJsonObject &o) {
     e.gradient = core::GradientType(integer(item["gradient"], 1));
     e.scale = number(item["scale"]);
     e.reverse = boolean(item["reverse"]);
+    if (item.contains("gradientStops")) {
+      require(*type == core::LayerEffectType::GradientOverlay && item["gradientStops"].isArray());
+      const auto stops = item["gradientStops"].toArray();
+      require(stops.size() >= 2 && std::size_t(stops.size()) <= core::maximumGradientStops);
+      for (const auto& value : stops) {
+        require(value.isObject());
+        const auto stop = value.toObject();
+        e.gradientStops.push_back({number(stop["position"]), color(stop["color"])});
+      }
+    }
     if(*type==core::LayerEffectType::BevelEmboss) {
       require(item["bevel"].isObject());const auto b=item["bevel"].toObject();
       require(integer(b["version"],1)==1);

@@ -5,6 +5,34 @@ E_INLINE BVec4 eColor(int effect)
     int i=effect*32;
     return BVec4(E_PARAM(i+4),E_PARAM(i+5),E_PARAM(i+6),E_PARAM(i+7));
 }
+E_INLINE BVec4 eGradientStop(int stop)
+{
+    int i=int(E_PARAM(6*32+18))+stop*5;
+    return BVec4(E_PARAM(i+1),E_PARAM(i+2),E_PARAM(i+3),E_PARAM(i+4));
+}
+E_INLINE BVec4 eGradientSample(float t)
+{
+    int i=6*32;
+    int count=int(E_PARAM(i+17));
+    // Preserve the original arithmetic for existing two-color gradients.
+    if(count==0)return BVec4(E_PARAM(i+4)*(1-t)+E_PARAM(i+8)*t,E_PARAM(i+5)*(1-t)+E_PARAM(i+9)*t,
+        E_PARAM(i+6)*(1-t)+E_PARAM(i+10)*t,E_PARAM(i+7)*(1-t)+E_PARAM(i+11)*t);
+    int offset=int(E_PARAM(i+18));
+    int lo=0,hi=count;
+    // First stop strictly after t. Duplicate positions are intentional hard
+    // transitions: the final stop at that position owns the transition edge.
+    while(lo<hi) {
+        int middle=(lo+hi)/2;
+        if(E_PARAM(offset+middle*5)<=t)lo=middle+1;else hi=middle;
+    }
+    if(lo==0)return eGradientStop(0);
+    if(lo==count)return eGradientStop(count-1);
+    float left=E_PARAM(offset+(lo-1)*5),right=E_PARAM(offset+lo*5);
+    float amount=bClamp((t-left)/(right-left),0.0F,1.0F);
+    BVec4 a=eGradientStop(lo-1),b=eGradientStop(lo);
+    return BVec4(a.x*(1-amount)+b.x*amount,a.y*(1-amount)+b.y*amount,
+        a.z*(1-amount)+b.z*amount,a.w*(1-amount)+b.w*amount);
+}
 E_INLINE BVec4 eGradient(float x,float y)
 {
     int i=6*32;
@@ -16,11 +44,9 @@ E_INLINE BVec4 eGradient(float x,float y)
     else t=0.5F+(x*E_PARAM(i+13)+y*E_PARAM(i+14))
         /(bMax(bAbs(E_PARAM(i+13))*w+bAbs(E_PARAM(i+14))*h,0.000001F)*scale);
     t=bClamp(t,0.0F,1.0F);if(E_PARAM(i+16)>0.5F)t=1.0F-t;
-    // Interpolate associated linear endpoints, including their alpha. A zero-
-    // alpha endpoint cannot contribute hidden RGB; unassociation happens only
-    // in the authoritative blend function.
-    return BVec4(E_PARAM(i+4)*(1-t)+E_PARAM(i+8)*t,E_PARAM(i+5)*(1-t)+E_PARAM(i+9)*t,
-        E_PARAM(i+6)*(1-t)+E_PARAM(i+10)*t,E_PARAM(i+7)*(1-t)+E_PARAM(i+11)*t);
+    // Interpolate associated linear colors, including their alpha. A zero-alpha
+    // stop cannot contribute hidden RGB; blend functions handle unassociation.
+    return eGradientSample(t);
 }
 E_INLINE BUint eSeed(int contribution)
 { return (BUint(E_PARAM(3)) | (BUint(E_PARAM(19))<<16)) ^ (BUint(contribution)*0x9e3779b9u); }

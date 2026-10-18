@@ -267,6 +267,57 @@ void adjustmentModel(const PsdSource& source,const Record& rec,Model& model) {
   if(source.colorSpace.isValid()&&source.colorSpace!=QColorSpace(QColorSpace::SRgb))
     model.substitutions<<"The correction is evaluated in Vulkana's sRGB working space after profile conversion.";
 }
+void gradientOverlay(const PsdSource& source, const Map& descriptor,
+                     core::LayerEffect& target, QStringList& substitutions) {
+  const auto gradient = descriptor.value("Grad").toMap();
+  if (enumeration(gradient.value("GrdF")) != "CstS")
+    throw Unsupported("Noise gradients require the saved composite or Base pixels only");
+  const auto type = enumeration(descriptor.value("Type"));
+  if (type != "Lnr " && type != "Rdl ")
+    throw Unsupported("This Gradient Overlay style requires the saved composite or Base pixels only");
+  const auto offset = descriptor.value("Ofst").toMap();
+  if (!descriptor.value("Algn", true).toBool() ||
+      number(offset.value("Hrzn"), 0) != 0 || number(offset.value("Vrtc"), 0) != 0)
+    throw Unsupported("Unaligned or offset Gradient Overlay requires the saved composite or Base pixels only");
+  const auto stops = gradient.value("Clrs").toList();
+  if (stops.size() < 2 || std::size_t(stops.size()) > core::maximumGradientStops)
+    throw Unsupported("Gradient Overlay color stop count exceeds supported limits");
+  bool linearizedMidpoints = false;
+  for (const auto& value : stops) {
+    const auto stop = value.toMap();
+    if (enumeration(stop.value("Type")) != "UsrS")
+      throw Unsupported("Gradient Overlay foreground/background color stops need a saved-pixel/composite choice");
+    const double position = number(stop.value("Lctn"), -1) / 4096;
+    const double midpoint = number(stop.value("Mdpn"), 50);
+    if (!std::isfinite(position) || position < 0 || position > 1 ||
+        !std::isfinite(midpoint) || midpoint < 0 || midpoint > 100)
+      throw Error("Invalid Gradient Overlay color stop");
+    linearizedMidpoints |= midpoint != 50;
+    target.gradientStops.push_back({position, color(source, stop.value("Clr ").toMap())});
+  }
+  std::stable_sort(target.gradientStops.begin(), target.gradientStops.end(),
+      [](const auto& a, const auto& b) { return a.position < b.position; });
+  target.color = target.gradientStops.front().color;
+  target.secondColor = target.gradientStops.back().color;
+  target.gradient = type == "Lnr " ? core::GradientType::Linear : core::GradientType::Radial;
+  target.angle = std::remainder(-number(descriptor.value("Angl"), 0), 360.);
+  target.scale = number(descriptor.value("Scl "), 100) / 100;
+  target.reverse = descriptor.value("Rvrs", false).toBool();
+  bool ignoredOpacity = false;
+  for (const auto& value : gradient.value("Trns").toList()) {
+    const auto stop = value.toMap();
+    const double opacity = number(stop.value("Opct"), 100);
+    if (!std::isfinite(opacity) || opacity < 0 || opacity > 100)
+      throw Error("Invalid Gradient Overlay opacity stop");
+    ignoredOpacity |= opacity != 100;
+  }
+  if (ignoredOpacity)
+    substitutions << "Gradient Overlay colors were imported; separate gradient opacity stops are not applied.";
+  if (linearizedMidpoints)
+    substitutions << "Gradient Overlay custom midpoints use linear color interpolation.";
+  if (descriptor.value("Dthr", false).toBool())
+    substitutions << "Gradient Overlay dithering is not applied.";
+}
 void effects(const PsdSource &s, const Record &rec, Model &m) {
   auto stack = std::make_shared<core::LayerEffectStack>();
   const auto flag = [&](const QByteArray& key, bool fallback) {
@@ -357,6 +408,8 @@ void effects(const PsdSource &s, const Record &rec, Model &m) {
         type = core::LayerEffectType::ColorOverlay;
       else if (it.key() == "OrGl")
         type = core::LayerEffectType::OuterGlow;
+      else if (it.key() == "GrFl" || it.key() == "gradientFillMulti")
+        type = core::LayerEffectType::GradientOverlay;
       else
         throw Unsupported(
             "An active effect cannot be reproduced by the saved base pixels");
@@ -369,7 +422,11 @@ void effects(const PsdSource &s, const Record &rec, Model &m) {
         throw Unsupported("Unsupported effect blend mode");
       target.blendMode = *mode;
       target.opacity = number(e["Opct"], 100) / 100;
-      target.color = color(s, e["Clr "].toMap());
+      if (type == core::LayerEffectType::GradientOverlay) {
+        gradientOverlay(s, e, target, m.substitutions);
+      } else {
+        target.color = color(s, e["Clr "].toMap());
+      }
       if (type == core::LayerEffectType::Stroke) {
         if (enumeration(e["PntT"]) != "SClr")
           throw Unsupported("Gradient/pattern Stroke is unsupported");
@@ -865,8 +922,8 @@ Model modelFor(const PsdSource &s, const Record &rec, const PsdChoice &choice,
       auto& e=stack->items[i];
       if(e==core::defaultLayerEffect(core::LayerEffectType(i)))continue;
       e.size/=scale;
-      if(i==7) {
-        e.bevel.soften/=scale;
+      if(i==7 || i==std::size_t(core::LayerEffectType::GradientOverlay)) {
+        if(i==7)e.bevel.soften/=scale;
         const auto radians=e.angle*std::numbers::pi/180;
         const auto direction=inverse->map({std::cos(radians),std::sin(radians)})-inverse->map({0,0});
         e.angle=std::atan2(direction.y,direction.x)*180/std::numbers::pi;

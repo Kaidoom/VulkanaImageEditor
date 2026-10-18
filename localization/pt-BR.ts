@@ -10799,4 +10799,39 @@ Chanfro: puxe cantos para dentro; Alt muda também o oposto. Laterais redimensio
     <message id="properties.shortcuts.middle"><source>Middle mouse</source><translation type="unfinished" /></message>
     <message id="properties.shortcuts.pan"><source>Pan canvas</source><translation type="unfinished" /></message>
   </context>
+  <context>
+    <name>GradientEditor</name>
+    <message id="effects.gradient.editor">
+      <source>Gradient colors</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="effects.gradient.editor.hint">
+      <source>Click the gradient to add a color. Drag a stop to move it, click a stop to edit its color, or right-click to remove it.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="effects.gradient.stop.color">
+      <source>Gradient color</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="swatches.panel.gradient">
+      <source>Gradient</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="swatches.panel.gradient.swatches">
+      <source>Gradient presets</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="swatches.panel.gradient.apply.hint">
+      <source>Apply a gradient overlay. Adjust its colors in Effects.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="swatches.panel.gradient.disabled.hint">
+      <source>Select a compatible layer to apply a gradient overlay.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="swatches.panel.gradient.preset">
+      <source>Gradient %1</source>
+      <translation type="unfinished" />
+    </message>
+  </context>
 </TS>

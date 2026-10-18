@@ -1342,6 +1342,104 @@ void replacementFontSearch() {
     }
   }
 }
+void gradientColorStops() {
+  namespace f = psdfixture;
+  QTemporaryDir dir;
+  const auto job = std::make_shared<u::PsdJob>();
+  const auto rgb = [](int red, int green, int blue) {
+    return QVariantMap{{"Rd  ", double(red)}, {"Grn ", double(green)}, {"Bl  ", double(blue)}};
+  };
+  const auto stop = [&](int location, QVariantMap color, int midpoint = 50) {
+    return QVariantMap{{"Lctn", location}, {"Mdpn", midpoint}, {"Clr ", color},
+                       {"Type", f::enumeration("UsrS")}};
+  };
+  const QVariantList colors{stop(0, rgb(10, 40, 80)), stop(1024, rgb(60, 150, 220)),
+                             stop(2048, rgb(200, 80, 170)), stop(4096, rgb(250, 220, 130))};
+  const QVariantMap gradient{{"GrdF", f::enumeration("CstS")}, {"Intr", 4096}, {"Clrs", colors},
+      {"Trns", QVariantList{QVariantMap{{"Lctn", 0}, {"Mdpn", 50}, {"Opct", f::unit(100, "#Prc")}},
+                            QVariantMap{{"Lctn", 4096}, {"Mdpn", 50}, {"Opct", f::unit(100, "#Prc")}}}}};
+  QVariantMap overlay{{"enab", true}, {"present", true}, {"Md  ", f::enumeration("Scrn")},
+      {"Opct", f::unit(65, "#Prc")}, {"Grad", gradient}, {"Angl", f::unit(35, "#Ang")},
+      {"Type", f::enumeration("Lnr ")}, {"Scl ", f::unit(125, "#Prc")}, {"Rvrs", true},
+      {"Algn", true}, {"Dthr", false}};
+  const auto inspect = [&](const QVariantMap& effect, int ppi = 72, bool multi = false) {
+    f::Layer layer;
+    layer.rect = {10, 20, 32, 24};
+    QByteArray style; f::u32(style, 0);
+    style += f::descriptor({{"Scl ", f::unit(ppi * 100. / 72, "#Prc")}, {"masterFXSwitch", true},
+        {multi ? "gradientFillMulti" : "GrFl", multi ? QVariant(QVariantList{effect}) : QVariant(effect)}});
+    layer.tags[multi ? "lmfx" : "lfx2"] = style;
+    const auto path = dir.filePath("gradient.psd");
+    QFile file(path); CHECK(file.open(QIODevice::WriteOnly)); file.write(f::file({layer}, {64, 64}, ppi)); file.close();
+    auto result = u::inspectPsd(path, job);
+    CHECK(result.error.isEmpty() && result.layers.size() == 1);
+    return result;
+  };
+  const auto convert = [&](const u::PsdInspection& input) {
+    auto result = u::convertPsd(input, u::defaultPsdOptions(input), job, {}, false);
+    CHECK(result.error.isEmpty() && result.document);
+    return result;
+  };
+  for (int ppi : {72, 300}) for (bool multi : {false, true})
+    for (const auto type : {QString("Lnr "), QString("Rdl ")}) {
+      auto effect = overlay; effect["Type"] = f::enumeration(type);
+      const auto input = inspect(effect, ppi, multi);
+      CHECK(input.layers.front().editable && input.layers.front().issues.empty());
+      auto output = convert(input);
+      if (!output.document) continue;
+      const auto effects = output.document->layers().front().effects;
+      CHECK(effects); if (!effects) continue;
+      const auto& imported = effects->items[6];
+      CHECK(imported.enabled && imported.gradientStops.size() == 4);
+      CHECK(imported.blendMode == c::BlendMode::Screen && imported.opacity == .65);
+      CHECK(imported.scale == 1.25 && imported.angle == -35 && imported.reverse);
+      CHECK(imported.gradient == (type == "Lnr " ? c::GradientType::Linear : c::GradientType::Radial));
+      CHECK(imported.gradientStops[1] == c::GradientStop{.25, {60, 150, 220, 255}});
+      CHECK(imported.color == c::Rgba8{10, 40, 80, 255});
+      CHECK(imported.secondColor == c::Rgba8{250, 220, 130, 255});
+      const auto project = dir.filePath("gradient.vulkana");
+      CHECK(u::saveProject(project, *output.document));
+      const auto reopened = u::loadProject(project); CHECK(reopened);
+      if (reopened) CHECK(c::equivalentLayerEffects(reopened.document->layers().front().effects, effects));
+    }
+  // Legacy endpoint-only PSD gradients remain valid. Equal positions preserve hard edges.
+  for (bool hardEdge : {false, true}) {
+    auto effect = overlay; auto ramp = gradient;
+    ramp["Clrs"] = hardEdge ? QVariantList{colors[0], stop(2048, rgb(255, 0, 0)),
+        stop(2048, rgb(0, 0, 255)), colors[3]} : QVariantList{colors[0], colors[3]};
+    effect["Grad"] = ramp;
+    auto output = convert(inspect(effect));
+    if (output.document) CHECK(output.document->layers().front().effects->items[6].gradientStops.size() == (hardEdge ? 4 : 2));
+  }
+  // Non-color features are clearly disclosed, without preventing editable color import.
+  auto approximated = overlay; auto ramp = gradient; auto modifiedColors = colors;
+  auto first = modifiedColors.front().toMap(); first["Mdpn"] = 25; modifiedColors[0] = first;
+  ramp["Clrs"] = modifiedColors;
+  ramp["Trns"] = QVariantList{QVariantMap{{"Lctn", 0}, {"Opct", f::unit(30, "#Prc")}}};
+  approximated["Grad"] = ramp; approximated["Dthr"] = true;
+  const auto approximateInput = inspect(approximated);
+  CHECK(approximateInput.layers.front().editable);
+  const auto issues = approximateInput.layers.front().issues.join(' ');
+  CHECK(issues.contains("opacity stops") && issues.contains("midpoints") && issues.contains("dithering"));
+  auto approximation = convert(approximateInput);
+  if (approximation.document) {
+    const auto& imported = approximation.document->layers().front().effects->items[6];
+    CHECK(imported.opacity == .65);
+    for (const auto& colorStop : imported.gradientStops) CHECK(colorStop.color.alpha == 255);
+  }
+  for (int variant = 0; variant < 5; ++variant) {
+    auto unsupported = overlay; auto invalidRamp = gradient;
+    if (variant == 0) unsupported["Type"] = f::enumeration("Angl");
+    if (variant == 1) unsupported["Algn"] = false;
+    if (variant == 2) unsupported["Ofst"] = QVariantMap{{"Hrzn", f::unit(10, "#Prc")}, {"Vrtc", f::unit(0, "#Prc")}};
+    if (variant == 3) invalidRamp["GrdF"] = f::enumeration("ClNs");
+    if (variant == 4) invalidRamp["Clrs"] = QVariantList{colors[0]};
+    unsupported["Grad"] = invalidRamp;
+    const auto input = inspect(unsupported);
+    CHECK(!input.layers.front().editable && !input.layers.front().issues.empty());
+  }
+}
+
 void strokePixelSizes() {
   namespace f = psdfixture;
   QTemporaryDir dir;
@@ -1524,6 +1622,11 @@ void compositingRoundTrip(const QString& fixture={}) {
 }
 int main(int argc, char **argv) {
   QApplication app(argc, argv);
+  if (argc >= 2 && QString::fromLocal8Bit(argv[1]) == "--gradient-stops") {
+    gradientColorStops();
+    std::cout << "PSD gradient failures: " << failures << '\n';
+    return failures ? 1 : 0;
+  }
   if (argc >= 2 && QString::fromLocal8Bit(argv[1]) == "--advanced-blending") {
     advancedBlendingFlags();
     std::cout << "PSD advanced blending failures: " << failures << '\n';
@@ -1652,6 +1755,7 @@ int main(int argc, char **argv) {
   mergedTransparency();
   compositingRoundTrip();
   semanticFixtures();
+  gradientColorStops();
   strokePixelSizes();
   advancedBlendingFlags();
   softTextBreaks();

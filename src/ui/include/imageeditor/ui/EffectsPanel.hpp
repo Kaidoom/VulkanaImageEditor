@@ -12,6 +12,7 @@ class QLabel;
 namespace imageeditor::ui {
 class CompactValueControl;
 class AdjustmentCurveEditor;
+class GradientStopEditor;
 class EffectsPanel final : public QWidget {
 public:
   explicit EffectsPanel(QWidget *parent = nullptr);
@@ -27,6 +28,7 @@ public:
   std::function<void(core::LayerEffectState)> onPreview;
   std::function<void(bool)> onInteractionFinished, onComparison;
   std::function<void(core::LayerEffectType, bool)> onColorRequested;
+  std::function<void(std::size_t)> onGradientColorRequested;
 
 protected:
   void hideEvent(QHideEvent *) override;
@@ -47,6 +49,7 @@ private:
                               std::function<double()>,std::function<void(double)>);
   void bevelPage();
   AdjustmentCurveEditor* contourEditor_{};
+  GradientStopEditor* gradientEditor_{};
   bool glossSelected_{};
   core::EffectContour& selectedContour();
   QHBoxLayout *choices(std::size_t, const i18n::Message &, const QList<i18n::Message> &,
