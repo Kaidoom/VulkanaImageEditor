@@ -7182,4 +7182,33 @@ Chamfer: pull corners inward; Alt also changes the opposite corner. Side handles
     <message id="canvas.resize.undo"><source>Undo canvas resize adjustment</source></message>
     <message id="canvas.resize.redo"><source>Redo canvas resize adjustment</source></message>
   </context>
+  <context>
+    <name>CompactProperties</name>
+    <message id="properties.info.title"><source>Layer Info</source></message>
+    <message id="properties.info.size"><source>Size</source></message>
+    <message id="properties.info.angle"><source>Angle</source></message>
+    <message id="properties.info.position"><source>Position</source></message>
+    <message id="properties.info.font"><source>Font</source></message>
+    <message id="properties.info.color"><source>Color</source></message>
+    <message id="properties.info.whole.text"><source>Changes apply to the entire text layer.</source></message>
+    <message id="properties.info.folder"><source>Folder</source></message>
+    <message id="properties.info.group"><source>Group</source></message>
+    <message id="properties.info.adjustment"><source>Adjustment layer</source></message>
+    <message id="properties.info.brush.settings"><source>Brush settings</source></message>
+    <message id="properties.info.width"><source>Width</source></message>
+    <message id="properties.info.height"><source>Height</source></message>
+    <message id="properties.info.text.color"><source>Text color</source></message>
+    <message id="properties.info.mixed"><source>Mixed</source></message>
+    <message id="properties.shortcuts.sample"><source>Sample color (hold)</source></message>
+    <message id="properties.shortcuts.source"><source>Set clone/heal source</source></message>
+    <message id="properties.shortcuts.add"><source>Add to selection</source></message>
+    <message id="properties.shortcuts.subtract"><source>Subtract from selection</source></message>
+    <message id="properties.shortcuts.intersect"><source>Intersect selection</source></message>
+    <message id="properties.shortcuts.constrain"><source>Constrain direction or proportions</source></message>
+    <message id="properties.shortcuts.ratio"><source>Toggle aspect constraint</source></message>
+    <message id="properties.shortcuts.center"><source>Resize from center</source></message>
+    <message id="properties.shortcuts.cancel"><source>Cancel current operation</source></message>
+    <message id="properties.shortcuts.middle"><source>Middle mouse</source></message>
+    <message id="properties.shortcuts.pan"><source>Pan canvas</source></message>
+  </context>
 </TS>

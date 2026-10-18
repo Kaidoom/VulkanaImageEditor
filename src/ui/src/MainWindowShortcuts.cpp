@@ -4,6 +4,7 @@
 #include "imageeditor/ui/CompactValueControl.hpp"
 #include "imageeditor/ui/CrossWindowPointerRouter.hpp"
 #include "imageeditor/ui/LayerListView.hpp"
+#include "imageeditor/ui/PropertiesPanel.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/TextController.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
@@ -104,6 +105,7 @@ void MainWindow::applyShortcutBindings(const ShortcutBindings& bindings)
         i18n::setToolTip(action, hint);
     }
     if (textController_) textController_->setShortcutBindings(shortcuts_);
+    propertiesPanel_->setShortcutBindings(shortcuts_);
     updateShortcutHints(this, shortcuts_);
     updateShortcutHints(workspace_->panelOverlay(), shortcuts_);
     // Curve removal is also usable in a standalone panel, with the same binding.

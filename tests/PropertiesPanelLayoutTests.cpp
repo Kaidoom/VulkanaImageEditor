@@ -21,6 +21,7 @@
 #include <QSizePolicy>
 #include <QStackedWidget>
 #include <QPushButton>
+#include <QToolButton>
 #include <QWidget>
 
 #include <array>
@@ -91,6 +92,7 @@ void resizingLeavesControlsAtNaturalTopPositionAndEnablesScrolling()
 {
     imageeditor::ui::PropertiesPanel panel;
     panel.setActiveTool(imageeditor::core::ToolId::Brush);
+    panel.findChild<QToolButton*>("BrushSettingsSectionHeader")->setChecked(true);
     panel.resize(340, 800);
     panel.show();
     QCoreApplication::processEvents();
@@ -125,6 +127,7 @@ void brushControlsExposeTheProductionSettings()
 {
     imageeditor::ui::PropertiesPanel panel;
     panel.setActiveTool(imageeditor::core::ToolId::Brush);
+    panel.findChild<QToolButton*>("BrushSettingsSectionHeader")->setChecked(true);
     auto* grid = dynamic_cast<imageeditor::ui::BrushPresetGrid*>(
         panel.findChild<QListWidget*>(QStringLiteral("BrushPresetGrid")));
     auto* grainStrength = dynamic_cast<imageeditor::ui::CompactValueControl*>(
@@ -286,6 +289,7 @@ void grainManualDecimalEntrySurvivesSettingsSynchronization()
 {
     imageeditor::ui::PropertiesPanel panel;
     panel.setActiveTool(imageeditor::core::ToolId::Brush);
+    panel.findChild<QToolButton*>("BrushSettingsSectionHeader")->setChecked(true);
     panel.resize(340, 800);
     panel.show();
     QCoreApplication::processEvents();
@@ -349,6 +353,7 @@ void brushPresetGridReflowsAtFixedCellSize()
 {
     imageeditor::ui::PropertiesPanel panel;
     panel.setActiveTool(imageeditor::core::ToolId::Brush);
+    panel.findChild<QToolButton*>("BrushSettingsSectionHeader")->setChecked(true);
     auto* grid = dynamic_cast<imageeditor::ui::BrushPresetGrid*>(
         panel.findChild<QListWidget*>(QStringLiteral("BrushPresetGrid")));
     CHECK(grid != nullptr);

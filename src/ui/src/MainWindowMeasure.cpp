@@ -26,8 +26,7 @@ void MainWindow::createMeasureControls()
     toolOptionsBar_->registerToolPage(core::ToolId::Measure, i18n::text("main.window.measure.measure"), page);
     QVBoxLayout* content {};
     propertiesPanel_->addToolPage(core::ToolId::Measure, i18n::text("main.window.measure.measure"), i18n::text("main.window.measure.drag.a.b.to.measure.document.pixels.including.outside"), content);
-    auto* help = i18n::make<QLabel>(i18n::text("main.window.measure.toolaction.measure.measure.hold.temporarymeasureaction.temporary.measure.release.temporarymeasureaction"));
-    help->setWordWrap(true); help->setObjectName(QStringLiteral("MutedLabel")); content->addWidget(help);
+
 }
 void MainWindow::refreshMeasureBounds()
 {

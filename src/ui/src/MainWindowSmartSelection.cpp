@@ -120,10 +120,7 @@ void MainWindow::createSmartSelectionHelp()
     QVBoxLayout* content { };
     propertiesPanel_->addToolPage(core::ToolId::SmartSelect, i18n::text("main.window.smart.selection.smart.select"),
         i18n::text("main.window.smart.selection.toolaction.smartselect.quick.selection.magic.wand.and.object.selection"), content);
-    auto* help = i18n::make<QLabel>(i18n::text("main.window.smart.selection.quick.selection.brush.along.the.region.to.grow.nearby"));
-    help->setWordWrap(true);
-    help->setObjectName(QStringLiteral("MutedLabel"));
-    content->addWidget(help);
+
 }
 bool MainWindow::beginSmartSelection(core::Vec2d point, Qt::KeyboardModifiers modifiers)
 {

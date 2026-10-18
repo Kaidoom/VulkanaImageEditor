@@ -5,6 +5,9 @@
 #include "imageeditor/core/BrushEngine.hpp"
 #include "imageeditor/core/BrushAssetRegistry.hpp"
 #include "imageeditor/ui/BrushPresetStore.hpp"
+#include "imageeditor/ui/EditorShortcuts.hpp"
+#include "imageeditor/core/BoundsSnapping.hpp"
+#include "imageeditor/core/RichText.hpp"
 
 #include <QWidget>
 
@@ -28,6 +31,8 @@ class BrushAssetLibrary;
 class BrushComponentPicker;
 class BrushPresetGrid;
 class CompactValueControl;
+class LayerInfoPanel;
+class ToolShortcutHints;
 
 class PropertiesPanel final : public QWidget {
 public:
@@ -36,7 +41,9 @@ public:
         QWidget* parent = nullptr);
 
     void setActiveTool(core::ToolId tool);
-    void setSelectedLayer(const core::Layer* layer, const core::LayerContainer* container = nullptr);
+    void setSelectedLayer(const core::Layer* layer, const core::LayerContainer* container = nullptr,
+        std::optional<core::DocumentBounds> groupBounds = {});
+    void setShortcutBindings(const ShortcutBindings&);
     // Cached contextual pages use the same scrolling/top-aligned shell.
     QWidget* addToolPage(core::ToolId tool, const i18n::Message& title,
         const i18n::Message& description, QVBoxLayout*& content);
@@ -49,6 +56,8 @@ public:
     [[nodiscard]] bool brushPresetModified() const noexcept;
 
     std::function<void(const core::BrushSettings&)> onBrushSettingsChanged;
+    std::function<void(core::LayerId, core::TextStylePatch)> onTextFormat;
+    std::function<void(core::LayerId)> onTextColor;
     std::function<BrushPresetSaveResult(const QString&,
         const core::BrushSettings&)> onSaveBrushCopyRequested;
 
@@ -71,11 +80,11 @@ private:
 
     std::shared_ptr<BrushAssetLibrary> brushAssets_;
     QStackedWidget* stack_ {nullptr};
-    QLabel* selectedLayerName_ {nullptr};
-    QLabel* selectedLayerType_ {nullptr};
+    LayerInfoPanel* layerInfo_{};
+    ToolShortcutHints* shortcutHints_{};
+    struct PageSections {QVBoxLayout *root{}, *info{}, *shortcuts{};};
+    std::map<QWidget*, PageSections> sections_;
     BrushPresetGrid* brushPresetGrid_ {nullptr};
-    QLabel* cloningHelp_ {nullptr};
-    QLabel* localBlurHelp_ {nullptr};
     QComboBox* brushSmoothingCombo_ {nullptr};
     QLineEdit* brushSeed_ {nullptr};
     CompactValueControl* brushGrainStrengthControl_ {nullptr};

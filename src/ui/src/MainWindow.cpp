@@ -621,6 +621,8 @@ MainWindow::MainWindow(
         return !guard || (guard->shortcutGestureIdle() && !guard->textController_->composing());
     };
     textController_->onChanged = [this] { synchronizeUi(true, false); };
+    propertiesPanel_->onTextFormat = [this](auto id, auto patch) { formatLayerInfoText(id, std::move(patch)); };
+    propertiesPanel_->onTextColor = [this](auto id) { chooseLayerInfoTextColor(id); };
     textController_->onActivateText = [this] { setActiveTool(core::ToolId::Text); };
     textController_->onError = [this](QString message) {
         statusBar()->showMessage(message, 6500);
@@ -4453,7 +4455,7 @@ void MainWindow::setActiveTool(core::ToolId tool)
     // both modes present the exact same settings UI.
     const auto presentedTool = tool == core::ToolId::Eraser
         ? core::ToolId::Brush : tool;
-    propertiesPanel_->setActiveTool(tool == core::ToolId::Transform ? core::ToolId::Move : presentedTool);
+    propertiesPanel_->setActiveTool(tool);
     toolOptionsBar_->setActiveTool(presentedTool);
     canvasWindow_->setLayerOutlineTargets(session().document()
         ? session().document()->expandedLayers(session().selectedLayers()) : std::vector<core::LayerId>{});
@@ -4581,7 +4583,7 @@ void MainWindow::updateLayerControls()
     i18n::setToolTip(opacitySlider_,i18n::text(pixelOpacityMode_?"layer.opacity.pixel.help":"layer.opacity.layer.help"));
     blendModeCombo_->setCurrentIndex(container ? int(core::allBlendModes.size())
         : blendModeCombo_->findData(int(active ? active->blendMode : core::BlendMode::Normal)));
-    propertiesPanel_->setSelectedLayer(active, container);
+    propertiesPanel_->setSelectedLayer(active, container, container ? measureBounds_ : std::nullopt);
     refreshAdjustmentPanel();
     refreshFiltersPanel();
     updatingUi_ = false;

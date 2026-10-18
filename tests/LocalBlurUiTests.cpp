@@ -64,9 +64,9 @@ void interaction(QVulkanInstance* vulkan)
     auto* action=window.findChild<QAction*>("ToolAction_local_blur");CHECK(action);if(!action)return;
     action->trigger();settle();CHECK(session.activeTool()==c::ToolId::LocalBlur);CHECK(action->shortcut()==QKeySequence("K"));
     auto* size=window.findChild<QDoubleSpinBox*>("LocalBlurSize");auto* strength=window.findChild<QDoubleSpinBox*>("LocalBlurStrength");
-    auto* radius=window.findChild<QDoubleSpinBox*>("LocalBlurRadius");auto* help=window.findChild<QLabel*>("LocalBlurHelp");
-    CHECK(size&&strength&&radius&&help);if(!size||!strength||!radius||!help)return;
-    CHECK(help->isVisible()&&help->text().contains("Shift"));size->setValue(20);strength->setValue(100);radius->setValue(5);
+    auto* radius=window.findChild<QDoubleSpinBox*>("LocalBlurRadius");
+    CHECK(size&&strength&&radius);if(!size||!strength||!radius)return;
+    CHECK(!window.findChild<QLabel*>("LocalBlurHelp"));size->setValue(20);strength->setValue(100);radius->setValue(5);
     if(auto* focused=QApplication::focusWidget())focused->clearFocus();
     canvas->requestActivate();settle();
     // show()/processEvents() is not a Wayland activation barrier. Previously

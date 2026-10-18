@@ -7,6 +7,8 @@
 #include "imageeditor/ui/BrushPresetGrid.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
 #include "imageeditor/ui/EditorShortcuts.hpp"
+#include "imageeditor/ui/LayerInfoPanel.hpp"
+#include "imageeditor/ui/ToolShortcutHints.hpp"
 
 #include <QButtonGroup>
 #include <QCheckBox>
@@ -43,8 +45,6 @@ namespace {
 constexpr int kPanelInset = 14;
 constexpr int kPanelBottomInset = 18;
 constexpr int kControlSpacing = 9;
-constexpr int kTitleToSectionsGap = 6;
-constexpr int kSectionBreak = 8;
 
 class BrushSeedEdit final : public QLineEdit {
 public:
@@ -114,6 +114,7 @@ QWidget* collapsibleSection(const i18n::Message& title,
 
     auto* header = new QToolButton(container);
     header->setObjectName(objectName + QStringLiteral("SectionHeader"));
+    header->setProperty("propertiesSectionHeader", true);
     i18n::setText(header, title);
     header->setCheckable(true);
     header->setChecked(true);
@@ -149,6 +150,10 @@ PropertiesPanel::PropertiesPanel(
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(stack_);
 
+    layerInfo_ = new LayerInfoPanel(this);
+    shortcutHints_ = new ToolShortcutHints(this);
+    layerInfo_->onTextFormat = [this](auto id, auto patch) { if(onTextFormat)onTextFormat(id,std::move(patch)); };
+    layerInfo_->onTextColor = [this](auto id) { if(onTextColor)onTextColor(id); };
     pages_[core::ToolId::Move] = createMovePage();
     pages_[core::ToolId::Transform] = createSelectionTransformPage();
     pages_[core::ToolId::Marquee] = createSelectionPage(core::ToolId::Marquee, i18n::text("properties.panel.select"), i18n::text("properties.panel.create.and.combine.selections.layertransformaction.transforms.the.selection.mask"));
@@ -177,41 +182,30 @@ PropertiesPanel::PropertiesPanel(
 
 void PropertiesPanel::setActiveTool(core::ToolId tool)
 {
-    if(cloningHelp_)cloningHelp_->setVisible(tool==core::ToolId::Cloning);
-    if(localBlurHelp_)localBlurHelp_->setVisible(tool==core::ToolId::LocalBlur);
-    if (tool == core::ToolId::Eraser || tool==core::ToolId::Cloning || tool==core::ToolId::LocalBlur) {
-        tool = core::ToolId::Brush;
+    const auto actualTool=tool;
+    if(tool==core::ToolId::Eraser || tool==core::ToolId::Cloning || tool==core::ToolId::LocalBlur)tool=core::ToolId::Brush;
+    const auto found=pages_.find(tool);
+    if(found==pages_.end())return;
+    auto& sections=sections_.at(found->second);
+    sections.info->addWidget(layerInfo_); layerInfo_->show();
+    sections.shortcuts->addWidget(shortcutHints_); shortcutHints_->show();
+    shortcutHints_->setTool(actualTool);
+    if(tool==core::ToolId::Brush){
+        auto* title=found->second->findChild<QLabel*>("ToolTitle");
+        i18n::setText(title,i18n::text(actualTool==core::ToolId::Eraser?"main.window.eraser":
+            actualTool==core::ToolId::Cloning?"main.window.cloning":
+            actualTool==core::ToolId::LocalBlur?"main.window.local.blur":"properties.panel.brush"));
     }
-    const auto found = pages_.find(tool);
-    if (found != pages_.end()) {
-        stack_->setCurrentWidget(found->second);
-    }
+    stack_->setCurrentWidget(found->second);
 }
-
-void PropertiesPanel::setSelectedLayer(const core::Layer* layer, const core::LayerContainer* container)
+void PropertiesPanel::setSelectedLayer(const core::Layer* layer,const core::LayerContainer* container,
+    std::optional<core::DocumentBounds> bounds)
 {
-    if (!selectedLayerName_ || !selectedLayerType_) {
-        return;
-    }
-    if (!layer) {
-        if (container) {
-            selectedLayerName_->setText(QString::fromUtf8(container->name));
-            i18n::setText(selectedLayerType_, container->kind == core::ContainerKind::ClippingMaskGroup
-                ? i18n::text("properties.panel.clipping.mask.group.the.bottommost.child.is.the.base")
-                : container->kind == core::ContainerKind::Group
-                ? i18n::text("properties.panel.pass.through.group.move.transform.affects.every.member.including")
-                : i18n::text("properties.panel.organizational.folder.select.its.layers.to.move.or.transform"));
-            return;
-        }
-        i18n::setText(selectedLayerName_, i18n::text("properties.panel.no.layer.selected"));
-        selectedLayerType_->clear();
-        return;
-    }
-    selectedLayerName_->setText(QString::fromUtf8(layer->name));
-    i18n::setText(selectedLayerType_, std::holds_alternative<core::RasterLayer>(layer->payload)
-        ? i18n::text("properties.panel.raster.layer") : std::holds_alternative<core::ShapeLayer>(layer->payload)
-        ? i18n::text("properties.panel.editable.shape.layer") : std::holds_alternative<core::AdjustmentLayer>(layer->payload)
-        ? i18n::text("properties.panel.adjustment.layer.edits.the.lower.composite.select.its.mask") : i18n::text("properties.panel.editable.text.layer"));
+    layerInfo_->setLayer(layer,container,bounds);
+}
+void PropertiesPanel::setShortcutBindings(const ShortcutBindings& bindings)
+{
+    shortcutHints_->setBindings(bindings);
 }
 
 void PropertiesPanel::setBrushSettings(const core::BrushSettings& settings)
@@ -265,62 +259,27 @@ void PropertiesPanel::setBrushPresets(
 
 QWidget* PropertiesPanel::createSelectionTransformPage()
 {
-    QVBoxLayout* content = nullptr;
-    auto* page = createPageShell(i18n::text("properties.panel.transform"), i18n::text("properties.panel.selection.boundary.selected.pixels.or.layer.geometry.according.to"), content);
-    auto* help = i18n::make<QLabel>(i18n::text("properties.panel.layertransformaction.transform.the.selection.mask.transformselectedpixelsaction.cut.and.transform"));
-    help->setObjectName(QStringLiteral("MutedLabel"));
-    help->setWordWrap(true);
-    content->addWidget(help);
-    return page;
+    QVBoxLayout* content{};
+    return createPageShell(i18n::text("properties.panel.transform"), {}, content);
 }
 
 QWidget* PropertiesPanel::createMovePage()
 {
-    QVBoxLayout* content = nullptr;
-    auto* page = createPageShell(i18n::text("properties.panel.move"), i18n::text("properties.panel.under.mouse.picks.a.layer.active.layer.keeps.the"), content);
-    content->addWidget(sectionLabel(i18n::text("properties.panel.target")));
-    selectedLayerName_ = i18n::make<QLabel>(i18n::text("properties.panel.no.layer.selected"));
-    selectedLayerName_->setObjectName(QStringLiteral("PropertiesTargetName"));
-    selectedLayerName_->setStyleSheet(QStringLiteral("font-weight: 600;"));
-    selectedLayerType_ = new QLabel;
-    selectedLayerType_->setObjectName(QStringLiteral("MutedLabel"));
-    selectedLayerType_->setWordWrap(true);
-    content->addWidget(selectedLayerName_);
-    content->addWidget(selectedLayerType_);
-    content->addSpacing(kSectionBreak);
-    content->addWidget(sectionLabel(i18n::text("properties.panel.controls.shortcuts")));
-    auto* help = i18n::make<QLabel>(i18n::text("properties.panel.toolaction.move.move.click.select.layer.drag.move.selected"));
-    help->setObjectName(QStringLiteral("MutedLabel"));
-    help->setWordWrap(true);
-    content->addWidget(help);
-    return page;
+    QVBoxLayout* content{};
+    return createPageShell(i18n::text("properties.panel.move"), {}, content);
 }
 
 QWidget* PropertiesPanel::createSelectionPage(
-    core::ToolId tool, const i18n::Message& title, const i18n::Message& description)
+    core::ToolId, const i18n::Message& title, const i18n::Message&)
 {
-    QVBoxLayout* content = nullptr;
-    auto* page = createPageShell(title, description, content);
-    const auto intro = tool == core::ToolId::Lasso
-        ? i18n::text("properties.panel.toolaction.lasso.lasso.freehand.drag.to.trace.release.to")
-        : i18n::text("properties.panel.toolaction.marquee.select.choose.rectangle.or.ellipse.beside.the");
-    auto* hints = i18n::make<QLabel>(intro + i18n::text("properties.panel.at.press.shift.add.alt.subtract.shift.alt.intersect"));
-    hints->setWordWrap(true);
-    content->addWidget(hints);
-    return page;
+    QVBoxLayout* content{};
+    return createPageShell(title, {}, content);
 }
 
 QWidget* PropertiesPanel::createBrushPage(const i18n::Message& title)
 {
     QVBoxLayout* content = nullptr;
     auto* page = createPageShell(title, QString {}, content);
-
-    cloningHelp_=i18n::make<QLabel>(i18n::text("properties.panel.toolaction.cloning.cloning.alt.click.set.stamp.heal.source"));
-    cloningHelp_->setObjectName(QStringLiteral("CloningHelp"));
-    cloningHelp_->setWordWrap(true);cloningHelp_->hide();content->addWidget(cloningHelp_);
-    localBlurHelp_=i18n::make<QLabel>(i18n::text("properties.panel.toolaction.local.blur.local.blur.drag.soften.raster.colors"));
-    localBlurHelp_->setObjectName(QStringLiteral("LocalBlurHelp"));
-    localBlurHelp_->setWordWrap(true);localBlurHelp_->hide();content->addWidget(localBlurHelp_);
 
     brushPresetGrid_ = new BrushPresetGrid;
     content->addWidget(brushPresetGrid_);
@@ -340,6 +299,13 @@ QWidget* PropertiesPanel::createBrushPage(const i18n::Message& title)
     presetActionLayout->addWidget(brushPresetSaveCopyButton_);
     content->addWidget(presetActions);
 
+    // Preserve advanced brush controls without crowding the preset/inspector path.
+    QVBoxLayout* settings{};
+    auto* extra=collapsibleSection(i18n::text("properties.info.brush.settings"),"BrushSettings",settings);
+    sections_.at(page).root->addWidget(extra);
+    content=settings;
+    for(const auto* section:{"LayerInfo","ToolShortcuts","BrushSettings"})
+        page->findChild<QToolButton*>(QString::fromLatin1(section)+"SectionHeader")->setChecked(false);
     content->addWidget(sectionLabel(i18n::text("properties.panel.smoothing")));
     brushSmoothingCombo_ = new QComboBox;
     brushSmoothingCombo_->setObjectName(QStringLiteral("BrushSmoothingCombo"));
@@ -401,12 +367,6 @@ QWidget* PropertiesPanel::createBrushPage(const i18n::Message& title)
     grainLayout->addWidget(brushGrainScaleControl_);
     grainLayout->addWidget(brushGrainAngleControl_);
     content->addWidget(grainSection);
-    QVBoxLayout* shortcutLayout=nullptr;
-    auto* shortcuts=collapsibleSection(i18n::text("properties.panel.shortcuts"), QStringLiteral("BrushShortcuts"), shortcutLayout);
-    auto* help=i18n::make<QLabel>(i18n::text("properties.panel.toolaction.brush.selects.brush.toolaction.eraser.toggles.erase.decreasebrushsizeaction"));
-    help->setWordWrap(true);shortcutLayout->addWidget(help);content->addWidget(shortcuts);
-    shortcuts->findChild<QToolButton*>(QStringLiteral("BrushShortcutsSectionHeader"))->setChecked(false);
-
     const auto changed = [this] { publishBrushSettings(); };
     connect(brushGrainStrengthControl_, &QDoubleSpinBox::valueChanged, this,
         [this] { publishBrushSettings(brushGrainStrengthControl_); });
@@ -682,30 +642,20 @@ void PropertiesPanel::updateComponentControlState()
 
 QWidget* PropertiesPanel::createFillPage()
 {
-    QVBoxLayout* content = nullptr;
-    auto* page = createPageShell(i18n::text("properties.panel.fill"), i18n::text("properties.panel.fill.the.active.layer.or.current.selection"), content);
-    auto* help = i18n::make<QLabel>(i18n::text("properties.panel.toolaction.fill.fill.click.apply.the.highlighted.color.alt"));
-    help->setWordWrap(true); content->addWidget(help);
-    return page;
+    QVBoxLayout* content{};
+    return createPageShell(i18n::text("properties.panel.fill"), {}, content);
 }
 
 QWidget* PropertiesPanel::createEyedropperPage()
 {
-    QVBoxLayout* content = nullptr;
-    auto* page = createPageShell(i18n::text("properties.panel.eyedropper"), i18n::text("properties.panel.pick.the.document.color.including.alpha.hold.alt.with"), content);
-    auto* help = i18n::make<QLabel>(i18n::text("properties.panel.toolaction.eyedropper.eyedropper.click.drag.sample.alt.in.brush"));
-    help->setWordWrap(true);
-    content->addWidget(help);
-    return page;
+    QVBoxLayout* content{};
+    return createPageShell(i18n::text("properties.panel.eyedropper"), {}, content);
 }
 
 QWidget* PropertiesPanel::createTextPage()
 {
-    QVBoxLayout* content = nullptr;
-    auto* page = createPageShell(i18n::text("properties.panel.text"), i18n::text("properties.panel.create.editable.text.without.baking.it.into.pixels"), content);
-    auto* help=i18n::make<QLabel>(i18n::text("properties.panel.toolaction.text.click.to.create.edit.move.double.click"));
-    help->setWordWrap(true);help->setObjectName(QStringLiteral("MutedLabel"));content->addWidget(help);
-    return page;
+    QVBoxLayout* content{};
+    return createPageShell(i18n::text("properties.panel.text"), {}, content);
 }
 
 QWidget* PropertiesPanel::addToolPage(core::ToolId tool, const i18n::Message& title,
@@ -718,7 +668,7 @@ QWidget* PropertiesPanel::addToolPage(core::ToolId tool, const i18n::Message& ti
 }
 
 QWidget* PropertiesPanel::createPageShell(const i18n::Message& title,
-    const i18n::Message& description, QVBoxLayout*& contentLayout)
+    const i18n::Message&, QVBoxLayout*& contentLayout)
 {
     auto* scroll = new QScrollArea;
     scroll->setObjectName(QStringLiteral("PropertiesPageScroll"));
@@ -746,13 +696,14 @@ QWidget* PropertiesPanel::createPageShell(const i18n::Message& title,
     auto* titleLabel = i18n::make<QLabel>(title);
     titleLabel->setObjectName(QStringLiteral("ToolTitle"));
     contentLayout->addWidget(titleLabel);
-    if (!description.isEmpty()) {
-        auto* descriptionLabel = i18n::make<QLabel>(description);
-        descriptionLabel->setObjectName(QStringLiteral("MutedLabel"));
-        descriptionLabel->setWordWrap(true);
-        contentLayout->addWidget(descriptionLabel);
-        contentLayout->addSpacing(kTitleToSectionsGap);
-    }
+    auto* custom=new QWidget(controls);
+    auto* root=contentLayout;
+    contentLayout=new QVBoxLayout(custom); contentLayout->setContentsMargins(0,0,0,0);contentLayout->setSpacing(kControlSpacing);
+    root->addWidget(custom);
+    QVBoxLayout *info{}, *shortcuts{};
+    root->addWidget(collapsibleSection(i18n::text("properties.info.title"),"LayerInfo",info));
+    root->addWidget(collapsibleSection(i18n::text("properties.panel.shortcuts"),"ToolShortcuts",shortcuts));
+    sections_[scroll]={root,info,shortcuts};
     scroll->setWidget(body);
     return scroll;
 }

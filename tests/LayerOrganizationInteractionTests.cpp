@@ -1644,7 +1644,7 @@ int nativeValidation()
             const auto group = f.group();
             CHECK(group != 0);
             const auto* target = f.window.findChild<QLabel*>(QStringLiteral("PropertiesTargetName"));
-            CHECK(target && target->text() == QStringLiteral("Group"));
+            CHECK(target && target->text() == QStringLiteral("Group (Group)"));
             renderedWithoutUploads();
             CHECK(f.model->setData(f.row(group), QStringLiteral("Native validated group"), Qt::EditRole));
             renderedWithoutUploads();

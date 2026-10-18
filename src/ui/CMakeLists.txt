@@ -92,6 +92,9 @@ add_library(imageeditor_ui STATIC
     src/OverlayDockWorkspaceTabs.cpp
     src/PopupOwnership.cpp
     src/PropertiesPanel.cpp
+    src/LayerInfoPanel.cpp
+    src/MainWindowProperties.cpp
+    src/ToolShortcutHints.cpp
     src/QtRasterImageLoader.cpp
     src/PdfImport.cpp
     src/PdfImportDialog.cpp

@@ -513,9 +513,7 @@ void applyEditorTheme(QApplication& application, const ThemeSettings& settings)
             border-color: #6577F3;
         }
         QToolButton#BrushTipSectionHeader,
-        QToolButton#BrushGrainSectionHeader,
-        QToolButton#BrushTipSectionHeader:checked,
-        QToolButton#BrushGrainSectionHeader:checked {
+        QToolButton#BrushTipSectionHeader:checked {
             background: #1C2029;
             border: 1px solid #303645;
             border-radius: 6px;
@@ -523,6 +521,27 @@ void applyEditorTheme(QApplication& application, const ThemeSettings& settings)
             font-weight: 600;
             padding: 6px 8px;
             text-align: left;
+        }
+        QToolButton[propertiesSectionHeader="true"] {
+            background: transparent;
+            border: 1px solid transparent;
+            border-left: 2px solid transparent;
+            border-radius: 3px;
+            padding: 7px 7px 7px 6px;
+            text-align: left;
+        }
+        QToolButton[propertiesSectionHeader="true"]:checked {
+            background: palette(button);
+            border-color: transparent;
+            border-left-color: palette(highlight);
+        }
+        QToolButton[propertiesSectionHeader="true"]:hover {
+            background: #252A36;
+        }
+        QToolButton[propertiesSectionHeader="true"]:focus {
+            border-top-color: palette(mid);
+            border-right-color: palette(mid);
+            border-bottom-color: palette(mid);
         }
         QListWidget#BrushTipPickerGrid,
         QListWidget#BrushGrainPickerGrid,

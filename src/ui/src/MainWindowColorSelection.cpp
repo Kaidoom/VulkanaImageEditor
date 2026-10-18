@@ -65,8 +65,7 @@ void MainWindow::createColorSelectionHelp()
     QVBoxLayout* content {};
     propertiesPanel_->addToolPage(core::ToolId::SelectByColor,i18n::text("main.window.color.selection.select.by.color"),
         i18n::text("main.window.color.selection.click.a.color.to.select.matching.document.pixels.everywhere"),content);
-    auto* help = i18n::make<QLabel>(i18n::text("main.window.color.selection.toolaction.colorselect.select.by.color.click.sample.also.inside"));
-    help->setWordWrap(true); help->setObjectName(QStringLiteral("MutedLabel")); content->addWidget(help);
+
 }
 bool MainWindow::beginColorSelection(core::Vec2d seed, Qt::KeyboardModifiers modifiers)
 {

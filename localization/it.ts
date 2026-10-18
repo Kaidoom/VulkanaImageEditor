@@ -10770,4 +10770,33 @@ Smusso: tira gli angoli all'interno; Alt cambia anche l'opposto. I lati ridimens
     <message id="canvas.resize.undo"><source>Undo canvas resize adjustment</source><translation type="unfinished" /></message>
     <message id="canvas.resize.redo"><source>Redo canvas resize adjustment</source><translation type="unfinished" /></message>
   </context>
+  <context>
+    <name>CompactProperties</name>
+    <message id="properties.info.title"><source>Layer Info</source><translation type="unfinished" /></message>
+    <message id="properties.info.size"><source>Size</source><translation type="unfinished" /></message>
+    <message id="properties.info.angle"><source>Angle</source><translation type="unfinished" /></message>
+    <message id="properties.info.position"><source>Position</source><translation type="unfinished" /></message>
+    <message id="properties.info.font"><source>Font</source><translation type="unfinished" /></message>
+    <message id="properties.info.color"><source>Color</source><translation type="unfinished" /></message>
+    <message id="properties.info.whole.text"><source>Changes apply to the entire text layer.</source><translation type="unfinished" /></message>
+    <message id="properties.info.folder"><source>Folder</source><translation type="unfinished" /></message>
+    <message id="properties.info.group"><source>Group</source><translation type="unfinished" /></message>
+    <message id="properties.info.adjustment"><source>Adjustment layer</source><translation type="unfinished" /></message>
+    <message id="properties.info.brush.settings"><source>Brush settings</source><translation type="unfinished" /></message>
+    <message id="properties.info.width"><source>Width</source><translation type="unfinished" /></message>
+    <message id="properties.info.height"><source>Height</source><translation type="unfinished" /></message>
+    <message id="properties.info.text.color"><source>Text color</source><translation type="unfinished" /></message>
+    <message id="properties.info.mixed"><source>Mixed</source><translation type="unfinished" /></message>
+    <message id="properties.shortcuts.sample"><source>Sample color (hold)</source><translation type="unfinished" /></message>
+    <message id="properties.shortcuts.source"><source>Set clone/heal source</source><translation type="unfinished" /></message>
+    <message id="properties.shortcuts.add"><source>Add to selection</source><translation type="unfinished" /></message>
+    <message id="properties.shortcuts.subtract"><source>Subtract from selection</source><translation type="unfinished" /></message>
+    <message id="properties.shortcuts.intersect"><source>Intersect selection</source><translation type="unfinished" /></message>
+    <message id="properties.shortcuts.constrain"><source>Constrain direction or proportions</source><translation type="unfinished" /></message>
+    <message id="properties.shortcuts.ratio"><source>Toggle aspect constraint</source><translation type="unfinished" /></message>
+    <message id="properties.shortcuts.center"><source>Resize from center</source><translation type="unfinished" /></message>
+    <message id="properties.shortcuts.cancel"><source>Cancel current operation</source><translation type="unfinished" /></message>
+    <message id="properties.shortcuts.middle"><source>Middle mouse</source><translation type="unfinished" /></message>
+    <message id="properties.shortcuts.pan"><source>Pan canvas</source><translation type="unfinished" /></message>
+  </context>
 </TS>

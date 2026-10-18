@@ -97,6 +97,17 @@ ShapeOptionsPage::ShapeOptionsPage(QWidget* parent)
     connect(radius_, &QDoubleSpinBox::valueChanged, this, [this](double v) {if(updating_)return;shape_.cornerRadius=v;publish();if(!radius_->interactionActive()&&onNumericFinished)onNumericFinished(true); });
     numbers_[0] = width_;
     numbers_[1] = radius_;
+    // Retain vertex editing for later refinement without exposing its UI.
+    auto* retained = new QWidget(this);
+    retained->setObjectName("ShapeVertexEditorRetained");
+    auto* retainedLayout = new QVBoxLayout(retained);
+    populateProperties(retainedLayout);
+    retained->hide();
+    for (auto* n : {geometryWidth_, geometryHeight_}) {
+        n->setFixedWidth(165);
+    }
+    row->insertWidget(1,geometryWidth_);
+    row->insertWidget(2,geometryHeight_);
     refresh();
 }
 void ShapeOptionsPage::populateProperties(QVBoxLayout* layout)
@@ -117,6 +128,8 @@ void ShapeOptionsPage::populateProperties(QVBoxLayout* layout)
     };
     geometryWidth_ = make("ShapeGeometryWidth", "Width: ");
     geometryHeight_ = make("ShapeGeometryHeight", "Height: ");
+    i18n::setPrefix(geometryWidth_, i18n::text("properties.info.width") + ": ");
+    i18n::setPrefix(geometryHeight_, i18n::text("properties.info.height") + ": ");
     for (auto* n : { geometryWidth_, geometryHeight_ }) {
         i18n::setSuffix(n, i18n::text("shape.options.page.px"));
         i18n::setToolTip(n, i18n::text("shape.options.page.intrinsic.geometry.before.layer.transforms.changes.geometry.not.stroke"));

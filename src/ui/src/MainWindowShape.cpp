@@ -108,14 +108,6 @@ void MainWindow::createShapeControls()
     toolOptionsBar_->registerToolLeadingWidget(core::ToolId::Shape, shapeOptionsPage_->modeWidget());
     QVBoxLayout* properties = nullptr;
     propertiesPanel_->addToolPage(core::ToolId::Shape, i18n::text("main.window.shape.shape"), i18n::text("main.window.shape.editable.geometry.in.layer.local.pixels.use.the.top"), properties);
-    shapeOptionsPage_->populateProperties(properties);
-    auto* helpTitle = i18n::make<QLabel>(i18n::text("main.window.shape.interaction"));
-    helpTitle->setObjectName(QStringLiteral("SectionLabel"));
-    properties->addWidget(helpTitle);
-    auto* help = i18n::make<QLabel>(i18n::text("main.window.shape.toolaction.shape.shape.drag.empty.canvas.create.shift.at"));
-    help->setObjectName(QStringLiteral("MutedLabel"));
-    help->setWordWrap(true);
-    properties->addWidget(help);
     shapeOptionsPage_->onModeChanged = [this](core::ShapeKind kind) {
         if (shapeCreation_)
             return;

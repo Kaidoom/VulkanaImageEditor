@@ -7,6 +7,7 @@
 #include "imageeditor/core/Measurement.hpp"
 
 #include "imageeditor/core/EditorSession.hpp"
+#include "imageeditor/core/RichText.hpp"
 #include "imageeditor/core/AdjustmentCommands.hpp"
 #include "imageeditor/core/FilterCommands.hpp"
 #include "imageeditor/core/EffectCommands.hpp"
@@ -178,6 +179,8 @@ private:
     };
 
     void createActions();
+    void formatLayerInfoText(core::LayerId, core::TextStylePatch);
+    void chooseLayerInfoTextColor(core::LayerId);
     void createMenus();
     void createToolOptionsBar();
     void createSelectionActions();
