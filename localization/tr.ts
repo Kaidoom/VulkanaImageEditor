@@ -10762,78 +10762,86 @@ Pah: köşeleri içeri çekin; Alt karşı köşeyi de değiştirir. Yan tutama�
   </context>
   <context>
     <name>CanvasResize</name>
-    <message id="canvas.resize.action"><source>Quick canvas resize</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.reset"><source>Reset to the original canvas bounds</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.apply"><source>Apply canvas resize · {{FinishOperationAction}} / right-click</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.cancel"><source>Cancel canvas resize · Escape</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.done"><source>Canvas resized to %1 × %2 px</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.undo"><source>Undo canvas resize adjustment</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.redo"><source>Redo canvas resize adjustment</source><translation type="unfinished" /></message>
+    <message id="canvas.resize.action"><source>Quick canvas resize</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Hızlı tuval boyutlandırma</translation></message>
+    <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Tuvali boyutlandırmak için bir kenarı veya köşeyi, konumunu değiştirmek için içini sürükleyin. Katman pikselleri korunur. Uygula: {{FinishOperationAction}} · İptal: Escape.</translation></message>
+    <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Tuvalin en boy oranını korur; Shift bu kısıtlamayı geçici olarak değiştirir.</translation></message>
+    <message id="canvas.resize.reset"><source>Reset to the original canvas bounds</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Tuvali ilk sınırlarına döndür</translation></message>
+    <message id="canvas.resize.apply"><source>Apply canvas resize · {{FinishOperationAction}} / right-click</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Tuval boyutunu uygula · {{FinishOperationAction}} / sağ tık</translation></message>
+    <message id="canvas.resize.cancel"><source>Cancel canvas resize · Escape</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Tuval boyutlandırmasını iptal et · Escape</translation></message>
+    <message id="canvas.resize.done"><source>Canvas resized to %1 × %2 px</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Tuval %1 × %2 px olarak boyutlandırıldı</translation></message>
+    <message id="canvas.resize.undo"><source>Undo canvas resize adjustment</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Tuval sınırı değişikliğini geri al</translation></message>
+    <message id="canvas.resize.redo"><source>Redo canvas resize adjustment</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Tuval sınırı değişikliğini yinele</translation></message>
   </context>
   <context>
     <name>CompactProperties</name>
-    <message id="properties.info.title"><source>Layer Info</source><translation type="unfinished" /></message>
-    <message id="properties.info.size"><source>Size</source><translation type="unfinished" /></message>
-    <message id="properties.info.angle"><source>Angle</source><translation type="unfinished" /></message>
-    <message id="properties.info.position"><source>Position</source><translation type="unfinished" /></message>
-    <message id="properties.info.font"><source>Font</source><translation type="unfinished" /></message>
-    <message id="properties.info.color"><source>Color</source><translation type="unfinished" /></message>
-    <message id="properties.info.whole.text"><source>Changes apply to the entire text layer.</source><translation type="unfinished" /></message>
-    <message id="properties.info.folder"><source>Folder</source><translation type="unfinished" /></message>
-    <message id="properties.info.group"><source>Group</source><translation type="unfinished" /></message>
-    <message id="properties.info.adjustment"><source>Adjustment layer</source><translation type="unfinished" /></message>
-    <message id="properties.info.brush.settings"><source>Brush settings</source><translation type="unfinished" /></message>
-    <message id="properties.info.width"><source>Width</source><translation type="unfinished" /></message>
-    <message id="properties.info.height"><source>Height</source><translation type="unfinished" /></message>
-    <message id="properties.info.text.color"><source>Text color</source><translation type="unfinished" /></message>
-    <message id="properties.info.mixed"><source>Mixed</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.sample"><source>Sample color (hold)</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.source"><source>Set clone/heal source</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.add"><source>Add to selection</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.subtract"><source>Subtract from selection</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.intersect"><source>Intersect selection</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.constrain"><source>Constrain direction or proportions</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.ratio"><source>Toggle aspect constraint</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.center"><source>Resize from center</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.cancel"><source>Cancel current operation</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.middle"><source>Middle mouse</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.pan"><source>Pan canvas</source><translation type="unfinished" /></message>
+    <message id="properties.info.title"><source>Layer Info</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Katman bilgisi</translation></message>
+    <message id="properties.info.size"><source>Size</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Boyut</translation></message>
+    <message id="properties.info.angle"><source>Angle</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Açı</translation></message>
+    <message id="properties.info.position"><source>Position</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Konum</translation></message>
+    <message id="properties.info.font"><source>Font</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Yazı tipi</translation></message>
+    <message id="properties.info.color"><source>Color</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Renk</translation></message>
+    <message id="properties.info.whole.text"><source>Changes apply to the entire text layer.</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Değişiklikler tüm metin katmanına uygulanır.</translation></message>
+    <message id="properties.info.folder"><source>Folder</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Klasör</translation></message>
+    <message id="properties.info.group"><source>Group</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Grup</translation></message>
+    <message id="properties.info.adjustment"><source>Adjustment layer</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Ayarlama katmanı</translation></message>
+    <message id="properties.info.brush.settings"><source>Brush settings</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Fırça ayarları</translation></message>
+    <message id="properties.info.width"><source>Width</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Genişlik</translation></message>
+    <message id="properties.info.height"><source>Height</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Yükseklik</translation></message>
+    <message id="properties.info.text.color"><source>Text color</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Metin rengi</translation></message>
+    <message id="properties.info.mixed"><source>Mixed</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Karışık</translation></message>
+    <message id="properties.shortcuts.sample"><source>Sample color (hold)</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Renk örnekle (basılı tut)</translation></message>
+    <message id="properties.shortcuts.source"><source>Set clone/heal source</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Klonlama/onarım kaynağını belirle</translation></message>
+    <message id="properties.shortcuts.add"><source>Add to selection</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Seçime ekle</translation></message>
+    <message id="properties.shortcuts.subtract"><source>Subtract from selection</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Seçimden çıkar</translation></message>
+    <message id="properties.shortcuts.intersect"><source>Intersect selection</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Seçimle kesiştir</translation></message>
+    <message id="properties.shortcuts.constrain"><source>Constrain direction or proportions</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Yönü veya oranları sınırla</translation></message>
+    <message id="properties.shortcuts.ratio"><source>Toggle aspect constraint</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>En boy oranı kilidini değiştir</translation></message>
+    <message id="properties.shortcuts.center"><source>Resize from center</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Merkezden boyutlandır</translation></message>
+    <message id="properties.shortcuts.cancel"><source>Cancel current operation</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Geçerli işlemi iptal et</translation></message>
+    <message id="properties.shortcuts.middle"><source>Middle mouse</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Orta fare tuşu</translation></message>
+    <message id="properties.shortcuts.pan"><source>Pan canvas</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Tuvali kaydır</translation></message>
   </context>
   <context>
     <name>GradientEditor</name>
     <message id="effects.gradient.editor">
       <source>Gradient colors</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Degrade renkleri</translation>
     </message>
     <message id="effects.gradient.editor.hint">
       <source>Click the gradient to add a color. Drag a stop to move it, click a stop to edit its color, or right-click to remove it.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Renk eklemek için degradeye tıklayın. Durağı taşımak için sürükleyin, rengini düzenlemek için tıklayın veya kaldırmak için sağ tıklayın.</translation>
     </message>
     <message id="effects.gradient.stop.color">
       <source>Gradient color</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Degrade rengi</translation>
     </message>
     <message id="swatches.panel.gradient">
       <source>Gradient</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Degrade</translation>
     </message>
     <message id="swatches.panel.gradient.swatches">
       <source>Gradient presets</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Hazır degradeler</translation>
     </message>
     <message id="swatches.panel.gradient.apply.hint">
       <source>Apply a gradient overlay. Adjust its colors in Effects.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Degrade kaplama uygular. Renklerini Efektler bölümünde ayarlayın.</translation>
     </message>
     <message id="swatches.panel.gradient.disabled.hint">
       <source>Select a compatible layer to apply a gradient overlay.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Degrade kaplama uygulamak için uyumlu bir katman seçin.</translation>
     </message>
     <message id="swatches.panel.gradient.preset">
       <source>Gradient %1</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Degrade %1</translation>
     </message>
   </context>
 </TS>

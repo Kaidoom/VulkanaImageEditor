@@ -10762,78 +10762,78 @@ Escape で切り抜きを中止
   </context>
   <context>
     <name>CanvasResize</name>
-    <message id="canvas.resize.action"><source>Quick canvas resize</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.reset"><source>Reset to the original canvas bounds</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.apply"><source>Apply canvas resize · {{FinishOperationAction}} / right-click</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.cancel"><source>Cancel canvas resize · Escape</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.done"><source>Canvas resized to %1 × %2 px</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.undo"><source>Undo canvas resize adjustment</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.redo"><source>Redo canvas resize adjustment</source><translation type="unfinished" /></message>
+    <message id="canvas.resize.action"><source>Quick canvas resize</source><translation>キャンバスをすばやくサイズ変更</translation></message>
+    <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translation>辺や角をドラッグしてキャンバスのサイズを変更し、内側をドラッグして位置を調整します。レイヤーのピクセルは保持されます。適用: {{FinishOperationAction}} · キャンセル: Escape。</translation></message>
+    <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translation>キャンバスの縦横比を固定します。Shift で一時的に切り替えられます。</translation></message>
+    <message id="canvas.resize.reset"><source>Reset to the original canvas bounds</source><translation>元のキャンバス範囲に戻す</translation></message>
+    <message id="canvas.resize.apply"><source>Apply canvas resize · {{FinishOperationAction}} / right-click</source><translation>キャンバスのサイズ変更を適用 · {{FinishOperationAction}} / 右クリック</translation></message>
+    <message id="canvas.resize.cancel"><source>Cancel canvas resize · Escape</source><translation>キャンバスのサイズ変更をキャンセル · Escape</translation></message>
+    <message id="canvas.resize.done"><source>Canvas resized to %1 × %2 px</source><translation>キャンバスを %1 × %2 px に変更しました</translation></message>
+    <message id="canvas.resize.undo"><source>Undo canvas resize adjustment</source><translation>キャンバス範囲の調整を元に戻す</translation></message>
+    <message id="canvas.resize.redo"><source>Redo canvas resize adjustment</source><translation>キャンバス範囲の調整をやり直す</translation></message>
   </context>
   <context>
     <name>CompactProperties</name>
-    <message id="properties.info.title"><source>Layer Info</source><translation type="unfinished" /></message>
-    <message id="properties.info.size"><source>Size</source><translation type="unfinished" /></message>
-    <message id="properties.info.angle"><source>Angle</source><translation type="unfinished" /></message>
-    <message id="properties.info.position"><source>Position</source><translation type="unfinished" /></message>
-    <message id="properties.info.font"><source>Font</source><translation type="unfinished" /></message>
-    <message id="properties.info.color"><source>Color</source><translation type="unfinished" /></message>
-    <message id="properties.info.whole.text"><source>Changes apply to the entire text layer.</source><translation type="unfinished" /></message>
-    <message id="properties.info.folder"><source>Folder</source><translation type="unfinished" /></message>
-    <message id="properties.info.group"><source>Group</source><translation type="unfinished" /></message>
-    <message id="properties.info.adjustment"><source>Adjustment layer</source><translation type="unfinished" /></message>
-    <message id="properties.info.brush.settings"><source>Brush settings</source><translation type="unfinished" /></message>
-    <message id="properties.info.width"><source>Width</source><translation type="unfinished" /></message>
-    <message id="properties.info.height"><source>Height</source><translation type="unfinished" /></message>
-    <message id="properties.info.text.color"><source>Text color</source><translation type="unfinished" /></message>
-    <message id="properties.info.mixed"><source>Mixed</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.sample"><source>Sample color (hold)</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.source"><source>Set clone/heal source</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.add"><source>Add to selection</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.subtract"><source>Subtract from selection</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.intersect"><source>Intersect selection</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.constrain"><source>Constrain direction or proportions</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.ratio"><source>Toggle aspect constraint</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.center"><source>Resize from center</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.cancel"><source>Cancel current operation</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.middle"><source>Middle mouse</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.pan"><source>Pan canvas</source><translation type="unfinished" /></message>
+    <message id="properties.info.title"><source>Layer Info</source><translation>レイヤー情報</translation></message>
+    <message id="properties.info.size"><source>Size</source><translation>サイズ</translation></message>
+    <message id="properties.info.angle"><source>Angle</source><translation>角度</translation></message>
+    <message id="properties.info.position"><source>Position</source><translation>位置</translation></message>
+    <message id="properties.info.font"><source>Font</source><translation>フォント</translation></message>
+    <message id="properties.info.color"><source>Color</source><translation>カラー</translation></message>
+    <message id="properties.info.whole.text"><source>Changes apply to the entire text layer.</source><translation>変更はテキストレイヤー全体に適用されます。</translation></message>
+    <message id="properties.info.folder"><source>Folder</source><translation>フォルダー</translation></message>
+    <message id="properties.info.group"><source>Group</source><translation>グループ</translation></message>
+    <message id="properties.info.adjustment"><source>Adjustment layer</source><translation>調整レイヤー</translation></message>
+    <message id="properties.info.brush.settings"><source>Brush settings</source><translation>ブラシ設定</translation></message>
+    <message id="properties.info.width"><source>Width</source><translation>幅</translation></message>
+    <message id="properties.info.height"><source>Height</source><translation>高さ</translation></message>
+    <message id="properties.info.text.color"><source>Text color</source><translation>テキストの色</translation></message>
+    <message id="properties.info.mixed"><source>Mixed</source><translation>混在</translation></message>
+    <message id="properties.shortcuts.sample"><source>Sample color (hold)</source><translation>色を採取（押している間）</translation></message>
+    <message id="properties.shortcuts.source"><source>Set clone/heal source</source><translation>複製・修復の参照元を設定</translation></message>
+    <message id="properties.shortcuts.add"><source>Add to selection</source><translation>選択範囲に追加</translation></message>
+    <message id="properties.shortcuts.subtract"><source>Subtract from selection</source><translation>選択範囲から削除</translation></message>
+    <message id="properties.shortcuts.intersect"><source>Intersect selection</source><translation>選択範囲との共通部分</translation></message>
+    <message id="properties.shortcuts.constrain"><source>Constrain direction or proportions</source><translation>方向または比率を固定</translation></message>
+    <message id="properties.shortcuts.ratio"><source>Toggle aspect constraint</source><translation>縦横比の固定を切り替え</translation></message>
+    <message id="properties.shortcuts.center"><source>Resize from center</source><translation>中心からサイズ変更</translation></message>
+    <message id="properties.shortcuts.cancel"><source>Cancel current operation</source><translation>現在の操作をキャンセル</translation></message>
+    <message id="properties.shortcuts.middle"><source>Middle mouse</source><translation>マウスの中ボタン</translation></message>
+    <message id="properties.shortcuts.pan"><source>Pan canvas</source><translation>キャンバスをパン</translation></message>
   </context>
   <context>
     <name>GradientEditor</name>
     <message id="effects.gradient.editor">
       <source>Gradient colors</source>
-      <translation type="unfinished" />
+      <translation>グラデーションの色</translation>
     </message>
     <message id="effects.gradient.editor.hint">
       <source>Click the gradient to add a color. Drag a stop to move it, click a stop to edit its color, or right-click to remove it.</source>
-      <translation type="unfinished" />
+      <translation>グラデーションをクリックして色を追加します。カラーストップをドラッグして移動、クリックで色を編集、右クリックで削除できます。</translation>
     </message>
     <message id="effects.gradient.stop.color">
       <source>Gradient color</source>
-      <translation type="unfinished" />
+      <translation>グラデーションの色</translation>
     </message>
     <message id="swatches.panel.gradient">
       <source>Gradient</source>
-      <translation type="unfinished" />
+      <translation>グラデーション</translation>
     </message>
     <message id="swatches.panel.gradient.swatches">
       <source>Gradient presets</source>
-      <translation type="unfinished" />
+      <translation>グラデーションプリセット</translation>
     </message>
     <message id="swatches.panel.gradient.apply.hint">
       <source>Apply a gradient overlay. Adjust its colors in Effects.</source>
-      <translation type="unfinished" />
+      <translation>グラデーションオーバーレイを適用します。「効果」で色を調整できます。</translation>
     </message>
     <message id="swatches.panel.gradient.disabled.hint">
       <source>Select a compatible layer to apply a gradient overlay.</source>
-      <translation type="unfinished" />
+      <translation>対応するレイヤーを選択してグラデーションオーバーレイを適用します。</translation>
     </message>
     <message id="swatches.panel.gradient.preset">
       <source>Gradient %1</source>
-      <translation type="unfinished" />
+      <translation>グラデーション %1</translation>
     </message>
   </context>
 </TS>

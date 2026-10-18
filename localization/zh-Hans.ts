@@ -10762,78 +10762,78 @@ Escape 取消整次裁切
   </context>
   <context>
     <name>CanvasResize</name>
-    <message id="canvas.resize.action"><source>Quick canvas resize</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.reset"><source>Reset to the original canvas bounds</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.apply"><source>Apply canvas resize · {{FinishOperationAction}} / right-click</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.cancel"><source>Cancel canvas resize · Escape</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.done"><source>Canvas resized to %1 × %2 px</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.undo"><source>Undo canvas resize adjustment</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.redo"><source>Redo canvas resize adjustment</source><translation type="unfinished" /></message>
+    <message id="canvas.resize.action"><source>Quick canvas resize</source><translation>快速调整画布</translation></message>
+    <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translation>拖动边缘或角点调整画布大小，或在内部拖动以移动画布。图层像素保持不变。应用：{{FinishOperationAction}} · 取消：Escape。</translation></message>
+    <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translation>保持画布宽高比；按住 Shift 临时切换约束。</translation></message>
+    <message id="canvas.resize.reset"><source>Reset to the original canvas bounds</source><translation>恢复原始画布边界</translation></message>
+    <message id="canvas.resize.apply"><source>Apply canvas resize · {{FinishOperationAction}} / right-click</source><translation>应用画布调整 · {{FinishOperationAction}} / 右键</translation></message>
+    <message id="canvas.resize.cancel"><source>Cancel canvas resize · Escape</source><translation>取消画布调整 · Escape</translation></message>
+    <message id="canvas.resize.done"><source>Canvas resized to %1 × %2 px</source><translation>画布已调整为 %1 × %2 px</translation></message>
+    <message id="canvas.resize.undo"><source>Undo canvas resize adjustment</source><translation>撤销画布边界调整</translation></message>
+    <message id="canvas.resize.redo"><source>Redo canvas resize adjustment</source><translation>重做画布边界调整</translation></message>
   </context>
   <context>
     <name>CompactProperties</name>
-    <message id="properties.info.title"><source>Layer Info</source><translation type="unfinished" /></message>
-    <message id="properties.info.size"><source>Size</source><translation type="unfinished" /></message>
-    <message id="properties.info.angle"><source>Angle</source><translation type="unfinished" /></message>
-    <message id="properties.info.position"><source>Position</source><translation type="unfinished" /></message>
-    <message id="properties.info.font"><source>Font</source><translation type="unfinished" /></message>
-    <message id="properties.info.color"><source>Color</source><translation type="unfinished" /></message>
-    <message id="properties.info.whole.text"><source>Changes apply to the entire text layer.</source><translation type="unfinished" /></message>
-    <message id="properties.info.folder"><source>Folder</source><translation type="unfinished" /></message>
-    <message id="properties.info.group"><source>Group</source><translation type="unfinished" /></message>
-    <message id="properties.info.adjustment"><source>Adjustment layer</source><translation type="unfinished" /></message>
-    <message id="properties.info.brush.settings"><source>Brush settings</source><translation type="unfinished" /></message>
-    <message id="properties.info.width"><source>Width</source><translation type="unfinished" /></message>
-    <message id="properties.info.height"><source>Height</source><translation type="unfinished" /></message>
-    <message id="properties.info.text.color"><source>Text color</source><translation type="unfinished" /></message>
-    <message id="properties.info.mixed"><source>Mixed</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.sample"><source>Sample color (hold)</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.source"><source>Set clone/heal source</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.add"><source>Add to selection</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.subtract"><source>Subtract from selection</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.intersect"><source>Intersect selection</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.constrain"><source>Constrain direction or proportions</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.ratio"><source>Toggle aspect constraint</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.center"><source>Resize from center</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.cancel"><source>Cancel current operation</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.middle"><source>Middle mouse</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.pan"><source>Pan canvas</source><translation type="unfinished" /></message>
+    <message id="properties.info.title"><source>Layer Info</source><translation>图层信息</translation></message>
+    <message id="properties.info.size"><source>Size</source><translation>大小</translation></message>
+    <message id="properties.info.angle"><source>Angle</source><translation>角度</translation></message>
+    <message id="properties.info.position"><source>Position</source><translation>位置</translation></message>
+    <message id="properties.info.font"><source>Font</source><translation>字体</translation></message>
+    <message id="properties.info.color"><source>Color</source><translation>颜色</translation></message>
+    <message id="properties.info.whole.text"><source>Changes apply to the entire text layer.</source><translation>更改将应用于整个文本图层。</translation></message>
+    <message id="properties.info.folder"><source>Folder</source><translation>文件夹</translation></message>
+    <message id="properties.info.group"><source>Group</source><translation>组</translation></message>
+    <message id="properties.info.adjustment"><source>Adjustment layer</source><translation>调整图层</translation></message>
+    <message id="properties.info.brush.settings"><source>Brush settings</source><translation>画笔设置</translation></message>
+    <message id="properties.info.width"><source>Width</source><translation>宽度</translation></message>
+    <message id="properties.info.height"><source>Height</source><translation>高度</translation></message>
+    <message id="properties.info.text.color"><source>Text color</source><translation>文本颜色</translation></message>
+    <message id="properties.info.mixed"><source>Mixed</source><translation>混合</translation></message>
+    <message id="properties.shortcuts.sample"><source>Sample color (hold)</source><translation>取色（按住）</translation></message>
+    <message id="properties.shortcuts.source"><source>Set clone/heal source</source><translation>设置仿制/修复源</translation></message>
+    <message id="properties.shortcuts.add"><source>Add to selection</source><translation>添加到选区</translation></message>
+    <message id="properties.shortcuts.subtract"><source>Subtract from selection</source><translation>从选区减去</translation></message>
+    <message id="properties.shortcuts.intersect"><source>Intersect selection</source><translation>与选区相交</translation></message>
+    <message id="properties.shortcuts.constrain"><source>Constrain direction or proportions</source><translation>约束方向或比例</translation></message>
+    <message id="properties.shortcuts.ratio"><source>Toggle aspect constraint</source><translation>切换宽高比约束</translation></message>
+    <message id="properties.shortcuts.center"><source>Resize from center</source><translation>从中心调整大小</translation></message>
+    <message id="properties.shortcuts.cancel"><source>Cancel current operation</source><translation>取消当前操作</translation></message>
+    <message id="properties.shortcuts.middle"><source>Middle mouse</source><translation>鼠标中键</translation></message>
+    <message id="properties.shortcuts.pan"><source>Pan canvas</source><translation>平移画布</translation></message>
   </context>
   <context>
     <name>GradientEditor</name>
     <message id="effects.gradient.editor">
       <source>Gradient colors</source>
-      <translation type="unfinished" />
+      <translation>渐变颜色</translation>
     </message>
     <message id="effects.gradient.editor.hint">
       <source>Click the gradient to add a color. Drag a stop to move it, click a stop to edit its color, or right-click to remove it.</source>
-      <translation type="unfinished" />
+      <translation>点击渐变条添加颜色。拖动色标可移动，点击色标可编辑颜色，右键点击可移除。</translation>
     </message>
     <message id="effects.gradient.stop.color">
       <source>Gradient color</source>
-      <translation type="unfinished" />
+      <translation>渐变颜色</translation>
     </message>
     <message id="swatches.panel.gradient">
       <source>Gradient</source>
-      <translation type="unfinished" />
+      <translation>渐变</translation>
     </message>
     <message id="swatches.panel.gradient.swatches">
       <source>Gradient presets</source>
-      <translation type="unfinished" />
+      <translation>渐变预设</translation>
     </message>
     <message id="swatches.panel.gradient.apply.hint">
       <source>Apply a gradient overlay. Adjust its colors in Effects.</source>
-      <translation type="unfinished" />
+      <translation>应用渐变叠加。可在“效果”中调整颜色。</translation>
     </message>
     <message id="swatches.panel.gradient.disabled.hint">
       <source>Select a compatible layer to apply a gradient overlay.</source>
-      <translation type="unfinished" />
+      <translation>选择兼容的图层以应用渐变叠加。</translation>
     </message>
     <message id="swatches.panel.gradient.preset">
       <source>Gradient %1</source>
-      <translation type="unfinished" />
+      <translation>渐变 %1</translation>
     </message>
   </context>
 </TS>

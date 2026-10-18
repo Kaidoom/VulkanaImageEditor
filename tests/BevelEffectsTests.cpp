@@ -400,14 +400,20 @@ void persistenceAndUi() {
   nav->setCurrentIndex(6);
   QApplication::processEvents();
   auto *reverse = panel.findChild<QCheckBox *>("Effect6Reverse");
-  const auto *typeRow = pages->currentWidget()->layout()->itemAt(1)->layout();
+  const QLayout *typeRow = nullptr;
+  const auto* gradientLayout = pages->currentWidget()->layout();
+  for(int row=0;row<gradientLayout->count();++row)
+    if(const auto* layout=gradientLayout->itemAt(row)->layout();
+        layout && layout->indexOf(choice("Type"))>=0)typeRow=layout;
+  auto* gradientPreview = panel.findChild<QWidget *>("EffectGradientStops");
   // Qt's checkbox and combobox style margins can offset widget centers by a
   // pixel even within the same row. Verify actual row membership and order.
   check(typeRow && typeRow->indexOf(choice("Type")) >= 0 &&
             typeRow->indexOf(reverse) > typeRow->indexOf(choice("Type")) &&
-            above(choice("Blend"), choice("Type")) &&
+            above(choice("Blend"), gradientPreview) &&
+            above(gradientPreview, choice("Type")) &&
             above(choice("Type"), panel.findChild<QWidget *>("Effect6Opacity")),
-        "gradient Type and Reverse share a row below Blend and above sliders");
+        "gradient Type and Reverse share a row below the preview and above sliders");
   check(edits == 0, "layout and page switching do not alter settings");
   c::LayerEffectState preview;
   panel.onPreview = [&](c::LayerEffectState state) { preview = std::move(state); };

@@ -10760,78 +10760,78 @@ Chaflán: tira de esquinas hacia dentro; Alt cambia también la opuesta. Los lad
   </context>
   <context>
     <name>CanvasResize</name>
-    <message id="canvas.resize.action"><source>Quick canvas resize</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.reset"><source>Reset to the original canvas bounds</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.apply"><source>Apply canvas resize · {{FinishOperationAction}} / right-click</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.cancel"><source>Cancel canvas resize · Escape</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.done"><source>Canvas resized to %1 × %2 px</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.undo"><source>Undo canvas resize adjustment</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.redo"><source>Redo canvas resize adjustment</source><translation type="unfinished" /></message>
+    <message id="canvas.resize.action"><source>Quick canvas resize</source><translation>Redimensionar lienzo rápidamente</translation></message>
+    <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translation>Arrastra un borde o una esquina para redimensionar el lienzo, o su interior para moverlo. Se conservan los píxeles de las capas. Aplicar: {{FinishOperationAction}} · Cancelar: Escape.</translation></message>
+    <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translation>Conserva las proporciones del lienzo; Shift alterna la restricción temporalmente.</translation></message>
+    <message id="canvas.resize.reset"><source>Reset to the original canvas bounds</source><translation>Restablecer los límites originales del lienzo</translation></message>
+    <message id="canvas.resize.apply"><source>Apply canvas resize · {{FinishOperationAction}} / right-click</source><translation>Aplicar nuevo tamaño · {{FinishOperationAction}} / clic derecho</translation></message>
+    <message id="canvas.resize.cancel"><source>Cancel canvas resize · Escape</source><translation>Cancelar cambio de tamaño · Escape</translation></message>
+    <message id="canvas.resize.done"><source>Canvas resized to %1 × %2 px</source><translation>Lienzo redimensionado a %1 × %2 px</translation></message>
+    <message id="canvas.resize.undo"><source>Undo canvas resize adjustment</source><translation>Deshacer ajuste del lienzo</translation></message>
+    <message id="canvas.resize.redo"><source>Redo canvas resize adjustment</source><translation>Rehacer ajuste del lienzo</translation></message>
   </context>
   <context>
     <name>CompactProperties</name>
-    <message id="properties.info.title"><source>Layer Info</source><translation type="unfinished" /></message>
-    <message id="properties.info.size"><source>Size</source><translation type="unfinished" /></message>
-    <message id="properties.info.angle"><source>Angle</source><translation type="unfinished" /></message>
-    <message id="properties.info.position"><source>Position</source><translation type="unfinished" /></message>
-    <message id="properties.info.font"><source>Font</source><translation type="unfinished" /></message>
-    <message id="properties.info.color"><source>Color</source><translation type="unfinished" /></message>
-    <message id="properties.info.whole.text"><source>Changes apply to the entire text layer.</source><translation type="unfinished" /></message>
-    <message id="properties.info.folder"><source>Folder</source><translation type="unfinished" /></message>
-    <message id="properties.info.group"><source>Group</source><translation type="unfinished" /></message>
-    <message id="properties.info.adjustment"><source>Adjustment layer</source><translation type="unfinished" /></message>
-    <message id="properties.info.brush.settings"><source>Brush settings</source><translation type="unfinished" /></message>
-    <message id="properties.info.width"><source>Width</source><translation type="unfinished" /></message>
-    <message id="properties.info.height"><source>Height</source><translation type="unfinished" /></message>
-    <message id="properties.info.text.color"><source>Text color</source><translation type="unfinished" /></message>
-    <message id="properties.info.mixed"><source>Mixed</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.sample"><source>Sample color (hold)</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.source"><source>Set clone/heal source</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.add"><source>Add to selection</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.subtract"><source>Subtract from selection</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.intersect"><source>Intersect selection</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.constrain"><source>Constrain direction or proportions</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.ratio"><source>Toggle aspect constraint</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.center"><source>Resize from center</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.cancel"><source>Cancel current operation</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.middle"><source>Middle mouse</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.pan"><source>Pan canvas</source><translation type="unfinished" /></message>
+    <message id="properties.info.title"><source>Layer Info</source><translation>Información de capa</translation></message>
+    <message id="properties.info.size"><source>Size</source><translation>Tamaño</translation></message>
+    <message id="properties.info.angle"><source>Angle</source><translation>Ángulo</translation></message>
+    <message id="properties.info.position"><source>Position</source><translation>Posición</translation></message>
+    <message id="properties.info.font"><source>Font</source><translation>Fuente</translation></message>
+    <message id="properties.info.color"><source>Color</source><translation>Color</translation></message>
+    <message id="properties.info.whole.text"><source>Changes apply to the entire text layer.</source><translation>Los cambios se aplican a toda la capa de texto.</translation></message>
+    <message id="properties.info.folder"><source>Folder</source><translation>Carpeta</translation></message>
+    <message id="properties.info.group"><source>Group</source><translation>Grupo</translation></message>
+    <message id="properties.info.adjustment"><source>Adjustment layer</source><translation>Capa de ajuste</translation></message>
+    <message id="properties.info.brush.settings"><source>Brush settings</source><translation>Ajustes del pincel</translation></message>
+    <message id="properties.info.width"><source>Width</source><translation>Ancho</translation></message>
+    <message id="properties.info.height"><source>Height</source><translation>Alto</translation></message>
+    <message id="properties.info.text.color"><source>Text color</source><translation>Color de texto</translation></message>
+    <message id="properties.info.mixed"><source>Mixed</source><translation>Mixto</translation></message>
+    <message id="properties.shortcuts.sample"><source>Sample color (hold)</source><translation>Tomar color (mantener)</translation></message>
+    <message id="properties.shortcuts.source"><source>Set clone/heal source</source><translation>Fijar origen de clonado/corrección</translation></message>
+    <message id="properties.shortcuts.add"><source>Add to selection</source><translation>Añadir a la selección</translation></message>
+    <message id="properties.shortcuts.subtract"><source>Subtract from selection</source><translation>Restar de la selección</translation></message>
+    <message id="properties.shortcuts.intersect"><source>Intersect selection</source><translation>Intersecar selección</translation></message>
+    <message id="properties.shortcuts.constrain"><source>Constrain direction or proportions</source><translation>Restringir dirección o proporciones</translation></message>
+    <message id="properties.shortcuts.ratio"><source>Toggle aspect constraint</source><translation>Alternar proporciones fijas</translation></message>
+    <message id="properties.shortcuts.center"><source>Resize from center</source><translation>Redimensionar desde el centro</translation></message>
+    <message id="properties.shortcuts.cancel"><source>Cancel current operation</source><translation>Cancelar operación actual</translation></message>
+    <message id="properties.shortcuts.middle"><source>Middle mouse</source><translation>Botón central</translation></message>
+    <message id="properties.shortcuts.pan"><source>Pan canvas</source><translation>Desplazar lienzo</translation></message>
   </context>
   <context>
     <name>GradientEditor</name>
     <message id="effects.gradient.editor">
       <source>Gradient colors</source>
-      <translation type="unfinished" />
+      <translation>Colores del degradado</translation>
     </message>
     <message id="effects.gradient.editor.hint">
       <source>Click the gradient to add a color. Drag a stop to move it, click a stop to edit its color, or right-click to remove it.</source>
-      <translation type="unfinished" />
+      <translation>Haz clic en el degradado para añadir un color. Arrastra un punto para moverlo, haz clic en él para editar su color o clic derecho para eliminarlo.</translation>
     </message>
     <message id="effects.gradient.stop.color">
       <source>Gradient color</source>
-      <translation type="unfinished" />
+      <translation>Color del degradado</translation>
     </message>
     <message id="swatches.panel.gradient">
       <source>Gradient</source>
-      <translation type="unfinished" />
+      <translation>Degradado</translation>
     </message>
     <message id="swatches.panel.gradient.swatches">
       <source>Gradient presets</source>
-      <translation type="unfinished" />
+      <translation>Degradados predefinidos</translation>
     </message>
     <message id="swatches.panel.gradient.apply.hint">
       <source>Apply a gradient overlay. Adjust its colors in Effects.</source>
-      <translation type="unfinished" />
+      <translation>Aplica una superposición de degradado. Ajusta sus colores en Efectos.</translation>
     </message>
     <message id="swatches.panel.gradient.disabled.hint">
       <source>Select a compatible layer to apply a gradient overlay.</source>
-      <translation type="unfinished" />
+      <translation>Selecciona una capa compatible para aplicar una superposición de degradado.</translation>
     </message>
     <message id="swatches.panel.gradient.preset">
       <source>Gradient %1</source>
-      <translation type="unfinished" />
+      <translation>Degradado %1</translation>
     </message>
   </context>
 </TS>

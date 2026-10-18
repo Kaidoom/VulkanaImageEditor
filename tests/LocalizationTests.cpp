@@ -15,6 +15,8 @@
 #include "imageeditor/ui/NewDocumentDialog.hpp"
 #include "imageeditor/ui/ColorDialog.hpp"
 #include "imageeditor/ui/EffectsPanel.hpp"
+#include "imageeditor/ui/GradientStopEditor.hpp"
+#include "imageeditor/ui/SwatchesPanel.hpp"
 #include "imageeditor/ui/AdjustmentsPanel.hpp"
 #include "imageeditor/ui/PsdReviewText.hpp"
 #include "imageeditor/ui/PsdExportPanel.hpp"
@@ -34,6 +36,7 @@
 #include <QInputMethodEvent>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QMenuBar>
 #include <QSettings>
 #include <QStandardPaths>
@@ -460,6 +463,11 @@ void workspace(const QString& output, const char* initialLanguage = "en")
     auto combos = window.findChildren<QComboBox*>();
     auto* effects = dynamic_cast<u::EffectsPanel*>(window.findChild<QWidget*>("EffectsPanelContent"));
     CHECK(effects);
+    auto* gradient=dynamic_cast<u::GradientStopEditor*>(window.findChild<QWidget*>("EffectGradientStops"));
+    auto* swatches=dynamic_cast<u::SwatchesPanel*>(window.findChild<QWidget*>("SwatchesPanelContent"));
+    CHECK(gradient && swatches);
+    const auto gradientStops=gradient?gradient->stops():std::vector<imageeditor::core::GradientStop>{};
+    const auto paintColors=window.editorSession().colors();
     int effectEdits = 0;
     if (effects) effects->onInteractionStarted = [&] { ++effectEdits; return false; };
     std::vector<int> indexes; for (auto* c : combos) indexes.push_back(c->currentIndex());
@@ -467,6 +475,28 @@ void workspace(const QString& output, const char* initialLanguage = "en")
              "ar", "hi", "zh-Hans", "zh-Hant", "ja", "ko", "qps", "fr", "en"}) {
         service.setLanguage(language); settle();
         CHECK(effectEdits == 0);
+        for(const auto& entry:std::initializer_list<std::pair<const char*,const char*>>{
+                {"ColorSwatchesSectionHeader","swatches.panel.swatches"},
+                {"GradientSwatchesSectionHeader","swatches.panel.gradient"},
+                {"CustomSwatchesSectionHeader","swatches.panel.custom"},
+                {"LayerInfoSectionHeader","properties.info.title"},
+                {"ToolShortcutsSectionHeader","properties.panel.shortcuts"}}) {
+            const auto headers=window.findChildren<QToolButton*>(entry.first);
+            CHECK(!headers.empty());
+            for(const auto* header:headers)CHECK(header->text()==i::text(entry.second));
+        }
+        if(gradient) {
+            CHECK(gradient->accessibleName()==i::text("effects.gradient.editor"));
+            CHECK(gradient->toolTip()==i::text("effects.gradient.editor.hint"));
+            CHECK(gradient->stops()==gradientStops && !gradient->interactionActive());
+        }
+        if(swatches) {
+            const auto* grid=swatches->findChild<QListWidget*>("GradientSwatches");
+            CHECK(grid && grid->count()==40);
+            if(grid)for(int n=0;n<grid->count();++n)
+                CHECK(grid->item(n)->toolTip()==i::text("swatches.panel.gradient.preset").arg(n+1));
+        }
+        CHECK(window.editorSession().colors()==paintColors);
         for(const auto& [objectName,id]:{
                 std::pair{"EffectPixelAlphaShapesEffects","effects.panel.pixel.alpha.shapes.effects"},
                 std::pair{"EffectMaskEffectsAfterRendering","effects.panel.mask.effects.after.rendering"}}) {
@@ -495,6 +525,7 @@ void workspace(const QString& output, const char* initialLanguage = "en")
                 {"FillBackgroundAction", "main.window.fill.fill.with.background"},
                 {"FillForegroundAction", "main.window.fill.fill.with.foreground"},
                 {"NewAdjustmentLayerAction", "main.window.new.adjustment.layer"},
+                {"QuickCanvasResizeAction", "canvas.resize.action"},
                 {"NewLayerFolderAction", "main.window.layer.organization.new.folder"},
                 {"GroupLayersAction", "main.window.layer.organization.group.selected.items"},
                 {"UngroupLayersAction", "main.window.layer.organization.ungroup"},

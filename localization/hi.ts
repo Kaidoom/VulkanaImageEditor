@@ -10763,78 +10763,78 @@ Escape · पूरा क्रॉप सत्र रद्द
   </context>
   <context>
     <name>CanvasResize</name>
-    <message id="canvas.resize.action"><source>Quick canvas resize</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.reset"><source>Reset to the original canvas bounds</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.apply"><source>Apply canvas resize · {{FinishOperationAction}} / right-click</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.cancel"><source>Cancel canvas resize · Escape</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.done"><source>Canvas resized to %1 × %2 px</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.undo"><source>Undo canvas resize adjustment</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.redo"><source>Redo canvas resize adjustment</source><translation type="unfinished" /></message>
+    <message id="canvas.resize.action"><source>Quick canvas resize</source><translation>कैनवास का आकार तुरंत बदलें</translation></message>
+    <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translation>कैनवास का आकार बदलने के लिए किनारा या कोना खींचें, या स्थान बदलने के लिए अंदर खींचें। परत के पिक्सेल सुरक्षित रहते हैं। लागू करें: {{FinishOperationAction}} · रद्द करें: Escape।</translation></message>
+    <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translation>कैनवास का अनुपात बनाए रखें; Shift से यह बाध्यता अस्थायी रूप से बदलती है।</translation></message>
+    <message id="canvas.resize.reset"><source>Reset to the original canvas bounds</source><translation>कैनवास की मूल सीमाएँ बहाल करें</translation></message>
+    <message id="canvas.resize.apply"><source>Apply canvas resize · {{FinishOperationAction}} / right-click</source><translation>कैनवास का नया आकार लागू करें · {{FinishOperationAction}} / दायाँ क्लिक</translation></message>
+    <message id="canvas.resize.cancel"><source>Cancel canvas resize · Escape</source><translation>कैनवास आकार बदलना रद्द करें · Escape</translation></message>
+    <message id="canvas.resize.done"><source>Canvas resized to %1 × %2 px</source><translation>कैनवास का आकार %1 × %2 px किया गया</translation></message>
+    <message id="canvas.resize.undo"><source>Undo canvas resize adjustment</source><translation>कैनवास आकार का बदलाव पूर्ववत करें</translation></message>
+    <message id="canvas.resize.redo"><source>Redo canvas resize adjustment</source><translation>कैनवास आकार का बदलाव फिर करें</translation></message>
   </context>
   <context>
     <name>CompactProperties</name>
-    <message id="properties.info.title"><source>Layer Info</source><translation type="unfinished" /></message>
-    <message id="properties.info.size"><source>Size</source><translation type="unfinished" /></message>
-    <message id="properties.info.angle"><source>Angle</source><translation type="unfinished" /></message>
-    <message id="properties.info.position"><source>Position</source><translation type="unfinished" /></message>
-    <message id="properties.info.font"><source>Font</source><translation type="unfinished" /></message>
-    <message id="properties.info.color"><source>Color</source><translation type="unfinished" /></message>
-    <message id="properties.info.whole.text"><source>Changes apply to the entire text layer.</source><translation type="unfinished" /></message>
-    <message id="properties.info.folder"><source>Folder</source><translation type="unfinished" /></message>
-    <message id="properties.info.group"><source>Group</source><translation type="unfinished" /></message>
-    <message id="properties.info.adjustment"><source>Adjustment layer</source><translation type="unfinished" /></message>
-    <message id="properties.info.brush.settings"><source>Brush settings</source><translation type="unfinished" /></message>
-    <message id="properties.info.width"><source>Width</source><translation type="unfinished" /></message>
-    <message id="properties.info.height"><source>Height</source><translation type="unfinished" /></message>
-    <message id="properties.info.text.color"><source>Text color</source><translation type="unfinished" /></message>
-    <message id="properties.info.mixed"><source>Mixed</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.sample"><source>Sample color (hold)</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.source"><source>Set clone/heal source</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.add"><source>Add to selection</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.subtract"><source>Subtract from selection</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.intersect"><source>Intersect selection</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.constrain"><source>Constrain direction or proportions</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.ratio"><source>Toggle aspect constraint</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.center"><source>Resize from center</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.cancel"><source>Cancel current operation</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.middle"><source>Middle mouse</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.pan"><source>Pan canvas</source><translation type="unfinished" /></message>
+    <message id="properties.info.title"><source>Layer Info</source><translation>परत की जानकारी</translation></message>
+    <message id="properties.info.size"><source>Size</source><translation>आकार</translation></message>
+    <message id="properties.info.angle"><source>Angle</source><translation>कोण</translation></message>
+    <message id="properties.info.position"><source>Position</source><translation>स्थान</translation></message>
+    <message id="properties.info.font"><source>Font</source><translation>फ़ॉन्ट</translation></message>
+    <message id="properties.info.color"><source>Color</source><translation>रंग</translation></message>
+    <message id="properties.info.whole.text"><source>Changes apply to the entire text layer.</source><translation>बदलाव पूरी टेक्स्ट परत पर लागू होते हैं।</translation></message>
+    <message id="properties.info.folder"><source>Folder</source><translation>फ़ोल्डर</translation></message>
+    <message id="properties.info.group"><source>Group</source><translation>समूह</translation></message>
+    <message id="properties.info.adjustment"><source>Adjustment layer</source><translation>समायोजन परत</translation></message>
+    <message id="properties.info.brush.settings"><source>Brush settings</source><translation>ब्रश सेटिंग्स</translation></message>
+    <message id="properties.info.width"><source>Width</source><translation>चौड़ाई</translation></message>
+    <message id="properties.info.height"><source>Height</source><translation>ऊँचाई</translation></message>
+    <message id="properties.info.text.color"><source>Text color</source><translation>टेक्स्ट रंग</translation></message>
+    <message id="properties.info.mixed"><source>Mixed</source><translation>मिश्रित</translation></message>
+    <message id="properties.shortcuts.sample"><source>Sample color (hold)</source><translation>रंग चुनें (दबाए रखें)</translation></message>
+    <message id="properties.shortcuts.source"><source>Set clone/heal source</source><translation>क्लोन/हील का स्रोत तय करें</translation></message>
+    <message id="properties.shortcuts.add"><source>Add to selection</source><translation>चयन में जोड़ें</translation></message>
+    <message id="properties.shortcuts.subtract"><source>Subtract from selection</source><translation>चयन से घटाएँ</translation></message>
+    <message id="properties.shortcuts.intersect"><source>Intersect selection</source><translation>चयन का साझा भाग रखें</translation></message>
+    <message id="properties.shortcuts.constrain"><source>Constrain direction or proportions</source><translation>दिशा या अनुपात सीमित करें</translation></message>
+    <message id="properties.shortcuts.ratio"><source>Toggle aspect constraint</source><translation>अनुपात की बाध्यता बदलें</translation></message>
+    <message id="properties.shortcuts.center"><source>Resize from center</source><translation>केंद्र से आकार बदलें</translation></message>
+    <message id="properties.shortcuts.cancel"><source>Cancel current operation</source><translation>वर्तमान क्रिया रद्द करें</translation></message>
+    <message id="properties.shortcuts.middle"><source>Middle mouse</source><translation>माउस का बीच वाला बटन</translation></message>
+    <message id="properties.shortcuts.pan"><source>Pan canvas</source><translation>कैनवास दृश्य खिसकाएँ</translation></message>
   </context>
   <context>
     <name>GradientEditor</name>
     <message id="effects.gradient.editor">
       <source>Gradient colors</source>
-      <translation type="unfinished" />
+      <translation>ग्रेडिएंट के रंग</translation>
     </message>
     <message id="effects.gradient.editor.hint">
       <source>Click the gradient to add a color. Drag a stop to move it, click a stop to edit its color, or right-click to remove it.</source>
-      <translation type="unfinished" />
+      <translation>रंग जोड़ने के लिए ग्रेडिएंट पर क्लिक करें। रंग बिंदु को खींचकर खिसकाएँ, रंग बदलने के लिए उस पर क्लिक करें या हटाने के लिए दायाँ क्लिक करें।</translation>
     </message>
     <message id="effects.gradient.stop.color">
       <source>Gradient color</source>
-      <translation type="unfinished" />
+      <translation>ग्रेडिएंट रंग</translation>
     </message>
     <message id="swatches.panel.gradient">
       <source>Gradient</source>
-      <translation type="unfinished" />
+      <translation>ग्रेडिएंट</translation>
     </message>
     <message id="swatches.panel.gradient.swatches">
       <source>Gradient presets</source>
-      <translation type="unfinished" />
+      <translation>ग्रेडिएंट प्रीसेट</translation>
     </message>
     <message id="swatches.panel.gradient.apply.hint">
       <source>Apply a gradient overlay. Adjust its colors in Effects.</source>
-      <translation type="unfinished" />
+      <translation>ग्रेडिएंट ओवरले लागू करें। प्रभाव में इसके रंग बदलें।</translation>
     </message>
     <message id="swatches.panel.gradient.disabled.hint">
       <source>Select a compatible layer to apply a gradient overlay.</source>
-      <translation type="unfinished" />
+      <translation>ग्रेडिएंट ओवरले लगाने के लिए उपयुक्त परत चुनें।</translation>
     </message>
     <message id="swatches.panel.gradient.preset">
       <source>Gradient %1</source>
-      <translation type="unfinished" />
+      <translation>ग्रेडिएंट %1</translation>
     </message>
   </context>
 </TS>

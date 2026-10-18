@@ -1,5 +1,13 @@
 # Native Windows coverage. Linux-specific resource-limit/desktop harnesses stay
 # in the full suite; shared behavior is tested from its original test sources.
+# Relocatable tests use the same executable-relative shader lookup as the app.
+# Populate their build-tree runtime assets before tests, without an install or
+# package step (and without falling back to another installed application).
+add_custom_target(imageeditor_windows_test_assets
+    COMMAND "${CMAKE_COMMAND}" -E copy_directory
+        "${PROJECT_BINARY_DIR}/src/render/shaders"
+        "$<TARGET_FILE_DIR:imageeditor_blend_rendering_tests>/../share/vulkana-editor/shaders"
+    DEPENDS imageeditor_shaders VERBATIM)
 set_tests_properties(imageeditor_layer_drag_tests PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=windows;QT_FORCE_STDERR_LOGGING=1" RUN_SERIAL TRUE)
 add_executable(imageeditor_windows_thumbnail_tests WindowsThumbnailTests.cpp)
@@ -22,6 +30,7 @@ endif()
 
 function(vulkana_windows_test name source)
     add_executable(${name} ${source} "${PROJECT_SOURCE_DIR}/res/windows/Vulkana.manifest")
+    add_dependencies(${name} imageeditor_windows_test_assets)
     target_link_libraries(${name} PRIVATE imageeditor_ui Qt6::Test)
     imageeditor_enable_warnings(${name})
     file(GLOB icons "${PROJECT_SOURCE_DIR}/assets/icons/*.svg")
@@ -53,6 +62,14 @@ vulkana_windows_test(imageeditor_adjustment_layer_tests AdjustmentLayerTests.cpp
 vulkana_windows_test(imageeditor_object_selection_tests ObjectSelectionTests.cpp)
 target_compile_definitions(imageeditor_object_selection_tests PRIVATE VULKANA_TEST_OBJECT_SELECTION_BUNDLE="${VULKANA_OBJECT_SELECTION_BUNDLE}")
 vulkana_windows_test(imageeditor_navigator_tests NavigatorTests.cpp)
+vulkana_windows_test(imageeditor_gradient_editor_tests GradientEditorTests.cpp)
+vulkana_windows_test(imageeditor_color_panel_tests ColorPanelTests.cpp)
+vulkana_windows_test(imageeditor_properties_inspector_tests PropertiesInspectorTests.cpp)
+vulkana_windows_test(imageeditor_quick_canvas_resize_tests QuickCanvasResizeTests.cpp)
+vulkana_windows_test(imageeditor_text_controller_tests TextControllerTests.cpp)
+target_compile_definitions(imageeditor_text_controller_tests PRIVATE
+    IMAGEEDITOR_TEXT_FONT_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts")
+vulkana_windows_test(imageeditor_theme_preferences_tests ThemePreferencesTests.cpp)
 vulkana_windows_test(imageeditor_localization_tests LocalizationTests.cpp)
 target_compile_definitions(imageeditor_localization_tests PRIVATE VULKANA_TEST_TRANSLATIONS="${VULKANA_TRANSLATIONS_DIR}")
 vulkana_windows_test(imageeditor_update_tests UpdateServiceTests.cpp)

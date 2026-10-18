@@ -10762,78 +10762,78 @@ Escape · 전체 자르기 세션 취소
   </context>
   <context>
     <name>CanvasResize</name>
-    <message id="canvas.resize.action"><source>Quick canvas resize</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.reset"><source>Reset to the original canvas bounds</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.apply"><source>Apply canvas resize · {{FinishOperationAction}} / right-click</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.cancel"><source>Cancel canvas resize · Escape</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.done"><source>Canvas resized to %1 × %2 px</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.undo"><source>Undo canvas resize adjustment</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.redo"><source>Redo canvas resize adjustment</source><translation type="unfinished" /></message>
+    <message id="canvas.resize.action"><source>Quick canvas resize</source><translation>캔버스 크기 빠르게 조절</translation></message>
+    <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translation>가장자리나 모서리를 드래그해 캔버스 크기를 조절하고, 안쪽을 드래그해 위치를 옮깁니다. 레이어 픽셀은 유지됩니다. 적용: {{FinishOperationAction}} · 취소: Escape.</translation></message>
+    <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translation>캔버스 가로세로 비율을 유지합니다. Shift를 누르는 동안 제한이 전환됩니다.</translation></message>
+    <message id="canvas.resize.reset"><source>Reset to the original canvas bounds</source><translation>원래 캔버스 경계로 초기화</translation></message>
+    <message id="canvas.resize.apply"><source>Apply canvas resize · {{FinishOperationAction}} / right-click</source><translation>캔버스 크기 적용 · {{FinishOperationAction}} / 오른쪽 클릭</translation></message>
+    <message id="canvas.resize.cancel"><source>Cancel canvas resize · Escape</source><translation>캔버스 크기 조절 취소 · Escape</translation></message>
+    <message id="canvas.resize.done"><source>Canvas resized to %1 × %2 px</source><translation>캔버스 크기를 %1 × %2 px로 변경했습니다</translation></message>
+    <message id="canvas.resize.undo"><source>Undo canvas resize adjustment</source><translation>캔버스 경계 조절 실행 취소</translation></message>
+    <message id="canvas.resize.redo"><source>Redo canvas resize adjustment</source><translation>캔버스 경계 조절 다시 실행</translation></message>
   </context>
   <context>
     <name>CompactProperties</name>
-    <message id="properties.info.title"><source>Layer Info</source><translation type="unfinished" /></message>
-    <message id="properties.info.size"><source>Size</source><translation type="unfinished" /></message>
-    <message id="properties.info.angle"><source>Angle</source><translation type="unfinished" /></message>
-    <message id="properties.info.position"><source>Position</source><translation type="unfinished" /></message>
-    <message id="properties.info.font"><source>Font</source><translation type="unfinished" /></message>
-    <message id="properties.info.color"><source>Color</source><translation type="unfinished" /></message>
-    <message id="properties.info.whole.text"><source>Changes apply to the entire text layer.</source><translation type="unfinished" /></message>
-    <message id="properties.info.folder"><source>Folder</source><translation type="unfinished" /></message>
-    <message id="properties.info.group"><source>Group</source><translation type="unfinished" /></message>
-    <message id="properties.info.adjustment"><source>Adjustment layer</source><translation type="unfinished" /></message>
-    <message id="properties.info.brush.settings"><source>Brush settings</source><translation type="unfinished" /></message>
-    <message id="properties.info.width"><source>Width</source><translation type="unfinished" /></message>
-    <message id="properties.info.height"><source>Height</source><translation type="unfinished" /></message>
-    <message id="properties.info.text.color"><source>Text color</source><translation type="unfinished" /></message>
-    <message id="properties.info.mixed"><source>Mixed</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.sample"><source>Sample color (hold)</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.source"><source>Set clone/heal source</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.add"><source>Add to selection</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.subtract"><source>Subtract from selection</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.intersect"><source>Intersect selection</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.constrain"><source>Constrain direction or proportions</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.ratio"><source>Toggle aspect constraint</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.center"><source>Resize from center</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.cancel"><source>Cancel current operation</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.middle"><source>Middle mouse</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.pan"><source>Pan canvas</source><translation type="unfinished" /></message>
+    <message id="properties.info.title"><source>Layer Info</source><translation>레이어 정보</translation></message>
+    <message id="properties.info.size"><source>Size</source><translation>크기</translation></message>
+    <message id="properties.info.angle"><source>Angle</source><translation>각도</translation></message>
+    <message id="properties.info.position"><source>Position</source><translation>위치</translation></message>
+    <message id="properties.info.font"><source>Font</source><translation>글꼴</translation></message>
+    <message id="properties.info.color"><source>Color</source><translation>색상</translation></message>
+    <message id="properties.info.whole.text"><source>Changes apply to the entire text layer.</source><translation>변경 사항은 텍스트 레이어 전체에 적용됩니다.</translation></message>
+    <message id="properties.info.folder"><source>Folder</source><translation>폴더</translation></message>
+    <message id="properties.info.group"><source>Group</source><translation>그룹</translation></message>
+    <message id="properties.info.adjustment"><source>Adjustment layer</source><translation>조정 레이어</translation></message>
+    <message id="properties.info.brush.settings"><source>Brush settings</source><translation>브러시 설정</translation></message>
+    <message id="properties.info.width"><source>Width</source><translation>너비</translation></message>
+    <message id="properties.info.height"><source>Height</source><translation>높이</translation></message>
+    <message id="properties.info.text.color"><source>Text color</source><translation>텍스트 색상</translation></message>
+    <message id="properties.info.mixed"><source>Mixed</source><translation>혼합</translation></message>
+    <message id="properties.shortcuts.sample"><source>Sample color (hold)</source><translation>색상 추출 (누른 상태)</translation></message>
+    <message id="properties.shortcuts.source"><source>Set clone/heal source</source><translation>복제/복구 소스 설정</translation></message>
+    <message id="properties.shortcuts.add"><source>Add to selection</source><translation>선택 영역에 추가</translation></message>
+    <message id="properties.shortcuts.subtract"><source>Subtract from selection</source><translation>선택 영역에서 빼기</translation></message>
+    <message id="properties.shortcuts.intersect"><source>Intersect selection</source><translation>선택 영역과 교차</translation></message>
+    <message id="properties.shortcuts.constrain"><source>Constrain direction or proportions</source><translation>방향 또는 비율 제한</translation></message>
+    <message id="properties.shortcuts.ratio"><source>Toggle aspect constraint</source><translation>가로세로 비율 제한 전환</translation></message>
+    <message id="properties.shortcuts.center"><source>Resize from center</source><translation>중심에서 크기 조절</translation></message>
+    <message id="properties.shortcuts.cancel"><source>Cancel current operation</source><translation>현재 작업 취소</translation></message>
+    <message id="properties.shortcuts.middle"><source>Middle mouse</source><translation>마우스 가운데 버튼</translation></message>
+    <message id="properties.shortcuts.pan"><source>Pan canvas</source><translation>캔버스 이동</translation></message>
   </context>
   <context>
     <name>GradientEditor</name>
     <message id="effects.gradient.editor">
       <source>Gradient colors</source>
-      <translation type="unfinished" />
+      <translation>그레이디언트 색상</translation>
     </message>
     <message id="effects.gradient.editor.hint">
       <source>Click the gradient to add a color. Drag a stop to move it, click a stop to edit its color, or right-click to remove it.</source>
-      <translation type="unfinished" />
+      <translation>그레이디언트를 클릭해 색상을 추가합니다. 색상점을 드래그해 이동하고, 클릭해 색상을 편집하거나 오른쪽 클릭해 삭제하세요.</translation>
     </message>
     <message id="effects.gradient.stop.color">
       <source>Gradient color</source>
-      <translation type="unfinished" />
+      <translation>그레이디언트 색상</translation>
     </message>
     <message id="swatches.panel.gradient">
       <source>Gradient</source>
-      <translation type="unfinished" />
+      <translation>그레이디언트</translation>
     </message>
     <message id="swatches.panel.gradient.swatches">
       <source>Gradient presets</source>
-      <translation type="unfinished" />
+      <translation>그레이디언트 프리셋</translation>
     </message>
     <message id="swatches.panel.gradient.apply.hint">
       <source>Apply a gradient overlay. Adjust its colors in Effects.</source>
-      <translation type="unfinished" />
+      <translation>그레이디언트 오버레이를 적용합니다. 효과에서 색상을 조절할 수 있습니다.</translation>
     </message>
     <message id="swatches.panel.gradient.disabled.hint">
       <source>Select a compatible layer to apply a gradient overlay.</source>
-      <translation type="unfinished" />
+      <translation>그레이디언트 오버레이를 적용할 수 있는 레이어를 선택하세요.</translation>
     </message>
     <message id="swatches.panel.gradient.preset">
       <source>Gradient %1</source>
-      <translation type="unfinished" />
+      <translation>그레이디언트 %1</translation>
     </message>
   </context>
 </TS>

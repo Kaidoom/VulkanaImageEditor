@@ -10764,78 +10764,86 @@ Escape · Anuluj sesję
   </context>
   <context>
     <name>CanvasResize</name>
-    <message id="canvas.resize.action"><source>Quick canvas resize</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.reset"><source>Reset to the original canvas bounds</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.apply"><source>Apply canvas resize · {{FinishOperationAction}} / right-click</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.cancel"><source>Cancel canvas resize · Escape</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.done"><source>Canvas resized to %1 × %2 px</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.undo"><source>Undo canvas resize adjustment</source><translation type="unfinished" /></message>
-    <message id="canvas.resize.redo"><source>Redo canvas resize adjustment</source><translation type="unfinished" /></message>
+    <message id="canvas.resize.action"><source>Quick canvas resize</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Szybka zmiana rozmiaru płótna</translation></message>
+    <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Przeciągnij krawędź lub narożnik, aby zmienić rozmiar płótna, albo jego wnętrze, aby je przesunąć. Piksele warstw pozostają bez zmian. Zastosuj: {{FinishOperationAction}} · Anuluj: Escape.</translation></message>
+    <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Zachowaj proporcje płótna; Shift tymczasowo przełącza ograniczenie.</translation></message>
+    <message id="canvas.resize.reset"><source>Reset to the original canvas bounds</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Przywróć pierwotne granice płótna</translation></message>
+    <message id="canvas.resize.apply"><source>Apply canvas resize · {{FinishOperationAction}} / right-click</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Zastosuj rozmiar płótna · {{FinishOperationAction}} / prawy przycisk myszy</translation></message>
+    <message id="canvas.resize.cancel"><source>Cancel canvas resize · Escape</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Anuluj zmianę rozmiaru płótna · Escape</translation></message>
+    <message id="canvas.resize.done"><source>Canvas resized to %1 × %2 px</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Rozmiar płótna zmieniono na %1 × %2 px</translation></message>
+    <message id="canvas.resize.undo"><source>Undo canvas resize adjustment</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Cofnij zmianę granic płótna</translation></message>
+    <message id="canvas.resize.redo"><source>Redo canvas resize adjustment</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Ponów zmianę granic płótna</translation></message>
   </context>
   <context>
     <name>CompactProperties</name>
-    <message id="properties.info.title"><source>Layer Info</source><translation type="unfinished" /></message>
-    <message id="properties.info.size"><source>Size</source><translation type="unfinished" /></message>
-    <message id="properties.info.angle"><source>Angle</source><translation type="unfinished" /></message>
-    <message id="properties.info.position"><source>Position</source><translation type="unfinished" /></message>
-    <message id="properties.info.font"><source>Font</source><translation type="unfinished" /></message>
-    <message id="properties.info.color"><source>Color</source><translation type="unfinished" /></message>
-    <message id="properties.info.whole.text"><source>Changes apply to the entire text layer.</source><translation type="unfinished" /></message>
-    <message id="properties.info.folder"><source>Folder</source><translation type="unfinished" /></message>
-    <message id="properties.info.group"><source>Group</source><translation type="unfinished" /></message>
-    <message id="properties.info.adjustment"><source>Adjustment layer</source><translation type="unfinished" /></message>
-    <message id="properties.info.brush.settings"><source>Brush settings</source><translation type="unfinished" /></message>
-    <message id="properties.info.width"><source>Width</source><translation type="unfinished" /></message>
-    <message id="properties.info.height"><source>Height</source><translation type="unfinished" /></message>
-    <message id="properties.info.text.color"><source>Text color</source><translation type="unfinished" /></message>
-    <message id="properties.info.mixed"><source>Mixed</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.sample"><source>Sample color (hold)</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.source"><source>Set clone/heal source</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.add"><source>Add to selection</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.subtract"><source>Subtract from selection</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.intersect"><source>Intersect selection</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.constrain"><source>Constrain direction or proportions</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.ratio"><source>Toggle aspect constraint</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.center"><source>Resize from center</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.cancel"><source>Cancel current operation</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.middle"><source>Middle mouse</source><translation type="unfinished" /></message>
-    <message id="properties.shortcuts.pan"><source>Pan canvas</source><translation type="unfinished" /></message>
+    <message id="properties.info.title"><source>Layer Info</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Informacje o warstwie</translation></message>
+    <message id="properties.info.size"><source>Size</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Rozmiar</translation></message>
+    <message id="properties.info.angle"><source>Angle</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Kąt</translation></message>
+    <message id="properties.info.position"><source>Position</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Położenie</translation></message>
+    <message id="properties.info.font"><source>Font</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Czcionka</translation></message>
+    <message id="properties.info.color"><source>Color</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Kolor</translation></message>
+    <message id="properties.info.whole.text"><source>Changes apply to the entire text layer.</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Zmiany dotyczą całej warstwy tekstowej.</translation></message>
+    <message id="properties.info.folder"><source>Folder</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Folder</translation></message>
+    <message id="properties.info.group"><source>Group</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Grupa</translation></message>
+    <message id="properties.info.adjustment"><source>Adjustment layer</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Warstwa korekty</translation></message>
+    <message id="properties.info.brush.settings"><source>Brush settings</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Ustawienia pędzla</translation></message>
+    <message id="properties.info.width"><source>Width</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Szerokość</translation></message>
+    <message id="properties.info.height"><source>Height</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Wysokość</translation></message>
+    <message id="properties.info.text.color"><source>Text color</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Kolor tekstu</translation></message>
+    <message id="properties.info.mixed"><source>Mixed</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Różne</translation></message>
+    <message id="properties.shortcuts.sample"><source>Sample color (hold)</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Pobierz kolor (przytrzymaj)</translation></message>
+    <message id="properties.shortcuts.source"><source>Set clone/heal source</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Ustaw źródło klonowania/korekty</translation></message>
+    <message id="properties.shortcuts.add"><source>Add to selection</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Dodaj do zaznaczenia</translation></message>
+    <message id="properties.shortcuts.subtract"><source>Subtract from selection</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Odejmij od zaznaczenia</translation></message>
+    <message id="properties.shortcuts.intersect"><source>Intersect selection</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Część wspólna zaznaczeń</translation></message>
+    <message id="properties.shortcuts.constrain"><source>Constrain direction or proportions</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Ogranicz kierunek lub proporcje</translation></message>
+    <message id="properties.shortcuts.ratio"><source>Toggle aspect constraint</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Przełącz blokadę proporcji</translation></message>
+    <message id="properties.shortcuts.center"><source>Resize from center</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Zmień rozmiar od środka</translation></message>
+    <message id="properties.shortcuts.cancel"><source>Cancel current operation</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Anuluj bieżącą operację</translation></message>
+    <message id="properties.shortcuts.middle"><source>Middle mouse</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Środkowy przycisk myszy</translation></message>
+    <message id="properties.shortcuts.pan"><source>Pan canvas</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Przesuń płótno</translation></message>
   </context>
   <context>
     <name>GradientEditor</name>
     <message id="effects.gradient.editor">
       <source>Gradient colors</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Kolory gradientu</translation>
     </message>
     <message id="effects.gradient.editor.hint">
       <source>Click the gradient to add a color. Drag a stop to move it, click a stop to edit its color, or right-click to remove it.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Kliknij gradient, aby dodać kolor. Przeciągnij znacznik, aby go przesunąć, kliknij go, aby zmienić kolor, lub kliknij prawym przyciskiem, aby go usunąć.</translation>
     </message>
     <message id="effects.gradient.stop.color">
       <source>Gradient color</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Kolor gradientu</translation>
     </message>
     <message id="swatches.panel.gradient">
       <source>Gradient</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Gradient</translation>
     </message>
     <message id="swatches.panel.gradient.swatches">
       <source>Gradient presets</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Gotowe gradienty</translation>
     </message>
     <message id="swatches.panel.gradient.apply.hint">
       <source>Apply a gradient overlay. Adjust its colors in Effects.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Zastosuj nakładkę gradientu. Kolory zmienisz w panelu Efekty.</translation>
     </message>
     <message id="swatches.panel.gradient.disabled.hint">
       <source>Select a compatible layer to apply a gradient overlay.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Wybierz zgodną warstwę, aby zastosować nakładkę gradientu.</translation>
     </message>
     <message id="swatches.panel.gradient.preset">
       <source>Gradient %1</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Gradient %1</translation>
     </message>
   </context>
 </TS>

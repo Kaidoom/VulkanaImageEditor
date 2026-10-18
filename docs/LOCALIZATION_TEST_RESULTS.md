@@ -2,7 +2,7 @@
 
 All 16 language choices are enabled: en, fr, es, de, it, pt-BR, pl, tr, ru, uk,
 ar, hi, zh-Hans, zh-Hant, ja and ko. Each non-English catalog contains a first
-translation of all **1,757 active English entries**, including the required
+translation of all **1,800 active English entries**, including the required
 plural forms. Retired contributor entries remain in the catalogs but do not
 count toward active coverage.
 
@@ -22,6 +22,12 @@ Pixel opacity (Fill), advanced effects blending, graphics initialization, layer
 info, and the black/white color reset. Existing translations and contributor
 corrections are retained. README translations remain synchronized with English.
 
+The 0.3.5 update adds 43 translations per non-English language for Quick canvas
+resize, compact layer information and shortcut hints, gradient presets, and the
+multi-stop gradient editor. All 15 translated catalogs have complete active-ID
+coverage; existing translations and source text are unchanged. Language-wide
+review remains pending.
+
 ## Recorded technical checks
 
 These results describe specific regression runs, not a guarantee for every
@@ -40,6 +46,15 @@ desktop configuration or a claim that every page has been visually reviewed.
 | Fedora 44, Qt 6.11.2, NVIDIA RTX 4080; 2026-10-16 | 27/27 focused Release and 13/13 Debug checks passed; after fixing exact no-op compositing, 8/8 Release and 9/9 Debug blend/effect/PSD checks passed |
 | Native Wayland at 125% and XCB at 150%; 2026-10-16 | Localization switching/layout checks passed, including French/Arabic review; layer wheel/edge/cancel/cross-document drag passed on both; 12 startup/cache/fallback cases passed |
 | Windows 11, Qt 6.10.3, NVIDIA RTX 3050 Ti; 2026-10-16 | 35/35 Release checks passed, plus native wheel/cross-document drag and startup gating/early-close checks; portable relocation, offline model and codec checks passed |
+| Linux, Qt 6.11.2; 2026-10-18 | 28/28 focused Release and 14/14 Debug checks passed for localization, installed/offline pack loading, canvas resize, Properties, gradients/swatches, effects, masks, PSD import/export, save/reopen, updates and text input; all 16 README checks passed |
+| Native Wayland at 125% and XCB at 150%; 2026-10-18 | Repeated language switching and layout checks passed without changing gradient stops, paint colors, history, document tabs or panel placement; native Quick canvas resize checks passed on both platforms |
+| Windows 11, Qt 6.10.3, MSVC 19.51, NVIDIA RTX 3050 Ti; 2026-10-18 | Fresh Release build and 17/17 focused checks passed, including all language packs, gradients/swatches, Properties, canvas resize, text input, PSD import/export and Vulkan effects |
+
+The 0.3.5 preflight also covers a Windows compiler-memory regression in the PSD
+text defaults. Smaller construction steps retain the complete table; a fixed
+serialized-data fingerprint passes on Linux Debug/Release and Windows Release.
+Windows regression targets now prepare their executable-relative shader assets
+in the build tree without requiring an installation or package step.
 
 The tested Qt translation distributions have no Hindi Qt dialog catalog.
 Vulkana-owned Hindi controls are translated; some Qt-owned dialogs fall back to
