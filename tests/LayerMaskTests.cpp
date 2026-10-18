@@ -209,7 +209,11 @@ void clipboardWorkflow(const QString& project={}) {
   CHECK(doc.setLayerMask(sourceId,mask({8,8},255)));
   choose(first);choose(second,Qt::ControlModifier);
   const auto targets=session.layerSelectionState();CHECK(targets.ids.size()==2);
-  menuAction(second,false,"PasteLayerMaskAction");
+  // The top menu still supports pasting onto layers without a mask, including
+  // mixed selections. It is no longer duplicated in the general row menu.
+  auto* topMaskMenu=window.findChild<QMenu*>("LayerMaskMenu");
+  CHECK(topMaskMenu&&topMaskMenu->actions().contains(paste));
+  paste->trigger();
   const auto afterFirst=doc.layer(first)->mask,afterSecond=doc.layer(second)->mask;
   if(!review.isEmpty()) {
     const auto changedSource=doc.layer(sourceId)->mask;
@@ -285,7 +289,7 @@ void clipboardWorkflow(const QString& project={}) {
   // Keep a copy of the selection-bound mask independent of the source tab's lifetime.
   CHECK(window.activateDocument(instance));choose(second);
   const auto oldOtherMask=window.documentContext(otherInstance)->session.document()->layer(otherId)->mask;
-  menuAction(second,false,"PasteLayerMaskAction",[&]{CHECK(window.activateDocument(otherInstance));});
+  menuAction(second,true,"PasteLayerMaskAction",[&]{CHECK(window.activateDocument(otherInstance));});
   CHECK(window.editorSession().document()->layer(otherId)->mask==oldOtherMask);
   CHECK(window.closeDocument(instance));
   paste->trigger();
@@ -795,10 +799,12 @@ void uiContracts() {
   const auto originalMask = session.document()->layer(id)->mask;
   enum class MenuOpening { Press, Release, Keyboard };
   const auto contextMenu = [&](bool mask, MenuOpening opening = MenuOpening::Release,
-                               bool refinementEnabled = true, bool launchRefinement = false) {
-    const auto point =
-        view->thumbnailRect(model->index(model->rowForLayer(id)), mask)
-            .center();
+                               bool refinementEnabled = true, bool launchRefinement = false,
+                               bool rowBody = false) {
+    const auto row = model->index(model->rowForLayer(id));
+    const auto rowRect = view->visualRect(row);
+    const auto point = rowBody ? QPoint(rowRect.right()-30,rowRect.center().y())
+                              : view->thumbnailRect(row,mask).center();
     const auto history = session.history().undoDepth();
     if (opening != MenuOpening::Keyboard) {
       QTest::mousePress(view->viewport(), Qt::RightButton, {}, point);
@@ -830,10 +836,24 @@ void uiContracts() {
               QStringList({"DeleteLayerMaskAction", "EnableLayerMaskAction",
                            "ApplyLayerMaskAction", "MaskToSelectionAction", "InvertLayerMaskAction", "CopyLayerMaskAction", "PasteLayerMaskAction", "RefineMaskAction"}));
         CHECK(refine && refine->isEnabled() == refinementEnabled);
-      } else
+      } else {
         CHECK(names.contains("DuplicateLayersAction") &&
               names.contains("DeleteSelectedLayersAction") &&
               names.contains("ContextNewLayerFolderAction"));
+        CHECK(names.contains("AddLayerMaskAction") && names.contains("MaskFromSelectionAction"));
+        for (const auto* name : {"DeleteLayerMaskAction", "EnableLayerMaskAction",
+                                "ApplyLayerMaskAction", "MaskToSelectionAction", "InvertLayerMaskAction",
+                                "CopyLayerMaskAction", "PasteLayerMaskAction", "RefineMaskAction"})
+          CHECK(!names.contains(name));
+      }
+      // Context cleanup must never remove or relocate the top-menu commands.
+      auto* topMaskMenu=window.findChild<QMenu*>("LayerMaskMenu");
+      CHECK(topMaskMenu);
+      QStringList topNames;
+      if(topMaskMenu)for(auto* action:topMaskMenu->actions())topNames<<action->objectName();
+      CHECK(topNames==QStringList({"AddLayerMaskAction", "MaskFromSelectionAction",
+          "DeleteLayerMaskAction", "EnableLayerMaskAction", "ApplyLayerMaskAction", "MaskToSelectionAction",
+          "InvertLayerMaskAction", "CopyLayerMaskAction", "PasteLayerMaskAction"}));
       menu->close();
       if (launchRefinement && refine && refine->isEnabled()) refine->trigger();
     });
@@ -862,6 +882,7 @@ void uiContracts() {
   // without first opening Select or replacing an unrelated pixel selection.
   contextMenu(true, MenuOpening::Press, true, true);
   contextMenu(false);
+  contextMenu(false, MenuOpening::Release, true, false, true);
   contextMenu(true);
   contextMenu(true, MenuOpening::Keyboard);
   auto* transform = window.findChild<QAction*>("LayerTransformAction");

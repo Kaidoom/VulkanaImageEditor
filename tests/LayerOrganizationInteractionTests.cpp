@@ -185,6 +185,12 @@ struct Fixture {
             }
             CHECK(menu);
             if (!menu) return;
+            int deleteActions = 0;
+            for (auto* action : menu->actions()) {
+                CHECK(action->text() != QStringLiteral("Delete container and contents"));
+                if (action->objectName() == QStringLiteral("DeleteSelectedLayersAction")) ++deleteActions;
+            }
+            CHECK(deleteActions == 1);
             const QString requested = QString::fromUtf8(identifier);
             std::function<QAction*(QMenu*)> findAction = [&](QMenu* current) -> QAction* {
                 for (auto* action : current->actions()) {

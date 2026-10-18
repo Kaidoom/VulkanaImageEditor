@@ -288,36 +288,6 @@ void MainWindow::deleteActiveLayer()
     commitLayerStructure(i18n::text("main.window.layer.organization.delete.selected.layers"), std::move(tree), leaves, {},
         std::move(afterSelection));
 }
-void MainWindow::removeLayerItem(core::LayerId id, bool contents)
-{
-    if (!session().document() || !settleForFileOperation())
-        return;
-    const auto& doc = *session().document();
-    if (doc.tree().container(id) && !contents) {
-        dissolveLayerItem(id);
-        return;
-    }
-    const auto leaves = doc.tree().descendants(id);
-    if (leaves.size() >= doc.layers().size()) {
-        statusBar()->showMessage(i18n::text("main.window.layer.organization.a.document.must.keep.at.least.one.content.layer"), 4000);
-        return;
-    }
-    if (contents && !leaves.empty()) {
-        if (!confirmLayerChange(i18n::text("main.window.layer.organization.delete.contents"), i18n::text("main.window.layer.organization.delete.this.container.and.its.1.content.layers.this").arg(leaves.size())))
-            return;
-    }
-    auto tree = doc.tree();
-    eraseSubtree(tree, id);
-    auto state = session().layerSelectionState();
-    std::erase_if(state.ids, [&](auto selectedId) { return !tree.placement(selectedId); });
-    if (state.ids.empty() && !tree.roots.empty())
-        state = selected({ tree.roots.back() });
-    else if (state.primary == id || (state.primary && !tree.placement(*state.primary)))
-        state.primary = state.ids.empty() ? std::nullopt : std::optional(state.ids.back());
-    if (state.anchor && !tree.placement(*state.anchor))
-        state.anchor = state.primary;
-    commitLayerStructure(contents ? i18n::text("main.window.layer.organization.delete.container.and.contents") : i18n::text("main.window.layer.organization.delete.layer"), std::move(tree), leaves, { }, std::move(state));
-}
 bool MainWindow::setLayerItemName(core::LayerId id, const QString& name)
 {
     if (!session().document() || fileBusy_ || name.trimmed().isEmpty() || !settleForFileOperation())
@@ -436,8 +406,6 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
             menu.addAction(toolGlyph(ToolGlyph::Group), core::isGroup(c->kind) ? i18n::text("main.window.layer.organization.ungroup") : c->children.empty() ? i18n::text("main.window.layer.organization.remove.empty.folder")
                                                                                                        : i18n::text("main.window.layer.organization.remove.folder.keep.contents"),
                 this, [this, id] { dissolveLayerItem(*id); });
-            if (!c->children.empty())
-                menu.addAction(toolGlyph(ToolGlyph::Trash), i18n::text("main.window.layer.organization.delete.container.and.contents.2"), this, [this, id] { removeLayerItem(*id, true); });
         }
     }
     menu.addAction(duplicateLayersAction_);
@@ -450,7 +418,9 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
     menu.addAction(mergeLayersAction_);
     menu.addAction(rasterizeLayersAction_);
     menu.addSeparator();
-    for(size_t i=0;i<maskActions_.size();++i)addMaskAction(i);
+    // The general layer menu creates masks; existing-mask operations belong
+    // to the mask thumbnail's context menu (and remain in the top menu).
+    for(size_t i=0;i<2;++i)addMaskAction(i);
     menu.exec(layerList_->viewport()->mapToGlobal(point));
 }
 void MainWindow::mergeLayerItems()

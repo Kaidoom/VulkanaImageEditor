@@ -369,7 +369,6 @@ private:
     void groupLayerItems();
     void clippingGroupItems();
     void dissolveLayerItem(core::LayerId);
-    void removeLayerItem(core::LayerId, bool contents);
     void renameLayerItem(core::LayerId);
     bool setLayerItemName(core::LayerId, const QString&);
     void setLayerItemLabel(core::LayerId, core::ColorLabel);
