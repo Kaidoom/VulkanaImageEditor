@@ -1,5 +1,6 @@
 #include "../src/ui/src/PsdNativeRecords.hpp"
 #include "../src/ui/src/PsdTextEngine.hpp"
+#include "../src/ui/src/PsdTextDefaults.hpp"
 #include "../src/ui/src/PsdReader.hpp"
 #include "../src/ui/src/PsdWriter.hpp"
 #include "imageeditor/core/RichText.hpp"
@@ -12,6 +13,7 @@
 #include <QBuffer>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QCryptographicHash>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
@@ -62,6 +64,11 @@ bool same(const QImage &x, const QImage &y) {
 }
 void engineNumbers() {
   using u::psdwrite::engine;
+  // Keep the complete format-7 table identical across compilers and build modes,
+  // including Unicode composition tables, EngineName tokens and real numbers.
+  CHECK(QCryptographicHash::hash(engine(u::psdwrite::textEngineDefaults(),true),
+      QCryptographicHash::Sha256).toHex()==
+      "a9c1785a86726b7886048fa854b3a267115efb562425f018b284f38605df844c");
   // Photoshop's text engine differentiates real metrics from integer indices.
   // Our permissive reader accepts both, so assert the on-disk tokens directly.
   CHECK(engine(64.) == "64.0");
