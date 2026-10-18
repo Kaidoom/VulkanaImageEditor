@@ -29,6 +29,7 @@ enum class ToolId {
     SmartSelect,
     Cloning,
     LocalBlur,
+    CanvasResize, // Temporary document-boundary mode; not a layer transform.
 };
 
 [[nodiscard]] constexpr bool isSelectionTool(ToolId tool) noexcept

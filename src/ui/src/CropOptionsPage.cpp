@@ -3,14 +3,16 @@
 #include "imageeditor/ui/ToolIcons.hpp"
 #include "imageeditor/ui/ToolOptionsButton.hpp"
 #include "imageeditor/ui/ToolOptionsNumber.hpp"
+#include "imageeditor/ui/RasterLimits.hpp"
 #include <QHBoxLayout>
 #include <QScopedValueRollback>
 #include <QSignalBlocker>
 namespace imageeditor::ui {
-CropOptionsPage::CropOptionsPage(QWidget* parent)
+CropOptionsPage::CropOptionsPage(QWidget* parent, Mode mode)
     : QWidget(parent)
 {
-    setObjectName("CropOptionsPage");
+    const bool canvas = mode == Mode::Canvas;
+    setObjectName(canvas ? "CanvasResizeOptionsPage" : "CropOptionsPage");
     auto* row = new QHBoxLayout(this);
     row->setContentsMargins(0, 0, 0, 0);
     row->setSpacing(8);
@@ -19,14 +21,15 @@ CropOptionsPage::CropOptionsPage(QWidget* parent)
     for (std::size_t i = 0; i < 4; ++i) {
         auto* n = new ToolOptionsNumber(this);
         numbers_[i] = n;
-        n->setObjectName(QStringLiteral("Crop%1Control").arg(labels[i]));
+        n->setObjectName((canvas ? QStringLiteral("CanvasResize%1Control") : QStringLiteral("Crop%1Control")).arg(labels[i]));
         n->setPrefix(QString::fromLatin1(labels[i]) + ": ");
         i18n::setSuffix(n, i18n::text("crop.options.page.px"));
-        n->setDecimals(2);
-        n->setRange(i < 2 ? -1e9 : .0001, 1e9);
+        n->setDecimals(canvas ? 0 : 2);
+        n->setRange(i < 2 ? -1e9 : canvas ? 1 : .0001, canvas && i >= 2 ? kMaximumRasterDimension : 1e9);
         n->setSingleStep(1);
         n->setFixedWidth(140);
-        n->setToolTip(
+        if (canvas) i18n::setToolTip(n, i18n::text("canvas.resize.hint"));
+        else n->setToolTip(
             i < 2 ? "Crop origin in stable layer-local pixels"
                   : "Crop size in layer-local pixels; content does not scale");
         n->onInteractionFinished = [this] {
@@ -58,8 +61,8 @@ CropOptionsPage::CropOptionsPage(QWidget* parent)
                 onActionFinished();
         });
     }
-    const auto button = [this, row](const char* name, const char* text,
-                            const char* hint, bool toggle = false,
+    const auto button = [this, row](const char* name, const i18n::Message& text,
+                            const i18n::Message& hint, bool toggle = false,
                             ToolOptionsButton::Presentation presentation = ToolOptionsButton::Presentation::Text) {
         auto* b = new ToolOptionsButton(name, text, hint,
             toggle ? ToolOptionsButton::Kind::Toggle
@@ -88,6 +91,14 @@ CropOptionsPage::CropOptionsPage(QWidget* parent)
         ToolOptionsButton::Presentation::Icon);
     preview_->setIcon(toolGlyph(ToolGlyph::ShowSource));
     preview_->setChecked(true);
+    if (canvas) {
+        // Keep layer-only controls out of both the canvas page and global
+        // object-name lookup used by shortcuts, accessibility and tests.
+        chamfer_->setObjectName("CanvasResizeUnusedChamfer");
+        preview_->setObjectName("CanvasResizeUnusedSourcePreview");
+        chamfer_->hide();
+        preview_->hide();
+    }
     auto* remove = button("CropRemove", "Reset crop",
         "Reset crop — reveal the full retained source and clear corner cuts; preserve the original source",
         false, ToolOptionsButton::Presentation::Icon);
@@ -96,6 +107,18 @@ CropOptionsPage::CropOptionsPage(QWidget* parent)
     apply->setProperty("toolOptionsPrimary", true);
     auto* cancel = button("CropCancel", "Cancel",
         "Restore the crop from tool entry · Escape");
+    if (canvas) {
+        lock_->setObjectName("CanvasResizeAspectLock");
+        i18n::setToolTip(lock_, i18n::text("canvas.resize.ratio"));
+        remove->setObjectName("CanvasResizeReset");
+        i18n::setText(remove, i18n::text("canvas.resize.reset"));
+        i18n::setAccessibleName(remove, i18n::text("canvas.resize.reset"));
+        i18n::setToolTip(remove, i18n::text("canvas.resize.reset"));
+        apply->setObjectName("CanvasResizeApply");
+        i18n::setToolTip(apply, i18n::text("canvas.resize.apply"));
+        cancel->setObjectName("CanvasResizeCancel");
+        i18n::setToolTip(cancel, i18n::text("canvas.resize.cancel"));
+    }
     row->addStretch();
     connect(preview_, &QToolButton::toggled, this, [this] {
         if (onPreviewChanged)

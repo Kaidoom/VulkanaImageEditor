@@ -38,16 +38,21 @@ std::optional<std::uint8_t> SelectionMask::constantCoverage(RectI region) const
 
 SelectionState SelectionMask::translated(int dx, int dy) const
 {
-    auto result = std::shared_ptr<SelectionMask>(new SelectionMask(extent_));
+    return reframed(extent_, dx, dy);
+}
+SelectionState SelectionMask::reframed(Extent2u extent, int dx, int dy) const
+{
+    if (!dx && !dy && extent != extent_) return resized(extent);
+    auto result = std::shared_ptr<SelectionMask>(new SelectionMask(extent));
     if (!dx && !dy) {
         result->tiles_ = tiles_;
         result->bounds_ = bounds_;
         return result;
     }
-    if (bounds_.empty() || std::abs(double(dx)) >= extent_.width || std::abs(double(dy)) >= extent_.height)
+    if (bounds_.empty())
         return result;
     const auto occupied = clippedBounds(double(bounds_.x) + dx, double(bounds_.y) + dy,
-        double(bounds_.right()) + dx, double(bounds_.bottom()) + dy, extent_);
+        double(bounds_.right()) + dx, double(bounds_.bottom()) + dy, extent);
     for (std::size_t i = 0; i < result->tiles_.size(); ++i) {
         const auto r = result->tileRect(i);
         if (r.clippedTo(occupied).empty())

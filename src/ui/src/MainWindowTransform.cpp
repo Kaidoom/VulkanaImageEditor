@@ -18,7 +18,13 @@ void MainWindow::nudgeTarget(core::Vec2d delta)
     auto* document = session().document();
     if (!document) return;
     (void)runTransformAction([&] {
-        if (selectionTransform_) {
+        if (canvasResize_) {
+            const auto r = canvasResize_->frame();
+            if (canvasResize_->set({r.x + delta.x, r.y + delta.y, double(r.width), double(r.height)}))
+                canvasResize_->complete();
+            refreshQuickCanvasResize();
+            updateActionState();
+        } else if (selectionTransform_) {
             auto values = selectionTransform_->values;
             values.center = values.center + delta;
             setSelectionTransformValues(values);
@@ -69,6 +75,7 @@ void MainWindow::cancelPendingEdits()
     // Refinement is tab-owned; only Apply, Cancel or a confirmed lifecycle
     // operation may discard it. Ordinary tool cleanup must not do so implicitly.
     if (refinement_) return;
+    finishQuickCanvasResize(false);
     finishLayerCrop(false);
     finishAdjustmentEdit(false);
     finishFilterEdit(false);
@@ -321,7 +328,7 @@ bool MainWindow::executeDocumentCommand(std::unique_ptr<core::Command> command)
 
 void MainWindow::beginLayerTransform()
 try {
-    if(layerCrop_)return;
+    if(layerCrop_ || canvasResize_)return;
     shapeOptionsPage_->finishNumericInput();
     if (selectionTransform_)
         return;
@@ -435,6 +442,7 @@ bool MainWindow::finishCanvasOperation()
     if (refinement_) { finishRefinement(true); return true; }
     if (fileBusy_ || (textController_ && textController_->active()))
         return false;
+    if(canvasResize_){canvasWindow_->finishPointerGestureForCommit();finishQuickCanvasResize(true);return true;}
     if(layerCrop_){canvasWindow_->finishPointerGestureForCommit();finishLayerCrop(true);return true;}
     if (layerTransform_ || selectionTransform_) {
         canvasWindow_->finishPointerGestureForCommit();

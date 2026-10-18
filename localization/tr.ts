@@ -10760,4 +10760,16 @@ Pah: köşeleri içeri çekin; Alt karşı köşeyi de değiştirir. Yan tutama�
     <message id="preferences.layer.info"><source>Show layer info</source><translation>Katman bilgilerini göster</translation></message>
     <message id="preferences.layer.info.hint"><source>Show non-Normal blend modes and active effect icons on layer rows.</source><translation>Katman satırlarında Normal dışındaki karıştırma modlarını ve etkin efekt simgelerini gösterir.</translation></message>
   </context>
+  <context>
+    <name>CanvasResize</name>
+    <message id="canvas.resize.action"><source>Quick canvas resize</source><translation type="unfinished" /></message>
+    <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translation type="unfinished" /></message>
+    <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translation type="unfinished" /></message>
+    <message id="canvas.resize.reset"><source>Reset to the original canvas bounds</source><translation type="unfinished" /></message>
+    <message id="canvas.resize.apply"><source>Apply canvas resize · {{FinishOperationAction}} / right-click</source><translation type="unfinished" /></message>
+    <message id="canvas.resize.cancel"><source>Cancel canvas resize · Escape</source><translation type="unfinished" /></message>
+    <message id="canvas.resize.done"><source>Canvas resized to %1 × %2 px</source><translation type="unfinished" /></message>
+    <message id="canvas.resize.undo"><source>Undo canvas resize adjustment</source><translation type="unfinished" /></message>
+    <message id="canvas.resize.redo"><source>Redo canvas resize adjustment</source><translation type="unfinished" /></message>
+  </context>
 </TS>

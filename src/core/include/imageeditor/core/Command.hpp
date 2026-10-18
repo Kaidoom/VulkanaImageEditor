@@ -9,6 +9,9 @@
 namespace imageeditor::core {
 
 class Document;
+// New document origin in the previous coordinate system. The UI rebases
+// inspection-only state (pan, measurement and clone anchor) after history steps.
+struct CanvasOriginHint { int x{}, y{}; };
 struct TextEditHint {
     std::uint64_t layer {0};
     std::size_t anchor {0}, position {0}; // UTF-8 bytes, not Qt UTF-16 positions.
@@ -36,6 +39,7 @@ public:
     [[nodiscard]] virtual std::optional<TextEditHint> textEditAfter(bool) const noexcept { return {}; }
     [[nodiscard]] virtual const LayerSelectionState* layerSelectionAfter(bool) const noexcept { return nullptr; }
     [[nodiscard]] virtual std::optional<bool> maskEditingAfter(bool) const noexcept { return {}; }
+    [[nodiscard]] virtual std::optional<CanvasOriginHint> canvasOriginAfter(bool) const noexcept { return {}; }
 
     // Live raster transactions mutate the authoritative surface before the
     // user releases the pointer. Only commands that can validate that already-

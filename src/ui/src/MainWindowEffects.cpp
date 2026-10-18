@@ -58,9 +58,9 @@ bool MainWindow::beginEffectEdit() {
   finishFilterEdit(true);
   if (adjustmentEdit_ || filterEdit_)
     return false;
-  if (layerTransform_ || layerCrop_ || selectionTransform_) {
+  if (layerTransform_ || layerCrop_ || selectionTransform_ || canvasResize_) {
     finishCanvasOperation();
-    if (layerTransform_ || layerCrop_ || selectionTransform_)
+    if (layerTransform_ || layerCrop_ || selectionTransform_ || canvasResize_)
       return false;
   }
   if (textController_ && textController_->active()) {

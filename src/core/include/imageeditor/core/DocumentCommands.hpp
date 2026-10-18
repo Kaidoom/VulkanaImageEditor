@@ -33,4 +33,25 @@ private:
     SelectionState beforeRemembered_;
 };
 
+// A pixel-aligned boundary in the old document coordinate system. Translating
+// the origin rebases every leaf once; it never scales or discards layer data.
+class ReframeCanvasCommand final : public Command {
+public:
+    explicit ReframeCanvasCommand(RectI frame) : frame_(frame) {}
+    bool apply(Document&) override;
+    bool undo(Document&) override;
+    std::string_view label() const noexcept override { return "Change canvas size"; }
+    std::size_t memoryCost() const noexcept override;
+    std::optional<CanvasOriginHint> canvasOriginAfter(bool undo) const noexcept override {
+        return CanvasOriginHint{undo ? -frame_.x : frame_.x, undo ? -frame_.y : frame_.y};
+    }
+private:
+    RectI frame_;
+    std::optional<CanvasSpec> before_;
+    CanvasSpec after_;
+    std::vector<LayerTransformUpdate> forward_, reverse_;
+    SelectionState beforeSelection_, afterSelection_, beforeRemembered_, afterRemembered_;
+    SelectionEvidenceState beforeEvidence_;
+};
+
 } // namespace imageeditor::core

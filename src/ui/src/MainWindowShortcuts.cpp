@@ -210,7 +210,7 @@ bool MainWindow::routeEditorShortcut(QObject* watched, QEvent* event)
     if ((layers || control) && navigationKey(*key)) return false;
     unsigned context = curve ? CurveKeys : layers ? LayerListKeys : control ? ControlKeys
         : (textController_ && textController_->active()) ? TextKeys
-        : (layerTransform_ || selectionTransform_ || layerCrop_) ? TransformKeys
+        : (layerTransform_ || selectionTransform_ || layerCrop_ || canvasResize_) ? TransformKeys
         : (shapeCreation_ || anchoredLassoActive() || selectionGesture_) ? ConstructionKeys
         : (activeBrushStroke_ || activeCloneStroke_ || activeLocalBlurStroke_ || activeSpotHealStroke_) ? StrokeKeys : CanvasKeys;
     for (const auto& d : shortcutDefinitions()) {
@@ -227,7 +227,7 @@ bool MainWindow::routeEditorShortcut(QObject* watched, QEvent* event)
             }
         } else if (d.id == "TemporaryMeasureAction") {
             measureAccessHeld_ = true; measureAccessKey_ = key->key();
-            if (shortcutGestureIdle() && !layerTransform_ && !selectionTransform_ && session().document()) canvasWindow_->setTemporaryMeasure(true);
+            if (shortcutGestureIdle() && !layerTransform_ && !selectionTransform_ && !canvasResize_ && session().document()) canvasWindow_->setTemporaryMeasure(true);
         } else if (d.id == "PanCanvasAction") {
             panAccessKey_ = key->key(); canvasWindow_->setSpacePanHeld(true);
         } else if (auto* action = shortcutActions_.value(d.id); action && action->isEnabled()) action->trigger();

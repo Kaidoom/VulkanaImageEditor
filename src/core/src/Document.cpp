@@ -369,6 +369,33 @@ void Document::setLastSelection(SelectionState selection)
     lastSelection_ = std::move(selection);
 }
 
+bool Document::setCanvasFrame(CanvasSpec expected, CanvasSpec after,
+    std::span<const LayerTransformUpdate> updates, SelectionState selection,
+    SelectionState remembered, SelectionEvidenceState evidence)
+{
+    validateCanvasSpec(after);
+    if (canvas_ != expected || updates.size() != layers_.size()
+        || (selection && selection->extent() != after.extent)
+        || (remembered && remembered->extent() != after.extent)) return false;
+    for (std::size_t i = 0; i < updates.size(); ++i) {
+        const auto& update = updates[i];
+        if (layers_[i].id != update.id || layers_[i].localToDocument != update.before
+            || !update.after.inverted()) return false;
+    }
+    // A same-sized frame may rebase an empty document's origin. The command
+    // rejects actual no-ops before calling this atomic publication operation.
+    // All validation/allocation precedes publication. Undo uses the same path.
+    for (std::size_t i = 0; i < updates.size(); ++i)
+        layers_[i].localToDocument = updates[i].after;
+    canvas_ = after;
+    selection_ = std::move(selection);
+    lastSelection_ = std::move(remembered);
+    selectionEvidence_ = std::move(evidence);
+    ++selectionRevision_;
+    touch();
+    return true;
+}
+
 bool Document::setSelection(SelectionState selection)
 {
     if (selection && selection->extent() != canvas_.extent)

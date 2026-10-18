@@ -197,11 +197,12 @@ bool MainWindow::settleForFileOperation()
         shapeOptionsPage_->finishNumericInput();
         transformOptionsPage_->finishNumericInput();
         cropOptionsPage_->finishNumericInput();
+        finishQuickCanvasResize(true);
         finishLayerCrop(true);
         finishLayerMove(true);
         finishLayerTransform(true); // Publish individual completed actions, not a collapsed session.
         finishSelectionTransform(true);
-        if (activeLayerMove_ || layerTransform_ || layerCrop_ || selectionTransform_) {
+        if (activeLayerMove_ || layerTransform_ || layerCrop_ || selectionTransform_ || canvasResize_) {
             reportFileError(i18n::text("main.window.files.unable.to.finish.transform.history.your.edits.are.retained"));
             return false;
         }

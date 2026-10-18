@@ -25,6 +25,7 @@ History::History(std::size_t memoryBudgetBytes)
 
 bool History::execute(Document& document, std::unique_ptr<Command> command)
 {
+    canvasOriginHint_.reset();
     maskEditingHint_.reset();
     layerSelectionHint_ = nullptr;
     textEditHint_.reset();
@@ -47,6 +48,7 @@ bool History::execute(Document& document, std::unique_ptr<Command> command)
 
 bool History::adoptApplied(Document& document, std::unique_ptr<Command>& command)
 {
+    canvasOriginHint_.reset();
     maskEditingHint_.reset();
     layerSelectionHint_ = nullptr;
     textEditHint_.reset();
@@ -63,6 +65,7 @@ bool History::adoptApplied(Document& document, std::unique_ptr<Command>& command
 
 bool History::record(Document& document, std::unique_ptr<Command> command)
 {
+    canvasOriginHint_ = command->canvasOriginAfter(false);
     const bool mergeAllowed = document.isModified(); // A saved endpoint is a merge barrier.
     command->contentBefore_ = document.contentState();
     if (command->affectsPersistentContent())
@@ -91,6 +94,7 @@ bool History::record(Document& document, std::unique_ptr<Command> command)
 
 bool History::publishAppliedBranch(Document& document, History& branch)
 {
+    canvasOriginHint_.reset();
     maskEditingHint_.reset();
     branch.maskEditingHint_.reset();
     layerSelectionHint_ = nullptr;
@@ -135,6 +139,7 @@ void History::discardRedo()
 
 bool History::undo(Document& document)
 {
+    canvasOriginHint_.reset();
     maskEditingHint_.reset();
     layerSelectionHint_ = nullptr;
     textEditHint_.reset();
@@ -156,12 +161,14 @@ bool History::undo(Document& document)
     textEditHint_ = command->textEditAfter(true);
     layerSelectionHint_ = command->layerSelectionAfter(true);
     maskEditingHint_ = command->maskEditingAfter(true);
+    canvasOriginHint_ = command->canvasOriginAfter(true);
     undone_.push_back(std::move(command));
     return true;
 }
 
 bool History::redo(Document& document)
 {
+    canvasOriginHint_.reset();
     maskEditingHint_.reset();
     layerSelectionHint_ = nullptr;
     textEditHint_.reset();
@@ -182,6 +189,7 @@ bool History::redo(Document& document)
     textEditHint_ = command->textEditAfter(false);
     layerSelectionHint_ = command->layerSelectionAfter(false);
     maskEditingHint_ = command->maskEditingAfter(false);
+    canvasOriginHint_ = command->canvasOriginAfter(false);
     done_.push_back(std::move(command));
     return true;
 }
@@ -194,6 +202,7 @@ bool History::redo(Document& document)
 
 void History::clear()
 {
+    canvasOriginHint_.reset();
     maskEditingHint_.reset();
     layerSelectionHint_ = nullptr;
     textEditHint_.reset();

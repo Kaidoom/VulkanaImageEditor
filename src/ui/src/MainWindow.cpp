@@ -513,6 +513,7 @@ QString toolName(core::ToolId tool)
     case core::ToolId::SmartSelect: return i18n::text("main.window.smart.select");
     case core::ToolId::Transform: return i18n::text("main.window.transform");
     case core::ToolId::Crop: return i18n::text("main.window.layer.crop");
+    case core::ToolId::CanvasResize: return i18n::text("canvas.resize.action");
     }
     return {};
 }
@@ -612,6 +613,7 @@ MainWindow::MainWindow(
     createSmartSelectionHelp();
     createShapeControls();
     createCropControls();
+    createCanvasResizeControls();
     createMenus();
     createStatusBar(showCanvasFps);
     textController_ = std::make_unique<TextController>(session(), canvasWindow_, workspace_, this);
@@ -755,6 +757,12 @@ MainWindow::MainWindow(
         canvasWindow_->dismissLayerOutlines();
     };
     canvasWindow_->onTransformBegan = [this](core::TransformHandle handle, core::Vec2d position) {
+        if (canvasResize_) {
+            canvasResizeOptionsPage_->finishNumericInput();
+            const bool ok = runTransformAction([&] { return canvasResize_->begin(handle, position); });
+            updateActionState();
+            return ok;
+        }
         if(layerCrop_) {cropOptionsPage_->finishNumericInput();const bool ok=runTransformAction([&]{return layerCrop_->beginDrag(handle,position,cropOptionsPage_->chamferEnabled());});updateActionState();return ok;}
         if (selectionTransform_) {
             completeSelectionTransformAction();
@@ -783,6 +791,7 @@ MainWindow::MainWindow(
         return began;
     };
     canvasWindow_->onTransformMoved = [this](core::Vec2d position, core::TransformModifiers modifiers) {
+        if (canvasResize_) { (void)canvasResize_->drag(position,modifiers,canvasResizeOptionsPage_->aspectLocked()); refreshQuickCanvasResize(); return true; }
         if(layerCrop_){const bool ok=runTransformAction([&]{return layerCrop_->dragTo(position,modifiers,cropOptionsPage_->aspectLocked());});if(ok)refreshLayerCrop();return ok;}
         if (shapeResize_) return updateShapeResize(position, modifiers);
         if (selectionTransform_ && selectionTransform_->drag) {
@@ -832,6 +841,10 @@ MainWindow::MainWindow(
         return true;
     };
     canvasWindow_->onTransformEnded = [this] {
+        if (canvasResize_) {
+            (void)runTransformAction([&] { canvasResize_->end(); return true; });
+            refreshQuickCanvasResize(); updateActionState(); return;
+        }
         if(layerCrop_){(void)runTransformAction([&]{layerCrop_->endDrag();return true;});refreshLayerCrop();updateActionState();return;}
         if (shapeResize_) { finishShapeResize(true); return; }
         if (selectionTransform_) {
@@ -848,6 +861,7 @@ MainWindow::MainWindow(
         } else finishLayerMove(true);
     };
     canvasWindow_->onTransformDragCancelled = [this] {
+        if (canvasResize_) { canvasResize_->cancelDrag(); refreshQuickCanvasResize(); updateActionState(); return; }
         if(layerCrop_){layerCrop_->cancelDrag();refreshLayerCrop();updateActionState();return;}
         if (shapeResize_) { finishShapeResize(false); return; }
         if (selectionTransform_) {
@@ -1501,6 +1515,7 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
         || ((watched == this || watched == windowHandle())
             && (event->type() == QEvent::WindowDeactivate || event->type() == QEvent::Hide))) {
         canvasWindow_->cancelPanInput();
+        if(canvasResize_){canvasWindow_->cancelTransformInput();canvasResizeOptionsPage_->finishNumericInput();pointerRouter_->cancelCapture();}
         if(layerCrop_){canvasWindow_->cancelTransformInput();cropOptionsPage_->finishNumericInput();pointerRouter_->cancelCapture();}
         if (layerTransform_ || selectionTransform_) {
             canvasWindow_->cancelTransformInput();
@@ -1509,6 +1524,7 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
         }
     }
     if(layerCrop_ && watched==canvasWindow_ && (event->type()==QEvent::MouseButtonPress||event->type()==QEvent::TabletPress))cropOptionsPage_->finishNumericInput();
+    if(canvasResize_ && watched==canvasWindow_ && (event->type()==QEvent::MouseButtonPress||event->type()==QEvent::TabletPress))canvasResizeOptionsPage_->finishNumericInput();
     if ((layerTransform_ || selectionTransform_) && watched==canvasWindow_
         && (event->type()==QEvent::MouseButtonPress || event->type()==QEvent::TabletPress)) {
         transformOptionsPage_->finishNumericInput();
@@ -1629,7 +1645,7 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
         canvasWindow_->updateTransformModifiers(modifiers);
         event->accept();return true;
     }
-    if (ourTarget && (layerTransform_ || layerCrop_ || selectionTransform_) && !editing && !blocked) {
+    if (ourTarget && (canvasResize_ || layerTransform_ || layerCrop_ || selectionTransform_) && !editing && !blocked) {
         if (key->key()==Qt::Key_Alt || key->key()==Qt::Key_Shift || key->key()==Qt::Key_Control) {
             auto modifiers=key->modifiers();
             const auto flag=key->key()==Qt::Key_Alt ? Qt::AltModifier : key->key()==Qt::Key_Control ? Qt::ControlModifier : Qt::ShiftModifier;
@@ -1638,7 +1654,8 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
             event->accept(); return true;
         }
         if (event->type()==QEvent::KeyPress && key->key()==Qt::Key_Escape) {
-            if(layerCrop_)finishLayerCrop(false);
+            if(canvasResize_)finishQuickCanvasResize(false);
+            else if(layerCrop_)finishLayerCrop(false);
             else if (selectionTransform_) finishSelectionTransform(false);
             else finishLayerTransform(false);
             event->accept(); return true;
@@ -1857,6 +1874,7 @@ void MainWindow::createActions()
             textController_->history(false);
             return;
         }
+        if(canvasResize_){stepCanvasResizeHistory(false);return;}
         if(layerCrop_){stepCropHistory(false);return;}
         if (selectionTransform_) { stepSelectionTransformHistory(false); return; }
         if (layerTransform_) { stepTransformHistory(false); return; }
@@ -1864,7 +1882,9 @@ void MainWindow::createActions()
             cancelPendingEdits();
             return;
         }
+        const auto beforeCanvas = session().document() ? session().document()->canvas() : core::CanvasSpec{};
         if (session().undo()) {
+            adjustViewAfterCanvasResize(beforeCanvas);
             fileState().untouched = false;
             synchronizeUi(true, false);
         }
@@ -1888,6 +1908,7 @@ void MainWindow::createActions()
             textController_->history(true);
             return;
         }
+        if(canvasResize_){stepCanvasResizeHistory(true);return;}
         if(layerCrop_){stepCropHistory(true);return;}
         if (selectionTransform_) { stepSelectionTransformHistory(true); return; }
         if (layerTransform_) { stepTransformHistory(true); return; }
@@ -1895,7 +1916,9 @@ void MainWindow::createActions()
             cancelPendingEdits();
             return;
         }
+        const auto beforeCanvas = session().document() ? session().document()->canvas() : core::CanvasSpec{};
         if (session().redo()) {
+            adjustViewAfterCanvasResize(beforeCanvas);
             fileState().untouched = false;
             synchronizeUi(true, false);
         }
@@ -2149,6 +2172,9 @@ void MainWindow::createMenus()
     auto* canvasSizeAction = i18n::addAction(imageMenu, toolGlyph(ToolGlyph::Crop), i18n::text("main.window.change.canvas.size"), this, &MainWindow::changeCanvasSize);
     canvasSizeAction->setObjectName(QStringLiteral("ChangeCanvasSizeAction"));
     canvasSizeAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+Alt+C")));
+    auto* quickCanvas = i18n::addAction(imageMenu, toolGlyph(ToolGlyph::Crop), i18n::text("canvas.resize.action"), this, &MainWindow::beginQuickCanvasResize);
+    quickCanvas->setObjectName(QStringLiteral("QuickCanvasResizeAction"));
+    quickCanvas->setShortcut(QKeySequence(QStringLiteral("Ctrl+Alt+R")));
 
     auto* viewMenu = i18n::addMenu(menuBar(), i18n::text("main.window.view"));
     snappingAction_ = i18n::addAction(viewMenu, toolGlyph(ToolGlyph::Snapping), i18n::text("main.window.snapping"));
@@ -2704,9 +2730,9 @@ void MainWindow::createDocks()
         if (!layer || layer->blendMode == *mode) return;
         // A blend change must not silently discard completed Ctrl+T gestures
         // when the general document-command boundary settles pending tools.
-        if (layerTransform_ || layerCrop_ || selectionTransform_) {
+        if (layerTransform_ || layerCrop_ || selectionTransform_ || canvasResize_) {
             finishCanvasOperation();
-            if (layerTransform_ || layerCrop_ || selectionTransform_) { updateLayerControls(); return; }
+            if (layerTransform_ || layerCrop_ || selectionTransform_ || canvasResize_) { updateLayerControls(); return; }
         }
         if (executeDocumentCommand(std::make_unique<core::SetLayerBlendModeCommand>(
                 *session().activeLayer(), *mode))) {
@@ -4445,7 +4471,7 @@ void MainWindow::collapseLayerSelectionOnEmptyClick()
     // A blank click is session selection only, never an implicit Apply/Cancel
     // for a transform, path construction or captured pointer gesture.
     if (!collapseLayerSelectionOnEmptyClick_ || updatingUi_ || fileBusy_ || workspaceDialog_
-        || layerTransform_ || layerCrop_ || selectionTransform_ || activeFill_
+        || layerTransform_ || layerCrop_ || selectionTransform_ || canvasResize_ || activeFill_
         || canvasWindow_->pointerGestureActive() || session().selectedLayers().size() <= 1)
         return;
     if (session().activeTool() == core::ToolId::Move)
@@ -4626,6 +4652,14 @@ void MainWindow::updateActionState()
     if(layerCrop_){
         undoAction_->setEnabled(history.canUndo()||layerCrop_->dragging());
         transformAction_->setEnabled(false);
+        for(auto* action:selectionActions_)action->setEnabled(false);
+        for(auto* action:fillActions_)action->setEnabled(false);
+    }
+    if(canvasResize_){
+        undoAction_->setEnabled(canvasResize_->canUndo());redoAction_->setEnabled(canvasResize_->canRedo());
+        i18n::setText(undoAction_, i18n::text("canvas.resize.undo"));
+        i18n::setText(redoAction_, i18n::text("canvas.resize.redo"));
+        transformAction_->setEnabled(false);transformSelectionAction_->setEnabled(false);transformPixelsAction_->setEnabled(false);
         for(auto* action:selectionActions_)action->setEnabled(false);
         for(auto* action:fillActions_)action->setEnabled(false);
     }

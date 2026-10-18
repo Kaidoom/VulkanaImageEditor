@@ -26,6 +26,7 @@
 #include "imageeditor/core/LayerTransform.hpp"
 #include "imageeditor/core/SelectedPixelTransform.hpp"
 #include "imageeditor/core/LayerCropSession.hpp"
+#include "imageeditor/core/CanvasResize.hpp"
 #include "imageeditor/core/ShapeRenderService.hpp"
 #include "imageeditor/ui/BrushAssetLibrary.hpp"
 #include "imageeditor/ui/BrushPresetStore.hpp"
@@ -334,6 +335,12 @@ private:
     void createInitialDocument();
     void createNewDocument();
     void changeCanvasSize();
+    void createCanvasResizeControls();
+    void beginQuickCanvasResize();
+    void refreshQuickCanvasResize();
+    void finishQuickCanvasResize(bool apply);
+    void stepCanvasResizeHistory(bool redo);
+    void adjustViewAfterCanvasResize(core::CanvasSpec before);
     void openImage();
     bool openDocumentFromPath(const QString&);
     bool importPdfFromPath(const QString&, bool intoCurrent);
@@ -747,6 +754,10 @@ private:
     bool startingCrop_ {false};
     core::ToolId toolBeforeCrop_ {core::ToolId::Move};
     CropOptionsPage* cropOptionsPage_ {nullptr};
+    std::unique_ptr<core::CanvasResizeFrame> canvasResize_;
+    core::Revision canvasResizeRevision_ {};
+    core::ToolId toolBeforeCanvasResize_ {core::ToolId::Move};
+    CropOptionsPage* canvasResizeOptionsPage_ {nullptr};
     std::unique_ptr<core::LayerTransformSession> activeLayerMove_;
     core::SnapOptions snappingOptions_;
     QAction* snappingAction_ {nullptr};

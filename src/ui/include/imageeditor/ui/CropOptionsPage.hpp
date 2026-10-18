@@ -8,7 +8,8 @@ namespace imageeditor::ui {
 class ToolOptionsNumber;
 class CropOptionsPage final : public QWidget {
 public:
-    explicit CropOptionsPage(QWidget* parent = nullptr);
+    enum class Mode { Layer, Canvas };
+    explicit CropOptionsPage(QWidget* parent = nullptr, Mode = Mode::Layer);
     void setFrame(core::RectD);
     void finishNumericInput();
     bool aspectLocked() const;

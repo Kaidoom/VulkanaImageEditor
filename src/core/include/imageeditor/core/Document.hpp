@@ -152,6 +152,11 @@ public:
     // local-to-document transforms deliberately remain untouched, so content
     // clipped by a smaller canvas can reappear after a later resize.
     bool setCanvas(CanvasSpec canvas);
+    // Atomic canvas reframe. Every leaf's transform and both selection planes
+    // are precomputed by the command; source pixels and local masks stay intact.
+    bool setCanvasFrame(CanvasSpec expected, CanvasSpec after,
+        std::span<const LayerTransformUpdate>, SelectionState, SelectionState,
+        SelectionEvidenceState = {});
 
     [[nodiscard]] DocumentSnapshot snapshot() const;
 

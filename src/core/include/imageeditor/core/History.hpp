@@ -42,6 +42,7 @@ public:
     [[nodiscard]] std::optional<std::uint64_t> activeLayerHint() const noexcept { return activeLayerHint_; }
     [[nodiscard]] std::optional<TextEditHint> textEditHint() const noexcept { return textEditHint_; }
     [[nodiscard]] std::optional<bool> maskEditingHint() const noexcept { return maskEditingHint_; }
+    [[nodiscard]] std::optional<CanvasOriginHint> canvasOriginHint() const noexcept { return canvasOriginHint_; }
     [[nodiscard]] std::size_t latestUndoMemoryCost() const noexcept
     {
         return done_.empty() ? 0 : done_.back()->memoryCost();
@@ -59,6 +60,7 @@ private:
     std::optional<std::uint64_t> activeLayerHint_;
     std::optional<TextEditHint> textEditHint_;
     std::optional<bool> maskEditingHint_;
+    std::optional<CanvasOriginHint> canvasOriginHint_;
     const LayerSelectionState* layerSelectionHint_ {nullptr}; // Command-owned, no post-mutation allocation.
 };
 

@@ -60,6 +60,9 @@ public:
     // entire old plane; new pixels use outside rather than selection zero.
     [[nodiscard]] SelectionState padded(RectI frame, std::uint8_t outside) const;
     [[nodiscard]] SelectionState translated(int dx, int dy) const;
+    // Translate and change the canvas in one step, without clipping to the old
+    // extent first. Integer coverage is preserved exactly.
+    [[nodiscard]] SelectionState reframed(Extent2u, int dx, int dy) const;
     // Signed document-axis radii, per side. X is applied before Y for mixed signs.
     [[nodiscard]] SelectionState adjusted(int horizontal, int vertical) const;
     [[nodiscard]] SelectionState rotated(double clockwiseDegrees, Vec2d pivot) const;

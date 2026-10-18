@@ -291,7 +291,7 @@ void MainWindow::refreshDocumentTabs()
     }
     for (const auto* name : {"CloseDocumentAction", "NextDocumentAction", "PreviousDocumentAction"})
         if (auto* action = findChild<QAction*>(name)) action->setEnabled(!documents_.empty());
-    for (const auto* name : {"SaveDocumentAction", "SaveDocumentAsAction", "ExportImageAction", "CopyCanvasToClipboardAction", "ImportImageAction", "ChangeCanvasSizeAction"})
+    for (const auto* name : {"SaveDocumentAction", "SaveDocumentAsAction", "ExportImageAction", "CopyCanvasToClipboardAction", "ImportImageAction", "ChangeCanvasSizeAction", "QuickCanvasResizeAction"})
         if (auto* action = findChild<QAction*>(name)) action->setEnabled(bool(activeDocument_));
     if (auto* action = findChild<QAction*>("ExportAgainAction")) action->setEnabled(activeDocument_ && activeDocument_->exportSettings.has_value());
     workspace_->setWelcomeOverlay(welcome_, !activeDocument_&&!graphicsStartupPending_
@@ -329,7 +329,8 @@ bool MainWindow::settleForDocumentSwitch()
     if (activeLayerMove_ && activeLayerMove_->dragging()) finishLayerMove(false);
     else finishLayerMove(true);
     finishLayerCrop(true); finishLayerTransform(true);
-    if (activeLayerMove_ || layerTransform_ || layerCrop_) return false;
+    finishQuickCanvasResize(true);
+    if (activeLayerMove_ || layerTransform_ || layerCrop_ || canvasResize_) return false;
     finishSelectionNumericInput(); finishSelectionTransform(true);
     if(selectionTransform_)return false;
     layerAlphaSelection_.reset();

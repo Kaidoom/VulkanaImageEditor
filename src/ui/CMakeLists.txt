@@ -46,6 +46,7 @@ add_library(imageeditor_ui STATIC
     src/MainWindow.cpp
     src/MemoryStatusLabel.cpp
     src/MainWindowCrop.cpp
+    src/MainWindowCanvasResize.cpp
     src/CropOptionsPage.cpp
     src/MainWindowAdjustments.cpp
     src/MainWindowMeasure.cpp
