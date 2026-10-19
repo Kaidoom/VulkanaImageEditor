@@ -3884,13 +3884,20 @@ void MainWindow::runIntegrationSmokeTest()
         });
         afterUiStep(2700, [this] { showNormal(); });
     }
-    // Test-only continuation: compositor readiness must precede every raster
-    // probe. Independent wall-clock timers let the fragmented mutation land
-    // between Brush's saved revision and its Undo/Redo under a delayed resize.
-    using RasterProbeStages = std::vector<std::pair<int, std::function<void()>>>;
+    // Test-only continuation: each mutation must reach a submitted frame before
+    // the next action can undo/replace it. Independent timers can become due
+    // together while an earlier callback occupies the GUI thread.
+    struct RasterProbeStage {
+        int offset;
+        const char* name;
+        std::function<void()> action;
+        bool waitForFrame;
+    };
+    using RasterProbeStages = std::vector<RasterProbeStage>;
     const auto rasterProbeStages = std::make_shared<RasterProbeStages>();
-    const auto afterRasterReady = [rasterProbeStages](int delay, std::function<void()> callback) {
-        rasterProbeStages->emplace_back(delay, std::move(callback));
+    const auto afterRasterReady = [rasterProbeStages](int offset, const char* name,
+                                      std::function<void()> callback, bool waitForFrame = true) {
+        rasterProbeStages->push_back({offset, name, std::move(callback), waitForFrame});
     };
     afterUiStep(2880, [this, rasterProbeStages] {
         const auto fullUploadsBefore = canvasWindow_->rendererStats().fullUploads;
@@ -3922,8 +3929,52 @@ void MainWindow::runIntegrationSmokeTest()
                 } else if (regionalBefore && stats.regionalUploadBatches > *regionalBefore) {
                     uploadReady->stop();
                     uploadReady->deleteLater();
-                    for (const auto& [delay, callback] : *rasterProbeStages)
-                        QTimer::singleShot(delay, Qt::PreciseTimer, this, callback);
+                    auto* sequence = new QTimer(this);
+                    sequence->setSingleShot(true);
+                    sequence->setTimerType(Qt::PreciseTimer);
+                    connect(sequence, &QTimer::timeout, this,
+                        [this, sequence, rasterProbeStages, index = std::size_t{0},
+                            frameBefore = std::optional<std::uint64_t>{}, frameWait = QElapsedTimer{}]() mutable {
+                            const auto& stage = rasterProbeStages->at(index);
+                            if (!frameBefore) {
+                                frameBefore = canvasWindow_->rendererStats().framesSubmitted;
+                                QElapsedTimer actionTime;
+                                actionTime.start();
+                                stage.action();
+                                qInfo() << "Smoke raster stage:" << stage.name
+                                        << "action ms" << actionTime.elapsed();
+                                if (smokeCompleted_) {
+                                    sequence->deleteLater();
+                                    return;
+                                }
+                                frameWait.start();
+                            }
+                            const auto frames = canvasWindow_->rendererStats().framesSubmitted;
+                            if (stage.waitForFrame && frames <= *frameBefore) {
+                                if (!frameWait.hasExpired(5000)) {
+                                    sequence->start(16);
+                                    return;
+                                }
+                                smokeCheck(false, QStringLiteral(
+                                    "No frame after smoke stage '%1' within 5000 ms (frames %2 -> %3)")
+                                    .arg(QString::fromLatin1(stage.name))
+                                    .arg(*frameBefore).arg(frames));
+                                smokeCompleted_ = true;
+                                logRendererDiagnostics();
+                                qCritical() << "Wayland/Vulkan smoke assertions failed:" << smokeFailures_;
+                                sequence->deleteLater();
+                                close();
+                                return;
+                            }
+                            qInfo() << "Smoke raster stage:" << stage.name
+                                    << "frame wait ms" << frameWait.elapsed()
+                                    << "frames" << *frameBefore << "->" << frames;
+                            const auto previousOffset = stage.offset;
+                            frameBefore.reset();
+                            if (++index == rasterProbeStages->size()) sequence->deleteLater();
+                            else sequence->start(rasterProbeStages->at(index).offset - previousOffset);
+                        });
+                    sequence->start(rasterProbeStages->front().offset);
                 } else if (elapsed.hasExpired(750)) {
                     uploadReady->stop();
                     uploadReady->deleteLater();
@@ -3936,7 +3987,7 @@ void MainWindow::runIntegrationSmokeTest()
             });
         uploadReady->start();
     });
-    afterRasterReady(280, [this] {
+    afterRasterReady(280, "Brush paint", [this] {
         if (!session().document() || !session().activeLayer()) {
             smokeCheck(false, QStringLiteral("No active raster for brush integration smoke"));
             return;
@@ -4029,7 +4080,7 @@ void MainWindow::runIntegrationSmokeTest()
     // integration gate actually exercises each incremental Vulkan upload
     // instead of observing only the final pixels after three synchronous
     // history operations.
-    afterRasterReady(410, [this] {
+    afterRasterReady(410, "Brush undo", [this] {
         undoAction_->trigger();
         if (!session().document() || !session().activeLayer()) {
             smokeCheck(false, QStringLiteral("Brush smoke target disappeared before undo"));
@@ -4044,7 +4095,7 @@ void MainWindow::runIntegrationSmokeTest()
         smokeCheck(raster.surface->revision() == smokeBrushPaintedRevision_ + 1,
             QStringLiteral("Brush undo did not produce one surface revision"));
     });
-    afterRasterReady(540, [this] {
+    afterRasterReady(540, "Brush redo", [this] {
         redoAction_->trigger();
         if (!session().document() || !session().activeLayer()) {
             smokeCheck(false, QStringLiteral("Brush smoke target disappeared before redo"));
@@ -4079,7 +4130,7 @@ void MainWindow::runIntegrationSmokeTest()
                 QStringLiteral("Direction brush took an unexpected asset resolver path"));
         }
     });
-    afterRasterReady(640, [this] {
+    afterRasterReady(640, "Eraser paint", [this] {
         if (!session().document() || !session().activeLayer()) {
             smokeCheck(false, QStringLiteral("No active raster for eraser integration smoke"));
             return;
@@ -4142,7 +4193,7 @@ void MainWindow::runIntegrationSmokeTest()
         smokeEraserRevision_ = raster.surface->revision();
         synchronizeUi(false, false);
     });
-    afterRasterReady(770, [this] {
+    afterRasterReady(770, "Eraser undo", [this] {
         undoAction_->trigger();
         if (!session().document() || !session().activeLayer()) {
             smokeCheck(false, QStringLiteral("Eraser smoke target disappeared before undo"));
@@ -4157,7 +4208,7 @@ void MainWindow::runIntegrationSmokeTest()
         smokeCheck(raster.surface->revision() == smokeEraserRevision_ + 1,
             QStringLiteral("Eraser undo did not produce one surface revision"));
     });
-    afterRasterReady(860, [this] {
+    afterRasterReady(860, "Eraser redo", [this] {
         redoAction_->trigger();
         if (!session().document() || !session().activeLayer()) {
             smokeCheck(false, QStringLiteral("Eraser smoke target disappeared before redo"));
@@ -4188,7 +4239,7 @@ void MainWindow::runIntegrationSmokeTest()
         }
         setActiveTool(core::ToolId::Move);
     });
-    afterRasterReady(980, [this] {
+    afterRasterReady(980, "Eyedropper", [this] {
         if (!session().document()) {
             smokeCheck(false, QStringLiteral("No document for eyedropper smoke"));
             return;
@@ -4239,7 +4290,7 @@ void MainWindow::runIntegrationSmokeTest()
         QRect canvasGeometry;
     };
     const auto transformSmoke=std::make_shared<TransformSmokeState>();
-    afterRasterReady(1220, [this,transformSmoke] {
+    afterRasterReady(1220, "Move numeric edits", [this,transformSmoke] {
         transformSmoke->baseline=canvasWindow_->rendererStats();
         transformSmoke->canvasGeometry=canvasWindow_->geometry();
         transformSmoke->historyDepth=session().history().undoDepth();
@@ -4258,7 +4309,7 @@ void MainWindow::runIntegrationSmokeTest()
         smokeCheck(session().history().undoDepth() == transformSmoke->historyDepth + 3,
             QStringLiteral("Move controls did not create three independent undo actions"));
     });
-    afterRasterReady(1400, [this,transformSmoke] {
+    afterRasterReady(1400, "Transform preview", [this,transformSmoke] {
         smokeCheck(canvasWindow_->rendererStats().framesSubmitted > transformSmoke->baseline.framesSubmitted,
             QStringLiteral("Move control edits were not rendered"));
         undoAction_->trigger();
@@ -4289,7 +4340,7 @@ void MainWindow::runIntegrationSmokeTest()
         refreshLayerTransform();
         transformSmoke->after=layerTransform_->transform();
     });
-    afterRasterReady(1570, [this,transformSmoke] {
+    afterRasterReady(1570, "Transform apply and undo", [this,transformSmoke] {
         smokeCheck(canvasWindow_->rendererStats().framesSubmitted>transformSmoke->baseline.framesSubmitted,
             QStringLiteral("Transform overlay was never rendered"));
         finishLayerTransform(true);
@@ -4300,13 +4351,13 @@ void MainWindow::runIntegrationSmokeTest()
         if (session().activeLayer()) smokeCheck(session().document()->layer(*session().activeLayer())->localToDocument==transformSmoke->before,
             QStringLiteral("Transform undo did not restore exact geometry"));
     });
-    afterRasterReady(1800, [this,transformSmoke] {
+    afterRasterReady(1800, "Transform redo", [this,transformSmoke] {
         redoAction_->trigger();
         redoAction_->trigger();
         if (session().activeLayer()) smokeCheck(session().document()->layer(*session().activeLayer())->localToDocument==transformSmoke->after,
             QStringLiteral("Transform redo did not restore exact geometry"));
     });
-    afterRasterReady(2030, [this,transformSmoke] {
+    afterRasterReady(2030, "Transform cancel", [this,transformSmoke] {
         beginLayerTransform();
         if (layerTransform_) {
             (void)layerTransform_->flip(true);
@@ -4329,7 +4380,7 @@ void MainWindow::runIntegrationSmokeTest()
                 && stats.swapchainGeneration==transformSmoke->baseline.swapchainGeneration,
             QStringLiteral("Transform recreated Vulkan resources"));
     });
-    afterRasterReady(2320, [this] {
+    afterRasterReady(2320, "Final diagnostics", [this] {
         const auto stats = canvasWindow_->rendererStats();
         smokeCheck(canvasWindow_->geometry() == canvasContainer_->rect(),
             QStringLiteral("Vulkan canvas/container geometry diverged after lifecycle exercise"));
@@ -4371,7 +4422,7 @@ void MainWindow::runIntegrationSmokeTest()
             qCritical() << "Wayland/Vulkan smoke assertions failed:" << smokeFailures_;
         }
         close();
-    });
+    }, false);
     auto* uiSequence = new QTimer(this);
     uiSequence->setSingleShot(true);
     uiSequence->setTimerType(Qt::PreciseTimer);
