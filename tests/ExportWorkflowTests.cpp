@@ -2,9 +2,11 @@
 #include "imageeditor/core/LayerCommands.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
+#include "imageeditor/ui/CropOptionsPage.hpp"
 #include "imageeditor/ui/ExportDialog.hpp"
 #include "imageeditor/ui/FileDialogLocations.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
+#include "imageeditor/ui/NewDocumentDialog.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include <QAction>
 #include <QApplication>
@@ -26,6 +28,7 @@
 #include <QToolButton>
 #include <QVulkanInstance>
 #include <QUrl>
+#include <functional>
 #include <iostream>
 
 class ExportUrlReceiver final : public QObject {
@@ -334,6 +337,144 @@ void exportConfirmation()
     QDesktopServices::unsetUrlHandler("file");
 }
 
+void resizedCanvasExports(u::MainWindow& window, const QTemporaryDir& files)
+{
+    const auto owner = window.activeDocumentId();
+    const auto output = files.filePath("resized.png");
+    // Each opening goes through the real coordinator, including Export Again's
+    // automatic write. Check both the controls and the encoded preview.
+    const auto inspect = [&](QSize expected, QSize canvas,
+                             std::function<void(u::ExportDialog&)> edit = {}, bool again = false) {
+        const State before(window);
+        QTimer driver;
+        driver.setInterval(20);
+        QElapsedTimer elapsed;
+        elapsed.start();
+        bool checked = false, ready = false;
+        QObject::connect(&driver, &QTimer::timeout, &window, [&] {
+            auto* dialog = exportDialog();
+            if (!dialog) return;
+            if (elapsed.elapsed() > 10000) {
+                CHECK(false);
+                std::cerr << dialog->findChild<QLabel*>("ExportStatus")->text().toStdString() << '\n';
+                dialog->reject();
+                return;
+            }
+            if (!checked) {
+                checked = true;
+                CHECK(dialog->settings().size == expected);
+                CHECK(dialog->findChild<QDoubleSpinBox*>("ExportWidth")->value() == expected.width());
+                CHECK(dialog->findChild<QDoubleSpinBox*>("ExportHeight")->value() == expected.height());
+                CHECK(qAbs(dialog->findChild<QDoubleSpinBox*>("ExportScale")->value()
+                    - 100.0 * expected.width() / canvas.width()) < .01);
+                CHECK(dialog->findChild<QLabel*>("ExportDimensionsHint")->text().contains(
+                    QStringLiteral("%1 × %2").arg(canvas.width()).arg(canvas.height())));
+                if (edit) edit(*dialog);
+            }
+            const auto status = dialog->findChild<QLabel*>("ExportStatus")->text();
+            if ((!again && status.contains("actual encoded size")) || (again && status.startsWith("Exported"))) {
+                ready = true;
+                const auto settings = dialog->settings();
+                CHECK(settings.destination == output);
+                CHECK(settings.format == u::ExportFormat::Png && settings.pngEffort == 4);
+                if (!again)
+                    CHECK(status.startsWith(QStringLiteral("%1 × %2")
+                        .arg(settings.size.width()).arg(settings.size.height())));
+                else {
+                    CHECK(QImage(output).size() == expected);
+                    dialog->findChild<QPushButton*>("ExportSuccessClose")->click();
+                }
+                dialog->findChild<QPushButton*>("ExportHeaderClose")->click();
+            }
+        });
+        driver.start();
+        window.exportImage(again);
+        driver.stop();
+        CHECK(checked && ready);
+        before.verify(window);
+    };
+    // Establish a custom size; unchanged canvases must keep intentional output
+    // dimensions, as well as the format, destination and codec settings.
+    const auto& stored = window.documentContext(owner)->exportSettings;
+    CHECK(stored.has_value());
+    if (!stored) return;
+    const auto previous = stored->size;
+    inspect(previous, {128, 96}, [&](u::ExportDialog& dialog) {
+        dialog.findChild<QPushButton*>("ExportReset")->click();
+        dialog.findChild<QComboBox*>("ExportFormat")->setCurrentIndex(0);
+        dialog.setDestination(output);
+        dialog.findChild<QDoubleSpinBox*>("ExportPngEffort")->setValue(4);
+        dialog.findChild<QDoubleSpinBox*>("ExportWidth")->setValue(64);
+    });
+    inspect({64, 48}, {128, 96});
+
+    // Ordinary Canvas Size: deliberately change the aspect ratio as well.
+    bool resized = false;
+    QTimer resizeDriver;
+    resizeDriver.setInterval(20);
+    QObject::connect(&resizeDriver, &QTimer::timeout, &window, [&] {
+        for (auto* widget : QApplication::allWidgets()) {
+            auto* dialog = dynamic_cast<u::NewDocumentDialog*>(widget);
+            if (!dialog || !dialog->isVisible()) continue;
+            dialog->findChild<QDoubleSpinBox*>("CanvasWidthSpinBox")->setValue(256);
+            dialog->findChild<QDoubleSpinBox*>("CanvasHeightSpinBox")->setValue(80);
+            resized = true;
+            dialog->accept();
+        }
+    });
+    resizeDriver.start();
+    window.findChild<QAction*>("ChangeCanvasSizeAction")->trigger();
+    resizeDriver.stop();
+    CHECK(resized);
+    inspect({256, 80}, {256, 80}, [](u::ExportDialog& dialog) {
+        dialog.findChild<QDoubleSpinBox*>("ExportWidth")->setValue(128);
+        CHECK(dialog.settings().size == QSize(128, 40)); // New ratio, not the original one.
+    });
+    inspect({128, 40}, {256, 80});
+
+    // Quick resize must refresh Export Again even without opening Export first.
+    window.findChild<QAction*>("QuickCanvasResizeAction")->trigger();
+    auto* page = dynamic_cast<u::CropOptionsPage*>(window.findChild<QWidget*>("CanvasResizeOptionsPage"));
+    CHECK(page && window.editorSession().activeTool() == c::ToolId::CanvasResize);
+    if (!page || window.editorSession().activeTool() != c::ToolId::CanvasResize) return;
+    page->onChanged({-8, -12, 192, 144});
+    page->onActionFinished();
+    page->onApply();
+    inspect({192, 144}, {192, 144}, {}, true);
+    const auto exported = QImage(output);
+    const auto canonical = u::renderExport(*window.editorSession().document(),
+        *window.documentContext(owner)->exportSettings);
+    CHECK(canonical && exported.size() == canonical.image.size());
+    if (canonical && exported.size() == canonical.image.size())
+        for (int y = 0; y < exported.height(); ++y)
+            for (int x = 0; x < exported.width(); ++x)
+                CHECK(exported.pixelColor(x, y) == canonical.image.pixelColor(x, y));
+
+    const auto history = [&](bool redo) {
+        const auto key = redo ? QKeySequence("Ctrl+Shift+Z") : QKeySequence(QKeySequence::Undo);
+        for (auto* action : window.findChildren<QAction*>())
+            if (action->shortcuts().contains(key)) {
+                action->trigger();
+                return;
+            }
+        CHECK(false);
+    };
+    history(false);
+    inspect({256, 80}, {256, 80});
+    history(true);
+    inspect({192, 144}, {192, 144}, [](u::ExportDialog& dialog) {
+        dialog.findChild<QDoubleSpinBox*>("ExportWidth")->setValue(96);
+    });
+    // Another tab has its own dimensions and must not reset this tab's draft.
+    QImage other(40, 60, QImage::Format_RGBA8888);
+    other.fill(Qt::white);
+    CHECK(other.save(files.filePath("other-size.png")));
+    CHECK(window.openImageFromPath(files.filePath("other-size.png")));
+    inspect({40, 60}, {40, 60});
+    CHECK(window.activateDocument(owner));
+    inspect({96, 72}, {192, 144});
+}
+
 void workflow(QVulkanInstance* instance, const QString& artifacts)
 {
     QTemporaryDir files;
@@ -343,7 +484,16 @@ void workflow(QVulkanInstance* instance, const QString& artifacts)
     CHECK(exportAction && exportAction->text() == "Export…" && !exportAction->icon().isNull());
     window.resize(1380, 920);
     window.show();
-    QTest::qWait(150);
+    if (instance) {
+        QElapsedTimer startup;
+        startup.start();
+        while (!window.startupGraphicsReady() && startup.elapsed() < 60000)
+            QTest::qWait(20);
+        CHECK(window.startupGraphicsReady());
+        if (!window.startupGraphicsReady()) return;
+    } else {
+        QTest::qWait(150);
+    }
     QImage source(128, 96, QImage::Format_RGBA8888);
     for (int y = 0; y < 96; ++y)
         for (int x = 0; x < 128; ++x)
@@ -663,6 +813,7 @@ void workflow(QVulkanInstance* instance, const QString& artifacts)
     CHECK(stage == 2);
     CHECK(!QFileInfo::exists(files.filePath("cancel-encode.webp")));
     baseline.verify(window);
+    resizedCanvasExports(window, files);
     window.close();
     QTest::qWait(150);
 }

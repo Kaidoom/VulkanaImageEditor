@@ -672,6 +672,10 @@ void MainWindow::exportImage(bool again)
     if (!owner->exportSettings) {
         initial.format = ExportFormat::Png;
         initial.destination = exportPathForFormat(initial.destination, initial.format);
+    } else if (owner->exportCanvasSize != canvas) {
+        // Reconcile at the presentation boundary so resize, reframe, Undo and
+        // Redo all use the current canvas, including Export Again.
+        initial.size = canvas;
     }
     // The workspace shield excludes edits and target switches. PDF work owns a
     // frozen snapshot; image-codec work owns immutable rendered buffers.
@@ -692,9 +696,10 @@ void MainWindow::exportImage(bool again)
 #endif
     ExportCoordinator coordinator(*session().document(), dialog, fileState().projectPath, fileState().sourcePath,
         owner->id,session().selectedLayers(),pdfLimits,persistWindowState_,
-        [this, owner](const ExportSettings& s, qint64 bytes) {
+        [this, owner, canvas](const ExportSettings& s, qint64 bytes) {
             if (owner->closed) return;
             owner->exportSettings = s;
+            owner->exportCanvasSize = canvas;
             if (owner != activeDocument_) return;
             statusBar()->showMessage((s.format==ExportFormat::Pdf||s.format==ExportFormat::Psd)?i18n::text("main.window.export.exported.1.2.bytes").arg(QFileInfo(s.destination).fileName()).arg(bytes):i18n::text("main.window.export.exported.1.2.3.px.4.bytes")
                                          .arg(QFileInfo(s.destination).fileName())
@@ -707,7 +712,10 @@ void MainWindow::exportImage(bool again)
     if (again)
         QTimer::singleShot(0, &dialog, [&coordinator] { coordinator.requestWrite(); });
     presenter.exec(dialog);
-    if (!owner->closed&&dialog.settings().format!=ExportFormat::Pdf&&dialog.settings().format!=ExportFormat::Psd) owner->exportSettings = dialog.settings();
+    if (!owner->closed&&dialog.settings().format!=ExportFormat::Pdf&&dialog.settings().format!=ExportFormat::Psd) {
+        owner->exportSettings = dialog.settings();
+        owner->exportCanvasSize = canvas;
+    }
     // No checkpoint, association, selection, viewport or history changes here.
 }
 } // namespace imageeditor::ui
