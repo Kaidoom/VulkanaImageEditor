@@ -5378,9 +5378,10 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.show.refinement.region">
-      <source>Show Refinement Region</source>
+      <source>Show Analysis Area</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
-      <translation>調整領域を表示</translation>
+      <oldsource>Show Refinement Region</oldsource>
+      <translation type="unfinished">調整領域を表示</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.reference">
@@ -5510,9 +5511,10 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.refine.edge.analyzes.the.brushed.region.add.subtract.corrections">
-      <source>Refine Edge analyzes the brushed region. Add/Subtract corrections are applied last. Source colors stay unchanged.</source>
+      <source>Refine Edge updates the current mask locally. Add/Subtract guides later strokes. Source colors stay unchanged.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
-      <translation>境界ブラシの範囲を分析し、追加・削除の修正は最後に適用します。元の色は変えません。</translation>
+      <oldsource>Refine Edge analyzes the brushed region. Add/Subtract corrections are applied last. Source colors stay unchanged.</oldsource>
+      <translation type="unfinished">境界ブラシの範囲を分析し、追加・削除の修正は最後に適用します。元の色は変えません。</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.output">
@@ -5582,9 +5584,10 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.ready.limited.color.evidence.in.1.boundary.pixels.original">
-      <source>Ready · limited color evidence in %1 boundary pixels; original coverage retained there.</source>
+      <source>Ready · %1 uncertain pixels left unchanged. Use Add/Subtract to guide refinement.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
-      <translation>準備完了 · 境界の %1 ピクセルは色の情報が不足したため、元の範囲を保持しました。</translation>
+      <oldsource>Ready · limited color evidence in %1 boundary pixels; original coverage retained there.</oldsource>
+      <translation type="unfinished">準備完了 · 境界の %1 ピクセルは色の情報が不足したため、元の範囲を保持しました。</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.ready">

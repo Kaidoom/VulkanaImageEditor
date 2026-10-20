@@ -5380,10 +5380,11 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <translation>Утримуйте: оригінал</translation>
     </message>
     <message id="main.window.refinement.show.refinement.region">
-      <source>Show Refinement Region</source>
+      <source>Show Analysis Area</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
+      <oldsource>Show Refinement Region</oldsource>
+      <translation type="unfinished">Показати область уточнення</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
-      <translation>Показати область уточнення</translation>
     </message>
     <message id="main.window.refinement.reference">
       <source>Reference</source>
@@ -5512,10 +5513,11 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <translation>Новий шар із маскою — оригінал збережено</translation>
     </message>
     <message id="main.window.refinement.refine.edge.analyzes.the.brushed.region.add.subtract.corrections">
-      <source>Refine Edge analyzes the brushed region. Add/Subtract corrections are applied last. Source colors stay unchanged.</source>
+      <source>Refine Edge updates the current mask locally. Add/Subtract guides later strokes. Source colors stay unchanged.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
+      <oldsource>Refine Edge analyzes the brushed region. Add/Subtract corrections are applied last. Source colors stay unchanged.</oldsource>
+      <translation type="unfinished">Уточнення краю аналізує область пензля. Додавання/віднімання застосовується останнім. Вихідні кольори не змінюються.</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
-      <translation>Уточнення краю аналізує область пензля. Додавання/віднімання застосовується останнім. Вихідні кольори не змінюються.</translation>
     </message>
     <message id="main.window.refinement.output">
       <source>Output</source>
@@ -5584,10 +5586,11 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <translation>Загальні корекції доступні. Зразок: %1</translation>
     </message>
     <message id="main.window.refinement.ready.limited.color.evidence.in.1.boundary.pixels.original">
-      <source>Ready · limited color evidence in %1 boundary pixels; original coverage retained there.</source>
+      <source>Ready · %1 uncertain pixels left unchanged. Use Add/Subtract to guide refinement.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
+      <oldsource>Ready · limited color evidence in %1 boundary pixels; original coverage retained there.</oldsource>
+      <translation type="unfinished">Готово · недостатньо даних кольору в %1 пікселях краю; там збережено вихідне покриття.</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
-      <translation>Готово · недостатньо даних кольору в %1 пікселях краю; там збережено вихідне покриття.</translation>
     </message>
     <message id="main.window.refinement.ready">
       <source>Ready</source>

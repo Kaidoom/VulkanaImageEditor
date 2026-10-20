@@ -348,6 +348,9 @@ struct RefinementWorkspace {
   core::BrushSettings brush;
   Grid grid;
   core::RefinementState state;
+  // Active-stroke previews must not replace the completed-stroke checkpoint:
+  // mouse-event cadence cannot change the input to that same gesture.
+  std::shared_ptr<const core::RefinementAnalysis> committedAnalysis;
   std::vector<core::RefinementState> history{{}};
   std::size_t checkpoint{};
   std::optional<core::RefinementState> gesture;
@@ -761,6 +764,8 @@ void MainWindow::advanceRefinement() {
         r.status->setText(result.error);
       } else {
         r.result = std::move(result);
+        if (!r.path.active())
+          r.committedAnalysis = r.result.refined.analysis;
         r.apply->setEnabled(bool(r.result.refined.coverage) &&
                             !r.path.active());
         const auto &stats = r.result.refined;
@@ -797,9 +802,10 @@ void MainWindow::advanceRefinement() {
   const int source = r.source->currentIndex();
   const int output = r.output->currentIndex();
   const auto retained = r.result;
+  const auto committedAnalysis = r.committedAnalysis;
   r.worker = std::async(std::launch::async, [doc, target, mask, grid, cancel,
                                              state = std::move(state), source,
-                                             output, retained]() mutable {
+                                             output, retained, committedAnalysis]() mutable {
     RefinementWorkspace::Result result;
     try {
       const auto start = std::chrono::steady_clock::now();
@@ -863,7 +869,7 @@ void MainWindow::advanceRefinement() {
       options.pixelsPerDocumentPixel = grid.scale;
       options.cancelled = [cancel] { return bool(*cancel); };
       options.referenceOwner = result.reference;
-      options.analysis = retained.refined.analysis;
+      options.analysis = committedAnalysis;
       result.refined = core::refineSelection(
           result.input, result.reference.get(), state, options);
       cancelled(*cancel);

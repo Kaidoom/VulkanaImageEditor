@@ -65,7 +65,7 @@ void paint(Plane &p, const RefinementStroke &stroke,
         const float a = float(falloff * dab.strokeOpacity * dab.flow);
         auto &v = p.p[std::size_t(y) * std::size_t(p.w) + std::size_t(x)];
         // A stroke is a coverage constraint, not repeated alpha deposition.
-        // Duplicate events and repeated edge-region strokes are idempotent.
+        // Duplicate dabs within one gesture must not compound its strength.
         v = std::max(v, a);
       }
     }
@@ -305,8 +305,11 @@ void recoverForeground(Seeds &fg, const Plane &work, const Plane &region,
 }
 void matte(Plane &work, const Plane &region, const SmartReferenceImage &image,
            double radius, RefinementResult &result,
-           const RefinementOptions &o) {
-  Seeds fg, bg;
+           const RefinementOptions &o, const std::vector<float> &correctionValue,
+           const std::vector<float> &correctionWeight, const SelectionState &input) {
+  Seeds fg, bg, confirmedFg, confirmedBg;
+  Plane proposal = work;
+  const double reach = std::max(32. * o.pixelsPerDocumentPixel, radius * 4 + 8);
   auto valid = [&](std::size_t i) {
     return image.valid[i] && image.pixels[i].alpha >= 250;
   };
@@ -314,7 +317,21 @@ void matte(Plane &work, const Plane &region, const SmartReferenceImage &image,
     check(o);
     for (int x = 0; x < work.w; ++x) {
       const auto i = std::size_t(y) * std::size_t(work.w) + std::size_t(x);
-      const float a = work.p[i];
+      // Earlier estimates are a working prior, not new ground-truth labels.
+      // Retain original appearance evidence unless the user corrects it.
+      const float a = correctionWeight.empty() || correctionWeight[i] == 0
+          ? float(input->coverageAtDocumentPixel(x, y)) / 255 : correctionValue[i];
+      proposal.p[i] = a;
+      // Explicit opaque/transparent corrections are appearance evidence even
+      // inside the new analysis area. Estimated gray coverage is not a label.
+      if (valid(i) && !correctionWeight.empty() && correctionWeight[i] >= .98F &&
+          (correctionValue[i] >= .98F || correctionValue[i] <= .02F)) {
+        (correctionValue[i] >= .98F ? fg : bg).data.push_back(
+            {x, y, color(image.pixels[i])});
+        (correctionValue[i] >= .98F ? confirmedFg : confirmedBg).data.push_back(
+            {x, y, color(image.pixels[i])});
+        continue;
+      }
       if (!valid(i) || region.p[i] > 0 || (a > .02F && a < .98F))
         continue;
       bool boundary = false;
@@ -326,9 +343,39 @@ void matte(Plane &work, const Plane &region, const SmartReferenceImage &image,
         (a >= .98F ? fg : bg).data.push_back({x, y, color(image.pixels[i])});
     }
   }
-  recoverForeground(fg, work, region, image, o);
+  // The swallowed-component safeguard must use that same evidence, not
+  // confident-looking islands invented by a previous solve.
+  recoverForeground(fg, proposal, region, image, o);
+  confirmedFg.build();
+  confirmedBg.build();
+  const auto matches = [&](const Seeds &seeds, const Seed &sample) {
+    if (seeds.data.empty() || seeds.colorDistanceBound(sample.rgb) >= .0025)
+      return false;
+    for (const auto *other : seeds.nearest(sample.x, sample.y, reach, sample.rgb)) {
+      if (std::hypot(double(sample.x - other->x), double(sample.y - other->y)) > reach)
+        continue;
+      double difference = 0;
+      for (std::size_t k = 0; k < 3; ++k)
+        difference += std::pow(double(sample.rgb[k] - other->rgb[k]), 2);
+      if (difference < .0025) return true;
+    }
+    return false;
+  };
+  // Do not let an imprecise initial mask train the opposite label for a
+  // nearby color the user explicitly corrected. Conflicting user evidence
+  // stays ambiguous; it must not become an invented color separation.
+  const auto removeContradictions = [&](Seeds &samples, const Seeds &same,
+                                        const Seeds &opposite) {
+    if (opposite.data.empty()) return;
+    std::size_t visited = 0;
+    std::erase_if(samples.data, [&](const Seed &sample) {
+      if (visited++ % 4096 == 0) check(o);
+      return matches(opposite, sample) && !matches(same, sample);
+    });
+  };
+  removeContradictions(fg, confirmedFg, confirmedBg);
+  removeContradictions(bg, confirmedBg, confirmedFg);
   fg.build();
-  const double reach = std::max(32. * o.pixelsPerDocumentPixel, radius * 4 + 8);
   // An incomplete selection may leave more of the same foreground just
   // outside the analysis band. Such samples are not independent background
   // color evidence, even though their coverage must remain unchanged there.
@@ -365,7 +412,7 @@ void matte(Plane &work, const Plane &region, const SmartReferenceImage &image,
   }
   bg.data.resize(retained);
   bg.build();
-  Plane proposal = work;
+  proposal.p = work.p;
   std::vector<float> confidence(work.p.size());
   std::atomic_size_t analyzed{}, unresolved{};
   auto rows = [&](unsigned rank, unsigned count) {
@@ -471,7 +518,10 @@ void matte(Plane &work, const Plane &region, const SmartReferenceImage &image,
           }
           chosen = sum / weight;
         }
-        work.p[i] = float(work.p[i] + region.p[i] * (chosen - work.p[i]));
+        const auto candidate = float(work.p[i] + region.p[i] * (chosen - work.p[i]));
+        const float protect = correctionWeight.empty() ? 0 : correctionWeight[i];
+        work.p[i] = protect > 0
+            ? candidate + protect * (correctionValue[i] - candidate) : candidate;
       }
     }
   };
@@ -654,13 +704,13 @@ RefinementResult refineSelection(const SelectionState &input,
       result.coverage = input;
       return result;
     }
-    // Includes float intermediates, region, worst-case seed tree, reference
-    // and R8 publication. Check before any image-sized scratch allocation.
-    if (!n || e.width > 32768 || e.height > 32768 || n > o.maxWorkingBytes / 64)
+    // Includes working/correction planes, region, seed trees, reference and
+    // publication. Check before any image-sized scratch allocation.
+    constexpr std::size_t bytesPerPixel = 80;
+    if (!n || e.width > 32768 || e.height > 32768 || n > o.maxWorkingBytes / bytesPerPixel)
       throw std::length_error("Refinement exceeds the working-memory limit.");
-    result.workingBytes = std::size_t(n) * 64;
+    result.workingBytes = std::size_t(n) * bytesPerPixel;
     std::size_t dabs = 0;
-    std::vector<RefinementStrokeState> regions;
     for (const auto &stroke : state.strokes) {
       if (!stroke || !std::isfinite(stroke->hardness) || stroke->hardness < 0 ||
           stroke->hardness > 1)
@@ -669,20 +719,13 @@ RefinementResult refineSelection(const SelectionState &input,
       if (dabs > 262144 || state.strokes.size() > 4096)
         throw std::length_error(
             "Refinement stroke history exceeds its memory limit.");
-      if (stroke->kind == RefinementBrush::Edge)
-        regions.push_back(stroke);
     }
     if (reference && (reference->extent != e || reference->pixels.size() != n ||
                       reference->valid.size() != n))
       throw std::invalid_argument("Refinement reference dimensions differ.");
     Plane work{int(e.width), int(e.height), std::vector<float>(std::size_t(n))};
-    for (int y = 0; y < work.h; ++y) {
-      check(o);
-      for (int x = 0; x < work.w; ++x)
-        work.p[std::size_t(y) * e.width + std::size_t(x)] =
-            float(input->coverageAtDocumentPixel(x, y)) / 255;
-    }
     Plane region{work.w, work.h, std::vector<float>(std::size_t(n))};
+    std::vector<float> correctionValue, correctionWeight;
     auto time = Clock::now();
     const bool reuse =
         o.analysis && o.referenceOwner && reference == o.referenceOwner.get() &&
@@ -690,87 +733,125 @@ RefinementResult refineSelection(const SelectionState &input,
         o.analysis->reference == o.referenceOwner &&
         o.analysis->radius == s.radius &&
         o.analysis->scale == o.pixelsPerDocumentPixel &&
-        o.analysis->origin == o.origin && o.analysis->regions == regions;
+        o.analysis->origin == o.origin &&
+        o.analysis->strokes.size() <= state.strokes.size() &&
+        std::equal(o.analysis->strokes.begin(), o.analysis->strokes.end(), state.strokes.begin());
+    const auto analyze = [&](double context) {
+      result.analyzedPixels = result.unresolvedPixels = 0;
+      if (reference && std::any_of(region.p.begin(), region.p.end(),
+                                   [](float a) { return a > 0; }))
+        matte(work, region, *reference, context * o.pixelsPerDocumentPixel,
+              result, o, correctionValue, correctionWeight, input);
+      else
+        result.unresolvedPixels = std::size_t(std::count_if(
+            region.p.begin(), region.p.end(), [](float v) { return v > 0; }));
+      result.region = publish(region, {}, o);
+    };
+    const auto radiusRegion = [&] {
+      std::fill(region.p.begin(), region.p.end(), 0);
+      if (s.radius == 0) return;
+      std::vector<float> seeds(std::size_t(n), 1e16F);
+      for (int y = 0; y < work.h; ++y) {
+        check(o);
+        for (int x = 0; x < work.w; ++x) {
+          const auto i = std::size_t(y) * e.width + std::size_t(x);
+          const float a = work.p[i];
+          // Follow the current working edge, not a historical brush footprint.
+          if ((a > 0 && a < 1) || std::abs(a - work.at(x + 1, y)) > .001F ||
+              std::abs(a - work.at(x - 1, y)) > .001F ||
+              std::abs(a - work.at(x, y + 1)) > .001F ||
+              std::abs(a - work.at(x, y - 1)) > .001F)
+            seeds[i] = 0;
+        }
+      }
+      seeds = distance(std::move(seeds), work.w, work.h, o);
+      const double radius = s.radius * o.pixelsPerDocumentPixel;
+      for (std::size_t i = 0; i < region.p.size(); ++i)
+        region.p[i] = seeds[i] <= radius * radius ? 1.F : 0.F;
+    };
     if (reuse) {
       work.p = o.analysis->coverage;
+      correctionValue = o.analysis->correctionValue;
+      correctionWeight = o.analysis->correctionWeight;
       result.region = o.analysis->region;
       result.analyzedPixels = o.analysis->analyzed;
       result.unresolvedPixels = o.analysis->unresolved;
       result.analysis = o.analysis;
     } else {
-      if (s.radius > 0) {
-        std::vector<float> seeds(std::size_t(n), 1e16F);
-        for (int y = 0; y < work.h; ++y) {
-          check(o);
-          for (int x = 0; x < work.w; ++x) {
-            const auto i = std::size_t(y) * e.width + std::size_t(x);
-            const float a = work.p[i];
-            // Gray values are estimates, not hard labels. Their gradients
-            // also define boundaries when all coverage lies below 50%.
-            if ((a > 0 && a < 1) || std::abs(a - work.at(x + 1, y)) > .001F ||
-                std::abs(a - work.at(x - 1, y)) > .001F ||
-                std::abs(a - work.at(x, y + 1)) > .001F ||
-                std::abs(a - work.at(x, y - 1)) > .001F)
-              seeds[i] = 0;
-          }
-        }
-        seeds = distance(std::move(seeds), work.w, work.h, o);
-        const double radius = s.radius * o.pixelsPerDocumentPixel;
-        for (std::size_t i = 0; i < region.p.size(); ++i)
-          region.p[i] = seeds[i] <= radius * radius ? 1.F : 0.F;
+      for (int y = 0; y < work.h; ++y) {
+        check(o);
+        for (int x = 0; x < work.w; ++x)
+          work.p[std::size_t(y) * e.width + std::size_t(x)] =
+              float(input->coverageAtDocumentPixel(x, y)) / 255;
       }
-      for (const auto &stroke : state.strokes)
-        if (stroke->kind == RefinementBrush::Edge)
-          paint(region, *stroke, o);
-      if (reference && std::any_of(region.p.begin(), region.p.end(),
-                                   [](float a) { return a > 0; })) {
-        // An explicit broad uncertain region needs context on both sides,
-        // even with automatic Radius at zero. This changes only sample search,
-        // never the requested region or trustworthy coverage outside it.
-        double context = s.radius;
-        for (const auto &stroke : regions)
-          for (const auto &dab : stroke->dabs)
-            context = std::max(context, dab.diameterPixels * .5);
-        matte(work, region, *reference, context * o.pixelsPerDocumentPixel,
-              result, o);
-      } else
-        result.unresolvedPixels = std::size_t(std::count_if(
-            region.p.begin(), region.p.end(), [](float v) { return v > 0; }));
-      result.region = publish(region, {}, o);
-      if (o.referenceOwner && reference == o.referenceOwner.get()) {
-        auto cache = std::make_shared<RefinementAnalysis>();
-        cache->input = input;
-        cache->reference = o.referenceOwner;
-        cache->radius = s.radius;
-        cache->scale = o.pixelsPerDocumentPixel;
-        cache->origin = o.origin;
-        cache->regions = std::move(regions);
-        cache->coverage = work.p;
-        cache->region = result.region;
-        cache->analyzed = result.analyzedPixels;
-        cache->unresolved = result.unresolvedPixels;
-        result.analysis = std::move(cache);
+      if (s.radius > 0) {
+        radiusRegion();
+        analyze(s.radius);
       }
     }
-    result.analysisMs = elapsed(time);
-    time = Clock::now();
-    globals(work, s, o);
-    result.globalMs = elapsed(time);
-    time = Clock::now();
-    Plane correction{work.w, work.h, std::vector<float>(std::size_t(n))};
-    for (const auto &stroke : state.strokes)
-      if (stroke->kind != RefinementBrush::Edge) {
-        std::fill(correction.p.begin(), correction.p.end(), 0);
-        paint(correction, *stroke, o);
-        for (std::size_t i = 0; i < work.p.size(); ++i) {
-          if (i % 65536 == 0)
-            check(o);
-          const float target = stroke->kind == RefinementBrush::Add ? 1.F : 0.F;
-          work.p[i] += correction.p[i] * (target - work.p[i]);
+    // Replay only the uncached suffix. Every gesture starts from the previous
+    // working matte, never from a previous preview with global filters baked in.
+    const auto firstStroke = reuse ? o.analysis->strokes.size() : 0;
+    for (std::size_t index = firstStroke; index < state.strokes.size(); ++index) {
+      check(o);
+      const auto &stroke = *state.strokes[index];
+      if (stroke.kind == RefinementBrush::Edge) radiusRegion();
+      else std::fill(region.p.begin(), region.p.end(), 0);
+      paint(region, stroke, o);
+      if (stroke.kind == RefinementBrush::Edge) {
+        double context = s.radius;
+        for (const auto &dab : stroke.dabs)
+          context = std::max(context, dab.diameterPixels * .5);
+        analyze(context);
+      } else {
+        const auto correctionStart = Clock::now();
+        if (correctionWeight.empty()) {
+          correctionWeight.resize(std::size_t(n));
+          correctionValue.resize(std::size_t(n));
         }
+        const float target = stroke.kind == RefinementBrush::Add ? 1.F : 0.F;
+        for (std::size_t i = 0; i < work.p.size(); ++i) {
+          if (i % 65536 == 0) check(o);
+          const float a = region.p[i];
+          if (a <= 0) continue;
+          work.p[i] += a * (target - work.p[i]);
+          correctionValue[i] = work.p[i];
+          correctionWeight[i] += a * (1 - correctionWeight[i]);
+        }
+        result.correctionMs += elapsed(correctionStart);
+        result.region.reset();
+        result.analyzedPixels = result.unresolvedPixels = 0;
       }
+    }
+    if ((!reuse || firstStroke != state.strokes.size()) &&
+        o.referenceOwner && reference == o.referenceOwner.get()) {
+      auto cache = std::make_shared<RefinementAnalysis>();
+      cache->input = input;
+      cache->reference = o.referenceOwner;
+      cache->radius = s.radius;
+      cache->scale = o.pixelsPerDocumentPixel;
+      cache->origin = o.origin;
+      cache->strokes = state.strokes;
+      cache->coverage = work.p;
+      cache->correctionValue = correctionValue;
+      cache->correctionWeight = correctionWeight;
+      cache->region = result.region;
+      cache->analyzed = result.analyzedPixels;
+      cache->unresolved = result.unresolvedPixels;
+      result.analysis = std::move(cache);
+    }
+    result.analysisMs = elapsed(time) - result.correctionMs;
+    time = Clock::now();
+    const auto unadjusted = correctionWeight.empty() ? std::vector<float>{} : work.p;
+    globals(work, s, o);
+    if (!correctionWeight.empty())
+      for (std::size_t i = 0; i < work.p.size(); ++i) {
+        if (i % 65536 == 0) check(o);
+        // Preserve corrections without depositing their opacity a second time.
+        work.p[i] += correctionWeight[i] * (unadjusted[i] - work.p[i]);
+      }
+    result.globalMs = elapsed(time);
     result.coverage = publish(work, input, o);
-    result.correctionMs = elapsed(time);
     check(o);
   } catch (const Cancelled &) {
     result = {};

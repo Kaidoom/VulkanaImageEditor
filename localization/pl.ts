@@ -5380,10 +5380,11 @@ Granice dokumentu (szer. × wys.), także ukrytych członków grup.</translation
       <translation>Przytrzymaj: oryginał</translation>
     </message>
     <message id="main.window.refinement.show.refinement.region">
-      <source>Show Refinement Region</source>
+      <source>Show Analysis Area</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
+      <oldsource>Show Refinement Region</oldsource>
+      <translation type="unfinished">Pokaż obszar ulepszania</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
-      <translation>Pokaż obszar ulepszania</translation>
     </message>
     <message id="main.window.refinement.reference">
       <source>Reference</source>
@@ -5512,10 +5513,11 @@ Granice dokumentu (szer. × wys.), także ukrytych członków grup.</translation
       <translation>Nowa warstwa z maską — oryginał zachowany</translation>
     </message>
     <message id="main.window.refinement.refine.edge.analyzes.the.brushed.region.add.subtract.corrections">
-      <source>Refine Edge analyzes the brushed region. Add/Subtract corrections are applied last. Source colors stay unchanged.</source>
+      <source>Refine Edge updates the current mask locally. Add/Subtract guides later strokes. Source colors stay unchanged.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
+      <oldsource>Refine Edge analyzes the brushed region. Add/Subtract corrections are applied last. Source colors stay unchanged.</oldsource>
+      <translation type="unfinished">Ulepsz krawędź analizuje obszar pędzla. Dodawanie/odejmowanie działa na końcu. Kolory źródła bez zmian.</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
-      <translation>Ulepsz krawędź analizuje obszar pędzla. Dodawanie/odejmowanie działa na końcu. Kolory źródła bez zmian.</translation>
     </message>
     <message id="main.window.refinement.output">
       <source>Output</source>
@@ -5584,10 +5586,11 @@ Granice dokumentu (szer. × wys.), także ukrytych członków grup.</translation
       <translation>Korekty globalne dostępne. Odniesienie: %1</translation>
     </message>
     <message id="main.window.refinement.ready.limited.color.evidence.in.1.boundary.pixels.original">
-      <source>Ready · limited color evidence in %1 boundary pixels; original coverage retained there.</source>
+      <source>Ready · %1 uncertain pixels left unchanged. Use Add/Subtract to guide refinement.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
+      <oldsource>Ready · limited color evidence in %1 boundary pixels; original coverage retained there.</oldsource>
+      <translation type="unfinished">Gotowe · niewystarczające dane koloru w %1 pikselach krawędzi; zachowano tam pokrycie.</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
-      <translation>Gotowe · niewystarczające dane koloru w %1 pikselach krawędzi; zachowano tam pokrycie.</translation>
     </message>
     <message id="main.window.refinement.ready">
       <source>Ready</source>

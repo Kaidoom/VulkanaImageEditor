@@ -5352,9 +5352,10 @@ Limites alignées sur le document (L × H), contenu masqué des groupes/dossiers
       <translatorcomment>AI-assisted draft; owner linguistic review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.show.refinement.region">
-      <source>Show Refinement Region</source>
+      <source>Show Analysis Area</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
-      <translation>Afficher la zone d’amélioration</translation>
+      <oldsource>Show Refinement Region</oldsource>
+      <translation type="unfinished">Afficher la zone d’amélioration</translation>
       <translatorcomment>AI-assisted draft; owner linguistic review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.reference">
@@ -5484,9 +5485,10 @@ Limites alignées sur le document (L × H), contenu masqué des groupes/dossiers
       <translatorcomment>AI-assisted draft; owner linguistic review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.refine.edge.analyzes.the.brushed.region.add.subtract.corrections">
-      <source>Refine Edge analyzes the brushed region. Add/Subtract corrections are applied last. Source colors stay unchanged.</source>
+      <source>Refine Edge updates the current mask locally. Add/Subtract guides later strokes. Source colors stay unchanged.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
-      <translation>Affiner le contour analyse la zone brossée. Ajouter/Soustraire s'appliquent en dernier. Les couleurs source restent intactes.</translation>
+      <oldsource>Refine Edge analyzes the brushed region. Add/Subtract corrections are applied last. Source colors stay unchanged.</oldsource>
+      <translation type="unfinished">Affiner le contour analyse la zone brossée. Ajouter/Soustraire s'appliquent en dernier. Les couleurs source restent intactes.</translation>
       <translatorcomment>AI-assisted draft; owner linguistic review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.output">
@@ -5556,9 +5558,10 @@ Limites alignées sur le document (L × H), contenu masqué des groupes/dossiers
       <translatorcomment>AI-assisted draft; owner linguistic review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.ready.limited.color.evidence.in.1.boundary.pixels.original">
-      <source>Ready · limited color evidence in %1 boundary pixels; original coverage retained there.</source>
+      <source>Ready · %1 uncertain pixels left unchanged. Use Add/Subtract to guide refinement.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
-      <translation>Prêt · couleurs insuffisantes dans %1 pixels de bord ; couverture d'origine conservée.</translation>
+      <oldsource>Ready · limited color evidence in %1 boundary pixels; original coverage retained there.</oldsource>
+      <translation type="unfinished">Prêt · couleurs insuffisantes dans %1 pixels de bord ; couverture d'origine conservée.</translation>
       <translatorcomment>AI-assisted draft; owner linguistic review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.ready">

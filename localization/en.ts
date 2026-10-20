@@ -3604,7 +3604,7 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
     </message>
     <message id="main.window.refinement.show.refinement.region">
-      <source>Show Refinement Region</source>
+      <source>Show Analysis Area</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
     </message>
     <message id="main.window.refinement.reference">
@@ -3692,7 +3692,7 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
     </message>
     <message id="main.window.refinement.refine.edge.analyzes.the.brushed.region.add.subtract.corrections">
-      <source>Refine Edge analyzes the brushed region. Add/Subtract corrections are applied last. Source colors stay unchanged.</source>
+      <source>Refine Edge updates the current mask locally. Add/Subtract guides later strokes. Source colors stay unchanged.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
     </message>
     <message id="main.window.refinement.output">
@@ -3740,7 +3740,7 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
     </message>
     <message id="main.window.refinement.ready.limited.color.evidence.in.1.boundary.pixels.original">
-      <source>Ready · limited color evidence in %1 boundary pixels; original coverage retained there.</source>
+      <source>Ready · %1 uncertain pixels left unchanged. Use Add/Subtract to guide refinement.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
     </message>
     <message id="main.window.refinement.ready">

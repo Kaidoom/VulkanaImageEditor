@@ -5379,9 +5379,10 @@ Límites alineados (ancho × alto), incluido contenido oculto de grupos/carpetas
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.show.refinement.region">
-      <source>Show Refinement Region</source>
+      <source>Show Analysis Area</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
-      <translation>Mostrar región de perfeccionamiento</translation>
+      <oldsource>Show Refinement Region</oldsource>
+      <translation type="unfinished">Mostrar región de perfeccionamiento</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.reference">
@@ -5511,9 +5512,10 @@ Límites alineados (ancho × alto), incluido contenido oculto de grupos/carpetas
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.refine.edge.analyzes.the.brushed.region.add.subtract.corrections">
-      <source>Refine Edge analyzes the brushed region. Add/Subtract corrections are applied last. Source colors stay unchanged.</source>
+      <source>Refine Edge updates the current mask locally. Add/Subtract guides later strokes. Source colors stay unchanged.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
-      <translation>Perfeccionar borde analiza la zona pintada. Añadir/Restar se aplica al final. Los colores originales no cambian.</translation>
+      <oldsource>Refine Edge analyzes the brushed region. Add/Subtract corrections are applied last. Source colors stay unchanged.</oldsource>
+      <translation type="unfinished">Perfeccionar borde analiza la zona pintada. Añadir/Restar se aplica al final. Los colores originales no cambian.</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.output">
@@ -5583,9 +5585,10 @@ Límites alineados (ancho × alto), incluido contenido oculto de grupos/carpetas
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.ready.limited.color.evidence.in.1.boundary.pixels.original">
-      <source>Ready · limited color evidence in %1 boundary pixels; original coverage retained there.</source>
+      <source>Ready · %1 uncertain pixels left unchanged. Use Add/Subtract to guide refinement.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
-      <translation>Listo · evidencia de color limitada en %1 píxeles de borde; allí se conserva la cobertura original.</translation>
+      <oldsource>Ready · limited color evidence in %1 boundary pixels; original coverage retained there.</oldsource>
+      <translation type="unfinished">Listo · evidencia de color limitada en %1 píxeles de borde; allí se conserva la cobertura original.</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.ready">

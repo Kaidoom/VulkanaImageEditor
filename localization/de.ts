@@ -5379,9 +5379,10 @@ Dokumentparallele Grenzen (B × H), auch ausgeblendeter Gruppen-/Ordnerinhalte.<
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.show.refinement.region">
-      <source>Show Refinement Region</source>
+      <source>Show Analysis Area</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
-      <translation>Verfeinerungsbereich anzeigen</translation>
+      <oldsource>Show Refinement Region</oldsource>
+      <translation type="unfinished">Verfeinerungsbereich anzeigen</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.reference">
@@ -5511,9 +5512,10 @@ Dokumentparallele Grenzen (B × H), auch ausgeblendeter Gruppen-/Ordnerinhalte.<
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.refine.edge.analyzes.the.brushed.region.add.subtract.corrections">
-      <source>Refine Edge analyzes the brushed region. Add/Subtract corrections are applied last. Source colors stay unchanged.</source>
+      <source>Refine Edge updates the current mask locally. Add/Subtract guides later strokes. Source colors stay unchanged.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
-      <translation>Kante verfeinern analysiert den bemalten Bereich. Hinzufügen/Abziehen wird zuletzt angewendet. Quellfarben bleiben unverändert.</translation>
+      <oldsource>Refine Edge analyzes the brushed region. Add/Subtract corrections are applied last. Source colors stay unchanged.</oldsource>
+      <translation type="unfinished">Kante verfeinern analysiert den bemalten Bereich. Hinzufügen/Abziehen wird zuletzt angewendet. Quellfarben bleiben unverändert.</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.output">
@@ -5583,9 +5585,10 @@ Dokumentparallele Grenzen (B × H), auch ausgeblendeter Gruppen-/Ordnerinhalte.<
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.ready.limited.color.evidence.in.1.boundary.pixels.original">
-      <source>Ready · limited color evidence in %1 boundary pixels; original coverage retained there.</source>
+      <source>Ready · %1 uncertain pixels left unchanged. Use Add/Subtract to guide refinement.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
-      <translation>Bereit · Für %1 Randpixel fehlen eindeutige Farbinformationen; dort bleibt die ursprüngliche Abdeckung erhalten.</translation>
+      <oldsource>Ready · limited color evidence in %1 boundary pixels; original coverage retained there.</oldsource>
+      <translation type="unfinished">Bereit · Für %1 Randpixel fehlen eindeutige Farbinformationen; dort bleibt die ursprüngliche Abdeckung erhalten.</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.ready">

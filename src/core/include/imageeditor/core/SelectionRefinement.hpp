@@ -7,8 +7,8 @@
 
 namespace imageeditor::core {
 
-// Ephemeral, platform-neutral processing. The caller owns the immutable input
-// and reference. Grid centers map to document centers through gridToDocument.
+// Ephemeral, platform-neutral processing. Input/reference remain immutable;
+// ordered strokes refine a working matte before non-accumulating adjustments.
 struct RefinementSettings {
   static constexpr double maximumRadius = 250;
   double radius{}, smooth{}, feather{}, contrast{}, shift{};
@@ -67,8 +67,10 @@ struct RefinementAnalysis {
   std::shared_ptr<const SmartReferenceImage> reference;
   double radius{}, scale{};
   Vec2d origin;
-  std::vector<RefinementStrokeState> regions;
-  std::vector<float> coverage;
+  std::vector<RefinementStrokeState> strokes;
+  // Pre-adjustment working matte and explicit user correction anchors. Empty
+  // correction planes mean no manual guidance has been painted.
+  std::vector<float> coverage, correctionValue, correctionWeight;
   std::size_t analyzed{}, unresolved{};
 };
 struct RefinementResult {
@@ -78,8 +80,9 @@ struct RefinementResult {
   bool cancelled{};
   std::shared_ptr<const RefinementAnalysis> analysis;
 };
-// Order: immutable input -> local color-pair matting -> median smoothing ->
-// Euclidean grayscale offset -> Gaussian feather -> contrast -> manual strokes.
+// Order: input -> radius analysis -> ordered local refinement/correction strokes
+// -> global adjustments once -> protect explicit corrections. A cached stroke
+// prefix may be reused; provisional results never become implicit input.
 // A missing image disables only matting. No foreground color recovery occurs.
 [[nodiscard]] RefinementResult
 refineSelection(const SelectionState &input,

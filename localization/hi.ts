@@ -5379,9 +5379,10 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.show.refinement.region">
-      <source>Show Refinement Region</source>
+      <source>Show Analysis Area</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
-      <translation>सुधार क्षेत्र दिखाएँ</translation>
+      <oldsource>Show Refinement Region</oldsource>
+      <translation type="unfinished">सुधार क्षेत्र दिखाएँ</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.reference">
@@ -5511,9 +5512,10 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.refine.edge.analyzes.the.brushed.region.add.subtract.corrections">
-      <source>Refine Edge analyzes the brushed region. Add/Subtract corrections are applied last. Source colors stay unchanged.</source>
+      <source>Refine Edge updates the current mask locally. Add/Subtract guides later strokes. Source colors stay unchanged.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
-      <translation>किनारा सुधार ब्रश वाले क्षेत्र का विश्लेषण करता है। जोड़ने/घटाने के सुधार आखिर में लगते हैं। मूल रंग नहीं बदलते।</translation>
+      <oldsource>Refine Edge analyzes the brushed region. Add/Subtract corrections are applied last. Source colors stay unchanged.</oldsource>
+      <translation type="unfinished">किनारा सुधार ब्रश वाले क्षेत्र का विश्लेषण करता है। जोड़ने/घटाने के सुधार आखिर में लगते हैं। मूल रंग नहीं बदलते।</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.output">
@@ -5583,9 +5585,10 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.ready.limited.color.evidence.in.1.boundary.pixels.original">
-      <source>Ready · limited color evidence in %1 boundary pixels; original coverage retained there.</source>
+      <source>Ready · %1 uncertain pixels left unchanged. Use Add/Subtract to guide refinement.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
-      <translation>तैयार · किनारे के %1 पिक्सेल में रंग का प्रमाण सीमित है; वहाँ मूल कवरेज रखा गया।</translation>
+      <oldsource>Ready · limited color evidence in %1 boundary pixels; original coverage retained there.</oldsource>
+      <translation type="unfinished">तैयार · किनारे के %1 पिक्सेल में रंग का प्रमाण सीमित है; वहाँ मूल कवरेज रखा गया।</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.ready">

@@ -17,12 +17,16 @@ Output and Apply/Cancel remain visible while the controls scroll.
 
 ## Processing contract
 
-The platform-neutral service starts from immutable R8 input, settings and
-distance-sampled brush strokes. It evaluates in this order:
+The platform-neutral service retains immutable R8 input for Original, Reset and
+Cancel, and evaluates distance-sampled brush strokes in order on a working matte:
 
 1. **Image-guided refinement.** Radius (0–250 px) defines a document-pixel band around
-   coverage boundaries. Refine Edge strokes union additional uncertain regions;
-   they do not paint foreground. A zero Radius still permits brushed regions.
+   coverage boundaries. Each Refine Edge stroke analyzes its own footprint on
+   the current working matte, not the union of earlier strokes. With nonzero
+   Radius, the automatic band follows the current working edges too. A zero
+   Radius limits automatic changes to the new brushed area.
+   Add/Subtract updates the working matte, records explicit correction anchors
+   and supplies confident foreground/background evidence for later strokes.
 2. **Smooth.** Relaxed 3×3 median filtering reduces boundary irregularities,
    with fractional passes. This is a rank operation, not Gaussian feathering.
    Larger amounts can remove small details.
@@ -34,13 +38,20 @@ distance-sampled brush strokes. It evaluates in this order:
 5. **Contrast.** Coverage becomes `a^p / (a^p + (1-a)^p)`, where
    `p = 1 + 15 × contrast` and contrast is normalized to [0,1]. Zero is identity;
    endpoints stay fixed and the maximum is finite.
-6. **Manual corrections.** Add/Subtract strokes mix toward white/black last,
-   so automatic/global settings cannot overwrite deliberate corrections.
+6. **Correction protection.** Global results are blended back toward the
+   unadjusted working matte at manually corrected pixels. Full-strength
+   corrections remain exact; partial corrections attenuate automatic changes.
+   Brush opacity is not deposited again during preview/global adjustment.
 
 Intermediate coverage is floating point; final publication quantizes to R8.
 Each stroke unions its dabs rather than repeatedly depositing opacity at the
-same point. Edge-region repainting is idempotent; separate Add/Subtract strokes
-may intentionally build strength. The existing brush engine owns spacing,
+same point. Separate strokes start from the previous result; low-strength
+Refine Edge and Add/Subtract strokes can build progressively. A converged edge
+may remain unchanged. Previews of one active gesture always use its completed-
+stroke checkpoint, so event cadence cannot compound the operation.
+Smooth, Shift Edge, Feather and Contrast are evaluated once after the working
+matte; their preview output never becomes the next stroke's input.
+The existing brush engine owns spacing,
 pressure and document-coordinate input; refinement uses a round tip, unit Flow
 (pressure still modulates it), and keeps its controls local to the session.
 The configured brush-size shortcuts (`[` / `]` by default) resize that local
@@ -60,7 +71,14 @@ original mask/selection; unchanged tiles are shared.
 This is a native local color-pair sampling matte with confidence-weighted cleanup,
 not a flood fill, neural model or foreground-color recovery. Primary samples lie
 outside the uncertain region: coverage ≥0.98 for foreground and ≤0.02 for
-background. Intermediate gray is an estimate, not an automatic hard label.
+background. Automatic estimates are not promoted into new appearance labels:
+sampling and swallowed-component recovery retain the original evidence, updated
+by explicit corrections, while fitting uses the current working matte as its
+prior. Full-strength explicit corrections can supply samples inside the
+analysis area as well. Nearby automatic samples that contradict their colors
+(squared RGB distance below 0.0025) are excluded, unless the user supplied
+conflicting evidence for both classes. Intermediate gray is an estimate, not
+an automatic hard label.
 Image borders are not assumed to be background.
 
 A wide Radius or Refine Edge stroke must not erase all foreground evidence.
@@ -87,12 +105,16 @@ Reliable fits stay unchanged. Others combine nearby proposals in a 5×5 working-
 pixel neighborhood, weighted by confidence, spatial distance and reference-color
 similarity. This removes the former abrupt residual cutoff and speckled retained
 pixels without globally feathering the mask. Insufficient aggregate evidence
-still retains the input locally. Transparent source pixels provide no evidence.
+still retains the current working coverage locally. Transparent source pixels
+provide no evidence.
 
 Only uncertain pixels are modified. An explicitly broad brush region expands the
 sampling context without changing trustworthy coverage outside that region.
-Duplicate region strokes remain idempotent; cleanup is evaluated once from the
-immutable fit, not accumulated across previews. There is no dense image-wide
+Cleanup is evaluated once from each stroke's immutable fit, not accumulated
+across live previews. Previous brush footprints do not remain an analysis
+constraint. Show Analysis Area displays the latest Refine Edge area (plus the
+current automatic Radius band), not the selection boundary or a stroke-history
+outline. Add/Subtract clears that analysis overlay. There is no dense image-wide
 linear system.
 
 The method needs trustworthy samples on both sides. Closely matching colors,
@@ -174,16 +196,19 @@ reuses completed results or restarts the latest pending request. Final destructi
 joins retired workers before UI teardown. Pan/zoom and inspection choices
 do not rerun the solver.
 
-Reference pixels and typed sources are reused. Radius/Refine Edge changes rebuild
-analysis; global/manual changes reuse valid guided coverage. The canvas uses the
+Reference pixels and typed sources are reused. Completed-stroke prefixes cache
+the pre-adjustment matte and correction anchors; a new stroke evaluates only
+the uncached suffix. Radius/reference changes replay the ordered strokes, while
+global adjustments reuse the working matte. Undo/Redo replays from immutable
+input when the cached prefix no longer matches. The canvas uses the
 existing compressed mask atlas and revisioned source textures, without reuploading
 unchanged source RGBA. No inactive-document refinement is scheduled.
 
 ## Limits and verification
 
 The working grid is limited to 24 Mi pixels, 32768 pixels per side and 16 samples
-per document pixel on each axis, with a conservative 64 bytes/pixel solve budget
-(1.5 GiB maximum).
+per document pixel on each axis, with an 80 bytes/pixel solve budget including
+correction planes (1.5 GiB maximum, approximately 19.2 Mi pixels at this budget).
 Reference rendering, derived caches, mask GPU storage and duplication also retain
 their existing subsystem limits. Offset work is preflighted; stroke history is
 bounded to 4096 strokes / 262144 dabs. Requests fail explicitly, never at a secretly
@@ -195,7 +220,10 @@ Release tests cover identity/return-to-neutral, trusted coverage, local correcti
 precedence, independent color/alpha fixtures, event cadence, cancellation,
 history/checkpoints, transformed masks and storage expansion, text/shape/adjustment
 targets, clipping-base duplication, project reopen and CPU/Vulkan mask rendering.
-Native workspace tests run on Wayland and XCB with Vulkan validation.
+Native workspace tests run on Wayland and XCB with Vulkan validation. Progressive
+checks cover disjoint strokes, repeated low-strength passes, in-stroke dab
+invariance, correction guidance/protection, cache replay/branching and returning
+global settings to neutral without baking adjustments into brush results.
 
 `imageeditor_refinement_quality_tests [output-directory] [owned-image]` generates
 known-alpha geometry, text holes, strands, feathered edges, textured/ambiguous
@@ -214,8 +242,8 @@ checked for strands, soft edges and textured backgrounds.
 
 `imageeditor_selection_refinement_tests --profile` measures the core;
 `imageeditor_refinement_workspace_tests --native --profile` includes preparation,
-publication and a submitted Vulkan frame. A representative Fedora 44/Qt 6.11.2
-Release run with validation measured:
+publication and a submitted Vulkan frame. A Fedora 44/Qt 6.11.2 baseline Release
+run with validation, before progressive stroke evaluation, measured:
 
 | Canvas | Reference/initial workspace | Subsequent Radius / Feather / Contrast |
 | --- | ---: | ---: |

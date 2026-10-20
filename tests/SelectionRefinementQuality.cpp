@@ -187,6 +187,15 @@ int main(int argc, char **argv) {
                                    1., .0022, .0001};
     if (after > maximumError[std::size_t(kind)])
       ++failed;
+    if (kind == 7) {
+      auto repeated = state;
+      for (int pass = 1; pass < 10; ++pass)
+        repeated.strokes.push_back(state.strokes.front());
+      const auto result = refineSelection(input, &image, repeated);
+      const auto repeatedError = mae(result.coverage, truth);
+      std::cout << "Strands after 10 strokes: error=" << repeatedError << '\n';
+      if (repeatedError > maximumError[std::size_t(kind)]) ++failed;
+    }
     const std::array<QImage, 7> images{
         gray(input),
         gray(refined.coverage),

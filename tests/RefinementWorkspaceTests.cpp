@@ -43,8 +43,10 @@ void spin() {
   QCoreApplication::sendPostedEvents();
   QCoreApplication::processEvents();
 }
-bool wait(const std::function<bool()> &predicate) {
-  for (int i = 0; i < 500; ++i) {
+bool wait(const std::function<bool()> &predicate, int timeoutMs = 5000) {
+  QElapsedTimer elapsed;
+  elapsed.start();
+  while (elapsed.elapsed() < timeoutMs) {
     spin();
     if (predicate())
       return true;
@@ -98,6 +100,8 @@ int main(int argc, char **argv) {
     w.resize(1320, 900);
     w.show();
     spin();
+    if (vulkan && !wait([&] { return w.startupGraphicsReady(); }, 60000))
+      throw std::runtime_error("Graphics startup did not complete before refinement tests");
     QImage image(128, 96, QImage::Format_RGBA8888);
     image.fill(QColor(90, 170, 230, 255));
     const auto path = temp.filePath("source.png");
@@ -143,10 +147,17 @@ int main(int argc, char **argv) {
       return nullptr;
     };
     auto ready = [&] {
-      return wait([&] {
+      const bool complete = wait([&] {
         auto *p = panel();
         return p && p->findChild<QPushButton *>("RefineApply")->isEnabled();
-      });
+      }, 20000); // Unoptimized transformed/clipped reference preparation is slower.
+      if (!complete) {
+        const auto message = panel()
+            ? panel()->findChild<QLabel *>("RefineStatus")->text()
+            : QStringLiteral("No active workspace");
+        throw std::runtime_error(QString("Refinement did not become ready: %1").arg(message).toStdString());
+      }
+      return true;
     };
     auto cancel = [&] {
       panel()->findChild<QPushButton *>("RefineCancel")->click();
@@ -421,14 +432,33 @@ int main(int argc, char **argv) {
     refineMask->trigger();
     CHECK(ready());
     panel()->findChild<QComboBox *>("RefineBrush")->setCurrentIndex(1);
+    set("RefineBrushSize", 12);
+    set("RefineBrushHardness", 100);
+    set("RefineBrushStrength", 50);
     c::NormalizedPointerSample sample;
     sample.documentPosition = {50.5, 40.5};
     sample.buttons = c::PointerButtonPrimary;
     CHECK(canvas->onBrushStrokeBegan(sample));
+    // Allow a provisional result to publish; it must not become the next
+    // input for this same gesture or compound a repeated pointer event.
+    QTest::qWait(150);
+    for (int i = 0; i < 4; ++i) {
+      canvas->onBrushStrokeMoved(sample);
+      QTest::qWait(45);
+    }
+    CHECK(canvas->onBrushStrokeEnded(sample));
+    // Start another real stroke before the preceding worker has published.
+    CHECK(canvas->onBrushStrokeBegan(sample));
     CHECK(canvas->onBrushStrokeEnded(sample));
     CHECK(ready());
+    set("RefineFeather", 5);
+    set("RefineFeather", 0);
+    panel()->findChild<QPushButton *>("RefineReset")->click();
+    CHECK(ready());
+    undo->trigger();
+    CHECK(ready());
     apply();
-    CHECK(doc->layer(id)->mask->coverage->coverageAtDocumentPixel(50, 40) > 0);
+    CHECK(doc->layer(id)->mask->coverage->coverageAtDocumentPixel(50, 40) == 191);
     CHECK(doc->selection()->bounds().empty());
     // Pending jobs cannot escape Cancel or redirect into a different tab.
     refresh();

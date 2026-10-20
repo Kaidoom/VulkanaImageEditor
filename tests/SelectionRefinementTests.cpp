@@ -179,8 +179,10 @@ void matting() {
   CHECK(local.analyzedPixels > 0);
   CHECK(at(local.coverage, 0, 0) == 255);
   state.strokes.push_back(stroke);
-  CHECK(refineSelection(f.input, &f.image, state)
-            .coverage->equivalent(*local.coverage));
+  const auto repeated = refineSelection(f.input, &f.image, state);
+  CHECK(repeated.region->equivalent(*local.region));
+  CHECK(at(repeated.coverage, 0, 0) == 255);
+  CHECK(at(repeated.coverage, 191, 127) == 0);
   auto ambiguous = f.image;
   std::fill(ambiguous.pixels.begin(), ambiguous.pixels.end(),
             Rgba8{100, 100, 100, 255});
@@ -236,6 +238,107 @@ void strokes() {
   const auto a = refineSelection(input, nullptr, {{}, {draw(2)}}).coverage;
   const auto b = refineSelection(input, nullptr, {{}, {draw(80)}}).coverage;
   CHECK(a->equivalent(*b)); // event cadence is not brush spacing
+}
+RefinementStrokeState dabStroke(RefinementBrush kind, Vec2d center,
+                                double diameter, double strength = 1) {
+  auto stroke = std::make_shared<RefinementStroke>();
+  stroke->kind = kind;
+  stroke->hardness = 1;
+  BrushDab dab;
+  dab.documentCenter = center;
+  dab.diameterPixels = diameter;
+  dab.strokeOpacity = strength;
+  stroke->dabs.push_back(dab);
+  return stroke;
+}
+void progressiveStrokes() {
+  auto f = strands(192, 128);
+  const auto firstStroke = dabStroke(RefinementBrush::Edge, {90, 28}, 48);
+  const auto secondStroke = dabStroke(RefinementBrush::Edge, {90, 100}, 44);
+  RefinementState state{{}, {firstStroke}};
+  RefinementOptions options;
+  options.referenceOwner = std::make_shared<const SmartReferenceImage>(f.image);
+  const auto first = refineSelection(f.input, options.referenceOwner.get(), state, options);
+  CHECK(!first.coverage->equivalent(*f.input));
+  options.analysis = first.analysis;
+  state.strokes.push_back(secondStroke);
+  const auto second = refineSelection(f.input, options.referenceOwner.get(), state, options);
+  CHECK(at(second.region, 90, 28) == 0); // Last stroke, not all earlier footprints.
+  CHECK(at(second.region, 90, 100) == 255);
+  CHECK(!second.coverage->equivalent(*first.coverage));
+  for (int y = 0; y < 128; ++y)
+    for (int x = 0; x < 192; ++x)
+      if (at(second.region, x, y) == 0)
+        CHECK(at(second.coverage, x, y) == at(first.coverage, x, y));
+  CHECK(second.coverage->equivalent(*refineSelection(f.input, &f.image, state).coverage));
+
+  // A low-strength second pass works on the first pass's result. Extra dabs
+  // within one stroke do not apply that same strength repeatedly.
+  const auto gentle = dabStroke(RefinementBrush::Edge, {90, 64}, 180, .35);
+  state = {{}, {gentle}};
+  const auto one = refineSelection(f.input, &f.image, state);
+  auto duplicateDabs = std::make_shared<RefinementStroke>(*gentle);
+  duplicateDabs->dabs.push_back(duplicateDabs->dabs.front());
+  CHECK(one.coverage->equivalent(*refineSelection(f.input, &f.image, {{}, {duplicateDabs}}).coverage));
+  state.strokes.push_back(gentle);
+  const auto two = refineSelection(f.input, &f.image, state);
+  CHECK(error(two.coverage, f) < error(one.coverage, f));
+  for (int i = 0; i < 8; ++i) state.strokes.push_back(gentle);
+  const auto ten = refineSelection(f.input, &f.image, state);
+  std::cout << "progressive MAE one=" << error(one.coverage, f)
+            << " two=" << error(two.coverage, f) << " ten=" << error(ten.coverage, f) << '\n';
+  CHECK(error(ten.coverage, f) < error(two.coverage, f));
+  CHECK(at(ten.coverage, 0, 0) == at(f.input, 0, 0));
+  CHECK(at(ten.coverage, 191, 127) == at(f.input, 191, 127));
+
+  // No filter accumulation, including when the cached prefix was rendered
+  // with different global settings. Undo and a new branch replay correctly.
+  state = {{}, {firstStroke, secondStroke}};
+  options.analysis = second.analysis;
+  state.settings.feather = 5;
+  state.settings.contrast = .2;
+  const auto adjusted = refineSelection(f.input, options.referenceOwner.get(), state, options);
+  CHECK(adjusted.analysis == second.analysis);
+  CHECK(adjusted.coverage->equivalent(*refineSelection(f.input, &f.image, state).coverage));
+  state.settings = {};
+  CHECK(refineSelection(f.input, options.referenceOwner.get(), state, options)
+            .coverage->equivalent(*second.coverage));
+  state.strokes.pop_back();
+  CHECK(refineSelection(f.input, options.referenceOwner.get(), state, options)
+            .coverage->equivalent(*first.coverage));
+  state.strokes.push_back(gentle);
+  CHECK(refineSelection(f.input, options.referenceOwner.get(), state, options)
+            .coverage->equivalent(*refineSelection(f.input, &f.image, state).coverage));
+  CHECK(refineSelection(f.input, options.referenceOwner.get(), {}, options).coverage == f.input);
+
+  // A confirmed background patch INSIDE the new brush region supplies the
+  // missing background evidence. It remains protected from refinement/global
+  // filters, but nearby pixels outside the correction can now be solved.
+  const auto all = SelectionMask::filled(f.image.extent, 255);
+  const auto remove = dabStroke(RefinementBrush::Subtract, {140.5, 64.5}, 8);
+  const auto edge = dabStroke(RefinementBrush::Edge, {115, 64}, 90);
+  const auto unguided = refineSelection(all, &f.image, {{}, {edge}});
+  CHECK(at(unguided.coverage, 125, 64) == 255);
+  state = {{}, {remove, edge}};
+  const auto guided = refineSelection(all, &f.image, state);
+  std::cout << "guided background=" << int(at(guided.coverage, 125, 64)) << '\n';
+  CHECK(at(guided.coverage, 125, 64) < 8);
+  CHECK(at(guided.coverage, 140, 64) == 0);
+  state.settings = {0, 2, 5, .2, 3};
+  CHECK(at(refineSelection(all, &f.image, state).coverage, 140, 64) == 0);
+  state.strokes.push_back(dabStroke(RefinementBrush::Add, {140.5, 64.5}, 8));
+  CHECK(at(refineSelection(all, &f.image, state).coverage, 140, 64) == 255);
+
+  const auto empty = SelectionMask::filled(f.image.extent, 0);
+  const auto add = dabStroke(RefinementBrush::Add, {40.5, 40.5}, 8, .5);
+  CHECK(at(refineSelection(empty, &f.image, {{}, {add}}).coverage, 40, 40) == 128);
+  CHECK(at(refineSelection(empty, &f.image, {{}, {add, add}}).coverage, 40, 40) == 191);
+  auto ambiguous = f.image;
+  std::fill(ambiguous.pixels.begin(), ambiguous.pixels.end(), Rgba8{100, 100, 100, 255});
+  const auto corrected = refineSelection(empty, &ambiguous, {{}, {add}});
+  const auto local = dabStroke(RefinementBrush::Edge, {40.5, 40.5}, 30);
+  CHECK(refineSelection(empty, &ambiguous, {{}, {add, local, local}})
+            .coverage->equivalent(*corrected.coverage));
 }
 void history() {
   EditorSession session;
@@ -333,6 +436,7 @@ int main(int argc, char **argv) {
   globals();
   matting();
   strokes();
+  progressiveStrokes();
   history();
   smallForegroundEvidence();
   {
