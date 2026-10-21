@@ -492,8 +492,9 @@ try {
     bool cancelled = false;
     {
         WorkspaceDialog presenter(*workspace_, *this);
-        QDialog card(&presenter, Qt::Widget);
+        QDialog card(&presenter, Qt::SubWindow | Qt::FramelessWindowHint);
         card.setObjectName("SnapshotTimelineCaptureProgress");
+        card.setAttribute(Qt::WA_StyledBackground);
         auto* layout = new QVBoxLayout(&card);
         layout->addWidget(i18n::make<QLabel>(i18n::text("snapshot.timeline.preparing"), &card));
         auto* progress = new QProgressBar(&card); progress->setRange(0,1000); progress->setMinimumWidth(280);

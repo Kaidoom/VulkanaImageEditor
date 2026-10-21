@@ -21,6 +21,8 @@
 #include "imageeditor/ui/PsdReviewText.hpp"
 #include "imageeditor/ui/PsdExportPanel.hpp"
 #include "imageeditor/ui/PsdImportDialog.hpp"
+#include "imageeditor/ui/GifExportDialog.hpp"
+#include "imageeditor/ui/SnapshotTimelinePanel.hpp"
 #include "PsdFixture.hpp"
 #include <QAbstractItemView>
 #include <QAbstractItemDelegate>
@@ -30,6 +32,7 @@
 #include <QStyleOptionViewItem>
 #include <QTextLayout>
 #include <QApplication>
+#include <QBuffer>
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QFile>
@@ -52,6 +55,7 @@
 #include <QElapsedTimer>
 #include <QVBoxLayout>
 #include <iostream>
+#include <cstring>
 namespace u = imageeditor::ui;
 namespace i = imageeditor::ui::i18n;
 int failures = 0;
@@ -127,6 +131,50 @@ void recentUi(const QString& output)
             registration.grab().save(output+"/registration-"+language+".png");
         }
     }
+}
+void gifAndTimeline(const QString& output)
+{
+    auto& service = i::Localization::instance(); service.setLanguage("en");
+    QImage image(8, 8, QImage::Format_RGBA8888); image.fill(QColor(40, 90, 180));
+    QByteArray png; QBuffer buffer(&png); CHECK(buffer.open(QIODevice::WriteOnly));
+    CHECK(image.save(&buffer, "PNG"));
+    auto capture = std::make_shared<imageeditor::core::SnapshotImage>();
+    capture->extent = {8, 8}; capture->png.resize(std::size_t(png.size()));
+    std::memcpy(capture->png.data(), png.constData(), std::size_t(png.size()));
+    imageeditor::core::SnapshotTimelineState state; state.frames[0].image = capture;
+    QWidget host; host.resize(1400, 800); host.show();
+    u::GifExportDialog dialog(state, &host); service.direction(&dialog); dialog.show();
+    u::SnapshotTimelinePanel timeline(&host); timeline.setGeometry(0, 636, 1400, 164);
+    timeline.setDocumentAvailable(true); timeline.setTimeline(state); timeline.show();
+    QElapsedTimer timer; timer.start();
+    while (!dialog.previewReady() && timer.elapsed() < 5000) QTest::qWait(10);
+    CHECK(dialog.previewReady());
+    const auto settings = dialog.settings();
+    for (const auto& language : service.languages()) {
+        CHECK(service.setLanguage(language.id)); settle();
+        CHECK(dialog.settings() == settings && dialog.previewReady());
+        CHECK(dialog.layoutDirection() == (language.rtl ? Qt::RightToLeft : Qt::LeftToRight));
+        CHECK(timeline.layoutDirection() == Qt::LeftToRight);
+        CHECK(dialog.findChild<QDoubleSpinBox*>("GifExportColors")->accessibleName() == i::text("gif.export.colors"));
+        CHECK(dialog.findChild<QComboBox*>("GifExportDither")->itemText(1) == i::text("gif.export.diffusion"));
+        CHECK(timeline.findChild<QToolButton*>("SnapshotTimelineExportGif")->text() == i::text("gif.export.title"));
+        for (auto* label : dialog.findChildren<QLabel*>()) if (label->isVisible() && !label->wordWrap()) {
+            if (label->width() < label->minimumSizeHint().width())
+                std::cerr << "GIF label clipped in " << language.id.toStdString() << ": " << label->text().toStdString() << '\n';
+            CHECK(label->width() >= label->minimumSizeHint().width());
+        }
+        for (QWidget* owner : {static_cast<QWidget*>(&dialog), static_cast<QWidget*>(&timeline)})
+            for (auto* button : owner->findChildren<QAbstractButton*>()) if (button->isVisible()) {
+                CHECK(owner->rect().contains(QRect(button->mapTo(owner, QPoint{}), button->size())));
+                if (!button->text().isEmpty()) CHECK(button->width() >= button->minimumSizeHint().width());
+            }
+        if (!output.isEmpty()) {
+            QDir().mkpath(output);
+            dialog.grab().save(output + "/gif-export-" + language.id + ".png");
+            timeline.grab().save(output + "/snapshot-timeline-" + language.id + ".png");
+        }
+    }
+    dialog.reject(); service.setLanguage("en");
 }
 void adjustmentCategories(const QString& output)
 {
@@ -615,7 +663,7 @@ int main(int argc, char** argv)
 #endif
     u::applyEditorTheme(app);
     const auto output = qEnvironmentVariable("VULKANA_LOCALIZATION_SCREENSHOTS");
-    localeMatching(); bindings(); composition(); dropdown(output); dialogButtons();recentUi(output);
+    localeMatching(); bindings(); composition(); dropdown(output); dialogButtons();recentUi(output);gifAndTimeline(output);
     adjustmentCategories(output); psdReview(output); workspace(output); workspace({}, "ar");
     std::cout << "Localization failures: " << failures << '\n'; return failures ? 1 : 0;
 }

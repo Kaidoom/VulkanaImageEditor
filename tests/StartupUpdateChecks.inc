@@ -80,9 +80,14 @@ void startupPresentationTests()
         const auto depth = window.editorSession().history().undoDepth();
         int notices = 0, about = 0, canvases = 0;
         bool completed = false;
+        QPointer<QWidget> handledNotice;
         QTimer responder;
         QObject::connect(&responder, &QTimer::timeout, &window, [&] {
-            if (auto* popup = window.findChild<QWidget*>("StartupUpdateNotification"); popup && popup->isVisible()) {
+            if (auto* popup = window.findChild<QWidget*>("StartupUpdateNotification");
+                popup && popup->isVisible() && popup != handledNotice) {
+                // View Update is queued; polling again before it opens About
+                // must not count/click the same notification a second time.
+                handledNotice = popup;
                 ++notices;
                 CHECK(!popup->isWindow() && !popup->windowHandle());
                 auto* workspace = dynamic_cast<u::OverlayDockWorkspace*>(window.findChild<QWidget*>("CanvasWorkspace"));
@@ -334,9 +339,12 @@ void startupSimulationTests()
         const auto depth = window.editorSession().history().undoDepth();
         int notices = 0, about = 0;
         bool completed = false;
+        QPointer<QWidget> handledNotice;
         QTimer responder;
         QObject::connect(&responder, &QTimer::timeout, &window, [&] {
-            if (auto* popup = window.findChild<QWidget*>("StartupUpdateNotification"); popup && popup->isVisible()) {
+            if (auto* popup = window.findChild<QWidget*>("StartupUpdateNotification");
+                popup && popup->isVisible() && popup != handledNotice) {
+                handledNotice = popup;
                 ++notices;
                 CHECK(!popup->isWindow() && !popup->windowHandle());
                 auto* workspace = dynamic_cast<u::OverlayDockWorkspace*>(window.findChild<QWidget*>("CanvasWorkspace"));

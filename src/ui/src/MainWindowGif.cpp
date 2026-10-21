@@ -21,9 +21,11 @@ namespace imageeditor::ui {
 namespace {
 class GifProgress final : public QDialog {
 public:
-    GifProgress(QWidget* parent, std::atomic_bool& cancelled) : QDialog(parent, Qt::Widget), cancelled_(cancelled)
+    GifProgress(QWidget* parent, std::atomic_bool& cancelled)
+        : QDialog(parent, Qt::SubWindow | Qt::FramelessWindowHint), cancelled_(cancelled)
     {
         setObjectName("GifImportProgress");
+        setAttribute(Qt::WA_StyledBackground);
         auto* layout = new QVBoxLayout(this);
         layout->addWidget(i18n::make<QLabel>(i18n::text("gif.import.preparing"), this));
         progress = new QProgressBar(this);

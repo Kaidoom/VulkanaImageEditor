@@ -37,6 +37,7 @@
 #include <QTemporaryDir>
 #include <QTest>
 #include <QVulkanInstance>
+#include <QtGui/qguiapplication_platform.h>
 
 #include <algorithm>
 #include <iostream>
@@ -142,6 +143,20 @@ struct Fixture {
         window.show();
         window.activateWindow();
         CHECK(imageeditor::test::waitForGraphicsStartup(window));
+#if QT_CONFIG(wayland)
+        if (instance) {
+            if (auto* wayland = qGuiApp->nativeInterface<QNativeInterface::QWaylandApplication>();
+                wayland && !wayland->lastInputSeat()) {
+                // QTest events bypass the compositor and cannot provide the
+                // input serial needed for native menus and restoring a window.
+                // Let the compositor deliver pointer-enter to this fixture.
+                window.showMaximized();
+                CHECK(waitFor([&] { return wayland->lastInputSeat() != nullptr; }));
+                window.showNormal();
+                CHECK(waitFor([&] { return !window.isMaximized() && window.size() == QSize(1400, 900); }));
+            }
+        }
+#endif
         for (auto* candidate : QGuiApplication::allWindows())
             if (candidate->objectName() == "VulkanCanvasWindow")
                 canvas = dynamic_cast<r::CanvasWindow*>(candidate);
@@ -152,6 +167,15 @@ struct Fixture {
         hooks.chooseGifExportPath = [this] { return exportPath; };
         hooks.confirmReplace = [](const QString&) { return true; };
         hooks.reportError = [this](const QString& error) { errors.push_back(error); };
+        hooks.progress = [this](auto, auto) {
+            for (const auto* name : {"SnapshotTimelineCaptureProgress", "GifImportProgress"})
+                if (auto* card = window.findChild<QDialog*>(name)) {
+                    CHECK(!card->isWindow() && !card->windowHandle());
+                    CHECK(card->parentWidget()->objectName() == "WorkspaceDialogShield");
+                    CHECK(card->isVisible());
+                }
+            return true;
+        };
         window.setFileInteractions(std::move(hooks));
         CHECK(window.openImageFromPath(makeFixture(files)));
         settle();
@@ -620,7 +644,7 @@ void focusedPreview(QVulkanInstance* instance = nullptr)
         menu->popup(f.window.menuBar()->mapToGlobal(QPoint(4, f.window.menuBar()->height())));
         settle();
         CHECK(!f.previewVisible());
-        CHECK(menu->isVisible());
+        CHECK(waitFor([&] { return menu->isVisible(); }));
         menu->close();
         settle();
     }
@@ -881,7 +905,9 @@ void gifExportWorkflow(QVulkanInstance* instance = nullptr)
     f.exportPath=f.files.filePath("cancelled.gif");
     QTimer close;
     QObject::connect(&close,&QTimer::timeout,&f.window,[&]{
-        if(auto* dialog=f.window.findChild<QDialog*>("GifExportDialog");dialog && dialog->isVisible())dialog->reject();
+        // Cancellation must also end the nested loop if a native-window check
+        // failed while the host was minimized or unexposed.
+        if(auto* dialog=f.window.findChild<QDialog*>("GifExportDialog"))dialog->reject();
     });
     close.start(10);f.click("SnapshotTimelineExportGif");close.stop();
     CHECK(!QFile::exists(f.exportPath));before.verify(f);
