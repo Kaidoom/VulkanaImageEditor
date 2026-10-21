@@ -3,6 +3,7 @@
 #include "imageeditor/ui/ColorSelector.hpp"
 #include "imageeditor/ui/CrossWindowPointerRouter.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
+#include "NativeGraphicsStartup.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/ToolOptionsBar.hpp"
@@ -98,6 +99,7 @@ struct Fixture {
         window.setUnsavedPromptEnabled(false);
         window.resize(1480, 880);
         window.show();
+        CHECK(imageeditor::test::waitForGraphicsStartup(window));
         settle();
         for (auto* candidate : QGuiApplication::allWindows())
             if (candidate->objectName() == QStringLiteral("VulkanCanvasWindow"))
@@ -347,7 +349,21 @@ void windingZoomAndOutsideVerticesRetainTheSameIntendedPolygon()
     f.undo();
     f.canvas->fitDocumentToView();
     f.trace({ { 12.25, 34.75 }, { 34.75, 12.25 }, { 12.25, -10.25 }, { -10.25, 12.25 } });
-    CHECK(f.selection() && f.selection()->equivalent(*clipped));
+    CHECK(f.selection() && clipped);
+    if (f.selection() && clipped) {
+        // Document/viewport roundtrips at fit zoom can move a half-coverage
+        // sample across an 8-bit rounding boundary. Only partially covered
+        // edge pixels permit one level of rounding; geometry stays exact.
+        const auto extent = f.document().canvas().extent;
+        for (unsigned y = 0; y < extent.height; ++y)
+            for (unsigned x = 0; x < extent.width; ++x) {
+                const int actual = f.selection()->coverageAtDocumentPixel(int(x), int(y));
+                const int expected = clipped->coverageAtDocumentPixel(int(x), int(y));
+                CHECK(actual == expected || (actual > 0 && actual < 255
+                    && expected > 0 && expected < 255 && std::abs(actual - expected) <= 1));
+            }
+        CHECK(f.selection()->bounds() == clipped->bounds());
+    }
 }
 
 void selfIntersectionsDuplicatesAndLongCurvesCompleteDeterministically()

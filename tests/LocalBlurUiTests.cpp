@@ -1,4 +1,5 @@
 #include "imageeditor/ui/MainWindow.hpp"
+#include "NativeGraphicsStartup.hpp"
 #include "imageeditor/ui/LocalBlurOptionsPage.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
 #include "imageeditor/ui/Theme.hpp"
@@ -54,7 +55,9 @@ void options()
 void interaction(QVulkanInstance* vulkan)
 {
     QTemporaryDir files;u::MainWindow window(vulkan,false,false);window.setUnsavedPromptEnabled(false);
-    window.resize(1600,950);window.show();settle();r::CanvasWindow* canvas=nullptr;
+    window.resize(1600,950);window.show();
+    CHECK(imageeditor::test::waitForGraphicsStartup(window));
+    settle();r::CanvasWindow* canvas=nullptr;
     for(auto* candidate:QGuiApplication::allWindows())if(candidate->objectName()=="VulkanCanvasWindow")canvas=dynamic_cast<r::CanvasWindow*>(candidate);
     CHECK(canvas);if(!canvas)return;
     QImage image(160,120,QImage::Format_RGBA8888);for(int y=0;y<120;++y)for(int x=0;x<160;++x)

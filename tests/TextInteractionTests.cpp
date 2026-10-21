@@ -2,6 +2,7 @@
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/FontFamilyPicker.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
+#include "NativeGraphicsStartup.hpp"
 #include "imageeditor/ui/TextController.hpp"
 #include "imageeditor/ui/ToolOptionsNumber.hpp"
 #include "imageeditor/ui/Theme.hpp"
@@ -24,6 +25,7 @@
 #include <QToolButton>
 #include <QVulkanInstance>
 #include <iostream>
+#include <optional>
 
 namespace core = imageeditor::core;
 namespace ui = imageeditor::ui;
@@ -73,6 +75,7 @@ void run(QVulkanInstance* instance, bool native)
     window.setUnsavedPromptEnabled(false);
     window.resize(1700, 980);
     window.show();
+    CHECK(imageeditor::test::waitForGraphicsStartup(window));
     settle();
     render::CanvasWindow* canvas = nullptr;
     ui::TextController* editor = nullptr;
@@ -122,8 +125,11 @@ void run(QVulkanInstance* instance, bool native)
     };
     const auto& session = window.editorSession();
     const auto initial = session.document()->layers().size();
-    if (native)
-        CHECK(waitFor([&] { return canvas->rendererStats().framesSubmitted > 1; }));
+    if (native) {
+        const auto frame = canvas->rendererStats().framesSubmitted;
+        canvas->scheduleFrame();
+        CHECK(waitFor([&] { return canvas->rendererStats().framesSubmitted > frame; }));
+    }
     action("T");
     CHECK(session.activeTool() == core::ToolId::Text);
     click({ 180, 180 });
@@ -218,6 +224,29 @@ void run(QVulkanInstance* instance, bool native)
                     QTest::keyClick(QGuiApplication::focusWindow(), Qt::Key(c.toUpper().unicode()));
                 settle();
             };
+            auto canvasReturnPoint = [&]() -> std::optional<core::Vec2d> {
+                const auto* textLayer = session.document()->layer(id);
+                const auto extent = core::layerGeometryExtent(*textLayer);
+                const auto margin = 12.0 / canvas->zoom();
+                auto* panels = overlay->parentWidget();
+                auto* popup = font->completionPopup();
+                // Find visible editable text, rather than assuming a document
+                // coordinate remains outside a font-dependent native popup.
+                // The small margin stays within the editor's click-back area.
+                for (const double x : {-margin, 0.0, extent.width * .25,
+                         extent.width * .5, extent.width * .75, extent.width + margin}) {
+                    for (const double y : {extent.height * .5, -margin, extent.height + margin}) {
+                        const auto point = textLayer->localToDocument.map({x, y});
+                        const auto local = logical(point).toPoint();
+                        const auto global = canvas->mapToGlobal(local);
+                        if (QRect(QPoint(), canvas->size()).contains(local)
+                            && (!popup->isVisible() || !popup->rect().contains(popup->mapFromGlobal(global)))
+                            && (!panels->isVisible() || !panels->mask().contains(panels->mapFromGlobal(global))))
+                            return point;
+                    }
+                }
+                return std::nullopt;
+            };
             const auto textBefore
                 = std::get<core::TextLayer>(session.document()->layer(id)->payload);
             const auto revisionBefore = session.document()->revision();
@@ -309,9 +338,13 @@ void run(QVulkanInstance* instance, bool native)
             nativeQuery(QStringLiteral("noto sans"));
             font->showPopup();
             settle();
+            checkFontPopupAnchor();
             const auto selectedFont = font->candidate();
             auto* popup = font->completionPopup();
-            const auto global = canvas->mapToGlobal(logical({ 390, 205 }).toPoint());
+            const auto returnPoint = canvasReturnPoint();
+            CHECK(returnPoint);
+            if (!returnPoint) return;
+            const auto global = canvas->mapToGlobal(logical(*returnPoint).toPoint());
             const auto outside = popup->mapFromGlobal(global);
             CHECK(!popup->rect().contains(outside));
             QMouseEvent outsidePress(
@@ -331,7 +364,10 @@ void run(QVulkanInstance* instance, bool native)
             nativeQuery(QStringLiteral("unknown xyzq font"));
             CHECK(font->searching() && font->candidate().isEmpty());
             font->hidePopup();
-            click({ 390, 205 });
+            const auto noMatchReturnPoint = canvasReturnPoint();
+            CHECK(noMatchReturnPoint);
+            if (!noMatchReturnPoint) return;
+            click(*noMatchReturnPoint);
             CHECK(!font->searching());
             CHECK(editor->cursor().anchor() == selectedAnchor);
             CHECK(editor->cursor().position() == selectedPosition);

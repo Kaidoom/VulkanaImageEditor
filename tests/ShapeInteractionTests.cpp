@@ -3,6 +3,7 @@
 #include "imageeditor/core/ShapeCommands.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
+#include "NativeGraphicsStartup.hpp"
 #include "imageeditor/ui/ShapeOptionsPage.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/ToolOptionsNumber.hpp"
@@ -50,6 +51,7 @@ struct Fixture {
         window.setUnsavedPromptEnabled(false);
         window.resize(1600, 960);
         window.show();
+        CHECK(imageeditor::test::waitForGraphicsStartup(window));
         events();
         for (auto* w : QGuiApplication::allWindows())
             if (w->objectName() == "VulkanCanvasWindow")

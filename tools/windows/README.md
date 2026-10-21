@@ -75,7 +75,8 @@ to that invocation.
 
 ## Testing
 
-From the repository root, run the dependency checks and application regressions:
+From the repository root in an interactive Windows desktop session, run the
+dependency checks and application regressions:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/Setup.ps1
@@ -83,7 +84,8 @@ powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/windows/Buil
 ```
 
 Setup tests image/PDF/SVG/TLS support, Vulkan and the offline MobileSAM
-encoder/decoder. Build runs the application tests through CTest. Find their
+encoder/decoder. Build stages the runtime assets and runs the application tests
+sequentially through CTest. Drag and window tests require a visible desktop. Find their
 logs under `<BuildRoot>/dependency-smoke/Testing/Temporary` and
 `<BuildRoot>/release/Testing/Temporary`.
 

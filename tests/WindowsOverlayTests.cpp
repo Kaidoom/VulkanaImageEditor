@@ -4,6 +4,7 @@
 #include "imageeditor/ui/ColorDialog.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
+#include "NativeGraphicsStartup.hpp"
 
 #include <QApplication>
 #include <QDialog>
@@ -89,11 +90,11 @@ int main(int argc, char** argv)
     ui::MainWindow window(&vulkan, false, false);
     window.setUnsavedPromptEnabled(false);
     window.resize(1200, 800);
-    CHECK(window.openImageFromPath(path));
     window.show();
     window.raise();
     window.activateWindow();
-    QTest::qWait(1000);
+    CHECK(imageeditor::test::waitForGraphicsStartup(window));
+    CHECK(window.openImageFromPath(path));
     auto* workspace = dynamic_cast<ui::OverlayDockWorkspace*>(window.findChild<QWidget*>("CanvasWorkspace"));
     if (!workspace) return EXIT_FAILURE;
     auto* plane = workspace->panelOverlay();

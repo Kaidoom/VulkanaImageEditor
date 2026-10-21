@@ -3,7 +3,9 @@
 #include "imageeditor/ui/BrushPresetGrid.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
 #include "imageeditor/ui/LayerListView.hpp"
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
+#include "imageeditor/ui/PreferencesDialog.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/ToolOptionsBar.hpp"
 #include "imageeditor/ui/Theme.hpp"
@@ -17,6 +19,7 @@
 #include <QCheckBox>
 #include <QCoreApplication>
 #include <QLabel>
+#include <QKeyEvent>
 #include <QLineEdit>
 #include <QListView>
 #include <QListWidget>
@@ -37,6 +40,7 @@
 #include <QStyleOptionSpinBox>
 #include <QTest>
 #include <QTemporaryDir>
+#include <QTimer>
 #include <QToolBar>
 #include <QToolButton>
 #include <QVBoxLayout>
@@ -496,10 +500,14 @@ void layerOpacityUsesCompactAdjustmentsAndOneUndoPerInteraction()
     auto* opacity = dynamic_cast<imageeditor::ui::CompactValueControl*>(
         window.findChild<QDoubleSpinBox*>(QStringLiteral("LayerOpacitySlider")));
     auto* controls = window.findChild<QWidget*>(QStringLiteral("LayerControls"));
-    CHECK(opacity && controls);
-    if (!opacity || !controls) return;
-    CHECK(opacity->prefix() == QStringLiteral("Opacity: ") && opacity->suffix() == QStringLiteral("%"));
-    CHECK(opacity->width() == controls->width() - 20);
+    auto* opacityMode = window.findChild<QToolButton*>(QStringLiteral("LayerOpacityMode"));
+    CHECK(opacity && controls && opacityMode);
+    if (!opacity || !controls || !opacityMode) return;
+    CHECK(opacity->prefix() == QStringLiteral("Layer opacity: ") && opacity->suffix() == QStringLiteral("%"));
+    CHECK(!opacityMode->isChecked() && opacityMode->isVisible());
+    CHECK(opacity->geometry().left() == 10);
+    CHECK(opacity->geometry().right() + 6 == opacityMode->geometry().left());
+    CHECK(opacityMode->geometry().right() == controls->width() - 11);
     for (auto* label : controls->findChildren<QLabel*>()) CHECK(label->text() != QStringLiteral("Opacity"));
     const auto& session = window.editorSession();
     const auto layerId = session.activeLayer().value();
@@ -919,7 +927,8 @@ void brushWorkspaceUsesOneStableTopOptionsBar()
 
     CHECK(selectPreset(QStringLiteral("builtin.preset.hard-round.v1")));
     CHECK(selectPreset(QStringLiteral("builtin.preset.ink-pen.v1")));
-    CHECK(!grid->currentItem()->text().endsWith(QStringLiteral(" *")));
+    CHECK(grid->currentItem()->text().isEmpty());
+    CHECK(!grid->currentItem()->data(Qt::AccessibleTextRole).toString().endsWith(QStringLiteral(", modified")));
     CHECK(!grid->currentItem()->toolTip().contains(QStringLiteral("Modified")));
     const auto beforeRotation = page->brushSettings();
     QTest::mouseClick(rotation, Qt::LeftButton);
@@ -927,7 +936,8 @@ void brushWorkspaceUsesOneStableTopOptionsBar()
     CHECK(page->brushSettings().tip.rotationMode
         == imageeditor::core::BrushTipRotationMode::Fixed);
     CHECK(angle->value() == -38.0);
-    CHECK(grid->currentItem()->text().endsWith(QStringLiteral(" *")));
+    CHECK(grid->currentItem()->text().isEmpty());
+    CHECK(grid->currentItem()->data(Qt::AccessibleTextRole).toString().endsWith(QStringLiteral(", modified")));
     CHECK(grid->currentItem()->toolTip().contains(QStringLiteral("Modified")));
     // Icon-only toolbar toggles intentionally leave keyboard ownership with
     // the canvas/field (Space pans); Tab navigation is disabled app-wide.
@@ -937,7 +947,8 @@ void brushWorkspaceUsesOneStableTopOptionsBar()
     CHECK(page->brushSettings().tip.rotationMode
         == imageeditor::core::BrushTipRotationMode::FollowStrokeDirection);
     CHECK(page->brushSettings() == beforeRotation);
-    CHECK(!grid->currentItem()->text().endsWith(QStringLiteral(" *")));
+    CHECK(grid->currentItem()->text().isEmpty());
+    CHECK(!grid->currentItem()->data(Qt::AccessibleTextRole).toString().endsWith(QStringLiteral(", modified")));
     CHECK(!grid->currentItem()->toolTip().contains(QStringLiteral("Modified")));
 
     size->setValue(37.5);
@@ -960,7 +971,7 @@ void brushWorkspaceUsesOneStableTopOptionsBar()
     }
     CHECK(grid->currentPresetId() == "builtin.preset.ink-pen.v1");
     CHECK(grid->currentItem()
-        && grid->currentItem()->text().endsWith(QStringLiteral(" *")));
+        && grid->currentItem()->data(Qt::AccessibleTextRole).toString().endsWith(QStringLiteral(", modified")));
     CHECK(grid->currentItem()->toolTip().contains(QStringLiteral("Modified")));
 
     moveAction->trigger();
@@ -1056,6 +1067,8 @@ void layerControlsAndToolRailDockingStayCoherent()
         window.findChild<QWidget*>(QStringLiteral("CanvasWorkspace")));
     auto* layersPanel = dynamic_cast<imageeditor::ui::WorkspacePanel*>(
         window.findChild<QWidget*>(QStringLiteral("LayersPanel")));
+    auto* navigatorPanel = dynamic_cast<imageeditor::ui::WorkspacePanel*>(
+        window.findChild<QWidget*>(QStringLiteral("NavigatorPanelShell")));
     auto* propertiesPanel = dynamic_cast<imageeditor::ui::WorkspacePanel*>(
         window.findChild<QWidget*>(QStringLiteral("PropertiesPanelShell")));
     auto* colorPanel = dynamic_cast<imageeditor::ui::WorkspacePanel*>(
@@ -1077,6 +1090,7 @@ void layerControlsAndToolRailDockingStayCoherent()
     CHECK(toolRail != nullptr);
     CHECK(workspace != nullptr);
     CHECK(layersPanel != nullptr);
+    CHECK(navigatorPanel != nullptr);
     CHECK(propertiesPanel != nullptr);
     CHECK(colorPanel != nullptr);
     CHECK(adjustmentsPanel != nullptr);
@@ -1086,7 +1100,7 @@ void layerControlsAndToolRailDockingStayCoherent()
     CHECK(rightAction != nullptr);
     CHECK(topAction != nullptr);
     CHECK(bottomAction != nullptr);
-    if (!toolRail || !workspace || !layersPanel || !propertiesPanel
+    if (!toolRail || !workspace || !layersPanel || !navigatorPanel || !propertiesPanel
         || !colorPanel || !adjustmentsPanel || !colorButton || !colorPanelAction
         || !leftAction || !rightAction || !topAction || !bottomAction) {
         return;
@@ -1097,10 +1111,12 @@ void layerControlsAndToolRailDockingStayCoherent()
     CHECK(workspace->panelPlacement(colorPanel)
         == imageeditor::ui::OverlayDockWorkspace::PanelPlacement::DockedRight);
     CHECK(workspace->dockedPanelIndex(colorPanel) == 0);
-    CHECK(colorPanel->minimumHeight() == 120);
+    CHECK(colorPanel->configuredMinimumHeight() == 120);
+    CHECK(workspace->panelFrame(colorPanel)->minimumHeight() >= 120);
     CHECK(colorPanel->maximumHeight() == QWIDGETSIZE_MAX);
     CHECK(layersPanel->minimumHeight() == 260);
-    CHECK(propertiesPanel->minimumHeight() == 200);
+    CHECK(propertiesPanel->configuredMinimumHeight() == 200);
+    CHECK(workspace->panelFrame(propertiesPanel)->minimumHeight() >= 200);
 
     const QRect fixedWorkspaceGeometry = workspace->geometry();
     const QRect fixedCanvasGeometry = workspace->canvasContainer()->geometry();
@@ -1136,21 +1152,22 @@ void layerControlsAndToolRailDockingStayCoherent()
         Qt::Vertical, workspace->rightPanelCard());
 
     workspace->floatPanel(layersPanel, QRect {160, 80, 300, 260});
+    workspace->floatPanel(navigatorPanel, QRect {160, 360, 300, 180});
     workspace->floatPanel(propertiesPanel, QRect {480, 110, 320, 300});
     workspace->floatPanel(colorPanel, QRect {820, 140, 300, 220});
-    // The narrow-right-column assertion below means every regular panel has
-    // been detached, including the newly added Adjustments workspace panel.
+    // Float all frames, including tab groups and the Navigator, so only the
+    // tool rail remains in the dock columns.
     workspace->floatPanel(adjustmentsPanel, QRect {320, 380, 360, 310});
     QCoreApplication::processEvents();
     CHECK(!layersPanel->isWindow());
     CHECK(!propertiesPanel->isWindow());
     CHECK(!colorPanel->isWindow());
     CHECK(!adjustmentsPanel->isWindow());
-    CHECK(layersPanel->parentWidget() == workspace->panelOverlay());
-    CHECK(propertiesPanel->parentWidget() == workspace->panelOverlay());
-    CHECK(colorPanel->parentWidget() == workspace->panelOverlay());
-    CHECK(adjustmentsPanel->parentWidget() == workspace->panelOverlay());
-    CHECK(colorPanel->minimumHeight() == 120);
+    for (auto* panel : {layersPanel, navigatorPanel, propertiesPanel, colorPanel, adjustmentsPanel}) {
+        CHECK(workspace->panelFrame(panel)->parentWidget() == workspace->panelOverlay());
+        CHECK(workspace->panelPlacement(panel) == imageeditor::ui::OverlayDockWorkspace::PanelPlacement::Floating);
+    }
+    CHECK(colorPanel->configuredMinimumHeight() == 120);
     CHECK(colorPanel->maximumHeight() == QWIDGETSIZE_MAX);
     CHECK(workspace->leftPanelCard()->isHidden());
     CHECK(!workspace->rightPanelCard()->isHidden());
@@ -1158,6 +1175,8 @@ void layerControlsAndToolRailDockingStayCoherent()
 
     workspace->dockPanel(
         layersPanel, imageeditor::ui::OverlayDockWorkspace::PanelDockSide::Left);
+    workspace->dockPanel(
+        navigatorPanel, imageeditor::ui::OverlayDockWorkspace::PanelDockSide::Left);
     workspace->dockPanel(colorPanel,
         imageeditor::ui::OverlayDockWorkspace::PanelDockSide::Right, 0);
     workspace->dockPanel(propertiesPanel,
@@ -1173,7 +1192,7 @@ void layerControlsAndToolRailDockingStayCoherent()
         == imageeditor::ui::OverlayDockWorkspace::PanelPlacement::DockedRight);
     CHECK(workspace->dockedPanelIndex(colorPanel) == 0);
     CHECK(workspace->dockedPanelIndex(propertiesPanel) == 1);
-    CHECK(colorPanel->minimumHeight() == 120);
+    CHECK(colorPanel->configuredMinimumHeight() == 120);
     CHECK(colorPanel->maximumHeight() == QWIDGETSIZE_MAX);
 
     colorPanelAction->trigger();
@@ -1235,7 +1254,8 @@ void dockedPanelSizesPersistAcrossWindows()
         settingsDirectory.path());
 
     imageeditor::ui::UiLayoutConfig config;
-    config.color = {100, 120};
+    config.color = {140, 240};
+    config.swatches = config.color;
     int savedColorHeight = 0;
     {
         imageeditor::ui::MainWindow window(nullptr, true, false, config);
@@ -1254,23 +1274,21 @@ void dockedPanelSizesPersistAcrossWindows()
         CHECK(splitter != nullptr);
         CHECK(colorPanel != nullptr);
         if (splitter && colorPanel) {
-            // Set an actual pixel height without assuming the historical
-            // three-panel right column. QSplitter rescales setSizes weights
-            // to fill its available space; an obsolete extra entry made the
-            // requested 100 pixels grow to Color's 120-pixel maximum once
-            // Layers moved to the left column.
+            // The dock splitter owns the Color/Swatches frame, not its inner
+            // Color page. Persist the complete frame's requested pixel height.
             auto sizes = splitter->sizes();
-            const auto colorIndex = splitter->indexOf(colorPanel);
+            auto* colorFrame = workspace->panelFrame(colorPanel);
+            const auto colorIndex = splitter->indexOf(colorFrame);
             CHECK(colorIndex >= 0 && sizes.size() >= 2);
             if (colorIndex >= 0 && sizes.size() >= 2) {
                 const auto recipient = colorIndex == 0 ? 1 : 0;
-                sizes[recipient] += sizes[colorIndex] - 100;
-                sizes[colorIndex] = 100;
+                sizes[recipient] += sizes[colorIndex] - 180;
+                sizes[colorIndex] = 180;
                 splitter->setSizes(sizes);
             }
             QCoreApplication::processEvents();
-            savedColorHeight = colorPanel->height();
-            CHECK(savedColorHeight == 100);
+            savedColorHeight = colorFrame->height();
+            CHECK(savedColorHeight == 180);
         }
         window.close();
         QCoreApplication::processEvents();
@@ -1279,13 +1297,18 @@ void dockedPanelSizesPersistAcrossWindows()
     {
         imageeditor::ui::MainWindow window(nullptr, true, false, config);
         window.setUnsavedPromptEnabled(false);
+        // Test splitter persistence at an unchanged viewport size. Restoring
+        // window geometry may clamp it to the test platform's smaller screen.
+        window.resize(1200, 900);
         window.show();
         QCoreApplication::processEvents();
         QCoreApplication::processEvents();
         auto* colorPanel = dynamic_cast<imageeditor::ui::WorkspacePanel*>(
             window.findChild<QWidget*>(QStringLiteral("ColorPanelShell")));
+        auto* workspace = dynamic_cast<imageeditor::ui::OverlayDockWorkspace*>(
+            window.findChild<QWidget*>(QStringLiteral("CanvasWorkspace")));
         CHECK(colorPanel != nullptr);
-        CHECK(colorPanel && colorPanel->height() == savedColorHeight);
+        CHECK(workspace && colorPanel && workspace->panelFrame(colorPanel)->height() == savedColorHeight);
         window.close();
         QCoreApplication::processEvents();
     }
@@ -1402,6 +1425,70 @@ void defaultPanelLayoutIsSessionOnly()
     }
 }
 
+void preferencesOnlyRequestLanguageChangesAndCancelPendingSwitches()
+{
+    using namespace imageeditor::ui;
+    auto& localization = i18n::Localization::instance();
+    localization.setLanguage("en");
+    MainWindow window(nullptr, false);
+    window.setUnsavedPromptEnabled(false);
+    window.show();
+    QCoreApplication::processEvents();
+    auto* action = window.findChild<QAction*>("PreferencesAction");
+    CHECK(action && action->isEnabled());
+    if (!action || !action->isEnabled()) return;
+    int languageChanges = 0;
+    const auto connection = QObject::connect(&localization, &i18n::Localization::languageChanged,
+        &window, [&] { ++languageChanges; });
+    const auto visit = [&](const auto& edit) {
+        bool visited = false;
+        QTimer::singleShot(0, &window, [&] {
+            auto* dialog = dynamic_cast<PreferencesDialog*>(window.findChild<QDialog*>("PreferencesDialog"));
+            CHECK(dialog);
+            if (!dialog) return;
+            visited = true;
+            edit(*dialog);
+            dialog->reject();
+        });
+        action->trigger();
+        CHECK(visited);
+        QCoreApplication::processEvents();
+    };
+    visit([](PreferencesDialog& dialog) {
+        auto* measurement = dialog.findChild<QCheckBox*>("AdvancedMeasurementReadout");
+        auto* info = dialog.findChild<QCheckBox*>("ShowLayerInfo");
+        CHECK(measurement && info);
+        if (measurement) measurement->click();
+        if (info) info->click();
+    });
+    CHECK(languageChanges == 0);
+    const auto chooseFrench = [&](PreferencesDialog& dialog) {
+        auto* language = dialog.findChild<QComboBox*>("LanguageCombo");
+        CHECK(language && language->findData("fr") >= 0);
+        if (language) language->setCurrentIndex(language->findData("fr"));
+    };
+    visit([&](PreferencesDialog& dialog) {
+        chooseFrench(dialog);
+        CHECK(localization.preference() == "fr");
+    });
+    CHECK(languageChanges == 2 && localization.preference() == "en");
+
+    const auto originalCanSwitch = localization.canSwitch;
+    localization.canSwitch = [] { return false; };
+    visit([&](PreferencesDialog& dialog) {
+        chooseFrench(dialog);
+        CHECK(localization.preference() == "en");
+    });
+    CHECK(languageChanges == 2);
+    localization.canSwitch = originalCanSwitch;
+    QKeyEvent boundary(QEvent::KeyRelease, Qt::Key_A, Qt::NoModifier);
+    QCoreApplication::sendEvent(qApp, &boundary);
+    QCoreApplication::processEvents();
+    CHECK(localization.preference() == "en" && localization.language() == "en");
+    QObject::disconnect(connection);
+    window.close();
+}
+
 } // namespace
 
 int main(int argc, char* argv[])
@@ -1425,6 +1512,7 @@ int main(int argc, char* argv[])
     layerControlsAndToolRailDockingStayCoherent();
     dockedPanelSizesPersistAcrossWindows();
     defaultPanelLayoutIsSessionOnly();
+    preferencesOnlyRequestLanguageChangesAndCancelPendingSwitches();
 
     if (failures != 0) {
         std::cerr << failures << " UI interaction assertion(s) failed\n";

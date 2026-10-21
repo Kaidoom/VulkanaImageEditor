@@ -14,18 +14,31 @@ add_executable(imageeditor_windows_thumbnail_tests WindowsThumbnailTests.cpp)
 set_target_properties(imageeditor_windows_thumbnail_tests PROPERTIES AUTOMOC OFF AUTOUIC OFF
     MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 target_link_libraries(imageeditor_windows_thumbnail_tests PRIVATE ole32 uuid shell32 shlwapi gdi32)
+# The Shell loader deliberately ignores PATH. Exercise the same sibling-DLL
+# layout in a clean build tree as in an installed portable application.
+add_custom_target(imageeditor_windows_thumbnail_test_runtime
+    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+        $<TARGET_RUNTIME_DLLS:vulkana-thumbnail-codec>
+        "$<TARGET_FILE_DIR:vulkana-thumbnail-codec>"
+    DEPENDS vulkana-thumbnail-codec vulkana-thumbnail-provider
+    COMMAND_EXPAND_LISTS VERBATIM)
+add_dependencies(imageeditor_windows_thumbnail_tests imageeditor_windows_thumbnail_test_runtime)
 add_executable(imageeditor_windows_project_integration_tests WindowsProjectIntegrationTests.cpp)
 target_link_libraries(imageeditor_windows_project_integration_tests PRIVATE imageeditor_platform)
 add_test(NAME imageeditor_windows_project_integration_tests COMMAND imageeditor_windows_project_integration_tests)
 find_program(VULKANA_WINDOWS_POWERSHELL NAMES powershell.exe REQUIRED)
 add_test(NAME imageeditor_windows_build_scripts COMMAND "${VULKANA_WINDOWS_POWERSHELL}"
     -NoProfile -ExecutionPolicy RemoteSigned -File "${CMAKE_CURRENT_SOURCE_DIR}/WindowsBuildScriptTests.ps1")
-set_tests_properties(imageeditor_windows_build_scripts PROPERTIES TIMEOUT 30 LABELS "platform;build")
+set_tests_properties(imageeditor_windows_build_scripts PROPERTIES TIMEOUT 30 LABELS "platform;build"
+    # A native CTest process can inherit PowerShell 7's module search path when
+    # invoking Windows PowerShell. Let each shell initialize its own modules.
+    ENVIRONMENT_MODIFICATION "PSModulePath=unset:")
 find_program(VULKANA_POWERSHELL_CORE NAMES pwsh.exe)
 if(VULKANA_POWERSHELL_CORE)
     add_test(NAME imageeditor_windows_build_scripts_core COMMAND "${VULKANA_POWERSHELL_CORE}"
         -NoProfile -ExecutionPolicy RemoteSigned -File "${CMAKE_CURRENT_SOURCE_DIR}/WindowsBuildScriptTests.ps1")
-    set_tests_properties(imageeditor_windows_build_scripts_core PROPERTIES TIMEOUT 30 LABELS "platform;build")
+    set_tests_properties(imageeditor_windows_build_scripts_core PROPERTIES TIMEOUT 30 LABELS "platform;build"
+        ENVIRONMENT_MODIFICATION "PSModulePath=unset:")
 endif()
 
 function(vulkana_windows_test name source)
@@ -74,6 +87,7 @@ vulkana_windows_test(imageeditor_localization_tests LocalizationTests.cpp)
 target_compile_definitions(imageeditor_localization_tests PRIVATE VULKANA_TEST_TRANSLATIONS="${VULKANA_TRANSLATIONS_DIR}")
 vulkana_windows_test(imageeditor_update_tests UpdateServiceTests.cpp)
 vulkana_windows_test(imageeditor_menu_clipboard_tests MenuClipboardTests.cpp)
+vulkana_windows_test(imageeditor_clipboard_image_tests ClipboardImageTests.cpp)
 vulkana_windows_test(imageeditor_screenshot_tests ScreenshotTests.cpp)
 vulkana_windows_test(imageeditor_performance_tests PerformanceTests.cpp)
 target_link_libraries(imageeditor_update_tests PRIVATE Qt6::Network)
@@ -107,6 +121,9 @@ add_executable(imageeditor_windows_overlay_tests WindowsOverlayTests.cpp
     "${PROJECT_SOURCE_DIR}/res/windows/Vulkana.manifest")
 target_link_libraries(imageeditor_windows_overlay_tests PRIVATE imageeditor_ui Qt6::Test)
 imageeditor_enable_warnings(imageeditor_windows_overlay_tests)
+file(GLOB _windows_overlay_icons "${PROJECT_SOURCE_DIR}/assets/icons/*.svg")
+qt_add_resources(imageeditor_windows_overlay_tests "windows_overlay_icons" PREFIX "/" BASE "${PROJECT_SOURCE_DIR}/assets"
+    FILES ${_windows_overlay_icons} "${PROJECT_SOURCE_DIR}/assets/Vulkana512.png")
 
 add_executable(imageeditor_windows_screenshot_tests WindowsScreenshotTests.cpp
     "${PROJECT_SOURCE_DIR}/res/windows/Vulkana.manifest")

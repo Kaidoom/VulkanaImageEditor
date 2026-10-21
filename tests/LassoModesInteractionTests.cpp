@@ -6,6 +6,7 @@
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/ToolOptionsBar.hpp"
+#include "NativeGraphicsStartup.hpp"
 
 #include <QAction>
 #include <QApplication>
@@ -17,6 +18,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMouseEvent>
+#include <QMenu>
 #include <QPainter>
 #include <QSettings>
 #include <QStandardPaths>
@@ -93,6 +95,7 @@ struct Fixture {
         window.setUnsavedPromptEnabled(false);
         window.resize(1640, 900);
         window.show();
+        CHECK(imageeditor::test::waitForGraphicsStartup(window));
         settle();
         for (auto* candidate : QGuiApplication::allWindows())
             if (candidate->objectName() == QStringLiteral("VulkanCanvasWindow"))
@@ -669,8 +672,17 @@ void rightClickFinishesHeldFreehandOnceAndDoesNotDisableLaterContextMenus()
     QContextMenuEvent ordinaryMenu(QContextMenuEvent::Mouse,f.logical(unrelatedClick).toPoint(),
         f.canvas->mapToGlobal(f.logical(unrelatedClick).toPoint()));
     ordinaryMenu.setAccepted(false);
+    bool contextMenuOpened = false;
+    QTimer::singleShot(0, &f.window, [&] {
+        auto* menu = f.window.findChild<QMenu*>(QStringLiteral("CanvasSelectionContextMenu"));
+        CHECK(menu && menu->isVisible());
+        if (menu) {
+            contextMenuOpened = true;
+            menu->close();
+        }
+    });
     QCoreApplication::sendEvent(f.canvas,&ordinaryMenu);
-    CHECK(!ordinaryMenu.isAccepted());
+    CHECK(contextMenuOpened && ordinaryMenu.isAccepted());
     CHECK(f.document().selectionRevision()==revision+2 && f.history().undoDepth()==1);
 }
 

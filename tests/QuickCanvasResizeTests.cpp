@@ -4,6 +4,7 @@
 #include "imageeditor/ui/CropOptionsPage.hpp"
 #include "imageeditor/ui/FlattenedDocument.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
+#include "NativeGraphicsStartup.hpp"
 #include "imageeditor/ui/ProjectFile.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include <QAbstractButton>
@@ -200,6 +201,7 @@ struct Fixture {
         window.setUnsavedPromptEnabled(false);
         window.resize(1500, 950);
         window.show();
+        CHECK(imageeditor::test::waitForGraphicsStartup(window));
         settle();
         for (auto* w : QGuiApplication::allWindows())
             if (w->objectName() == "VulkanCanvasWindow")

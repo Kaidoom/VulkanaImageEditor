@@ -6,6 +6,7 @@
 #include "imageeditor/ui/LayerListModel.hpp"
 #include "imageeditor/ui/LayerListView.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
+#include "NativeGraphicsStartup.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/ToolOptionsNumber.hpp"
 
@@ -113,6 +114,7 @@ struct Fixture {
                 ? QGuiApplication::primaryScreen()->availableGeometry().size() - QSize(100, 100)
                 : QSize(2000, 1080));
         window.show();
+        CHECK(imageeditor::test::waitForGraphicsStartup(window));
         settle();
         for (auto* candidate : QGuiApplication::allWindows())
             if (candidate->objectName() == "VulkanCanvasWindow")

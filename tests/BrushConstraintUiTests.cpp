@@ -1,6 +1,7 @@
 #include "imageeditor/core/EditorSession.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
+#include "NativeGraphicsStartup.hpp"
 #include "imageeditor/ui/Theme.hpp"
 
 #include <QAction>
@@ -32,6 +33,7 @@ void exercise(QVulkanInstance* vulkan)
     u::MainWindow window(vulkan, false, false);
     window.setUnsavedPromptEnabled(false);
     window.resize(1500, 950); window.show(); settle();
+    CHECK(imageeditor::test::waitForGraphicsStartup(window));
     r::CanvasWindow* canvas = nullptr;
     for (auto* candidate : QGuiApplication::allWindows())
         if (candidate->objectName() == "VulkanCanvasWindow") canvas = dynamic_cast<r::CanvasWindow*>(candidate);

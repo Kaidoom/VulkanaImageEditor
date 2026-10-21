@@ -3,6 +3,7 @@
 #include "imageeditor/ui/LayerListModel.hpp"
 #include "imageeditor/ui/LayerListView.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
+#include "NativeGraphicsStartup.hpp"
 #include "imageeditor/ui/PopupOwnership.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
@@ -80,6 +81,7 @@ struct Fixture {
         window.setUnsavedPromptEnabled(false);
         window.resize(1440, 920);
         window.show();
+        CHECK(imageeditor::test::waitForGraphicsStartup(window));
         settle();
         for (auto* w : QGuiApplication::allWindows())
             if (w->objectName() == QStringLiteral("VulkanCanvasWindow")) canvas = dynamic_cast<render::CanvasWindow*>(w);

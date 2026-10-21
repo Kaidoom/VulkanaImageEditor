@@ -514,6 +514,12 @@ void dialogTabsControlsPreviewAndApplyCancel(QApplication& application)
     QTest::qWait(10);
     auto* themeScroll=dialog.findChild<QScrollArea*>("PreferencesThemeScroll");
     CHECK(themeScroll && themeScroll->viewport()->height()>=280);
+    if (!themeScroll || !themeScroll->widget()) return;
+    // Force overflow for the scrollbar interaction fixture. Native font
+    // metrics may otherwise let every theme setting fit without scrolling.
+    const auto contentMinimumHeight = themeScroll->widget()->minimumHeight();
+    themeScroll->widget()->setMinimumHeight(themeScroll->viewport()->height() + 200);
+    QTest::qWait(10);
     auto* scrollbar = dialog.findChild<QScrollBar*>(QStringLiteral("PreferencesScrollBar"));
     CHECK(scrollbar && scrollbar->isVisible());
     if (scrollbar) {
@@ -539,6 +545,8 @@ void dialogTabsControlsPreviewAndApplyCancel(QApplication& application)
         CHECK(scrollbar->value() > before);
         scrollbar->setValue(scrollbar->minimum());
     }
+    themeScroll->widget()->setMinimumHeight(contentMinimumHeight);
+    QTest::qWait(10);
     const auto cardSize = dialog.size();
     choosePreset(*presets, ThemePreset::Custom);
     CHECK(dialog.draft().theme.preset == ThemePreset::Custom);

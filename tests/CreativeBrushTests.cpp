@@ -359,7 +359,9 @@ void seedControlsAndShelfOrdering()
     if (!grid || !seed || !reseed) return;
     CHECK(grid->count() == 29);
     CHECK(grid->item(23)->data(Qt::UserRole).toString() == "user.example");
-    CHECK(grid->item(23)->text() == "Chalk (User)");
+    CHECK(grid->item(23)->text().isEmpty()); // Compact tiles expose names through tooltips/accessibility.
+    CHECK(grid->item(23)->toolTip() == "Chalk (User)");
+    CHECK(grid->item(23)->data(Qt::AccessibleTextRole).toString() == "Chalk (User)");
     for (int i = 24; i < 29; ++i)
         CHECK(grid->item(i)->data(Qt::UserRole).toString().startsWith("builtin.preset.asset."));
     c::BrushSettings published;

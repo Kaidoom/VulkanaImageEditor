@@ -1993,8 +1993,14 @@ void MainWindow::showPreferences()
     dialog.performancePanel()->readUsage=[this]{return performanceUsage();};
     dialog.performancePanel()->onClearCaches=[this]{clearInactiveCaches();};
     dialog.currentUndoBudget=[this]{return performance_.undoBytes();};
-    dialog.onPreview = [this](const PreferencesState& value) {
-        i18n::Localization::instance().requestLanguage(value.language);
+    dialog.onPreview = [this, requestedLanguage = dialog.draft().language](const PreferencesState& value) mutable {
+        // Unrelated previews must not rebuild translated controls. Track the
+        // request, not only the active language, so Cancel also replaces a
+        // deferred language switch that has not reached its safe boundary.
+        if (value.language != requestedLanguage) {
+            requestedLanguage = value.language;
+            i18n::Localization::instance().requestLanguage(value.language);
+        }
         if (value.theme != currentThemeSettings()) {
             applyEditorTheme(*qApp, value.theme); refreshThemeAppearance();
         }

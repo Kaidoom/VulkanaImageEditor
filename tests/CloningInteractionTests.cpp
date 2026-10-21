@@ -5,6 +5,7 @@
 #include "imageeditor/ui/CompactValueControl.hpp"
 #include "imageeditor/ui/ImageExport.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
+#include "NativeGraphicsStartup.hpp"
 #include "imageeditor/ui/ProjectFile.hpp"
 #include "imageeditor/ui/Theme.hpp"
 
@@ -97,6 +98,7 @@ struct Fixture {
         window.setUnsavedPromptEnabled(false);
         window.resize(1800, 940);
         window.show();
+        CHECK(imageeditor::test::waitForGraphicsStartup(window));
         settle();
         for (auto* candidate : QGuiApplication::allWindows())
             if (candidate->objectName() == QStringLiteral("VulkanCanvasWindow"))

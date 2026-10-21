@@ -2,6 +2,7 @@
 #include "imageeditor/ui/ShortcutsPanel.hpp"
 #include "imageeditor/ui/PreferencesDialog.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
+#include "NativeGraphicsStartup.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/LayerListView.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
@@ -126,6 +127,7 @@ void application(QVulkanInstance* instance)
     QTemporaryDir data;
     u::MainWindow window(instance, true); window.setUnsavedPromptEnabled(false);
     window.resize(1400, 900); window.show(); window.activateWindow(); QTest::qWait(120);
+    CHECK(imageeditor::test::waitForGraphicsStartup(window));
     imageeditor::render::CanvasWindow* canvas = nullptr;
     for (auto* w : QGuiApplication::allWindows())
         if (auto* candidate = dynamic_cast<imageeditor::render::CanvasWindow*>(w)) canvas = candidate;

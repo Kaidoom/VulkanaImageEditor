@@ -6,6 +6,7 @@
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/ToolOptionsBar.hpp"
 #include "imageeditor/ui/ProjectFile.hpp"
+#include "NativeGraphicsStartup.hpp"
 
 #include <QAction>
 #include <QApplication>
@@ -69,7 +70,7 @@ struct Fixture {
         window.setUnsavedPromptEnabled(false);
         window.resize(1500, 900);
         window.show();
-        if(nativeVulkan)QTest::qWait(120);
+        CHECK(imageeditor::test::waitForGraphicsStartup(window));
         settle();
         settle();
         for (auto* candidate : QGuiApplication::allWindows())

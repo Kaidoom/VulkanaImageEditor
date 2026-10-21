@@ -183,10 +183,14 @@ int main(int argc, char** argv)
         picker.hide();
         imageeditor::ui::NewDocumentDialog card(panel);
         card.show();
-        card.findChild<QPushButton*>("OpenDocumentButton")->click();
+        auto* openDocument = card.findChild<QPushButton*>("OpenDocumentButton");
+        check(openDocument && !openDocument->menu(), "document button is a direct open action");
+        if (openDocument) openDocument->click();
         QTest::qWait(50);
         popup = QApplication::activePopupWidget();
-        check(popup && popup->windowHandle()->transientParent() == host.windowHandle(), "document button opens an owned menu");
+        check(card.result() == imageeditor::ui::NewDocumentDialog::OpenDocument && !card.isVisible(),
+            "document button returns an open request to its presenter");
+        check(!popup, "direct document action leaves no detached popup");
         if (popup) popup->close();
         card.hide();
         imageeditor::ui::ColorDialog color(imageeditor::ui::popupTopLevelOwner(combo));

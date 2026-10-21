@@ -6,6 +6,7 @@
 #include "imageeditor/ui/TextController.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/platform/BuildInfo.hpp"
+#include "NativeGraphicsStartup.hpp"
 
 #include <QAction>
 #include <QApplication>
@@ -84,6 +85,7 @@ int main(int argc, char** argv)
         u::MainWindow window(native ? &instance : nullptr, false);
         window.setUnsavedPromptEnabled(false);
         window.resize(1280, 800); window.show(); window.activateWindow();
+        CHECK(imageeditor::test::waitForGraphicsStartup(window));
         u::OverlayDockWorkspace* workspace = nullptr;
         for (auto* child : window.findChildren<QWidget*>())
             if (auto* w = dynamic_cast<u::OverlayDockWorkspace*>(child)) workspace = w;
@@ -335,7 +337,7 @@ int main(int argc, char** argv)
         exercise(resizeAction, true);
         CHECK(!window.isVisible());
     }
-    // Match startup: open the card on the first event-loop turn, before any
+    // Match startup: open the card after graphics initialization, before any
     // canvas click or pre-established native/QWidget focus handoff.
     {
         u::MainWindow window(native ? &instance : nullptr, false);
@@ -364,6 +366,7 @@ int main(int argc, char** argv)
             card->reject();
         });
         window.show();
+        CHECK(imageeditor::test::waitForGraphicsStartup(window));
         probe.start(50);
         QTimer::singleShot(0, &window, &u::MainWindow::showStartupDocument);
         QTimer::singleShot(10000, &window, [&] { if (!checked) { CHECK(false); window.close(); } });

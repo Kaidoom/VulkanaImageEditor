@@ -6,6 +6,7 @@
 #include "imageeditor/ui/CompactValueControl.hpp"
 #include "imageeditor/ui/CrossWindowPointerRouter.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
+#include "NativeGraphicsStartup.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/ToolOptionsBar.hpp"
@@ -88,6 +89,7 @@ struct Fixture {
     {
         window.setUnsavedPromptEnabled(false);
         window.resize(1640, 940); window.show(); settle();
+        CHECK(imageeditor::test::waitForGraphicsStartup(window));
         for (auto* candidate : QGuiApplication::allWindows())
             if (candidate->objectName() == QStringLiteral("VulkanCanvasWindow"))
                 canvas = dynamic_cast<render::CanvasWindow*>(candidate);

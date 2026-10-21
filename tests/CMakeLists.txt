@@ -1142,7 +1142,7 @@ qt_add_resources(imageeditor_lasso_modes_interaction_tests "lasso_modes_test_ico
 imageeditor_enable_warnings(imageeditor_lasso_modes_interaction_tests)
 add_test(NAME imageeditor_lasso_modes_interaction_tests COMMAND imageeditor_lasso_modes_interaction_tests)
 set_tests_properties(imageeditor_lasso_modes_interaction_tests PROPERTIES
-    ENVIRONMENT "QT_QPA_PLATFORM=offscreen" LABELS "selection;lasso;magnetic;widgets;input;history")
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 60 LABELS "selection;lasso;magnetic;widgets;input;history")
 if(NOT "$ENV{WAYLAND_DISPLAY}" STREQUAL "")
     add_test(NAME imageeditor_wayland_lasso_modes_smoke COMMAND imageeditor_lasso_modes_interaction_tests)
     set_tests_properties(imageeditor_wayland_lasso_modes_smoke PROPERTIES

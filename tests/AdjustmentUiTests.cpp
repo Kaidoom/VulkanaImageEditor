@@ -8,6 +8,7 @@
 #include "imageeditor/ui/LayerListModel.hpp"
 #include "imageeditor/ui/LayerListView.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
+#include "NativeGraphicsStartup.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/WorkspacePanel.hpp"
 #include "imageeditor/ui/Theme.hpp"
@@ -54,6 +55,7 @@ struct Fixture {
     c::LayerId id{};
     explicit Fixture(QVulkanInstance* instance=nullptr):window(instance,false,false){
         window.setUnsavedPromptEnabled(false);window.resize(1550,1080);window.show();settle();
+        CHECK(imageeditor::test::waitForGraphicsStartup(window));
         panel=dynamic_cast<u::AdjustmentsPanel*>(window.findChild<QWidget*>("AdjustmentsPanelContent"));
         auto* workspace=dynamic_cast<u::OverlayDockWorkspace*>(window.findChild<QWidget*>("CanvasWorkspace"));
         auto* shell=dynamic_cast<u::WorkspacePanel*>(window.findChild<QWidget*>("AdjustmentsPanelShell"));

@@ -353,6 +353,10 @@ void realModel(u::MainWindow& window, const DocumentBefore& before,
         else CHECK(scene.document.layersBottomToTop.front().mask == previewMask);
     }
     auto* original = child<QPushButton>(p, "BackgroundRemovalOriginal");
+    // Synthetic canvas gestures leave native child-window focus events queued.
+    // Settle that hand-off before beginning the hold, as a real click does.
+    original->setFocus(Qt::MouseFocusReason);
+    spin();
     QTest::mousePress(original, Qt::LeftButton);
     spin();
     preserved(window, before);

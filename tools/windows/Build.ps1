@@ -30,7 +30,6 @@ Invoke-BuildCommand cmake @('-S', $source, '-B', $build, '-G', 'Ninja', '-DCMAKE
     '-DIMAGEEDITOR_DEVELOPMENT_RESOURCES=OFF', '-DIMAGEEDITOR_RELOCATABLE_BUNDLE=ON',
     "-DIMAGEEDITOR_BUILD_TESTS=$testFlag")
 Invoke-BuildCommand cmake @('--build', $build, '--parallel', "$Jobs")
-if ($Tests) { Invoke-BuildCommand ctest @('--test-dir', $build, '--output-on-failure') }
 Invoke-BuildCommand cmake @('--install', $build)
 # vcpkg's app-local deployment resolves its own transitive native DLL closure.
 foreach ($dll in Get-ChildItem "$build/bin/*.dll") {
@@ -42,5 +41,15 @@ Invoke-BuildCommand "$QtRoot/bin/windeployqt.exe" @('--release', '--no-translati
 $crt = Join-Path $env:VCToolsRedistDir 'x64/Microsoft.VC145.CRT'
 if (!(Test-Path "$crt/vcruntime140.dll")) { throw "Missing redistributable x64 CRT: $crt" }
 Copy-Item "$crt/*.dll" -Destination "$stage/bin" -Force
+if ($Tests) {
+    # Relocatable tests need the installed data beside their own executables,
+    # including offline models, translations and notices on a fresh checkout.
+    Invoke-BuildCommand cmake @('--install', $build, '--prefix', $build)
+    Invoke-BuildCommand "$QtRoot/bin/windeployqt.exe" @('--release', '--no-translations', '--no-compiler-runtime', "$build/bin/imageeditor.exe")
+    Copy-Item "$QtRoot/bin/Qt6Test.dll" -Destination "$build/bin" -Force
+    Copy-Item "$crt/*.dll" -Destination "$build/bin" -Force
+    # Native clipboard, drag and desktop capture tests share the user session.
+    Invoke-BuildCommand ctest @('--test-dir', $build, '--output-on-failure', '--parallel', '1')
+}
 Write-Output "Staged executable: $stage\bin\imageeditor.exe"
 Write-Output 'Preferences remain in per-user storage, not in this application directory.'

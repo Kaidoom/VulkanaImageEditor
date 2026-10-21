@@ -1,4 +1,5 @@
 #include "imageeditor/ui/MainWindow.hpp"
+#include "NativeGraphicsStartup.hpp"
 #include "imageeditor/ui/ProjectFile.hpp"
 #include "imageeditor/ui/TextController.hpp"
 #include "imageeditor/ui/Theme.hpp"
@@ -69,6 +70,7 @@ int main(int argc, char** argv)
         hooks.reportError = [&](const QString& e) { check(false,qPrintable(e)); };
         window.setFileInteractions(std::move(hooks));
         window.resize(1280,800); window.show();
+        check(imageeditor::test::waitForGraphicsStartup(window), "Graphics startup completed");
         check(window.openImageFromPath(path),"Load into native canvas");
         imageeditor::render::CanvasWindow* canvas = nullptr;
         u::TextController* editor = nullptr;

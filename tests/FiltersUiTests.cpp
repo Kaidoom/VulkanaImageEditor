@@ -1,4 +1,5 @@
 #include "imageeditor/ui/MainWindow.hpp"
+#include "NativeGraphicsStartup.hpp"
 #include "imageeditor/ui/AdjustmentsPanel.hpp"
 #include "imageeditor/ui/FiltersPanel.hpp"
 #include "imageeditor/ui/EffectsPanel.hpp"
@@ -47,6 +48,7 @@ struct Fixture {
     c::LayerId id{};
     Fixture(){
         window.setUnsavedPromptEnabled(false);window.resize(1550,1050);window.show();settle();
+        check(imageeditor::test::waitForGraphicsStartup(window), "graphics startup ready before filter fixture import");
         adjustments=dynamic_cast<u::AdjustmentsPanel*>(window.findChild<QWidget*>("AdjustmentsPanelContent"));
         panel=adjustments?adjustments->filtersPanel():nullptr;
         for(auto* candidate:QGuiApplication::allWindows())if(candidate->objectName()=="VulkanCanvasWindow")canvas=dynamic_cast<r::CanvasWindow*>(candidate);
