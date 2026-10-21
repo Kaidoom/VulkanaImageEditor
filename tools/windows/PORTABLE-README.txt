@@ -3,7 +3,8 @@ Vulkana - Windows portable beta
 Extract the entire ZIP to a folder, then open bin\imageeditor.exe.
 Keep bin and share together; move or copy this whole
 folder to relocate the application. No installer, administrator permission,
-Python installation or model download is required. Object Selection works offline.
+Python installation or model download is required. Object Selection and
+Remove Background work offline.
 
 Requires 64-bit Windows 11 and a working Vulkan-capable graphics driver.
 Graphics drivers and Windows system libraries are not included.
@@ -39,8 +40,9 @@ This is beta software. Keep backups of important projects.
 
 License: LICENSE.txt (Vulkana, MIT).
 Third-party notices: share\vulkana-editor\notices and
-share\licenses\vulkana-editor. Model/runtime notices accompany the model in
-share\vulkana-editor\object-selection\mobilesam-v1.
+share\licenses\vulkana-editor. Model/runtime notices accompany the models in
+share\vulkana-editor\object-selection\mobilesam-v1 and
+share\vulkana-editor\background-removal\v1.
 Qt is dynamically linked under its LGPL option; its DLLs remain replaceable.
 The upstream Qt module inventories and original notices are included. Matching
 Qt sources and library-replacement instructions are indexed in
