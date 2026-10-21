@@ -10987,6 +10987,18 @@ Przygotowanie %3 · Finalizacja %4 · Łącznie %5</translation>
   </context>
   <context>
     <name>SnapshotTimeline</name>
+    <message id="snapshot.timeline.play">
+      <source>Play (loop)</source>
+      <translation>Odtwarzaj w pętli</translation>
+    </message>
+    <message id="snapshot.timeline.pause">
+      <source>Pause</source>
+      <translation>Wstrzymaj</translation>
+    </message>
+    <message id="gif.import.preparing">
+      <source>Opening GIF…</source>
+      <translation>Otwieranie GIF…</translation>
+    </message>
     <message id="history.snapshot.add">
       <source>Add snapshot frame</source>
       <translation>Dodaj klatkę migawki</translation>

@@ -5,6 +5,7 @@
 #include "imageeditor/ui/CropOptionsPage.hpp"
 #include "imageeditor/ui/LayerListModel.hpp"
 #include "imageeditor/ui/QtRasterImageLoader.hpp"
+#include "imageeditor/ui/GifImport.hpp"
 #include "imageeditor/ui/PdfImport.hpp"
 #include "imageeditor/ui/PsdImport.hpp"
 #include "imageeditor/ui/TextController.hpp"
@@ -375,6 +376,7 @@ bool MainWindow::openDocumentFromPath(const QString& filePath)
     const auto path = QFileInfo(filePath).absoluteFilePath();
     if (isPdfFile(path)) return importPdfFromPath(path, false);
     if (isPsdFile(path)) return importPsdFromPath(path, false);
+    if (isGifFile(path)) return importGifDocument(path);
     const bool project = QFileInfo(path).suffix().compare(QStringLiteral("vulkana"), Qt::CaseInsensitive) == 0;
     if (project) for (const auto& context : documents_) {
         if (!context->projectPath.isEmpty() && QFileInfo(context->projectPath).canonicalFilePath() == QFileInfo(path).canonicalFilePath()

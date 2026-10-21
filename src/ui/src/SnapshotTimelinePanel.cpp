@@ -160,6 +160,7 @@ public:
     std::function<void(core::SnapshotFrameId, std::size_t)> onMove;
     std::function<void()> onDelete;
     std::function<void()> onPreviewToggle;
+    std::function<void()> onPlayToggle;
     std::function<QImage(core::SnapshotFrameId)> thumbnail;
 
 protected:
@@ -187,7 +188,12 @@ protected:
             event->accept();
             return;
         }
-        if (event->key() == Qt::Key_Space || event->key() == Qt::Key_Return
+        if (event->key() == Qt::Key_Space) {
+            if (!event->isAutoRepeat() && onPlayToggle) onPlayToggle();
+            event->accept();
+            return;
+        }
+        if (event->key() == Qt::Key_Return
             || event->key() == Qt::Key_Enter) {
             if (!event->isAutoRepeat() && onPreviewToggle) onPreviewToggle();
             event->accept();
@@ -340,6 +346,8 @@ SnapshotTimelinePanel::SnapshotTimelinePanel(QWidget* parent) : QWidget(parent)
     toolbar->addSpacing(5);
     preview_ = button("SnapshotTimelinePreview", ToolGlyph::Visible, "snapshot.timeline.preview");
     preview_->setCheckable(true);
+    play_ = button("SnapshotTimelinePlay", ToolGlyph::Play, "snapshot.timeline.play");
+    play_->setCheckable(true);
     insert_ = button("SnapshotTimelineInsertLayer", ToolGlyph::NewLayer, "snapshot.timeline.insert");
     export_ = button("SnapshotTimelineExport", ToolGlyph::Export, "snapshot.timeline.export");
     toolbar->addSpacing(5);
@@ -370,6 +378,7 @@ SnapshotTimelinePanel::SnapshotTimelinePanel(QWidget* parent) : QWidget(parent)
     connect(delete_, &QToolButton::clicked, this, [this] { if (onDelete) onDelete(selectedFrameId()); });
     connect(capture_, &QToolButton::clicked, this, [this] { if (onCapture) onCapture(selectedFrameId()); });
     connect(preview_, &QToolButton::toggled, this, [this](bool enabled) { if (onPreview) onPreview(enabled); });
+    connect(play_, &QToolButton::toggled, this, [this](bool enabled) { if (onPlay) onPlay(enabled); });
     connect(insert_, &QToolButton::clicked, this, [this] { if (onInsert) onInsert(selectedFrameId()); });
     connect(export_, &QToolButton::clicked, this, [this] { if (onExport) onExport(selectedFrameId()); });
     connect(close, &QToolButton::clicked, this, [this] { if (onClose) onClose(); });
@@ -385,6 +394,7 @@ SnapshotTimelinePanel::SnapshotTimelinePanel(QWidget* parent) : QWidget(parent)
     frames_->onMove = [this](auto id, auto destination) { if (onReorder) onReorder(id, destination); };
     frames_->onDelete = [this] { if (delete_->isEnabled()) delete_->click(); };
     frames_->onPreviewToggle = [this] { if (preview_->isEnabled()) preview_->click(); };
+    frames_->onPlayToggle = [this] { if (play_->isEnabled()) play_->click(); };
     connect(&i18n::Localization::instance(), &i18n::Localization::languageChanged,
         this, [this] { refreshFrameLabels(); frames_->viewport()->update(); });
     setTimeline(timeline_);
@@ -491,15 +501,18 @@ void SnapshotTimelinePanel::refreshControls()
 {
     const auto* frame = selectedFrame();
     const bool available = documentAvailable_ && !busy_;
+    const bool editable = available && !play_->isChecked();
     const bool captured = frame && frame->image;
     frames_->setEnabled(available);
-    add_->setEnabled(available);
-    delete_->setEnabled(available && frame);
-    capture_->setEnabled(available && frame);
-    duration_->setEnabled(available && frame);
+    frames_->setDragEnabled(editable);
+    add_->setEnabled(editable);
+    delete_->setEnabled(editable && frame);
+    capture_->setEnabled(editable && frame);
+    duration_->setEnabled(editable && frame);
     preview_->setEnabled(available && captured);
-    insert_->setEnabled(available && captured);
-    export_->setEnabled(available && captured);
+    play_->setEnabled(available && std::ranges::any_of(timeline_.frames, [](const auto& item) { return bool(item.image); }));
+    insert_->setEnabled(editable && captured);
+    export_->setEnabled(editable && captured);
     if (!captured || !documentAvailable_) setPreviewActive(false);
     const QSignalBlocker blocker(duration_);
     duration_->setValue(frame ? int(std::min(frame->durationMs, std::uint32_t(std::numeric_limits<int>::max()))) : 100);
@@ -540,5 +553,16 @@ void SnapshotTimelinePanel::setPreviewActive(bool active)
 bool SnapshotTimelinePanel::previewActive() const
 {
     return preview_->isChecked();
+}
+
+void SnapshotTimelinePanel::setPlaying(bool playing)
+{
+    const QSignalBlocker blocker(play_);
+    play_->setChecked(playing);
+    play_->setIcon(toolGlyph(playing ? ToolGlyph::Pause : ToolGlyph::Play));
+    const auto label = i18n::text(playing ? "snapshot.timeline.pause" : "snapshot.timeline.play");
+    i18n::setToolTip(play_, label);
+    i18n::setAccessibleName(play_, label);
+    refreshControls();
 }
 } // namespace imageeditor::ui

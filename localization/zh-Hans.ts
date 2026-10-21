@@ -10977,6 +10977,18 @@ Prepare %3 · Finish %4 · Total %5</source>
   </context>
   <context>
     <name>SnapshotTimeline</name>
+    <message id="snapshot.timeline.play">
+      <source>Play (loop)</source>
+      <translation>循环播放</translation>
+    </message>
+    <message id="snapshot.timeline.pause">
+      <source>Pause</source>
+      <translation>暂停</translation>
+    </message>
+    <message id="gif.import.preparing">
+      <source>Opening GIF…</source>
+      <translation>正在打开 GIF…</translation>
+    </message>
     <message id="history.snapshot.add">
       <source>Add snapshot frame</source>
       <translation>添加快照帧</translation>

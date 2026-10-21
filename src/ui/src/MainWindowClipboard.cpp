@@ -16,14 +16,23 @@ bool MainWindow::createDocumentFromClipboard()
 {
     if (fileBusy_ || workspaceDialog_) return false;
     try {
-        auto loaded = [this] {
+        ClipboardGifSource gif;
+        auto loaded = [this, &gif] {
             // Native clipboard retrieval may dispatch events while the owner
             // supplies data. Do not allow overlapping document operations.
             const QScopedValueRollback busy(fileBusy_, true);
             const auto* mime = QApplication::clipboard()->mimeData(QClipboard::Clipboard);
+            if (mime) {
+                gif = clipboardGifSource(*mime);
+                if (gif) return RasterLayerLoadResult{};
+            }
             return mime ? loadClipboardImage(*mime) : RasterLayerLoadResult{
                 .layer = {}, .extent = {}, .error = QStringLiteral("Clipboard has no image.")};
         }();
+        if (gif) {
+            if (!gif.error.isEmpty()) { reportFileError(gif.error); return false; }
+            return importGifDocument(gif.path, gif.data, true);
+        }
         if (!loaded) { reportFileError(loaded.error); return false; }
         auto document = std::make_unique<core::Document>(core::CanvasSpec{loaded.extent, 96.0});
         if (!document->insertLayer(0, std::move(*loaded.layer))) {

@@ -7,6 +7,7 @@
 #include "imageeditor/ui/SnapshotTimelinePanel.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include "NativeGraphicsStartup.hpp"
+#include "GifFixture.hpp"
 
 #include <QAbstractButton>
 #include <QAction>
@@ -23,6 +24,7 @@
 #include <QScrollBar>
 #include <QSettings>
 #include <QSpinBox>
+#include <QStyleOptionSpinBox>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTest>
@@ -490,10 +492,10 @@ void timeline(QVulkanInstance* instance = nullptr)
     CHECK(waitFor([&] { return f.list().hasFocus(); }));
     {
         UnchangedDocument before(f);
-        QTest::keyClick(&f.list(), Qt::Key_Space);
+        QTest::keyClick(&f.list(), Qt::Key_Return);
         settle();
         CHECK(f.previewVisible() && !f.canvas->spacePanHeld());
-        QTest::keyClick(&f.list(), Qt::Key_Space);
+        QTest::keyClick(&f.list(), Qt::Key_Return);
         settle();
         CHECK(!f.previewVisible() && !f.canvas->spacePanHeld());
         before.verify(f);
@@ -579,7 +581,8 @@ void focusedPreview(QVulkanInstance* instance = nullptr)
     if (menu) {
         menu->popup(f.window.menuBar()->mapToGlobal(QPoint(4, f.window.menuBar()->height())));
         settle();
-        CHECK(!f.previewVisible() && menu->isVisible());
+        CHECK(!f.previewVisible());
+        CHECK(menu->isVisible());
         menu->close();
         settle();
     }
@@ -587,6 +590,46 @@ void focusedPreview(QVulkanInstance* instance = nullptr)
 
     startPreview();
     auto& duration = child<QSpinBox>(f.window, "SnapshotTimelineDuration");
+    QStyleOptionSpinBox spinStyle;
+    spinStyle.initFrom(&duration);
+    spinStyle.frame = duration.hasFrame();
+    spinStyle.buttonSymbols = duration.buttonSymbols();
+    spinStyle.stepEnabled = QAbstractSpinBox::StepUpEnabled | QAbstractSpinBox::StepDownEnabled;
+    const auto step = [&](QStyle::SubControl control, int expected) {
+        const bool previewing = f.previewVisible();
+        const auto buttonRect = duration.style()->subControlRect(QStyle::CC_SpinBox, &spinStyle, control, &duration);
+        CHECK(!buttonRect.isEmpty());
+        auto* native = duration.window()->windowHandle();
+        CHECK(native);
+        if (!native) return;
+        const auto point = native->mapFromGlobal(duration.mapToGlobal(buttonRect.center()));
+        QTest::mousePress(native, Qt::LeftButton, Qt::NoModifier, point);
+        QTest::qWait(80); // The spinner changes on press, while it still owns capture.
+        CHECK(duration.value() == expected && f.frames()[0].durationMs == std::uint32_t(expected));
+        CHECK(f.previewVisible() == previewing);
+        QTest::mouseRelease(native, Qt::LeftButton, Qt::NoModifier, point);
+        settle();
+        CHECK(duration.value() == expected && f.frames()[0].durationMs == std::uint32_t(expected));
+    };
+    step(QStyle::SC_SpinBoxUp, 110);
+    step(QStyle::SC_SpinBoxDown, 100);
+    const auto upRect = duration.style()->subControlRect(QStyle::CC_SpinBox, &spinStyle, QStyle::SC_SpinBoxUp, &duration);
+    auto* spinWindow = duration.window()->windowHandle();
+    const auto upPoint = spinWindow->mapFromGlobal(duration.mapToGlobal(upRect.center()));
+    QTest::mousePress(spinWindow, Qt::LeftButton, Qt::NoModifier, upPoint);
+    CHECK(waitFor([&] { return f.frames()[0].durationMs > 110; }, 2000));
+    QTest::mouseRelease(spinWindow, Qt::LeftButton, Qt::NoModifier, upPoint);
+    settle();
+    CHECK(f.previewVisible() && std::uint32_t(duration.value()) == f.frames()[0].durationMs);
+    f.click("SnapshotTimelineExitPreview");
+    while (f.session().history().undoDepth() > before.undoDepth) f.history();
+    CHECK(f.frames()[0].durationMs == 100);
+    // Same spinner, with the live canvas visible rather than a snapshot.
+    step(QStyle::SC_SpinBoxUp, 110);
+    step(QStyle::SC_SpinBoxDown, 100);
+    f.history(); f.history();
+    CHECK(f.frames()[0].durationMs == 100);
+    startPreview();
     QTest::mouseClick(&duration, Qt::LeftButton);
     CHECK(f.previewVisible());
     duration.setValue(240);
@@ -605,6 +648,92 @@ void focusedPreview(QVulkanInstance* instance = nullptr)
     CHECK(!f.previewVisible() && !f.window.isVisible());
     afterDuration.verify(f);
 }
+void gifPlayback(QVulkanInstance* instance = nullptr)
+{
+    Fixture f(instance);
+    const auto path = f.files.filePath("animation.gif");
+    {
+        QFile file(path); CHECK(file.open(QIODevice::WriteOnly));
+        file.write(imageeditor::test::gifFixture());
+    }
+    CHECK(f.window.openImageFromPath(path));
+    CHECK(f.panel().isVisible() && f.frames().size() == 5);
+    CHECK(f.list().currentRow() == 0 && !f.previewVisible());
+    CHECK(f.session().activeLayer() == f.document().layers().back().id);
+    CHECK(f.document().layers().back().visible);
+    UnchangedDocument before(f);
+    f.click("SnapshotTimelinePlay");
+    CHECK(f.previewVisible() && f.button("SnapshotTimelinePlay").isChecked());
+    CHECK(!child<QSpinBox>(f.panel(), "SnapshotTimelineDuration").isEnabled());
+    const QPointer<QWidget> overlay = f.preview();
+    CHECK(waitFor([&] { return f.list().currentRow() != 0; }));
+    CHECK(f.preview() == overlay); // No overlay/filter rebuild for each frame.
+    auto& play = f.button("SnapshotTimelinePlay");
+    auto* native = play.window()->windowHandle();
+    CHECK(native);
+    const auto point = native->mapFromGlobal(play.mapToGlobal(play.rect().center()));
+    QTest::mousePress(native, Qt::LeftButton, Qt::NoModifier, point);
+    QTest::qWait(180); // Exercise frame updates between physical press/release.
+    CHECK(f.preview() == overlay && play.isChecked());
+    QTest::mouseRelease(native, Qt::LeftButton, Qt::NoModifier, point);
+    settle();
+    CHECK(f.previewVisible() && !f.button("SnapshotTimelinePlay").isChecked());
+    CHECK(child<QSpinBox>(f.panel(), "SnapshotTimelineDuration").isEnabled());
+    const int paused = f.list().currentRow();
+    QTest::qWait(150);
+    CHECK(f.list().currentRow() == paused);
+    f.list().setCurrentRow(4); settle();
+    CHECK(f.list().currentRow() == 4 && f.previewVisible());
+    QTest::qWait(150);
+    CHECK(f.list().currentRow() == 4);
+    f.list().setFocus();
+    QTest::keyClick(&f.list(), Qt::Key_Space); settle();
+    CHECK(f.button("SnapshotTimelinePlay").isChecked() && !f.canvas->spacePanHeld());
+    CHECK(waitFor([&] { return f.list().currentRow() == 0; }));
+    f.list().setCurrentRow(3); settle();
+    CHECK(f.list().currentRow() == 3 && f.button("SnapshotTimelinePlay").isChecked());
+    f.click("SnapshotTimelineExitPreview");
+    const auto exited = f.list().currentRow();
+    QTest::qWait(200);
+    CHECK(!f.previewVisible() && !f.button("SnapshotTimelinePlay").isChecked());
+    CHECK(f.list().currentRow() == exited);
+    before.verify(f);
+    // File failure must leave the existing document and snapshots intact.
+    CHECK(!f.window.openImageFromPath(f.files.filePath("missing.gif")));
+    CHECK(f.errors.size() == 1);
+    before.verify(f);
+    f.click("SnapshotTimelinePlay");
+    CHECK(f.previewVisible());
+    CHECK(f.window.close()); settle();
+    CHECK(!f.previewVisible() && !f.button("SnapshotTimelinePlay").isChecked());
+    before.verify(f);
+}
+
+void gifSample(const QString& path, QVulkanInstance* instance = nullptr)
+{
+    Fixture f(instance);
+    CHECK(f.window.openImageFromPath(path));
+    if (!f.errors.isEmpty()) { std::cerr << f.errors.join('\n').toStdString(); return; }
+    CHECK(f.frames().size() > 1 && f.panel().isVisible());
+    UnchangedDocument before(f);
+    f.click("SnapshotTimelinePlay");
+    CHECK(f.previewVisible());
+    int last = f.list().currentRow(), loops = 0;
+    CHECK(waitFor([&] {
+        const auto row = f.list().currentRow();
+        if (row < last) ++loops;
+        last = row;
+        return loops >= 2;
+    }, 15000));
+    f.click("SnapshotTimelinePlay");
+    CHECK(f.previewVisible());
+    if (const auto output = qEnvironmentVariable("VULKANA_SNAPSHOT_TIMELINE_SCREENSHOT"); !output.isEmpty()) {
+        CHECK(f.preview()->grab().save(output + ".gif-preview.png"));
+        CHECK(f.panel().grab().save(output + ".gif-timeline.png"));
+    }
+    f.click("SnapshotTimelineExitPreview");
+    before.verify(f);
+}
 } // namespace
 
 int main(int argc, char** argv)
@@ -619,13 +748,18 @@ int main(int argc, char** argv)
     QSettings::setDefaultFormat(QSettings::IniFormat);
     QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settings.path());
     u::applyEditorTheme(app);
+    QString gif;
+    for (const auto& argument : app.arguments()) if (argument.startsWith("--gif=")) gif = argument.mid(6);
     try {
         if (app.arguments().contains("--native")) {
             QVulkanInstance instance;
             instance.setApiVersion(QVersionNumber(1, 2));
             CHECK(instance.create());
-            if (instance.isValid()) { timeline(&instance); focusedPreview(&instance); }
-        } else { timeline(); focusedPreview(); }
+            if (instance.isValid()) {
+                timeline(&instance); focusedPreview(&instance); gifPlayback(&instance);
+                if (!gif.isEmpty()) gifSample(gif, &instance);
+            }
+        } else { timeline(); focusedPreview(); gifPlayback(); if (!gif.isEmpty()) gifSample(gif); }
     }
     catch (const std::exception& error) { ++failures; std::cerr << error.what() << '\n'; }
     return failures ? 1 : 0;

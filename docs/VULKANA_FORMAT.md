@@ -142,6 +142,12 @@ current canvas. Subsequent edits, canvas resizing and layer deletion do not
 change saved captures. PNG bytes round-trip unchanged. Timeline viewing state,
 selection and decoded image caches are not serialized.
 
+GIF import produces independent full-canvas raster layers and matching timeline
+captures, with only frame 0 visible in the layer stack. Positive GIF delays are
+preserved in milliseconds; missing or zero delays use 100 ms. Preview playback
+loops over captured slots in order, skipping empty slots. Playback position and
+play/pause state are session-only and never alter the document or saved frames.
+
 Readers validate IDs, durations, payload paths, PNG framing and CRCs, decoded
 pixels, and agreement between PNG and manifest dimensions. Pixel-only PNGs are
 accepted; compressed text/profiles and animation chunks are rejected. Each image

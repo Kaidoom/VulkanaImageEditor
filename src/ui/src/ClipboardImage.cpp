@@ -1,5 +1,6 @@
 #include "imageeditor/ui/ClipboardImage.hpp"
 #include "imageeditor/ui/RasterLimits.hpp"
+#include "imageeditor/ui/GifImport.hpp"
 
 #include <QDir>
 #include <QFileInfo>
@@ -57,6 +58,31 @@ bool clipboardOffersImage(const QMimeData& mime)
         return readableImage(mime.text());
     }
     return false;
+}
+
+ClipboardGifSource clipboardGifSource(const QMimeData& mime)
+{
+    if (mime.hasFormat(QStringLiteral("image/gif"))) {
+        auto bytes = mime.data(QStringLiteral("image/gif"));
+        if (bytes.size() > 256 * 1024 * 1024)
+            return {{}, {}, QStringLiteral("Clipboard image data is too large.")};
+        if (!bytes.startsWith("GIF87a") && !bytes.startsWith("GIF89a"))
+            return {{}, {}, QStringLiteral("Clipboard GIF data is invalid.")};
+        return {{}, std::move(bytes), {}};
+    }
+    QStringList candidates;
+    if (mime.hasUrls()) {
+        for (const auto& url : mime.urls()) candidates.push_back(url.toString(QUrl::FullyEncoded));
+    } else if (mime.hasText()) candidates.push_back(mime.text());
+    for (const auto& candidate : candidates) {
+        const auto path = localPath(candidate);
+        if (path.isEmpty()) continue;
+        if (isGifFile(path)) return {path, {}, {}};
+        // Match the ordinary clipboard loader's first-image behavior.
+        QImageReader reader(path);
+        if (reader.canRead()) break;
+    }
+    return {};
 }
 
 RasterLayerLoadResult loadClipboardImage(const QMimeData& mime)

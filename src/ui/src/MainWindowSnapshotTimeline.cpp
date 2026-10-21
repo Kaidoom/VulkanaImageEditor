@@ -1,5 +1,6 @@
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/SnapshotTimelinePanel.hpp"
+#include "imageeditor/ui/SnapshotPlayback.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/WorkspaceDialog.hpp"
 #include "imageeditor/ui/QtRasterImageLoader.hpp"
@@ -89,16 +90,16 @@ protected:
 // checked as well as widgets so canvas events cannot bypass the shield.
 class SnapshotPreview final : public QWidget {
 public:
-    SnapshotPreview(QImage image, i18n::Message title, OverlayDockWorkspace& workspace,
+    SnapshotPreview(OverlayDockWorkspace& workspace,
         MainWindow& host, SnapshotTimelinePanel& timeline, render::CanvasWindow& canvas,
         std::function<void()> close)
-        : QWidget(workspace.panelOverlay()), image_(std::move(image)), workspace_(workspace),
+        : QWidget(workspace.panelOverlay()), workspace_(workspace),
           host_(host), timeline_(timeline), canvas_(canvas), close_(std::move(close))
     {
         setObjectName("SnapshotTimelinePreviewOverlay");
         setFocusPolicy(Qt::NoFocus);
         setAutoFillBackground(false);
-        title_ = i18n::make<QLabel>(std::move(title), this);
+        title_ = new QLabel(this);
         title_->setObjectName("SnapshotTimelinePreviewTitle");
         auto font = title_->font(); font.setBold(true); title_->setFont(font);
         back_ = i18n::make<QPushButton>(i18n::text("snapshot.timeline.back"), this);
@@ -135,6 +136,26 @@ public:
             previousFocus_->setFocus(Qt::OtherFocusReason);
     }
     void setTitle(i18n::Message title) { i18n::setText(title_, std::move(title)); layoutPreview(); }
+    void setFrame(const std::shared_ptr<const core::SnapshotImage>& source, i18n::Message title)
+    {
+        const auto found = std::ranges::find(cache_, source, &CachedImage::source);
+        if (found != cache_.end()) {
+            auto entry = std::move(*found);
+            cache_.erase(found);
+            image_ = entry.pixels;
+            cache_.push_back(std::move(entry));
+        } else {
+            image_ = decode(*source);
+            constexpr qint64 budget = 64 * 1024 * 1024;
+            const auto bytes = image_.sizeInBytes();
+            while (!cache_.empty() && cachedBytes_ + bytes > budget) {
+                cachedBytes_ -= cache_.front().pixels.sizeInBytes();
+                cache_.erase(cache_.begin());
+            }
+            if (bytes <= budget) { cache_.push_back({source, image_}); cachedBytes_ += bytes; }
+        }
+        setTitle(std::move(title));
+    }
 protected:
     void resizeEvent(QResizeEvent*) override { layoutPreview(); }
     void paintEvent(QPaintEvent*) override
@@ -298,6 +319,9 @@ private:
         update();
     }
     QImage image_;
+    struct CachedImage { std::shared_ptr<const core::SnapshotImage> source; QImage pixels; };
+    std::vector<CachedImage> cache_;
+    qint64 cachedBytes_{};
     OverlayDockWorkspace& workspace_;
     MainWindow& host_;
     SnapshotTimelinePanel& timeline_;
@@ -316,6 +340,15 @@ void MainWindow::createSnapshotTimeline(QMenu* menu)
     snapshotTimeline_ = new SnapshotTimelinePanel(centralWidget());
     static_cast<QVBoxLayout*>(centralWidget()->layout())->addWidget(snapshotTimeline_);
     snapshotTimeline_->hide();
+    snapshotPlayback_ = new SnapshotPlayback(this);
+    snapshotPlayback_->onPlayingChanged = [this](bool playing) { snapshotTimeline_->setPlaying(playing); };
+    snapshotPlayback_->onFrame = [this](auto id) {
+        if (!activeDocument_ || snapshotPreviewDocument_ != activeDocumentId()
+            || fileBusy_ || workspaceDialog_) { finishSnapshotPreview(); return; }
+        activeDocument_->selectedSnapshot = id;
+        snapshotTimeline_->setSelectedFrameId(id);
+        previewSnapshot(true);
+    };
     snapshotTimelineAction_ = i18n::addAction(menu, toolGlyph(ToolGlyph::History), i18n::text("snapshot.timeline.title"));
     snapshotTimelineAction_->setObjectName("SnapshotTimelineVisibilityAction");
     snapshotTimelineAction_->setCheckable(true);
@@ -342,7 +375,10 @@ void MainWindow::createSnapshotTimeline(QMenu* menu)
         if (!activeDocument_ || snapshotTimelineDocument_ != activeDocumentId()) return;
         activeDocument_->selectedSnapshot = id;
         if (snapshotTimeline_->previewActive()) queue([this, id] {
-            if (snapshotTimeline_->previewActive() && snapshotTimeline_->selectedFrameId() == id) previewSnapshot(true);
+            if (snapshotTimeline_->previewActive() && snapshotTimeline_->selectedFrameId() == id) {
+                if (snapshotPlayback_->currentFrame()) snapshotPlayback_->seek(id);
+                else previewSnapshot(true);
+            }
         });
         else if (snapshotPreview_) finishSnapshotPreview();
     };
@@ -386,6 +422,7 @@ void MainWindow::createSnapshotTimeline(QMenu* menu)
     }); };
     snapshotTimeline_->onCapture = [this, queue](auto id) { queue([this, id] { captureSnapshot(id); }); };
     snapshotTimeline_->onPreview = [this, queue](bool enabled) { queue([this, enabled] { previewSnapshot(enabled); }); };
+    snapshotTimeline_->onPlay = [this, queue](bool enabled) { queue([this, enabled] { playSnapshots(enabled); }); };
     snapshotTimeline_->onInsert = [this, queue](auto id) { queue([this, id] { insertSnapshotLayer(id); }); };
     snapshotTimeline_->onExport = [this, queue](auto id) { queue([this, id] { exportSnapshot(id); }); };
 }
@@ -410,12 +447,15 @@ void MainWindow::refreshSnapshotTimeline()
 
 bool MainWindow::changeSnapshotTimeline(core::SnapshotTimelineState state, const char* label)
 {
+    // Spin buttons step on press and while held. Their timeline-owned capture
+    // is safe; all live canvas/edit gesture guards must still apply.
     if (!activeDocument_ || !session().document() || fileBusy_ || workspaceDialog_ || backgroundRemoval_
-        || !shortcutGestureIdle(true) || (textController_ && textController_->active())) {
+        || !shortcutGestureIdle(true, snapshotTimeline_) || (textController_ && textController_->active())) {
         statusBar()->showMessage(i18n::text("snapshot.timeline.finish.edit"), 4000);
         refreshSnapshotTimeline(); return false;
     }
     auto command = std::make_unique<core::ChangeSnapshotTimelineCommand>(session().document()->snapshotTimeline(), std::move(state), label);
+    snapshotPlayback_->clear(); // Frame edits pause playback; viewing never enters history.
     if (!session().execute(std::move(command))) { refreshSnapshotTimeline(); return false; }
     // Timeline metadata can be edited without leaving its preview. Changes
     // to the actual artwork still invalidate it at the presentation boundary.
@@ -503,6 +543,7 @@ try {
 
 void MainWindow::finishSnapshotPreview()
 {
+    if (snapshotPlayback_) snapshotPlayback_->clear();
     if (snapshotTimeline_) snapshotTimeline_->setPreviewActive(false);
     if (!snapshotPreview_) return;
     static_cast<SnapshotPreview*>(snapshotPreview_.data())->deactivate();
@@ -520,6 +561,7 @@ void MainWindow::shutdownSnapshotTimeline()
     snapshotTimeline_->onDelete = {}; snapshotTimeline_->onCapture = {};
     snapshotTimeline_->onDurationChanged = {}; snapshotTimeline_->onReorder = {};
     snapshotTimeline_->onPreview = {}; snapshotTimeline_->onInsert = {};
+    snapshotTimeline_->onPlay = {};
     snapshotTimeline_->onExport = {}; snapshotTimeline_->onClose = {};
 }
 
@@ -530,22 +572,28 @@ try {
         finishSnapshotPreview(); return;
     }
     if (fileBusy_ || workspaceDialog_ || QApplication::activePopupWidget() || QApplication::activeModalWidget()
-        || backgroundRemoval_ || !shortcutGestureIdle(true)
-        || (textController_ && textController_->active())) { finishSnapshotPreview(); return; }
+        || backgroundRemoval_ || (!snapshotPreview_ && (!shortcutGestureIdle(true)
+            || (textController_ && textController_->active())))) { finishSnapshotPreview(); return; }
+    // Idle-gesture admission applies when entering preview, not on every frame.
+    // Timeline controls legitimately own pointer capture between press/release;
+    // a playback tick must not dismiss the overlay and reset Pause to Play.
     const auto* frame = findFrame(session().document(), snapshotTimeline_->selectedFrameId());
     if (!frame || !frame->image) { finishSnapshotPreview(); return; }
     const auto image = frame->image;
     const auto& frames = session().document()->snapshotTimeline().frames;
     const auto index = std::distance(frames.data(), frame);
     const auto title = i18n::text("snapshot.timeline.preview.title").arg(index);
-    if (snapshotPreview_ && snapshotPreviewImage_ == image) {
-        static_cast<SnapshotPreview*>(snapshotPreview_.data())->setTitle(title);
+    if (snapshotPreview_) {
+        auto* preview = static_cast<SnapshotPreview*>(snapshotPreview_.data());
+        if (snapshotPreviewImage_ == image) preview->setTitle(title);
+        else preview->setFrame(image, title);
+        snapshotPreviewImage_ = image;
         return;
     }
-    auto pixels = decode(*image);
-    finishSnapshotPreview();
-    auto* preview = new SnapshotPreview(std::move(pixels), title, *workspace_, *this,
+    auto previewGuard = std::make_unique<SnapshotPreview>(*workspace_, *this,
         *snapshotTimeline_, *canvasWindow_, [this] { finishSnapshotPreview(); });
+    previewGuard->setFrame(image, title);
+    auto* preview = previewGuard.release();
     snapshotPreview_ = preview;
     snapshotPreviewImage_ = image;
     snapshotPreviewDocument_ = activeDocumentId(); snapshotPreviewRevision_ = session().document()->revision();
@@ -556,6 +604,27 @@ try {
 } catch (const std::exception& error) {
     finishSnapshotPreview();
     reportFileError(i18n::text("snapshot.timeline.failed").arg(QString::fromUtf8(error.what())));
+}
+
+void MainWindow::playSnapshots(bool enabled)
+{
+    if (!enabled) { snapshotPlayback_->pause(); snapshotTimeline_->setPlaying(false); return; }
+    const auto* document = session().document();
+    if (!document) { snapshotTimeline_->setPlaying(false); return; }
+    auto id = snapshotTimeline_->selectedFrameId();
+    const auto* frame = findFrame(document, id);
+    if (!frame || !frame->image) {
+        const auto& frames = document->snapshotTimeline().frames;
+        const auto first = std::ranges::find_if(frames, [](const auto& item) { return bool(item.image); });
+        if (first == frames.end()) { snapshotTimeline_->setPlaying(false); return; }
+        id = first->id;
+        snapshotTimeline_->setSelectedFrameId(id);
+        activeDocument_->selectedSnapshot = id;
+    }
+    previewSnapshot(true);
+    if (!snapshotPreview_) { snapshotTimeline_->setPlaying(false); return; }
+    snapshotPlayback_->setTimeline(document->snapshotTimeline());
+    snapshotPlayback_->play(id);
 }
 
 void MainWindow::insertSnapshotLayer(core::SnapshotFrameId id)
@@ -585,6 +654,7 @@ try {
 void MainWindow::exportSnapshot(core::SnapshotFrameId id)
 try {
     if (fileBusy_ || workspaceDialog_) return;
+    snapshotPlayback_->pause();
     const auto* frame = findFrame(session().document(), id);
     if (!frame || !frame->image) return;
     const auto image = frame->image; // Pin the frozen result through the file chooser.

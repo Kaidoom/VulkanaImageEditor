@@ -1,6 +1,7 @@
 #include "imageeditor/ui/ClipboardImage.hpp"
 #include "imageeditor/ui/QtRasterImageLoader.hpp"
 #include "imageeditor/ui/RasterLimits.hpp"
+#include "GifFixture.hpp"
 
 #include <QApplication>
 #include <QBuffer>
@@ -297,6 +298,34 @@ void advertisedOversizeAndMalformedDataCannotFallBackToImplicitDecode()
     CHECK(!loadClipboardImage(malformed));
     CHECK(malformed.imageDataRequests == 0);
 }
+void gifSourcesPreserveAnimation()
+{
+    using imageeditor::ui::clipboardGifSource;
+    QTemporaryDir files;
+    const auto path = files.filePath("animation #1.gif");
+    QFile file(path);
+    CHECK(file.open(QIODevice::WriteOnly));
+    CHECK(file.write(imageeditor::test::gifFixture()) > 0); file.close();
+    QMimeData mime;
+    mime.setText('"' + path + '"');
+    CHECK(clipboardGifSource(mime).path == path);
+    mime.clear(); mime.setUrls({QUrl::fromLocalFile(path)});
+    mime.setImageData(referenceImage()); // Static file-manager thumbnail.
+    CHECK(clipboardGifSource(mime).path == path);
+    mime.clear(); mime.setData("image/gif", imageeditor::test::gifFixture());
+    mime.setImageData(referenceImage());
+    CHECK(clipboardGifSource(mime).data == imageeditor::test::gifFixture());
+    mime.clear(); mime.setData("image/gif", "broken");
+    CHECK(!clipboardGifSource(mime).error.isEmpty());
+    mime.clear(); mime.setUrls({QUrl("https://example.invalid/animation.gif")});
+    CHECK(!clipboardGifSource(mime));
+    mime.clear(); mime.setUrls({QUrl("file://server/animation.gif")});
+    CHECK(!clipboardGifSource(mime));
+    mime.clear(); mime.setText(path + "\n" + path);
+    CHECK(!clipboardGifSource(mime));
+    mime.clear(); mime.setImageData(referenceImage());
+    CHECK(!clipboardGifSource(mime));
+}
 } // namespace
 
 int main(int argc, char* argv[])
@@ -305,6 +334,7 @@ int main(int argc, char* argv[])
     imageObjectsAndSharedStraightRgbaConversion();
     encodedRasterFormatsAndMetadataPrecedence();
     localFileRepresentationsAndDeterministicUrlLists();
+    gifSourcesPreserveAnimation();
     advertisedOversizeAndMalformedDataCannotFallBackToImplicitDecode();
     if (failures) {
         std::cerr << failures << " clipboard-image assertion(s) failed\n";

@@ -118,13 +118,17 @@ void MainWindow::applyShortcutBindings(const ShortcutBindings& bindings)
     if (deleteLayerButton_ && deleteLayerButton_->isEnabled())
         i18n::setToolTip(deleteLayerButton_, i18n::text("main.window.shortcuts.delete.selected.layers.1").arg(shortcutLabel(shortcuts_, "DeleteSelectedLayersAction")));
 }
-bool MainWindow::shortcutGestureIdle(bool allowMenuCapture) const
+bool MainWindow::shortcutGestureIdle(bool allowMenuCapture, const QWidget* allowedWidgetCapture) const
 {
     if (refinement_) return false;
     // A menu's opening press briefly owns capture before its popup takes over.
     // Menu availability must not mistake that press for an editing gesture.
     const auto* owner = pointerRouter_->captureOwner();
+    const auto* widgetOwner = qobject_cast<const QWidget*>(owner);
+    const bool allowedControl = allowedWidgetCapture && widgetOwner
+        && (widgetOwner == allowedWidgetCapture || allowedWidgetCapture->isAncestorOf(widgetOwner));
     return (pointerRouter_->captureDomain() == CrossWindowPointerRouter::CaptureDomain::None
+        || allowedControl
         || (allowMenuCapture && (qobject_cast<const QMenu*>(owner) || qobject_cast<const QMenuBar*>(owner))))
         && !activeBrushStroke_ && !activeCloneStroke_ && !activeLocalBlurStroke_ && !activeSpotHealStroke_
         && !spotHealJob_ && !activeFill_ && !layerCrop_ && !activeLayerMove_ && !shapeResize_ && !shapeEdit_

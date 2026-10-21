@@ -28,3 +28,10 @@ else()
 endif()
 set_tests_properties(imageeditor_snapshot_timeline_project_tests imageeditor_snapshot_timeline_interaction_tests
     PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=${_snapshot_qpa}" TIMEOUT 90 LABELS "snapshot;timeline;widgets;project")
+
+add_executable(imageeditor_gif_import_tests GifImportTests.cpp)
+target_link_libraries(imageeditor_gif_import_tests PRIVATE imageeditor_ui Qt6::Test)
+imageeditor_enable_warnings(imageeditor_gif_import_tests)
+add_test(NAME imageeditor_gif_import_tests COMMAND imageeditor_gif_import_tests)
+set_tests_properties(imageeditor_gif_import_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=${_snapshot_qpa}"
+    TIMEOUT 90 LABELS "gif;timeline;project")

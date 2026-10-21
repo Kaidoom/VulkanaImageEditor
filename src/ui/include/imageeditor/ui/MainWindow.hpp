@@ -106,6 +106,7 @@ class TextController;
 class PixelPreview;
 class NavigatorPanel;
 class SnapshotTimelinePanel;
+class SnapshotPlayback;
 class ScreenCapture;
 struct PerformanceUsage;
 struct RefinementWorkspace;
@@ -190,11 +191,13 @@ private:
     bool changeSnapshotTimeline(core::SnapshotTimelineState, const char* label);
     void captureSnapshot(core::SnapshotFrameId);
     void previewSnapshot(bool enabled);
+    void playSnapshots(bool enabled);
     void finishSnapshotPreview();
     void shutdownSnapshotTimeline();
     void insertSnapshotLayer(core::SnapshotFrameId);
     void exportSnapshot(core::SnapshotFrameId);
     SnapshotTimelinePanel* snapshotTimeline_{};
+    SnapshotPlayback* snapshotPlayback_{};
     QAction* snapshotTimelineAction_{};
     QPointer<QWidget> snapshotPreview_;
     DocumentInstanceId snapshotTimelineDocument_{};
@@ -385,6 +388,7 @@ private:
     void adjustViewAfterCanvasResize(core::CanvasSpec before);
     void openImage();
     bool openDocumentFromPath(const QString&);
+    bool importGifDocument(const QString& path, const QByteArray& data = {}, bool fromClipboard = false);
     bool importPdfFromPath(const QString&, bool intoCurrent);
     bool importPsdFromPath(const QString&, bool intoCurrent);
     bool settleForFileOperation();
@@ -457,7 +461,7 @@ private:
     void applyShortcutBindings(const ShortcutBindings&);
     bool routeEditorShortcut(QObject*, QEvent*);
     bool routePanelKeyboard(QObject*, QEvent*);
-    bool shortcutGestureIdle(bool allowMenuCapture = false) const;
+    bool shortcutGestureIdle(bool allowMenuCapture = false, const QWidget* allowedWidgetCapture = nullptr) const;
     QLabel* measureBoundsLabel_ {nullptr};
     std::optional<core::DocumentBounds> measureBounds_;
     core::Revision measureBoundsRevision_ {0};

@@ -11089,6 +11089,18 @@ Préparation %3 · Finition %4 · Total %5</translation>
   </context>
   <context>
     <name>SnapshotTimeline</name>
+    <message id="snapshot.timeline.play">
+      <source>Play (loop)</source>
+      <translation>Lire en boucle</translation>
+    </message>
+    <message id="snapshot.timeline.pause">
+      <source>Pause</source>
+      <translation>Pause</translation>
+    </message>
+    <message id="gif.import.preparing">
+      <source>Opening GIF…</source>
+      <translation>Ouverture du GIF…</translation>
+    </message>
     <message id="history.snapshot.add">
       <source>Add snapshot frame</source>
       <translation>Ajouter une image</translation>

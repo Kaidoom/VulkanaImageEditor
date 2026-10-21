@@ -25,6 +25,7 @@ public:
     void setBusy(bool);
     void setDocumentAvailable(bool);
     void setPreviewActive(bool);
+    void setPlaying(bool);
     [[nodiscard]] bool previewActive() const;
     QSize sizeHint() const override { return {760, 164}; }
 
@@ -36,6 +37,7 @@ public:
     // Destination is the final zero-based frame position, after removal.
     std::function<void(core::SnapshotFrameId, std::size_t)> onReorder;
     std::function<void(bool)> onPreview;
+    std::function<void(bool)> onPlay;
     std::function<void(core::SnapshotFrameId)> onInsert;
     std::function<void(core::SnapshotFrameId)> onExport;
     std::function<void()> onClose;
@@ -58,6 +60,7 @@ private:
     QToolButton* delete_ {};
     QToolButton* capture_ {};
     QToolButton* preview_ {};
+    QToolButton* play_ {};
     QToolButton* insert_ {};
     QToolButton* export_ {};
     QSpinBox* duration_ {};

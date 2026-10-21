@@ -10978,6 +10978,18 @@ Prepare %3 · Finish %4 · Total %5</source>
   </context>
   <context>
     <name>SnapshotTimeline</name>
+    <message id="snapshot.timeline.play">
+      <source>Play (loop)</source>
+      <translation>बार-बार चलाएँ</translation>
+    </message>
+    <message id="snapshot.timeline.pause">
+      <source>Pause</source>
+      <translation>रोकें</translation>
+    </message>
+    <message id="gif.import.preparing">
+      <source>Opening GIF…</source>
+      <translation>GIF खोला जा रहा है…</translation>
+    </message>
     <message id="history.snapshot.add">
       <source>Add snapshot frame</source>
       <translation>स्नैपशॉट फ़्रेम जोड़ें</translation>

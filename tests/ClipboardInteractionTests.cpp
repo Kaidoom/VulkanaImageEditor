@@ -6,6 +6,7 @@
 #include "imageeditor/ui/ClipboardImage.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/core/LayerCommands.hpp"
+#include "GifFixture.hpp"
 
 #include <QAction>
 #include <QApplication>
@@ -133,6 +134,44 @@ void documentFromClipboard(u::MainWindow& window, const QTemporaryDir& files, bo
     create();
     clipboard->setText('"' + QDir::toNativeSeparators(path) + '"');
     create();
+
+    const auto gifPath = files.filePath("clipboard animation.gif");
+    {
+        QFile gif(gifPath); CHECK(gif.open(QIODevice::WriteOnly));
+        CHECK(gif.write(imageeditor::test::gifFixture()) > 0);
+    }
+    const auto createGif = [&] {
+        const auto oldCount = window.documentCount();
+        const auto* oldDocument = window.editorSession().document();
+        const auto state = oldDocument->contentState();
+        CHECK(visitNewDialog(window, [](u::NewDocumentDialog& dialog) {
+            auto* button = dialog.findChild<QPushButton*>("FromClipboardButton");
+            CHECK(button && button->isEnabled());
+            if (button) button->click();
+        }) == 1);
+        CHECK(window.documentCount() == oldCount + 1);
+        CHECK(oldDocument->contentState() == state);
+        const auto* doc = window.editorSession().document();
+        CHECK(doc && doc->layers().size() == 5 && doc->isModified());
+        CHECK(window.projectPath().isEmpty());
+        const auto* context = window.documentContext(window.activeDocumentId());
+        CHECK(context && context->sourcePath.isEmpty() && context->displayName == "Untitled");
+        CHECK(doc->snapshotTimeline().frames.size() == 5);
+        if (doc->snapshotTimeline().frames.size() == 5) {
+            CHECK(doc->snapshotTimeline().frames[2].durationMs == 10);
+            CHECK(doc->layers().back().visible && !doc->layers().front().visible);
+        }
+        CHECK(window.findChild<QWidget*>("SnapshotTimelinePanel")->isVisible());
+    };
+    clipboard->setText('"' + gifPath + '"'); createGif();
+    auto* gifUrls = new QMimeData;
+    gifUrls->setUrls({QUrl::fromLocalFile(gifPath)});
+    gifUrls->setImageData(image); // A static thumbnail must not flatten the GIF.
+    clipboard->setMimeData(gifUrls); createGif();
+    auto* encodedGif = new QMimeData;
+    encodedGif->setData("image/gif", imageeditor::test::gifFixture());
+    encodedGif->setImageData(image);
+    clipboard->setMimeData(encodedGif); createGif();
 
     QStringList errors;
     u::MainWindow::FileInteractions hooks;

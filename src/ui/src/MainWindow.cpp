@@ -46,6 +46,7 @@
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/PropertiesPanel.hpp"
 #include "imageeditor/ui/QtRasterImageLoader.hpp"
+#include "imageeditor/ui/GifImport.hpp"
 #include "imageeditor/ui/ToolOptionsBar.hpp"
 #include "imageeditor/ui/TransformOptionsPage.hpp"
 #include "imageeditor/ui/CropOptionsPage.hpp"
@@ -3349,6 +3350,7 @@ void MainWindow::handleDroppedImages(const QStringList& filePaths)
 {
     bool mayOpenFirstSuccessfulImage = fileState().untouched;
     for (const auto& filePath : filePaths) {
+        if (isGifFile(filePath)) { openImageFromPath(filePath); continue; }
         if (isPdfFile(filePath)) { importPdfFromPath(filePath,session().document()!=nullptr); continue; }
         if (isPsdFile(filePath)) { importPsdFromPath(filePath,session().document()!=nullptr); continue; }
         if (QFileInfo(filePath).suffix().compare(QStringLiteral("vulkana"), Qt::CaseInsensitive) == 0) {
