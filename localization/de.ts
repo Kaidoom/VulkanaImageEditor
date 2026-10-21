@@ -10965,4 +10965,15 @@ Vorbereitung %3 · Abschluss %4 · Gesamt %5</translation>
       <translation>Hintergrund entfernen</translation>
     </message>
   </context>
+  <context>
+    <name>NewDocumentClipboard</name>
+    <message id="new.document.dialog.from.clipboard">
+      <source>From clipboard</source>
+      <translation>Aus Zwischenablage</translation>
+    </message>
+    <message id="new.document.dialog.from.clipboard.hint">
+      <source>Create a new document from a copied image or local image file.</source>
+      <translation>Neues Dokument aus einem kopierten Bild oder einer lokalen Bilddatei erstellen.</translation>
+    </message>
+  </context>
 </TS>

@@ -5,7 +5,10 @@
 class QMimeData;
 
 namespace imageeditor::ui {
-// Called only in response to Paste. Pixels take precedence over path metadata;
-// one paste consumes one image. Local files only, never URL fetching or HTML.
+// Lightweight availability check: inspect offered formats and local file
+// headers, without decoding or transferring an image payload.
+[[nodiscard]] bool clipboardOffersImage(const QMimeData& mime);
+// Called only for an explicit Paste/From clipboard action. Pixels take
+// precedence over paths; local files only, never URL fetching or HTML.
 [[nodiscard]] RasterLayerLoadResult loadClipboardImage(const QMimeData& mime);
 } // namespace imageeditor::ui

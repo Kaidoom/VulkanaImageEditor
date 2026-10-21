@@ -38,6 +38,7 @@ using imageeditor::core::Extent2u;
 using imageeditor::core::RasterLayer;
 using imageeditor::core::Rgba8;
 using imageeditor::ui::loadClipboardImage;
+using imageeditor::ui::clipboardOffersImage;
 using imageeditor::ui::RasterLayerLoadResult;
 
 QImage referenceImage()
@@ -101,6 +102,7 @@ void imageObjectsAndSharedStraightRgbaConversion()
     const auto reference = referenceImage();
     QMimeData imageMime;
     imageMime.setImageData(reference);
+    CHECK(clipboardOffersImage(imageMime));
     auto loaded = loadClipboardImage(imageMime);
     checkPixels(loaded, reference);
     CHECK(loaded && loaded.layer->name == "Clipboard image");
@@ -168,12 +170,15 @@ void localFileRepresentationsAndDeterministicUrlLists()
     const auto reference = referenceImage();
     CHECK(reference.save(path, "PNG"));
     const auto url = QUrl::fromLocalFile(path);
-    for (const auto& text : {path, QStringLiteral("  ") + path + QStringLiteral("  "),
+    for (const auto& text : {path, QDir::toNativeSeparators(path),
+                            QStringLiteral("\"") + QDir::toNativeSeparators(path) + QStringLiteral("\""),
+                            QStringLiteral("  ") + path + QStringLiteral("  "),
                             QStringLiteral("\"") + path + QStringLiteral("\""),
                             QStringLiteral("'") + path + QStringLiteral("'"),
                             url.toString(QUrl::FullyEncoded), QDir::current().relativeFilePath(path)}) {
         QMimeData mime;
         mime.setText(text);
+        CHECK(clipboardOffersImage(mime));
         auto loaded = loadClipboardImage(mime);
         checkPixels(loaded, reference);
         CHECK(loaded && loaded.layer->name == QStringLiteral("画面 # colors").toStdString());
@@ -193,11 +198,13 @@ void localFileRepresentationsAndDeterministicUrlLists()
         QUrl::fromLocalFile(notImage), QUrl::fromLocalFile(directory.filePath(QStringLiteral("missing.png"))),
         url, QUrl::fromLocalFile(secondPath)});
     checkPixels(loadClipboardImage(urlMime), reference);
+    CHECK(clipboardOffersImage(urlMime));
     QUrl localhost = url;
     localhost.setHost(QStringLiteral("localhost"));
     QMimeData localHostMime;
     localHostMime.setText(localhost.toString(QUrl::FullyEncoded));
     checkPixels(loadClipboardImage(localHostMime), reference);
+    CHECK(clipboardOffersImage(localHostMime));
 
     QMimeData pixelMime;
     pixelMime.setUrls({QUrl::fromLocalFile(secondPath)});
@@ -220,6 +227,7 @@ void localFileRepresentationsAndDeterministicUrlLists()
                             path + QStringLiteral("\n") + path}) {
         QMimeData mime;
         mime.setText(text);
+        CHECK(!clipboardOffersImage(mime));
         const auto loaded = loadClipboardImage(mime);
         CHECK(!loaded && !loaded.error.isEmpty());
     }
@@ -227,8 +235,10 @@ void localFileRepresentationsAndDeterministicUrlLists()
     remoteUrls.setUrls({QUrl(QStringLiteral("https://example.invalid/image.png")),
         QUrl(QStringLiteral("file://remote.example") + url.path())});
     CHECK(!loadClipboardImage(remoteUrls));
+    CHECK(!clipboardOffersImage(remoteUrls));
     QMimeData empty;
     CHECK(!loadClipboardImage(empty));
+    CHECK(!clipboardOffersImage(empty));
 }
 
 class ImageDataProbe final : public QMimeData {
@@ -274,6 +284,8 @@ void advertisedOversizeAndMalformedDataCannotFallBackToImplicitDecode()
         ImageDataProbe mime;
         mime.setData(QStringLiteral("image/png"), oversizedPng(dimensions.width, dimensions.height));
         mime.setImageData(referenceImage());
+        CHECK(clipboardOffersImage(mime)); // No image payload transfer during availability checks.
+        CHECK(mime.imageDataRequests == 0);
         const auto loaded = loadClipboardImage(mime);
         CHECK(!loaded);
         CHECK(loaded.error.contains(QStringLiteral("exceeds")));

@@ -10964,4 +10964,15 @@ Prepare %3 · Finish %4 · Total %5</source>
       <translation>배경 제거</translation>
     </message>
   </context>
+  <context>
+    <name>NewDocumentClipboard</name>
+    <message id="new.document.dialog.from.clipboard">
+      <source>From clipboard</source>
+      <translation>클립보드에서</translation>
+    </message>
+    <message id="new.document.dialog.from.clipboard.hint">
+      <source>Create a new document from a copied image or local image file.</source>
+      <translation>복사한 이미지 또는 로컬 이미지 파일로 새 문서를 만듭니다.</translation>
+    </message>
+  </context>
 </TS>

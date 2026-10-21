@@ -10962,4 +10962,15 @@ Preparación %3 · Finalización %4 · Total %5</translation>
       <translation>Eliminar fondo</translation>
     </message>
   </context>
+  <context>
+    <name>NewDocumentClipboard</name>
+    <message id="new.document.dialog.from.clipboard">
+      <source>From clipboard</source>
+      <translation>Desde el portapapeles</translation>
+    </message>
+    <message id="new.document.dialog.from.clipboard.hint">
+      <source>Create a new document from a copied image or local image file.</source>
+      <translation>Crea un documento con una imagen copiada o un archivo de imagen local.</translation>
+    </message>
+  </context>
 </TS>

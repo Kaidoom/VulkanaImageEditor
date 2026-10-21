@@ -7316,4 +7316,13 @@ Prepare %3 · Finish %4 · Total %5</source>
       <source>Remove Background</source>
     </message>
   </context>
+  <context>
+    <name>NewDocumentClipboard</name>
+    <message id="new.document.dialog.from.clipboard">
+      <source>From clipboard</source>
+    </message>
+    <message id="new.document.dialog.from.clipboard.hint">
+      <source>Create a new document from a copied image or local image file.</source>
+    </message>
+  </context>
 </TS>

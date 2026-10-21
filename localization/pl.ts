@@ -10974,4 +10974,15 @@ Przygotowanie %3 · Finalizacja %4 · Łącznie %5</translation>
       <translation>Usuń tło</translation>
     </message>
   </context>
+  <context>
+    <name>NewDocumentClipboard</name>
+    <message id="new.document.dialog.from.clipboard">
+      <source>From clipboard</source>
+      <translation>Ze schowka</translation>
+    </message>
+    <message id="new.document.dialog.from.clipboard.hint">
+      <source>Create a new document from a copied image or local image file.</source>
+      <translation>Utwórz dokument ze skopiowanego obrazu lub lokalnego pliku obrazu.</translation>
+    </message>
+  </context>
 </TS>

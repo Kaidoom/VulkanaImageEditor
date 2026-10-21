@@ -1,5 +1,7 @@
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/NewDocumentDialog.hpp"
+#include "imageeditor/ui/ClipboardImage.hpp"
+#include "imageeditor/ui/ToolIcons.hpp"
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QMimeData>
@@ -8,6 +10,8 @@
 #include "imageeditor/ui/ToolOptionsNumber.hpp"
 
 #include <QComboBox>
+#include <QApplication>
+#include <QClipboard>
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
@@ -18,6 +22,7 @@
 #include <QMenu>
 #include <QPushButton>
 #include <QSignalBlocker>
+#include <QShowEvent>
 #include <QStyle>
 #include <QStyledItemDelegate>
 #include <QVBoxLayout>
@@ -220,7 +225,21 @@ NewDocumentDialog::NewDocumentDialog(Mode mode, core::CanvasSpec initialSpec, QW
     }
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
-    layout->addWidget(buttons);
+    auto* footer = new QHBoxLayout;
+    if (!changingCanvas) {
+        clipboardButton_ = i18n::make<QPushButton>(i18n::text("new.document.dialog.from.clipboard"), this);
+        clipboardButton_->setObjectName(QStringLiteral("FromClipboardButton"));
+        clipboardButton_->setIcon(toolGlyph(ToolGlyph::Paste));
+        clipboardButton_->setAutoDefault(false);
+        clipboardButton_->setEnabled(false);
+        i18n::setToolTip(clipboardButton_, i18n::text("new.document.dialog.from.clipboard.hint"));
+        footer->addWidget(clipboardButton_);
+        connect(clipboardButton_, &QPushButton::clicked, this, [this] { done(FromClipboard); });
+        connect(QApplication::clipboard(), &QClipboard::dataChanged, this, &NewDocumentDialog::refreshClipboard);
+    }
+    footer->addStretch();
+    footer->addWidget(buttons);
+    layout->addLayout(footer);
 
     const auto updateSizeValidity = [this, buttons, sizeHint, changingCanvas] {
         const auto width = static_cast<std::uint32_t>(width_->value());
@@ -261,6 +280,19 @@ NewDocumentDialog::NewDocumentDialog(Mode mode, core::CanvasSpec initialSpec, QW
         updateSizeValidity();
     });
     updateSizeValidity();
+}
+
+void NewDocumentDialog::refreshClipboard()
+{
+    if (!clipboardButton_ || !isVisible()) return;
+    const auto* mime = QApplication::clipboard()->mimeData(QClipboard::Clipboard);
+    clipboardButton_->setEnabled(mime && clipboardOffersImage(*mime));
+}
+
+void NewDocumentDialog::showEvent(QShowEvent* event)
+{
+    QDialog::showEvent(event);
+    refreshClipboard();
 }
 
 void NewDocumentDialog::setRecentFiles(RecentFiles* recentFiles)

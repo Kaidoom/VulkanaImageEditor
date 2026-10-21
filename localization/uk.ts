@@ -10974,4 +10974,15 @@ Prepare %3 · Finish %4 · Total %5</source>
       <translation>Видалити тло</translation>
     </message>
   </context>
+  <context>
+    <name>NewDocumentClipboard</name>
+    <message id="new.document.dialog.from.clipboard">
+      <source>From clipboard</source>
+      <translation>З буфера обміну</translation>
+    </message>
+    <message id="new.document.dialog.from.clipboard.hint">
+      <source>Create a new document from a copied image or local image file.</source>
+      <translation>Створити документ зі скопійованого зображення або локального файлу зображення.</translation>
+    </message>
+  </context>
 </TS>

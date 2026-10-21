@@ -10962,4 +10962,15 @@ Preparazione %3 · Completamento %4 · Totale %5</translation>
       <translation>Rimuovi sfondo</translation>
     </message>
   </context>
+  <context>
+    <name>NewDocumentClipboard</name>
+    <message id="new.document.dialog.from.clipboard">
+      <source>From clipboard</source>
+      <translation>Dagli appunti</translation>
+    </message>
+    <message id="new.document.dialog.from.clipboard.hint">
+      <source>Create a new document from a copied image or local image file.</source>
+      <translation>Crea un documento da un’immagine copiata o da un file immagine locale.</translation>
+    </message>
+  </context>
 </TS>

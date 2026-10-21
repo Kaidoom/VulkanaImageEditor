@@ -21,7 +21,7 @@ public:
         CreateDocument,
         ChangeCanvasSize,
     };
-    enum Result { OpenDocument = 2, OpenRecent = 4, OpenDropped = 5 };
+    enum Result { OpenDocument = 2, OpenRecent = 4, OpenDropped = 5, FromClipboard = 6 };
 
     explicit NewDocumentDialog(QWidget* parent = nullptr);
     NewDocumentDialog(Mode mode, core::CanvasSpec initialSpec, QWidget* parent = nullptr);
@@ -29,7 +29,7 @@ public:
     [[nodiscard]] core::CanvasSpec canvasSpec() const;
     [[nodiscard]] core::Rgba8 backgroundColor() const;
     // The caller owns the recent-files store and handles the returned open
-    // request. The dialog never reads image/project content or mutates a document.
+    // request. The dialog never decodes image pixels or mutates a document.
     void setRecentFiles(RecentFiles* recentFiles);
     void refreshRecentFiles();
     [[nodiscard]] QString selectedRecentPath() const { return selectedRecentPath_; }
@@ -37,10 +37,12 @@ public:
     void openDroppedFiles(const QStringList& paths);
 
 protected:
+    void showEvent(QShowEvent*) override;
     void dragEnterEvent(QDragEnterEvent*) override;
     void dropEvent(QDropEvent*) override;
 
 private:
+    void refreshClipboard();
     void activateRecentFile(QListWidgetItem* item);
     Mode mode_ {Mode::CreateDocument};
     QDoubleSpinBox* width_ {nullptr};
@@ -52,6 +54,7 @@ private:
     QListWidget* recentList_ {nullptr};
     QLabel* recentEmptyLabel_ {nullptr};
     QPushButton* clearRecentButton_ {nullptr};
+    QPushButton* clipboardButton_ {nullptr};
     QString selectedRecentPath_;
     QStringList droppedFiles_;
     bool openingRecent_ {false};

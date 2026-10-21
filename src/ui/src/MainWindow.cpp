@@ -3173,6 +3173,10 @@ void MainWindow::createNewDocument()
             return presenter.exec(dialog);
         }();
         if (result == QDialog::Accepted) break;
+        if (result == NewDocumentDialog::FromClipboard) {
+            if (createDocumentFromClipboard()) return;
+            continue; // Keep size choices and existing documents after a failed decode.
+        }
         if (result == NewDocumentDialog::OpenDropped) {
             bool opened = false;
             for (const auto& path : dialog.droppedFiles()) opened = openImageFromPath(path) || opened;

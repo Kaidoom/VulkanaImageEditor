@@ -10974,4 +10974,15 @@ Prepare %3 · Finish %4 · Total %5</source>
       <translation>Удалить фон</translation>
     </message>
   </context>
+  <context>
+    <name>NewDocumentClipboard</name>
+    <message id="new.document.dialog.from.clipboard">
+      <source>From clipboard</source>
+      <translation>Из буфера обмена</translation>
+    </message>
+    <message id="new.document.dialog.from.clipboard.hint">
+      <source>Create a new document from a copied image or local image file.</source>
+      <translation>Создать документ из скопированного изображения или локального файла изображения.</translation>
+    </message>
+  </context>
 </TS>

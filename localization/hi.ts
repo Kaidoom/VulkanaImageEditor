@@ -10965,4 +10965,15 @@ Prepare %3 · Finish %4 · Total %5</source>
       <translation>पृष्ठभूमि हटाएँ</translation>
     </message>
   </context>
+  <context>
+    <name>NewDocumentClipboard</name>
+    <message id="new.document.dialog.from.clipboard">
+      <source>From clipboard</source>
+      <translation>क्लिपबोर्ड से</translation>
+    </message>
+    <message id="new.document.dialog.from.clipboard.hint">
+      <source>Create a new document from a copied image or local image file.</source>
+      <translation>कॉपी की गई छवि या स्थानीय छवि फ़ाइल से नया दस्तावेज़ बनाएँ।</translation>
+    </message>
+  </context>
 </TS>

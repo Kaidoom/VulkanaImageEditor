@@ -11076,4 +11076,15 @@ Préparation %3 · Finition %4 · Total %5</translation>
       <translation>Supprimer l’arrière-plan</translation>
     </message>
   </context>
+  <context>
+    <name>NewDocumentClipboard</name>
+    <message id="new.document.dialog.from.clipboard">
+      <source>From clipboard</source>
+      <translation>Depuis le presse-papiers</translation>
+    </message>
+    <message id="new.document.dialog.from.clipboard.hint">
+      <source>Create a new document from a copied image or local image file.</source>
+      <translation>Crée un document à partir d’une image copiée ou d’un fichier image local.</translation>
+    </message>
+  </context>
 </TS>

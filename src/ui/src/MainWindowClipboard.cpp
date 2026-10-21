@@ -1,5 +1,7 @@
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/ImageExport.hpp"
+#include "imageeditor/ui/ClipboardImage.hpp"
+#include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/Localization.hpp"
 #include <QApplication>
 #include <QClipboard>
@@ -10,6 +12,39 @@
 #include <algorithm>
 
 namespace imageeditor::ui {
+bool MainWindow::createDocumentFromClipboard()
+{
+    if (fileBusy_ || workspaceDialog_) return false;
+    try {
+        auto loaded = [this] {
+            // Native clipboard retrieval may dispatch events while the owner
+            // supplies data. Do not allow overlapping document operations.
+            const QScopedValueRollback busy(fileBusy_, true);
+            const auto* mime = QApplication::clipboard()->mimeData(QClipboard::Clipboard);
+            return mime ? loadClipboardImage(*mime) : RasterLayerLoadResult{
+                .layer = {}, .extent = {}, .error = QStringLiteral("Clipboard has no image.")};
+        }();
+        if (!loaded) { reportFileError(loaded.error); return false; }
+        auto document = std::make_unique<core::Document>(core::CanvasSpec{loaded.extent, 96.0});
+        if (!document->insertLayer(0, std::move(*loaded.layer))) {
+            reportFileError(QStringLiteral("Cannot create the clipboard image layer."));
+            return false;
+        }
+        document->markUnsaved();
+        // A copied path supplies pixels, not a project/source identity: saving
+        // this new document must never overwrite or deduplicate the source.
+        if (!initializeDocument(std::move(document), QStringLiteral("Untitled"))) return false;
+        fileState().untouched = false;
+        synchronizeUi(true, true);
+        canvasWindow_->dismissLayerOutlines();
+        updateDocumentTitle();
+        return true;
+    } catch (const std::exception& error) {
+        reportFileError(QString::fromUtf8(error.what()));
+        return false;
+    }
+}
+
 void MainWindow::copyCanvasToClipboard()
 {
     if (fileBusy_ || workspaceDialog_ || !activeDocument_ || !session().document()) return;

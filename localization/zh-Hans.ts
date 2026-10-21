@@ -10964,4 +10964,15 @@ Prepare %3 · Finish %4 · Total %5</source>
       <translation>移除背景</translation>
     </message>
   </context>
+  <context>
+    <name>NewDocumentClipboard</name>
+    <message id="new.document.dialog.from.clipboard">
+      <source>From clipboard</source>
+      <translation>从剪贴板创建</translation>
+    </message>
+    <message id="new.document.dialog.from.clipboard.hint">
+      <source>Create a new document from a copied image or local image file.</source>
+      <translation>使用复制的图像或本地图像文件创建新文档。</translation>
+    </message>
+  </context>
 </TS>

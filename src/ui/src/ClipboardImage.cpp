@@ -1,8 +1,10 @@
 #include "imageeditor/ui/ClipboardImage.hpp"
+#include "imageeditor/ui/RasterLimits.hpp"
 
 #include <QDir>
 #include <QFileInfo>
 #include <QImage>
+#include <QImageReader>
 #include <QMimeData>
 #include <QUrl>
 #include <QVariant>
@@ -17,18 +19,44 @@ QString localPath(QString text)
     if (text.size() > 32768 || text.contains(QChar::Null) || text.contains('\n') || text.contains('\r')) return {};
     if (text.size() >= 2 && ((text.front() == '"' && text.back() == '"')
         || (text.front() == '\'' && text.back() == '\''))) text = text.mid(1, text.size() - 2);
-    const QUrl url(text, QUrl::StrictMode);
-    if (!url.scheme().isEmpty()) {
+    // Native Windows drive letters are paths, not URL schemes.
+    QUrl url(text, QUrl::StrictMode);
+    if (!QDir::isAbsolutePath(text) && !url.scheme().isEmpty()) {
         if (!url.isValid() || !url.isLocalFile() || (!url.host().isEmpty() && url.host() != QStringLiteral("localhost"))
             || url.hasQuery() || url.hasFragment()) return {};
-        text = url.path(QUrl::FullyDecoded);
+        url.setHost({}); // localhost is local, not a UNC/network share.
+        text = url.toLocalFile();
     }
-    if (text.contains(QChar::Null)) return {};
+    text = QDir::fromNativeSeparators(text);
+    if (text.contains(QChar::Null) || text.startsWith(QStringLiteral("//"))) return {};
     if (text.startsWith(QStringLiteral("~/"))) text = QDir::home().filePath(text.mid(2));
     // Only regular files: don't block on a device, directory or named pipe.
     const QFileInfo file(text);
     return file.isFile() && file.isReadable() ? file.absoluteFilePath() : QString {};
 }
+}
+
+bool clipboardOffersImage(const QMimeData& mime)
+{
+    if (mime.hasImage()) return true;
+    for (const auto& format : mime.formats())
+        if (format.startsWith(QStringLiteral("image/"))) return true;
+    const auto readableImage = [](const QString& text) {
+        const auto path = localPath(text);
+        if (path.isEmpty()) return false;
+        QImageReader reader(path);
+        if (!reader.canRead()) return false;
+        const auto size = reader.size();
+        return !size.isValid() || rasterExtentWithinLimits(
+            static_cast<std::uint32_t>(size.width()), static_cast<std::uint32_t>(size.height()));
+    };
+    if (mime.hasUrls()) {
+        for (const auto& url : mime.urls())
+            if (readableImage(url.toString(QUrl::FullyEncoded))) return true;
+    } else if (mime.hasText()) {
+        return readableImage(mime.text());
+    }
+    return false;
 }
 
 RasterLayerLoadResult loadClipboardImage(const QMimeData& mime)

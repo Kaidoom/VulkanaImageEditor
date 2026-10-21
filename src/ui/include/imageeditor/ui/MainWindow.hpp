@@ -356,6 +356,7 @@ private:
     void updateToolContextStatus();
     void createInitialDocument();
     void createNewDocument();
+    bool createDocumentFromClipboard();
     void changeCanvasSize();
     void createCanvasResizeControls();
     void beginQuickCanvasResize();

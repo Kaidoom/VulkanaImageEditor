@@ -3,6 +3,7 @@
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/TextController.hpp"
 #include "imageeditor/ui/Theme.hpp"
+#include "imageeditor/ui/ClipboardImage.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/core/LayerCommands.hpp"
 
@@ -11,13 +12,17 @@
 #include <QClipboard>
 #include <QElapsedTimer>
 #include <QImage>
+#include <QFile>
+#include <QDir>
 #include <QLineEdit>
 #include <QMimeData>
+#include <QPushButton>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTimer>
+#include <QUrl>
 #include <QVulkanInstance>
 #include <iostream>
 
@@ -28,11 +33,142 @@ int failures = 0;
 void check(bool value, const char* expression, int line)
 { if (!value) { ++failures; std::cerr << "FAIL " << line << ": " << expression << '\n'; } }
 #define CHECK(x) check(bool(x), #x, __LINE__)
-template<class F> bool waitFor(F predicate)
+template<class F> bool waitFor(F predicate, int timeout = 4000)
 {
     QElapsedTimer clock; clock.start();
-    while (!predicate() && clock.elapsed() < 4000) QTest::qWait(10);
+    while (!predicate() && clock.elapsed() < timeout) QTest::qWait(10);
     return predicate();
+}
+
+template<class F> int visitNewDialog(u::MainWindow& window, F callback)
+{
+    auto* action = window.findChild<QAction*>("NewDocumentAction");
+    CHECK(action && action->isEnabled());
+    if (!action || !action->isEnabled()) return 0;
+    int visits = 0;
+    QTimer inspect, watchdog;
+    QObject::connect(&inspect, &QTimer::timeout, &window, [&] {
+        for (auto* candidate : window.findChildren<QDialog*>()) {
+            auto* dialog = dynamic_cast<u::NewDocumentDialog*>(candidate);
+            if (!dialog || !dialog->isVisible()) continue;
+            // A failed decode returns to the same dialog; do not leave the
+            // test inside its nested event loop after checking recovery.
+            if (visits++) dialog->reject();
+            else callback(*dialog);
+            return;
+        }
+    });
+    watchdog.setSingleShot(true);
+    QObject::connect(&watchdog, &QTimer::timeout, &window, [&] {
+        CHECK(false);
+        for (auto* dialog : window.findChildren<QDialog*>()) dialog->reject();
+    });
+    inspect.start(10); watchdog.start(8000);
+    action->trigger();
+    CHECK(visits > 0);
+    return visits;
+}
+
+void documentFromClipboard(u::MainWindow& window, const QTemporaryDir& files, bool systemClipboard)
+{
+    auto* clipboard = QApplication::clipboard();
+    const auto create = [&] {
+        const auto* mime = clipboard->mimeData();
+        CHECK(mime);
+        if (!mime) return;
+        const auto expected = u::loadClipboardImage(*mime);
+        CHECK(expected);
+        if (!expected) { std::cerr << expected.error.toStdString() << '\n'; return; }
+        const auto oldId = window.activeDocumentId();
+        const auto oldCount = window.documentCount();
+        const auto* oldDocument = window.editorSession().document();
+        const auto oldState = oldDocument->contentState();
+        CHECK(visitNewDialog(window, [&](u::NewDocumentDialog& dialog) {
+            auto* button = dialog.findChild<QPushButton*>("FromClipboardButton");
+            CHECK(button && button->isEnabled());
+            const auto capture = qEnvironmentVariable("VULKANA_NEW_CLIPBOARD_CAPTURE");
+            if (!capture.isEmpty()) CHECK(dialog.grab().save(capture));
+            if (button && button->isEnabled()) button->click();
+            else dialog.reject();
+        }) == 1);
+        CHECK(window.documentCount() == oldCount + 1);
+        CHECK(window.activeDocumentId() != oldId);
+        CHECK(oldDocument->contentState() == oldState);
+        const auto* doc = window.editorSession().document();
+        CHECK(doc && doc->canvas().extent == expected.extent);
+        CHECK(doc && doc->isModified() && doc->layers().size() == 1);
+        CHECK(window.projectPath().isEmpty());
+        const auto* context = window.documentContext(window.activeDocumentId());
+        CHECK(context && context->sourcePath.isEmpty() && !context->untouched);
+        CHECK(window.editorSession().history().undoDepth() == 0);
+        if (!doc || doc->layers().size() != 1 || doc->canvas().extent != expected.extent) return;
+        const auto& layer = doc->layers().front();
+        CHECK(layer.localToDocument == c::AffineTransform{} && layer.rasterOrigin == c::Vec2d{});
+        const auto actual = std::get<c::RasterLayer>(layer.payload).surface;
+        const auto source = std::get<c::RasterLayer>(expected.layer->payload).surface;
+        std::vector<std::byte> actualRow(std::size_t(expected.extent.width) * 4), sourceRow(actualRow.size());
+        for (std::uint32_t y = 0; y < expected.extent.height; ++y) {
+            const c::RectI row{0, int(y), int(expected.extent.width), 1};
+            actual->copyRgba8(row, actualRow, actualRow.size());
+            source->copyRgba8(row, sourceRow, sourceRow.size());
+            CHECK(actualRow == sourceRow);
+        }
+        std::cout << "Clipboard document " << expected.extent.width << 'x' << expected.extent.height
+                  << ": pixels/alpha, exact canvas, unsaved state and existing tab verified.\n";
+    };
+    if (systemClipboard) {
+        create(); // Never replace or clear the user's native clipboard.
+        return;
+    }
+    QImage image(53, 97, QImage::Format_RGBA8888);
+    image.fill(QColor(31, 79, 151, 123));
+    clipboard->setImage(image);
+    create();
+    const auto path = files.filePath(QStringLiteral("clipboard document #1.png"));
+    CHECK(image.save(path));
+    CHECK(window.openImageFromPath(path)); // Same source already open must not deduplicate the copy.
+    auto* urls = new QMimeData;
+    urls->setUrls({QUrl::fromLocalFile(path)});
+    clipboard->setMimeData(urls);
+    create();
+    clipboard->setText('"' + QDir::toNativeSeparators(path) + '"');
+    create();
+
+    QStringList errors;
+    u::MainWindow::FileInteractions hooks;
+    hooks.reportError = [&](const QString& error) { errors.push_back(error); };
+    window.setFileInteractions(std::move(hooks));
+    const auto count = window.documentCount();
+    const auto id = window.activeDocumentId();
+    const auto state = window.editorSession().document()->contentState();
+    clipboard->clear();
+    visitNewDialog(window, [](u::NewDocumentDialog& dialog) {
+        auto* button = dialog.findChild<QPushButton*>("FromClipboardButton");
+        CHECK(button && !button->isEnabled());
+        dialog.reject();
+    });
+    CHECK(errors.isEmpty());
+    auto* invalid = new QMimeData;
+    invalid->setData("image/png", "not an image");
+    clipboard->setMimeData(invalid);
+    CHECK(visitNewDialog(window, [](u::NewDocumentDialog& dialog) {
+        auto* button = dialog.findChild<QPushButton*>("FromClipboardButton");
+        CHECK(button && button->isEnabled());
+        if (button) button->click();
+    }) == 2);
+    CHECK(errors.size() == 1);
+    clipboard->setText(path);
+    CHECK(visitNewDialog(window, [&](u::NewDocumentDialog& dialog) {
+        auto* button = dialog.findChild<QPushButton*>("FromClipboardButton");
+        CHECK(button && button->isEnabled());
+        CHECK(QFile::remove(path)); // Only this generated temporary fixture.
+        if (button) button->click();
+    }) == 2);
+    CHECK(errors.size() == 2);
+    CHECK(window.documentCount() == count && window.activeDocumentId() == id);
+    CHECK(window.editorSession().document()->contentState() == state);
+    window.setFileInteractions({});
+    clipboard->clear(); // Offscreen clipboard only.
 }
 }
 
@@ -80,7 +216,10 @@ int main(int argc, char** argv)
         if (!document || !paste || !canvas || !text) return 1;
         QTest::qWait(100);
         if (systemClipboard) {
-            CHECK(waitFor([&] { return QGuiApplication::focusWindow() == window.windowHandle()
+            CHECK(waitFor([&] { return window.startupGraphicsReady(); }, 60000));
+            window.activateWindow();
+            // The canvas/overlay has its own native window and may own focus.
+            CHECK(waitFor([&] { return QGuiApplication::focusWindow()
                 && canvas->rendererStats().framesSubmitted > 0; }));
             const auto* mime = QApplication::clipboard()->mimeData();
             CHECK(mime);
@@ -186,6 +325,7 @@ int main(int argc, char** argv)
             }
             QApplication::clipboard()->clear(); // offscreen clipboard only
         }
+        documentFromClipboard(window, files, systemClipboard);
         window.close();
     }
     CHECK(validation == 0);

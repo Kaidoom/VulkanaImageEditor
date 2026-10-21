@@ -5,6 +5,10 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QClipboard>
+#include <QImage>
+#include <QMimeData>
+#include <QUrl>
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
@@ -56,6 +60,7 @@ void changeModeStartsFromTheCurrentCanvas()
     CHECK(presets && presets->currentText() == QStringLiteral("Custom"));
     CHECK(!dialog.findChild<QComboBox*>(QStringLiteral("CanvasBackgroundCombo")));
     CHECK(!dialog.findChild<QPushButton*>(QStringLiteral("OpenDocumentButton")));
+    CHECK(!dialog.findChild<QPushButton*>(QStringLiteral("FromClipboardButton")));
     CHECK(!dialog.findChild<QAction*>(QStringLiteral("OpenImageFromNewAction")));
     CHECK(!dialog.findChild<QAction*>(QStringLiteral("OpenProjectFromNewAction")));
     CHECK(!dialog.findChild<QListWidget*>(QStringLiteral("RecentFilesList")));
@@ -81,6 +86,48 @@ void createModeKeepsTheExistingDefaults()
     CHECK(dialog.backgroundColor() == imageeditor::core::Rgba8({0, 0, 0, 0}));
     auto* presets = dialog.findChild<QComboBox*>(QStringLiteral("CanvasPresetCombo"));
     CHECK(presets && presets->currentText() == QStringLiteral("Custom"));
+}
+
+void clipboardButtonTracksAvailableImagesWithoutChangingCanvasChoices()
+{
+    using imageeditor::ui::NewDocumentDialog;
+    QTemporaryDir files;
+    CHECK(files.isValid());
+    auto* clipboard = QApplication::clipboard();
+    clipboard->clear(); // This test uses the isolated offscreen clipboard.
+    NewDocumentDialog dialog;
+    auto* button = dialog.findChild<QPushButton*>(QStringLiteral("FromClipboardButton"));
+    CHECK(button && button->text() == QStringLiteral("From clipboard"));
+    if (!button) return;
+    dialog.show();
+    QApplication::processEvents();
+    const auto spec = dialog.canvasSpec();
+    CHECK(!button->isEnabled());
+    clipboard->setText(QStringLiteral("https://example.invalid/image.png"));
+    CHECK(!button->isEnabled());
+    QImage image(71, 29, QImage::Format_RGBA8888);
+    image.fill(QColor(20, 40, 60, 90));
+    clipboard->setImage(image);
+    CHECK(button->isEnabled());
+    CHECK(dialog.canvasSpec() == spec);
+    const auto path = files.filePath(QStringLiteral("copied image.png"));
+    CHECK(image.save(path));
+    clipboard->setText('"' + path + '"');
+    CHECK(button->isEnabled());
+    auto* mime = new QMimeData;
+    mime->setUrls({QUrl::fromLocalFile(path)});
+    clipboard->setMimeData(mime);
+    CHECK(button->isEnabled());
+    clipboard->setText(files.filePath(QStringLiteral("missing.png")));
+    CHECK(!button->isEnabled());
+    clipboard->setText(path);
+    CHECK(button->isEnabled());
+    auto* box = dialog.findChild<QDialogButtonBox*>(QStringLiteral("CanvasDialogButtons"));
+    CHECK(box && button->geometry().right() < box->geometry().left());
+    button->click();
+    CHECK(dialog.result() == NewDocumentDialog::FromClipboard);
+    CHECK(dialog.canvasSpec() == spec);
+    clipboard->clear();
 }
 
 void presetsFillDimensionsAndManualEditsReturnToCustom()
@@ -437,6 +484,7 @@ int main(int argc, char* argv[])
     }
     changeModeStartsFromTheCurrentCanvas();
     createModeKeepsTheExistingDefaults();
+    clipboardButtonTracksAvailableImagesWithoutChangingCanvasChoices();
     presetsFillDimensionsAndManualEditsReturnToCustom();
     allRequestedPresetFamiliesHaveTheirExactPixelDimensions();
     resizePresetMatchingRequiresBothDimensionsAndResolution();
