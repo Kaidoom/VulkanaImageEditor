@@ -12,14 +12,17 @@
 #include "imageeditor/core/Shape.hpp"
 #include "imageeditor/ui/TextClipboard.hpp"
 #include <QDir>
+#include <QBuffer>
 #include <QFile>
 #include <QFileInfo>
 #include <QFontDatabase>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonParseError>
+#include <QImageReader>
 #include <QTemporaryFile>
 #include <QScopeGuard>
+#include <QtEndian>
 #include <algorithm>
 #include <array>
 #include <cerrno>
@@ -37,8 +40,10 @@
 namespace imageeditor::ui {
 namespace {
     constexpr int layerLimit = 1024;
-    constexpr quint64 entryLimit = quint64(layerLimit) * (1 + core::adjustmentCount + core::spatialFilterCount) + 1;
     using namespace imageeditor::project;
+    // Timeline length is bounded by actual metadata/memory, not by layer count.
+    constexpr quint64 entryLimit = 2 * manifestBudget / sizeof(Entry);
+    constexpr quint64 projectPayloadLimit = pixelLimit * 8;
 
     double number(const QJsonValue& value, double low, double high, const char* message)
     {
@@ -68,6 +73,72 @@ namespace {
                 && QString::number(id) == v.toString(),
             "Invalid layer ID");
         return id;
+    }
+    core::SnapshotFrameId snapshotId(const QJsonValue& value)
+    {
+        bool ok = false;
+        const auto id = value.toString().toULongLong(&ok);
+        require(value.isString() && ok && id && QString::number(id) == value.toString(),
+            "Invalid snapshot frame ID");
+        return id;
+    }
+    QString snapshotPath(core::SnapshotFrameId id)
+    {
+        return QStringLiteral("snapshots/%1.png").arg(id);
+    }
+    void validateSnapshotPng(const core::SnapshotImage& image, bool decode)
+    {
+        require(image.png.size() <= std::size_t(projectPayloadLimit), "Snapshot PNG exceeds payload budget");
+        const auto bytes = QByteArray::fromRawData(reinterpret_cast<const char*>(image.png.data()),
+            qsizetype(image.png.size()));
+        require(bytes.startsWith(QByteArray::fromHex("89504e470d0a1a0a")), "Invalid snapshot PNG signature");
+        // Pixel-only PNGs cannot hide unbounded compressed profiles/text or
+        // additional animation frames. Check framing and CRCs before decoding.
+        qsizetype offset = 8;
+        bool header = false, pixels = false, ended = false;
+        while (bytes.size() - offset >= 12) {
+            const auto size = qFromBigEndian<quint32>(bytes.constData() + offset);
+            require(size <= quint64(bytes.size() - offset - 12), "Truncated snapshot PNG chunk");
+            const auto kind = QByteArrayView(bytes.constData() + offset + 4, 4);
+            if (kind == "IHDR") {
+                require(!header && offset == 8 && size == 13, "Invalid snapshot PNG header");
+                require(qFromBigEndian<quint32>(bytes.constData() + offset + 8) == image.extent.width
+                        && qFromBigEndian<quint32>(bytes.constData() + offset + 12) == image.extent.height,
+                    "Snapshot PNG dimensions disagree with manifest");
+                // Captures use RGBA8; admitting other pixel formats would make
+                // decoded memory larger than the project's accounting assumes.
+                require(std::uint8_t(bytes[offset + 16]) == 8 && std::uint8_t(bytes[offset + 17]) == 6,
+                    "Snapshot PNG must contain RGBA8 pixels");
+                header = true;
+            } else if (kind == "IDAT") {
+                require(header, "Snapshot PNG pixels precede header");
+                pixels = true;
+            } else if (kind == "IEND") {
+                require(header && pixels && !size && offset + 12 == bytes.size(), "Invalid snapshot PNG ending");
+                ended = true;
+            } else {
+                require((kind == "pHYs" && size == 9) || (kind == "sRGB" && size == 1)
+                        || (kind == "gAMA" && size == 4) || (kind == "cHRM" && size == 32),
+                    "Unsupported snapshot PNG metadata");
+            }
+            const auto crc = mz_crypt_crc32_update(0,
+                reinterpret_cast<const uint8_t*>(bytes.constData() + offset + 4), int32_t(size + 4));
+            require(crc == qFromBigEndian<quint32>(bytes.constData() + offset + size + 8),
+                "Invalid snapshot PNG checksum");
+            offset += qsizetype(size) + 12;
+            if (ended) break;
+        }
+        require(ended && offset == bytes.size(), "Incomplete snapshot PNG");
+        if (decode) {
+            QBuffer buffer;
+            buffer.setData(bytes);
+            require(buffer.open(QIODevice::ReadOnly), "Cannot read snapshot PNG");
+            QImageReader reader(&buffer, "PNG");
+            reader.setAutoDetectImageFormat(false);
+            const auto decoded = reader.read();
+            require(!decoded.isNull() && decoded.width() == int(image.extent.width)
+                    && decoded.height() == int(image.extent.height), "Cannot decode snapshot PNG pixels");
+        }
     }
     QJsonValue overlayJson(const QJsonValue& original, const QJsonValue& known)
     {
@@ -364,6 +435,29 @@ namespace {
         }
         if(containsBlendV3) {auto required=result["required"].toArray();required.append("blend-modes-v3");result["required"]=required;}
         result["layers"] = layers;
+        // Timeline data is owned, not opaque metadata. Removing frames must
+        // never resurrect captures from the manifest used to open the project.
+        result.remove("snapshotTimeline");
+        const auto& timeline = doc.snapshotTimeline();
+        require(core::validSnapshotTimeline(timeline), "Invalid snapshot timeline");
+        if (timeline != core::SnapshotTimelineState{}) {
+            QJsonArray frames;
+            for (const auto& frame : timeline.frames) {
+                QJsonObject record {{"id", QString::number(frame.id)}, {"durationMs", double(frame.durationMs)}};
+                if (frame.image) {
+                    const auto& image = *frame.image;
+                    record["image"] = QJsonObject {{"path", snapshotPath(frame.id)},
+                        {"width", double(image.extent.width)}, {"height", double(image.extent.height)},
+                        {"ppi", image.dotsPerInch}};
+                }
+                frames.append(record);
+            }
+            result["snapshotTimeline"] = QJsonObject {{"version", 1}, {"nextId", QString::number(timeline.nextId)},
+                {"frames", frames}};
+            auto required = result["required"].toArray();
+            required.append("snapshot-timeline-v1");
+            result["required"] = required;
+        }
         result.remove("lastSelection");
         const auto remembered = doc.selection() ? doc.selection() : doc.lastSelection();
         if (remembered) {
@@ -421,12 +515,21 @@ namespace {
         detail::AdjustmentPlan adjustments;
         detail::SpatialFilterPlan filters;
     };
+    struct SnapshotFramePlan {
+        core::SnapshotFrame frame;
+        core::Extent2u extent;
+        double dotsPerInch {96};
+        QString path;
+    };
     struct Plan {
         core::CanvasSpec canvas;
         bool hasLastSelection {false};
         std::vector<LayerPlan> layers;
         core::LayerTree tree;
         quint64 bytes { 0 };
+        std::vector<SnapshotFramePlan> frames;
+        core::SnapshotFrameId nextFrameId {2};
+        quint64 snapshotBytes {0}, snapshotDecodeBytes {0};
     };
     core::LayerTree decodeHierarchy(const QJsonValue& value, std::span<const core::LayerId> leaves)
     {
@@ -493,7 +596,8 @@ namespace {
                     || capability == "adjustments-v1" || capability == "adjustment-layer-v1" || capability == "spatial-filters-v1" || capability == "layer-crop-v1" || capability == "layer-crop-chamfer-v1"
                     || capability == "selection-recall-v1" || capability == "layer-effects-v1" || capability == "bevel-emboss-v1" || capability == "projective-transform-v1" || capability == "raster-local-frame-v1" || capability == "layer-mask-v1"
                     || capability == "encoded-srgb-compositing-v1" || capability == "layer-fill-opacity-v1"
-                    || capability == "layer-effects-advanced-blending-v1" || capability == "multi-stop-gradient-v1",
+                    || capability == "layer-effects-advanced-blending-v1" || capability == "multi-stop-gradient-v1"
+                    || capability == "snapshot-timeline-v1",
                 "Project requires unsupported capabilities");
         require(o["canvas"].isObject() && o["layers"].isArray(), "Missing canvas or layers");
         const auto canvas = o["canvas"].toObject();
@@ -514,6 +618,48 @@ namespace {
         std::set<core::LayerId> ids;
         std::vector<core::LayerId> leafOrder;
         std::set<QString> used { "manifest.json" };
+        if (o.contains("snapshotTimeline")) {
+            require(required.contains("snapshot-timeline-v1") && o["snapshotTimeline"].isObject(),
+                "Invalid or undeclared snapshot timeline");
+            const auto timeline = o["snapshotTimeline"].toObject();
+            require(timeline["version"] == 1 && timeline["frames"].isArray()
+                    && !timeline["frames"].toArray().isEmpty(), "Invalid snapshot timeline descriptor");
+            result.nextFrameId = snapshotId(timeline["nextId"]);
+            const auto frames = timeline["frames"].toArray();
+            result.frames.reserve(std::size_t(frames.size()));
+            std::set<core::SnapshotFrameId> frameIds;
+            for (const auto& value : frames) {
+                require(value.isObject(), "Invalid snapshot frame record");
+                const auto record = value.toObject();
+                SnapshotFramePlan frame;
+                frame.frame.id = snapshotId(record["id"]);
+                require(frame.frame.id < result.nextFrameId && frameIds.insert(frame.frame.id).second,
+                    "Duplicate snapshot frame ID or invalid next ID");
+                frame.frame.durationMs = std::uint32_t(integer(record["durationMs"], 1,
+                    std::numeric_limits<std::uint32_t>::max(), "Invalid snapshot frame duration"));
+                if (record.contains("image")) {
+                    require(record["image"].isObject(), "Invalid snapshot image descriptor");
+                    const auto image = record["image"].toObject();
+                    frame.extent = extent(image);
+                    frame.dotsPerInch = number(image["ppi"], 1, 1200, "Invalid snapshot resolution");
+                    frame.path = snapshotPath(frame.frame.id);
+                    require(image["path"] == frame.path && used.insert(frame.path).second,
+                        "Invalid snapshot payload path");
+                    const auto entry = files.find(frame.path);
+                    const auto rgbaBytes = quint64(frame.extent.width) * frame.extent.height * 4;
+                    require(entry != files.end() && entry->second.bytes > 0
+                            && entry->second.bytes <= checkedBytes(rgbaBytes * 2, 1024 * 1024),
+                        "Missing or oversized snapshot PNG payload");
+                    result.snapshotBytes = checkedBytes(result.snapshotBytes, entry->second.bytes);
+                    // Decode one capture at a time. Only compressed pixels stay
+                    // resident; timeline length does not multiply RGBA memory.
+                    result.snapshotDecodeBytes = std::max(result.snapshotDecodeBytes, rgbaBytes * 2);
+                }
+                result.frames.push_back(std::move(frame));
+            }
+        } else {
+            require(!required.contains("snapshot-timeline-v1"), "Missing required snapshot timeline");
+        }
         if (o.contains("lastSelection")) {
             const auto s = o["lastSelection"].toObject();
             require(required.contains("selection-recall-v1") && s["version"] == 1
@@ -743,7 +889,7 @@ ProjectLoadResult loadProject(const QString& path, ProjectProgress callback, Pro
         QFile file(path);
         require(file.open(QIODevice::ReadOnly), "Cannot open project file");
         Archive zip(file, false);
-        const auto files = entries(zip, entryLimit);
+        const auto files = entries(zip, entryLimit, projectPayloadLimit);
         Progress progress { std::move(callback) };
         for (const auto& [name, entry] : files) {
             Q_UNUSED(name);
@@ -756,7 +902,8 @@ ProjectLoadResult loadProject(const QString& path, ProjectProgress callback, Pro
         // new resident pixels, mask decoding, upload staging and driver backing.
         // Do not apply this admission to the save-time streaming CRC pass.
         const auto twicePixels = checkedBytes(plan.bytes, plan.bytes);
-        const auto estimate = checkedBytes(checkedBytes(twicePixels, twicePixels), 64ULL * 1024 * 1024);
+        const auto estimate = checkedBytes(checkedBytes(checkedBytes(twicePixels, twicePixels),
+            checkedBytes(plan.snapshotBytes, plan.snapshotDecodeBytes)), 64ULL * 1024 * 1024);
         const auto allowance = limits.workingBytes ? limits.workingBytes : platform::availableWorkingMemoryBytes();
         if (estimate > allowance)
             throw std::runtime_error(QStringLiteral(
@@ -835,6 +982,33 @@ ProjectLoadResult loadProject(const QString& path, ProjectProgress callback, Pro
         }
         require(doc->tree() == plan.tree || doc->replaceStructure(doc->tree(), std::move(plan.tree)),
             "Cannot restore layer hierarchy");
+        if (!plan.frames.empty()) {
+            core::SnapshotTimelineState timeline;
+            timeline.frames.clear();
+            timeline.frames.reserve(plan.frames.size());
+            timeline.nextId = plan.nextFrameId;
+            for (auto& frame : plan.frames) {
+                if (!frame.path.isEmpty()) {
+                    auto image = std::make_shared<core::SnapshotImage>();
+                    image->extent = frame.extent;
+                    image->dotsPerInch = frame.dotsPerInch;
+                    const auto& entry = files.at(frame.path);
+                    image->png.resize(std::size_t(entry.bytes));
+                    std::size_t offset = 0;
+                    readEntry(zip, entry, [&](const char* bytes, int n) {
+                        std::memcpy(image->png.data() + offset, bytes, std::size_t(n));
+                        offset += std::size_t(n);
+                    }, progress);
+                    validateSnapshotPng(*image, true);
+                    frame.frame.image = std::move(image);
+                    progress.tick();
+                }
+                timeline.frames.push_back(std::move(frame.frame));
+            }
+            require(timeline == doc->snapshotTimeline()
+                    || doc->setSnapshotTimeline(doc->snapshotTimeline(), std::move(timeline)),
+                "Cannot restore snapshot timeline");
+        }
         zip.finish();
         progress.tick();
         doc->markSaved();
@@ -867,6 +1041,13 @@ ProjectIoResult saveProject(const QString& path, const core::Document& doc, cons
         require(quint64(json.size()) <= manifestBudget, "Project manifest exceeds 8 MiB limit");
         Entries expected { { "manifest.json", { 0, quint64(json.size()), 0 } } };
         quint64 bytes = quint64(json.size());
+        for (const auto& frame : doc.snapshotTimeline().frames) {
+            if (!frame.image) continue;
+            validateSnapshotPng(*frame.image, false);
+            const auto n = quint64(frame.image->png.size());
+            expected.emplace(snapshotPath(frame.id), Entry {0, n, 0});
+            bytes = checkedBytes(bytes, n);
+        }
         const auto remembered = doc.selection() ? doc.selection() : doc.lastSelection();
         if (remembered) {
             const auto e=remembered->extent(); const auto n=quint64(e.width)*e.height;
@@ -937,6 +1118,17 @@ ProjectIoResult saveProject(const QString& path, const core::Document& doc, cons
         require(temp.open(), "Cannot create temporary project beside destination");
         {
             Archive zip(temp, true);
+            for (const auto& frame : doc.snapshotTimeline().frames) {
+                if (!frame.image) continue;
+                const auto& png = frame.image->png;
+                writeEntry(zip, snapshotPath(frame.id), quint64(png.size()), [&](const auto& write) {
+                    for (std::size_t offset = 0; offset < png.size();) {
+                        const auto n = std::min<std::size_t>(chunkSize, png.size() - offset);
+                        write(reinterpret_cast<const char*>(png.data() + offset), int(n));
+                        offset += n;
+                    }
+                }, progress, true);
+            }
             if (remembered) {
                 const auto e=remembered->extent();
                 const auto rows=std::max<std::size_t>(1,chunkSize/e.width);
@@ -1037,7 +1229,7 @@ ProjectIoResult saveProject(const QString& path, const core::Document& doc, cons
         require(temp.seek(0), "Cannot validate temporary project");
         {
             Archive verify(temp, false);
-            const auto files = entries(verify, entryLimit);
+            const auto files = entries(verify, entryLimit, projectPayloadLimit);
             require(files.size() == expected.size(), "Written archive directory is incomplete");
             for (const auto& [name, entry] : files) {
                 require(expected.contains(name) && expected.at(name).bytes == entry.bytes, "Written archive payload mismatch");

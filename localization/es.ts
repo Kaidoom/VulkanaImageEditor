@@ -10973,4 +10973,127 @@ Preparación %3 · Finalización %4 · Total %5</translation>
       <translation>Crea un documento con una imagen copiada o un archivo de imagen local.</translation>
     </message>
   </context>
+  <context>
+    <name>SnapshotTimeline</name>
+    <message id="history.snapshot.add">
+      <source>Add snapshot frame</source>
+      <translation>Añadir fotograma</translation>
+    </message>
+    <message id="history.snapshot.delete">
+      <source>Delete snapshot frame</source>
+      <translation>Eliminar fotograma</translation>
+    </message>
+    <message id="history.snapshot.reorder">
+      <source>Reorder snapshot frames</source>
+      <translation>Reordenar fotogramas</translation>
+    </message>
+    <message id="history.snapshot.duration">
+      <source>Change frame duration</source>
+      <translation>Cambiar duración del fotograma</translation>
+    </message>
+    <message id="history.snapshot.capture">
+      <source>Capture canvas snapshot</source>
+      <translation>Capturar lienzo</translation>
+    </message>
+    <message id="snapshot.timeline.title">
+      <source>Snapshot Timeline</source>
+      <translation>Línea de capturas</translation>
+    </message>
+    <message id="snapshot.timeline.capture">
+      <source>Capture Canvas</source>
+      <translation>Capturar lienzo</translation>
+    </message>
+    <message id="snapshot.timeline.replace">
+      <source>Replace with current canvas</source>
+      <translation>Reemplazar por el lienzo actual</translation>
+    </message>
+    <message id="snapshot.timeline.add">
+      <source>Add frame</source>
+      <translation>Añadir fotograma</translation>
+    </message>
+    <message id="snapshot.timeline.delete">
+      <source>Delete frame</source>
+      <translation>Eliminar fotograma</translation>
+    </message>
+    <message id="snapshot.timeline.preview">
+      <source>Preview snapshot</source>
+      <translation>Vista previa de la captura</translation>
+    </message>
+    <message id="snapshot.timeline.insert">
+      <source>Insert snapshot as layer</source>
+      <translation>Insertar captura como capa</translation>
+    </message>
+    <message id="snapshot.timeline.export">
+      <source>Export snapshot</source>
+      <translation>Exportar captura</translation>
+    </message>
+    <message id="snapshot.timeline.duration">
+      <source>Frame Duration</source>
+      <translation>Duración</translation>
+    </message>
+    <message id="snapshot.timeline.duration.suffix">
+      <source> ms</source>
+      <translation> ms</translation>
+    </message>
+    <message id="snapshot.timeline.duration.value">
+      <source>%1 ms</source>
+      <translation>%1 ms</translation>
+    </message>
+    <message id="snapshot.timeline.close">
+      <source>Close Snapshot Timeline</source>
+      <translation>Cerrar línea de capturas</translation>
+    </message>
+    <message id="snapshot.timeline.empty">
+      <source>Empty</source>
+      <translation>Vacío</translation>
+    </message>
+    <message id="snapshot.timeline.unavailable">
+      <source>Unavailable</source>
+      <translation>No disponible</translation>
+    </message>
+    <message id="snapshot.timeline.frame">
+      <source>Frame %1</source>
+      <translation>Fotograma %1</translation>
+    </message>
+    <message id="snapshot.timeline.preview.title">
+      <source>Snapshot preview · Frame %1</source>
+      <translation>Vista previa · Fotograma %1</translation>
+    </message>
+    <message id="snapshot.timeline.back">
+      <source>Back to canvas</source>
+      <translation>Volver al lienzo</translation>
+    </message>
+    <message id="snapshot.timeline.preparing">
+      <source>Capturing canvas…</source>
+      <translation>Capturando lienzo…</translation>
+    </message>
+    <message id="snapshot.timeline.captured">
+      <source>Captured frame %1</source>
+      <translation>Fotograma %1 capturado</translation>
+    </message>
+    <message id="snapshot.timeline.layer">
+      <source>Snapshot %1</source>
+      <translation>Captura %1</translation>
+    </message>
+    <message id="snapshot.timeline.export.title">
+      <source>Export Snapshot</source>
+      <translation>Exportar captura</translation>
+    </message>
+    <message id="snapshot.timeline.export.filter">
+      <source>PNG image (*.png)</source>
+      <translation>Imagen PNG (*.png)</translation>
+    </message>
+    <message id="snapshot.timeline.export.done">
+      <source>Snapshot exported</source>
+      <translation>Captura exportada</translation>
+    </message>
+    <message id="snapshot.timeline.failed">
+      <source>Snapshot failed: %1</source>
+      <translation>Error de captura: %1</translation>
+    </message>
+    <message id="snapshot.timeline.finish.edit">
+      <source>Finish the current edit before using the timeline.</source>
+      <translation>Termina la edición actual antes de usar la línea de capturas.</translation>
+    </message>
+  </context>
 </TS>

@@ -208,6 +208,10 @@ bool MainWindow::routeEditorShortcut(QObject* watched, QEvent* event)
     const bool curve = dynamic_cast<AdjustmentCurveEditor*>(owner);
     const bool layers = owner == layerList_;
     const bool control = owner && !curve && !layers;
+    // Timeline frame deletion belongs to the list, even if an editor action
+    // has been rebound to Delete. It must never delete or paint a live layer.
+    if (owner && owner->objectName() == QStringLiteral("SnapshotTimelineFrames")
+        && key->key() == Qt::Key_Delete && key->modifiers() == Qt::NoModifier) return false;
     // Native widget navigation is fixed, not an accidental editor shortcut.
     if ((layers || control) && navigationKey(*key)) return false;
     unsigned context = curve ? CurveKeys : layers ? LayerListKeys : control ? ControlKeys

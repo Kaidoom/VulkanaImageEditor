@@ -11099,4 +11099,127 @@ Prepare %3 · Finish %4 · Total %5</source>
       <translation>أنشئ مستندًا جديدًا من صورة منسوخة أو ملف صورة محلي.</translation>
     </message>
   </context>
+  <context>
+    <name>SnapshotTimeline</name>
+    <message id="history.snapshot.add">
+      <source>Add snapshot frame</source>
+      <translation>إضافة إطار لقطة</translation>
+    </message>
+    <message id="history.snapshot.delete">
+      <source>Delete snapshot frame</source>
+      <translation>حذف إطار لقطة</translation>
+    </message>
+    <message id="history.snapshot.reorder">
+      <source>Reorder snapshot frames</source>
+      <translation>إعادة ترتيب الإطارات</translation>
+    </message>
+    <message id="history.snapshot.duration">
+      <source>Change frame duration</source>
+      <translation>تغيير مدة الإطار</translation>
+    </message>
+    <message id="history.snapshot.capture">
+      <source>Capture canvas snapshot</source>
+      <translation>التقاط مساحة الرسم</translation>
+    </message>
+    <message id="snapshot.timeline.title">
+      <source>Snapshot Timeline</source>
+      <translation>شريط اللقطات</translation>
+    </message>
+    <message id="snapshot.timeline.capture">
+      <source>Capture Canvas</source>
+      <translation>التقاط مساحة الرسم</translation>
+    </message>
+    <message id="snapshot.timeline.replace">
+      <source>Replace with current canvas</source>
+      <translation>استبدال بمساحة الرسم الحالية</translation>
+    </message>
+    <message id="snapshot.timeline.add">
+      <source>Add frame</source>
+      <translation>إضافة إطار</translation>
+    </message>
+    <message id="snapshot.timeline.delete">
+      <source>Delete frame</source>
+      <translation>حذف الإطار</translation>
+    </message>
+    <message id="snapshot.timeline.preview">
+      <source>Preview snapshot</source>
+      <translation>معاينة اللقطة</translation>
+    </message>
+    <message id="snapshot.timeline.insert">
+      <source>Insert snapshot as layer</source>
+      <translation>إدراج اللقطة كطبقة</translation>
+    </message>
+    <message id="snapshot.timeline.export">
+      <source>Export snapshot</source>
+      <translation>تصدير اللقطة</translation>
+    </message>
+    <message id="snapshot.timeline.duration">
+      <source>Frame Duration</source>
+      <translation>مدة الإطار</translation>
+    </message>
+    <message id="snapshot.timeline.duration.suffix">
+      <source> ms</source>
+      <translation> ms</translation>
+    </message>
+    <message id="snapshot.timeline.duration.value">
+      <source>%1 ms</source>
+      <translation>%1 ms</translation>
+    </message>
+    <message id="snapshot.timeline.close">
+      <source>Close Snapshot Timeline</source>
+      <translation>إغلاق شريط اللقطات</translation>
+    </message>
+    <message id="snapshot.timeline.empty">
+      <source>Empty</source>
+      <translation>فارغ</translation>
+    </message>
+    <message id="snapshot.timeline.unavailable">
+      <source>Unavailable</source>
+      <translation>غير متاح</translation>
+    </message>
+    <message id="snapshot.timeline.frame">
+      <source>Frame %1</source>
+      <translation>الإطار %1</translation>
+    </message>
+    <message id="snapshot.timeline.preview.title">
+      <source>Snapshot preview · Frame %1</source>
+      <translation>معاينة · الإطار %1</translation>
+    </message>
+    <message id="snapshot.timeline.back">
+      <source>Back to canvas</source>
+      <translation>العودة إلى مساحة الرسم</translation>
+    </message>
+    <message id="snapshot.timeline.preparing">
+      <source>Capturing canvas…</source>
+      <translation>جارٍ التقاط مساحة الرسم…</translation>
+    </message>
+    <message id="snapshot.timeline.captured">
+      <source>Captured frame %1</source>
+      <translation>تم التقاط الإطار %1</translation>
+    </message>
+    <message id="snapshot.timeline.layer">
+      <source>Snapshot %1</source>
+      <translation>لقطة %1</translation>
+    </message>
+    <message id="snapshot.timeline.export.title">
+      <source>Export Snapshot</source>
+      <translation>تصدير اللقطة</translation>
+    </message>
+    <message id="snapshot.timeline.export.filter">
+      <source>PNG image (*.png)</source>
+      <translation>صورة PNG (*.png)</translation>
+    </message>
+    <message id="snapshot.timeline.export.done">
+      <source>Snapshot exported</source>
+      <translation>تم تصدير اللقطة</translation>
+    </message>
+    <message id="snapshot.timeline.failed">
+      <source>Snapshot failed: %1</source>
+      <translation>تعذّر التقاط اللقطة: %1</translation>
+    </message>
+    <message id="snapshot.timeline.finish.edit">
+      <source>Finish the current edit before using the timeline.</source>
+      <translation>أنهِ التعديل الحالي قبل استخدام شريط اللقطات.</translation>
+    </message>
+  </context>
 </TS>

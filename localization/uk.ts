@@ -10985,4 +10985,127 @@ Prepare %3 · Finish %4 · Total %5</source>
       <translation>Створити документ зі скопійованого зображення або локального файлу зображення.</translation>
     </message>
   </context>
+  <context>
+    <name>SnapshotTimeline</name>
+    <message id="history.snapshot.add">
+      <source>Add snapshot frame</source>
+      <translation>Додати кадр знімка</translation>
+    </message>
+    <message id="history.snapshot.delete">
+      <source>Delete snapshot frame</source>
+      <translation>Видалити кадр знімка</translation>
+    </message>
+    <message id="history.snapshot.reorder">
+      <source>Reorder snapshot frames</source>
+      <translation>Змінити порядок кадрів</translation>
+    </message>
+    <message id="history.snapshot.duration">
+      <source>Change frame duration</source>
+      <translation>Змінити тривалість кадру</translation>
+    </message>
+    <message id="history.snapshot.capture">
+      <source>Capture canvas snapshot</source>
+      <translation>Створити знімок полотна</translation>
+    </message>
+    <message id="snapshot.timeline.title">
+      <source>Snapshot Timeline</source>
+      <translation>Шкала знімків</translation>
+    </message>
+    <message id="snapshot.timeline.capture">
+      <source>Capture Canvas</source>
+      <translation>Знімок полотна</translation>
+    </message>
+    <message id="snapshot.timeline.replace">
+      <source>Replace with current canvas</source>
+      <translation>Замінити поточним виглядом полотна</translation>
+    </message>
+    <message id="snapshot.timeline.add">
+      <source>Add frame</source>
+      <translation>Додати кадр</translation>
+    </message>
+    <message id="snapshot.timeline.delete">
+      <source>Delete frame</source>
+      <translation>Видалити кадр</translation>
+    </message>
+    <message id="snapshot.timeline.preview">
+      <source>Preview snapshot</source>
+      <translation>Переглянути знімок</translation>
+    </message>
+    <message id="snapshot.timeline.insert">
+      <source>Insert snapshot as layer</source>
+      <translation>Вставити знімок як шар</translation>
+    </message>
+    <message id="snapshot.timeline.export">
+      <source>Export snapshot</source>
+      <translation>Експортувати знімок</translation>
+    </message>
+    <message id="snapshot.timeline.duration">
+      <source>Frame Duration</source>
+      <translation>Тривалість</translation>
+    </message>
+    <message id="snapshot.timeline.duration.suffix">
+      <source> ms</source>
+      <translation> мс</translation>
+    </message>
+    <message id="snapshot.timeline.duration.value">
+      <source>%1 ms</source>
+      <translation>%1 мс</translation>
+    </message>
+    <message id="snapshot.timeline.close">
+      <source>Close Snapshot Timeline</source>
+      <translation>Закрити шкалу знімків</translation>
+    </message>
+    <message id="snapshot.timeline.empty">
+      <source>Empty</source>
+      <translation>Порожньо</translation>
+    </message>
+    <message id="snapshot.timeline.unavailable">
+      <source>Unavailable</source>
+      <translation>Недоступно</translation>
+    </message>
+    <message id="snapshot.timeline.frame">
+      <source>Frame %1</source>
+      <translation>Кадр %1</translation>
+    </message>
+    <message id="snapshot.timeline.preview.title">
+      <source>Snapshot preview · Frame %1</source>
+      <translation>Перегляд · Кадр %1</translation>
+    </message>
+    <message id="snapshot.timeline.back">
+      <source>Back to canvas</source>
+      <translation>Повернутися до полотна</translation>
+    </message>
+    <message id="snapshot.timeline.preparing">
+      <source>Capturing canvas…</source>
+      <translation>Створення знімка полотна…</translation>
+    </message>
+    <message id="snapshot.timeline.captured">
+      <source>Captured frame %1</source>
+      <translation>Кадр %1 знято</translation>
+    </message>
+    <message id="snapshot.timeline.layer">
+      <source>Snapshot %1</source>
+      <translation>Знімок %1</translation>
+    </message>
+    <message id="snapshot.timeline.export.title">
+      <source>Export Snapshot</source>
+      <translation>Експорт знімка</translation>
+    </message>
+    <message id="snapshot.timeline.export.filter">
+      <source>PNG image (*.png)</source>
+      <translation>Зображення PNG (*.png)</translation>
+    </message>
+    <message id="snapshot.timeline.export.done">
+      <source>Snapshot exported</source>
+      <translation>Знімок експортовано</translation>
+    </message>
+    <message id="snapshot.timeline.failed">
+      <source>Snapshot failed: %1</source>
+      <translation>Не вдалося створити знімок: %1</translation>
+    </message>
+    <message id="snapshot.timeline.finish.edit">
+      <source>Finish the current edit before using the timeline.</source>
+      <translation>Завершіть поточне редагування перед використанням шкали знімків.</translation>
+    </message>
+  </context>
 </TS>

@@ -132,6 +132,9 @@ public:
     void setNotificationOverlay(QWidget* overlay, bool visible);
     // Interactive view-state badge below the top ruler, without canvas reflow.
     void setViewModeOverlay(QWidget* overlay, bool visible);
+    // Full-workspace preview shield, above docks and the live canvas. Separate
+    // from the renderer and hidden while a modal card owns the surface.
+    void setCanvasPreviewOverlay(QWidget* overlay, bool visible);
     void setWelcomeOverlay(QWidget*, bool);
     void setModalOverlay(QWidget* overlay);
     [[nodiscard]] QWidget* modalOverlay() const noexcept { return modalOverlay_.data(); }
@@ -178,6 +181,8 @@ private:
     bool notificationOverlayRequestedVisible_ {false};
     QPointer<QWidget> viewModeOverlay_;
     bool viewModeOverlayRequestedVisible_ {false};
+    QPointer<QWidget> canvasPreviewOverlay_;
+    bool canvasPreviewRequestedVisible_ {false};
     QPointer<QWidget> modalOverlay_;
     QPointer<QWidget> welcomeOverlay_;
     RulerStrip* rulers_[2] {};

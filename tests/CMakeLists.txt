@@ -23,6 +23,7 @@ if(NOT WIN32)
 endif()
 
 include(BackgroundRemovalTests.cmake)
+include(SnapshotTimelineTests.cmake)
 
 if(WIN32)
     include(WindowsTests.cmake)

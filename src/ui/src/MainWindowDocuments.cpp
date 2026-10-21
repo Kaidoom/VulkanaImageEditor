@@ -483,9 +483,13 @@ MainWindow::DocumentMemory MainWindow::documentMemory() const
     DocumentMemory result;
     std::unordered_set<core::SurfaceId> sources, derived;
     std::unordered_set<const core::SelectionMask*> masks;
+    std::unordered_set<const core::SnapshotImage*> snapshots;
     const auto bytes=[](const auto& s){return s ? std::uint64_t(s->extent().width)*s->extent().height*4 : 0;};
     for(const auto& context:documents_) {
         result.historyBytes+=context->session.history().memoryUsed();
+        for (const auto& frame : context->session.document()->snapshotTimeline().frames)
+            if (frame.image && snapshots.insert(frame.image.get()).second)
+                result.sourceBytes += frame.image->png.size();
         for(const auto& layer:context->session.document()->layers()) {
             if(layer.mask&&masks.insert(layer.mask->coverage.get()).second)result.sourceBytes+=layer.mask->coverage->memoryCost();
             if(const auto* raster=std::get_if<core::RasterLayer>(&layer.payload);raster&&raster->surface&&sources.insert(raster->surface->id()).second)

@@ -10985,4 +10985,127 @@ Przygotowanie %3 · Finalizacja %4 · Łącznie %5</translation>
       <translation>Utwórz dokument ze skopiowanego obrazu lub lokalnego pliku obrazu.</translation>
     </message>
   </context>
+  <context>
+    <name>SnapshotTimeline</name>
+    <message id="history.snapshot.add">
+      <source>Add snapshot frame</source>
+      <translation>Dodaj klatkę migawki</translation>
+    </message>
+    <message id="history.snapshot.delete">
+      <source>Delete snapshot frame</source>
+      <translation>Usuń klatkę migawki</translation>
+    </message>
+    <message id="history.snapshot.reorder">
+      <source>Reorder snapshot frames</source>
+      <translation>Zmień kolejność klatek</translation>
+    </message>
+    <message id="history.snapshot.duration">
+      <source>Change frame duration</source>
+      <translation>Zmień czas klatki</translation>
+    </message>
+    <message id="history.snapshot.capture">
+      <source>Capture canvas snapshot</source>
+      <translation>Przechwyć płótno</translation>
+    </message>
+    <message id="snapshot.timeline.title">
+      <source>Snapshot Timeline</source>
+      <translation>Oś czasu migawek</translation>
+    </message>
+    <message id="snapshot.timeline.capture">
+      <source>Capture Canvas</source>
+      <translation>Przechwyć płótno</translation>
+    </message>
+    <message id="snapshot.timeline.replace">
+      <source>Replace with current canvas</source>
+      <translation>Zastąp bieżącym płótnem</translation>
+    </message>
+    <message id="snapshot.timeline.add">
+      <source>Add frame</source>
+      <translation>Dodaj klatkę</translation>
+    </message>
+    <message id="snapshot.timeline.delete">
+      <source>Delete frame</source>
+      <translation>Usuń klatkę</translation>
+    </message>
+    <message id="snapshot.timeline.preview">
+      <source>Preview snapshot</source>
+      <translation>Podgląd migawki</translation>
+    </message>
+    <message id="snapshot.timeline.insert">
+      <source>Insert snapshot as layer</source>
+      <translation>Wstaw migawkę jako warstwę</translation>
+    </message>
+    <message id="snapshot.timeline.export">
+      <source>Export snapshot</source>
+      <translation>Eksportuj migawkę</translation>
+    </message>
+    <message id="snapshot.timeline.duration">
+      <source>Frame Duration</source>
+      <translation>Czas klatki</translation>
+    </message>
+    <message id="snapshot.timeline.duration.suffix">
+      <source> ms</source>
+      <translation> ms</translation>
+    </message>
+    <message id="snapshot.timeline.duration.value">
+      <source>%1 ms</source>
+      <translation>%1 ms</translation>
+    </message>
+    <message id="snapshot.timeline.close">
+      <source>Close Snapshot Timeline</source>
+      <translation>Zamknij oś czasu migawek</translation>
+    </message>
+    <message id="snapshot.timeline.empty">
+      <source>Empty</source>
+      <translation>Pusta</translation>
+    </message>
+    <message id="snapshot.timeline.unavailable">
+      <source>Unavailable</source>
+      <translation>Niedostępna</translation>
+    </message>
+    <message id="snapshot.timeline.frame">
+      <source>Frame %1</source>
+      <translation>Klatka %1</translation>
+    </message>
+    <message id="snapshot.timeline.preview.title">
+      <source>Snapshot preview · Frame %1</source>
+      <translation>Podgląd · Klatka %1</translation>
+    </message>
+    <message id="snapshot.timeline.back">
+      <source>Back to canvas</source>
+      <translation>Wróć do płótna</translation>
+    </message>
+    <message id="snapshot.timeline.preparing">
+      <source>Capturing canvas…</source>
+      <translation>Przechwytywanie płótna…</translation>
+    </message>
+    <message id="snapshot.timeline.captured">
+      <source>Captured frame %1</source>
+      <translation>Przechwycono klatkę %1</translation>
+    </message>
+    <message id="snapshot.timeline.layer">
+      <source>Snapshot %1</source>
+      <translation>Migawka %1</translation>
+    </message>
+    <message id="snapshot.timeline.export.title">
+      <source>Export Snapshot</source>
+      <translation>Eksportuj migawkę</translation>
+    </message>
+    <message id="snapshot.timeline.export.filter">
+      <source>PNG image (*.png)</source>
+      <translation>Obraz PNG (*.png)</translation>
+    </message>
+    <message id="snapshot.timeline.export.done">
+      <source>Snapshot exported</source>
+      <translation>Migawka wyeksportowana</translation>
+    </message>
+    <message id="snapshot.timeline.failed">
+      <source>Snapshot failed: %1</source>
+      <translation>Nie udało się utworzyć migawki: %1</translation>
+    </message>
+    <message id="snapshot.timeline.finish.edit">
+      <source>Finish the current edit before using the timeline.</source>
+      <translation>Zakończ bieżącą edycję przed użyciem osi czasu.</translation>
+    </message>
+  </context>
 </TS>

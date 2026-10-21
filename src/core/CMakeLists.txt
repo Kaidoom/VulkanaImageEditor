@@ -34,6 +34,7 @@ add_library(imageeditor_core STATIC
     src/MagicWandSelection.cpp
     src/Document.cpp
     src/DocumentCommands.cpp
+    src/SnapshotTimeline.cpp
     src/EditorSession.cpp
     src/EllipseCoverageRasterizer.cpp
     src/FillOperation.cpp

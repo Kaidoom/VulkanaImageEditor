@@ -5,6 +5,7 @@
 #include "imageeditor/core/SelectionMask.hpp"
 #include "imageeditor/core/SelectionEvidence.hpp"
 #include "imageeditor/core/CompositingSpace.hpp"
+#include "imageeditor/core/SnapshotTimeline.hpp"
 
 #include <cstddef>
 #include <optional>
@@ -158,6 +159,11 @@ public:
         std::span<const LayerTransformUpdate>, SelectionState, SelectionState,
         SelectionEvidenceState = {});
 
+    [[nodiscard]] const SnapshotTimelineState& snapshotTimeline() const noexcept { return snapshotTimeline_; }
+    // Guarded publication keeps stale UI/history operations from replacing a
+    // newer timeline. It never changes live layers, selections or canvas size.
+    bool setSnapshotTimeline(const SnapshotTimelineState& expected, SnapshotTimelineState replacement);
+
     [[nodiscard]] DocumentSnapshot snapshot() const;
 
 private:
@@ -172,6 +178,7 @@ private:
     SelectionState lastSelection_; // Last completed mask, never an interaction preview.
     SelectionEvidenceState selectionEvidence_;
     Revision selectionRevision_ {1};
+    SnapshotTimelineState snapshotTimeline_;
 };
 
 } // namespace imageeditor::core

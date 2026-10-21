@@ -128,7 +128,8 @@ struct Entry {
     quint64 compressed { 0 };
 };
 using Entries = std::map<QString, Entry>;
-inline Entries entries(Archive& zip, quint64 entryLimit = 65536)
+inline Entries entries(Archive& zip, quint64 entryLimit = 65536,
+    quint64 payloadLimit = pixelLimit * 4)
 {
     uint64_t count = 0;
     uint32_t disk = 0;
@@ -156,9 +157,10 @@ inline Entries entries(Archive& zip, quint64 entryLimit = 65536)
         require(info->compression_method == MZ_COMPRESS_METHOD_STORE || info->compression_method == MZ_COMPRESS_METHOD_DEFLATE,
             "Unsupported archive compression");
         require(info->compressed_size >= 0 && info->uncompressed_size >= 0
-                && quint64(info->uncompressed_size) <= pixelLimit * 4,
+                && quint64(info->uncompressed_size) <= payloadLimit,
             "Archive payload exceeds limits");
-        metadata += quint64(info->filename_size) + info->extrafield_size + info->comment_size;
+        metadata += quint64(info->filename_size) + info->extrafield_size + info->comment_size
+            + sizeof(Entry) + sizeof(QString) + 4 * sizeof(void*);
         require(metadata <= 2 * manifestBudget, "Archive metadata exceeds memory budget");
         require(result.emplace(path, Entry { mz_zip_get_entry(zip.handle), quint64(info->uncompressed_size), info->crc, quint64(info->compressed_size) }).second,
             "Duplicate archive entry");
@@ -195,14 +197,15 @@ inline void readEntry(Archive& zip, const Entry& entry, const std::function<void
     checked(zip.stream.error, "Cannot read project device");
 }
 inline void writeEntry(Archive& zip, const QString& path, quint64 size,
-    const std::function<void(const std::function<void(const char*, int)>&)>& produce, Progress& progress)
+    const std::function<void(const std::function<void(const char*, int)>&)>& produce, Progress& progress,
+    bool stored = false)
 {
     const auto name = path.toUtf8();
     mz_zip_file info { };
     info.filename = name.constData();
     info.filename_size = uint16_t(name.size());
     info.flag = MZ_ZIP_FLAG_UTF8;
-    info.compression_method = MZ_COMPRESS_METHOD_DEFLATE;
+    info.compression_method = stored ? MZ_COMPRESS_METHOD_STORE : MZ_COMPRESS_METHOD_DEFLATE;
     info.zip64 = MZ_ZIP64_AUTO;
     info.uncompressed_size = int64_t(size);
     checked(mz_zip_entry_write_open(zip.handle, &info, 3, 0, nullptr), "Cannot create project payload");

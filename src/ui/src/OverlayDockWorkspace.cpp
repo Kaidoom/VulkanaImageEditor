@@ -1011,6 +1011,15 @@ void OverlayDockWorkspace::setViewModeOverlay(QWidget* overlay, bool visible)
     updateOverlayLayoutAndStacking();
 }
 
+void OverlayDockWorkspace::setCanvasPreviewOverlay(QWidget* overlay, bool visible)
+{
+    Q_ASSERT(!overlay || overlay->parentWidget() == panelOverlay_);
+    if (canvasPreviewOverlay_ && canvasPreviewOverlay_ != overlay) canvasPreviewOverlay_->hide();
+    canvasPreviewOverlay_ = overlay;
+    canvasPreviewRequestedVisible_ = overlay && visible;
+    updateOverlayLayoutAndStacking();
+}
+
 void OverlayDockWorkspace::setNotificationOverlay(QWidget* overlay, bool visible)
 {
     Q_ASSERT(!overlay || overlay->parentWidget() == panelOverlay_);
@@ -1721,6 +1730,7 @@ void OverlayDockWorkspace::updateOverlayLayoutAndStacking()
     }
     if (passiveOverlay_ && !passiveOverlay_->isHidden()) passiveOverlay_->raise();
     if (notificationOverlay_ && !notificationOverlay_->isHidden()) notificationOverlay_->raise();
+    if (canvasPreviewOverlay_ && !canvasPreviewOverlay_->isHidden()) canvasPreviewOverlay_->raise();
     if (modalOverlay_) {
         modalOverlay_->setGeometry(rect());
         modalOverlay_->raise();
@@ -1731,6 +1741,7 @@ QRegion OverlayDockWorkspace::calculateInteractionFootprint() const
 {
     if (modalOverlay_) return rect();
     QRegion footprint = transientInteractionRegion_ | contextInteractionRegion_;
+    if (canvasPreviewOverlay_ && !canvasPreviewOverlay_->isHidden()) footprint |= canvasPreviewOverlay_->geometry();
     if (notificationOverlay_ && !notificationOverlay_->isHidden()) footprint |= notificationOverlay_->geometry();
     if (welcomeOverlay_ && !welcomeOverlay_->isHidden()) footprint |= welcomeOverlay_->geometry();
     if (viewModeOverlay_ && !viewModeOverlay_->isHidden()) footprint |= viewModeOverlay_->geometry();
@@ -1861,6 +1872,11 @@ void OverlayDockWorkspace::updatePanelGeometry()
     clampFloatingPanels();
 
     updateRulerGeometry();
+
+    if (canvasPreviewOverlay_) {
+        canvasPreviewOverlay_->setGeometry(rect());
+        canvasPreviewOverlay_->setVisible(canvasPreviewRequestedVisible_ && !modalOverlay_);
+    }
 
     if (viewModeOverlay_) {
         auto area = rulerContentRect();

@@ -28,6 +28,7 @@ struct DocumentContext final {
     // Canvas dimensions when the export draft was last stored. Custom output
     // sizes remain valid until the document boundary changes.
     QSize exportCanvasSize;
+    core::SnapshotFrameId selectedSnapshot {1}; // Session-only timeline selection.
     // Unpublished editing workspace, owned by this runtime tab only.
     std::shared_ptr<RefinementWorkspace> refinement;
     std::uint64_t cancellationGeneration {0};

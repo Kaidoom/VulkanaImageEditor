@@ -61,6 +61,15 @@ Document::Document(CanvasSpec canvas)
     markSaved();
 }
 
+bool Document::setSnapshotTimeline(const SnapshotTimelineState& expected, SnapshotTimelineState replacement)
+{
+    if (snapshotTimeline_ != expected || snapshotTimeline_ == replacement
+        || !validSnapshotTimeline(replacement)) return false;
+    snapshotTimeline_ = std::move(replacement);
+    touch();
+    return true;
+}
+
 const Layer* Document::layer(LayerId id) const noexcept
 {
     const auto found = std::find_if(layers_.begin(), layers_.end(),

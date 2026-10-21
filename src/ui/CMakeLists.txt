@@ -35,6 +35,8 @@ add_library(imageeditor_ui STATIC
     src/ColorPanel.cpp
     src/SwatchesPanel.cpp
     src/NavigatorPanel.cpp
+    src/SnapshotTimelinePanel.cpp
+    src/MainWindowSnapshotTimeline.cpp
     src/ColorPicker.cpp
     src/ColorDialog.cpp
     include/imageeditor/ui/ColorDialog.hpp

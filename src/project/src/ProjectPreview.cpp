@@ -107,7 +107,10 @@ QImage readPreview(QIODevice& file, int maximumSide)
     try {
         if (!file.isReadable() || file.isSequential() || maximumSide < 1 || maximumSide > 4096) return {};
         Archive zip(file,false);
-        const auto files = entries(zip);
+        // Timeline PNG payloads can be slightly larger than their raw RGBA
+        // pixels. Only the directory/manifest is read by this thumbnail host;
+        // total directory memory remains bounded by the archive metadata budget.
+        const auto files = entries(zip, 2 * manifestBudget / sizeof(Entry), pixelLimit * 8);
         const auto found = files.find("manifest.json");
         if (found == files.end() || found->second.bytes > manifestBudget) return {};
         QByteArray json;

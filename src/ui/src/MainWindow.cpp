@@ -1130,6 +1130,7 @@ MainWindow::~MainWindow()
         graphicsStartupPresenter_->finish();delete graphicsStartupPresenter_.data();
     }
     workspace_->onCanvasAreaChanged={};
+    shutdownSnapshotTimeline();
     if(navigatorPanel_)navigatorPanel_->shutdown();
     shutdownBackgroundRemoval();
     shutdownRefinements();
@@ -2248,6 +2249,10 @@ void MainWindow::createMenus()
     connect(exitPreview, &QPushButton::clicked, this, [this] { pixelPreviewAction_->setChecked(false); });
     workspace_->setViewModeOverlay(previewBadge, false);
     canvasWindow_->onDocumentPresentationChanged=[this](const core::DocumentSnapshot& snapshot){
+        if (snapshotPreview_ && (!session().document()
+            || snapshotPreviewDocument_ != activeDocumentId()
+            || snapshotPreviewRevision_ != session().document()->revision()
+            || snapshotPreviewContentState_ != session().document()->contentState())) finishSnapshotPreview();
         updateDocumentResources();
         navigatorPanel_->setDocument(activeDocumentId(),snapshot);
         if (refinement_ || backgroundRemoval_) return;
@@ -2313,6 +2318,7 @@ void MainWindow::createMenus()
     viewMenu->addSeparator();
     auto* panelsMenu = i18n::addMenu(viewMenu, i18n::text("main.window.panels"));
     panelsMenu->setIcon(toolGlyph(ToolGlyph::Panels));
+    createSnapshotTimeline(panelsMenu);
     colorPanelAction_ = i18n::addAction(panelsMenu, toolGlyph(ToolGlyph::Palette), i18n::text("main.window.color"));
     swatchesPanelAction_ = i18n::addAction(panelsMenu, toolGlyph(ToolGlyph::Swatches), i18n::text("main.window.swatches"));
     layersPanelAction_ = i18n::addAction(panelsMenu, toolGlyph(ToolGlyph::MergedVisible), i18n::text("main.window.layers"));
@@ -4586,6 +4592,7 @@ void MainWindow::selectLayerFromRow(int row, Qt::KeyboardModifiers modifiers, bo
 
 void MainWindow::synchronizeUi(bool resetLayerModel, bool fitCanvas)
 {
+    refreshSnapshotTimeline();
     prepareShapeCaches();
     if (textController_)
         textController_->prepareCaches();

@@ -1,6 +1,6 @@
 # Vulkana project format — schema 1
 
-The public extension is `.vulkana`; the format identity is `org.vulkana.project`. The schema version is independent of the application version. ZIP Store and Deflate, including ZIP64, are accepted. The writer uses Deflate level 3 once per payload. No archive entry is extracted to the filesystem.
+The public extension is `.vulkana`; the format identity is `org.vulkana.project`. The schema version is independent of the application version. ZIP Store and Deflate, including ZIP64, are accepted. The writer uses Deflate level 3 for raw payloads and stores already-compressed snapshot PNGs without recompressing them. No archive entry is extracted to the filesystem.
 
 ## Container
 
@@ -102,6 +102,61 @@ It reads only the directory and manifest, never extracts files, decodes layer
 pixels, starts the editor or initializes Vulkan. Missing, stale, unsupported or
 damaged previews fall back to the ordinary file icon and do not affect project
 loading.
+
+### Snapshot Timeline (`snapshot-timeline-v1`)
+
+An edited timeline declares the required capability `snapshot-timeline-v1` and
+stores a root `snapshotTimeline` object:
+
+```json
+"snapshotTimeline": {
+  "version": 1,
+  "nextId": "3",
+  "frames": [
+    {
+      "id": "1",
+      "durationMs": 100,
+      "image": {
+        "path": "snapshots/1.png",
+        "width": 1920,
+        "height": 1080,
+        "ppi": 96
+      }
+    },
+    {"id": "2", "durationMs": 250}
+  ]
+}
+```
+
+Array order is presentation order; the displayed frame number is its zero-based
+index. Stable IDs are unique positive unsigned 64-bit decimal strings in a
+namespace separate from layer IDs. `nextId` is greater than every frame ID.
+The array always contains at least one slot. Omitting `image` represents an empty
+slot. Every slot has an integer duration of 1–4,294,967,295 milliseconds; newly
+created slots default to 100 ms.
+
+Each captured frame owns a complete, lossless, straight RGBA8 sRGB PNG at
+`snapshots/<frame-id>.png`. It is the rendered canvas at capture time, not layer
+data or a live reference. Its dimensions and resolution are independent of the
+current canvas. Subsequent edits, canvas resizing and layer deletion do not
+change saved captures. PNG bytes round-trip unchanged. Timeline viewing state,
+selection and decoded image caches are not serialized.
+
+Readers validate IDs, durations, payload paths, PNG framing and CRCs, decoded
+pixels, and agreement between PNG and manifest dimensions. Pixel-only PNGs are
+accepted; compressed text/profiles and animation chunks are rejected. Each image
+uses the existing raster bounds of 32,768 pixels per side and 64 Mi pixels, with
+resolution from 1 to 1,200 ppi. There is no separate frame-count ceiling: the
+manifest and archive-metadata budgets bound metadata, and load admission includes
+all compressed captures plus temporary space to decode one frame at a time.
+Only compressed pixels remain resident in document/history data.
+
+Projects without the field open with one empty 100 ms slot, displayed as frame 0.
+An untouched default timeline is omitted on save, preserving the original
+schema-1 representation. Older readers reject projects declaring the capability
+rather than silently discarding captures. Timeline descriptors and payloads are
+owned data: removing frames removes their saved entries even when the document
+retains other compatible metadata from an earlier manifest.
 
 ### Projective mapping and native raster origins
 
