@@ -145,7 +145,8 @@ selection and decoded image caches are not serialized.
 GIF import produces independent full-canvas raster layers and matching timeline
 captures, with only frame 0 visible in the layer stack. Positive GIF delays are
 preserved in milliseconds; missing or zero delays use 100 ms. Preview playback
-loops over captured slots in order, skipping empty slots. Playback position and
+skips empty slots and loops by default; disabling looping stops on the last
+captured frame. Playback position, loop preference and
 play/pause state are session-only and never alter the document or saved frames.
 
 Readers validate IDs, durations, payload paths, PNG framing and CRCs, decoded

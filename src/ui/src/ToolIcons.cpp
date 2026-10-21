@@ -37,7 +37,12 @@ QPixmap rasterizedGlyph(ToolGlyph glyph, const QColor& ink, const QSize& size, q
     p.setRenderHint(QPainter::Antialiasing);
     p.setPen(QPen(ink, 1.5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
     p.setBrush(Qt::NoBrush);
-    if (glyph == ToolGlyph::Play) {
+    if (glyph == ToolGlyph::Loop) {
+        p.drawPolyline(QPolygonF{{17,3},{21,7},{17,11}});
+        p.drawPolyline(QPolygonF{{7,21},{3,17},{7,13}});
+        QPainterPath path; path.moveTo(21,7); path.lineTo(8,7); path.quadTo(3,7,3,12);
+        path.moveTo(3,17); path.lineTo(16,17); path.quadTo(21,17,21,12); p.drawPath(path);
+    } else if (glyph == ToolGlyph::Play) {
         p.setBrush(ink); p.setPen(Qt::NoPen);
         p.drawPolygon(QPolygonF{{7,3},{21,12},{7,21}});
     } else if (glyph == ToolGlyph::Pause) {

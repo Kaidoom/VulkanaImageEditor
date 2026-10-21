@@ -148,6 +148,7 @@ public:
         std::function<UnsavedChoice()> askUnsaved;
         std::function<QString()> chooseSavePath;
         std::function<QString()> chooseSnapshotExportPath;
+        std::function<QString()> chooseGifExportPath;
         std::function<bool(const QString&)> confirmReplace;
         std::function<void(const QString&)> reportError;
         ProjectProgress progress;
@@ -196,6 +197,7 @@ private:
     void shutdownSnapshotTimeline();
     void insertSnapshotLayer(core::SnapshotFrameId);
     void exportSnapshot(core::SnapshotFrameId);
+    void exportGif();
     SnapshotTimelinePanel* snapshotTimeline_{};
     SnapshotPlayback* snapshotPlayback_{};
     QAction* snapshotTimelineAction_{};

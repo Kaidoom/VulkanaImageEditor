@@ -42,6 +42,7 @@
 #include <QStatusBar>
 #include <QTouchEvent>
 #include <QTimer>
+#include <QToolButton>
 #include <QVBoxLayout>
 #include <QWindow>
 #include <algorithm>
@@ -102,11 +103,17 @@ public:
         title_ = new QLabel(this);
         title_->setObjectName("SnapshotTimelinePreviewTitle");
         auto font = title_->font(); font.setBold(true); title_->setFont(font);
-        back_ = i18n::make<QPushButton>(i18n::text("snapshot.timeline.back"), this);
+        back_ = new QToolButton(this);
         back_->setObjectName("SnapshotTimelineExitPreview");
         back_->setIcon(toolGlyph(ToolGlyph::Close));
+        back_->setIconSize({16, 16});
+        back_->setFixedSize(28, 28);
+        back_->setAutoRaise(true);
+        back_->setStyleSheet(QStringLiteral("QToolButton { padding: 3px; border-radius: 4px; }"));
+        i18n::setToolTip(back_, i18n::text("snapshot.timeline.back"));
+        i18n::setAccessibleName(back_, i18n::text("snapshot.timeline.back"));
         back_->setFocusPolicy(Qt::NoFocus);
-        connect(back_, &QPushButton::clicked, this, [this] { dismiss(); });
+        connect(back_, &QToolButton::clicked, this, [this] { dismiss(); });
         topShade_ = new PreviewShade(&host_);
         topShade_->setObjectName("SnapshotTimelinePreviewTopShade");
         topShade_->hide();
@@ -298,14 +305,14 @@ private:
         const auto available = rect().adjusted(48, 76, -48, -36);
         const auto size = image_.size().scaled(available.size().expandedTo(QSize(1, 1)), Qt::KeepAspectRatio);
         const int header = 48;
-        const auto backSize = back_->sizeHint();
+        const auto backSize = back_->size();
         const int cardWidth = std::min(width() - 32,
             std::max(size.width() + 24, title_->sizeHint().width() + backSize.width() + 44));
         cardRect_ = QRect((width() - cardWidth)/2, (height() - size.height() - header - 12)/2,
             cardWidth, size.height() + header + 12);
         imageRect_ = QRect((width() - size.width())/2, cardRect_.top() + header, size.width(), size.height());
-        back_->setGeometry(cardRect_.right() - backSize.width() - 11, cardRect_.top() + 8,
-            backSize.width(), 32);
+        back_->move(cardRect_.right() - backSize.width() - 11,
+            cardRect_.top() + (header - backSize.height()) / 2);
         title_->setGeometry(cardRect_.left() + 12, cardRect_.top() + 8,
             std::max(0, back_->x() - cardRect_.left() - 24), 32);
         setProperty("SnapshotPreviewImageRect", imageRect_);
@@ -328,7 +335,7 @@ private:
     render::CanvasWindow& canvas_;
     std::function<void()> close_;
     QLabel* title_{};
-    QPushButton* back_{};
+    QToolButton* back_{};
     QPointer<QWidget> topShade_, previousFocus_, previousProxy_;
     QRect cardRect_, imageRect_;
     bool active_{};
@@ -423,6 +430,8 @@ void MainWindow::createSnapshotTimeline(QMenu* menu)
     snapshotTimeline_->onCapture = [this, queue](auto id) { queue([this, id] { captureSnapshot(id); }); };
     snapshotTimeline_->onPreview = [this, queue](bool enabled) { queue([this, enabled] { previewSnapshot(enabled); }); };
     snapshotTimeline_->onPlay = [this, queue](bool enabled) { queue([this, enabled] { playSnapshots(enabled); }); };
+    snapshotTimeline_->onLoopChanged = [this](bool enabled) { snapshotPlayback_->setLooping(enabled); };
+    snapshotTimeline_->onExportAnimation = [this, queue] { queue([this] { exportGif(); }); };
     snapshotTimeline_->onInsert = [this, queue](auto id) { queue([this, id] { insertSnapshotLayer(id); }); };
     snapshotTimeline_->onExport = [this, queue](auto id) { queue([this, id] { exportSnapshot(id); }); };
 }
@@ -562,6 +571,7 @@ void MainWindow::shutdownSnapshotTimeline()
     snapshotTimeline_->onDurationChanged = {}; snapshotTimeline_->onReorder = {};
     snapshotTimeline_->onPreview = {}; snapshotTimeline_->onInsert = {};
     snapshotTimeline_->onPlay = {};
+    snapshotTimeline_->onLoopChanged = {}; snapshotTimeline_->onExportAnimation = {};
     snapshotTimeline_->onExport = {}; snapshotTimeline_->onClose = {};
 }
 
@@ -624,6 +634,7 @@ void MainWindow::playSnapshots(bool enabled)
     previewSnapshot(true);
     if (!snapshotPreview_) { snapshotTimeline_->setPlaying(false); return; }
     snapshotPlayback_->setTimeline(document->snapshotTimeline());
+    snapshotPlayback_->setLooping(snapshotTimeline_->looping());
     snapshotPlayback_->play(id);
 }
 

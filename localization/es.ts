@@ -10746,6 +10746,7 @@ Chaflán: tira de esquinas hacia dentro; Alt cambia también la opuesta. Los lad
     </message>
     <message id="history.layer.pixel.opacity">
       <source>Layer pixel opacity</source>
+      <extracomment>Core history label: Layer pixel opacity</extracomment>
       <translation>Opacidad de píxeles de capa</translation>
     </message>
   </context>
@@ -10976,8 +10977,8 @@ Preparación %3 · Finalización %4 · Total %5</translation>
   <context>
     <name>SnapshotTimeline</name>
     <message id="snapshot.timeline.play">
-      <source>Play (loop)</source>
-      <translation>Reproducir en bucle</translation>
+      <source>Play</source>
+      <translation>Reproducir</translation>
     </message>
     <message id="snapshot.timeline.pause">
       <source>Pause</source>
@@ -11106,6 +11107,65 @@ Preparación %3 · Finalización %4 · Total %5</translation>
     <message id="snapshot.timeline.finish.edit">
       <source>Finish the current edit before using the timeline.</source>
       <translation>Termina la edición actual antes de usar la línea de capturas.</translation>
+    </message>
+  </context>
+  <context>
+    <name>GifExport</name>
+    <message id="snapshot.timeline.loop">
+      <source>Loop animation</source>
+      <translation>Repetir animación</translation>
+    </message>
+    <message id="gif.export.title">
+      <source>Export GIF…</source>
+      <translation>Exportar GIF…</translation>
+    </message>
+    <message id="gif.export.colors">
+      <source>Colors</source>
+      <translation>Colores</translation>
+    </message>
+    <message id="gif.export.dither">
+      <source>Dithering</source>
+      <translation>Tramado</translation>
+    </message>
+    <message id="gif.export.none">
+      <source>None</source>
+      <translation>Ninguno</translation>
+    </message>
+    <message id="gif.export.diffusion">
+      <source>Diffusion</source>
+      <translation>Difusión</translation>
+    </message>
+    <message id="gif.export.pattern">
+      <source>Pattern</source>
+      <translation>Patrón</translation>
+    </message>
+    <message id="gif.export.noise">
+      <source>Noise</source>
+      <translation>Ruido</translation>
+    </message>
+    <message id="gif.export.strength">
+      <source>Strength</source>
+      <translation>Intensidad</translation>
+    </message>
+    <message id="gif.export.transparency">
+      <source>Keep transparency</source>
+      <translation>Conservar transparencia</translation>
+    </message>
+    <message id="gif.export.background">
+      <source>Background color</source>
+      <translation>Color de fondo</translation>
+    </message>
+    <message id="gif.export.ready">
+      <source>Frames: %1 · %2 KiB</source>
+      <translation>Fotogramas: %1 · %2 KiB</translation>
+    </message>
+    <message id="gif.export.filter">
+      <source>GIF animation (*.gif)</source>
+      <translation>Animación GIF (*.gif)</translation>
+    </message>
+    <message id="gif.export.saved">
+      <source>GIF exported.</source>
+      <translation>GIF exportado.</translation>
     </message>
   </context>
 </TS>

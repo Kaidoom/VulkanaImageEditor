@@ -16,7 +16,7 @@ enum class ToolGlyph {
     Repository, LayerMask, Trash, NewLayer, AdjustmentLayer, Plus, Effects, Preferences,
     NewDocument, Save, Undo, Redo, Copy, Paste, Import, Export, Quit, Rename,
     Deselect, Invert, Pixels, Snapping, FitCanvas, ZoomActual, Palette, Swatches,
-    Panels, DockLeft, DockRight, DockTop, DockBottom, History, Visible, Hidden, Camera, Play, Pause,
+    Panels, DockLeft, DockRight, DockTop, DockBottom, History, Visible, Hidden, Camera, Play, Pause, Loop,
     EffectStroke, EffectDropShadow, EffectInnerShadow, EffectOuterGlow, EffectInnerGlow,
     EffectColorOverlay, EffectGradientOverlay, EffectBevel, OpacityMode
 };

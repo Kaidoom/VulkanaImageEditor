@@ -10749,6 +10749,7 @@ Escape · पूरा क्रॉप सत्र रद्द
     </message>
     <message id="history.layer.pixel.opacity">
       <source>Layer pixel opacity</source>
+      <extracomment>Core history label: Layer pixel opacity</extracomment>
       <translation>परत की पिक्सेल अपारदर्शिता</translation>
     </message>
   </context>
@@ -10979,8 +10980,8 @@ Prepare %3 · Finish %4 · Total %5</source>
   <context>
     <name>SnapshotTimeline</name>
     <message id="snapshot.timeline.play">
-      <source>Play (loop)</source>
-      <translation>बार-बार चलाएँ</translation>
+      <source>Play</source>
+      <translation>चलाएँ</translation>
     </message>
     <message id="snapshot.timeline.pause">
       <source>Pause</source>
@@ -11109,6 +11110,65 @@ Prepare %3 · Finish %4 · Total %5</source>
     <message id="snapshot.timeline.finish.edit">
       <source>Finish the current edit before using the timeline.</source>
       <translation>टाइमलाइन इस्तेमाल करने से पहले मौजूदा संपादन पूरा करें।</translation>
+    </message>
+  </context>
+  <context>
+    <name>GifExport</name>
+    <message id="snapshot.timeline.loop">
+      <source>Loop animation</source>
+      <translation>एनिमेशन दोहराएँ</translation>
+    </message>
+    <message id="gif.export.title">
+      <source>Export GIF…</source>
+      <translation>GIF निर्यात करें…</translation>
+    </message>
+    <message id="gif.export.colors">
+      <source>Colors</source>
+      <translation>रंग</translation>
+    </message>
+    <message id="gif.export.dither">
+      <source>Dithering</source>
+      <translation>डिथरिंग</translation>
+    </message>
+    <message id="gif.export.none">
+      <source>None</source>
+      <translation>कोई नहीं</translation>
+    </message>
+    <message id="gif.export.diffusion">
+      <source>Diffusion</source>
+      <translation>डिफ्यूज़न</translation>
+    </message>
+    <message id="gif.export.pattern">
+      <source>Pattern</source>
+      <translation>पैटर्न</translation>
+    </message>
+    <message id="gif.export.noise">
+      <source>Noise</source>
+      <translation>नॉइज़</translation>
+    </message>
+    <message id="gif.export.strength">
+      <source>Strength</source>
+      <translation>तीव्रता</translation>
+    </message>
+    <message id="gif.export.transparency">
+      <source>Keep transparency</source>
+      <translation>पारदर्शिता रखें</translation>
+    </message>
+    <message id="gif.export.background">
+      <source>Background color</source>
+      <translation>पृष्ठभूमि का रंग</translation>
+    </message>
+    <message id="gif.export.ready">
+      <source>Frames: %1 · %2 KiB</source>
+      <translation>फ़्रेम: %1 · %2 KiB</translation>
+    </message>
+    <message id="gif.export.filter">
+      <source>GIF animation (*.gif)</source>
+      <translation>GIF एनिमेशन (*.gif)</translation>
+    </message>
+    <message id="gif.export.saved">
+      <source>GIF exported.</source>
+      <translation>GIF निर्यात हो गया।</translation>
     </message>
   </context>
 </TS>

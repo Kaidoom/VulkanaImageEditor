@@ -6,12 +6,20 @@
 #include "imageeditor/ui/ProjectFile.hpp"
 #include "imageeditor/ui/SnapshotTimelinePanel.hpp"
 #include "imageeditor/ui/Theme.hpp"
+#include "imageeditor/ui/GifExportDialog.hpp"
+#include "imageeditor/ui/CompactValueControl.hpp"
 #include "NativeGraphicsStartup.hpp"
 #include "GifFixture.hpp"
 
 #include <QAbstractButton>
 #include <QAction>
 #include <QApplication>
+#include <QCheckBox>
+#include <QComboBox>
+#include <QImageReader>
+#include <QPushButton>
+#include <QTimer>
+#include <QToolButton>
 #include <QElapsedTimer>
 #include <QFile>
 #include <QImage>
@@ -141,6 +149,7 @@ struct Fixture {
         u::MainWindow::FileInteractions hooks;
         hooks.chooseSavePath = [this] { return savePath; };
         hooks.chooseSnapshotExportPath = [this] { return exportPath; };
+        hooks.chooseGifExportPath = [this] { return exportPath; };
         hooks.confirmReplace = [](const QString&) { return true; };
         hooks.reportError = [this](const QString& error) { errors.push_back(error); };
         window.setFileInteractions(std::move(hooks));
@@ -258,18 +267,38 @@ void timeline(QVulkanInstance* instance = nullptr)
     settle();
     CHECK(toggle.isChecked() && f.panel().isVisible());
     CHECK(f.panel().minimumHeight() == f.panel().maximumHeight());
+    const auto checkToolbar = [&] {
+        const auto& label = child<QWidget>(f.panel(), "SnapshotTimelineDurationLabel");
+        const auto& duration = child<QSpinBox>(f.panel(), "SnapshotTimelineDuration");
+        const auto transport = f.button("SnapshotTimelinePreview").geometry()
+            .united(f.button("SnapshotTimelinePlay").geometry())
+            .united(f.button("SnapshotTimelineLoop").geometry());
+        CHECK(label.x() == 8 && duration.width() == 100);
+        CHECK(duration.geometry().left() > label.geometry().right());
+        CHECK(duration.geometry().right() < f.button("SnapshotTimelineCapture").x());
+        CHECK(std::abs(transport.center().x() - f.panel().rect().center().x()) <= 1);
+        CHECK(f.button("SnapshotTimelineDelete").geometry().right() < transport.left());
+        CHECK(f.button("SnapshotTimelinePreview").geometry().right() < f.button("SnapshotTimelinePlay").x());
+        CHECK(f.button("SnapshotTimelinePlay").geometry().right() < f.button("SnapshotTimelineLoop").x());
+        CHECK(f.button("SnapshotTimelineExportGif").x() > transport.right());
+        CHECK(f.button("SnapshotTimelineExportGif").geometry().right() < f.button("SnapshotTimelineClose").x());
+    };
+    checkToolbar();
     const auto fixedHeight = f.panel().height();
     f.window.resize(1150, 760);
     settle();
     CHECK(f.panel().height() == fixedHeight);
+    checkToolbar();
     f.window.resize(1400, 900);
     settle();
+    checkToolbar();
     CHECK(f.frames().size() == 1 && !f.frames()[0].image && f.frames()[0].durationMs == 100);
     CHECK(f.list().count() == 1 && f.list().currentRow() == 0);
     CHECK(f.list().dragEnabled() && f.list().acceptDrops() && f.list().viewport()->acceptDrops());
     CHECK(f.list().item(0)->flags().testFlag(Qt::ItemIsDragEnabled));
     CHECK(f.list().item(0)->data(Qt::AccessibleTextRole).toString().contains("Frame 0"));
     CHECK(!f.button("SnapshotTimelinePreview").isEnabled());
+    CHECK(!f.button("SnapshotTimelineExportGif").isEnabled());
     CHECK(!f.button("SnapshotTimelineInsertLayer").isEnabled());
     CHECK(!f.button("SnapshotTimelineExport").isEnabled());
 
@@ -284,6 +313,8 @@ void timeline(QVulkanInstance* instance = nullptr)
     CHECK(image(f.frames()[0]) == expected.image);
     CHECK(f.frames()[0].image->extent == c::Extent2u(80, 60));
     CHECK(f.frames()[0].image->dotsPerInch == 144);
+    if (const auto path = qEnvironmentVariable("VULKANA_TIMELINE_LAYOUT_SCREENSHOT"); !path.isEmpty())
+        CHECK(f.panel().grab().save(path));
     CHECK(f.document().layers().size() == layers && f.document().selection() == selection);
     CHECK(f.session().layerSelectionState() == layerSelection);
     CHECK(f.session().history().undoDepth() == depth + 1 && f.document().isModified());
@@ -533,6 +564,13 @@ void focusedPreview(QVulkanInstance* instance = nullptr)
     };
     auto* overlay = startPreview();
     if (!overlay) return;
+    auto& closePreview = child<QToolButton>(*overlay, "SnapshotTimelineExitPreview");
+    const auto& closeTimeline = child<QToolButton>(f.window, "SnapshotTimelineClose");
+    CHECK(closePreview.text().isEmpty() && !closePreview.icon().isNull());
+    CHECK(closePreview.size() == closeTimeline.size());
+    CHECK(closePreview.iconSize() == closeTimeline.iconSize());
+    CHECK(closePreview.autoRaise() == closeTimeline.autoRaise());
+    CHECK(!closePreview.accessibleName().isEmpty());
     CHECK(overlay->geometry() == overlay->parentWidget()->rect());
     CHECK(child<QWidget>(f.window, "SnapshotTimelinePreviewTopShade").isVisible());
     const auto imageRect = overlay->property("SnapshotPreviewImageRect").toRect();
@@ -698,6 +736,21 @@ void gifPlayback(QVulkanInstance* instance = nullptr)
     CHECK(!f.previewVisible() && !f.button("SnapshotTimelinePlay").isChecked());
     CHECK(f.list().currentRow() == exited);
     before.verify(f);
+    CHECK(f.button("SnapshotTimelineLoop").isChecked());
+    f.click("SnapshotTimelineLoop");
+    f.list().setCurrentRow(0);f.click("SnapshotTimelinePlay");
+    CHECK(waitFor([&]{return !f.button("SnapshotTimelinePlay").isChecked();},3000));
+    CHECK(f.list().currentRow()==4 && f.previewVisible());
+    QTest::qWait(150);CHECK(f.list().currentRow()==4);
+    f.click("SnapshotTimelinePlay");
+    CHECK(f.list().currentRow()==0 && f.button("SnapshotTimelinePlay").isChecked());
+    // Natural completion while Pause is held must not restart on release.
+    QTest::mousePress(native,Qt::LeftButton,Qt::NoModifier,point);
+    QTest::qWait(500);
+    QTest::mouseRelease(native,Qt::LeftButton,Qt::NoModifier,point);settle();
+    CHECK(!f.button("SnapshotTimelinePlay").isChecked() && f.list().currentRow()==4);
+    f.click("SnapshotTimelineLoop");f.click("SnapshotTimelineExitPreview");
+    before.verify(f);
     // File failure must leave the existing document and snapshots intact.
     CHECK(!f.window.openImageFromPath(f.files.filePath("missing.gif")));
     CHECK(f.errors.size() == 1);
@@ -734,6 +787,105 @@ void gifSample(const QString& path, QVulkanInstance* instance = nullptr)
     f.click("SnapshotTimelineExitPreview");
     before.verify(f);
 }
+
+void gifExportWorkflow(QVulkanInstance* instance = nullptr)
+{
+    Fixture f(instance);
+    child<QAction>(f.window,"SnapshotTimelineVisibilityAction").trigger();settle();
+    CHECK(!f.button("SnapshotTimelineExportGif").isEnabled());
+    f.click("SnapshotTimelineCapture");
+    CHECK(f.button("SnapshotTimelineExportGif").isEnabled());
+    UnchangedDocument before(f);
+    f.exportPath=f.files.filePath("animation.gif");
+    QTimer inspect,watchdog;int stage=0;
+    QObject::connect(&inspect,&QTimer::timeout,&f.window,[&]{
+        auto* dialog=dynamic_cast<u::GifExportDialog*>(f.window.findChild<QDialog*>("GifExportDialog"));
+        if(!dialog || !dialog->isVisible() || !dialog->previewReady())return;
+        if(stage==0){
+            inspect.stop(); // Minimize/restore processes events; don't reenter this stage.
+            CHECK(!dialog->isWindow() && dialog->windowType()==Qt::SubWindow);
+            CHECK(dialog->parentWidget()->objectName()=="WorkspaceDialogShield");
+            CHECK(!(dialog->windowFlags() & (Qt::WindowMinimizeButtonHint | Qt::WindowMaximizeButtonHint
+                | Qt::WindowCloseButtonHint)));
+            CHECK(!dialog->isSizeGripEnabled());
+            auto* plane=dialog->window()->windowHandle();
+            CHECK(plane && plane!=dialog->windowHandle());
+            f.window.showMinimized();QTest::qWait(120);
+            if(instance){
+                CHECK(waitFor([&]{return !f.window.windowHandle()->isExposed();}));
+                CHECK(waitFor([&]{return !plane->isExposed();}));
+            }else CHECK(f.window.isMinimized());
+            f.window.showNormal();f.window.activateWindow();QTest::qWait(120);
+            CHECK(dialog->isVisible());
+            if(instance)CHECK(waitFor([&]{return plane->isExposed();}));
+            CHECK(dialog->settings().colors==256 && dialog->settings().loop);
+            auto& mode=child<QComboBox>(*dialog,"GifExportDither");
+            auto& strength=dynamic_cast<u::CompactValueControl&>(child<QDoubleSpinBox>(*dialog,"GifExportStrength"));
+            auto& colors=dynamic_cast<u::CompactValueControl&>(child<QDoubleSpinBox>(*dialog,"GifExportColors"));
+            CHECK(colors.minimum()==2 && colors.maximum()==256 && colors.decimals()==0);
+            CHECK(strength.minimum()==0 && strength.maximum()==100 && strength.decimals()==0);
+            const auto drag=[&](u::CompactValueControl& control){
+                const auto field=control.valueFieldRect();
+                const auto left=field.topLeft()+QPoint(1,field.height()/2);
+                const auto middle=field.center();
+                if(QGuiApplication::platformName()=="offscreen"){
+                    // Headless Qt has no native focus handoff; native runs below
+                    // exercise dispatch through the actual panel-plane window.
+                    control.setFocus();
+                    QTest::mousePress(&control,Qt::LeftButton,Qt::NoModifier,left);
+                    CHECK(control.isSliding());
+                    QTest::mouseMove(&control,middle);
+                    QTest::mouseRelease(&control,Qt::LeftButton,Qt::NoModifier,middle);
+                }else{
+                    QTest::mousePress(plane,Qt::LeftButton,Qt::NoModifier,plane->mapFromGlobal(control.mapToGlobal(left)));
+                    CHECK(control.isSliding());
+                    QTest::mouseMove(plane,plane->mapFromGlobal(control.mapToGlobal(middle)));
+                    QTest::mouseRelease(plane,Qt::LeftButton,Qt::NoModifier,plane->mapFromGlobal(control.mapToGlobal(middle)));
+                }
+                CHECK(!control.isSliding());
+                CHECK(control.value()==qRound(control.valueFromPosition(middle.x())));
+            };
+            drag(colors);drag(strength);
+            CHECK(dialog->settings().colors==qRound(colors.value()));
+            CHECK(dialog->settings().strength==qRound(strength.value()));
+            mode.setCurrentIndex(2);CHECK(!strength.isEnabled());
+            mode.setCurrentIndex(3);CHECK(!strength.isEnabled());
+            mode.setCurrentIndex(1);CHECK(strength.isEnabled());
+            mode.setCurrentIndex(0);CHECK(!strength.isEnabled());
+            colors.setValue(8);
+            child<QCheckBox>(*dialog,"GifExportTransparency").setChecked(false);
+            CHECK(child<QPushButton>(*dialog,"GifExportBackground").isEnabled());
+            child<QCheckBox>(*dialog,"GifExportLoop").setChecked(false);
+            child<QSpinBox>(*dialog,"GifExportWidth").setValue(40);
+            CHECK(child<QSpinBox>(*dialog,"GifExportHeight").value()==30);
+            CHECK(!child<QPushButton>(*dialog,"GifExportWrite").isEnabled());
+            stage=1;inspect.start();
+        } else if(stage==1){
+            CHECK(dialog->settings().size==QSize(40,30) && !dialog->settings().loop);
+            if(const auto path=qEnvironmentVariable("VULKANA_GIF_EXPORT_SCREENSHOT");!path.isEmpty())CHECK(dialog->grab().save(path));
+            stage=2;child<QPushButton>(*dialog,"GifExportWrite").click();
+        }
+    });
+    QObject::connect(&watchdog,&QTimer::timeout,&f.window,[&]{
+        CHECK(false);if(auto* dialog=f.window.findChild<QDialog*>("GifExportDialog"))dialog->reject();
+    });
+    inspect.start(10);watchdog.setSingleShot(true);watchdog.start(20000);
+    f.click("SnapshotTimelineExportGif");inspect.stop();watchdog.stop();
+    CHECK(stage==2 && f.errors.isEmpty());
+    QFile file(f.exportPath);CHECK(file.open(QIODevice::ReadOnly));const auto bytes=file.readAll();
+    CHECK(bytes.startsWith("GIF89a") && !bytes.contains("NETSCAPE2.0"));
+    QImageReader reader(f.exportPath);CHECK(reader.read().size()==QSize(40,30));
+    before.verify(f);
+
+    // Preview cancellation publishes no file and never changes document/history.
+    f.exportPath=f.files.filePath("cancelled.gif");
+    QTimer close;
+    QObject::connect(&close,&QTimer::timeout,&f.window,[&]{
+        if(auto* dialog=f.window.findChild<QDialog*>("GifExportDialog");dialog && dialog->isVisible())dialog->reject();
+    });
+    close.start(10);f.click("SnapshotTimelineExportGif");close.stop();
+    CHECK(!QFile::exists(f.exportPath));before.verify(f);
+}
 } // namespace
 
 int main(int argc, char** argv)
@@ -756,10 +908,10 @@ int main(int argc, char** argv)
             instance.setApiVersion(QVersionNumber(1, 2));
             CHECK(instance.create());
             if (instance.isValid()) {
-                timeline(&instance); focusedPreview(&instance); gifPlayback(&instance);
+                timeline(&instance); focusedPreview(&instance); gifPlayback(&instance); gifExportWorkflow(&instance);
                 if (!gif.isEmpty()) gifSample(gif, &instance);
             }
-        } else { timeline(); focusedPreview(); gifPlayback(); if (!gif.isEmpty()) gifSample(gif); }
+        } else { timeline(); focusedPreview(); gifPlayback(); gifExportWorkflow(); if (!gif.isEmpty()) gifSample(gif); }
     }
     catch (const std::exception& error) { ++failures; std::cerr << error.what() << '\n'; }
     return failures ? 1 : 0;

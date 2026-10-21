@@ -9,6 +9,7 @@
 #include <QDragLeaveEvent>
 #include <QDragMoveEvent>
 #include <QDropEvent>
+#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QImageReader>
 #include <QKeyEvent>
@@ -315,15 +316,34 @@ SnapshotTimelinePanel::SnapshotTimelinePanel(QWidget* parent) : QWidget(parent)
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(8, 5, 8, 4);
     layout->setSpacing(3);
-    auto* toolbar = new QHBoxLayout;
+    auto* toolbar = new QGridLayout;
     toolbar->setSpacing(5);
-    auto* title = i18n::make<QLabel>(i18n::text("snapshot.timeline.title"), this);
-    auto titleFont = title->font();
-    titleFont.setBold(true);
-    title->setFont(titleFont);
-    toolbar->addWidget(title);
-    toolbar->addSpacing(8);
-    const auto button = [this, toolbar](const char* name, ToolGlyph glyph, const char* key) {
+    auto* editing = new QHBoxLayout;
+    auto* transport = new QHBoxLayout;
+    auto* actions = new QHBoxLayout;
+    for (auto* group : {editing, transport, actions}) group->setSpacing(5);
+    toolbar->addLayout(editing, 0, 0);
+    toolbar->addLayout(transport, 0, 1, Qt::AlignCenter);
+    toolbar->addLayout(actions, 0, 2);
+    // Equal outer columns keep transport centered, independent of button labels.
+    toolbar->setColumnStretch(0, 1);
+    toolbar->setColumnStretch(2, 1);
+    auto* durationLabel = i18n::make<QLabel>(i18n::text("snapshot.timeline.duration"), this);
+    durationLabel->setObjectName("SnapshotTimelineDurationLabel");
+    editing->addWidget(durationLabel);
+    duration_ = new QSpinBox(this);
+    duration_->setObjectName(QStringLiteral("SnapshotTimelineDuration"));
+    duration_->setRange(1, std::numeric_limits<int>::max());
+    duration_->setValue(100);
+    duration_->setSingleStep(10);
+    duration_->setKeyboardTracking(false);
+    duration_->setFixedSize(100, 28);
+    i18n::setSuffix(duration_, i18n::text("snapshot.timeline.duration.suffix"));
+    i18n::setAccessibleName(duration_, i18n::text("snapshot.timeline.duration"));
+    durationLabel->setBuddy(duration_);
+    editing->addWidget(duration_);
+    editing->addSpacing(8);
+    const auto button = [this](QHBoxLayout* group, const char* name, ToolGlyph glyph, const char* key) {
         auto* control = new QToolButton(this);
         control->setObjectName(QString::fromLatin1(name));
         control->setIcon(toolGlyph(glyph));
@@ -333,42 +353,34 @@ SnapshotTimelinePanel::SnapshotTimelinePanel(QWidget* parent) : QWidget(parent)
         control->setStyleSheet(QStringLiteral("QToolButton { padding: 3px; border-radius: 4px; }"));
         i18n::setToolTip(control, i18n::text(key));
         i18n::setAccessibleName(control, i18n::text(key));
-        toolbar->addWidget(control);
+        group->addWidget(control);
         return control;
     };
-    capture_ = button("SnapshotTimelineCapture", ToolGlyph::Camera, "snapshot.timeline.capture");
+    capture_ = button(editing, "SnapshotTimelineCapture", ToolGlyph::Camera, "snapshot.timeline.capture");
     capture_->setMaximumWidth(QWIDGETSIZE_MAX);
     capture_->setMinimumWidth(0);
     capture_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     i18n::setText(capture_, i18n::text("snapshot.timeline.capture"));
-    add_ = button("SnapshotTimelineAdd", ToolGlyph::Plus, "snapshot.timeline.add");
-    delete_ = button("SnapshotTimelineDelete", ToolGlyph::Trash, "snapshot.timeline.delete");
-    toolbar->addSpacing(5);
-    preview_ = button("SnapshotTimelinePreview", ToolGlyph::Visible, "snapshot.timeline.preview");
+    add_ = button(editing, "SnapshotTimelineAdd", ToolGlyph::Plus, "snapshot.timeline.add");
+    delete_ = button(editing, "SnapshotTimelineDelete", ToolGlyph::Trash, "snapshot.timeline.delete");
+    editing->addStretch(1);
+    preview_ = button(transport, "SnapshotTimelinePreview", ToolGlyph::Visible, "snapshot.timeline.preview");
     preview_->setCheckable(true);
-    play_ = button("SnapshotTimelinePlay", ToolGlyph::Play, "snapshot.timeline.play");
+    play_ = button(transport, "SnapshotTimelinePlay", ToolGlyph::Play, "snapshot.timeline.play");
     play_->setCheckable(true);
-    insert_ = button("SnapshotTimelineInsertLayer", ToolGlyph::NewLayer, "snapshot.timeline.insert");
-    export_ = button("SnapshotTimelineExport", ToolGlyph::Export, "snapshot.timeline.export");
-    toolbar->addSpacing(5);
-    auto* durationLabel = i18n::make<QLabel>(i18n::text("snapshot.timeline.duration"), this);
-    toolbar->addWidget(durationLabel);
-    duration_ = new QSpinBox(this);
-    duration_->setObjectName(QStringLiteral("SnapshotTimelineDuration"));
-    duration_->setRange(1, std::numeric_limits<int>::max());
-    duration_->setValue(100);
-    duration_->setSingleStep(10);
-    duration_->setKeyboardTracking(false);
-    duration_->setFixedHeight(28);
-    duration_->setMinimumWidth(106);
-    duration_->setMaximumWidth(150);
-    duration_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
-    i18n::setSuffix(duration_, i18n::text("snapshot.timeline.duration.suffix"));
-    i18n::setAccessibleName(duration_, i18n::text("snapshot.timeline.duration"));
-    durationLabel->setBuddy(duration_);
-    toolbar->addWidget(duration_);
-    toolbar->addStretch(1);
-    auto* close = button("SnapshotTimelineClose", ToolGlyph::Close, "snapshot.timeline.close");
+    loop_ = button(transport, "SnapshotTimelineLoop", ToolGlyph::Loop, "snapshot.timeline.loop");
+    loop_->setCheckable(true);
+    loop_->setChecked(true);
+    actions->addStretch(1);
+    insert_ = button(actions, "SnapshotTimelineInsertLayer", ToolGlyph::NewLayer, "snapshot.timeline.insert");
+    export_ = button(actions, "SnapshotTimelineExport", ToolGlyph::Export, "snapshot.timeline.export");
+    exportAnimation_ = button(actions, "SnapshotTimelineExportGif", ToolGlyph::Export, "gif.export.title");
+    exportAnimation_->setMaximumWidth(QWIDGETSIZE_MAX);
+    exportAnimation_->setMinimumWidth(0);
+    exportAnimation_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    i18n::setText(exportAnimation_, i18n::text("gif.export.title"));
+    actions->addSpacing(8);
+    auto* close = button(actions, "SnapshotTimelineClose", ToolGlyph::Close, "snapshot.timeline.close");
     layout->addLayout(toolbar);
     frames_ = new SnapshotFrameList(this);
     frames_->thumbnail = [this](auto id) { return thumbnail(id); };
@@ -378,7 +390,11 @@ SnapshotTimelinePanel::SnapshotTimelinePanel(QWidget* parent) : QWidget(parent)
     connect(delete_, &QToolButton::clicked, this, [this] { if (onDelete) onDelete(selectedFrameId()); });
     connect(capture_, &QToolButton::clicked, this, [this] { if (onCapture) onCapture(selectedFrameId()); });
     connect(preview_, &QToolButton::toggled, this, [this](bool enabled) { if (onPreview) onPreview(enabled); });
-    connect(play_, &QToolButton::toggled, this, [this](bool enabled) { if (onPlay) onPlay(enabled); });
+    // Keep click intent even if one-shot playback ends between press/release.
+    connect(play_, &QToolButton::pressed, this, [this] { requestedPlay_ = !play_->isChecked(); });
+    connect(play_, &QToolButton::clicked, this, [this] { if (onPlay) onPlay(requestedPlay_); });
+    connect(loop_, &QToolButton::toggled, this, [this](bool enabled) { if (onLoopChanged) onLoopChanged(enabled); });
+    connect(exportAnimation_, &QToolButton::clicked, this, [this] { if (onExportAnimation) onExportAnimation(); });
     connect(insert_, &QToolButton::clicked, this, [this] { if (onInsert) onInsert(selectedFrameId()); });
     connect(export_, &QToolButton::clicked, this, [this] { if (onExport) onExport(selectedFrameId()); });
     connect(close, &QToolButton::clicked, this, [this] { if (onClose) onClose(); });
@@ -511,6 +527,7 @@ void SnapshotTimelinePanel::refreshControls()
     duration_->setEnabled(editable && frame);
     preview_->setEnabled(available && captured);
     play_->setEnabled(available && std::ranges::any_of(timeline_.frames, [](const auto& item) { return bool(item.image); }));
+    exportAnimation_->setEnabled(editable && std::ranges::any_of(timeline_.frames, [](const auto& item) { return bool(item.image); }));
     insert_->setEnabled(editable && captured);
     export_->setEnabled(editable && captured);
     if (!captured || !documentAvailable_) setPreviewActive(false);
@@ -554,6 +571,7 @@ bool SnapshotTimelinePanel::previewActive() const
 {
     return preview_->isChecked();
 }
+bool SnapshotTimelinePanel::looping() const { return loop_->isChecked(); }
 
 void SnapshotTimelinePanel::setPlaying(bool playing)
 {

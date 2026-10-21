@@ -10748,6 +10748,7 @@ Pah: köşeleri içeri çekin; Alt karşı köşeyi de değiştirir. Yan tutama�
     </message>
     <message id="history.layer.pixel.opacity">
       <source>Layer pixel opacity</source>
+      <extracomment>Core history label: Layer pixel opacity</extracomment>
       <translation>Katman piksel opaklığı</translation>
     </message>
   </context>
@@ -10986,8 +10987,8 @@ Hazırlık %3 · Tamamlama %4 · Toplam %5</translation>
   <context>
     <name>SnapshotTimeline</name>
     <message id="snapshot.timeline.play">
-      <source>Play (loop)</source>
-      <translation>Döngüde oynat</translation>
+      <source>Play</source>
+      <translation>Oynat</translation>
     </message>
     <message id="snapshot.timeline.pause">
       <source>Pause</source>
@@ -11116,6 +11117,65 @@ Hazırlık %3 · Tamamlama %4 · Toplam %5</translation>
     <message id="snapshot.timeline.finish.edit">
       <source>Finish the current edit before using the timeline.</source>
       <translation>Şeridi kullanmadan önce geçerli düzenlemeyi tamamlayın.</translation>
+    </message>
+  </context>
+  <context>
+    <name>GifExport</name>
+    <message id="snapshot.timeline.loop">
+      <source>Loop animation</source>
+      <translation>Animasyonu döngüye al</translation>
+    </message>
+    <message id="gif.export.title">
+      <source>Export GIF…</source>
+      <translation>GIF dışa aktar…</translation>
+    </message>
+    <message id="gif.export.colors">
+      <source>Colors</source>
+      <translation>Renkler</translation>
+    </message>
+    <message id="gif.export.dither">
+      <source>Dithering</source>
+      <translation>Renk taklidi</translation>
+    </message>
+    <message id="gif.export.none">
+      <source>None</source>
+      <translation>Yok</translation>
+    </message>
+    <message id="gif.export.diffusion">
+      <source>Diffusion</source>
+      <translation>Dağılım</translation>
+    </message>
+    <message id="gif.export.pattern">
+      <source>Pattern</source>
+      <translation>Desen</translation>
+    </message>
+    <message id="gif.export.noise">
+      <source>Noise</source>
+      <translation>Gürültü</translation>
+    </message>
+    <message id="gif.export.strength">
+      <source>Strength</source>
+      <translation>Güç</translation>
+    </message>
+    <message id="gif.export.transparency">
+      <source>Keep transparency</source>
+      <translation>Saydamlığı koru</translation>
+    </message>
+    <message id="gif.export.background">
+      <source>Background color</source>
+      <translation>Arka plan rengi</translation>
+    </message>
+    <message id="gif.export.ready">
+      <source>Frames: %1 · %2 KiB</source>
+      <translation>Kare: %1 · %2 KiB</translation>
+    </message>
+    <message id="gif.export.filter">
+      <source>GIF animation (*.gif)</source>
+      <translation>GIF animasyonu (*.gif)</translation>
+    </message>
+    <message id="gif.export.saved">
+      <source>GIF exported.</source>
+      <translation>GIF dışa aktarıldı.</translation>
     </message>
   </context>
 </TS>

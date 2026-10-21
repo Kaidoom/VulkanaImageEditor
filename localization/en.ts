@@ -7328,7 +7328,7 @@ Prepare %3 · Finish %4 · Total %5</source>
   <context>
     <name>SnapshotTimeline</name>
     <message id="snapshot.timeline.play">
-      <source>Play (loop)</source>
+      <source>Play</source>
     </message>
     <message id="snapshot.timeline.pause">
       <source>Pause</source>
@@ -7425,6 +7425,51 @@ Prepare %3 · Finish %4 · Total %5</source>
     </message>
     <message id="snapshot.timeline.finish.edit">
       <source>Finish the current edit before using the timeline.</source>
+    </message>
+  </context>
+  <context>
+    <name>GifExport</name>
+    <message id="snapshot.timeline.loop">
+      <source>Loop animation</source>
+    </message>
+    <message id="gif.export.title">
+      <source>Export GIF…</source>
+    </message>
+    <message id="gif.export.colors">
+      <source>Colors</source>
+    </message>
+    <message id="gif.export.dither">
+      <source>Dithering</source>
+    </message>
+    <message id="gif.export.none">
+      <source>None</source>
+    </message>
+    <message id="gif.export.diffusion">
+      <source>Diffusion</source>
+    </message>
+    <message id="gif.export.pattern">
+      <source>Pattern</source>
+    </message>
+    <message id="gif.export.noise">
+      <source>Noise</source>
+    </message>
+    <message id="gif.export.strength">
+      <source>Strength</source>
+    </message>
+    <message id="gif.export.transparency">
+      <source>Keep transparency</source>
+    </message>
+    <message id="gif.export.background">
+      <source>Background color</source>
+    </message>
+    <message id="gif.export.ready">
+      <source>Frames: %1 · %2 KiB</source>
+    </message>
+    <message id="gif.export.filter">
+      <source>GIF animation (*.gif)</source>
+    </message>
+    <message id="gif.export.saved">
+      <source>GIF exported.</source>
     </message>
   </context>
 </TS>

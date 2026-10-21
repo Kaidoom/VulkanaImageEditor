@@ -10748,6 +10748,7 @@ Escape 取消整次裁切
     </message>
     <message id="history.layer.pixel.opacity">
       <source>Layer pixel opacity</source>
+      <extracomment>Core history label: Layer pixel opacity</extracomment>
       <translation>图层像素不透明度</translation>
     </message>
   </context>
@@ -10978,8 +10979,8 @@ Prepare %3 · Finish %4 · Total %5</source>
   <context>
     <name>SnapshotTimeline</name>
     <message id="snapshot.timeline.play">
-      <source>Play (loop)</source>
-      <translation>循环播放</translation>
+      <source>Play</source>
+      <translation>播放</translation>
     </message>
     <message id="snapshot.timeline.pause">
       <source>Pause</source>
@@ -11108,6 +11109,65 @@ Prepare %3 · Finish %4 · Total %5</source>
     <message id="snapshot.timeline.finish.edit">
       <source>Finish the current edit before using the timeline.</source>
       <translation>请先完成当前编辑，再使用时间轴。</translation>
+    </message>
+  </context>
+  <context>
+    <name>GifExport</name>
+    <message id="snapshot.timeline.loop">
+      <source>Loop animation</source>
+      <translation>循环动画</translation>
+    </message>
+    <message id="gif.export.title">
+      <source>Export GIF…</source>
+      <translation>导出 GIF…</translation>
+    </message>
+    <message id="gif.export.colors">
+      <source>Colors</source>
+      <translation>颜色数</translation>
+    </message>
+    <message id="gif.export.dither">
+      <source>Dithering</source>
+      <translation>抖动</translation>
+    </message>
+    <message id="gif.export.none">
+      <source>None</source>
+      <translation>无</translation>
+    </message>
+    <message id="gif.export.diffusion">
+      <source>Diffusion</source>
+      <translation>扩散</translation>
+    </message>
+    <message id="gif.export.pattern">
+      <source>Pattern</source>
+      <translation>图案</translation>
+    </message>
+    <message id="gif.export.noise">
+      <source>Noise</source>
+      <translation>杂色</translation>
+    </message>
+    <message id="gif.export.strength">
+      <source>Strength</source>
+      <translation>强度</translation>
+    </message>
+    <message id="gif.export.transparency">
+      <source>Keep transparency</source>
+      <translation>保留透明度</translation>
+    </message>
+    <message id="gif.export.background">
+      <source>Background color</source>
+      <translation>背景颜色</translation>
+    </message>
+    <message id="gif.export.ready">
+      <source>Frames: %1 · %2 KiB</source>
+      <translation>帧数：%1 · %2 KiB</translation>
+    </message>
+    <message id="gif.export.filter">
+      <source>GIF animation (*.gif)</source>
+      <translation>GIF 动画 (*.gif)</translation>
+    </message>
+    <message id="gif.export.saved">
+      <source>GIF exported.</source>
+      <translation>GIF 已导出。</translation>
     </message>
   </context>
 </TS>

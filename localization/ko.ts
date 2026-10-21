@@ -10748,6 +10748,7 @@ Escape · 전체 자르기 세션 취소
     </message>
     <message id="history.layer.pixel.opacity">
       <source>Layer pixel opacity</source>
+      <extracomment>Core history label: Layer pixel opacity</extracomment>
       <translation>레이어 픽셀 불투명도</translation>
     </message>
   </context>
@@ -10978,8 +10979,8 @@ Prepare %3 · Finish %4 · Total %5</source>
   <context>
     <name>SnapshotTimeline</name>
     <message id="snapshot.timeline.play">
-      <source>Play (loop)</source>
-      <translation>반복 재생</translation>
+      <source>Play</source>
+      <translation>재생</translation>
     </message>
     <message id="snapshot.timeline.pause">
       <source>Pause</source>
@@ -11108,6 +11109,65 @@ Prepare %3 · Finish %4 · Total %5</source>
     <message id="snapshot.timeline.finish.edit">
       <source>Finish the current edit before using the timeline.</source>
       <translation>현재 편집을 마친 후 타임라인을 사용하세요.</translation>
+    </message>
+  </context>
+  <context>
+    <name>GifExport</name>
+    <message id="snapshot.timeline.loop">
+      <source>Loop animation</source>
+      <translation>애니메이션 반복</translation>
+    </message>
+    <message id="gif.export.title">
+      <source>Export GIF…</source>
+      <translation>GIF 내보내기…</translation>
+    </message>
+    <message id="gif.export.colors">
+      <source>Colors</source>
+      <translation>색상 수</translation>
+    </message>
+    <message id="gif.export.dither">
+      <source>Dithering</source>
+      <translation>디더링</translation>
+    </message>
+    <message id="gif.export.none">
+      <source>None</source>
+      <translation>없음</translation>
+    </message>
+    <message id="gif.export.diffusion">
+      <source>Diffusion</source>
+      <translation>확산</translation>
+    </message>
+    <message id="gif.export.pattern">
+      <source>Pattern</source>
+      <translation>패턴</translation>
+    </message>
+    <message id="gif.export.noise">
+      <source>Noise</source>
+      <translation>노이즈</translation>
+    </message>
+    <message id="gif.export.strength">
+      <source>Strength</source>
+      <translation>강도</translation>
+    </message>
+    <message id="gif.export.transparency">
+      <source>Keep transparency</source>
+      <translation>투명도 유지</translation>
+    </message>
+    <message id="gif.export.background">
+      <source>Background color</source>
+      <translation>배경색</translation>
+    </message>
+    <message id="gif.export.ready">
+      <source>Frames: %1 · %2 KiB</source>
+      <translation>프레임: %1 · %2 KiB</translation>
+    </message>
+    <message id="gif.export.filter">
+      <source>GIF animation (*.gif)</source>
+      <translation>GIF 애니메이션 (*.gif)</translation>
+    </message>
+    <message id="gif.export.saved">
+      <source>GIF exported.</source>
+      <translation>GIF를 내보냈습니다.</translation>
     </message>
   </context>
 </TS>

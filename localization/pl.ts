@@ -10750,6 +10750,7 @@ Escape · Anuluj sesję
     </message>
     <message id="history.layer.pixel.opacity">
       <source>Layer pixel opacity</source>
+      <extracomment>Core history label: Layer pixel opacity</extracomment>
       <translation>Krycie pikseli warstwy</translation>
     </message>
   </context>
@@ -10988,8 +10989,8 @@ Przygotowanie %3 · Finalizacja %4 · Łącznie %5</translation>
   <context>
     <name>SnapshotTimeline</name>
     <message id="snapshot.timeline.play">
-      <source>Play (loop)</source>
-      <translation>Odtwarzaj w pętli</translation>
+      <source>Play</source>
+      <translation>Odtwórz</translation>
     </message>
     <message id="snapshot.timeline.pause">
       <source>Pause</source>
@@ -11118,6 +11119,65 @@ Przygotowanie %3 · Finalizacja %4 · Łącznie %5</translation>
     <message id="snapshot.timeline.finish.edit">
       <source>Finish the current edit before using the timeline.</source>
       <translation>Zakończ bieżącą edycję przed użyciem osi czasu.</translation>
+    </message>
+  </context>
+  <context>
+    <name>GifExport</name>
+    <message id="snapshot.timeline.loop">
+      <source>Loop animation</source>
+      <translation>Zapętl animację</translation>
+    </message>
+    <message id="gif.export.title">
+      <source>Export GIF…</source>
+      <translation>Eksportuj GIF…</translation>
+    </message>
+    <message id="gif.export.colors">
+      <source>Colors</source>
+      <translation>Kolory</translation>
+    </message>
+    <message id="gif.export.dither">
+      <source>Dithering</source>
+      <translation>Dithering</translation>
+    </message>
+    <message id="gif.export.none">
+      <source>None</source>
+      <translation>Brak</translation>
+    </message>
+    <message id="gif.export.diffusion">
+      <source>Diffusion</source>
+      <translation>Dyfuzja</translation>
+    </message>
+    <message id="gif.export.pattern">
+      <source>Pattern</source>
+      <translation>Wzór</translation>
+    </message>
+    <message id="gif.export.noise">
+      <source>Noise</source>
+      <translation>Szum</translation>
+    </message>
+    <message id="gif.export.strength">
+      <source>Strength</source>
+      <translation>Siła</translation>
+    </message>
+    <message id="gif.export.transparency">
+      <source>Keep transparency</source>
+      <translation>Zachowaj przezroczystość</translation>
+    </message>
+    <message id="gif.export.background">
+      <source>Background color</source>
+      <translation>Kolor tła</translation>
+    </message>
+    <message id="gif.export.ready">
+      <source>Frames: %1 · %2 KiB</source>
+      <translation>Klatki: %1 · %2 KiB</translation>
+    </message>
+    <message id="gif.export.filter">
+      <source>GIF animation (*.gif)</source>
+      <translation>Animacja GIF (*.gif)</translation>
+    </message>
+    <message id="gif.export.saved">
+      <source>GIF exported.</source>
+      <translation>Wyeksportowano GIF.</translation>
     </message>
   </context>
 </TS>

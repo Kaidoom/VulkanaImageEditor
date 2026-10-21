@@ -38,6 +38,9 @@ add_library(imageeditor_ui STATIC
     src/SnapshotTimelinePanel.cpp
     src/MainWindowSnapshotTimeline.cpp
     src/GifImport.cpp
+    src/GifExport.cpp
+    src/GifExportDialog.cpp
+    src/MainWindowGifExport.cpp
     src/MainWindowGif.cpp
     src/SnapshotPlayback.cpp
     src/ColorPicker.cpp

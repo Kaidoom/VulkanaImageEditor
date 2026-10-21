@@ -35,3 +35,10 @@ imageeditor_enable_warnings(imageeditor_gif_import_tests)
 add_test(NAME imageeditor_gif_import_tests COMMAND imageeditor_gif_import_tests)
 set_tests_properties(imageeditor_gif_import_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=${_snapshot_qpa}"
     TIMEOUT 90 LABELS "gif;timeline;project")
+
+add_executable(imageeditor_gif_export_tests GifExportTests.cpp)
+target_link_libraries(imageeditor_gif_export_tests PRIVATE imageeditor_ui Qt6::Test)
+imageeditor_enable_warnings(imageeditor_gif_export_tests)
+add_test(NAME imageeditor_gif_export_tests COMMAND imageeditor_gif_export_tests)
+set_tests_properties(imageeditor_gif_export_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=${_snapshot_qpa}"
+    TIMEOUT 90 LABELS "gif;timeline;export")

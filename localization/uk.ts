@@ -10750,6 +10750,7 @@ Escape · Скасувати сеанс
     </message>
     <message id="history.layer.pixel.opacity">
       <source>Layer pixel opacity</source>
+      <extracomment>Core history label: Layer pixel opacity</extracomment>
       <translation>Непрозорість пікселів шару</translation>
     </message>
   </context>
@@ -10988,8 +10989,8 @@ Prepare %3 · Finish %4 · Total %5</source>
   <context>
     <name>SnapshotTimeline</name>
     <message id="snapshot.timeline.play">
-      <source>Play (loop)</source>
-      <translation>Відтворювати по колу</translation>
+      <source>Play</source>
+      <translation>Відтворити</translation>
     </message>
     <message id="snapshot.timeline.pause">
       <source>Pause</source>
@@ -11118,6 +11119,65 @@ Prepare %3 · Finish %4 · Total %5</source>
     <message id="snapshot.timeline.finish.edit">
       <source>Finish the current edit before using the timeline.</source>
       <translation>Завершіть поточне редагування перед використанням шкали знімків.</translation>
+    </message>
+  </context>
+  <context>
+    <name>GifExport</name>
+    <message id="snapshot.timeline.loop">
+      <source>Loop animation</source>
+      <translation>Повторювати анімацію</translation>
+    </message>
+    <message id="gif.export.title">
+      <source>Export GIF…</source>
+      <translation>Експорт GIF…</translation>
+    </message>
+    <message id="gif.export.colors">
+      <source>Colors</source>
+      <translation>Кольори</translation>
+    </message>
+    <message id="gif.export.dither">
+      <source>Dithering</source>
+      <translation>Дизеринг</translation>
+    </message>
+    <message id="gif.export.none">
+      <source>None</source>
+      <translation>Немає</translation>
+    </message>
+    <message id="gif.export.diffusion">
+      <source>Diffusion</source>
+      <translation>Дифузія</translation>
+    </message>
+    <message id="gif.export.pattern">
+      <source>Pattern</source>
+      <translation>Візерунок</translation>
+    </message>
+    <message id="gif.export.noise">
+      <source>Noise</source>
+      <translation>Шум</translation>
+    </message>
+    <message id="gif.export.strength">
+      <source>Strength</source>
+      <translation>Інтенсивність</translation>
+    </message>
+    <message id="gif.export.transparency">
+      <source>Keep transparency</source>
+      <translation>Зберегти прозорість</translation>
+    </message>
+    <message id="gif.export.background">
+      <source>Background color</source>
+      <translation>Колір тла</translation>
+    </message>
+    <message id="gif.export.ready">
+      <source>Frames: %1 · %2 KiB</source>
+      <translation>Кадрів: %1 · %2 КіБ</translation>
+    </message>
+    <message id="gif.export.filter">
+      <source>GIF animation (*.gif)</source>
+      <translation>Анімація GIF (*.gif)</translation>
+    </message>
+    <message id="gif.export.saved">
+      <source>GIF exported.</source>
+      <translation>GIF експортовано.</translation>
     </message>
   </context>
 </TS>

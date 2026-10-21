@@ -26,6 +26,7 @@ public:
     void setDocumentAvailable(bool);
     void setPreviewActive(bool);
     void setPlaying(bool);
+    bool looping() const;
     [[nodiscard]] bool previewActive() const;
     QSize sizeHint() const override { return {760, 164}; }
 
@@ -38,6 +39,8 @@ public:
     std::function<void(core::SnapshotFrameId, std::size_t)> onReorder;
     std::function<void(bool)> onPreview;
     std::function<void(bool)> onPlay;
+    std::function<void(bool)> onLoopChanged;
+    std::function<void()> onExportAnimation;
     std::function<void(core::SnapshotFrameId)> onInsert;
     std::function<void(core::SnapshotFrameId)> onExport;
     std::function<void()> onClose;
@@ -61,6 +64,8 @@ private:
     QToolButton* capture_ {};
     QToolButton* preview_ {};
     QToolButton* play_ {};
+    QToolButton* loop_ {};
+    QToolButton* exportAnimation_ {};
     QToolButton* insert_ {};
     QToolButton* export_ {};
     QSpinBox* duration_ {};
@@ -70,5 +75,6 @@ private:
     std::uint64_t thumbnailClock_ {};
     bool busy_ {};
     bool documentAvailable_ {};
+    bool requestedPlay_ {};
 };
 } // namespace imageeditor::ui

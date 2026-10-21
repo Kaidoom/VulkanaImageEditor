@@ -10864,6 +10864,7 @@ Escape لإلغاء جلسة الاقتصاص كاملةً
     </message>
     <message id="history.layer.pixel.opacity">
       <source>Layer pixel opacity</source>
+      <extracomment>Core history label: Layer pixel opacity</extracomment>
       <translation>عتامة بكسلات الطبقة</translation>
     </message>
   </context>
@@ -11102,8 +11103,8 @@ Prepare %3 · Finish %4 · Total %5</source>
   <context>
     <name>SnapshotTimeline</name>
     <message id="snapshot.timeline.play">
-      <source>Play (loop)</source>
-      <translation>تشغيل متكرر</translation>
+      <source>Play</source>
+      <translation>تشغيل</translation>
     </message>
     <message id="snapshot.timeline.pause">
       <source>Pause</source>
@@ -11232,6 +11233,65 @@ Prepare %3 · Finish %4 · Total %5</source>
     <message id="snapshot.timeline.finish.edit">
       <source>Finish the current edit before using the timeline.</source>
       <translation>أنهِ التعديل الحالي قبل استخدام شريط اللقطات.</translation>
+    </message>
+  </context>
+  <context>
+    <name>GifExport</name>
+    <message id="snapshot.timeline.loop">
+      <source>Loop animation</source>
+      <translation>تكرار الحركة</translation>
+    </message>
+    <message id="gif.export.title">
+      <source>Export GIF…</source>
+      <translation>تصدير GIF…</translation>
+    </message>
+    <message id="gif.export.colors">
+      <source>Colors</source>
+      <translation>الألوان</translation>
+    </message>
+    <message id="gif.export.dither">
+      <source>Dithering</source>
+      <translation>تنقيط الألوان</translation>
+    </message>
+    <message id="gif.export.none">
+      <source>None</source>
+      <translation>بلا</translation>
+    </message>
+    <message id="gif.export.diffusion">
+      <source>Diffusion</source>
+      <translation>انتشار</translation>
+    </message>
+    <message id="gif.export.pattern">
+      <source>Pattern</source>
+      <translation>نمط</translation>
+    </message>
+    <message id="gif.export.noise">
+      <source>Noise</source>
+      <translation>ضوضاء</translation>
+    </message>
+    <message id="gif.export.strength">
+      <source>Strength</source>
+      <translation>الشدة</translation>
+    </message>
+    <message id="gif.export.transparency">
+      <source>Keep transparency</source>
+      <translation>الحفاظ على الشفافية</translation>
+    </message>
+    <message id="gif.export.background">
+      <source>Background color</source>
+      <translation>لون الخلفية</translation>
+    </message>
+    <message id="gif.export.ready">
+      <source>Frames: %1 · %2 KiB</source>
+      <translation>الإطارات: %1 · %2 KiB</translation>
+    </message>
+    <message id="gif.export.filter">
+      <source>GIF animation (*.gif)</source>
+      <translation>حركة GIF (*.gif)</translation>
+    </message>
+    <message id="gif.export.saved">
+      <source>GIF exported.</source>
+      <translation>تم تصدير GIF.</translation>
     </message>
   </context>
 </TS>

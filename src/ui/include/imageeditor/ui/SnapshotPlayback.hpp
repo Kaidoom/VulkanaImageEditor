@@ -16,6 +16,8 @@ public:
     void pause();
     void clear();
     void seek(core::SnapshotFrameId);
+    void setLooping(bool);
+    bool looping() const { return looping_; }
     bool playing() const { return playing_; }
     core::SnapshotFrameId currentFrame() const { return current_; }
     std::function<void(core::SnapshotFrameId)> onFrame;
@@ -31,5 +33,6 @@ private:
     qint64 offset_{}, total_{};
     core::SnapshotFrameId current_{};
     bool playing_{};
+    bool looping_{true};
 };
 }

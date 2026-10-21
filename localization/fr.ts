@@ -10860,6 +10860,7 @@ Chanfrein : tirer les coins vers l'intérieur ; Alt change aussi le coin opposé
     </message>
     <message id="history.layer.pixel.opacity">
       <source>Layer pixel opacity</source>
+      <extracomment>Core history label: Layer pixel opacity</extracomment>
       <translation>Opacité des pixels du calque</translation>
     </message>
   </context>
@@ -11090,8 +11091,8 @@ Préparation %3 · Finition %4 · Total %5</translation>
   <context>
     <name>SnapshotTimeline</name>
     <message id="snapshot.timeline.play">
-      <source>Play (loop)</source>
-      <translation>Lire en boucle</translation>
+      <source>Play</source>
+      <translation>Lire</translation>
     </message>
     <message id="snapshot.timeline.pause">
       <source>Pause</source>
@@ -11220,6 +11221,65 @@ Préparation %3 · Finition %4 · Total %5</translation>
     <message id="snapshot.timeline.finish.edit">
       <source>Finish the current edit before using the timeline.</source>
       <translation>Terminez la modification en cours avant d’utiliser la chronologie.</translation>
+    </message>
+  </context>
+  <context>
+    <name>GifExport</name>
+    <message id="snapshot.timeline.loop">
+      <source>Loop animation</source>
+      <translation>Lire en boucle</translation>
+    </message>
+    <message id="gif.export.title">
+      <source>Export GIF…</source>
+      <translation>Exporter en GIF…</translation>
+    </message>
+    <message id="gif.export.colors">
+      <source>Colors</source>
+      <translation>Couleurs</translation>
+    </message>
+    <message id="gif.export.dither">
+      <source>Dithering</source>
+      <translation>Tramage</translation>
+    </message>
+    <message id="gif.export.none">
+      <source>None</source>
+      <translation>Aucun</translation>
+    </message>
+    <message id="gif.export.diffusion">
+      <source>Diffusion</source>
+      <translation>Diffusion</translation>
+    </message>
+    <message id="gif.export.pattern">
+      <source>Pattern</source>
+      <translation>Motif</translation>
+    </message>
+    <message id="gif.export.noise">
+      <source>Noise</source>
+      <translation>Bruit</translation>
+    </message>
+    <message id="gif.export.strength">
+      <source>Strength</source>
+      <translation>Intensité</translation>
+    </message>
+    <message id="gif.export.transparency">
+      <source>Keep transparency</source>
+      <translation>Garder la transparence</translation>
+    </message>
+    <message id="gif.export.background">
+      <source>Background color</source>
+      <translation>Couleur de fond</translation>
+    </message>
+    <message id="gif.export.ready">
+      <source>Frames: %1 · %2 KiB</source>
+      <translation>Images : %1 · %2 Kio</translation>
+    </message>
+    <message id="gif.export.filter">
+      <source>GIF animation (*.gif)</source>
+      <translation>Animation GIF (*.gif)</translation>
+    </message>
+    <message id="gif.export.saved">
+      <source>GIF exported.</source>
+      <translation>GIF exporté.</translation>
     </message>
   </context>
 </TS>

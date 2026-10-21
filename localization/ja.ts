@@ -10748,6 +10748,7 @@ Escape で切り抜きを中止
     </message>
     <message id="history.layer.pixel.opacity">
       <source>Layer pixel opacity</source>
+      <extracomment>Core history label: Layer pixel opacity</extracomment>
       <translation>レイヤーのピクセル不透明度</translation>
     </message>
   </context>
@@ -10978,8 +10979,8 @@ Prepare %3 · Finish %4 · Total %5</source>
   <context>
     <name>SnapshotTimeline</name>
     <message id="snapshot.timeline.play">
-      <source>Play (loop)</source>
-      <translation>ループ再生</translation>
+      <source>Play</source>
+      <translation>再生</translation>
     </message>
     <message id="snapshot.timeline.pause">
       <source>Pause</source>
@@ -11108,6 +11109,65 @@ Prepare %3 · Finish %4 · Total %5</source>
     <message id="snapshot.timeline.finish.edit">
       <source>Finish the current edit before using the timeline.</source>
       <translation>現在の編集を完了してからタイムラインを使用してください。</translation>
+    </message>
+  </context>
+  <context>
+    <name>GifExport</name>
+    <message id="snapshot.timeline.loop">
+      <source>Loop animation</source>
+      <translation>アニメーションをループ</translation>
+    </message>
+    <message id="gif.export.title">
+      <source>Export GIF…</source>
+      <translation>GIF を書き出し…</translation>
+    </message>
+    <message id="gif.export.colors">
+      <source>Colors</source>
+      <translation>色数</translation>
+    </message>
+    <message id="gif.export.dither">
+      <source>Dithering</source>
+      <translation>ディザリング</translation>
+    </message>
+    <message id="gif.export.none">
+      <source>None</source>
+      <translation>なし</translation>
+    </message>
+    <message id="gif.export.diffusion">
+      <source>Diffusion</source>
+      <translation>誤差拡散</translation>
+    </message>
+    <message id="gif.export.pattern">
+      <source>Pattern</source>
+      <translation>パターン</translation>
+    </message>
+    <message id="gif.export.noise">
+      <source>Noise</source>
+      <translation>ノイズ</translation>
+    </message>
+    <message id="gif.export.strength">
+      <source>Strength</source>
+      <translation>強さ</translation>
+    </message>
+    <message id="gif.export.transparency">
+      <source>Keep transparency</source>
+      <translation>透明度を保持</translation>
+    </message>
+    <message id="gif.export.background">
+      <source>Background color</source>
+      <translation>背景色</translation>
+    </message>
+    <message id="gif.export.ready">
+      <source>Frames: %1 · %2 KiB</source>
+      <translation>フレーム数：%1 · %2 KiB</translation>
+    </message>
+    <message id="gif.export.filter">
+      <source>GIF animation (*.gif)</source>
+      <translation>GIF アニメーション (*.gif)</translation>
+    </message>
+    <message id="gif.export.saved">
+      <source>GIF exported.</source>
+      <translation>GIF を書き出しました。</translation>
     </message>
   </context>
 </TS>
