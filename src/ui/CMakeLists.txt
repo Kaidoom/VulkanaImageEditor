@@ -84,6 +84,10 @@ add_library(imageeditor_ui STATIC
     src/MainWindowColorSelection.cpp
     src/MainWindowSmartSelection.cpp
     src/ObjectSelection.cpp
+    src/BackgroundRemoval.cpp
+    src/BackgroundRemovalMask.cpp
+    src/BackgroundRemovalPanel.cpp
+    src/MainWindowBackgroundRemoval.cpp
     src/MainWindowLasso.cpp
     src/MainWindowSelectionTransform.cpp
     src/MainWindowFill.cpp

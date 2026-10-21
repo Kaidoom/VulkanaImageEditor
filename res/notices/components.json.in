@@ -7,7 +7,7 @@
   "source_url_published": false,
   "acknowledgements": [
     "Qt is used under the LGPL v3 option. Copies of LGPL v3 and GPL v3 are included.",
-    "Object Selection includes the MobileSAM model and ONNX Runtime CPU library. Other direct dependencies are supplied by the build/runtime environment unless stated otherwise; their installed notices cover additional plugins and transitive components."
+    "Object Selection includes MobileSAM. Remove Background includes U²-NetP and a derived BiRefNet-lite INT8 model. Both features use the bundled ONNX Runtime CPU library. Other direct dependencies are supplied by the build/runtime environment unless stated otherwise; their installed notices cover additional plugins and transitive components."
   ],
   "components": [
     {
@@ -34,7 +34,7 @@
       "notice": {
         "name": "ONNX Runtime CPU",
         "version": "1.30.0",
-        "scope": "Bundled Linux x86-64 shared library for local, offline Object Selection",
+        "scope": "Bundled CPU runtime for local, offline Object Selection and Remove Background; Linux x86-64 shared library or Windows x64 DLL",
         "license": "MIT; incorporated components retain their included third-party terms",
         "copyright": "Copyright (c) Microsoft Corporation and contributors; see complete third-party notices."
       },
@@ -49,6 +49,26 @@
         "copyright": "MobileSAM authors and contributors; SAM portions Copyright (c) Meta Platforms, Inc. and affiliates; TinyViT portions Copyright (c) 2022 Microsoft."
       },
       "texts": ["MobileSAM-LICENSE.txt", "ObjectSelection-NOTICE.txt"]
+    },
+    {
+      "notice": {
+        "name": "U²-NetP",
+        "version": "rembg v0.0.0 ONNX conversion; SHA-256 309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8",
+        "scope": "Bundled, unmodified 320×320 model for offline Remove Background",
+        "license": "Apache-2.0 (U-2-Net); MIT (rembg adapter reference)",
+        "copyright": "Xuebin Qin and the U-2-Net authors and contributors; rembg Copyright (c) 2020 Daniel Gatis."
+      },
+      "texts": ["U2Net-LICENSE.txt", "rembg-LICENSE.txt", "BackgroundRemoval-NOTICE.txt"]
+    },
+    {
+      "notice": {
+        "name": "BiRefNet-lite INT8",
+        "version": "512×512 ONNX conversion, quantized and graph-optimized by Vulkana; bundle v1",
+        "scope": "Bundled derived model for offline Remove Background; provenance and modifications accompany the model",
+        "license": "MIT",
+        "copyright": "Copyright (c) 2024 ZhengPeng; Copyright (c) 2026 Studio Ludens V.O.F."
+      },
+      "texts": ["BiRefNet-LICENSE.txt", "BackgroundRemoval-NOTICE.txt"]
     },
     {
       "notice": {

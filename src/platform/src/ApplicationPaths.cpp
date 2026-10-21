@@ -63,6 +63,15 @@ QString userCacheDirectory()
         .filePath(QStringLiteral("vulkanaEditor"));
 }
 
+QString backgroundRemovalBundlePath()
+{
+#ifdef VULKANA_DEVELOPMENT_BACKGROUND_REMOVAL
+    return QStringLiteral(VULKANA_DEVELOPMENT_BACKGROUND_REMOVAL);
+#else
+    return installedDataPath(QStringLiteral("background-removal/v1"));
+#endif
+}
+
 QString userPresetDirectory()
 {
     return QDir(userDataDirectory()).filePath(QStringLiteral("brush-presets-v2"));

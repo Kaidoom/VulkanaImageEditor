@@ -5381,7 +5381,7 @@ Gizli grup/klasör içeriği dahil belgeye hizalı sınırlar (G × Y).</transla
       <source>Show Analysis Area</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
       <oldsource>Show Refinement Region</oldsource>
-      <translation type="unfinished">İyileştirme bölgesini göster</translation>
+      <translation>Analiz alanını göster</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.reference">
@@ -5514,7 +5514,7 @@ Gizli grup/klasör içeriği dahil belgeye hizalı sınırlar (G × Y).</transla
       <source>Refine Edge updates the current mask locally. Add/Subtract guides later strokes. Source colors stay unchanged.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
       <oldsource>Refine Edge analyzes the brushed region. Add/Subtract corrections are applied last. Source colors stay unchanged.</oldsource>
-      <translation type="unfinished">Kenarı İyileştir boyanan bölgeyi analiz eder. Ekle/Çıkar en son uygulanır. Kaynak renkleri değişmez.</translation>
+      <translation>Kenarı İyileştir, mevcut maskeyi yerel olarak günceller. Ekle/Çıkar, sonraki fırça darbelerine yön verir. Kaynak renkleri değişmez.</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.output">
@@ -5587,7 +5587,7 @@ Gizli grup/klasör içeriği dahil belgeye hizalı sınırlar (G × Y).</transla
       <source>Ready · %1 uncertain pixels left unchanged. Use Add/Subtract to guide refinement.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
       <oldsource>Ready · limited color evidence in %1 boundary pixels; original coverage retained there.</oldsource>
-      <translation type="unfinished">Hazır · %1 kenar pikselinde renk kanıtı sınırlı; özgün kapsam korundu.</translation>
+      <translation>Hazır · Değiştirilmeden bırakılan belirsiz piksel sayısı: %1. İyileştirmeyi yönlendirmek için Ekle/Çıkar kullanın.</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.ready">
@@ -10845,6 +10845,131 @@ Pah: köşeleri içeri çekin; Alt karşı köşeyi de değiştirir. Yan tutama�
       <source>Gradient %1</source>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
       <translation>Degrade %1</translation>
+    </message>
+  </context>
+  <context>
+    <name>BackgroundRemoval</name>
+    <message id="background.removal.timings">
+      <source>Load %1 · Inference %2
+Prepare %3 · Finish %4 · Total %5</source>
+      <translation>Yükleme %1 · Çıkarım %2
+Hazırlık %3 · Tamamlama %4 · Toplam %5</translation>
+    </message>
+    <message id="background.removal.title">
+      <source>Remove Background</source>
+      <translation>Arka Planı Kaldır</translation>
+    </message>
+    <message id="background.removal.action">
+      <source>Remove Background…</source>
+      <translation>Arka Planı Kaldır…</translation>
+    </message>
+    <message id="background.removal.help">
+      <source>Remove the background and add an editable layer mask.</source>
+      <translation>Arka planı kaldırır ve düzenlenebilir bir katman maskesi ekler.</translation>
+    </message>
+    <message id="background.removal.model">
+      <source>Model</source>
+      <translation>Model</translation>
+    </message>
+    <message id="background.removal.mask.only">
+      <source>Mask Only</source>
+      <translation>Yalnızca Maske</translation>
+    </message>
+    <message id="background.removal.mask.raw.tooltip">
+      <source>Generated mask, before image transparency and the existing layer mask.</source>
+      <translation>Görüntü saydamlığı ve mevcut katman maskesi uygulanmadan önce üretilen maske.</translation>
+    </message>
+    <message id="background.removal.preview.tooltip">
+      <source>Isolated image with the generated mask and any existing mask.</source>
+      <translation>Üretilen maske ve varsa mevcut maske ile yalıtılmış görüntü.</translation>
+    </message>
+    <message id="background.removal.original.hint">
+      <source>Hold the mouse button or Space to compare with the original layer.</source>
+      <translation>Özgün katmanla karşılaştırmak için fare düğmesini veya Boşluk tuşunu basılı tutun.</translation>
+    </message>
+    <message id="background.removal.mask.combine">
+      <source>Apply combines the result with the existing mask.</source>
+      <translation>Uygula, sonucu mevcut maskeyle birleştirir.</translation>
+    </message>
+    <message id="background.removal.mask.add">
+      <source>Apply adds an editable layer mask.</source>
+      <translation>Uygula, düzenlenebilir bir katman maskesi ekler.</translation>
+    </message>
+    <message id="background.removal.preview.hint">
+      <source>Preview shows this layer without opacity, adjustments or effects. Image pixels and the active selection stay unchanged.</source>
+      <translation>Önizleme, katmanı opaklık ayarı, ayarlamalar ve efektler olmadan gösterir. Pikseller ve etkin seçim değişmez.</translation>
+    </message>
+    <message id="background.removal.retry">
+      <source>Retry</source>
+      <translation>Yeniden Dene</translation>
+    </message>
+    <message id="background.removal.unavailable">
+      <source>Background removal models are unavailable. Please reinstall the app.</source>
+      <translation>Arka plan kaldırma modelleri kullanılamıyor. Uygulamayı yeniden yükleyin.</translation>
+    </message>
+    <message id="background.removal.preparing">
+      <source>Preparing layer…</source>
+      <translation>Katman hazırlanıyor…</translation>
+    </message>
+    <message id="background.removal.processing">
+      <source>Removing background…</source>
+      <translation>Arka plan kaldırılıyor…</translation>
+    </message>
+    <message id="background.removal.cancelled">
+      <source>Cancelled.</source>
+      <translation>İptal edildi.</translation>
+    </message>
+    <message id="background.removal.ready">
+      <source>Preview ready</source>
+      <translation>Önizleme hazır</translation>
+    </message>
+    <message id="background.removal.empty">
+      <source>No foreground found. Nothing will be applied.</source>
+      <translation>Ön plan bulunamadı. Hiçbir değişiklik uygulanmayacak.</translation>
+    </message>
+    <message id="background.removal.duration">
+      <source>%1 s</source>
+      <translation>%1 sn</translation>
+    </message>
+    <message id="background.removal.elapsed">
+      <source>%1 · %2</source>
+      <translation>%1 · %2</translation>
+    </message>
+    <message id="background.removal.time">
+      <source>Time: %1</source>
+      <translation>Süre: %1</translation>
+    </message>
+    <message id="background.removal.mask.disabled">
+      <source>Enable or remove the existing layer mask before removing the background.</source>
+      <translation>Arka planı kaldırmadan önce mevcut katman maskesini etkinleştirin veya kaldırın.</translation>
+    </message>
+    <message id="background.removal.cancelling.previous">
+      <source>Cancelling previous model…</source>
+      <translation>Önceki model iptal ediliyor…</translation>
+    </message>
+    <message id="background.removal.applied">
+      <source>Background removed. Layer mask added.</source>
+      <translation>Arka plan kaldırıldı. Katman maskesi eklendi.</translation>
+    </message>
+    <message id="background.removal.failed">
+      <source>Background removal failed: %1</source>
+      <translation>Arka plan kaldırılamadı: %1</translation>
+    </message>
+    <message id="background.removal.limit">
+      <source>Background removal supports layers up to 64 megapixels.</source>
+      <translation>Arka plan kaldırma, 64 megapiksele kadar katmanları destekler.</translation>
+    </message>
+    <message id="background.removal.source.empty">
+      <source>This layer has no visible pixels.</source>
+      <translation>Bu katmanda görünür piksel yok.</translation>
+    </message>
+    <message id="background.removal.mask.empty">
+      <source>The result would hide the entire layer. Nothing will be applied.</source>
+      <translation>Sonuç tüm katmanı gizleyecekti. Hiçbir değişiklik uygulanmayacak.</translation>
+    </message>
+    <message id="history.remove.background">
+      <source>Remove Background</source>
+      <translation>Arka Planı Kaldır</translation>
     </message>
   </context>
 </TS>

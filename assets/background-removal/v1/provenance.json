@@ -1,0 +1,121 @@
+{
+  "format": 1,
+  "bundle": "vulkana-background-removal-v1",
+  "runtime": {
+    "provider": "ONNX Runtime CPU",
+    "version": "1.30.0",
+    "sharedWith": "Object Selection",
+    "applicationDependencies": "No Python, PyTorch or rembg runtime."
+  },
+  "models": [
+    {
+      "id": "u2netp",
+      "name": "U²-NetP",
+      "file": "u2netp.onnx",
+      "bytes": 4574861,
+      "sha256": "309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8",
+      "source": {
+        "url": "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx",
+        "md5": "8e83ca70e441ab06c318d82300c84806",
+        "checksumReference": "https://github.com/danielgatis/rembg/blob/cd8f3665dda6c246b5baecb85fda6a2acd644c2a/rembg/sessions/u2netp.py",
+        "architecture": "https://github.com/xuebinqin/U-2-Net",
+        "licenseReference": "https://github.com/xuebinqin/U-2-Net/blob/ac7e1c817ecab7c7dff5ce6b1abba61cd213ff29/LICENSE"
+      },
+      "licenses": [
+        "U2Net-LICENSE.txt",
+        "rembg-LICENSE.txt"
+      ],
+      "modifications": "None; the distributed ONNX file is copied unchanged.",
+      "input": {
+        "layout": "NCHW",
+        "shape": [
+          1,
+          3,
+          320,
+          320
+        ],
+        "type": "float32",
+        "resize": "Antialiased Lanczos RGB",
+        "normalization": "Divide resized RGB by its maximum, then ImageNet mean/std."
+      },
+      "output": {
+        "selection": "First graph output, first channel",
+        "normalization": "Min/max normalization; 8-bit coverage then Lanczos resize to source raster dimensions."
+      }
+    },
+    {
+      "id": "birefnet-lite-int8",
+      "name": "BiRefNet-lite INT8",
+      "file": "birefnet-lite-512/onnx/model_int8.onnx",
+      "bytes": 65010452,
+      "sha256": "aec1e9eca3ec401f82a32911d9e8369a24bae8ae490168308f768ddd5a936da2",
+      "source": {
+        "repository": "https://huggingface.co/studioludens/birefnet-lite-512",
+        "revision": "962e67969ec6acec9c19fab76acee4f5e22e990c",
+        "file": "onnx/model.onnx",
+        "sha256": "1cb0fb360dadd15af77c639085d77a9df67db0c64315560c3de005f676345ac2",
+        "bytes": 191877254,
+        "baseModel": "https://huggingface.co/ZhengPeng7/BiRefNet_lite",
+        "licenseReference": "https://huggingface.co/studioludens/birefnet-lite-512/blob/962e67969ec6acec9c19fab76acee4f5e22e990c/LICENSE"
+      },
+      "licenses": [
+        "BiRefNet-LICENSE.txt"
+      ],
+      "modifications": {
+        "quantization": {
+          "onnxVersion": "1.23.2",
+          "onnxRuntimeVersion": "1.30.0",
+          "preprocessing": "ORT_ENABLE_BASIC optimization persisted to disk, then ONNX shape inference.",
+          "format": "QDQ",
+          "weights": "Per-channel QInt8",
+          "activations": "QInt8",
+          "calibration": "MinMax",
+          "calibrationImageCount": 17,
+          "calibrationDescription": "Landscape and portrait photographs and illustrations; calibration images are not distributed.",
+          "operators": [
+            "Conv",
+            "MatMul with constant B",
+            "Gemm"
+          ],
+          "options": {
+            "WeightSymmetric": true,
+            "MatMulConstBOnly": true
+          },
+          "fineTuning": false,
+          "intermediateSha256": "a359c5d2c999bd757f6f21bf407609970419cb99057c5fb1147e5ecd6e641d4f"
+        },
+        "graphOptimization": {
+          "variant": "nhwc-add",
+          "interpolationBlocksRewritten": 20,
+          "description": "Perform interpolation products and ordered accumulation before the common transpose; topologically order branches and remove unused graph data.",
+          "learnedWeightsAndQuantizationScalesChanged": false,
+          "pointwiseConvolutionRewrite": false
+        }
+      },
+      "input": {
+        "layout": "NCHW",
+        "shape": [
+          1,
+          3,
+          512,
+          512
+        ],
+        "type": "float32",
+        "resize": "Antialiased bilinear RGB",
+        "normalization": "Divide by 255, then ImageNet mean/std."
+      },
+      "output": {
+        "type": "float32",
+        "interpretation": "Foreground logits",
+        "normalization": "Sigmoid, floating-point bilinear resize to source raster dimensions, then 8-bit coverage."
+      }
+    }
+  ],
+  "notices": [
+    "BackgroundRemoval-NOTICE.txt",
+    "U2Net-LICENSE.txt",
+    "BiRefNet-LICENSE.txt",
+    "rembg-LICENSE.txt"
+  ],
+  "restrictions": "The application does not train, download or modify these model files. Update hashes and validate output quality before replacing a bundled graph."
+}

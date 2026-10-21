@@ -5382,7 +5382,7 @@ Limites alinhados (L × A), incluindo conteúdo oculto de grupos/pastas.</transl
       <source>Show Analysis Area</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
       <oldsource>Show Refinement Region</oldsource>
-      <translation type="unfinished">Mostrar região de refinamento</translation>
+      <translation>Mostrar área de análise</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.reference">
@@ -5515,7 +5515,7 @@ Limites alinhados (L × A), incluindo conteúdo oculto de grupos/pastas.</transl
       <source>Refine Edge updates the current mask locally. Add/Subtract guides later strokes. Source colors stay unchanged.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
       <oldsource>Refine Edge analyzes the brushed region. Add/Subtract corrections are applied last. Source colors stay unchanged.</oldsource>
-      <translation type="unfinished">Refinar borda analisa a área pintada. Adicionar/Subtrair se aplica por último. Cores originais não mudam.</translation>
+      <translation>Refinar borda atualiza a máscara atual localmente. Adicionar/Subtrair orienta as próximas pinceladas. As cores originais não mudam.</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.output">
@@ -5588,7 +5588,7 @@ Limites alinhados (L × A), incluindo conteúdo oculto de grupos/pastas.</transl
       <source>Ready · %1 uncertain pixels left unchanged. Use Add/Subtract to guide refinement.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
       <oldsource>Ready · limited color evidence in %1 boundary pixels; original coverage retained there.</oldsource>
-      <translation type="unfinished">Pronto · evidência de cor limitada em %1 pixels de borda; cobertura original mantida ali.</translation>
+      <translation>Pronto · Pixels incertos mantidos sem alterações: %1. Use Adicionar/Subtrair para orientar o refinamento.</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.ready">
@@ -10835,6 +10835,131 @@ Chanfro: puxe cantos para dentro; Alt muda também o oposto. Laterais redimensio
     <message id="swatches.panel.gradient.preset">
       <source>Gradient %1</source>
       <translation>Degradê %1</translation>
+    </message>
+  </context>
+  <context>
+    <name>BackgroundRemoval</name>
+    <message id="background.removal.timings">
+      <source>Load %1 · Inference %2
+Prepare %3 · Finish %4 · Total %5</source>
+      <translation>Carga %1 · Inferência %2
+Preparação %3 · Finalização %4 · Total %5</translation>
+    </message>
+    <message id="background.removal.title">
+      <source>Remove Background</source>
+      <translation>Remover fundo</translation>
+    </message>
+    <message id="background.removal.action">
+      <source>Remove Background…</source>
+      <translation>Remover fundo…</translation>
+    </message>
+    <message id="background.removal.help">
+      <source>Remove the background and add an editable layer mask.</source>
+      <translation>Remove o fundo e adiciona uma máscara de camada editável.</translation>
+    </message>
+    <message id="background.removal.model">
+      <source>Model</source>
+      <translation>Modelo</translation>
+    </message>
+    <message id="background.removal.mask.only">
+      <source>Mask Only</source>
+      <translation>Apenas máscara</translation>
+    </message>
+    <message id="background.removal.mask.raw.tooltip">
+      <source>Generated mask, before image transparency and the existing layer mask.</source>
+      <translation>Máscara gerada, antes da transparência da imagem e da máscara existente.</translation>
+    </message>
+    <message id="background.removal.preview.tooltip">
+      <source>Isolated image with the generated mask and any existing mask.</source>
+      <translation>Imagem isolada com a máscara gerada e qualquer máscara existente.</translation>
+    </message>
+    <message id="background.removal.original.hint">
+      <source>Hold the mouse button or Space to compare with the original layer.</source>
+      <translation>Mantenha o botão do mouse ou Espaço pressionado para comparar com a camada original.</translation>
+    </message>
+    <message id="background.removal.mask.combine">
+      <source>Apply combines the result with the existing mask.</source>
+      <translation>Aplicar combina o resultado com a máscara existente.</translation>
+    </message>
+    <message id="background.removal.mask.add">
+      <source>Apply adds an editable layer mask.</source>
+      <translation>Aplicar adiciona uma máscara de camada editável.</translation>
+    </message>
+    <message id="background.removal.preview.hint">
+      <source>Preview shows this layer without opacity, adjustments or effects. Image pixels and the active selection stay unchanged.</source>
+      <translation>A prévia ignora a opacidade, os ajustes e os efeitos da camada. Os pixels e a seleção ativa não mudam.</translation>
+    </message>
+    <message id="background.removal.retry">
+      <source>Retry</source>
+      <translation>Repetir</translation>
+    </message>
+    <message id="background.removal.unavailable">
+      <source>Background removal models are unavailable. Please reinstall the app.</source>
+      <translation>Os modelos de remoção de fundo estão indisponíveis. Reinstale o aplicativo.</translation>
+    </message>
+    <message id="background.removal.preparing">
+      <source>Preparing layer…</source>
+      <translation>Preparando camada…</translation>
+    </message>
+    <message id="background.removal.processing">
+      <source>Removing background…</source>
+      <translation>Removendo fundo…</translation>
+    </message>
+    <message id="background.removal.cancelled">
+      <source>Cancelled.</source>
+      <translation>Cancelado.</translation>
+    </message>
+    <message id="background.removal.ready">
+      <source>Preview ready</source>
+      <translation>Prévia pronta</translation>
+    </message>
+    <message id="background.removal.empty">
+      <source>No foreground found. Nothing will be applied.</source>
+      <translation>Nenhum objeto em primeiro plano encontrado. Nada será aplicado.</translation>
+    </message>
+    <message id="background.removal.duration">
+      <source>%1 s</source>
+      <translation>%1 s</translation>
+    </message>
+    <message id="background.removal.elapsed">
+      <source>%1 · %2</source>
+      <translation>%1 · %2</translation>
+    </message>
+    <message id="background.removal.time">
+      <source>Time: %1</source>
+      <translation>Tempo: %1</translation>
+    </message>
+    <message id="background.removal.mask.disabled">
+      <source>Enable or remove the existing layer mask before removing the background.</source>
+      <translation>Ative ou remova a máscara existente antes de remover o fundo.</translation>
+    </message>
+    <message id="background.removal.cancelling.previous">
+      <source>Cancelling previous model…</source>
+      <translation>Cancelando modelo anterior…</translation>
+    </message>
+    <message id="background.removal.applied">
+      <source>Background removed. Layer mask added.</source>
+      <translation>Fundo removido. Máscara de camada adicionada.</translation>
+    </message>
+    <message id="background.removal.failed">
+      <source>Background removal failed: %1</source>
+      <translation>Falha ao remover o fundo: %1</translation>
+    </message>
+    <message id="background.removal.limit">
+      <source>Background removal supports layers up to 64 megapixels.</source>
+      <translation>A remoção de fundo aceita camadas de até 64 megapixels.</translation>
+    </message>
+    <message id="background.removal.source.empty">
+      <source>This layer has no visible pixels.</source>
+      <translation>Esta camada não tem pixels visíveis.</translation>
+    </message>
+    <message id="background.removal.mask.empty">
+      <source>The result would hide the entire layer. Nothing will be applied.</source>
+      <translation>O resultado ocultaria toda a camada. Nada será aplicado.</translation>
+    </message>
+    <message id="history.remove.background">
+      <source>Remove Background</source>
+      <translation>Remover fundo</translation>
     </message>
   </context>
 </TS>

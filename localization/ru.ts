@@ -5383,7 +5383,7 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <source>Show Analysis Area</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
       <oldsource>Show Refinement Region</oldsource>
-      <translation type="unfinished">Показать область уточнения</translation>
+      <translation>Показать область анализа</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.reference">
@@ -5516,7 +5516,7 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <source>Refine Edge updates the current mask locally. Add/Subtract guides later strokes. Source colors stay unchanged.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
       <oldsource>Refine Edge analyzes the brushed region. Add/Subtract corrections are applied last. Source colors stay unchanged.</oldsource>
-      <translation type="unfinished">Уточнение края анализирует область кисти. Добавление/вычитание применяется последним. Исходные цвета не меняются.</translation>
+      <translation>Уточнение края локально обновляет текущую маску. Добавление/вычитание направляет последующие мазки. Исходные цвета не меняются.</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.output">
@@ -5589,7 +5589,7 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <source>Ready · %1 uncertain pixels left unchanged. Use Add/Subtract to guide refinement.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
       <oldsource>Ready · limited color evidence in %1 boundary pixels; original coverage retained there.</oldsource>
-      <translation type="unfinished">Готово · недостаточно данных цвета в %1 пикселях края; там сохранено исходное покрытие.</translation>
+      <translation>Готово · Неопределённые пиксели без изменений: %1. Используйте добавление/вычитание для уточнения.</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.ready">
@@ -10847,6 +10847,131 @@ Escape · Отменить сеанс
       <source>Gradient %1</source>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
       <translation>Градиент %1</translation>
+    </message>
+  </context>
+  <context>
+    <name>BackgroundRemoval</name>
+    <message id="background.removal.timings">
+      <source>Load %1 · Inference %2
+Prepare %3 · Finish %4 · Total %5</source>
+      <translation>Загрузка %1 · Вычисление %2
+Подготовка %3 · Завершение %4 · Всего %5</translation>
+    </message>
+    <message id="background.removal.title">
+      <source>Remove Background</source>
+      <translation>Удалить фон</translation>
+    </message>
+    <message id="background.removal.action">
+      <source>Remove Background…</source>
+      <translation>Удалить фон…</translation>
+    </message>
+    <message id="background.removal.help">
+      <source>Remove the background and add an editable layer mask.</source>
+      <translation>Удаляет фон и добавляет редактируемую маску слоя.</translation>
+    </message>
+    <message id="background.removal.model">
+      <source>Model</source>
+      <translation>Модель</translation>
+    </message>
+    <message id="background.removal.mask.only">
+      <source>Mask Only</source>
+      <translation>Только маска</translation>
+    </message>
+    <message id="background.removal.mask.raw.tooltip">
+      <source>Generated mask, before image transparency and the existing layer mask.</source>
+      <translation>Созданная маска без учёта прозрачности изображения и существующей маски слоя.</translation>
+    </message>
+    <message id="background.removal.preview.tooltip">
+      <source>Isolated image with the generated mask and any existing mask.</source>
+      <translation>Изолированное изображение с созданной и существующей масками.</translation>
+    </message>
+    <message id="background.removal.original.hint">
+      <source>Hold the mouse button or Space to compare with the original layer.</source>
+      <translation>Удерживайте кнопку мыши или Пробел для сравнения с исходным слоем.</translation>
+    </message>
+    <message id="background.removal.mask.combine">
+      <source>Apply combines the result with the existing mask.</source>
+      <translation>Применить объединяет результат с существующей маской.</translation>
+    </message>
+    <message id="background.removal.mask.add">
+      <source>Apply adds an editable layer mask.</source>
+      <translation>Применить добавляет редактируемую маску слоя.</translation>
+    </message>
+    <message id="background.removal.preview.hint">
+      <source>Preview shows this layer without opacity, adjustments or effects. Image pixels and the active selection stay unchanged.</source>
+      <translation>Предпросмотр не учитывает непрозрачность, коррекции и эффекты слоя. Пиксели и активное выделение не меняются.</translation>
+    </message>
+    <message id="background.removal.retry">
+      <source>Retry</source>
+      <translation>Повторить</translation>
+    </message>
+    <message id="background.removal.unavailable">
+      <source>Background removal models are unavailable. Please reinstall the app.</source>
+      <translation>Модели удаления фона недоступны. Переустановите приложение.</translation>
+    </message>
+    <message id="background.removal.preparing">
+      <source>Preparing layer…</source>
+      <translation>Подготовка слоя…</translation>
+    </message>
+    <message id="background.removal.processing">
+      <source>Removing background…</source>
+      <translation>Удаление фона…</translation>
+    </message>
+    <message id="background.removal.cancelled">
+      <source>Cancelled.</source>
+      <translation>Отменено.</translation>
+    </message>
+    <message id="background.removal.ready">
+      <source>Preview ready</source>
+      <translation>Предпросмотр готов</translation>
+    </message>
+    <message id="background.removal.empty">
+      <source>No foreground found. Nothing will be applied.</source>
+      <translation>Объект переднего плана не найден. Изменения не будут применены.</translation>
+    </message>
+    <message id="background.removal.duration">
+      <source>%1 s</source>
+      <translation>%1 с</translation>
+    </message>
+    <message id="background.removal.elapsed">
+      <source>%1 · %2</source>
+      <translation>%1 · %2</translation>
+    </message>
+    <message id="background.removal.time">
+      <source>Time: %1</source>
+      <translation>Время: %1</translation>
+    </message>
+    <message id="background.removal.mask.disabled">
+      <source>Enable or remove the existing layer mask before removing the background.</source>
+      <translation>Включите или удалите существующую маску слоя перед удалением фона.</translation>
+    </message>
+    <message id="background.removal.cancelling.previous">
+      <source>Cancelling previous model…</source>
+      <translation>Отмена предыдущей модели…</translation>
+    </message>
+    <message id="background.removal.applied">
+      <source>Background removed. Layer mask added.</source>
+      <translation>Фон удалён. Добавлена маска слоя.</translation>
+    </message>
+    <message id="background.removal.failed">
+      <source>Background removal failed: %1</source>
+      <translation>Не удалось удалить фон: %1</translation>
+    </message>
+    <message id="background.removal.limit">
+      <source>Background removal supports layers up to 64 megapixels.</source>
+      <translation>Удаление фона поддерживает слои до 64 мегапикселей.</translation>
+    </message>
+    <message id="background.removal.source.empty">
+      <source>This layer has no visible pixels.</source>
+      <translation>В этом слое нет видимых пикселей.</translation>
+    </message>
+    <message id="background.removal.mask.empty">
+      <source>The result would hide the entire layer. Nothing will be applied.</source>
+      <translation>Результат скрыл бы весь слой. Изменения не будут применены.</translation>
+    </message>
+    <message id="history.remove.background">
+      <source>Remove Background</source>
+      <translation>Удалить фон</translation>
     </message>
   </context>
 </TS>

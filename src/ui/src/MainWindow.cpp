@@ -1131,6 +1131,7 @@ MainWindow::~MainWindow()
     }
     workspace_->onCanvasAreaChanged={};
     if(navigatorPanel_)navigatorPanel_->shutdown();
+    shutdownBackgroundRemoval();
     shutdownRefinements();
     if (updateService_) { updateService_->onChanged = {}; updateService_->cancel(); }
     canvasWindow_->onDocumentPresentationChanged={};
@@ -1283,6 +1284,10 @@ void MainWindow::finishLayerRename(bool commit)
 
 bool MainWindow::eventFilter(QObject* watched, QEvent* event)
 {
+    if (backgroundRemoval_) {
+        if (backgroundRemovalEvent(watched, event)) return true;
+        return QMainWindow::eventFilter(watched, event);
+    }
     if (refinementEvent(watched, event)) return true;
     if (workspace_ && watched == workspace_->panelOverlay() && event->type() == QEvent::Resize)
         updateStatusNotification();
@@ -1683,6 +1688,7 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
 
 void MainWindow::closeEvent(QCloseEvent* event)
 {
+    if (backgroundRemoval_) finishBackgroundRemoval(false);
     if(canvasWindow_->graphicsInitializing()) {
         // Driver compilation cannot be interrupted safely. Acknowledge close
         // immediately and keep the aborting card/event loop alive until it ends.
@@ -2150,6 +2156,7 @@ void MainWindow::createMenus()
     layerMenu->addSeparator();layerMenu->addAction(groupLayersAction_);layerMenu->addAction(ungroupLayersAction_);
     layerMenu->addSeparator();layerMenu->addAction(mergeLayersAction_);
     layerMenu->addAction(rasterizeLayersAction_);
+    createBackgroundRemovalAction(layerMenu);
     auto* maskMenu=i18n::addMenu(layerMenu,i18n::text("main.window.layer.mask"));
     maskMenu->setIcon(toolGlyph(ToolGlyph::LayerMask));
     maskMenu->setObjectName(QStringLiteral("LayerMaskMenu"));
@@ -2237,7 +2244,7 @@ void MainWindow::createMenus()
     canvasWindow_->onDocumentPresentationChanged=[this](const core::DocumentSnapshot& snapshot){
         updateDocumentResources();
         navigatorPanel_->setDocument(activeDocumentId(),snapshot);
-        if (refinement_) return;
+        if (refinement_ || backgroundRemoval_) return;
         if(canvasWindow_->scene().effectBypassLayer || canvasWindow_->scene().adjustmentBypassLayer){
             auto before=snapshot;
             for(auto& layer:before.layersBottomToTop) {
@@ -2248,7 +2255,7 @@ void MainWindow::createMenus()
         }else pixelPreview_->request(snapshot);
     };
     pixelPreview_->onReady=[this](auto pixels,QString error){
-        if (refinement_) return;
+        if (refinement_ || backgroundRemoval_) return;
         if(!error.isEmpty()) {
             pixelPreviewAction_->setChecked(false);
             statusBar()->showMessage(i18n::text("main.window.pixel.preview.unavailable.1.source.layers.are.unchanged").arg(error),8000);

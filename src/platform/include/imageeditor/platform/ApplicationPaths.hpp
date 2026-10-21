@@ -9,6 +9,7 @@ QString installedDataPath(const QString& relativePath);
 QString shaderPath(const QString& name);
 QString defaultUiConfigPath();
 QString objectSelectionBundlePath();
+QString backgroundRemovalBundlePath();
 QString userDataDirectory();
 QString userCacheDirectory();
 QString userPresetDirectory();

@@ -5381,7 +5381,7 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <source>Show Analysis Area</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
       <oldsource>Show Refinement Region</oldsource>
-      <translation type="unfinished">調整領域を表示</translation>
+      <translation>解析領域を表示</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.reference">
@@ -5514,7 +5514,7 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <source>Refine Edge updates the current mask locally. Add/Subtract guides later strokes. Source colors stay unchanged.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
       <oldsource>Refine Edge analyzes the brushed region. Add/Subtract corrections are applied last. Source colors stay unchanged.</oldsource>
-      <translation type="unfinished">境界ブラシの範囲を分析し、追加・削除の修正は最後に適用します。元の色は変えません。</translation>
+      <translation>「境界を調整」は現在のマスクを局所的に更新します。追加・削除の修正は、その後のブラシ操作の手がかりになります。元の色は変えません。</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.output">
@@ -5587,7 +5587,7 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <source>Ready · %1 uncertain pixels left unchanged. Use Add/Subtract to guide refinement.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
       <oldsource>Ready · limited color evidence in %1 boundary pixels; original coverage retained there.</oldsource>
-      <translation type="unfinished">準備完了 · 境界の %1 ピクセルは色の情報が不足したため、元の範囲を保持しました。</translation>
+      <translation>準備完了 · 判定が不確かな %1 ピクセルは変更していません。追加・削除で調整を補助できます。</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.ready">
@@ -10837,6 +10837,131 @@ Escape で切り抜きを中止
     <message id="swatches.panel.gradient.preset">
       <source>Gradient %1</source>
       <translation>グラデーション %1</translation>
+    </message>
+  </context>
+  <context>
+    <name>BackgroundRemoval</name>
+    <message id="background.removal.timings">
+      <source>Load %1 · Inference %2
+Prepare %3 · Finish %4 · Total %5</source>
+      <translation>読み込み %1 · 推論 %2
+前処理 %3 · 後処理 %4 · 合計 %5</translation>
+    </message>
+    <message id="background.removal.title">
+      <source>Remove Background</source>
+      <translation>背景を削除</translation>
+    </message>
+    <message id="background.removal.action">
+      <source>Remove Background…</source>
+      <translation>背景を削除…</translation>
+    </message>
+    <message id="background.removal.help">
+      <source>Remove the background and add an editable layer mask.</source>
+      <translation>背景を削除し、編集可能なレイヤーマスクを追加します。</translation>
+    </message>
+    <message id="background.removal.model">
+      <source>Model</source>
+      <translation>モデル</translation>
+    </message>
+    <message id="background.removal.mask.only">
+      <source>Mask Only</source>
+      <translation>マスクのみ</translation>
+    </message>
+    <message id="background.removal.mask.raw.tooltip">
+      <source>Generated mask, before image transparency and the existing layer mask.</source>
+      <translation>画像の透明度や既存のレイヤーマスクを適用する前の、生成されたマスク。</translation>
+    </message>
+    <message id="background.removal.preview.tooltip">
+      <source>Isolated image with the generated mask and any existing mask.</source>
+      <translation>生成されたマスクと既存のマスクを適用した、このレイヤーのみの画像。</translation>
+    </message>
+    <message id="background.removal.original.hint">
+      <source>Hold the mouse button or Space to compare with the original layer.</source>
+      <translation>マウスボタンまたはスペースキーを押し続けると、元のレイヤーと比較できます。</translation>
+    </message>
+    <message id="background.removal.mask.combine">
+      <source>Apply combines the result with the existing mask.</source>
+      <translation>適用すると、結果が既存のマスクと結合されます。</translation>
+    </message>
+    <message id="background.removal.mask.add">
+      <source>Apply adds an editable layer mask.</source>
+      <translation>適用すると、編集可能なレイヤーマスクが追加されます。</translation>
+    </message>
+    <message id="background.removal.preview.hint">
+      <source>Preview shows this layer without opacity, adjustments or effects. Image pixels and the active selection stay unchanged.</source>
+      <translation>プレビューにはレイヤーの不透明度、調整、効果は反映されません。画素と現在の選択範囲は変更されません。</translation>
+    </message>
+    <message id="background.removal.retry">
+      <source>Retry</source>
+      <translation>再試行</translation>
+    </message>
+    <message id="background.removal.unavailable">
+      <source>Background removal models are unavailable. Please reinstall the app.</source>
+      <translation>背景削除モデルを利用できません。アプリを再インストールしてください。</translation>
+    </message>
+    <message id="background.removal.preparing">
+      <source>Preparing layer…</source>
+      <translation>レイヤーを準備中…</translation>
+    </message>
+    <message id="background.removal.processing">
+      <source>Removing background…</source>
+      <translation>背景を削除中…</translation>
+    </message>
+    <message id="background.removal.cancelled">
+      <source>Cancelled.</source>
+      <translation>キャンセルしました。</translation>
+    </message>
+    <message id="background.removal.ready">
+      <source>Preview ready</source>
+      <translation>プレビューの準備完了</translation>
+    </message>
+    <message id="background.removal.empty">
+      <source>No foreground found. Nothing will be applied.</source>
+      <translation>前景が見つかりません。変更は適用されません。</translation>
+    </message>
+    <message id="background.removal.duration">
+      <source>%1 s</source>
+      <translation>%1 秒</translation>
+    </message>
+    <message id="background.removal.elapsed">
+      <source>%1 · %2</source>
+      <translation>%1 · %2</translation>
+    </message>
+    <message id="background.removal.time">
+      <source>Time: %1</source>
+      <translation>所要時間：%1</translation>
+    </message>
+    <message id="background.removal.mask.disabled">
+      <source>Enable or remove the existing layer mask before removing the background.</source>
+      <translation>背景を削除する前に、既存のレイヤーマスクを有効にするか削除してください。</translation>
+    </message>
+    <message id="background.removal.cancelling.previous">
+      <source>Cancelling previous model…</source>
+      <translation>前のモデルをキャンセル中…</translation>
+    </message>
+    <message id="background.removal.applied">
+      <source>Background removed. Layer mask added.</source>
+      <translation>背景を削除し、レイヤーマスクを追加しました。</translation>
+    </message>
+    <message id="background.removal.failed">
+      <source>Background removal failed: %1</source>
+      <translation>背景の削除に失敗しました：%1</translation>
+    </message>
+    <message id="background.removal.limit">
+      <source>Background removal supports layers up to 64 megapixels.</source>
+      <translation>背景削除は最大 6400 万画素のレイヤーに対応しています。</translation>
+    </message>
+    <message id="background.removal.source.empty">
+      <source>This layer has no visible pixels.</source>
+      <translation>このレイヤーには表示される画素がありません。</translation>
+    </message>
+    <message id="background.removal.mask.empty">
+      <source>The result would hide the entire layer. Nothing will be applied.</source>
+      <translation>結果がレイヤー全体を隠すため、変更は適用されません。</translation>
+    </message>
+    <message id="history.remove.background">
+      <source>Remove Background</source>
+      <translation>背景を削除</translation>
     </message>
   </context>
 </TS>

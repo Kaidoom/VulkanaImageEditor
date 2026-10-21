@@ -681,6 +681,7 @@ void MainWindow::refreshSelectionControls()
     refreshSmartSelectionControls();
     selectionGrowAction_->setEnabled(canOpenSelectionAdjustments());
     refreshRefinementActions();
+    refreshBackgroundRemovalAction();
     if (!selectionAngle_ || updatingSelectionControls_)
         return;
     magneticControls_->setVisible(session().activeTool()==core::ToolId::Lasso && lassoMode_==core::LassoMode::Magnetic);

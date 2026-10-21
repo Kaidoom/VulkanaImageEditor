@@ -5382,7 +5382,7 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <source>Show Analysis Area</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
       <oldsource>Show Refinement Region</oldsource>
-      <translation type="unfinished">सुधार क्षेत्र दिखाएँ</translation>
+      <translation>विश्लेषण क्षेत्र दिखाएँ</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.reference">
@@ -5515,7 +5515,7 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <source>Refine Edge updates the current mask locally. Add/Subtract guides later strokes. Source colors stay unchanged.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
       <oldsource>Refine Edge analyzes the brushed region. Add/Subtract corrections are applied last. Source colors stay unchanged.</oldsource>
-      <translation type="unfinished">किनारा सुधार ब्रश वाले क्षेत्र का विश्लेषण करता है। जोड़ने/घटाने के सुधार आखिर में लगते हैं। मूल रंग नहीं बदलते।</translation>
+      <translation>किनारा सुधारें वर्तमान मास्क को स्थानीय रूप से अपडेट करता है। जोड़ने/घटाने के सुधार आगे के ब्रश स्ट्रोक का मार्गदर्शन करते हैं। मूल रंग नहीं बदलते।</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.output">
@@ -5588,7 +5588,7 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <source>Ready · %1 uncertain pixels left unchanged. Use Add/Subtract to guide refinement.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
       <oldsource>Ready · limited color evidence in %1 boundary pixels; original coverage retained there.</oldsource>
-      <translation type="unfinished">तैयार · किनारे के %1 पिक्सेल में रंग का प्रमाण सीमित है; वहाँ मूल कवरेज रखा गया।</translation>
+      <translation>तैयार · %1 अनिश्चित पिक्सेल बिना बदलाव के छोड़े गए। सुधार को दिशा देने के लिए जोड़ें/घटाएँ का उपयोग करें।</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.ready">
@@ -10838,6 +10838,131 @@ Escape · पूरा क्रॉप सत्र रद्द
     <message id="swatches.panel.gradient.preset">
       <source>Gradient %1</source>
       <translation>ग्रेडिएंट %1</translation>
+    </message>
+  </context>
+  <context>
+    <name>BackgroundRemoval</name>
+    <message id="background.removal.timings">
+      <source>Load %1 · Inference %2
+Prepare %3 · Finish %4 · Total %5</source>
+      <translation>लोड %1 · अनुमान %2
+तैयारी %3 · समापन %4 · कुल %5</translation>
+    </message>
+    <message id="background.removal.title">
+      <source>Remove Background</source>
+      <translation>पृष्ठभूमि हटाएँ</translation>
+    </message>
+    <message id="background.removal.action">
+      <source>Remove Background…</source>
+      <translation>पृष्ठभूमि हटाएँ…</translation>
+    </message>
+    <message id="background.removal.help">
+      <source>Remove the background and add an editable layer mask.</source>
+      <translation>पृष्ठभूमि हटाकर संपादन योग्य लेयर मास्क जोड़ें।</translation>
+    </message>
+    <message id="background.removal.model">
+      <source>Model</source>
+      <translation>मॉडल</translation>
+    </message>
+    <message id="background.removal.mask.only">
+      <source>Mask Only</source>
+      <translation>केवल मास्क</translation>
+    </message>
+    <message id="background.removal.mask.raw.tooltip">
+      <source>Generated mask, before image transparency and the existing layer mask.</source>
+      <translation>बना हुआ मास्क, छवि की पारदर्शिता और मौजूदा लेयर मास्क लागू होने से पहले।</translation>
+    </message>
+    <message id="background.removal.preview.tooltip">
+      <source>Isolated image with the generated mask and any existing mask.</source>
+      <translation>बने हुए और मौजूदा मास्क के साथ अलग की गई छवि।</translation>
+    </message>
+    <message id="background.removal.original.hint">
+      <source>Hold the mouse button or Space to compare with the original layer.</source>
+      <translation>मूल लेयर से तुलना करने के लिए माउस बटन या स्पेस दबाए रखें।</translation>
+    </message>
+    <message id="background.removal.mask.combine">
+      <source>Apply combines the result with the existing mask.</source>
+      <translation>लागू करने पर परिणाम मौजूदा मास्क से जुड़ जाएगा।</translation>
+    </message>
+    <message id="background.removal.mask.add">
+      <source>Apply adds an editable layer mask.</source>
+      <translation>लागू करने पर संपादन योग्य लेयर मास्क जुड़ेगा।</translation>
+    </message>
+    <message id="background.removal.preview.hint">
+      <source>Preview shows this layer without opacity, adjustments or effects. Image pixels and the active selection stay unchanged.</source>
+      <translation>पूर्वावलोकन में लेयर की अपारदर्शिता, समायोजन और प्रभाव शामिल नहीं हैं। पिक्सेल और सक्रिय चयन नहीं बदलते।</translation>
+    </message>
+    <message id="background.removal.retry">
+      <source>Retry</source>
+      <translation>फिर कोशिश करें</translation>
+    </message>
+    <message id="background.removal.unavailable">
+      <source>Background removal models are unavailable. Please reinstall the app.</source>
+      <translation>पृष्ठभूमि हटाने के मॉडल उपलब्ध नहीं हैं। ऐप फिर से इंस्टॉल करें।</translation>
+    </message>
+    <message id="background.removal.preparing">
+      <source>Preparing layer…</source>
+      <translation>लेयर तैयार हो रही है…</translation>
+    </message>
+    <message id="background.removal.processing">
+      <source>Removing background…</source>
+      <translation>पृष्ठभूमि हट रही है…</translation>
+    </message>
+    <message id="background.removal.cancelled">
+      <source>Cancelled.</source>
+      <translation>रद्द किया गया।</translation>
+    </message>
+    <message id="background.removal.ready">
+      <source>Preview ready</source>
+      <translation>पूर्वावलोकन तैयार है</translation>
+    </message>
+    <message id="background.removal.empty">
+      <source>No foreground found. Nothing will be applied.</source>
+      <translation>कोई अग्रभूमि नहीं मिली। कोई बदलाव लागू नहीं होगा।</translation>
+    </message>
+    <message id="background.removal.duration">
+      <source>%1 s</source>
+      <translation>%1 से॰</translation>
+    </message>
+    <message id="background.removal.elapsed">
+      <source>%1 · %2</source>
+      <translation>%1 · %2</translation>
+    </message>
+    <message id="background.removal.time">
+      <source>Time: %1</source>
+      <translation>समय: %1</translation>
+    </message>
+    <message id="background.removal.mask.disabled">
+      <source>Enable or remove the existing layer mask before removing the background.</source>
+      <translation>पृष्ठभूमि हटाने से पहले मौजूदा लेयर मास्क चालू करें या हटाएँ।</translation>
+    </message>
+    <message id="background.removal.cancelling.previous">
+      <source>Cancelling previous model…</source>
+      <translation>पिछला मॉडल रद्द हो रहा है…</translation>
+    </message>
+    <message id="background.removal.applied">
+      <source>Background removed. Layer mask added.</source>
+      <translation>पृष्ठभूमि हटा दी गई। लेयर मास्क जोड़ा गया।</translation>
+    </message>
+    <message id="background.removal.failed">
+      <source>Background removal failed: %1</source>
+      <translation>पृष्ठभूमि नहीं हटाई जा सकी: %1</translation>
+    </message>
+    <message id="background.removal.limit">
+      <source>Background removal supports layers up to 64 megapixels.</source>
+      <translation>पृष्ठभूमि हटाना 64 मेगापिक्सेल तक की लेयर का समर्थन करता है।</translation>
+    </message>
+    <message id="background.removal.source.empty">
+      <source>This layer has no visible pixels.</source>
+      <translation>इस लेयर में कोई दिखाई देने वाला पिक्सेल नहीं है।</translation>
+    </message>
+    <message id="background.removal.mask.empty">
+      <source>The result would hide the entire layer. Nothing will be applied.</source>
+      <translation>परिणाम पूरी लेयर को छिपा देगा। कोई बदलाव लागू नहीं होगा।</translation>
+    </message>
+    <message id="history.remove.background">
+      <source>Remove Background</source>
+      <translation>पृष्ठभूमि हटाएँ</translation>
     </message>
   </context>
 </TS>

@@ -1,0 +1,52 @@
+Vulkana Remove Background attribution and modifications
+
+U²-NetP
+-------
+U²-Net (U Square Net), by Xuebin Qin, Zichen Zhang, Chenyang Huang,
+Masood Dehghan, Osmar R. Zaiane and Martin Jagersand.
+https://github.com/xuebinqin/U-2-Net
+Upstream source license: Apache License 2.0; see U2Net-LICENSE.txt.
+The bundled u2netp.onnx is the unmodified ONNX conversion distributed by
+Daniel Gatis's rembg project:
+https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx
+
+rembg, Copyright (c) 2020 Daniel Gatis, MIT; see rembg-LICENSE.txt.
+https://github.com/danielgatis/rembg
+The rembg U²-NetP session and normalization routines are references for the
+native adapter's input/output conventions. Vulkana does not ship or require
+the rembg Python package. Image resizing is implemented in native application
+code with compatible pixel-centre and antialiasing conventions.
+
+BiRefNet-lite INT8
+-----------------
+BiRefNet, Copyright (c) 2024 ZhengPeng.
+512×512 ONNX conversion, Copyright (c) 2026 Studio Ludens V.O.F.
+Both copyright notices and the MIT permission text are in BiRefNet-LICENSE.txt.
+Upstream model and implementation:
+https://huggingface.co/ZhengPeng7/BiRefNet_lite
+https://github.com/ZhengPeng7/BiRefNet
+Source ONNX conversion:
+https://huggingface.co/studioludens/birefnet-lite-512
+Revision 962e67969ec6acec9c19fab76acee4f5e22e990c, onnx/model.onnx.
+The conversion's model card explicitly includes the ONNX weights under MIT.
+
+Vulkana modifies that FP32 graph with calibrated, per-channel signed INT8
+weights and signed INT8 activation ranges for Conv, constant-weight MatMul and
+Gemm operations (ONNX QuantizeLinear/DequantizeLinear). Other operations remain
+floating-point; the input and output tensors are FP32. No fine-tuning is used.
+A subsequent graph rewrite reduces intermediate transposes and accumulation
+buffers in 20 deformable-convolution interpolation blocks. It keeps the
+quantized weights/scales and interpolation arithmetic/order unchanged. This is
+a derived artifact, not an upstream INT8 release. Exact payload hashes and
+conversion settings are recorded in provenance.json.
+
+Runtime and redistribution
+--------------------------
+Both models execute locally through the ONNX Runtime CPU library already
+bundled for Object Selection. Its MIT license and full upstream third-party
+notices accompany that runtime. No image upload, first-use model download,
+Python or PyTorch runtime is required.
+
+Keep this notice and the accompanying license files with the model artifacts.
+Third-party terms remain separate from Vulkana's own MIT license. No endorsement
+by upstream authors is implied.

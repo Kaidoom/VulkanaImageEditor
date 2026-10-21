@@ -11,6 +11,12 @@ the reviewed upstream/distro notices. The minizip license is from minizip-ng
 copy is from 1.3.2; the build may use the compatible zlib-ng implementation.
 Upstream references are in [THIRD_PARTY.md](../../THIRD_PARTY.md).
 
+Remove Background's U-2-Net Apache-2.0, BiRefNet MIT and rembg MIT copies are
+retained intact alongside the model attribution/modification notice. Matching
+copies travel with the model bundle; its
+[provenance](../../assets/background-removal/v1/provenance.json) records the exact
+artifacts and conversion settings.
+
 This is not an inventory of a bundled binary distribution. A distributor can
 provide reviewed `notices.json` and `THIRD-PARTY-NOTICES.txt` through the
 `VULKANA_NOTICES_DIRECTORY` CMake option. Their version/channel must match the

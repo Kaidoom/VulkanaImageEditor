@@ -24,7 +24,7 @@ if(WIN32)
         string(JSON _name GET "${_notices}" components ${_i} notice name)
         if(_name STREQUAL "ONNX Runtime CPU")
             string(JSON _notices SET "${_notices}" components ${_i} notice scope
-                "\"Bundled Windows x64 CPU DLL for local, offline Object Selection\"")
+                "\"Bundled Windows x64 CPU DLL for local, offline Object Selection and Remove Background\"")
         endif()
     endforeach()
 endif()

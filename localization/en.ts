@@ -7222,4 +7222,98 @@ Chamfer: pull corners inward; Alt also changes the opposite corner. Side handles
     <message id="swatches.panel.gradient.disabled.hint"><source>Select a compatible layer to apply a gradient overlay.</source></message>
     <message id="swatches.panel.gradient.preset"><source>Gradient %1</source></message>
   </context>
+  <context>
+    <name>BackgroundRemoval</name>
+    <message id="background.removal.timings">
+      <source>Load %1 · Inference %2
+Prepare %3 · Finish %4 · Total %5</source>
+    </message>
+    <message id="background.removal.title">
+      <source>Remove Background</source>
+    </message>
+    <message id="background.removal.action">
+      <source>Remove Background…</source>
+    </message>
+    <message id="background.removal.help">
+      <source>Remove the background and add an editable layer mask.</source>
+    </message>
+    <message id="background.removal.model">
+      <source>Model</source>
+    </message>
+    <message id="background.removal.mask.only">
+      <source>Mask Only</source>
+    </message>
+    <message id="background.removal.mask.raw.tooltip">
+      <source>Generated mask, before image transparency and the existing layer mask.</source>
+    </message>
+    <message id="background.removal.preview.tooltip">
+      <source>Isolated image with the generated mask and any existing mask.</source>
+    </message>
+    <message id="background.removal.original.hint">
+      <source>Hold the mouse button or Space to compare with the original layer.</source>
+    </message>
+    <message id="background.removal.mask.combine">
+      <source>Apply combines the result with the existing mask.</source>
+    </message>
+    <message id="background.removal.mask.add">
+      <source>Apply adds an editable layer mask.</source>
+    </message>
+    <message id="background.removal.preview.hint">
+      <source>Preview shows this layer without opacity, adjustments or effects. Image pixels and the active selection stay unchanged.</source>
+    </message>
+    <message id="background.removal.retry">
+      <source>Retry</source>
+    </message>
+    <message id="background.removal.unavailable">
+      <source>Background removal models are unavailable. Please reinstall the app.</source>
+    </message>
+    <message id="background.removal.preparing">
+      <source>Preparing layer…</source>
+    </message>
+    <message id="background.removal.processing">
+      <source>Removing background…</source>
+    </message>
+    <message id="background.removal.cancelled">
+      <source>Cancelled.</source>
+    </message>
+    <message id="background.removal.ready">
+      <source>Preview ready</source>
+    </message>
+    <message id="background.removal.empty">
+      <source>No foreground found. Nothing will be applied.</source>
+    </message>
+    <message id="background.removal.duration">
+      <source>%1 s</source>
+    </message>
+    <message id="background.removal.elapsed">
+      <source>%1 · %2</source>
+    </message>
+    <message id="background.removal.time">
+      <source>Time: %1</source>
+    </message>
+    <message id="background.removal.mask.disabled">
+      <source>Enable or remove the existing layer mask before removing the background.</source>
+    </message>
+    <message id="background.removal.cancelling.previous">
+      <source>Cancelling previous model…</source>
+    </message>
+    <message id="background.removal.applied">
+      <source>Background removed. Layer mask added.</source>
+    </message>
+    <message id="background.removal.failed">
+      <source>Background removal failed: %1</source>
+    </message>
+    <message id="background.removal.limit">
+      <source>Background removal supports layers up to 64 megapixels.</source>
+    </message>
+    <message id="background.removal.source.empty">
+      <source>This layer has no visible pixels.</source>
+    </message>
+    <message id="background.removal.mask.empty">
+      <source>The result would hide the entire layer. Nothing will be applied.</source>
+    </message>
+    <message id="history.remove.background">
+      <source>Remove Background</source>
+    </message>
+  </context>
 </TS>

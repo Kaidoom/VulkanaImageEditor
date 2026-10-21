@@ -5381,7 +5381,7 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <source>Show Analysis Area</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
       <oldsource>Show Refinement Region</oldsource>
-      <translation type="unfinished">다듬기 영역 표시</translation>
+      <translation>분석 영역 표시</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.reference">
@@ -5514,7 +5514,7 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <source>Refine Edge updates the current mask locally. Add/Subtract guides later strokes. Source colors stay unchanged.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
       <oldsource>Refine Edge analyzes the brushed region. Add/Subtract corrections are applied last. Source colors stay unchanged.</oldsource>
-      <translation type="unfinished">가장자리 다듬기는 칠한 영역을 분석합니다. 추가/빼기 보정은 마지막에 적용합니다. 원본 색상은 바뀌지 않습니다.</translation>
+      <translation>가장자리 다듬기는 현재 마스크를 부분적으로 갱신합니다. 추가/빼기 보정은 이후 브러시 작업의 기준이 됩니다. 원본 색상은 바뀌지 않습니다.</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.output">
@@ -5587,7 +5587,7 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <source>Ready · %1 uncertain pixels left unchanged. Use Add/Subtract to guide refinement.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
       <oldsource>Ready · limited color evidence in %1 boundary pixels; original coverage retained there.</oldsource>
-      <translation type="unfinished">준비됨 · 경계 픽셀 %1개의 색상 근거가 부족하여 해당 위치의 원래 영역을 유지했습니다.</translation>
+      <translation>준비됨 · 불확실한 픽셀 %1개는 변경하지 않았습니다. 추가/빼기로 다듬기를 보조하세요.</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.ready">
@@ -10837,6 +10837,131 @@ Escape · 전체 자르기 세션 취소
     <message id="swatches.panel.gradient.preset">
       <source>Gradient %1</source>
       <translation>그레이디언트 %1</translation>
+    </message>
+  </context>
+  <context>
+    <name>BackgroundRemoval</name>
+    <message id="background.removal.timings">
+      <source>Load %1 · Inference %2
+Prepare %3 · Finish %4 · Total %5</source>
+      <translation>로딩 %1 · 추론 %2
+전처리 %3 · 후처리 %4 · 합계 %5</translation>
+    </message>
+    <message id="background.removal.title">
+      <source>Remove Background</source>
+      <translation>배경 제거</translation>
+    </message>
+    <message id="background.removal.action">
+      <source>Remove Background…</source>
+      <translation>배경 제거…</translation>
+    </message>
+    <message id="background.removal.help">
+      <source>Remove the background and add an editable layer mask.</source>
+      <translation>배경을 제거하고 편집 가능한 레이어 마스크를 추가합니다.</translation>
+    </message>
+    <message id="background.removal.model">
+      <source>Model</source>
+      <translation>모델</translation>
+    </message>
+    <message id="background.removal.mask.only">
+      <source>Mask Only</source>
+      <translation>마스크만</translation>
+    </message>
+    <message id="background.removal.mask.raw.tooltip">
+      <source>Generated mask, before image transparency and the existing layer mask.</source>
+      <translation>이미지 투명도와 기존 레이어 마스크를 적용하기 전의 생성된 마스크입니다.</translation>
+    </message>
+    <message id="background.removal.preview.tooltip">
+      <source>Isolated image with the generated mask and any existing mask.</source>
+      <translation>생성된 마스크와 기존 마스크를 적용한 현재 레이어만 표시합니다.</translation>
+    </message>
+    <message id="background.removal.original.hint">
+      <source>Hold the mouse button or Space to compare with the original layer.</source>
+      <translation>마우스 버튼이나 스페이스 키를 누르고 있으면 원본 레이어와 비교할 수 있습니다.</translation>
+    </message>
+    <message id="background.removal.mask.combine">
+      <source>Apply combines the result with the existing mask.</source>
+      <translation>적용하면 결과를 기존 마스크와 결합합니다.</translation>
+    </message>
+    <message id="background.removal.mask.add">
+      <source>Apply adds an editable layer mask.</source>
+      <translation>적용하면 편집 가능한 레이어 마스크를 추가합니다.</translation>
+    </message>
+    <message id="background.removal.preview.hint">
+      <source>Preview shows this layer without opacity, adjustments or effects. Image pixels and the active selection stay unchanged.</source>
+      <translation>미리보기에는 레이어의 불투명도, 조정 및 효과가 반영되지 않습니다. 픽셀과 현재 선택 영역은 변경되지 않습니다.</translation>
+    </message>
+    <message id="background.removal.retry">
+      <source>Retry</source>
+      <translation>다시 시도</translation>
+    </message>
+    <message id="background.removal.unavailable">
+      <source>Background removal models are unavailable. Please reinstall the app.</source>
+      <translation>배경 제거 모델을 사용할 수 없습니다. 앱을 다시 설치하세요.</translation>
+    </message>
+    <message id="background.removal.preparing">
+      <source>Preparing layer…</source>
+      <translation>레이어 준비 중…</translation>
+    </message>
+    <message id="background.removal.processing">
+      <source>Removing background…</source>
+      <translation>배경 제거 중…</translation>
+    </message>
+    <message id="background.removal.cancelled">
+      <source>Cancelled.</source>
+      <translation>취소됨.</translation>
+    </message>
+    <message id="background.removal.ready">
+      <source>Preview ready</source>
+      <translation>미리보기 준비 완료</translation>
+    </message>
+    <message id="background.removal.empty">
+      <source>No foreground found. Nothing will be applied.</source>
+      <translation>전경을 찾지 못했습니다. 변경 사항을 적용하지 않습니다.</translation>
+    </message>
+    <message id="background.removal.duration">
+      <source>%1 s</source>
+      <translation>%1초</translation>
+    </message>
+    <message id="background.removal.elapsed">
+      <source>%1 · %2</source>
+      <translation>%1 · %2</translation>
+    </message>
+    <message id="background.removal.time">
+      <source>Time: %1</source>
+      <translation>소요 시간: %1</translation>
+    </message>
+    <message id="background.removal.mask.disabled">
+      <source>Enable or remove the existing layer mask before removing the background.</source>
+      <translation>배경을 제거하기 전에 기존 레이어 마스크를 활성화하거나 삭제하세요.</translation>
+    </message>
+    <message id="background.removal.cancelling.previous">
+      <source>Cancelling previous model…</source>
+      <translation>이전 모델 취소 중…</translation>
+    </message>
+    <message id="background.removal.applied">
+      <source>Background removed. Layer mask added.</source>
+      <translation>배경을 제거하고 레이어 마스크를 추가했습니다.</translation>
+    </message>
+    <message id="background.removal.failed">
+      <source>Background removal failed: %1</source>
+      <translation>배경 제거 실패: %1</translation>
+    </message>
+    <message id="background.removal.limit">
+      <source>Background removal supports layers up to 64 megapixels.</source>
+      <translation>배경 제거는 최대 6400만 픽셀의 레이어를 지원합니다.</translation>
+    </message>
+    <message id="background.removal.source.empty">
+      <source>This layer has no visible pixels.</source>
+      <translation>이 레이어에는 보이는 픽셀이 없습니다.</translation>
+    </message>
+    <message id="background.removal.mask.empty">
+      <source>The result would hide the entire layer. Nothing will be applied.</source>
+      <translation>결과가 레이어 전체를 숨깁니다. 변경 사항을 적용하지 않습니다.</translation>
+    </message>
+    <message id="history.remove.background">
+      <source>Remove Background</source>
+      <translation>배경 제거</translation>
     </message>
   </context>
 </TS>

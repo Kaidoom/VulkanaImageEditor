@@ -37,6 +37,19 @@ and attribution/modification notes. It needs no Python installation, model
 download or network connection. See [exact input provenance](assets/object-selection/README.md)
 and [Object Selection behavior](docs/SMART_SELECTION.md).
 
+Remove Background includes U²-NetP and a derived BiRefNet-lite INT8 model in
+`assets/background-removal/v1`, using the same ONNX Runtime CPU library. U²-NetP
+is an unmodified rembg ONNX conversion of the Apache-2.0 U-2-Net model; rembg's
+MIT reference attribution is also retained. BiRefNet-lite derives from the
+MIT-licensed 512×512 ONNX conversion by Studio Ludens of ZhengPeng's model.
+Vulkana applies calibrated INT8 quantization and an intermediate-buffer graph
+optimization; the upstream copyright notices remain intact. See the
+[exact artifacts and conversion provenance](assets/background-removal/v1/provenance.json),
+[attribution and modification notice](assets/background-removal/v1/BackgroundRemoval-NOTICE.txt),
+and [Remove Background guide](docs/BACKGROUND_REMOVAL.md). The bundle and offline
+notices contain the complete accompanying licenses. No additional runtime,
+model download or image upload is required.
+
 The source build finds these libraries on the developer's system. Their library
 source and binaries are not vendored in the application source tree.
 

@@ -12,6 +12,7 @@ The guides below describe the architecture, behavior and algorithms.
 - [Document tabs](DOCUMENT_TABS.md): ownership, activation and cross-tab copying.
 - [Refine Selection](REFINE_SELECTION.md): guided edges, coverage controls, mask output and session safety.
 - [Smart Selection](SMART_SELECTION.md): brush-local regions, bundled offline object selection and quality checks.
+- [Remove Background](BACKGROUND_REMOVAL.md): offline model choices, editable masks, preview behavior and benchmarking.
 - [PDF import](PDF_IMPORT.md): page geometry, rasterization, destinations and limits.
 - [PSD import](PSD_IMPORT.md): editable conversion, review choices, saved-raster scope and limits.
 - [PDF export](PDF_EXPORT.md): page ordering, physical sizes, hybrid text and safety.

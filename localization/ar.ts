@@ -5359,7 +5359,7 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <source>Show Analysis Area</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
       <oldsource>Show Refinement Region</oldsource>
-      <translation type="unfinished">إظهار منطقة التحسين</translation>
+      <translation>إظهار منطقة التحليل</translation>
       <translatorcomment>AI-assisted draft; owner linguistic review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.reference">
@@ -5492,7 +5492,7 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <source>Refine Edge updates the current mask locally. Add/Subtract guides later strokes. Source colors stay unchanged.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
       <oldsource>Refine Edge analyzes the brushed region. Add/Subtract corrections are applied last. Source colors stay unchanged.</oldsource>
-      <translation type="unfinished">يحلل تنقيح الحافة المنطقة المرسومة. تُطبّق تصحيحات الإضافة والطرح أخيرًا. لا تتغير ألوان المصدر.</translation>
+      <translation>يحدّث تحسين الحافة القناع الحالي موضعيًا. توجّه تصحيحات الإضافة/الطرح ضربات الفرشاة اللاحقة. تبقى ألوان المصدر دون تغيير.</translation>
       <translatorcomment>AI-assisted draft; owner linguistic review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.output">
@@ -5565,7 +5565,7 @@ Document-aligned bounds (W × H), including hidden group/folder contents.</sourc
       <source>Ready · %1 uncertain pixels left unchanged. Use Add/Subtract to guide refinement.</source>
       <extracomment>MainWindowRefinement presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
       <oldsource>Ready · limited color evidence in %1 boundary pixels; original coverage retained there.</oldsource>
-      <translation type="unfinished">جاهز · أدلة اللون محدودة في %1 بكسل حدودي؛ حُفظت التغطية الأصلية هناك.</translation>
+      <translation>جاهز · بكسلات غير مؤكدة دون تغيير: %1. استخدم الإضافة/الطرح لتوجيه التحسين.</translation>
       <translatorcomment>AI-assisted draft; owner linguistic review pending.</translatorcomment>
     </message>
     <message id="main.window.refinement.ready">
@@ -10961,6 +10961,131 @@ Escape لإلغاء جلسة الاقتصاص كاملةً
       <source>Gradient %1</source>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
       <translation>تدرج %1</translation>
+    </message>
+  </context>
+  <context>
+    <name>BackgroundRemoval</name>
+    <message id="background.removal.timings">
+      <source>Load %1 · Inference %2
+Prepare %3 · Finish %4 · Total %5</source>
+      <translation>التحميل %1 · الاستدلال %2
+التحضير %3 · الإنهاء %4 · الإجمالي %5</translation>
+    </message>
+    <message id="background.removal.title">
+      <source>Remove Background</source>
+      <translation>إزالة الخلفية</translation>
+    </message>
+    <message id="background.removal.action">
+      <source>Remove Background…</source>
+      <translation>إزالة الخلفية…</translation>
+    </message>
+    <message id="background.removal.help">
+      <source>Remove the background and add an editable layer mask.</source>
+      <translation>إزالة الخلفية وإضافة قناع طبقة قابل للتعديل.</translation>
+    </message>
+    <message id="background.removal.model">
+      <source>Model</source>
+      <translation>النموذج</translation>
+    </message>
+    <message id="background.removal.mask.only">
+      <source>Mask Only</source>
+      <translation>القناع فقط</translation>
+    </message>
+    <message id="background.removal.mask.raw.tooltip">
+      <source>Generated mask, before image transparency and the existing layer mask.</source>
+      <translation>القناع الناتج، قبل شفافية الصورة وقناع الطبقة الحالي.</translation>
+    </message>
+    <message id="background.removal.preview.tooltip">
+      <source>Isolated image with the generated mask and any existing mask.</source>
+      <translation>الصورة المعزولة مع القناع الناتج وأي قناع حالي.</translation>
+    </message>
+    <message id="background.removal.original.hint">
+      <source>Hold the mouse button or Space to compare with the original layer.</source>
+      <translation>اضغط مطولًا بزر الفأرة أو مفتاح المسافة للمقارنة بالطبقة الأصلية.</translation>
+    </message>
+    <message id="background.removal.mask.combine">
+      <source>Apply combines the result with the existing mask.</source>
+      <translation>يجمع التطبيق النتيجة مع القناع الحالي.</translation>
+    </message>
+    <message id="background.removal.mask.add">
+      <source>Apply adds an editable layer mask.</source>
+      <translation>يضيف التطبيق قناع طبقة قابلًا للتعديل.</translation>
+    </message>
+    <message id="background.removal.preview.hint">
+      <source>Preview shows this layer without opacity, adjustments or effects. Image pixels and the active selection stay unchanged.</source>
+      <translation>تعرض المعاينة الطبقة دون إعدادات العتامة أو الضبط أو التأثيرات. تبقى بكسلات الصورة والتحديد الحالي دون تغيير.</translation>
+    </message>
+    <message id="background.removal.retry">
+      <source>Retry</source>
+      <translation>إعادة المحاولة</translation>
+    </message>
+    <message id="background.removal.unavailable">
+      <source>Background removal models are unavailable. Please reinstall the app.</source>
+      <translation>نماذج إزالة الخلفية غير متاحة. أعد تثبيت التطبيق.</translation>
+    </message>
+    <message id="background.removal.preparing">
+      <source>Preparing layer…</source>
+      <translation>جارٍ تجهيز الطبقة…</translation>
+    </message>
+    <message id="background.removal.processing">
+      <source>Removing background…</source>
+      <translation>جارٍ إزالة الخلفية…</translation>
+    </message>
+    <message id="background.removal.cancelled">
+      <source>Cancelled.</source>
+      <translation>أُلغي.</translation>
+    </message>
+    <message id="background.removal.ready">
+      <source>Preview ready</source>
+      <translation>المعاينة جاهزة</translation>
+    </message>
+    <message id="background.removal.empty">
+      <source>No foreground found. Nothing will be applied.</source>
+      <translation>لم يُعثر على عنصر أمامي. لن يُطبّق أي تغيير.</translation>
+    </message>
+    <message id="background.removal.duration">
+      <source>%1 s</source>
+      <translation>%1 ث</translation>
+    </message>
+    <message id="background.removal.elapsed">
+      <source>%1 · %2</source>
+      <translation>%1 · %2</translation>
+    </message>
+    <message id="background.removal.time">
+      <source>Time: %1</source>
+      <translation>المدة: %1</translation>
+    </message>
+    <message id="background.removal.mask.disabled">
+      <source>Enable or remove the existing layer mask before removing the background.</source>
+      <translation>فعّل قناع الطبقة الحالي أو أزله قبل إزالة الخلفية.</translation>
+    </message>
+    <message id="background.removal.cancelling.previous">
+      <source>Cancelling previous model…</source>
+      <translation>جارٍ إلغاء النموذج السابق…</translation>
+    </message>
+    <message id="background.removal.applied">
+      <source>Background removed. Layer mask added.</source>
+      <translation>أُزيلت الخلفية وأُضيف قناع للطبقة.</translation>
+    </message>
+    <message id="background.removal.failed">
+      <source>Background removal failed: %1</source>
+      <translation>فشلت إزالة الخلفية: %1</translation>
+    </message>
+    <message id="background.removal.limit">
+      <source>Background removal supports layers up to 64 megapixels.</source>
+      <translation>تدعم إزالة الخلفية طبقات حتى 64 ميغابكسل.</translation>
+    </message>
+    <message id="background.removal.source.empty">
+      <source>This layer has no visible pixels.</source>
+      <translation>لا تحتوي هذه الطبقة على بكسلات مرئية.</translation>
+    </message>
+    <message id="background.removal.mask.empty">
+      <source>The result would hide the entire layer. Nothing will be applied.</source>
+      <translation>ستخفي النتيجة الطبقة بالكامل. لن يُطبّق أي تغيير.</translation>
+    </message>
+    <message id="history.remove.background">
+      <source>Remove Background</source>
+      <translation>إزالة الخلفية</translation>
     </message>
   </context>
 </TS>

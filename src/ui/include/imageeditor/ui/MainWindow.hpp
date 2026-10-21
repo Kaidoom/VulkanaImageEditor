@@ -108,6 +108,7 @@ class NavigatorPanel;
 class ScreenCapture;
 struct PerformanceUsage;
 struct RefinementWorkspace;
+struct BackgroundRemovalWorkspace;
 
 class MainWindow final : public QMainWindow {
 public:
@@ -206,6 +207,22 @@ private:
     QTimer* refinementCleanupTimer_{};
     QAction* refineSelectionAction_{};
     QAction* refineMaskAction_{};
+    void createBackgroundRemovalAction(QMenu*);
+    void refreshBackgroundRemovalAction();
+    void beginBackgroundRemoval();
+    void requestBackgroundRemoval();
+    void advanceBackgroundRemoval();
+    void publishBackgroundRemovalPreview();
+    void prepareBackgroundRemovalSnapshot(core::DocumentSnapshot&);
+    void placeBackgroundRemovalPanel();
+    void finishBackgroundRemoval(bool apply);
+    void drainBackgroundRemoval();
+    void shutdownBackgroundRemoval();
+    bool backgroundRemovalEvent(QObject*, QEvent*);
+    std::shared_ptr<BackgroundRemovalWorkspace> backgroundRemoval_;
+    std::vector<std::shared_ptr<BackgroundRemovalWorkspace>> retiredBackgroundRemoval_;
+    QAction* removeBackgroundAction_{};
+    QTimer* backgroundRemovalCleanupTimer_{};
     void createSelectionControls();
     QWidget* createColorSelectionControls(QWidget* parent);
     void createColorSelectionHelp();

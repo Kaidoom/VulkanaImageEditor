@@ -1,5 +1,10 @@
 # One install manifest for local staging and CPack. The reviewed CPU inference
 # bundle is installed unchanged; development/test runtimes are never included.
+foreach(_file IN LISTS VULKANA_BACKGROUND_REMOVAL_FILES)
+    get_filename_component(_directory "${_file}" DIRECTORY)
+    install(FILES "${VULKANA_BACKGROUND_REMOVAL_BUNDLE}/${_file}"
+        DESTINATION "${VULKANA_DATA_DIR}/background-removal/v1/${_directory}")
+endforeach()
 install(DIRECTORY "${VULKANA_OBJECT_SELECTION_BUNDLE}/"
     DESTINATION "${VULKANA_DATA_DIR}/object-selection/mobilesam-v1"
     FILES_MATCHING PATTERN "*.onnx" PATTERN "*.so" PATTERN "*.dll" PATTERN "*.json" PATTERN "*.txt")
@@ -46,6 +51,7 @@ install(FILES
 install(FILES docs/VULKANA_FORMAT.md DESTINATION "${CMAKE_INSTALL_DOCDIR}")
 install(FILES docs/PROJECT_THUMBNAILS.md DESTINATION "${CMAKE_INSTALL_DOCDIR}")
 install(FILES docs/PSD_IMPORT.md DESTINATION "${CMAKE_INSTALL_DOCDIR}")
+install(FILES docs/BACKGROUND_REMOVAL.md DESTINATION "${CMAKE_INSTALL_DOCDIR}")
 install(FILES THIRD_PARTY.md docs/HEALING_ALGORITHM.md
     DESTINATION "${CMAKE_INSTALL_DOCDIR}")
 install(FILES docs/spatial-filter-kernels.md docs/SPATIAL_FILTER_PIPELINE.md docs/LOCAL_BLUR.md

@@ -22,6 +22,8 @@ if(NOT WIN32)
     endforeach()
 endif()
 
+include(BackgroundRemovalTests.cmake)
+
 if(WIN32)
     include(WindowsTests.cmake)
     return()
