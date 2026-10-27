@@ -20,6 +20,7 @@ The guides below describe the architecture, behavior and algorithms.
 - [Localization](LOCALIZATION.md): catalogs, language packs, contributor workflow and language review.
 - [README translations](README_TRANSLATIONS.md): translated overviews, language links and documentation checks.
 - [Single instance](SINGLE_INSTANCE.md): startup arbitration and file forwarding.
+- [MCP automation](MCP.md): client setup, document tools, connection lifecycle and permissions.
 - [Adjustments](ADJUSTMENT_ALGORITHMS.md): color/alpha equations and masks.
 - [Adjustment layers](ADJUSTMENT_LAYERS.md): lower-stack operators, scope and exchange.
 - [Layer effects](LAYER_EFFECTS_V1.md): style order, bounds and compositing.

@@ -1,6 +1,7 @@
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/PreferencesDialog.hpp"
 #include "imageeditor/ui/PerformancePanel.hpp"
+#include "imageeditor/ui/McpPanel.hpp"
 #include <QMessageBox>
 #include "imageeditor/ui/ShortcutsPanel.hpp"
 #include "imageeditor/ui/ToolOptionsNumber.hpp"
@@ -166,6 +167,9 @@ PreferencesDialog::PreferencesDialog(PreferencesState initial, QWidget* parent)
     shortcuts_->onChanged = [this](const ShortcutBindings& bindings) {
         draft_.shortcuts = bindings; preview();
     };
+    mcp_ = new McpPanel(tabs); mcp_->setSettings(draft_.mcp);
+    i18n::addTab(tabs, mcp_, i18n::text("mcp.preferences.title"));
+    mcp_->onChanged = [this] { draft_.mcp = mcp_->settings(); status_->hide(); };
     status_ = new QLabel(this); status_->setObjectName(QStringLiteral("ErrorLabel")); status_->setWordWrap(true);
     status_->setVisible(false); layout->addWidget(status_);
     auto* buttons = new i18n::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel | QDialogButtonBox::Apply, this);
@@ -234,6 +238,8 @@ void PreferencesDialog::refresh()
 void PreferencesDialog::preview() { status_->hide(); updateShortcutHints(this, draft_.shortcuts); if (onPreview) onPreview(draft_); }
 bool PreferencesDialog::apply()
 {
+    QString mcpError;
+    if (!mcp_->validate(&mcpError)) { status_->setText(mcpError); status_->show(); return false; }
     if (shortcuts_->pending()) {
         i18n::setText(status_, i18n::text("preferences.dialog.finish.or.cancel.the.pending.key.binding.first")); status_->show(); return false;
     }

@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.25)
 # Release identity lives here, not in a persistent configure cache. A previous
 # -D version must not silently survive a checkout/update to a newer release.
 unset(VULKANA_VERSION CACHE)
-set(VULKANA_VERSION "0.3.6")
+set(VULKANA_VERSION "0.3.7")
 set(VULKANA_RELEASE_CHANNEL "Beta")
 project(ImageEditor
     VERSION ${VULKANA_VERSION}
@@ -83,6 +83,7 @@ include(cmake/BackgroundRemovalBundle.cmake)
 add_subdirectory(src/platform)
 add_subdirectory(src/core)
 add_subdirectory(src/render)
+add_subdirectory(src/mcp)
 add_subdirectory(src/ui)
 add_subdirectory(src/project)
 add_subdirectory(src/app)

@@ -140,7 +140,8 @@ Each document owns its content and history; tabs share one workspace and Vulkan
 renderer. Editable source data stays separate from render caches. Canvas,
 Pixel Preview and export share the same composition rules.
 
-See the [developer docs](docs/README.md) and [architecture guide](docs/ARCHITECTURE.md).
+See the [developer docs](docs/README.md), [architecture guide](docs/ARCHITECTURE.md)
+and [MCP setup and tool reference](docs/MCP.md).
 
 ## License
 

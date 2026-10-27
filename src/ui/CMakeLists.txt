@@ -53,6 +53,11 @@ add_library(imageeditor_ui STATIC
     src/LayerListView.cpp
     src/LayerDrag.cpp
     src/MainWindow.cpp
+    src/McpController.cpp
+    src/McpPanel.cpp
+    src/McpDocuments.cpp
+    src/McpLayers.cpp
+    src/McpPainting.cpp
     src/MemoryStatusLabel.cpp
     src/MainWindowCrop.cpp
     src/MainWindowCanvasResize.cpp
@@ -187,6 +192,7 @@ else()
     pkg_check_modules(WEBP REQUIRED IMPORTED_TARGET libwebp>=1.2 libwebpmux>=1.2)
     target_link_libraries(imageeditor_ui PRIVATE PkgConfig::WEBP)
 endif()
+target_link_libraries(imageeditor_ui PUBLIC imageeditor_mcp)
 target_link_libraries(imageeditor_ui PRIVATE Qt6::Network Qt6::Pdf qpdf::libqpdf)
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_link_libraries(imageeditor_ui PRIVATE Qt6::DBus)

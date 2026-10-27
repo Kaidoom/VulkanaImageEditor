@@ -1,4 +1,4 @@
-.TH IMAGEEDITOR 1 "September 2026" "Vulkana Image Editor" "User Commands"
+.TH IMAGEEDITOR 1 "October 2026" "Vulkana Image Editor" "User Commands"
 .SH NAME
 imageeditor \- Vulkana Image Editor
 .SH SYNOPSIS
@@ -27,6 +27,19 @@ Read custom panel size defaults from an INI file once at startup.
 .TP
 .B --skip-new-dialog
 Start a default transparent canvas without the startup prompt.
+.TP
+.B --mcp
+Enable local, same-user MCP document automation for this launch.
+MCP can also be started and stopped through Preferences, MCP.
+.TP
+.BI --mcp-socket " path"
+Use a custom private endpoint for this launch; requires --mcp.
+Saved endpoint settings are not changed.
+.TP
+.B --mcp-bridge
+Run the packaged MCP stdio bridge without GUI or graphics initialization.
+This must be the first argument. Remaining arguments are bridge options,
+including --socket and --timeout. It does not launch the editor.
 .TP
 .B --force-update-check
 Check for updates at startup. This is now the default; the flag is retained

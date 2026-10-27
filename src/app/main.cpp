@@ -1,4 +1,6 @@
 #include "imageeditor/ui/MainWindow.hpp"
+#include "imageeditor/ui/McpController.hpp"
+#include "imageeditor/mcp/Integration.hpp"
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/UiLayoutConfig.hpp"
@@ -26,11 +28,20 @@
 
 #include <atomic>
 #include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <vector>
 
 int main(int argc, char* argv[])
 {
+    // AppImage/installed headless bridge mode: before Qt GUI initialization,
+    // driver probing, single-instance forwarding, settings or startup logging.
+    if (argc > 1 && std::strcmp(argv[1], "--mcp-bridge") == 0) {
+        std::vector<char*> bridgeArguments{argv[0]};
+        for (int i = 2; i < argc; ++i) bridgeArguments.push_back(argv[i]);
+        bridgeArguments.push_back(nullptr);
+        return imageeditor::mcp::runBridge(argc - 1, bridgeArguments.data());
+    }
     QStringList startupArguments;
     for (int i = 0; i < argc; ++i) startupArguments.append(QString::fromLocal8Bit(argv[i]));
     const auto startup = imageeditor::platform::inspectPlatformStartup(startupArguments);
@@ -98,6 +109,13 @@ int main(int argc, char* argv[])
         QStringLiteral("Vulkana Image Editor — Vulkan raster editor"));
     parser.addHelpOption();
     parser.addVersionOption();
+    QCommandLineOption mcpOption(QStringLiteral("mcp"),
+        QStringLiteral("Enable local, current-user MCP document automation for this session."));
+    QCommandLineOption mcpSocketOption(QStringLiteral("mcp-socket"),
+        QStringLiteral("Private MCP socket path (requires --mcp)."), QStringLiteral("path"));
+    parser.addOption(mcpOption);
+    parser.addOption(mcpSocketOption);
+    parser.addOption({"mcp-bridge", "Run the packaged stdio bridge without a GUI (must be the first argument)."});
     QCommandLineOption smokeTestOption(QStringLiteral("smoke-test"),
         QStringLiteral("Exercise the desktop/Vulkan lifecycle and exit automatically."));
     QCommandLineOption coldCacheOption(QStringLiteral("cold-cache"),
@@ -145,6 +163,11 @@ int main(int argc, char* argv[])
     parser.addPositionalArgument(QStringLiteral("document"),
         QStringLiteral("Optional projects or images; each opens in its own tab."), QStringLiteral("[document…]"));
     parser.process(application);
+    if (parser.isSet("mcp-bridge")) { qCritical() << "--mcp-bridge must be the first argument"; return EXIT_FAILURE; }
+    if (parser.isSet(mcpSocketOption) && !parser.isSet(mcpOption)) {
+        qCritical() << "--mcp-socket requires --mcp";
+        return EXIT_FAILURE;
+    }
     if (parser.isSet(registerProjects) || parser.isSet(unregisterProjects)) {
         if (parser.isSet(registerProjects) && parser.isSet(unregisterProjects)) return EXIT_FAILURE;
         QSettings settings;
@@ -170,6 +193,10 @@ int main(int argc, char* argv[])
             parser.isSet(restartOption) ? 15000 : 5000);
         if (result == imageeditor::platform::SingleInstance::Result::Forwarded) {
             qInfo() << "Launch forwarded to the running Vulkana instance.";
+            if (parser.isSet(mcpOption)) {
+                qWarning() << "--mcp is a startup opt-in. Close the running Vulkana instance and restart with --mcp.";
+                return EXIT_FAILURE;
+            }
             if(parser.isSet(coldCacheOption))
                 qInfo()<<"--cold-cache takes effect at startup. Close Vulkana, then launch with this flag again.";
             if (parser.isSet(panelDefaultOption))
@@ -315,6 +342,11 @@ int main(int argc, char* argv[])
         // present. Wayland shells may still prefer that installation's icon
         // via the stable desktop-file ID; the next package updates it too.
         window.setWindowIcon(application.windowIcon());
+        QString mcpError;
+        if (!window.configureMcpStartup(parser.isSet(mcpOption), parser.value(mcpSocketOption), parser.isSet(smokeTestOption), &mcpError)) {
+            qWarning().noquote() << "Could not enable MCP:" << mcpError;
+            if (parser.isSet(mcpOption)) return EXIT_FAILURE;
+        }
         // On Wayland the compositor owns top-level sizing. Choose the smoke
         // test's initial size before the first map instead of issuing a
         // client-side resize after mapping; a later compositor configure can

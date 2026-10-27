@@ -103,6 +103,7 @@ class WorkspaceDialog;
 class UpdateService;
 class FeedbackService;
 class TextController;
+class McpController;
 class PixelPreview;
 class NavigatorPanel;
 class SnapshotTimelinePanel;
@@ -121,6 +122,9 @@ public:
         PanelLayoutMode panelLayoutMode = PanelLayoutMode::Saved);
     ~MainWindow() override;
     [[nodiscard]] const core::EditorSession& editorSession() const noexcept { return session(); }
+    McpController& mcpController();
+    bool configureMcpStartup(bool explicitStart, const QString& endpointOverride = {},
+        bool isolatedTest = false, QString* error = nullptr);
     [[nodiscard]] std::size_t documentCount() const noexcept { return documents_.size(); }
     [[nodiscard]] DocumentInstanceId activeDocumentId() const noexcept { return activeDocument_ ? activeDocument_->id : 0; }
     [[nodiscard]] std::vector<DocumentInstanceId> documentIds() const;
@@ -176,6 +180,8 @@ protected:
     void dropEvent(QDropEvent* event) override;
 
 private:
+    friend class McpController;
+    std::unique_ptr<McpController> mcpController_;
     enum class ToolRailDockLocation {
         Left,
         RightPanel,

@@ -39,6 +39,8 @@
 #include "imageeditor/ui/NewDocumentDialog.hpp"
 #include "imageeditor/ui/WorkspaceDialog.hpp"
 #include "imageeditor/ui/PreferencesDialog.hpp"
+#include "imageeditor/ui/McpController.hpp"
+#include "imageeditor/ui/McpPanel.hpp"
 #include "imageeditor/ui/PerformancePanel.hpp"
 #include "imageeditor/ui/ProjectIntegrationDialog.hpp"
 #include <QScopedValueRollback>
@@ -1126,6 +1128,7 @@ MainWindow::MainWindow(
 
 MainWindow::~MainWindow()
 {
+    mcpController_.reset();
     canvasWindow_->onGraphicsInitializationChanged={};
     canvasWindow_->onFirstFramePresented={};
     if(graphicsStartupPresenter_){
@@ -1980,6 +1983,18 @@ void MainWindow::refreshThemeAppearance()
     if (layerList_) layerList_->viewport()->update();
 }
 
+McpController& MainWindow::mcpController()
+{
+    if (!mcpController_) mcpController_ = std::make_unique<McpController>(*this);
+    return *mcpController_;
+}
+bool MainWindow::configureMcpStartup(bool explicitStart, const QString& endpointOverride, bool isolatedTest, QString* error)
+{
+    QSettings settings;
+    const auto value = platform::loadMcpSettings(settings);
+    if (!platform::shouldStartMcp(value, explicitStart, isolatedTest)) { if (error) error->clear(); return true; }
+    return mcpController().start(endpointOverride.isEmpty() ? value.customEndpoint : endpointOverride, error);
+}
 void MainWindow::showPreferences()
 {
     if (fileBusy_ || workspaceDialog_) return;
@@ -1992,7 +2007,8 @@ void MainWindow::showPreferences()
     PreferencesDialog dialog(PreferencesState {currentThemeSettings(), canvasWindow_->advancedMeasurementReadout(),
         canvasWindow_->layerOutlinesVisible(), collapseLayerSelectionOnEmptyClick_, shiftNudgePixels_, shortcuts_, toolHintPosition_,
         i18n::Localization::instance().preference(),platform::loadPerformanceSettings(preferences),
-        static_cast<LayerListView*>(layerList_)->layerInfoVisible()}, &presenter);
+        static_cast<LayerListView*>(layerList_)->layerInfoVisible(), platform::loadMcpSettings(preferences)}, &presenter);
+    dialog.mcpPanel()->setController(&mcpController());
     dialog.performancePanel()->setGraphicsDevices(canvasWindow_->graphicsDevices());
     dialog.performancePanel()->readUsage=[this]{return performanceUsage();};
     dialog.performancePanel()->onClearCaches=[this]{clearInactiveCaches();};
@@ -2027,7 +2043,8 @@ void MainWindow::showPreferences()
         settings.setValue(QStringLiteral("preferences/ui/toolHintPosition"), value.toolHintPosition);
         settings.setValue(QStringLiteral("preferences/ui/showLayerInfo"), value.layerInfoVisible);
         if(!saveShortcutBindings(settings,value.shortcuts)||!saveThemeSettings(settings,value.theme)
-            ||!platform::savePerformanceSettings(settings,value.performance))return false;
+            ||!platform::savePerformanceSettings(settings,value.performance)
+            ||!platform::saveMcpSettings(settings,value.mcp))return false;
         for(auto* widget:QApplication::topLevelWidgets())if(auto* editor=dynamic_cast<MainWindow*>(widget)) {
             editor->applyPerformanceMemory(value.performance);
             static_cast<LayerListView*>(editor->layerList_)->setLayerInfoVisible(value.layerInfoVisible);

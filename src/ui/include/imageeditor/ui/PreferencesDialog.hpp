@@ -2,6 +2,7 @@
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/EditorShortcuts.hpp"
 #include "imageeditor/platform/PerformanceSettings.hpp"
+#include "imageeditor/platform/McpSettings.hpp"
 #include <QDialog>
 #include <functional>
 
@@ -13,6 +14,7 @@ class QDoubleSpinBox;
 namespace imageeditor::ui {
 class ShortcutsPanel;
 class PerformancePanel;
+class McpPanel;
 // Dialog-local snapshot: preview and rollback cover all preferences together.
 struct PreferencesState {
     ThemeSettings theme;
@@ -25,6 +27,7 @@ struct PreferencesState {
     QString language = QStringLiteral("system");
     platform::PerformanceSettings performance {};
     bool layerInfoVisible = true;
+    platform::McpSettings mcp {};
     bool operator==(const PreferencesState&) const = default;
 };
 class PreferencesDialog final : public QDialog {
@@ -37,6 +40,7 @@ public:
     std::function<bool()> confirmUndoReduction;
     std::function<std::uint64_t()> currentUndoBudget;
     PerformancePanel* performancePanel() const { return performance_; }
+    McpPanel* mcpPanel() const { return mcp_; }
     void reject() override;
 private:
     void refresh();
@@ -56,6 +60,7 @@ private:
     QPushButton* customize_ {};
     ShortcutsPanel* shortcuts_ {};
     PerformancePanel* performance_ {};
+    McpPanel* mcp_ {};
     std::array<QPushButton*, static_cast<std::size_t>(ThemeColor::Count)> swatches_ {};
 };
 }

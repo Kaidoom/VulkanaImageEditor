@@ -46,6 +46,9 @@ New-Item -ItemType Directory -Path $scratch | Out-Null
 try {
     Invoke-PortableCommand cmake @('--install', $build, '--prefix', $scratch)
     $bin = Join-Path $scratch 'bin'
+    if (!(Test-Path -LiteralPath "$bin/vulkana-mcp.exe" -PathType Leaf)) {
+        throw 'Installed portable payload is missing the MCP stdio bridge.'
+    }
     # No Qt Quick/OpenGL software rasterizer or runtime shader compiler is used
     # by this Vulkan + raster-Widgets application. Retain its image/PDF plugins,
     # SVG icons, native style, networking and Windows TLS backend.

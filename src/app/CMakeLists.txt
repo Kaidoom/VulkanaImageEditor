@@ -49,5 +49,7 @@ if(WIN32)
 endif()
 
 install(TARGETS imageeditor RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+install(TARGETS vulkana-mcp RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+add_dependencies(imageeditor vulkana-mcp)
 
 imageeditor_enable_warnings(imageeditor)

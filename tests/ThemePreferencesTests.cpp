@@ -493,7 +493,7 @@ void dialogTabsControlsPreviewAndApplyCancel(QApplication& application)
     auto* ok = dialog.findChild<QPushButton*>(QStringLiteral("PreferencesOk"));
     CHECK(tabs && presets && apply && cancel && ok);
     if (!tabs || !presets || !apply || !cancel || !ok) return;
-    CHECK(tabs->count() == 4);
+    CHECK(tabs->count() == 5);
     CHECK(tabs->tabText(0) == QStringLiteral("General"));
     CHECK(tabs->tabText(1) == QStringLiteral("Themes"));
     CHECK(tabs->tabText(2) == QStringLiteral("Performance"));

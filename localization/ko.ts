@@ -11170,4 +11170,28 @@ Prepare %3 · Finish %4 · Total %5</source>
       <translation>GIF를 내보냈습니다.</translation>
     </message>
   </context>
+  <context>
+    <name>McpPreferences</name>
+    <message id="mcp.preferences.title"><source>MCP</source><translation type="unfinished" /></message>
+    <message id="mcp.preferences.start"><source>Start MCP</source><translation type="unfinished" /></message>
+    <message id="mcp.preferences.stop"><source>Stop MCP</source><translation type="unfinished" /></message>
+    <message id="mcp.preferences.stopped"><source>Stopped</source><translation type="unfinished" /></message>
+    <message id="mcp.preferences.listening"><source>Listening</source><translation type="unfinished" /></message>
+    <message id="mcp.preferences.connected"><source>Connected · Clients: %1</source><translation type="unfinished" /></message>
+    <message id="mcp.preferences.stopping"><source>Stopping…</source><translation type="unfinished" /></message>
+    <message id="mcp.preferences.error"><source>Error</source><translation type="unfinished" /></message>
+    <message id="mcp.preferences.autostart"><source>Start automatically with Vulkana</source><translation type="unfinished" /></message>
+    <message id="mcp.preferences.security"><source>Only connect clients you trust. MCP clients can modify documents and read or write files with your Vulkana host-user permissions. A client running in a container is not limited to that container's files.</source><translation type="unfinished" /></message>
+    <message id="mcp.preferences.connection"><source>Connection</source><translation type="unfinished" /></message>
+    <message id="mcp.preferences.local"><source>MCP uses local communication, without a network port. Multiple trusted clients can connect; editing commands run one at a time. Copy the configuration into OpenCode V2; Vulkana does not edit its configuration files.</source><translation type="unfinished" /></message>
+    <message id="mcp.preferences.command"><source>Bridge command</source><translation type="unfinished" /></message>
+    <message id="mcp.preferences.endpoint"><source>Endpoint</source><translation type="unfinished" /></message>
+    <message id="mcp.preferences.copy"><source>Copy Configuration · OpenCode V2</source><translation type="unfinished" /></message>
+    <message id="mcp.preferences.copied"><source>Copied</source><translation type="unfinished" /></message>
+    <message id="mcp.preferences.advanced"><source>Advanced Settings</source><translation type="unfinished" /></message>
+    <message id="mcp.preferences.custom"><source>Use a custom endpoint</source><translation type="unfinished" /></message>
+    <message id="mcp.preferences.next.start"><source>Endpoint changes take effect on the next Start. While MCP is running, Copy Configuration uses its current endpoint.</source><translation type="unfinished" /></message>
+    <message id="mcp.preferences.apply.note"><source>Start and Stop affect this session immediately. Apply saves automatic startup and endpoint settings; it does not restart an active connection.</source><translation type="unfinished" /></message>
+    <message id="mcp.preferences.finishing"><source>Waiting for the current command to finish before disconnecting. Its changes are not cancelled or rolled back.</source><translation type="unfinished" /></message>
+  </context>
 </TS>
