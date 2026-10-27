@@ -629,7 +629,9 @@ MainWindow::MainWindow(
         statusBar()->showMessage(message, 6500);
     };
     canvasWindow_->onTextPressed = [this](core::Vec2d p, Qt::KeyboardModifiers m, bool twice) {
-        if(!textController_->active()) {
+        // Only Move uses group-level targeting. Text clicks must reach the
+        // text controller so a group under the cursor cannot block creation.
+        if(session().activeTool() == core::ToolId::Move && !textController_->active()) {
             const auto hit=hitMoveLayer(p);
             const auto* container=hit?session().document()->tree().container(*hit):nullptr;
             if(container && core::isGroup(container->kind)) {

@@ -1,7 +1,10 @@
+#include "imageeditor/core/ColorSampler.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/FontFamilyPicker.hpp"
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
+#include "imageeditor/ui/ProjectFile.hpp"
 #include "NativeGraphicsStartup.hpp"
 #include "imageeditor/ui/TextController.hpp"
 #include "imageeditor/ui/ToolOptionsNumber.hpp"
@@ -20,6 +23,7 @@
 #include <QProcess>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QStatusBar>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QToolButton>
@@ -602,6 +606,116 @@ void run(QVulkanInstance* instance, bool native)
     window.close();
     settle();
 }
+void textCreationOverGroup(QVulkanInstance* instance, const QString& path)
+{
+    ui::MainWindow window(instance, false, false);
+    window.setUnsavedPromptEnabled(false);
+    window.show();
+    CHECK(imageeditor::test::waitForGraphicsStartup(window));
+    CHECK(window.openImageFromPath(path));
+    settle();
+    render::CanvasWindow* canvas = nullptr;
+    ui::TextController* editor = nullptr;
+    for (auto* w : QGuiApplication::allWindows())
+        if (auto* c = dynamic_cast<render::CanvasWindow*>(w)) canvas = c;
+    for (auto* child : window.children())
+        if (auto* c = dynamic_cast<ui::TextController*>(child)) editor = c;
+    CHECK(canvas && editor);
+    if (!canvas || !editor) return;
+    auto& session = const_cast<core::EditorSession&>(window.editorSession());
+    auto& document = *session.document();
+    const auto extent = document.canvas().extent;
+    const core::Vec2d point {extent.width * .5, extent.height * .5};
+    const auto hit = core::hitTestRasterLayer(document, point);
+    const auto group = hit ? document.canvasTarget(*hit) : 0;
+    CHECK(document.tree().container(group));
+    if (!document.tree().container(group)) return;
+    const auto initialTree = document.tree();
+    const auto initialLayers = document.layers().size();
+    auto action = [&](const char* shortcut) {
+        for (auto* a : window.findChildren<QAction*>())
+            if (a->shortcuts().contains(QKeySequence(QString::fromLatin1(shortcut)))) {
+                a->trigger(); settle(); return;
+            }
+        CHECK(false);
+    };
+    auto click = [&](QEvent::Type type = QEvent::MouseButtonPress) {
+        const auto& scene = canvas->scene();
+        const auto p = scene.viewport.documentToViewport(point,
+            {double(extent.width), double(extent.height)}, scene.logicalViewport);
+        mouse(canvas, type, {p.x, p.y}, Qt::LeftButton, Qt::LeftButton);
+        mouse(canvas, QEvent::MouseButtonRelease, {p.x, p.y}, Qt::LeftButton, {});
+    };
+    // Move still treats the group as a unit, including on a double-click.
+    action("V");
+    click(QEvent::MouseButtonDblClick);
+    CHECK(!editor->active() && session.activeLayer() == group);
+    for (const auto selected : {document.layers().front().id, group}) {
+        session.setActiveLayer(selected);
+        action("T");
+        CHECK(session.activeTool() == core::ToolId::Text);
+        window.statusBar()->clearMessage();
+        click();
+        CHECK(editor->active());
+        CHECK(session.activeLayer() == selected);
+        CHECK(window.statusBar()->currentMessage() != ui::i18n::text(
+            "main.window.group.selected.ungroup.or.explicitly.select.a.child.to"));
+        CHECK(document.layers().size() == initialLayers); // Empty text is provisional.
+        if (!editor->active()) continue;
+        key(canvas, Qt::Key_A, {}, QStringLiteral("New text"));
+        const auto id = editor->layerId();
+        const auto* layer = document.layer(id);
+        CHECK(layer && std::holds_alternative<core::TextLayer>(layer->payload));
+        if (!layer) return;
+        CHECK(std::get<core::TextLayer>(layer->payload).utf8 == "New text");
+        CHECK(document.layers().size() == initialLayers + 1);
+        CHECK(layer->localToDocument.map({0, 0}) == point);
+        // Keep the usual insertion context (including a selected clipping
+        // group), without altering any pre-existing members or their order.
+        auto withoutText = document.tree();
+        const auto placement = withoutText.placement(id);
+        CHECK(placement);
+        if (placement) std::erase(*withoutText.children(placement->parent), id);
+        CHECK(withoutText == initialTree);
+        editor->finish();
+        // Ordinary text hit testing must still reopen text for editing.
+        click();
+        CHECK(editor->active() && editor->layerId() == id);
+        editor->finish();
+        action("Ctrl+Z");
+        CHECK(!document.containsLayer(id) && document.tree() == initialTree);
+        action("Ctrl+Shift+Z");
+        CHECK(document.containsLayer(id));
+        action("Ctrl+Z");
+        CHECK(document.layers().size() == initialLayers && document.tree() == initialTree);
+        action("V");
+    }
+    window.close();
+    settle();
+}
+
+void groupTextFixtures(QVulkanInstance* instance)
+{
+    QTemporaryDir fixtures;
+    for (const auto kind : {core::ContainerKind::Group, core::ContainerKind::ClippingMaskGroup}) {
+        core::Document document({.extent = {320, 240}});
+        auto background = core::Layer::raster("Background",
+            std::make_shared<core::ContiguousRasterSurface>(core::Extent2u {320, 240}, core::Rgba8 {32, 64, 96, 255}));
+        auto image = core::Layer::raster("Image",
+            std::make_shared<core::ContiguousRasterSurface>(core::Extent2u {320, 240}, core::Rgba8 {90, 160, 200, 255}));
+        const auto backgroundId = background.id, imageId = image.id, group = core::makeLayerId();
+        CHECK(document.insertLayer(0, std::move(background)));
+        CHECK(document.insertLayer(1, std::move(image)));
+        core::LayerTree tree {{backgroundId, group}, {{group, "Group", kind, core::ColorLabel::None, {imageId}}}};
+        CHECK(document.replaceStructure(document.tree(), std::move(tree)));
+        const auto path = fixtures.filePath(QStringLiteral("group.vulkana"));
+        CHECK(ui::saveProject(path, document));
+        textCreationOverGroup(instance, path);
+    }
+    const auto sample = qEnvironmentVariable("IMAGEEDITOR_TEXT_GROUP_PROJECT");
+    if (!sample.isEmpty()) textCreationOverGroup(instance, sample);
+}
+
 int main(int argc, char** argv)
 {
     QCoreApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
@@ -638,7 +752,9 @@ int main(int argc, char** argv)
         if (!instance.isValid())
             return 1;
     }
-    run(native ? &instance : nullptr, native);
+    if (!app.arguments().contains(QStringLiteral("--groups-only")))
+        run(native ? &instance : nullptr, native);
+    groupTextFixtures(native ? &instance : nullptr);
     instance.destroy();
     settle();
     CHECK(warnings == 0 && errors == 0);
