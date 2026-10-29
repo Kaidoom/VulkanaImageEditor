@@ -1099,7 +1099,11 @@ ProjectIoResult saveProject(const QString& path, const core::Document& doc, cons
             unchanged();
             return proceed;
         };
-        Progress progress { guardedProgress, 0, bytes * 2 };
+        // Thumbnail generation is real save work, not an indeterminate pause
+        // at zero. Reserve one progress phase for it, then writing and CRC
+        // verification retain their byte-based progress and cancellation.
+        const auto previewWork = bytes;
+        Progress progress { guardedProgress, 0, checkedBytes(checkedBytes(bytes, bytes), previewWork) };
         progress.tick();
         const auto canvas = doc.canvas().extent;
         QSize previewSize(int(canvas.width),int(canvas.height));
@@ -1109,9 +1113,13 @@ ProjectIoResult saveProject(const QString& path, const core::Document& doc, cons
         // selection outlines and transient comparison/inspection state.
         const auto preview = renderDocumentOverview(doc,
             {std::uint32_t(std::max(1,previewSize.width())),std::uint32_t(std::max(1,previewSize.height()))},
-            [&](quint64,quint64) { return guardedProgress(0,progress.total); });
+            [&](quint64 done, quint64 total) {
+                const auto work = quint64(static_cast<long double>(previewWork) * std::min(done,total) / std::max<quint64>(total,1));
+                return guardedProgress(work, progress.total);
+            });
         if (preview.cancelled) throw Cancelled{};
         unchanged(); // A failed optional render must not bypass the lifetime guard.
+        progress.tick(previewWork);
         const QFileInfo target(path);
         auto temporary = std::make_unique<QTemporaryFile>(target.absolutePath() + "/.vulkana-save-XXXXXX");
         auto& temp = *temporary;

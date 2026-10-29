@@ -997,7 +997,7 @@ void cancellationAndFailurePreserveDestination()
     calls = 0;
     result = u::saveProject(path, document, { }, [&](quint64 completed, quint64 total) {
         ++calls;
-        return completed <= total / 2; // Cancel during post-write CRC verification.
+        return completed <= total * 2 / 3; // Preview, write, then cancel during CRC verification.
     });
     CHECK(!result);
     CHECK(result.cancelled);

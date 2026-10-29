@@ -3,6 +3,7 @@
 #include "imageeditor/core/ColorSampler.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/core/RichText.hpp"
+#include "imageeditor/core/BoundedParallel.hpp"
 #include "imageeditor/ui/QtShapeRenderService.hpp"
 #include "imageeditor/ui/QtTextLayoutService.hpp"
 
@@ -148,17 +149,26 @@ static FlattenedDocumentResult flattenImpl(
         std::uint64_t cacheBytes = 0, completed = 0;
         const auto prepareLayer = [&](core::Layer& layer) {
             if(std::holds_alternative<core::AdjustmentLayer>(layer.payload))return;
-            layer.renderCache.reset();
+            const bool filtered=core::hasActiveSpatialFilters(layer.filters)||core::hasActiveLayerEffects(layer.effects);
+            const bool raster = std::holds_alternative<core::RasterLayer>(layer.payload);
+            // Overview effects use the same native local input as the canvas.
+            // Keep only coherent 1x typed sources; zoom-dependent/document-grid
+            // caches must still be regenerated. Exact export remains unchanged.
+            const bool retainedTyped = overview && filtered && !raster && layer.renderCache
+                && layer.renderCache->surface && layer.renderCache->density == 1
+                && !layer.renderCache->rasterizedDocumentTransform
+                && layer.renderCache->contentRevision == (std::holds_alternative<core::ShapeLayer>(layer.payload)
+                    ? layer.shapeRevision : layer.textRevision);
+            if (!retainedTyped) layer.renderCache.reset();
             // Raster filter caches are canonical source-resolution results,
             // keyed to the original surface and filter revisions. Typed filter
-            // inputs can depend on a display cache and must be rebuilt here.
-            if (!std::holds_alternative<core::RasterLayer>(layer.payload)
+            // inputs must be rebuilt unless their native source was retained.
+            if ((!raster && !retainedTyped)
                 || !core::layerSpatialFilterCacheValid(layer)) layer.filterCache.reset();
             if (layer.visible && std::isfinite(layer.opacity) && layer.opacity > 0) {
                 require(layer.localToDocument.inverted().has_value(),
                     "Invalid layer transform in flattened output");
                 const auto availablePixels = std::size_t((limits.derivedCacheBytes - cacheBytes) / 4);
-                const bool filtered=core::hasActiveSpatialFilters(layer.filters)||core::hasActiveLayerEffects(layer.effects);
                 // Unfiltered model geometry is painted ON the final integer
                 // document/output grid. No local bitmap then affine resampling.
                 // Spatial kernels are defined in local source pixels: prepare
@@ -182,10 +192,10 @@ static FlattenedDocumentResult flattenImpl(
                     clip=clip?clip->clippedTo(crop):crop;
                 }
                 ProfileStage typed(profile?&profile->typedRasterizationMs:nullptr);
-                if (const auto* shape=std::get_if<core::ShapeLayer>(&layer.payload))
+                if (const auto* shape=std::get_if<core::ShapeLayer>(&layer.payload); shape && !retainedTyped)
                     layer.renderCache=filtered?QtShapeRenderService{}.render({*shape,1,availablePixels}):
                         QtShapeRenderService{}.renderDocument(*shape,toGrid,availablePixels,clip);
-                if (const auto* text=std::get_if<core::TextLayer>(&layer.payload))
+                if (const auto* text=std::get_if<core::TextLayer>(&layer.payload); text && !retainedTyped)
                     layer.renderCache=filtered?QtTextLayout(*text).rasterize(1,availablePixels):
                         QtTextLayout(*text).rasterizeDocument(toGrid,availablePixels,clip);
                 typed.finish();
@@ -361,6 +371,49 @@ static FlattenedDocumentResult flattenImpl(
         std::uint64_t processed = 0;
         const double stepX = items ? 1 : double(canvasExtent.width)/extent.width;
         const double stepY = items ? 1 : double(canvasExtent.height)/extent.height;
+        if (overview && (stepX != 1 || stepY != 1)) {
+            // Sources and composition metadata are pinned before dispatch.
+            // Only disjoint pixel rows are written by workers; never call Qt
+            // image methods, document callbacks or UI code from a worker.
+            auto* bytes = output.bits();
+            const auto stride = output.bytesPerLine();
+            const auto workers = pixels >= 4096 ? core::boundedParallelWorkerCount() : 1U;
+            for (std::uint32_t first = 0; first < extent.height;) {
+                const auto end = std::min(extent.height, first + workers);
+                const auto batch = [&](unsigned rank, unsigned participants) {
+                    for (auto y = first + rank; y < end; y += participants) {
+                        auto* row = bytes + qsizetype(y) * stride;
+                        for (std::uint32_t x = 0; x < extent.width; ++x) {
+                            // Identical four samples and accumulation order to
+                            // the serial overview; no sampling-quality change.
+                            std::array<double,4> sum {};
+                            for (double dy : {.25, .75}) for (double dx : {.25, .75}) {
+                                const auto color = sampler.sampleLinear({(x + dx) * stepX, (y + dy) * stepY});
+                                for (std::size_t i = 0; i < 4; ++i) sum[i] += double(color[i]) * .25;
+                            }
+                            auto color = core::encodeColor({float(sum[0]), float(sum[1]), float(sum[2]), float(sum[3])});
+                            if (!color.alpha) color = {};
+                            const auto offset = std::size_t(x) * 4;
+                            row[offset] = color.red; row[offset + 1] = color.green;
+                            row[offset + 2] = color.blue; row[offset + 3] = color.alpha;
+                        }
+                    }
+                };
+                {
+                    ProfileStage sampling(profile ? &profile->samplingBlendMs : nullptr);
+                    // Do not queue behind another job or service UI while the
+                    // pool owns live source readers. A busy pool falls back to
+                    // this small serial batch; the configured worker cap holds.
+                    if (!core::tryBoundedParallel(workers, batch)) batch(0, 1);
+                }
+                first = end;
+                // Workers have joined before callbacks can mutate/cancel.
+                // Revision guards reject those edits before the next dispatch.
+                tick(completed + std::uint64_t(first) * extent.width);
+            }
+            tick(total);
+            return {std::move(output), {}, false, origin};
+        }
         // Reduction still integrates the complete native composite before any
         // quantization. Compose each native row once using the existing sparse
         // row path, instead of revisiting every layer at every footprint sample.
@@ -411,16 +464,7 @@ static FlattenedDocumentResult flattenImpl(
                     linear={float(reduced[x][0]),float(reduced[x][1]),float(reduced[x][2]),float(reduced[x][3])};
                 else if (stepX == 1 && stepY == 1)
                     linear = rowColors[x];
-                else if (overview) {
-                    // Fixed document-space samples: pan/zoom/DPI never affect
-                    // the preview or the Dissolve grid. Average linear premultiplied colors.
-                    std::array<double,4> sum{};
-                    for (double dy : {.25, .75}) for (double dx : {.25, .75}) {
-                        const auto c=sampler.sampleLinear({(x+dx)*stepX,(y+dy)*stepY});
-                        for (std::size_t i=0;i<4;++i) sum[i]+=double(c[i])*.25;
-                    }
-                    linear={float(sum[0]),float(sum[1]),float(sum[2]),float(sum[3])};
-                } else {
+                else {
                     // Exact box/area reduction, continuous alpha-aware source
                     // reconstruction on enlarged axes. Never quantize the
                     // composed stack before integrating the output footprint.

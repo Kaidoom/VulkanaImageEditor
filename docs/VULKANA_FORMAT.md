@@ -95,6 +95,14 @@ preview is omitted rather than preventing artwork from being saved. Old preview
 metadata is never reused by this writer. The existing 8 MiB manifest budget is
 unchanged, and takes precedence over inclusion of a preview.
 
+Preview compositing shares the bounded CPU worker pool and the Processing thread
+limit. Workers sample immutable composition metadata and read-only sources into
+disjoint image rows; progress and cancellation run on the document thread after
+each batch joins. Coherent native-resolution effect sources can be reused, while
+zoom-dependent caches are regenerated. Preview generation advances save progress
+before archive writing and verification; the rendered samples and file format
+are unchanged.
+
 The thumbnail-only reader bounds archive entries/metadata, manifest expansion,
 base64 length, PNG dimensions and decoded storage. PNG data is limited to 2 MiB;
 compressed text/profiles, animation and unsupported ancillary chunks are rejected.

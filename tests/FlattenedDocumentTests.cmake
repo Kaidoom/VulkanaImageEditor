@@ -1,4 +1,11 @@
 add_executable(imageeditor_flattened_document_tests FlattenedDocumentTests.cpp)
+add_executable(imageeditor_overview_parallel_tests OverviewParallelTests.cpp)
+target_link_libraries(imageeditor_overview_parallel_tests PRIVATE imageeditor_ui)
+imageeditor_enable_warnings(imageeditor_overview_parallel_tests)
+add_test(NAME imageeditor_overview_parallel_tests COMMAND imageeditor_overview_parallel_tests)
+add_test(NAME imageeditor_overview_serial_tests COMMAND imageeditor_overview_parallel_tests --serial)
+set_tests_properties(imageeditor_overview_parallel_tests imageeditor_overview_serial_tests PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 45 LABELS "overview;parallel;save;sampling")
 target_link_libraries(imageeditor_flattened_document_tests PRIVATE imageeditor_ui)
 target_compile_definitions(imageeditor_flattened_document_tests PRIVATE
     IMAGEEDITOR_FLATTEN_FONT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts")
