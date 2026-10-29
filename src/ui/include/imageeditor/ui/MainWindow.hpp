@@ -36,6 +36,7 @@
 #include "imageeditor/ui/RecentFiles.hpp"
 #include "imageeditor/ui/EditorShortcuts.hpp"
 #include "imageeditor/ui/DocumentContext.hpp"
+#include "imageeditor/ui/LayerSelectionFocus.hpp"
 #include "imageeditor/ui/ObjectSelection.hpp"
 
 #include <QMainWindow>
@@ -453,6 +454,7 @@ private:
     QPointer<QLineEdit> layerRenameEditor_;
     void synchronizeUi(bool resetLayerModel, bool fitCanvas);
     void synchronizeLayerSelection();
+    void queueSelectedLayerFocus();
     void updateLayerControls();
     void createMeasureControls();
     void refreshMeasureBounds();
@@ -832,6 +834,10 @@ private:
     std::optional<DuplicateMove> duplicateMove_;
     bool moveActiveOnly_ {false};
     bool collapseLayerSelectionOnEmptyClick_ {true};
+    LayerSelectionFocus layerSelectionFocus_ {LayerSelectionFocus::Focus};
+    DocumentInstanceId lastLayerFocusDocument_ {0};
+    std::optional<core::LayerId> lastLayerFocusSelection_;
+    bool layerSelectionFocusQueued_ {false};
     int shiftNudgePixels_ {10};
     bool suppressMoveNumeric_ {false};
     core::ToolId toolBeforeTransform_ {core::ToolId::Move};

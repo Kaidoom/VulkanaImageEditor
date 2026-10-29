@@ -41,6 +41,10 @@ public:
     // Reveal folder ancestors for inline editing without changing selection
     // or history. Group members remain represented by their group row.
     bool revealItem(core::LayerId);
+    // Returns the selected item's visible row, or its visible ancestor. May
+    // expand folders/clipping groups; indivisible groups stay represented by
+    // their group row. Does not modify the session's selection or history.
+    int selectionFocusRow(core::LayerId, bool expandAncestors);
     bool renameItem(core::LayerId, const QString&);
 
     [[nodiscard]] int rowCount(const QModelIndex& parent = {}) const override;

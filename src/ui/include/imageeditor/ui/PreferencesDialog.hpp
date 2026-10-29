@@ -3,6 +3,7 @@
 #include "imageeditor/ui/EditorShortcuts.hpp"
 #include "imageeditor/platform/PerformanceSettings.hpp"
 #include "imageeditor/platform/McpSettings.hpp"
+#include "imageeditor/ui/LayerSelectionFocus.hpp"
 #include <QDialog>
 #include <functional>
 
@@ -28,6 +29,7 @@ struct PreferencesState {
     platform::PerformanceSettings performance {};
     bool layerInfoVisible = true;
     platform::McpSettings mcp {};
+    LayerSelectionFocus layerSelectionFocus = LayerSelectionFocus::Focus;
     bool operator==(const PreferencesState&) const = default;
 };
 class PreferencesDialog final : public QDialog {
@@ -53,6 +55,7 @@ private:
     QCheckBox* advancedMeasurementReadout_ {};
     QCheckBox* layerOutlinesVisible_ {};
     QCheckBox* layerInfoVisible_ {};
+    QComboBox* layerSelectionFocus_ {};
     QCheckBox* collapseLayerSelectionOnEmptyClick_ {};
     QDoubleSpinBox* shiftNudgePixels_ {};
     QComboBox* toolHintPosition_ {};

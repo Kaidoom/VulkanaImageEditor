@@ -322,6 +322,14 @@ retain document-space transforms. Effective visibility includes ancestor gates.
 Explicit [clipping groups](CLIPPING_GROUPS.md) use a shared structural composition
 plan, with the bottommost direct child's stable coverage and final opacity/blend.
 
+General preferences stores `preferences/ui/layerSelectionFocus`: Disabled (0),
+Focus (1, default), or Focus and Expand (2). Focus brings the active layer's
+visible row or collapsed ancestor into view. Expand opens expandable ancestors
+first; indivisible groups keep their group row. Selection changes and explicit
+canvas/layer clicks request focus after layout updates, without taking keyboard
+focus. Ordinary refreshes leave manual scrolling and collapse choices alone.
+This changes panel presentation only, never document selection or undo history.
+
 Raster bytes, editable text/shape models, transforms, crop, adjustments, filters
 and styles are authoritative. Whole-layer transforms retain source detail and
 typed editability. Merge and Rasterize are explicit destructive operations at

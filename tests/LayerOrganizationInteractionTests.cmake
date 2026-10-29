@@ -1,4 +1,9 @@
 add_executable(imageeditor_layer_organization_interaction_tests LayerOrganizationInteractionTests.cpp)
+add_executable(imageeditor_layer_selection_focus_tests LayerSelectionFocusTests.cpp)
+target_link_libraries(imageeditor_layer_selection_focus_tests PRIVATE imageeditor_ui Qt6::Test)
+imageeditor_enable_warnings(imageeditor_layer_selection_focus_tests)
+add_test(NAME imageeditor_layer_selection_focus_tests COMMAND imageeditor_layer_selection_focus_tests)
+set_tests_properties(imageeditor_layer_selection_focus_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 60 LABELS "layers;preferences;widgets")
 target_link_libraries(imageeditor_layer_organization_interaction_tests PRIVATE imageeditor_ui Qt6::Widgets Qt6::Test)
 qt_add_resources(imageeditor_layer_organization_interaction_tests "organization_test_icons"
     PREFIX "/" BASE "${PROJECT_SOURCE_DIR}/assets"

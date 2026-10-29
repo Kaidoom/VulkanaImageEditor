@@ -203,6 +203,25 @@ bool LayerListModel::renameItem(core::LayerId id, const QString& name)
     if (!session_ || !session_->document() || !session_->document()->containsItem(id)) return false;
     return onRenameRequested && onRenameRequested(id, name);
 }
+int LayerListModel::selectionFocusRow(core::LayerId id, bool expandAncestors)
+{
+    if (!session_ || !session_->document() || !session_->document()->containsItem(id)) return -1;
+    const auto& tree = session_->document()->tree();
+    auto target = id;
+    // Members of indivisible groups have no separate rows, even when their
+    // containing folders are expanded. Focus the outermost such group.
+    for (auto placement = tree.placement(id); placement && placement->parent; placement = tree.placement(placement->parent))
+        if (const auto* parent = tree.container(placement->parent); parent && !core::isExpandable(parent->kind))
+            target = parent->id;
+    if (expandAncestors) revealItem(target);
+    while (target) {
+        const auto row = rowForLayer(target);
+        if (row >= 0) return row;
+        const auto placement = tree.placement(target);
+        target = placement ? placement->parent : 0;
+    }
+    return -1;
+}
 void LayerListModel::toggleExpanded(core::LayerId id)
 {
     const auto* c = session_ && session_->document() ? session_->document()->tree().container(id) : nullptr;

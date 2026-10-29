@@ -128,6 +128,7 @@ bool MainWindow::beginLayerMove(core::Vec2d position, Qt::KeyboardModifiers modi
     if (modifiers.testFlag(Qt::ShiftModifier)) {
         session().toggleSelectedLayer(*id);
         synchronizeUi(false, false);
+        queueSelectedLayerFocus();
         if (!hit) canvasWindow_->dismissLayerOutlines();
         return false; // A toggle click never doubles as a geometry gesture.
     }
@@ -141,6 +142,7 @@ bool MainWindow::beginLayerMove(core::Vec2d position, Qt::KeyboardModifiers modi
         return false;
     synchronizeUi(false, false);
     activeLayerMove_ = std::move(move);
+    queueSelectedLayerFocus();
     if (modifiers.testFlag(Qt::AltModifier))
         duplicateMove_.emplace(DuplicateMove {position, session().layerSelectionState(), {}});
     updateActionState();

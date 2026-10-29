@@ -638,11 +638,14 @@ MainWindow::MainWindow(
             const auto* container=hit?session().document()->tree().container(*hit):nullptr;
             if(container && core::isGroup(container->kind)) {
                 session().setActiveLayer(*hit);synchronizeUi(false,false);
+                queueSelectedLayerFocus();
                 statusBar()->showMessage(i18n::text("main.window.group.selected.ungroup.or.explicitly.select.a.child.to"),4000);
                 return false;
             }
         }
-        return textController_->press(p, m, twice);
+        const bool handled = textController_->press(p, m, twice);
+        if (handled && session().activeLayer() == textController_->layerId()) queueSelectedLayerFocus();
+        return handled;
     };
     canvasWindow_->onTextDragged = [this](core::Vec2d p) { textController_->drag(p); };
     canvasWindow_->onTextEvent = [this](QEvent* e) { return textController_->inputEvent(e); };
@@ -680,7 +683,11 @@ MainWindow::MainWindow(
         if(!tree.reparent(ids,destination))return true; // A same-slot drop is a no-op, not an error.
         return commitLayerStructure(i18n::text("main.window.organize.layers"),std::move(tree),{},{},session().layerSelectionState());
     };
-    layerModel_->onExpansionChanged=[this] {synchronizeLayerSelection();};
+    layerModel_->onExpansionChanged=[this] {
+        // A manual collapse wins over a still-queued selection focus request.
+        layerSelectionFocusQueued_ = false;
+        synchronizeLayerSelection();
+    };
     layerModel_->onRenameRequested=[this](core::LayerId id,const QString& name) {return setLayerItemName(id,name);};
     canvasWindow_->onZoomChanged = [this](double) { updateStatusText(); };
     canvasWindow_->onStatusMessage = [this](const QString& message) {
@@ -922,6 +929,8 @@ MainWindow::MainWindow(
             QStringLiteral("preferences/canvas/collapseLayerSelectionOnEmptyClick"), true).toBool();
         static_cast<LayerListView*>(layerList_)->setLayerInfoVisible(settings.value(
             QStringLiteral("preferences/ui/showLayerInfo"), true).toBool());
+        layerSelectionFocus_ = layerSelectionFocusFromInt(settings.value(
+            QStringLiteral("preferences/ui/layerSelectionFocus"), int(LayerSelectionFocus::Focus)).toInt());
         shiftNudgePixels_ = std::clamp(settings.value(
             QStringLiteral("preferences/canvas/shiftNudgePixels"), 10).toInt(), 1, 1000);
         toolHintPosition_ = std::clamp(settings.value(
@@ -1733,6 +1742,7 @@ void MainWindow::closeEvent(QCloseEvent* event)
         settings.setValue(QStringLiteral("preferences/canvas/shiftNudgePixels"), shiftNudgePixels_);
         settings.setValue(QStringLiteral("preferences/ui/toolHintPosition"), toolHintPosition_);
         settings.setValue(QStringLiteral("preferences/ui/showLayerInfo"), static_cast<LayerListView*>(layerList_)->layerInfoVisible());
+        settings.setValue(QStringLiteral("preferences/ui/layerSelectionFocus"), int(layerSelectionFocus_));
         settings.setValue(QStringLiteral("window/geometry"), saveGeometry());
         if (persistPanelLayout_) {
             settings.setValue(QStringLiteral("view/rulers/horizontalFarEdge"), workspace_->rulerFarEdge(Qt::Horizontal));
@@ -2007,7 +2017,7 @@ void MainWindow::showPreferences()
     PreferencesDialog dialog(PreferencesState {currentThemeSettings(), canvasWindow_->advancedMeasurementReadout(),
         canvasWindow_->layerOutlinesVisible(), collapseLayerSelectionOnEmptyClick_, shiftNudgePixels_, shortcuts_, toolHintPosition_,
         i18n::Localization::instance().preference(),platform::loadPerformanceSettings(preferences),
-        static_cast<LayerListView*>(layerList_)->layerInfoVisible(), platform::loadMcpSettings(preferences)}, &presenter);
+        static_cast<LayerListView*>(layerList_)->layerInfoVisible(), platform::loadMcpSettings(preferences), layerSelectionFocus_}, &presenter);
     dialog.mcpPanel()->setController(&mcpController());
     dialog.performancePanel()->setGraphicsDevices(canvasWindow_->graphicsDevices());
     dialog.performancePanel()->readUsage=[this]{return performanceUsage();};
@@ -2028,6 +2038,7 @@ void MainWindow::showPreferences()
         layerOutlinesAction_->setChecked(value.layerOutlinesVisible);
         collapseLayerSelectionOnEmptyClick_ = value.collapseLayerSelectionOnEmptyClick;
         static_cast<LayerListView*>(layerList_)->setLayerInfoVisible(value.layerInfoVisible);
+        layerSelectionFocus_ = value.layerSelectionFocus;
         shiftNudgePixels_ = value.shiftNudgePixels;
         toolHintPosition_ = value.toolHintPosition;
         updateStatusNotification();
@@ -2042,12 +2053,14 @@ void MainWindow::showPreferences()
         settings.setValue(QStringLiteral("preferences/canvas/shiftNudgePixels"), value.shiftNudgePixels);
         settings.setValue(QStringLiteral("preferences/ui/toolHintPosition"), value.toolHintPosition);
         settings.setValue(QStringLiteral("preferences/ui/showLayerInfo"), value.layerInfoVisible);
+        settings.setValue(QStringLiteral("preferences/ui/layerSelectionFocus"), int(value.layerSelectionFocus));
         if(!saveShortcutBindings(settings,value.shortcuts)||!saveThemeSettings(settings,value.theme)
             ||!platform::savePerformanceSettings(settings,value.performance)
             ||!platform::saveMcpSettings(settings,value.mcp))return false;
         for(auto* widget:QApplication::topLevelWidgets())if(auto* editor=dynamic_cast<MainWindow*>(widget)) {
             editor->applyPerformanceMemory(value.performance);
             static_cast<LayerListView*>(editor->layerList_)->setLayerInfoVisible(value.layerInfoVisible);
+            editor->layerSelectionFocus_ = value.layerSelectionFocus;
         }
         return true;
     };
@@ -4609,6 +4622,7 @@ void MainWindow::selectLayerFromRow(int row, Qt::KeyboardModifiers modifiers, bo
     canvasWindow_->refreshColorSample();
     refreshShapeControls();
     refreshShapeOverlay();
+    queueSelectedLayerFocus();
 }
 
 void MainWindow::synchronizeUi(bool resetLayerModel, bool fitCanvas)
@@ -4634,7 +4648,9 @@ void MainWindow::synchronizeUi(bool resetLayerModel, bool fitCanvas)
 
 void MainWindow::synchronizeLayerSelection()
 {
-    updatingUi_ = true;
+    const bool changed = lastLayerFocusDocument_ != activeDocumentId() || lastLayerFocusSelection_ != session().activeLayer();
+    lastLayerFocusDocument_ = activeDocumentId(); lastLayerFocusSelection_ = session().activeLayer();
+    const QScopedValueRollback updating(updatingUi_, true);
     const QSignalBlocker guard(layerList_->selectionModel());
     layerModel_->refreshSelectionIndicators();
     QItemSelection selection;
@@ -4646,7 +4662,30 @@ void MainWindow::synchronizeLayerSelection()
     const auto row=session().activeLayer()?layerModel_->rowForLayer(*session().activeLayer()):-1;
     layerList_->selectionModel()->setCurrentIndex(row>=0?layerModel_->index(row):QModelIndex{},QItemSelectionModel::NoUpdate);
     layerList_->viewport()->update();
-    updatingUi_ = false;
+    if (changed) queueSelectedLayerFocus();
+}
+
+void MainWindow::queueSelectedLayerFocus()
+{
+    if (layerSelectionFocus_ == LayerSelectionFocus::Disabled || !session().activeLayer() || layerSelectionFocusQueued_) return;
+    layerSelectionFocusQueued_ = true;
+    // Wait for model/layout updates and coalesce rapid selection changes. No
+    // keyboard focus is taken from the canvas, text editor or other controls.
+    QTimer::singleShot(0, this, [this] {
+        if (!layerSelectionFocusQueued_) return;
+        layerSelectionFocusQueued_ = false;
+        if (layerSelectionFocus_ == LayerSelectionFocus::Disabled || !session().activeLayer() || layerRenameEditor_) return;
+        const QSignalBlocker guard(layerList_->selectionModel());
+        const auto row = layerModel_->selectionFocusRow(*session().activeLayer(), layerSelectionFocus_ == LayerSelectionFocus::Expand);
+        if (row < 0) return;
+        synchronizeLayerSelection();
+        const auto index = layerModel_->index(row);
+        layerList_->doItemsLayout();
+        const auto rect = layerList_->visualRect(index);
+        const auto visible = layerList_->viewport()->rect();
+        if (rect.top() < visible.top() || rect.bottom() > visible.bottom())
+            layerList_->scrollTo(index, QAbstractItemView::EnsureVisible);
+    });
 }
 
 void MainWindow::updateLayerControls()

@@ -202,6 +202,7 @@ void MainWindow::createShapeControls()
         if (!mods.testFlag(Qt::ShiftModifier)) {
             if(const auto hit=hitMoveLayer(p); hit && session().document()->tree().container(*hit)) {
                 session().setActiveLayer(*hit);synchronizeUi(false,false);
+                queueSelectedLayerFocus();
                 statusBar()->showMessage(i18n::text("main.window.shape.group.selected.use.move.1.or.ungroup.to.edit")
                     .arg(shortcutLabel(shortcuts_, "LayerTransformAction")),4000);
                 return Action::Ignore;
@@ -209,6 +210,7 @@ void MainWindow::createShapeControls()
             if (const auto hit = hitShape(p)) {
                 session().setActiveLayer(*hit);
                 synchronizeUi(false, false);
+                queueSelectedLayerFocus();
                 return Action::Move;
             }
         }

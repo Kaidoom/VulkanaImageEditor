@@ -133,6 +133,17 @@ PreferencesDialog::PreferencesDialog(PreferencesState initial, QWidget* parent)
     layerInfoVisible_->setObjectName(QStringLiteral("ShowLayerInfo"));
     i18n::setToolTip(layerInfoVisible_, i18n::text("preferences.layer.info.hint"));
     generalLayout->addWidget(layerInfoVisible_);
+    auto* focusRow = new QHBoxLayout;
+    auto* focusLabel = i18n::make<QLabel>(i18n::text("preferences.layer.focus.label"), general);
+    layerSelectionFocus_ = new QComboBox(general);
+    layerSelectionFocus_->setObjectName(QStringLiteral("LayerSelectionFocus"));
+    focusLabel->setBuddy(layerSelectionFocus_);
+    i18n::addItem(layerSelectionFocus_, i18n::text("preferences.dialog.disabled"), int(LayerSelectionFocus::Disabled));
+    i18n::addItem(layerSelectionFocus_, i18n::text("preferences.layer.focus.normal"), int(LayerSelectionFocus::Focus));
+    i18n::addItem(layerSelectionFocus_, i18n::text("preferences.layer.focus.expand"), int(LayerSelectionFocus::Expand));
+    i18n::setToolTip(layerSelectionFocus_, i18n::text("preferences.layer.focus.hint"));
+    focusRow->addWidget(focusLabel); focusRow->addWidget(layerSelectionFocus_, 1);
+    generalLayout->addLayout(focusRow);
     auto* nudgeRow = new QHBoxLayout;
     nudgeRow->addWidget(i18n::make<QLabel>(i18n::text("preferences.dialog.shift.nudge.distance"), general));
     shiftNudgePixels_ = new ToolOptionsNumber(general);
@@ -195,6 +206,9 @@ PreferencesDialog::PreferencesDialog(PreferencesState initial, QWidget* parent)
     connect(layerInfoVisible_, &QCheckBox::toggled, this, [this](bool enabled) {
         draft_.layerInfoVisible = enabled; preview();
     });
+    connect(layerSelectionFocus_, &QComboBox::currentIndexChanged, this, [this] {
+        draft_.layerSelectionFocus = layerSelectionFocusFromInt(layerSelectionFocus_->currentData().toInt()); preview();
+    });
     connect(collapseLayerSelectionOnEmptyClick_, &QCheckBox::toggled, this, [this](bool enabled) {
         draft_.collapseLayerSelectionOnEmptyClick = enabled; preview();
     });
@@ -221,6 +235,8 @@ void PreferencesDialog::refresh()
     layerOutlinesVisible_->setChecked(draft_.layerOutlinesVisible);
     const QSignalBlocker layerInfoBlocker(layerInfoVisible_);
     layerInfoVisible_->setChecked(draft_.layerInfoVisible);
+    const QSignalBlocker focusBlocker(layerSelectionFocus_);
+    layerSelectionFocus_->setCurrentIndex(layerSelectionFocus_->findData(int(draft_.layerSelectionFocus)));
     const QSignalBlocker collapseBlocker(collapseLayerSelectionOnEmptyClick_);
     collapseLayerSelectionOnEmptyClick_->setChecked(draft_.collapseLayerSelectionOnEmptyClick);
     const QSignalBlocker nudgeBlocker(shiftNudgePixels_);
