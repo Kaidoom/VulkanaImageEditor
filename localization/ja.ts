@@ -11194,4 +11194,11 @@ Prepare %3 · Finish %4 · Total %5</source>
     <message id="mcp.preferences.apply.note"><source>Start and Stop affect this session immediately. Apply saves automatic startup and endpoint settings; it does not restart an active connection.</source><translation type="unfinished" /></message>
     <message id="mcp.preferences.finishing"><source>Waiting for the current command to finish before disconnecting. Its changes are not cancelled or rolled back.</source><translation type="unfinished" /></message>
   </context>
+  <context>
+    <name>ShapePreview</name>
+    <message id="main.window.shape.preview.limit.named"><source>Shape “%1” (layer %2) exceeds the preview limit. Its editable data is retained.</source><translation type="unfinished" /></message>
+    <message id="main.window.shape.preview.memory.named"><source>Not enough memory to render shape “%1” (layer %2). Its editable data is retained.</source><translation type="unfinished" /></message>
+    <message id="main.window.shape.preview.failed.named"><source>Could not render shape “%1” (layer %2): %3. Its editable data is retained.</source><translation type="unfinished" /></message>
+    <message id="main.window.shape.preview.reduced.named"><source>Shape “%1” (layer %2) is shown at reduced preview resolution. Its editable data is retained.</source><translation type="unfinished" /></message>
+  </context>
 </TS>

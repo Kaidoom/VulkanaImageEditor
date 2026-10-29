@@ -29,6 +29,16 @@ renderer. Custom memory values are bounded to 64–8192 MiB. These targets do no
 cap process RAM, total VRAM, source pixels, operation scratch or active inputs.
 Import/export and tool-specific admission limits remain independent.
 
+Shape previews budget their rounded raster dimensions, including stroke and
+antialiasing padding. Full-resolution effect/filter sources reserve space first;
+ordinary previews share the remaining allowance according to their requested
+pixel counts. One resident shape-cache generation is capped at the smaller of
+256 MiB and the document-cache setting, with existing 16M-pixel/8192-edge limits
+per source. Scratch buffers and previous published snapshots are temporary
+additional allocations. Zoom never downscales effect/filter input grids. Preview
+errors name the layer and distinguish budget limits from allocation failures;
+an unchanged warning is suppressed until recovery or a relevant layer change.
+
 Memory policy is applied to existing editor windows only after successful Apply;
 new documents inherit it. Reducing undo retention requires confirmation, updates
 the budget without deleting existing undo/redo, and trims at the next normal

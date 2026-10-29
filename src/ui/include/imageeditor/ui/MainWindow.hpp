@@ -608,6 +608,13 @@ private:
     QTimer* shapePreviewTimer_ {nullptr};
     QTimer* shapeDensityTimer_ {nullptr};
     double shapeViewScale_ {0};
+    struct ShapeCacheWarning {
+        core::Revision revision;
+        core::AffineTransform transform;
+        QString message;
+    };
+    std::map<core::LayerId, ShapeCacheWarning> shapeCacheWarnings_;
+    DocumentInstanceId shapeCacheWarningDocument_ {0};
     struct ShapeHitRecord {
         core::Revision revision {0};
         std::shared_ptr<const core::ShapeHitGeometry> geometry;

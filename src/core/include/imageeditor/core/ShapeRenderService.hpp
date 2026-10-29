@@ -13,6 +13,9 @@ struct ShapeRenderRequest {
     // Destructive output must fail before allocation rather than silently
     // lowering resolution to a viewport-cache limit.
     std::optional<std::size_t> exactPixelBudget {};
+    // Disposable previews may reduce density to fit this allocation. Exact
+    // output requests never downsample and must not also set a preview budget.
+    std::optional<std::size_t> previewPixelBudget {};
 };
 
 // Prepared logical hit geometry can be retained by stable layer ID and shape

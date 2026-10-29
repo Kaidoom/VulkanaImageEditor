@@ -414,84 +414,149 @@ void MainWindow::prepareShapeCaches()
     if (!doc)
         return;
     std::erase_if(shapeHitCache_, [doc](const auto& pair) { return !doc->containsLayer(pair.first); });
-    const auto shapeCount = std::count_if(doc->layers().begin(), doc->layers().end(), [](const auto& layer) {
-        return std::holds_alternative<core::ShapeLayer>(layer.payload);
+    if (shapeCacheWarningDocument_ != activeDocumentId()) {
+        shapeCacheWarnings_.clear(); shapeCacheWarningDocument_ = activeDocumentId();
+    }
+    std::erase_if(shapeCacheWarnings_, [doc](const auto& pair) {
+        const auto* layer = doc->layer(pair.first);
+        return !layer || !std::holds_alternative<core::ShapeLayer>(layer->payload);
     });
-    // A hostile or simply large multilayer file must not allocate 16M pixels
-    // per layer without limit. Small shapes still get their normal density;
-    // large ones share at most 64M resident cache pixels in total. The service
-    // enforces its own 16M/8192 limits as well. Old published snapshots may
-    // retain the previous bounded cache generation until the next frame.
-    const double pixelBudget = std::min(16.0 * 1024 * 1024, 64.0 * 1024 * 1024 / static_cast<double>(std::max(std::ptrdiff_t { 1 }, shapeCount)));
+    const auto warn = [&](const core::Layer& layer, const char* key, const QString& reason = {}) {
+        auto message = i18n::text(key).arg(i18n::ltrToken(QString::fromStdString(layer.name)))
+            .arg(i18n::ltrToken(QString::number(layer.id)));
+        if (!reason.isEmpty()) message = message.arg(reason);
+        const auto previous = shapeCacheWarnings_.find(layer.id);
+        if (previous != shapeCacheWarnings_.end() && previous->second.revision == layer.shapeRevision
+            && previous->second.transform == layer.localToDocument && previous->second.message == message) return;
+        shapeCacheWarnings_.insert_or_assign(layer.id, ShapeCacheWarning{layer.shapeRevision, layer.localToDocument, message});
+        statusBar()->showMessage(message, 5000);
+    };
+    constexpr std::size_t perCacheLimit = 16ULL * 1024 * 1024;
+    // Budget the exact rounded bitmap sizes, rather than dividing a pool by
+    // layer count. Effect/filter inputs reserve their native-resolution source
+    // first. Only ordinary viewport previews may share a reduced allocation.
+    // The resident generation stays within 64M RGBA pixels and the configured
+    // document cache budget. Published old snapshots and rasterization scratch
+    // may temporarily retain additional storage, as with other derived caches.
+    const auto totalBudget = std::min<std::uint64_t>(64ULL * 1024 * 1024, performance_.documentCacheBytes() / 4);
+    const auto pixels = [](core::Extent2u size) { return std::uint64_t(size.width) * size.height; };
+    const auto cost = [&](const std::shared_ptr<const core::LayerRenderCache>& cache) {
+        return cache && cache->surface ? pixels(cache->surface->extent()) : 0;
+    };
+    struct Plan {
+        core::Layer* layer;
+        bool filtered {}, documentGrid {}, reduced {};
+        double requested {1};
+        ShapeRasterSize size {{1, 1}, 1};
+        std::size_t allocation {};
+    };
+    std::vector<Plan> plans;
+    QtShapeRenderService service;
+    const auto failure = [&](Plan& plan, const char* key, const QString& reason = {}) {
+        auto& layer = *plan.layer;
+        // Retain a usable previous cache only when it still fits its allocation.
+        // Effects must never consume a document-grid or downsampled source.
+        if (cost(layer.renderCache) > plan.allocation || (plan.filtered && layer.renderCache
+            && (layer.renderCache->rasterizedDocumentTransform || layer.renderCache->density != 1)))
+            layer.renderCache.reset();
+        warn(layer, key, reason);
+    };
     for (const auto& item : doc->layers()) {
         const auto* shape = std::get_if<core::ShapeLayer>(&item.payload);
         if (!shape)
             continue;
-        auto* layer = doc->layer(item.id);
+        Plan plan {doc->layer(item.id)};
+        auto* layer = plan.layer;
         const auto& t = layer->localToDocument;
         const double scale = t.maximumScaleOver({0,0,std::max(1.0,shape->size.width),std::max(1.0,shape->size.height)});
-        const bool filtered = core::hasActiveSpatialFilters(layer->filters)||core::hasActiveLayerEffects(layer->effects);
+        plan.filtered = core::hasActiveSpatialFilters(layer->filters)||core::hasActiveLayerEffects(layer->effects);
         const auto viewScale = canvasWindow_->zoom() * canvasWindow_->devicePixelRatio();
-        const auto requested = filtered ? 1.0 : QtShapeRenderService::densityForScale(scale * viewScale);
-        const double stroke = shape->strokeEnabled ? shape->strokeWidth : 0;
-        const double w = shape->size.width + stroke, h = shape->size.height + stroke;
-        // Conservative box plus 8 physical pixels covers AA fringe and ceil.
+        plan.requested = plan.filtered ? 1.0 : QtShapeRenderService::densityForScale(scale * viewScale);
         const bool liveEdit = (shapeEdit_ && shapeEdit_->id == layer->id) || (shapeResize_ && shapeResize_->id == layer->id);
-        const double liveBudget = liveEdit ? std::min(pixelBudget, 1'000'000.0) : pixelBudget;
-        const double area = w * h, perimeter = 8 * (w + h), available = std::max(1.0, liveBudget - 64);
-        const double denominator = perimeter + std::sqrt(perimeter * perimeter + 4 * area * available);
-        const double budgetDensity = denominator > 0 ? 2 * available / denominator : requested;
-        // Spatial filters run in layer-local units, on a stable source grid.
-        // Changing their input resolution with zoom changes the filtered image.
-        const auto density = filtered ? 1.0 : std::min(requested, budgetDensity);
-        bool documentGrid = !filtered && !liveEdit && viewScale <= 1;
-        bool reducedPreview = false;
-        if (documentGrid) {
-            const bool current = layer->renderCache && layer->renderCache->contentRevision == layer->shapeRevision
-                && layer->renderCache->rasterizedDocumentTransform == t;
-            core::RectD bounds;
-            try {
-                if(!current) bounds=QtShapeRenderService{}.documentBounds(*shape,t);
-            } catch(const std::exception& error) {
-                statusBar()->showMessage(QString::fromUtf8(error.what()),5000);
-                continue;
+        plan.allocation = liveEdit && !plan.filtered ? std::min(perCacheLimit, std::size_t(1'000'000)) : perCacheLimit;
+        plan.documentGrid = !plan.filtered && !liveEdit && viewScale <= 1;
+        try {
+            if (plan.documentGrid) {
+                const bool current = layer->renderCache && layer->renderCache->contentRevision == layer->shapeRevision
+                    && layer->renderCache->rasterizedDocumentTransform == t;
+                const auto bounds = current ? core::RectD{} : service.documentBounds(*shape, t);
+                const auto width = current ? double(layer->renderCache->surface->extent().width)
+                    : std::max(1.0, std::ceil(bounds.right()) - std::floor(bounds.x));
+                const auto height = current ? double(layer->renderCache->surface->extent().height)
+                    : std::max(1.0, std::ceil(bounds.bottom()) - std::floor(bounds.y));
+                plan.reduced = !std::isfinite(width) || !std::isfinite(height)
+                    || width > 8192 || height > 8192 || width * height > double(plan.allocation);
+                plan.documentGrid = !plan.reduced;
+                if (plan.documentGrid) plan.size = {{std::uint32_t(width), std::uint32_t(height)}, 1};
             }
-            const auto width = current ? layer->renderCache->surface->extent().width
-                : std::ceil(bounds.right()) - std::floor(bounds.x);
-            const auto height = current ? layer->renderCache->surface->extent().height
-                : std::ceil(bounds.bottom()) - std::floor(bounds.y);
-            // Presentation keeps its existing independent memory/dimension
-            // limits; output admission never inherits this preview fallback.
-            reducedPreview = width > 8192 || height > 8192 || width * height > liveBudget;
-            documentGrid = !reducedPreview;
+            if (!plan.documentGrid) {
+                const auto& cache = layer->renderCache;
+                if (cache && cache->contentRevision == layer->shapeRevision && !cache->rasterizedDocumentTransform
+                    && cache->requestedDensity == plan.requested && cache->density == plan.requested
+                    && cost(cache) <= plan.allocation)
+                    plan.size = {cache->surface->extent(), cache->density};
+                else plan.size = service.rasterSize({*shape, plan.requested,
+                    plan.filtered ? std::optional(plan.allocation) : std::nullopt,
+                    plan.filtered ? std::nullopt : std::optional(plan.allocation)});
+                if (plan.size.extent.width > 8192 || plan.size.extent.height > 8192)
+                    throw ShapeRasterLimitError("Shape source exceeds the preview dimension limit");
+            }
+            plans.push_back(plan);
+        } catch (const ShapeRasterLimitError&) {
+            plan.allocation = 0; failure(plan, "main.window.shape.preview.limit.named");
+        } catch (const std::bad_alloc&) {
+            plan.allocation = 0; failure(plan, "main.window.shape.preview.memory.named");
+        } catch (const std::exception& error) {
+            plan.allocation = 0; failure(plan, "main.window.shape.preview.failed.named", QString::fromUtf8(error.what()));
         }
-        const bool contentChanged = !layer->renderCache || layer->renderCache->contentRevision != layer->shapeRevision;
-        const bool modeChanged = layer->renderCache
-            && layer->renderCache->rasterizedDocumentTransform.has_value() != documentGrid;
-        if (documentGrid && !contentChanged && !canvasWindow_->transformDragging())
-            if (auto moved = core::translatedDocumentRenderCache(layer->renderCache, t))
-                layer->renderCache = std::move(moved);
-        const bool transformChanged = documentGrid && !canvasWindow_->transformDragging() && layer->renderCache
-            && layer->renderCache->rasterizedDocumentTransform != t;
-        if (contentChanged || modeChanged || transformChanged
-            || (layer->renderCache->requestedDensity != (documentGrid ? 1.0 : density) && !canvasWindow_->transformDragging())) {
-            try {
-                const auto source = documentGrid
-                    ? QtShapeRenderService {}.renderDocument(*shape, t, std::size_t(liveBudget))
-                    : QtShapeRenderService {}.render({ *shape, density,
-                        filtered ? std::optional<std::size_t>(std::size_t(pixelBudget)) : std::nullopt });
-                if (filtered && (source->surface->extent().width > 8192 || source->surface->extent().height > 8192))
-                    throw std::runtime_error("Filtered shape source exceeds the display dimension limit");
+    }
+    std::uint64_t remaining = totalBudget, previewDemand = 0;
+    for (auto& plan : plans) {
+        const auto needed = pixels(plan.size.extent);
+        if (!plan.filtered) { previewDemand += needed; continue; }
+        plan.allocation = needed <= remaining ? std::size_t(needed) : 0;
+        remaining -= plan.allocation;
+    }
+    for (auto& plan : plans) {
+        auto* layer = plan.layer;
+        const auto* shape = std::get_if<core::ShapeLayer>(&layer->payload);
+        const auto& t = layer->localToDocument;
+        if (!plan.filtered) {
+            const auto desired = pixels(plan.size.extent);
+            plan.allocation = std::size_t(previewDemand <= remaining ? desired : desired * remaining / previewDemand);
+            if (plan.allocation < desired && plan.documentGrid) { plan.documentGrid = false; plan.reduced = true; }
+        }
+        if (!plan.allocation) { failure(plan, "main.window.shape.preview.limit.named"); continue; }
+        try {
+            if (!plan.filtered && !plan.documentGrid)
+                plan.size = service.rasterSize({*shape, plan.requested, {}, plan.allocation});
+            const bool contentChanged = !layer->renderCache || layer->renderCache->contentRevision != layer->shapeRevision;
+            const bool modeChanged = layer->renderCache
+                && layer->renderCache->rasterizedDocumentTransform.has_value() != plan.documentGrid;
+            if (plan.documentGrid && !contentChanged && !canvasWindow_->transformDragging())
+                if (auto moved = core::translatedDocumentRenderCache(layer->renderCache, t))
+                    layer->renderCache = std::move(moved);
+            const bool transformChanged = plan.documentGrid && !canvasWindow_->transformDragging() && layer->renderCache
+                && layer->renderCache->rasterizedDocumentTransform != t;
+            if (contentChanged || modeChanged || transformChanged
+                || (layer->renderCache && cost(layer->renderCache) > plan.allocation)
+                || (layer->renderCache && (layer->renderCache->requestedDensity != (plan.documentGrid ? 1.0 : plan.requested)
+                    || (!plan.documentGrid && layer->renderCache->density != plan.size.density)) && !canvasWindow_->transformDragging())) {
+                const auto source = plan.documentGrid ? service.renderDocument(*shape, t, plan.allocation)
+                    : service.render({*shape, plan.requested, plan.filtered ? std::optional(plan.allocation) : std::nullopt,
+                        plan.filtered ? std::nullopt : std::optional(plan.allocation)});
                 auto cache = std::make_shared<core::LayerRenderCache>(*source);
                 cache->contentRevision = layer->shapeRevision;
                 layer->renderCache = std::move(cache);
-                if (reducedPreview)
-                    statusBar()->showMessage(i18n::text("main.window.shape.this.shape.exceeds.the.full.resolution.preview.budget.its"), 5000);
-            } catch (const std::exception&) {
-                if (filtered && layer->renderCache && layer->renderCache->rasterizedDocumentTransform)
-                    layer->renderCache.reset();
-                statusBar()->showMessage(i18n::text("main.window.shape.not.enough.memory.to.render.this.shape.its.editable"), 5000);
             }
+            if (plan.reduced) warn(*layer, "main.window.shape.preview.reduced.named");
+            else shapeCacheWarnings_.erase(layer->id);
+        } catch (const ShapeRasterLimitError&) {
+            failure(plan, "main.window.shape.preview.limit.named");
+        } catch (const std::bad_alloc&) {
+            failure(plan, "main.window.shape.preview.memory.named");
+        } catch (const std::exception& error) {
+            failure(plan, "main.window.shape.preview.failed.named", QString::fromUtf8(error.what()));
         }
     }
 }

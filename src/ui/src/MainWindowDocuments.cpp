@@ -360,6 +360,7 @@ bool MainWindow::activateDocument(DocumentInstanceId id)
     cloneAnchor_ = activeDocument_->cloneAnchor;
     measureBoundsRevision_ = 0; measureBounds_.reset();
     shapeHitCache_.clear(); shapeHitDocument_ = nullptr; shapeViewScale_ = 0;
+    shapeCacheWarnings_.clear(); shapeCacheWarningDocument_ = 0;
     textController_->setSession(session());
     {
         const QSignalBlocker guard(layerList_->selectionModel());

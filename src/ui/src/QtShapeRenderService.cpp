@@ -296,39 +296,55 @@ double QtShapeRenderService::densityForScale(double scale) noexcept
     return std::clamp(std::exp2(std::ceil(std::log2(scale) - 1e-9)), .125, 8.0);
 }
 
-std::shared_ptr<const core::LayerRenderCache> QtShapeRenderService::render(
-    const core::ShapeRenderRequest& request)
+namespace {
+struct RasterPreparation {
+    QPainterPath path, stroke;
+    QRectF rect;
+    bool drawFill {};
+    int width {1}, height {1};
+    double requested {1}, density {1};
+};
+RasterPreparation prepareRaster(const core::ShapeRenderRequest& request)
 {
+    if (request.exactPixelBudget && request.previewPixelBudget)
+        throw std::invalid_argument("Shape raster requests cannot combine exact and preview budgets");
+    RasterPreparation result;
     const auto& shape = request.shape;
     if (!core::validShape(shape))
         throw std::invalid_argument("Shape geometry contains invalid coordinates or style");
-    const double requested = std::isfinite(request.rasterDensity) && request.rasterDensity > 0
+    const double requested = result.requested = std::isfinite(request.rasterDensity) && request.rasterDensity > 0
         ? request.rasterDensity : 1;
     const auto path = geometryPath(shape);
     const bool drawFill = shape.kind != core::ShapeKind::Line && shape.fillEnabled && shape.fillColor.alpha;
     const bool drawStroke = shape.strokeEnabled && shape.strokeWidth > 0 && shape.strokeColor.alpha;
     const auto stroke = drawStroke ? strokePath(path, shape.strokeWidth,shape.strokeJoin,shape.strokeCap,shape.strokeMiterLimit) : QPainterPath {};
     if (path.isEmpty() || (!drawFill && stroke.isEmpty()))
-        return emptyCache(shape, requested);
+        return result;
 
     auto rect = drawFill ? path.boundingRect() : stroke.boundingRect();
     if (drawFill && !stroke.isEmpty())
         rect = rect.united(stroke.boundingRect());
     if (rect.isEmpty())
-        return emptyCache(shape, requested);
+        return result;
 
     // Bound both dimensions and exact rounded pixel area, reserving a two-
     // physical-pixel AA fringe on every side even for downscaled giant shapes.
+    const auto pixelLimit = request.previewPixelBudget
+        ? std::min(double(*request.previewPixelBudget), maxPixels) : maxPixels;
+    // Four AA pixels plus nonempty geometry require at least 5x5 pixels.
+    // Reject before the density loop when even this minimum cannot fit.
+    if (!request.exactPixelBudget && pixelLimit < 25)
+        throw ShapeRasterLimitError("Shape preview budget cannot fit its antialiasing fringe");
     double density = request.exactPixelBudget ? requested : std::min({ std::clamp(requested, 1e-6, 8.0),
         (maxEdge - 2 * paddingPixels) / rect.width(),
         (maxEdge - 2 * paddingPixels) / rect.height(),
-        std::sqrt(maxPixels / (rect.width() * rect.height())) });
+        std::sqrt(pixelLimit / (rect.width() * rect.height())) });
     if(request.exactPixelBudget) {
         const auto w=std::ceil(rect.width()*density+2*paddingPixels);
         const auto h=std::ceil(rect.height()*density+2*paddingPixels);
         const auto budget=std::min<std::size_t>(*request.exactPixelBudget,64ULL*1024*1024);
         if(!std::isfinite(w)||!std::isfinite(h)||w<1||h<1||w>32768||h>32768||w*h>double(budget))
-            throw std::runtime_error("Shape output-resolution cache exceeds the merge/export budget");
+            throw ShapeRasterLimitError("Shape output-resolution cache exceeds the pixel or dimension limit");
     }
     const auto dimensions = [&](double d) {
         return std::pair { std::max(1, static_cast<int>(std::ceil(rect.width() * d + 2 * paddingPixels))),
@@ -336,25 +352,42 @@ std::shared_ptr<const core::LayerRenderCache> QtShapeRenderService::render(
     };
     auto [width, height] = dimensions(density);
     while (!request.exactPixelBudget && static_cast<std::uint64_t>(width) * static_cast<std::uint64_t>(height)
-        > static_cast<std::uint64_t>(maxPixels)) {
-        density *= .999 * std::sqrt(maxPixels / (double(width) * height));
+        > static_cast<std::uint64_t>(pixelLimit)) {
+        density *= .999 * std::sqrt(pixelLimit / (double(width) * height));
         std::tie(width, height) = dimensions(density);
     }
     rect.adjust(-paddingPixels / density, -paddingPixels / density,
         paddingPixels / density, paddingPixels / density);
+    result.path = path; result.stroke = stroke; result.rect = rect; result.drawFill = drawFill;
+    result.width = width; result.height = height; result.density = density;
+    return result;
+}
+} // namespace
+
+ShapeRasterSize QtShapeRenderService::rasterSize(const core::ShapeRenderRequest& request) const
+{
+    const auto raster = prepareRaster(request);
+    return {{std::uint32_t(raster.width), std::uint32_t(raster.height)}, raster.density};
+}
+
+std::shared_ptr<const core::LayerRenderCache> QtShapeRenderService::render(
+    const core::ShapeRenderRequest& request)
+{
+    const auto raster = prepareRaster(request);
+    if (raster.rect.isEmpty()) return emptyCache(request.shape, raster.requested);
 
     QTransform transform;
-    transform.scale(density, density);
-    transform.translate(-rect.x(), -rect.y());
-    auto bytes = rasterizeShape(shape, path, stroke, drawFill, width, height, transform);
+    transform.scale(raster.density, raster.density);
+    transform.translate(-raster.rect.x(), -raster.rect.y());
+    auto bytes = rasterizeShape(request.shape, raster.path, raster.stroke, raster.drawFill, raster.width, raster.height, transform);
 
     auto cache = std::make_shared<core::LayerRenderCache>();
     cache->surface = std::make_shared<core::ContiguousRasterSurface>(core::Extent2u {
-        static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height) }, std::move(bytes));
-    cache->pixelsToLocal = { 1 / density, 0, rect.x(), 0, 1 / density, rect.y() };
-    cache->logicalExtent = logicalExtent(shape);
-    cache->density = density;
-    cache->requestedDensity = requested;
+        static_cast<std::uint32_t>(raster.width), static_cast<std::uint32_t>(raster.height) }, std::move(bytes));
+    cache->pixelsToLocal = { 1 / raster.density, 0, raster.rect.x(), 0, 1 / raster.density, raster.rect.y() };
+    cache->logicalExtent = logicalExtent(request.shape);
+    cache->density = raster.density;
+    cache->requestedDensity = raster.requested;
     return cache;
 }
 
@@ -405,7 +438,7 @@ std::shared_ptr<const core::LayerRenderCache> QtShapeRenderService::renderDocume
     const auto budget = std::min<std::size_t>(exactPixelBudget, 64ULL * 1024 * 1024);
     if (!std::isfinite(left) || !std::isfinite(top) || !std::isfinite(width) || !std::isfinite(height)
         || width < 1 || height < 1 || width > 32768 || height > 32768 || width * height > double(budget))
-        throw std::runtime_error("Shape document raster cache exceeds the merge/export budget");
+        throw ShapeRasterLimitError("Shape document raster cache exceeds the pixel or dimension limit");
 
     auto pixelsToLocal = core::composeTransform(*inverse,{1,0,left,0,1,top});
     auto localToPixels = core::composeTransform({1,0,-left,0,1,-top},localToDocument);

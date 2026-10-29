@@ -716,6 +716,34 @@ void documentGridRasterization()
 }
 } // namespace
 
+void previewBudgetSizing()
+{
+    u::QtShapeRenderService service;
+    auto shape = rectangle();
+    shape.size = {928, 928}; shape.kind = c::ShapeKind::RoundedRectangle;
+    shape.cornerRadius = 28; shape.strokeEnabled = true; shape.strokeWidth = 1.5;
+    for (const auto budget : {std::size_t(25), std::size_t(4096), std::size_t(559240), std::size_t(872356)}) {
+        const c::ShapeRenderRequest request {shape, 1, {}, budget};
+        const auto expected = service.rasterSize(request);
+        const auto actual = service.render(request);
+        check(actual->surface->extent() == expected.extent && actual->density == expected.density,
+            "preview preflight matches rendered extent and density exactly");
+        check(std::uint64_t(expected.extent.width) * expected.extent.height <= budget,
+            "rounded source with AA fits its assigned pixel budget");
+    }
+    const auto exact = service.render({shape, 1, 872356});
+    check(exact->surface->extent() == c::Extent2u{934, 934} && exact->density == 1,
+        "effect source keeps full native resolution");
+    bool limit = false;
+    try { (void)service.rasterSize({shape, 1, 559240}); }
+    catch (const u::ShapeRasterLimitError&) { limit = true; }
+    check(limit, "insufficient exact allocation is a limit error, not out of memory");
+    limit = false;
+    try { (void)service.rasterSize({shape, 1, {}, 24}); }
+    catch (const u::ShapeRasterLimitError&) { limit = true; }
+    check(limit, "insufficient AA fringe budget rejects without an endless density loop");
+}
+
 int main(int argc, char** argv)
 {
     QGuiApplication app(argc, argv);
@@ -728,6 +756,7 @@ int main(int argc, char** argv)
         transformedSampling();
         geometryResizeStrokeContract();
         documentGridRasterization();
+        previewBudgetSizing();
         renderTimings();
     } catch (const std::exception& exception) {
         ++failures;
