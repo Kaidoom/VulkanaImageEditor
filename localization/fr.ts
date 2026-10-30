@@ -11343,4 +11343,23 @@ Préparation %3 · Finition %4 · Total %5</translation>
       <translation>Étendue de l’arc en degrés. Positive : sens horaire. Négative : sens inverse. 360 forme une ellipse complète.</translation>
     </message>
   </context>
+  <context>
+    <name>McpHistory</name>
+    <message id="history.add.layers">
+      <source>Add layers</source>
+      <translation>Ajouter des calques</translation>
+    </message>
+    <message id="history.paint.strokes">
+      <source>Paint strokes</source>
+      <translation>Peindre des traits</translation>
+    </message>
+    <message id="history.repeat.layers">
+      <source>Repeat layers</source>
+      <translation>Répéter les calques</translation>
+    </message>
+    <message id="history.style.layers">
+      <source>Style layers</source>
+      <translation>Modifier le style des calques</translation>
+    </message>
+  </context>
 </TS>

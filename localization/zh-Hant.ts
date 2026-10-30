@@ -11231,4 +11231,23 @@ Prepare %3 · Finish %4 · Total %5</source>
       <translation>圓弧跨度，單位為度。正值為順時針，負值為逆時針。360 表示完整橢圓。</translation>
     </message>
   </context>
+  <context>
+    <name>McpHistory</name>
+    <message id="history.add.layers">
+      <source>Add layers</source>
+      <translation>新增圖層</translation>
+    </message>
+    <message id="history.paint.strokes">
+      <source>Paint strokes</source>
+      <translation>繪製筆畫</translation>
+    </message>
+    <message id="history.repeat.layers">
+      <source>Repeat layers</source>
+      <translation>重複圖層</translation>
+    </message>
+    <message id="history.style.layers">
+      <source>Style layers</source>
+      <translation>修改圖層樣式</translation>
+    </message>
+  </context>
 </TS>

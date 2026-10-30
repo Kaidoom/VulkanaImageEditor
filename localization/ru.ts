@@ -11241,4 +11241,23 @@ Prepare %3 · Finish %4 · Total %5</source>
       <translation>Размах дуги в градусах. Положительный: по часовой стрелке. Отрицательный: против. 360 образует полный эллипс.</translation>
     </message>
   </context>
+  <context>
+    <name>McpHistory</name>
+    <message id="history.add.layers">
+      <source>Add layers</source>
+      <translation>Добавить слои</translation>
+    </message>
+    <message id="history.paint.strokes">
+      <source>Paint strokes</source>
+      <translation>Нарисовать мазки</translation>
+    </message>
+    <message id="history.repeat.layers">
+      <source>Repeat layers</source>
+      <translation>Повторить слои</translation>
+    </message>
+    <message id="history.style.layers">
+      <source>Style layers</source>
+      <translation>Изменить стиль слоёв</translation>
+    </message>
+  </context>
 </TS>

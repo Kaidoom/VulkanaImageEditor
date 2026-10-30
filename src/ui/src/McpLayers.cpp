@@ -16,9 +16,12 @@
 #include "LayerEffectCodec.hpp"
 #include "SpatialFilterCodec.hpp"
 #include "McpToolHelpers.hpp"
+#include "McpLayerGeometry.hpp"
 #include <QFontDatabase>
 #include <algorithm>
 #include <cmath>
+#include <map>
+#include <type_traits>
 
 namespace imageeditor::ui {
 namespace {
@@ -155,9 +158,13 @@ QJsonObject shapeProperties()
 }
 c::ShapeLayer editShape(c::ShapeLayer value, const QJsonObject& patch)
 {
+    const bool wasArc = value.kind == c::ShapeKind::Arc;
     if (patch.contains("kind")) value.kind = c::ShapeKind(shapeKinds.indexOf(patch["kind"].toString()));
     require(value.kind == c::ShapeKind::Arc || (!patch.contains("startAngle") && !patch.contains("sweepAngle")), "startAngle and sweepAngle require shape kind=arc");
-    if (value.kind == c::ShapeKind::Arc && patch.contains("kind") && !patch.contains("strokeEnabled")) value.strokeEnabled = true;
+    if (value.kind == c::ShapeKind::Arc && !wasArc) {
+        value.fillEnabled = false;
+        if (!patch.contains("strokeEnabled")) value.strokeEnabled = true;
+    }
     if (patch.contains("startAngle")) value.startAngle = patch["startAngle"].toDouble();
     if (patch.contains("sweepAngle")) value.sweepAngle = patch["sweepAngle"].toDouble();
     if (patch.contains("width")) value.size.width = patch["width"].toDouble();
@@ -325,9 +332,12 @@ QJsonObject filterProperties(c::SpatialFilterType type)
     }
     throw std::invalid_argument("Unknown filter type");
 }
-void validatePatch(const QJsonObject& properties, const QJsonObject& patch)
+void validatePatch(const QJsonObject& properties, const QJsonObject& patch, bool nestedEffect = false)
 {
-    const auto error = mcp::validateArguments(object({{"parameters", object(properties)}}), {{"parameters", patch}});
+    const auto schema = object({{"parameters", object(properties)}});
+    const QJsonObject values{{"parameters", patch}};
+    const auto error = nestedEffect ? mcp::validateArguments(object({{"effect", schema}}), {{"effect", values}})
+        : mcp::validateArguments(schema, values);
     require(error.isEmpty(), error);
 }
 QJsonObject parameterUnion(const std::vector<QJsonObject>& variants)
@@ -336,6 +346,167 @@ QJsonObject parameterUnion(const std::vector<QJsonObject>& variants)
     for (const auto& properties : variants) choices.append(object(properties));
     return {{"anyOf", choices}};
 }
+
+QJsonObject layerNameSchema()
+{
+    auto schema = string("Non-whitespace layer/container name, at most 4096 UTF-8 bytes.");
+    schema["minLength"] = 1; schema["maxLength"] = 4096;
+    return schema;
+}
+QString validatedLayerName(QString name)
+{
+    name = name.trimmed();
+    require(!name.isEmpty(), "arguments.name must contain a non-whitespace layer name");
+    require(name.toUtf8().size() <= 4096, "arguments.name exceeds the native project limit of 4096 UTF-8 bytes");
+    return name;
+}
+QJsonObject layerCreationProperties()
+{
+    return {{"kind", choice({"raster", "text", "shape", "adjustment"})}, {"name", layerNameSchema()},
+        {"width", integer(1, 32768)}, {"height", integer(1, 32768)},
+        {"x", number(-1000000, 1000000)}, {"y", number(-1000000, 1000000)}, {"color", colorSchema()},
+        {"text", object(textProperties())}, {"shape", object(shapeProperties())},
+        {"scope", choice({"all_below", "this_group"})}, {"parentId", identifier()}, {"index", integer(0, 4096)}};
+}
+struct NewRaster { c::Extent2u size; c::Rgba8 fill; };
+struct LayerCreationPlan {
+    std::string name;
+    std::variant<NewRaster, c::TextLayer, c::ShapeLayer, c::AdjustmentLayer> payload;
+    c::Vec2d origin;
+    c::LayerId parent {};
+    std::size_t index {};
+};
+struct PreparedLayerCreation {
+    c::LayerTree tree;
+    std::vector<c::Layer> layers;
+    std::vector<c::LayerId> ids;
+    QJsonArray results;
+};
+PreparedLayerCreation prepareLayerCreation(const c::Document& document, const QJsonArray& entries, bool batch)
+{
+    // Match native project saving and flattened output admission.
+    require(document.layers().size() + std::size_t(entries.size()) <= 1024,
+        "Layer creation would exceed the native project limit of 1024 layers");
+    require(document.layers().size() + document.tree().containers.size() + std::size_t(entries.size()) <= c::LayerTree::maxItems,
+        "Layer creation would exceed the document's 4096 layer/container limit");
+    std::vector<LayerCreationPlan> plans;
+    plans.reserve(std::size_t(entries.size()));
+    std::map<c::LayerId, std::size_t> siblingCounts;
+    std::uint64_t rasterPixels = 0;
+    for (qsizetype ordinal = 0; ordinal < entries.size(); ++ordinal) {
+        try {
+            const auto args = entries[ordinal].toObject();
+            const auto kind = args["kind"].toString();
+            require(kind == "text" || !args.contains("text"), "text parameters require kind=text");
+            require(kind == "shape" || !args.contains("shape"), "shape parameters require kind=shape");
+            require(kind == "adjustment" || !args.contains("scope"), "scope requires kind=adjustment");
+            require(kind == "raster" || (!args.contains("width") && !args.contains("height") && !args.contains("color")),
+                "width/height/color are raster parameters; use nested text or shape properties for other layer types");
+            LayerCreationPlan plan;
+            const auto name = validatedLayerName(args["name"].toString(kind == "raster" ? "Layer" : kind == "text" ? "Text" : kind == "shape" ? "Shape" : "Adjustment"));
+            plan.name = name.toStdString();
+            plan.parent = args.contains("parentId") ? id(args, "parentId") : 0;
+            const auto* children = document.tree().children(plan.parent);
+            require(children != nullptr, "Unknown parent container; parentId must identify an existing container");
+            auto [count, inserted] = siblingCounts.try_emplace(plan.parent, children->size());
+            (void)inserted;
+            plan.index = args.contains("index") ? std::size_t(args["index"].toInt()) : count->second;
+            require(plan.index <= count->second, "Insertion index exceeds sibling count (bottom first, after earlier batch entries)");
+            ++count->second;
+            plan.origin = {args["x"].toDouble(), args["y"].toDouble()};
+            if (kind == "raster") {
+                const auto canvas = document.canvas().extent;
+                const c::Extent2u size{std::uint32_t(args["width"].toInt(int(canvas.width))), std::uint32_t(args["height"].toInt(int(canvas.height)))};
+                rasterPixels += std::uint64_t(size.width) * size.height;
+                require(rasterPixels <= 64ULL * 1024 * 1024, "Raster layer creation exceeds the total 64-megapixel budget for this call");
+                plan.payload = NewRaster{size, args.contains("color") ? color(args["color"].toString()) : c::Rgba8{}};
+            } else if (kind == "text") plan.payload = editText({}, args["text"].toObject());
+            else if (kind == "shape") plan.payload = editShape({}, args["shape"].toObject());
+            else plan.payload = c::AdjustmentLayer{args["scope"] == "this_group" ? c::AdjustmentScope::ThisGroup : c::AdjustmentScope::AllBelow};
+            plans.push_back(std::move(plan));
+        } catch (const std::invalid_argument& error) {
+            if (!batch) throw;
+            throw std::invalid_argument(QStringLiteral("arguments.layers[%1]: %2").arg(ordinal).arg(QString::fromUtf8(error.what())).toStdString());
+        }
+    }
+    // Validate every entry and the aggregate allocation before allocating any
+    // raster. All generated layers, response geometry and tree edits remain
+    // private until one native structural command publishes them together.
+    PreparedLayerCreation prepared{document.tree(), {}, {}, {}};
+    prepared.layers.reserve(plans.size()); prepared.ids.reserve(plans.size());
+    for (auto& plan : plans) {
+        auto layer = std::visit([&](auto& payload) -> c::Layer {
+            using T = std::decay_t<decltype(payload)>;
+            if constexpr (std::is_same_v<T, NewRaster>)
+                return c::Layer::raster(plan.name, std::make_shared<c::ContiguousRasterSurface>(payload.size, payload.fill));
+            else if constexpr (std::is_same_v<T, c::TextLayer>) return c::Layer::text(plan.name, std::move(payload));
+            else if constexpr (std::is_same_v<T, c::ShapeLayer>) return c::Layer::shape(plan.name, std::move(payload));
+            else return c::Layer::adjustment(plan.name, payload.scope);
+        }, plan.payload);
+        layer.localToDocument.m02 = plan.origin.x; layer.localToDocument.m12 = plan.origin.y;
+        auto* siblings = prepared.tree.children(plan.parent);
+        siblings->insert(siblings->begin() + std::ptrdiff_t(plan.index), layer.id);
+        prepared.results.append(QJsonObject{{"layerId", id(layer.id)}, {"geometry", layerGeometryData(layer)}});
+        prepared.ids.push_back(layer.id); prepared.layers.push_back(std::move(layer));
+    }
+    return prepared;
+}
+
+struct LayerStyleState {
+    bool visible;
+    float opacity, fillOpacity;
+    c::BlendMode blendMode;
+    c::LayerEffectState effects;
+    static LayerStyleState read(const c::Layer& layer)
+    { return {layer.visible, layer.opacity, layer.fillOpacity, layer.blendMode, layer.effects}; }
+    bool valid() const noexcept {
+        return std::isfinite(opacity) && opacity >= 0 && opacity <= 1
+            && std::isfinite(fillOpacity) && fillOpacity >= 0 && fillOpacity <= 1
+            && c::isValidBlendMode(blendMode) && (!effects || c::validLayerEffects(*effects));
+    }
+    friend bool operator==(const LayerStyleState& a, const LayerStyleState& b) noexcept {
+        return a.visible == b.visible && a.opacity == b.opacity && a.fillOpacity == b.fillOpacity
+            && a.blendMode == b.blendMode && c::equivalentLayerEffects(a.effects,b.effects);
+    }
+};
+struct LayerStyleChange { c::LayerId id; LayerStyleState before, after; };
+class SetLayerStylesCommand final : public c::Command {
+public:
+    explicit SetLayerStylesCommand(std::vector<LayerStyleChange> changes) : changes_(std::move(changes)) {}
+    bool apply(c::Document& document) override { return publish(document,false); }
+    bool undo(c::Document& document) override { return publish(document,true); }
+    std::string_view label() const noexcept override { return "Style layers"; }
+    std::size_t memoryCost() const noexcept override {
+        auto bytes = sizeof(*this) + changes_.capacity() * sizeof(LayerStyleChange);
+        for (const auto& change : changes_) bytes += c::layerEffectMemoryCost(change.before.effects) + c::layerEffectMemoryCost(change.after.effects);
+        return bytes;
+    }
+private:
+    bool publish(c::Document& document, bool reverse) {
+        if (changes_.empty()) return false;
+        // Complete admission before the first mutation. These setters and
+        // immutable effect-state comparisons allocate nothing and service no
+        // events, so no caller can observe or interrupt a partially styled set.
+        for (const auto& change : changes_) {
+            const auto* layer = document.layer(change.id);
+            const auto& expected = reverse ? change.after : change.before;
+            const auto& next = reverse ? change.before : change.after;
+            if (!layer || !expected.valid() || !next.valid() || LayerStyleState::read(*layer) != expected
+                || (std::holds_alternative<c::AdjustmentLayer>(layer->payload) && next.effects)) return false;
+        }
+        for (const auto& change : changes_) {
+            const auto& before = reverse ? change.after : change.before;
+            const auto& after = reverse ? change.before : change.after;
+            if (before.visible != after.visible) (void)document.setLayerVisibility(change.id,after.visible);
+            if (before.opacity != after.opacity) (void)document.setLayerOpacity(change.id,after.opacity);
+            if (before.fillOpacity != after.fillOpacity) (void)document.setLayerFillOpacity(change.id,after.fillOpacity);
+            if (before.blendMode != after.blendMode) (void)document.setLayerBlendMode(change.id,after.blendMode);
+            if (!c::equivalentLayerEffects(before.effects,after.effects)) (void)document.setLayerEffects(change.id,after.effects);
+        }
+        return true;
+    }
+    std::vector<LayerStyleChange> changes_;
+};
 } // namespace
 
 void McpController::registerLayerTools()
@@ -349,8 +520,8 @@ void McpController::registerLayerTools()
                 fonts.append(QJsonObject{{"family", family}, {"styles", QJsonArray::fromStringList(QFontDatabase::styles(family))}});
             return QJsonObject{{"fonts", fonts}};
         });
-    add("vulkana_layer_get", "Read one layer or container including editable text/shape properties, transform, masks and full effect/adjustment/filter settings. IDs are decimal strings.",
-        {{"layerId", identifier()}}, {"layerId"}, Access::DocumentQuery, [this](const QJsonObject& args) {
+    add("vulkana_layer_get", "Read one layer or container including editable text/shape properties, logical geometry, transform, masks and effect/adjustment/filter settings. activeOnly=true omits disabled entries from those three arrays; default false returns full settings. IDs are decimal strings.",
+        {{"layerId", identifier()}, {"activeOnly", boolean("Omit disabled effects, filters and adjustments; default false.")}}, {"layerId"}, Access::DocumentQuery, [this](const QJsonObject& args) {
             const auto target = id(args, "layerId");
             if (const auto* container = document().tree().container(target)) {
                 auto data = result(false);
@@ -360,6 +531,7 @@ void McpController::registerLayerTools()
                 return data;
             }
             const auto& item = layer(args);
+            const bool activeOnly = args["activeOnly"].toBool();
             const auto& t = item.localToDocument;
             auto data = result(false);
             data["layerId"] = id(item.id); data["name"] = text(item.name); data["visible"] = item.visible;
@@ -369,6 +541,7 @@ void McpController::registerLayerTools()
             data["width"] = double(extent.width); data["height"] = double(extent.height);
             const auto bounds = c::layerInteractionBounds(item);
             data["localBounds"] = QJsonObject{{"x", bounds.x}, {"y", bounds.y}, {"width", bounds.width}, {"height", bounds.height}};
+            data["geometry"] = layerGeometryData(item);
             data["rasterOrigin"] = QJsonObject{{"x", item.rasterOrigin.x}, {"y", item.rasterOrigin.y}};
             const auto frame = c::composeAffine(t, {1, 0, bounds.x, 0, 1, bounds.y});
             if (const auto values = c::geometryValuesFromTransform(frame, {bounds.width, bounds.height})) data["transformValues"] = QJsonObject{{"centerX", values->center.x}, {"centerY", values->center.y}, {"scaleX", values->scaleX}, {"scaleY", values->scaleY}, {"rotation", values->rotationDegrees}};
@@ -380,53 +553,46 @@ void McpController::registerLayerTools()
             const c::LayerEffectStack defaults;
             const auto& effects = item.effects ? *item.effects : defaults;
             QJsonArray effectItems;
-            for (std::size_t i = 0; i < c::layerEffectCount; ++i) effectItems.append(QJsonObject{{"type", text(c::layerEffectIdentifier(c::LayerEffectType(i)))}, {"parameters", effectData(c::LayerEffectType(i), effects.items[i])}});
+            for (std::size_t i = 0; i < c::layerEffectCount; ++i)
+                if (!activeOnly || effects.items[i].enabled)
+                    effectItems.append(QJsonObject{{"type", text(c::layerEffectIdentifier(c::LayerEffectType(i)))}, {"parameters", effectData(c::LayerEffectType(i), effects.items[i])}});
             data["effects"] = effectItems;
             data["pixelAlphaShapesEffects"] = effects.pixelAlphaShapesEffects;
             data["maskEffectsAfterRendering"] = effects.maskEffectsAfterRendering;
             auto adjustments = detail::encodeAdjustments(item.adjustments ? *item.adjustments : c::AdjustmentStack{}, item.id)["items"].toArray();
             auto filters = detail::encodeSpatialFilters(item.filters ? *item.filters : c::SpatialFilterStack{}, item.id)["items"].toArray();
             // Internal project ZIP paths are not useful as MCP file references.
-            for (auto* entries : {&adjustments, &filters}) for (qsizetype i = 0; i < entries->size(); ++i) {
-                auto entry = entries->at(i).toObject(); entry["hasCapturedSelection"] = entry.contains("mask"); entry.remove("mask"); (*entries)[i] = entry;
+            for (auto* entries : {&adjustments, &filters}) {
+                QJsonArray retained;
+                for (const auto value : *entries) {
+                    auto entry = value.toObject();
+                    if (activeOnly && !entry["enabled"].toBool()) continue;
+                    entry["hasCapturedSelection"] = entry.contains("mask"); entry.remove("mask"); retained.append(entry);
+                }
+                *entries = retained;
             }
             data["adjustments"] = adjustments; data["filters"] = filters;
             return data;
         });
     add("vulkana_layer_create", "Create an independent raster, text, shape, or adjustment layer and select it. Raster color defaults to transparent; x/y locate the layer-local origin in document pixels. Text styles affect the whole text. New layers go at the top level by default, or into an explicit parent. One undoable action.",
-        {{"kind", choice({"raster", "text", "shape", "adjustment"})}, {"name", string()}, {"width", integer(1, 32768)}, {"height", integer(1, 32768)},
-            {"x", number(-1000000, 1000000)}, {"y", number(-1000000, 1000000)}, {"color", colorSchema()}, {"text", object(textProperties())},
-            {"shape", object(shapeProperties())}, {"scope", choice({"all_below", "this_group"})},
-            {"parentId", identifier()}, {"index", integer(0, 4096)}}, {"kind"}, Access::Document,
+        layerCreationProperties(), {"kind"}, Access::Document,
         [this](const QJsonObject& args) {
-            const auto kind = args["kind"].toString();
-            require(kind == "text" || !args.contains("text"), "text parameters require kind=text");
-            require(kind == "shape" || !args.contains("shape"), "shape parameters require kind=shape");
-            require(kind == "adjustment" || !args.contains("scope"), "scope requires kind=adjustment");
-            require(kind == "raster" || (!args.contains("width") && !args.contains("height") && !args.contains("color")), "width/height/color are raster parameters; use nested text or shape properties for other layer types");
-            const auto name = args["name"].toString(kind == "raster" ? "Layer" : kind == "text" ? "Text" : kind == "shape" ? "Shape" : "Adjustment").trimmed();
-            require(!name.isEmpty(), "Layer name must not be empty");
-            const auto parent = args.contains("parentId") ? id(args, "parentId") : 0;
-            const auto* children = document().tree().children(parent);
-            require(children != nullptr, "Unknown parent container");
-            const auto index = args.contains("index") ? std::size_t(args["index"].toInt()) : children->size();
-            require(index <= children->size(), "Insertion index exceeds sibling count (bottom first)");
-            c::Layer value;
-            if (kind == "raster") {
-                const auto canvas = document().canvas().extent;
-                const c::Extent2u size{std::uint32_t(args["width"].toInt(int(canvas.width))), std::uint32_t(args["height"].toInt(int(canvas.height)))};
-                require(std::uint64_t(size.width) * size.height <= 64ULL * 1024 * 1024, "Raster layer creation exceeds 64 megapixels");
-                value = c::Layer::raster(name.toStdString(), std::make_shared<c::ContiguousRasterSurface>(size, args.contains("color") ? color(args["color"].toString()) : c::Rgba8{}));
-            } else if (kind == "text") value = c::Layer::text(name.toStdString(), editText({}, args["text"].toObject()));
-            else if (kind == "shape") value = c::Layer::shape(name.toStdString(), editShape({}, args["shape"].toObject()));
-            else value = c::Layer::adjustment(name.toStdString(), args["scope"] == "this_group" ? c::AdjustmentScope::ThisGroup : c::AdjustmentScope::AllBelow);
-            value.localToDocument.m02 = args["x"].toDouble(); value.localToDocument.m12 = args["y"].toDouble();
-            const auto target = value.id;
-            auto tree = document().tree();
-            auto* siblings = tree.children(parent); siblings->insert(siblings->begin() + std::ptrdiff_t(index), target);
-            const bool applied = execute(std::make_unique<c::LayerStructureCommand>("Add layer", document(), std::move(tree), std::vector<c::LayerId>{}, std::vector<c::Layer>{std::move(value)}, session().layerSelectionState(), selection({target})));
+            auto prepared = prepareLayerCreation(document(), QJsonArray{args}, false);
+            const auto created = prepared.results[0].toObject();
+            const bool applied = execute(std::make_unique<c::LayerStructureCommand>("Add layer", document(), std::move(prepared.tree), std::vector<c::LayerId>{}, std::move(prepared.layers), session().layerSelectionState(), selection(prepared.ids)));
             require(applied, "Layer creation was rejected; no layer was added");
-            auto data = result(applied); data["layerId"] = id(target); return data;
+            auto data = result(applied); data["layerId"] = created["layerId"];
+            data["geometry"] = created["geometry"]; return data;
+        });
+    add("vulkana_layers_create", "Create 1–256 raster/text/shape/adjustment layers atomically, with one undo step and one refresh. Each entry uses layer_create fields. Entries are inserted in input order; index is bottom-first after earlier entries. parentId must identify an existing container. The total new raster area is limited to 64 megapixels. Returns layers with IDs and geometry in input order, selects all created layers, and makes the last primary. Invalid batches add nothing.",
+        {{"layers", array(object(layerCreationProperties(), {"kind"}), 1, 256)}}, {"layers"}, Access::Document,
+        [this](const QJsonObject& args) {
+            auto prepared = prepareLayerCreation(document(), args["layers"].toArray(), true);
+            const auto created = prepared.results;
+            const auto targets = prepared.ids;
+            const bool applied = execute(std::make_unique<c::LayerStructureCommand>("Add layers", document(), std::move(prepared.tree), std::vector<c::LayerId>{}, std::move(prepared.layers), session().layerSelectionState(), selection(targets)));
+            require(applied, "Layer batch was rejected; no layers were added");
+            auto data = result(applied); data["layers"] = created; data["layerIds"] = ids(targets); return data;
         });
     add("vulkana_layer_select", "Select explicit layers or containers; the last ID is primary. target=mask requires exactly one existing layer mask. Returns the selectedLayers, activeLayer and editingMask. changed reports a selection/target change; selection is session state, not an undo entry or document revision change.",
         {{"layerIds", array(identifier(), 1)}, {"target", choice({"content", "mask"})}}, {"layerIds"}, Access::Document,
@@ -445,10 +611,9 @@ void McpController::registerLayerTools()
             return data;
         });
     add("vulkana_layer_rename", "Rename one layer or container without changing its color label.",
-        {{"layerId", identifier()}, {"name", string()}}, {"layerId", "name"}, Access::Document, [this](const QJsonObject& args) {
-            const auto target = id(args, "layerId"); const auto name = args["name"].toString().trimmed();
+        {{"layerId", identifier()}, {"name", layerNameSchema()}}, {"layerId", "name"}, Access::Document, [this](const QJsonObject& args) {
+            const auto target = id(args, "layerId"); const auto name = validatedLayerName(args["name"].toString());
             require(document().containsItem(target), "Unknown layer/container ID; query vulkana_get_state for current IDs");
-            require(!name.isEmpty(), "arguments.name must contain a non-whitespace layer name");
             const auto* item = document().layer(target); const auto* container = document().tree().container(target);
             return result(execute(std::make_unique<c::SetItemMetadataCommand>(target, name.toStdString(), item ? c::ColorLabel(item->colorLabel) : container->colorLabel)));
         });
@@ -471,11 +636,11 @@ void McpController::registerLayerTools()
             const bool moved = tree.reparent(targets, {parent, std::size_t(args["index"].toInt())});
             return result(moved && execute(std::make_unique<c::LayerStructureCommand>("Reorder layers", document(), std::move(tree), std::vector<c::LayerId>{}, std::vector<c::Layer>{}, session().layerSelectionState(), selection(targets)))); });
     add("vulkana_layer_group", "Wrap consecutive sibling items in a folder, ordinary group, or clipping group. Clipping uses the bottommost child as its base. Layers keep their document-space positions.",
-        {{"layerIds", array(identifier(), 1)}, {"kind", choice({"folder", "group", "clipping_group"})}, {"name", string()}}, {"layerIds", "kind"}, Access::Document,
+        {{"layerIds", array(identifier(), 1)}, {"kind", choice({"folder", "group", "clipping_group"})}, {"name", layerNameSchema()}}, {"layerIds", "kind"}, Access::Document,
         [this](const QJsonObject& args) { const auto targets = selectedIds(document(), args); auto tree = document().tree(); require(tree.consecutiveSiblings(targets), "Grouping requires consecutive siblings");
             const auto position = tree.placement(targets.front()); require(position.has_value(), "Missing layer placement");
             const auto target = c::makeLayerId(); const auto kind = args["kind"].toString();
-            const auto name = args["name"].toString(kind == "folder" ? "Folder" : "Group").trimmed(); require(!name.isEmpty(), "Group name cannot be empty");
+            const auto name = validatedLayerName(args["name"].toString(kind == "folder" ? "Folder" : "Group"));
             auto* siblings = tree.children(position->parent);
             for (const auto child : targets) std::erase(*siblings, child);
             siblings->insert(siblings->begin() + std::ptrdiff_t(position->index), target);
@@ -509,16 +674,26 @@ void McpController::registerLayerTools()
         {{"layerId", identifier()}, {"properties", object(textProperties())}}, {"layerId", "properties"}, Access::Document,
         [this](const QJsonObject& args) { const auto& item = layer(args); const auto* value = std::get_if<c::TextLayer>(&item.payload); require(value, "Layer is not editable text");
             const auto next = editText(*value, args["properties"].toObject());
-            if (next == *value) return result(false);
-            const bool applied = execute(std::make_unique<c::TextEditCommand>(item.id, *value, next, c::TextEditHint{}, c::TextEditHint{}));
-            require(applied, "Text changes are not valid for this layer geometry"); return result(applied); });
+            const auto target = item.id;
+            auto candidate = item; candidate.payload = next;
+            const auto geometry = layerGeometryData(candidate);
+            const bool edit = next != *value;
+            const bool applied = edit && execute(std::make_unique<c::TextEditCommand>(target, *value, next, c::TextEditHint{}, c::TextEditHint{}));
+            require(!edit || applied, "Text changes are not valid for this layer geometry");
+            auto data = result(applied); data["layerId"] = id(target);
+            data["geometry"] = geometry; return data; });
     add("vulkana_shape_set", "Edit existing shape geometry/paint in layer-local pixels without rasterizing it. For lines/polygons supply points within the size frame; resizing does not silently rescale those points.",
         {{"layerId", identifier()}, {"properties", object(shapeProperties())}}, {"layerId", "properties"}, Access::Document,
         [this](const QJsonObject& args) { const auto& item = layer(args); const auto* value = std::get_if<c::ShapeLayer>(&item.payload); require(value, "Layer is not an editable shape");
             const auto next = editShape(*value, args["properties"].toObject());
-            if (next == *value) return result(false);
-            const bool applied = execute(std::make_unique<c::SetShapeCommand>(item.id, *value, next));
-            require(applied, "Shape changes are not valid for this layer geometry"); return result(applied); });
+            const auto target = item.id;
+            auto candidate = item; candidate.payload = next;
+            const auto geometry = layerGeometryData(candidate);
+            const bool edit = next != *value;
+            const bool applied = edit && execute(std::make_unique<c::SetShapeCommand>(target, *value, next));
+            require(!edit || applied, "Shape changes are not valid for this layer geometry");
+            auto data = result(applied); data["layerId"] = id(target);
+            data["geometry"] = geometry; return data; });
     add("vulkana_layer_mask", "Add a reveal-all/hide-all mask, capture the current selection, remove/invert an existing mask, or set enabled state. Existing masks are never replaced implicitly. from_selection preserves active selection and document coordinates. One undoable action.",
         {{"layerId", identifier()}, {"operation", choice({"reveal_all", "hide_all", "from_selection", "remove", "invert", "enable", "disable"})}}, {"layerId", "operation"}, Access::Document,
         [this](const QJsonObject& args) {
@@ -558,6 +733,57 @@ void McpController::registerLayerTools()
     for (std::size_t i = 0; i < c::layerEffectCount; ++i) { effectVariants.push_back(effectProperties(c::LayerEffectType(i))); effectTypes.append(text(c::layerEffectIdentifier(c::LayerEffectType(i)))); }
     for (const auto type : c::allAdjustmentTypes) { adjustmentVariants.push_back(adjustmentProperties(type)); adjustmentTypes.append(text(c::adjustmentIdentifier(type))); }
     for (const auto type : c::allSpatialFilterTypes) { filterVariants.push_back(filterProperties(type)); filterTypes.append(text(c::spatialFilterIdentifier(type))); }
+    add("vulkana_layers_style", "Apply shared visibility, opacity, fillOpacity, blendMode and/or one effect patch to 1–256 explicit leaf layers in one atomic undo step. Containers are rejected; use layer_set_visibility for containers. Omitted fields and each layer's other effect settings are preserved. Effect patches use effect_catalog parameters; enabled defaults true. Selection is preserved. No-op batches retain redo and create no history entry.",
+        {{"layerIds", array(identifier(),1,256)}, {"visible",boolean()}, {"opacity",number(0,1)},
+            {"fillOpacity",number(0,1)}, {"blendMode",choice(blendIds())},
+            {"effect",object({{"type",choice(effectTypes)}, {"parameters",parameterUnion(effectVariants)}, {"enabled",boolean()}}, {"type","parameters"})}},
+        {"layerIds"}, Access::Document, [this](const QJsonObject& args) {
+            require(args.contains("visible") || args.contains("opacity") || args.contains("fillOpacity") || args.contains("blendMode") || args.contains("effect"),
+                "Specify at least one of visible, opacity, fillOpacity, blendMode or effect");
+            const auto targets = selectedIds(document(),args,false);
+            const bool withEffect = args.contains("effect");
+            const auto effectArgs = args["effect"].toObject();
+            auto patch = effectArgs["parameters"].toObject();
+            std::optional<c::LayerEffectType> type;
+            if (withEffect) {
+                type = c::layerEffectFromIdentifier(effectArgs["type"].toString().toStdString());
+                require(type.has_value(), "Unknown effect type; query vulkana_effect_catalog");
+                validatePatch(effectProperties(*type),patch,true);
+                require(!effectArgs.contains("enabled") || !patch.contains("enabled") || effectArgs["enabled"] == patch["enabled"],
+                    "effect.enabled and effect.parameters.enabled must agree when both are supplied");
+                if (effectArgs.contains("enabled")) patch["enabled"] = effectArgs["enabled"];
+            }
+            // Confirm every target before copying any style vectors or editing.
+            for (const auto target : targets) {
+                const auto* item = document().layer(target);
+                require(item, "Style batching requires leaf layer IDs; use vulkana_layer_set_visibility for containers");
+                require(!withEffect || !std::holds_alternative<c::AdjustmentLayer>(item->payload),
+                    "Adjustment layers cannot have effects; no target was changed");
+            }
+            std::vector<LayerStyleChange> changes; changes.reserve(targets.size());
+            QJsonArray changedIds;
+            for (const auto target : targets) {
+                const auto before = LayerStyleState::read(*document().layer(target)); auto after = before;
+                if (args.contains("visible")) after.visible = args["visible"].toBool();
+                if (args.contains("opacity")) after.opacity = float(args["opacity"].toDouble());
+                if (args.contains("fillOpacity")) after.fillOpacity = float(args["fillOpacity"].toDouble());
+                if (args.contains("blendMode")) after.blendMode = *c::blendModeFromId(args["blendMode"].toString().toStdString());
+                if (withEffect) {
+                    auto effects = before.effects ? std::make_shared<c::LayerEffectStack>(*before.effects)
+                        : std::make_shared<c::LayerEffectStack>();
+                    auto& effect = effects->items[std::size_t(*type)];
+                    if (!patch.contains("enabled")) effect.enabled = true;
+                    patchEffect(effect,patch);
+                    require(c::validLayerEffects(*effects), "Invalid effect parameters or unsorted gradient stops; no target was changed");
+                    after.effects = std::move(effects);
+                }
+                require(before.valid() && after.valid(), "Layer style contains unsupported values; no target was changed");
+                if (before != after) { changes.push_back({target,before,std::move(after)}); changedIds.append(id(target)); }
+            }
+            const bool applied = !changes.empty() && execute(std::make_unique<SetLayerStylesCommand>(std::move(changes)));
+            require(changedIds.isEmpty() || applied, "Layer styles changed before publication; query state before retrying");
+            auto data = result(applied); data["layerIds"] = ids(targets); data["changedLayerIds"] = changedIds; return data;
+        });
     add("vulkana_effect_catalog", "Discover every layer effect with exact parameter schema and defaults. Sizes are layer-local pixels; opacity/spread use 0..1; gradient stop positions must be sorted. Effects are not available on adjustment layers.", {}, {}, Access::Query,
         [](const QJsonObject&) { QJsonArray values; for (std::size_t i = 0; i < c::layerEffectCount; ++i) { const auto type = c::LayerEffectType(i); values.append(QJsonObject{{"type", text(c::layerEffectIdentifier(type))}, {"name", text(c::layerEffectName(type))}, {"schema", object(effectProperties(type))}, {"defaults", effectData(type, c::defaultLayerEffect(type))}}); } return QJsonObject{{"effects", values}}; });
     add("vulkana_effect_set", "Enable or patch one layer effect while preserving every other effect and all unspecified settings. Enabled defaults to true unless supplied explicitly. Query vulkana_effect_catalog for type-specific properties.",

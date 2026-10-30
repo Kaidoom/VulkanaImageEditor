@@ -11229,4 +11229,23 @@ Preparazione %3 · Completamento %4 · Totale %5</translation>
       <translation>Ampiezza dell’arco in gradi. Positiva: senso orario. Negativa: senso antiorario. 360 crea un’ellisse completa.</translation>
     </message>
   </context>
+  <context>
+    <name>McpHistory</name>
+    <message id="history.add.layers">
+      <source>Add layers</source>
+      <translation>Aggiungi livelli</translation>
+    </message>
+    <message id="history.paint.strokes">
+      <source>Paint strokes</source>
+      <translation>Dipingi tratti</translation>
+    </message>
+    <message id="history.repeat.layers">
+      <source>Repeat layers</source>
+      <translation>Ripeti livelli</translation>
+    </message>
+    <message id="history.style.layers">
+      <source>Style layers</source>
+      <translation>Modifica stile dei livelli</translation>
+    </message>
+  </context>
 </TS>

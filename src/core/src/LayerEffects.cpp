@@ -12,6 +12,10 @@ constexpr std::array<std::string_view, layerEffectCount> names{
 constexpr std::array<std::string_view, layerEffectCount> ids{
     "stroke",     "drop-shadow",   "inner-shadow",    "outer-glow",
     "inner-glow", "color-overlay", "gradient-overlay", "bevel-emboss"};
+// Construct the null-state equivalent before command execution begins.
+// Comparing effect states is noexcept and must not allocate vector copies or
+// lazily initialize defaults while an atomic multi-layer edit is publishing.
+const LayerEffectStack defaultEffects;
 bool bevelActive(const LayerEffect& e) {
   return e.enabled && e.size>0 && e.bevel.depth>0 &&
     (e.opacity*e.color.alpha>0 || e.bevel.shadowOpacity*e.secondColor.alpha>0);
@@ -321,8 +325,10 @@ bool validLayerEffects(const LayerEffectStack &s) noexcept {
 }
 bool equivalentLayerEffects(const LayerEffectState &a,
                             const LayerEffectState &b) noexcept {
-  return a == b ||
-         (a ? *a : LayerEffectStack{}) == (b ? *b : LayerEffectStack{});
+  if (a == b) return true;
+  const auto& first = a ? *a : defaultEffects;
+  const auto& second = b ? *b : defaultEffects;
+  return first == second;
 }
 bool hasDissolveLayerEffects(const LayerEffectState &s) noexcept {
   if(!s)return false;

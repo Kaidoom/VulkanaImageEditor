@@ -55,6 +55,7 @@ McpController::McpController(MainWindow& window)
     registerDocumentTools();
     registerLayerTools();
     registerPaintingTools();
+    registerLayoutTools();
     server_.onStateChanged = [this] { refreshStatus(); };
 }
 McpController::~McpController()

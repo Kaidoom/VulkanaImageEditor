@@ -95,6 +95,13 @@ struct LayerTransformTarget {
     AffineTransform original, current;
 };
 
+// Construct the same guarded multi-layer history command used by transforms,
+// without a live gesture. Callers preflight content/effect support; this checks
+// IDs, exact baselines, invertibility and duplicates before returning ownership.
+// A null result is an exact no-op and does not disturb history/redo.
+[[nodiscard]] std::unique_ptr<Command> makeLayerTransformCommand(
+    const Document&, std::vector<LayerTransformUpdate>);
+
 class LayerTransformSession final {
 public:
     LayerTransformSession(Document& document, LayerId layer);

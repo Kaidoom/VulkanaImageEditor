@@ -195,8 +195,9 @@ File destinations must be absolute and their parent directory must already exist
 
 | Tool | Purpose and main arguments |
 | --- | --- |
-| `vulkana_layer_get` | Full editable data for `layerId`: text/shape properties, matrix/transform values, mask metadata and effect/adjustment/filter settings. |
+| `vulkana_layer_get` | Editable data for `layerId`: text/shape properties, logical geometry, matrix/transform values, mask metadata and effect/adjustment/filter settings. Optional `activeOnly:true` omits disabled entries from those three arrays; the default returns complete settings. |
 | `vulkana_layer_create` | `kind`: `raster`, `text`, `shape`, `adjustment`; optional `name`, `x`, `y`, `parentId`, `index`. Raster uses `width`, `height`, `color`; text/shape use nested `text`/`shape` properties. Adjustment supports `scope`. |
+| `vulkana_layers_create` | Atomic creation of `layers`: 1–256 entries using the same fields as `vulkana_layer_create`. Returns IDs and geometry in input order; selects all created layers. |
 | `vulkana_layer_select` | `layerIds`, optional `target`: `content` or `mask`. Mask target requires one layer with a mask. |
 | `vulkana_layer_rename` | `layerId`, `name`. |
 | `vulkana_layer_delete` | Delete `layerIds`, including container descendants; undoable. Cannot delete the last content layer. |
@@ -208,11 +209,101 @@ File destinations must be absolute and their parent directory must already exist
 | `vulkana_layer_set_opacity` | `layerId`, `opacity`; affects pixels and effects. |
 | `vulkana_layer_set_fill_opacity` | `layerId`, `opacity`; Pixel Opacity/Photoshop Fill. |
 | `vulkana_layer_set_blend_mode` | `layerId`, `mode`; supported stable IDs are in the input schema. |
+| `vulkana_layers_style` | Style 1–256 explicit leaf `layerIds` with shared `visible`, `opacity`, `fillOpacity`, `blendMode` and/or `effect:{type,parameters,enabled?}`. One atomic undo step; omitted fields stay unchanged. |
 | `vulkana_layer_transform` | `layerIds`, optional `centerX`, `centerY`, absolute `scaleX`, `scaleY`, clockwise `rotation`. Omitted values remain unchanged. |
 | `vulkana_font_list` | Installed font families/styles, optional filtering as described by its schema. Does not install fonts. |
 | `vulkana_text_set` | `layerId`, `properties`: text, font family/style/size, weight, italic, color, alignment. Missing fonts/styles are rejected. |
 | `vulkana_shape_set` | `layerId`, `properties`: kind, width/height, points, corner radius, fill/stroke styling. Geometry is layer-local. |
 | `vulkana_layer_mask` | `layerId`, `operation`: `reveal_all`, `hide_all`, `from_selection`, `remove`, `invert`, `enable`, `disable`. Existing masks are not silently replaced. |
+
+Layer creation, `vulkana_text_set`, `vulkana_shape_set` and leaf-layer inspection
+return `geometry` alongside the layer ID. It contains `localBounds`, the transformed
+axis-aligned `documentBounds`, and `documentQuad` corners in top-left, top-right,
+bottom-right, bottom-left order. These are logical layout bounds: text uses its
+actual font layout, shapes use their size frame, and rasters use their full source
+rectangle and storage origin. Stroke, effects, masks, crop and transparent-pixel
+trimming are excluded (`includesEffects:false`). Adjustment layers return `null`
+because they have no independent layout box. These bounds are measured without
+rasterizing an image and are also returned for unchanged text/shape updates.
+The existing top-level `localBounds` in layer inspection remains the editor's
+interaction frame, which can differ for cropped or partially transparent layers.
+
+`vulkana_layers_create` validates every entry, its parent/index and the total new
+raster area before allocating pixel surfaces. The combined raster limit is
+64 megapixels per call. The editor then publishes all new layers in one undoable
+operation and refreshes once; rejected batches leave document content, selection
+and undo/redo history unchanged. Existing raster pixels are shared rather than copied.
+Entries are inserted in array order. Each `index` refers to bottom-to-top siblings
+after earlier entries have been inserted; omission appends to that parent's list.
+`parentId` must name an existing container, and entries cannot refer to IDs being
+created in the same call. Results contain `layerIds` and a matching `layers` array
+of `{layerId, geometry}` objects. The last created layer becomes primary.
+
+Creation also respects the native project limit of 1024 leaf layers and 4096
+total layers/containers. Layer/container names must fit within 4096 UTF-8 bytes;
+creation, renaming and grouping reject longer names before changing the document.
+
+`vulkana_layers_style` keeps each target's unspecified settings, including other
+effects and per-layer values such as stroke size. Its optional shared effect patch
+uses the matching `vulkana_effect_catalog` schema. Effects default to enabled;
+`effect.enabled:false` disables the chosen effect while retaining its settings.
+If enabled is supplied both outside and inside `parameters`, the values must agree.
+Containers are rejected by this tool; use `vulkana_layer_set_visibility` for a
+container. Adjustment layers accept scalar style fields but cannot receive effects.
+Every target and resulting style is checked before any target changes. The result
+contains requested `layerIds` and actual `changedLayerIds`. Unchanged batches return
+`changed:false` without adding history, clearing redo or changing selection.
+
+For editable arcs, create a shape with `kind:"arc"`, `width`, `height`,
+`startAngle` and `sweepAngle`. Zero degrees points right; positive angles run
+clockwise and negative sweeps run counterclockwise. Angles range from -360 to
+360; a full turn makes a seamless ellipse. Arcs use the normal stroke color,
+width and cap settings, with stroke enabled by default on creation. Fill does
+not paint an arc interior. The shape tool exposes the same Start/Sweep controls.
+
+### Layout and repetition
+
+| Tool | Purpose and main arguments |
+| --- | --- |
+| `vulkana_layers_align` | Align `layerIds` with optional `horizontal`: `left`, `center`, `right`, and/or `vertical`: `top`, `center`, `bottom`. `reference`: `selection` (default) or `canvas`. |
+| `vulkana_layers_distribute` | Space `layerIds` along `axis`: `horizontal` or `vertical`. `spacing`: `gaps` (default) or `centers`; `reference`: `selection` (default) or `canvas`. At least two independent items are required. |
+| `vulkana_layers_repeat` | Duplicate `layerIds` with `copies` additional repetitions and `mode`: `linear` or `radial`. Linear requires `stepX`, `stepY`. Radial requires `centerX`, `centerY`, `angleStep`; optional `rotateCopies` defaults to true. |
+
+Layout measures logical geometry in document pixels, including hidden items and
+excluding stroke, effects, masks, crop and pixel-alpha trimming. Text bounds come
+from font layout. Containers use the union of their content descendants and move
+as a unit; their adjustment layers move with them but do not contribute an
+independent box. Empty or adjustment-only targets have no layout box. Selecting
+both an ancestor and a descendant handles that subtree once.
+
+`reference:selection` means the supplied **layers**, not the active pixel
+selection. Alignment uses their combined bounds. Distribution sorts items by
+position; centers retain the outer centers for selection reference, while gaps
+span the combined bounds. Canvas reference fits the outer items to the canvas
+edges. Negative equal gaps represent overlap. Layout changes one undo step and
+preserves layer selection; an already aligned/distributed request reports
+`changed:false` without changing revision or undo/redo. Results include each
+normalized item's `documentBounds`.
+
+Repetition leaves originals unchanged and treats the selected set as one motif.
+Linear repetition applies the step multiplied by the copy index. Radial angles
+are clockwise; negative values go counterclockwise. With `rotateCopies:false`,
+the motif's center orbits the specified center while its orientation and internal
+spacing stay unchanged. Same-parent targets are repeated as ordered blocks above
+the highest selected sibling, preserving each motif's stacking order. When
+targets have different parents, each copy stays above its own source sibling.
+Every copy retains its parent and complete subtree. Raster pixels are independent;
+editable text/shapes, masks, effects and group kinds are retained. All copies form
+one undo step and become selected; undo restores the previous selection. The
+result includes `sourceLayerIds`, all new root `layerIds`, and `instances` with
+copy indices and root IDs.
+
+These tools accept up to 256 root targets. Repetition allows 1–128 new copies,
+subject to 1024 resulting content layers, 4096 total tree items and 256 MiB of
+copied data. Counts, memory and all transforms are validated before cloning or
+document publication; invalid requests leave the document unchanged. Generated
+root names append ` copy N` and must fit 4096 UTF-8 bytes; shorten an oversized
+source name or reduce the copy count before retrying.
 
 ### Effects, adjustments and filters
 
@@ -236,8 +327,9 @@ Use catalogs instead of assuming that every effect accepts the same fields or un
 
 | Tool | Purpose and main arguments |
 | --- | --- |
-| `vulkana_brush_presets` | Available preset IDs and per-preset defaults. Does not edit the preset library. |
+| `vulkana_brush_presets` | Preset IDs and defaults. `available` means supported assets; `prepared` means runtime masks are loaded. `status` distinguishes `ready`, `load_on_use` and `unavailable`. Does not edit the preset library. |
 | `vulkana_brush_stroke` | `layerId`, `points:[{x,y,pressure?},…]`; optional `presetId`, `target` (`pixels`/`mask`), `mode` (`paint`/`erase`), `color`, `size`, `hardness`, `opacity`, `flow`, `spacing`, pressure flags. |
+| `vulkana_brush_strokes` | One `layerId`, shared `target` (`pixels`/`mask`), and ordered `strokes` array. Each stroke accepts the same points/settings as the single-stroke tool. All strokes commit as one undo step. |
 | `vulkana_fill` | `layerId`; `mode` (`selection`/`contiguous`), optional `target`, `color`, `tolerance`; contiguous requires `seed`. |
 | `vulkana_selection` | `shape`: `rectangle`, `ellipse`, `polygon`, `all`, `none`, `invert`; `from`/`to` or `points` for geometry; optional `operation`: `replace`, `add`, `subtract`, `intersect`. |
 | `vulkana_selection_from_alpha` | Replace the selection from `layerId`'s intrinsic pixel/glyph/shape transparency. An empty source leaves the selection and redo branch unchanged. |
@@ -247,7 +339,25 @@ Use catalogs instead of assuming that every effect accepts the same fields or un
 
 Strokes use Vulkana's real brush engine, including presets, pressure, transforms, crop and pixel selection. Pixel painting requires a raster layer; mask painting requires an existing mask and preserves original pixels. Erasing a mask paints black. Stroke/fill operations preserve the user's layer selection, active tool and brush settings. The default brush is hard round; color defaults to the active foreground slot unless explicitly supplied.
 
+Preset inspection never loads runtime masks. A supported preset with
+`status:load_on_use` can be selected immediately; the stroke prepares it on demand.
+Missing or invalid asset data is reported as `available:false` with a reason.
+Preparation can still fail at execution time, for example under memory pressure;
+the stroke reports that failure before painting.
+
 One stroke is limited to 4,096 supplied points, 65,536 emitted dabs, a total path length of one million document pixels and a five-second cooperative work budget. Exceeding its work budget rolls back journalled changes without adding an undo entry. Fill uses a similar cooperative budget. A single expensive operation may finish its current work unit before the time check. Split large strokes into intentional smaller strokes when necessary.
+
+`vulkana_brush_strokes` accepts up to 128 strokes, with at most 4,096 total input
+points, 65,536 total dabs and five seconds of painting for the entire batch.
+Strokes run in array order against private, copy-on-write pixel storage or private
+mask states; the canvas refreshes after one atomic publication. A failure names
+the stroke index and discards the whole batch, preserving the live pixels,
+selection, tool settings, document revision and redo history. A successful batch
+creates one undo step; unchanged stored RGBA, raster bounds and mask state create
+none. Painting can expand raster storage. Erasing preserves hidden RGB and does
+not shrink that storage, so paint followed by erase is not always a no-op.
+The response includes `strokeCount`, `dabs` and `changedPixels`; the last two sum
+work across strokes and are not counts of unique final pixels.
 
 Alpha selection matches thumbnail Ctrl-click semantics: it respects transform/crop, but excludes layer opacity, fill opacity, masks, effects and clipping-group contributions. Empty alpha never clears an unrelated selection.
 

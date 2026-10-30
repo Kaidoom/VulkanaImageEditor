@@ -11231,4 +11231,23 @@ Prepare %3 · Finish %4 · Total %5</source>
       <translation>円弧の角度範囲（度）。正は時計回り、負は反時計回りです。360で完全な楕円になります。</translation>
     </message>
   </context>
+  <context>
+    <name>McpHistory</name>
+    <message id="history.add.layers">
+      <source>Add layers</source>
+      <translation>レイヤーを追加</translation>
+    </message>
+    <message id="history.paint.strokes">
+      <source>Paint strokes</source>
+      <translation>ストロークを描画</translation>
+    </message>
+    <message id="history.repeat.layers">
+      <source>Repeat layers</source>
+      <translation>レイヤーを繰り返す</translation>
+    </message>
+    <message id="history.style.layers">
+      <source>Style layers</source>
+      <translation>レイヤーのスタイルを変更</translation>
+    </message>
+  </context>
 </TS>

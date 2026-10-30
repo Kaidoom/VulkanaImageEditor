@@ -7518,4 +7518,11 @@ Prepare %3 · Finish %4 · Total %5</source>
     <message id="shape.arc.start.hint"><source>Start angle in degrees. Zero points right; positive angles run clockwise.</source></message>
     <message id="shape.arc.sweep.hint"><source>Arc length in degrees. Positive runs clockwise; negative runs counterclockwise. 360 makes a full ellipse.</source></message>
   </context>
+  <context>
+    <name>McpHistory</name>
+    <message id="history.add.layers"><source>Add layers</source></message>
+    <message id="history.paint.strokes"><source>Paint strokes</source></message>
+    <message id="history.repeat.layers"><source>Repeat layers</source></message>
+    <message id="history.style.layers"><source>Style layers</source></message>
+  </context>
 </TS>

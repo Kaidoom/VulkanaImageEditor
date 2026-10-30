@@ -1,5 +1,6 @@
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/McpController.hpp"
+#include "imageeditor/ui/QtTextLayoutService.hpp"
 #include "imageeditor/core/AdjustmentCommands.hpp"
 #include "imageeditor/core/FilterCommands.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
@@ -76,6 +77,54 @@ void argumentAndSelectionFeedback()
     CHECK(f.request("vulkana_layer_rename", {{"layerId", first}, {"name", "Renamed"}})["changed"].toBool());
     CHECK(f.layer(first).name == "Renamed");
     CHECK(!f.request("vulkana_layer_rename", {{"layerId", first}, {"name", "Renamed"}})["changed"].toBool());
+}
+
+void compactInspectionAndCreationGeometry()
+{
+    Fixture f;
+    const auto raster = f.request("vulkana_layer_create", {{"kind", "raster"}, {"width", 16}, {"height", 8}, {"x", 30}, {"y", 40}});
+    const auto rasterGeometry = raster["geometry"].toObject();
+    CHECK(rasterGeometry["localBounds"].toObject()["width"] == 16);
+    CHECK(rasterGeometry["documentBounds"].toObject()["x"] == 30 && rasterGeometry["documentBounds"].toObject()["y"] == 40);
+    CHECK(rasterGeometry["includesEffects"] == false);
+    const auto created = f.request("vulkana_layer_create", {{"kind", "text"}, {"x", 50}, {"y", 70},
+        {"text", QJsonObject{{"text", "First line\nSecond line"}, {"fontSize", 20}}}});
+    const auto target = created["layerId"].toString();
+    const auto textBounds = u::QtTextLayout(std::get<c::TextLayer>(f.layer(target).payload)).bounds();
+    const auto local = created["geometry"].toObject()["localBounds"].toObject();
+    CHECK(local["width"].toDouble() == textBounds.width() && local["height"].toDouble() == textBounds.height());
+    CHECK(created["geometry"].toObject()["documentQuad"].toArray().size() == 4);
+    CHECK(f.doc().setLayerTransform(target.toULongLong(), {0,-2,100,2,0,60}));
+    f.doc().layer(target.toULongLong())->renderCache.reset();
+    const auto revision = f.doc().revision();
+    const auto depth = f.session().history().undoDepth();
+    const auto info = f.request("vulkana_layer_get", {{"layerId", target}, {"activeOnly", true}});
+    CHECK(info["effects"].toArray().isEmpty() && info["adjustments"].toArray().isEmpty() && info["filters"].toArray().isEmpty());
+    const auto box = info["geometry"].toObject()["documentBounds"].toObject();
+    CHECK(std::abs(box["x"].toDouble() - (100 - 2 * textBounds.height())) < 1e-6);
+    CHECK(std::abs(box["width"].toDouble() - 2 * textBounds.height()) < 1e-6);
+    CHECK(std::abs(box["height"].toDouble() - 2 * textBounds.width()) < 1e-6 && box["y"] == 60);
+    CHECK(!f.layer(target).renderCache && f.doc().revision() == revision && f.session().history().undoDepth() == depth);
+    const auto full = f.request("vulkana_layer_get", {{"layerId", target}});
+    CHECK(full["effects"].toArray().size() == 8 && full["adjustments"].toArray().size() == 10 && full["filters"].toArray().size() == 3);
+    f.request("vulkana_effect_set", {{"layerId", target}, {"type", "stroke"}, {"parameters", QJsonObject{{"size", 7}}}});
+    f.request("vulkana_adjustment_set", {{"layerId", target}, {"type", "exposure"}, {"parameters", QJsonObject{{"stops", .5}}}});
+    f.request("vulkana_filter_set", {{"layerId", target}, {"type", "gaussian-blur"}, {"parameters", QJsonObject{{"radiusX", 2}, {"radiusY", 2}}}});
+    const auto compact = f.request("vulkana_layer_get", {{"layerId", target}, {"activeOnly", true}});
+    for (const auto key : {"effects", "adjustments", "filters"}) CHECK(compact[key].toArray().size() == 1);
+    CHECK(compact["geometry"] == info["geometry"]); // Styles do not enlarge the layout box.
+    f.request("vulkana_effect_remove", {{"layerId", target}, {"type", "stroke"}});
+    CHECK(f.request("vulkana_layer_get", {{"layerId", target}, {"activeOnly", true}})["effects"].toArray().isEmpty());
+    const auto edited = f.request("vulkana_text_set", {{"layerId", target}, {"properties", QJsonObject{{"fontSize", 30}}}});
+    CHECK(edited["changed"].toBool() && edited["layerId"] == target);
+    CHECK(edited["geometry"].toObject()["localBounds"].toObject()["height"].toDouble() > textBounds.height());
+    const auto repeated = f.request("vulkana_text_set", {{"layerId", target}, {"properties", QJsonObject{{"fontSize", 30}}}});
+    CHECK(!repeated["changed"].toBool() && repeated["geometry"] == edited["geometry"]);
+    const auto shape = f.create("shape", {{"shape", QJsonObject{{"kind", "rectangle"}, {"width", 40}, {"height", 20}}}});
+    const auto resized = f.request("vulkana_shape_set", {{"layerId", shape}, {"properties", QJsonObject{{"width", 80}}}});
+    CHECK(resized["geometry"].toObject()["localBounds"].toObject()["width"] == 80);
+    const auto adjustment = f.request("vulkana_layer_create", {{"kind", "adjustment"}});
+    CHECK(adjustment["geometry"].isNull());
 }
 
 void creationAndHistory()
@@ -215,7 +264,7 @@ int main(int argc, char** argv)
     QTemporaryDir settings;
     QSettings::setDefaultFormat(QSettings::IniFormat);
     QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settings.path());
-    argumentAndSelectionFeedback(); creationAndHistory(); shapesTransformsAndGroups(); masksAndStyles();
+    argumentAndSelectionFeedback(); compactInspectionAndCreationGeometry(); creationAndHistory(); shapesTransformsAndGroups(); masksAndStyles();
     std::cout << "MCP layer checks: " << failures << " failures\n";
     return failures ? 1 : 0;
 }

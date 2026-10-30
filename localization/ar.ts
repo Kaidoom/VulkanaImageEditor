@@ -11355,4 +11355,23 @@ Prepare %3 · Finish %4 · Total %5</source>
       <translation>امتداد القوس بالدرجات. الموجب مع عقارب الساعة، والسالب عكسها. القيمة 360 ترسم شكلاً بيضاوياً كاملاً.</translation>
     </message>
   </context>
+  <context>
+    <name>McpHistory</name>
+    <message id="history.add.layers">
+      <source>Add layers</source>
+      <translation>إضافة طبقات</translation>
+    </message>
+    <message id="history.paint.strokes">
+      <source>Paint strokes</source>
+      <translation>رسم ضربات فرشاة</translation>
+    </message>
+    <message id="history.repeat.layers">
+      <source>Repeat layers</source>
+      <translation>تكرار الطبقات</translation>
+    </message>
+    <message id="history.style.layers">
+      <source>Style layers</source>
+      <translation>تعديل نمط الطبقات</translation>
+    </message>
+  </context>
 </TS>

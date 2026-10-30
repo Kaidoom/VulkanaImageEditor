@@ -11232,4 +11232,23 @@ Prepare %3 · Finish %4 · Total %5</source>
       <translation>चाप का विस्तार डिग्री में। धनात्मक: घड़ी की दिशा में। ऋणात्मक: उलटी दिशा में। 360 से पूरा दीर्घवृत्त बनता है।</translation>
     </message>
   </context>
+  <context>
+    <name>McpHistory</name>
+    <message id="history.add.layers">
+      <source>Add layers</source>
+      <translation>परतें जोड़ें</translation>
+    </message>
+    <message id="history.paint.strokes">
+      <source>Paint strokes</source>
+      <translation>ब्रश स्ट्रोक बनाएं</translation>
+    </message>
+    <message id="history.repeat.layers">
+      <source>Repeat layers</source>
+      <translation>परतें दोहराएं</translation>
+    </message>
+    <message id="history.style.layers">
+      <source>Style layers</source>
+      <translation>परतों की शैली बदलें</translation>
+    </message>
+  </context>
 </TS>

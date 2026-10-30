@@ -11231,4 +11231,23 @@ Prepare %3 · Finish %4 · Total %5</source>
       <translation>호의 각도 범위(도). 양수는 시계 방향, 음수는 반시계 방향입니다. 360이면 완전한 타원이 됩니다.</translation>
     </message>
   </context>
+  <context>
+    <name>McpHistory</name>
+    <message id="history.add.layers">
+      <source>Add layers</source>
+      <translation>레이어 추가</translation>
+    </message>
+    <message id="history.paint.strokes">
+      <source>Paint strokes</source>
+      <translation>브러시 획 그리기</translation>
+    </message>
+    <message id="history.repeat.layers">
+      <source>Repeat layers</source>
+      <translation>레이어 반복</translation>
+    </message>
+    <message id="history.style.layers">
+      <source>Style layers</source>
+      <translation>레이어 스타일 변경</translation>
+    </message>
+  </context>
 </TS>

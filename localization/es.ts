@@ -11229,4 +11229,23 @@ Preparación %3 · Finalización %4 · Total %5</translation>
       <translation>Recorrido del arco en grados. Positivo: sentido horario. Negativo: sentido antihorario. 360 forma una elipse completa.</translation>
     </message>
   </context>
+  <context>
+    <name>McpHistory</name>
+    <message id="history.add.layers">
+      <source>Add layers</source>
+      <translation>Añadir capas</translation>
+    </message>
+    <message id="history.paint.strokes">
+      <source>Paint strokes</source>
+      <translation>Pintar trazos</translation>
+    </message>
+    <message id="history.repeat.layers">
+      <source>Repeat layers</source>
+      <translation>Repetir capas</translation>
+    </message>
+    <message id="history.style.layers">
+      <source>Style layers</source>
+      <translation>Aplicar estilo a capas</translation>
+    </message>
+  </context>
 </TS>

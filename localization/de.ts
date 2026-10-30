@@ -11232,4 +11232,23 @@ Vorbereitung %3 · Abschluss %4 · Gesamt %5</translation>
       <translation>Bogenwinkel in Grad. Positiv: im Uhrzeigersinn. Negativ: gegen den Uhrzeigersinn. 360 ergibt eine ganze Ellipse.</translation>
     </message>
   </context>
+  <context>
+    <name>McpHistory</name>
+    <message id="history.add.layers">
+      <source>Add layers</source>
+      <translation>Ebenen hinzufügen</translation>
+    </message>
+    <message id="history.paint.strokes">
+      <source>Paint strokes</source>
+      <translation>Pinselstriche malen</translation>
+    </message>
+    <message id="history.repeat.layers">
+      <source>Repeat layers</source>
+      <translation>Ebenen wiederholen</translation>
+    </message>
+    <message id="history.style.layers">
+      <source>Style layers</source>
+      <translation>Ebenenstil ändern</translation>
+    </message>
+  </context>
 </TS>

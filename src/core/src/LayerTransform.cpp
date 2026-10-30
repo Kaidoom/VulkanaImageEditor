@@ -81,7 +81,8 @@ namespace {
     {
         const auto* layer = doc.layer(id);
         if (surface == 0)
-            return layer && (std::holds_alternative<TextLayer>(layer->payload) || std::holds_alternative<ShapeLayer>(layer->payload));
+            return layer && (std::holds_alternative<TextLayer>(layer->payload) || std::holds_alternative<ShapeLayer>(layer->payload)
+                || std::holds_alternative<AdjustmentLayer>(layer->payload));
         const auto* raster = layer ? std::get_if<RasterLayer>(&layer->payload) : nullptr;
         return raster && raster->surface && raster->surface->id() == surface
                 && raster->surface->extent() == extent
@@ -133,6 +134,26 @@ namespace {
         std::vector<LayerTransformTarget> targets_;
         std::vector<LayerTransformUpdate> updates_;
     };
+}
+
+std::unique_ptr<Command> makeLayerTransformCommand(const Document& document,
+    std::vector<LayerTransformUpdate> updates)
+{
+    std::vector<LayerTransformTarget> targets;
+    targets.reserve(updates.size());
+    bool changed = false;
+    for (const auto& update : updates) {
+        const auto* layer = document.layer(update.id);
+        if (!layer || layer->localToDocument != update.before || !update.after.inverted()
+            || std::ranges::any_of(targets, [&](const auto& previous) { return previous.id == update.id; }))
+            throw std::invalid_argument("Invalid or stale layer transform batch");
+        const auto* raster = std::get_if<RasterLayer>(&layer->payload);
+        if (raster && !raster->surface) throw std::invalid_argument("Layer transform source has no pixels");
+        targets.push_back({update.id, raster ? raster->surface->id() : 0, layerGeometryExtent(*layer),
+            layer->payload.index(), update.before, update.after});
+        changed |= update.before != update.after;
+    }
+    return changed ? std::make_unique<TransformCommand>(targets, std::move(updates)) : nullptr;
 }
 
 AffineTransform transformFromValues(const TransformValues& v, Extent2u extent)

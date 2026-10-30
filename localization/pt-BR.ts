@@ -11229,4 +11229,23 @@ Preparação %3 · Finalização %4 · Total %5</translation>
       <translation>Extensão do arco em graus. Positiva: sentido horário. Negativa: sentido anti-horário. 360 forma uma elipse completa.</translation>
     </message>
   </context>
+  <context>
+    <name>McpHistory</name>
+    <message id="history.add.layers">
+      <source>Add layers</source>
+      <translation>Adicionar camadas</translation>
+    </message>
+    <message id="history.paint.strokes">
+      <source>Paint strokes</source>
+      <translation>Pintar traços</translation>
+    </message>
+    <message id="history.repeat.layers">
+      <source>Repeat layers</source>
+      <translation>Repetir camadas</translation>
+    </message>
+    <message id="history.style.layers">
+      <source>Style layers</source>
+      <translation>Alterar estilo das camadas</translation>
+    </message>
+  </context>
 </TS>

@@ -11239,4 +11239,23 @@ Hazırlık %3 · Tamamlama %4 · Toplam %5</translation>
       <translation>Derece cinsinden yay açısı. Pozitif: saat yönünde. Negatif: saat yönünün tersine. 360 tam bir elips oluşturur.</translation>
     </message>
   </context>
+  <context>
+    <name>McpHistory</name>
+    <message id="history.add.layers">
+      <source>Add layers</source>
+      <translation>Katman ekle</translation>
+    </message>
+    <message id="history.paint.strokes">
+      <source>Paint strokes</source>
+      <translation>Fırça darbeleri çiz</translation>
+    </message>
+    <message id="history.repeat.layers">
+      <source>Repeat layers</source>
+      <translation>Katmanları yinele</translation>
+    </message>
+    <message id="history.style.layers">
+      <source>Style layers</source>
+      <translation>Katman stilini değiştir</translation>
+    </message>
+  </context>
 </TS>

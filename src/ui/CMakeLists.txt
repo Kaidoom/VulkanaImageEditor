@@ -58,6 +58,7 @@ add_library(imageeditor_ui STATIC
     src/McpDocuments.cpp
     src/McpLayers.cpp
     src/McpPainting.cpp
+    src/McpLayout.cpp
     src/MemoryStatusLabel.cpp
     src/MainWindowCrop.cpp
     src/MainWindowCanvasResize.cpp

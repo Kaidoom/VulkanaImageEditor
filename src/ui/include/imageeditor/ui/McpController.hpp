@@ -46,6 +46,7 @@ private:
     void registerDocumentTools();
     void registerLayerTools();
     void registerPaintingTools();
+    void registerLayoutTools();
     void refreshStatus();
     MainWindow& window_;
     mcp::ToolRegistry registry_;

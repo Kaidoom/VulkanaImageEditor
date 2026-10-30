@@ -11241,4 +11241,23 @@ Przygotowanie %3 · Finalizacja %4 · Łącznie %5</translation>
       <translation>Zakres łuku w stopniach. Dodatni: zgodnie z ruchem wskazówek zegara. Ujemny: przeciwnie. 360 tworzy pełną elipsę.</translation>
     </message>
   </context>
+  <context>
+    <name>McpHistory</name>
+    <message id="history.add.layers">
+      <source>Add layers</source>
+      <translation>Dodaj warstwy</translation>
+    </message>
+    <message id="history.paint.strokes">
+      <source>Paint strokes</source>
+      <translation>Maluj pociągnięcia</translation>
+    </message>
+    <message id="history.repeat.layers">
+      <source>Repeat layers</source>
+      <translation>Powtórz warstwy</translation>
+    </message>
+    <message id="history.style.layers">
+      <source>Style layers</source>
+      <translation>Zmień styl warstw</translation>
+    </message>
+  </context>
 </TS>

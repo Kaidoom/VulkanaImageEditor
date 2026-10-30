@@ -11241,4 +11241,23 @@ Prepare %3 · Finish %4 · Total %5</source>
       <translation>Розмах дуги в градусах. Додатний: за годинниковою стрілкою. Від’ємний: проти. 360 утворює повний еліпс.</translation>
     </message>
   </context>
+  <context>
+    <name>McpHistory</name>
+    <message id="history.add.layers">
+      <source>Add layers</source>
+      <translation>Додати шари</translation>
+    </message>
+    <message id="history.paint.strokes">
+      <source>Paint strokes</source>
+      <translation>Намалювати мазки</translation>
+    </message>
+    <message id="history.repeat.layers">
+      <source>Repeat layers</source>
+      <translation>Повторити шари</translation>
+    </message>
+    <message id="history.style.layers">
+      <source>Style layers</source>
+      <translation>Змінити стиль шарів</translation>
+    </message>
+  </context>
 </TS>
