@@ -319,7 +319,7 @@ QJsonObject filterProperties(c::SpatialFilterType type)
 }
 void validatePatch(const QJsonObject& properties, const QJsonObject& patch)
 {
-    const auto error = mcp::validateArguments(object(properties), patch);
+    const auto error = mcp::validateArguments(object({{"parameters", object(properties)}}), {{"parameters", patch}});
     require(error.isEmpty(), error);
 }
 QJsonObject parameterUnion(const std::vector<QJsonObject>& variants)
@@ -420,19 +420,27 @@ void McpController::registerLayerTools()
             require(applied, "Layer creation was rejected; no layer was added");
             auto data = result(applied); data["layerId"] = id(target); return data;
         });
-    add("vulkana_layer_select", "Select explicit layers or containers; the last ID is primary. target=mask requires exactly one existing layer mask. Selection is session state, not an undo entry.",
+    add("vulkana_layer_select", "Select explicit layers or containers; the last ID is primary. target=mask requires exactly one existing layer mask. Returns the selectedLayers, activeLayer and editingMask. changed reports a selection/target change; selection is session state, not an undo entry or document revision change.",
         {{"layerIds", array(identifier(), 1)}, {"target", choice({"content", "mask"})}}, {"layerIds"}, Access::Document,
         [this](const QJsonObject& args) {
             const auto values = selectedIds(document(), args, false);
             const bool mask = args["target"] == "mask";
             require(!mask || (values.size() == 1 && document().layer(values[0]) && document().layer(values[0])->mask), "Mask editing requires exactly one layer with a mask");
+            const auto before = session().layerSelectionState();
+            const bool beforeMask = session().editingLayerMask();
             session().setLayerSelection(values, values.back(), values.back()); session().setEditingLayerMask(mask);
-            window_.synchronizeUi(true, false); return result(false);
+            window_.synchronizeUi(true, false);
+            auto data = result(before != session().layerSelectionState() || beforeMask != session().editingLayerMask());
+            data["selectedLayers"] = ids(session().selectedLayers());
+            data["activeLayer"] = session().activeLayer() ? QJsonValue(id(*session().activeLayer())) : QJsonValue::Null;
+            data["editingMask"] = session().editingLayerMask();
+            return data;
         });
     add("vulkana_layer_rename", "Rename one layer or container without changing its color label.",
         {{"layerId", identifier()}, {"name", string()}}, {"layerId", "name"}, Access::Document, [this](const QJsonObject& args) {
             const auto target = id(args, "layerId"); const auto name = args["name"].toString().trimmed();
-            require(document().containsItem(target) && !name.isEmpty(), "Unknown layer/container or empty name");
+            require(document().containsItem(target), "Unknown layer/container ID; query vulkana_get_state for current IDs");
+            require(!name.isEmpty(), "arguments.name must contain a non-whitespace layer name");
             const auto* item = document().layer(target); const auto* container = document().tree().container(target);
             return result(execute(std::make_unique<c::SetItemMetadataCommand>(target, name.toStdString(), item ? c::ColorLabel(item->colorLabel) : container->colorLabel)));
         });

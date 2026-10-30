@@ -5,6 +5,7 @@
 #include "NativeGraphicsStartup.hpp"
 #include <QApplication>
 #include <QJsonDocument>
+#include <QImage>
 #include <QProcess>
 #include <QSettings>
 #include <QStandardPaths>
@@ -90,6 +91,22 @@ void bridgesAndEditor(const QString& application, const QString& standalone)
     CHECK(data(b.reply())["connectedClients"].toInt() == 2);
     a.tool("vulkana_document_create", {{"width", 96}, {"height", 64}});
     const auto doc = data(a.reply())["document"].toObject(); const auto docId = doc["documentId"];
+    // The real stdio bridge preserves actionable errors for text-only clients.
+    a.tool("vulkana_layer_create", {{"documentId", docId}});
+    const auto rejected = a.reply();
+    CHECK(rejected["result"].toObject()["isError"].toBool());
+    const auto error = data(rejected)["error"].toObject();
+    CHECK(error["code"] == "invalid_arguments" && error["message"].toString().contains("raster"));
+    CHECK(error["details"].toObject()["changed"] == false);
+    CHECK(QJsonDocument::fromJson(rejected["result"].toObject()["content"].toArray()[0].toObject()["text"].toString().toUtf8()).object() == data(rejected));
+    b.tool("vulkana_layer_rename", {{"documentId", docId}, {"layerId", doc["activeLayer"]}, {"newName", "Renamed"}});
+    const auto rename = data(b.reply())["error"].toObject()["message"].toString();
+    CHECK(rename.contains("arguments.name") && rename.contains("newName"));
+    a.tool("vulkana_canvas_preview", {{"documentId", docId}, {"maxSize", 1024}, {"quality", "overview"}});
+    const auto preview = a.reply()["result"].toObject();
+    CHECK(!preview["isError"].toBool() && preview["structuredContent"].toObject()["width"] == 1024);
+    const auto blocks = preview["content"].toArray(); CHECK(blocks.size() == 2);
+    if (blocks.size() == 2) CHECK(QImage::fromData(QByteArray::fromBase64(blocks[1].toObject()["data"].toString().toLatin1()), "PNG").width() == 1024);
     QJsonObject resize{{"documentId", docId}, {"expectedRevision", doc["revision"]}, {"width", 80}, {"height", 50}};
     const auto depth = window.editorSession().history().undoDepth();
     a.tool("vulkana_canvas_resize", resize); resize["width"] = 70; b.tool("vulkana_canvas_resize", resize);

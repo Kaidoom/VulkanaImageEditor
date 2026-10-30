@@ -78,6 +78,30 @@ int main(int argc, char** argv)
     CHECK(content.size() == 2 && content[1].toObject()["type"] == "image");
     const auto image = QImage::fromData(QByteArray::fromBase64(content[1].toObject()["data"].toString().toLatin1()), "PNG");
     CHECK(image.size() == QSize(96, 64) && image.pixelColor(40, 30) == Qt::white);
+    // Both qualities honor the same advertised range, including the omitted
+    // maxSize/quality defaults. Decode the actual MCP PNG, not just metadata.
+    const auto beforePreview = data(call("vulkana_get_state"))["document"].toObject();
+    const auto checkPreview = [&](QJsonObject options, QSize expected) {
+        if (!options.contains("documentId")) options["documentId"] = id;
+        const auto reply = call("vulkana_canvas_preview", options);
+        const auto blocks = reply["content"].toArray();
+        CHECK(blocks.size() == 2);
+        if (blocks.size() != 2) return;
+        const auto png = QImage::fromData(QByteArray::fromBase64(blocks[1].toObject()["data"].toString().toLatin1()), "PNG");
+        CHECK(png.size() == expected);
+        CHECK(data(reply)["width"] == expected.width() && data(reply)["height"] == expected.height());
+        CHECK(png.pixelColor(png.width()/2, png.height()/2) == Qt::white);
+    };
+    checkPreview({}, QSize(1024, 682));
+    for (const auto quality : {"overview", "exact"}) for (int size : {32, 512, 1024, 2048})
+        checkPreview({{"maxSize", size}, {"quality", quality}, {"background", "transparent"}},
+            QSize(96,64).scaled(size,size,Qt::KeepAspectRatio));
+    for (int size : {31, 2049}) {
+        const auto error = data(call("vulkana_canvas_preview", {{"documentId", id}, {"maxSize", size}}, false))["error"].toObject();
+        CHECK(error["code"] == "invalid_arguments");
+        CHECK(error["message"].toString().contains(QString::number(size == 31 ? 32 : 2048)));
+    }
+    CHECK(data(call("vulkana_get_state"))["document"].toObject() == beforePreview);
     if (native) {
         imageeditor::render::CanvasWindow* canvas = nullptr;
         for (auto* item : QGuiApplication::allWindows())
@@ -129,6 +153,9 @@ int main(int argc, char** argv)
     call("vulkana_document_close", {{"documentId", other}});
     CHECK(window.documentCount() == 0);
     CHECK(!data(call("vulkana_get_state"))["canEdit"].toBool());
+    const auto portrait = data(call("vulkana_document_create", {{"width", 64}, {"height", 96}, {"background", "#ffffff"}}))["document"].toObject().value("documentId");
+    for (const auto quality : {"overview", "exact"})
+        checkPreview({{"documentId", portrait}, {"maxSize", 2048}, {"quality", quality}}, QSize(64,96).scaled(2048,2048,Qt::KeepAspectRatio));
     window.close(); QApplication::processEvents();
     std::cout << "MCP editor tests: " << failures << " failures\n";
     return failures ? 1 : 0;

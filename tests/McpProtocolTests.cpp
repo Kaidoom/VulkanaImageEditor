@@ -70,6 +70,28 @@ void registryAndProtocol()
         CHECK(registry.call("test.echo", args).value("isError").toBool());
     CHECK(calls == 1);
     CHECK(registry.call("missing", {}).value("isError").toBool());
+    const auto errorText = [&](QJsonObject arguments) {
+        const auto reply = registry.call("test.echo", arguments);
+        CHECK(reply["isError"].toBool());
+        const auto data = reply["structuredContent"].toObject();
+        // Text-only clients receive the same recovery information as clients
+        // that expose structuredContent. Validation never calls the handler.
+        CHECK(QJsonDocument::fromJson(reply["content"].toArray()[0].toObject()["text"].toString().toUtf8()).object() == data);
+        CHECK(data["error"].toObject()["details"].toObject()["changed"] == false);
+        return data["error"].toObject()["message"].toString();
+    };
+    CHECK(errorText({{"count", "1"}}).contains("integer"));
+    CHECK(errorText({{"count", 4}}).contains("3"));
+    CHECK(errorText({{"count", 1}, {"mode", "unknown"}}).contains("\"a\",\"b\""));
+    CHECK(errorText({{"count", 1}, {"items", QJsonArray{}}}).contains("1"));
+    CHECK(errorText({{"count", 1}, {"label", "lower"}}).contains("^[A-Z]+$"));
+    CHECK(errorText({{"count", 1}, {"label", "ABCDEFGHIJK"}}).contains("10 characters"));
+    CHECK(errorText({{"count", 1}, {"items", QJsonArray{QJsonObject{}}}}).contains("arguments.items[0].x"));
+    CHECK(errorText({{"count", 1}, {"items", QJsonArray{QJsonObject{{"x", -1}}}}}).contains("exceed -1"));
+    CHECK(errorText({{"count", 1}, {"items", QJsonArray{QJsonObject{{"x", .1}},QJsonObject{{"x", .1}}}}}).contains("items[1]"));
+    const auto wrongName = errorText({{"newCount", 1}});
+    CHECK(wrongName.contains("arguments.count") && wrongName.contains("newCount") && wrongName.contains("unknown argument"));
+    CHECK(calls == 1);
     CHECK(!registry.call("test.echo", {{"count", 2}, {"label", "OK"}, {"mode", "b"},
         {"items", QJsonArray {QJsonObject {{"x", .5}}}}}).value("isError").toBool());
     CHECK(calls == 2);
@@ -78,6 +100,12 @@ void registryAndProtocol()
         QJsonObject {{"type", "object"}, {"properties", QJsonObject {{"number", QJsonObject {{"type", "number"}}}}}, {"required", QJsonArray {"number"}}}}}};
     CHECK(mcp::validateArguments(unionSchema, {{"text", "valid"}}).isEmpty());
     CHECK(!mcp::validateArguments(unionSchema, {{"text", "invalid"}, {"number", 1}}).isEmpty());
+    const auto alternatives = mcp::validateArguments(unionSchema, {{"number", "not a number"}});
+    CHECK(alternatives.contains("arguments.number") && alternatives.contains("type \"number\""));
+    QJsonObject manyUnknown{{"count", 1}};
+    for (int i=0; i<100; ++i) manyUnknown[QStringLiteral("unknown%1").arg(i)] = "untrusted-payload";
+    const auto bounded = errorText(manyUnknown);
+    CHECK(bounded.size() <= 4096 && bounded.contains("more field errors") && !bounded.contains("untrusted-payload"));
     bool rejected = false;
     try { registry.add({"test.echo", "Duplicate", schema, {}, [](const QJsonObject&) { return QJsonObject {}; }}); }
     catch (const std::invalid_argument&) { rejected = true; }
@@ -118,6 +146,7 @@ void registryAndProtocol()
     CHECK(!session.handleLine(notification("notifications/cancelled", {{"requestId", 5}})));
     response = session.handleLine(rpc(6, "tools/call", {{"name", "test.echo"}, {"arguments", QJsonObject {{"count", 99}}}}));
     CHECK(response && response->value("result").toObject().value("isError").toBool());
+    CHECK(response->value("result").toObject()["structuredContent"].toObject()["error"].toObject()["message"].toString().contains("3"));
     CHECK(calls == 3);
     response = session.handleLine(rpc(7, "tools/call", {{"name", "missing"}}));
     CHECK(response && response->value("error").toObject().value("code") == -32602);

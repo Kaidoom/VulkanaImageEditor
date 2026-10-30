@@ -91,7 +91,7 @@ std::optional<QJsonObject> ProtocolSession::handleLine(const QByteArray& line)
             || (params.contains("arguments") && !params.value("arguments").isObject()))
             return error(id, -32602, "tools/call requires a tool name and object arguments");
         const auto name = params.value("name").toString();
-        if (!registry_.contains(name)) return error(id, -32602, "Unknown tool: " + name);
+        if (!registry_.contains(name)) return error(id, -32602, "Unknown tool: " + name + "; call tools/list for available tool names");
         return result(id, registry_.call(name, params.value("arguments").toObject()));
     }
     return error(id, -32601, "Method not found: " + method);

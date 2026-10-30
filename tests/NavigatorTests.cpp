@@ -51,7 +51,7 @@ void previewEvaluation()
     CHECK(native && overview);
     CHECK(overview.image.pixelColor(100,60)==QColor(0,240,0));
     CHECK(overview.image.pixelColor(5,5)==native.image.pixelColor(20,20));
-    CHECK(!u::renderDocumentOverview(doc,{513,128}));
+    CHECK(!u::renderDocumentOverview(doc,{u::maximumOverviewDimension + 1,128}));
     CHECK(u::renderDocumentOverview(doc,{256,128},[](auto,auto){return false;}).cancelled);
 
     u::PixelPreview preview(nullptr,u::PixelPreview::Purpose::Navigator);

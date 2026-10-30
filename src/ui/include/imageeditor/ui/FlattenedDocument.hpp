@@ -55,7 +55,8 @@ struct FlattenedDocumentResult {
 [[nodiscard]] FlattenedDocumentResult flattenDocumentAtSize(const core::Document&,
     core::Extent2u output, FlattenedDocumentProgress = {}, FlattenedDocumentLimits = {},
     std::optional<core::Rgba8> matte = {});
-// Navigation only: bounded 2x2 sampling through the same compositor. Unlike
+inline constexpr std::uint32_t maximumOverviewDimension = 2048;
+// Navigation, saved thumbnails and MCP: bounded 2x2 sampling through the same compositor. Unlike
 // export/Pixel Preview this is an overview, not native-pixel area integration.
 [[nodiscard]] FlattenedDocumentResult renderDocumentOverview(const core::Document&,
     core::Extent2u output, FlattenedDocumentProgress = {}, MergeProfile* = nullptr);

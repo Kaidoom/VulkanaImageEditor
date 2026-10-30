@@ -521,8 +521,11 @@ FlattenedDocumentResult flattenDocumentAtSize(const core::Document& doc, core::E
 FlattenedDocumentResult renderDocumentOverview(const core::Document& doc, core::Extent2u output,
     FlattenedDocumentProgress progress, MergeProfile* profile)
 {
-    if(doc.canvas().extent.empty() || output.empty() || output.width>512 || output.height>512)
-        return {{},QStringLiteral("Invalid overview dimensions"),false,{}};
+    if (doc.canvas().extent.empty())
+        return {{},QStringLiteral("Cannot render an overview of an empty canvas"),false,{}};
+    if (output.empty() || output.width > maximumOverviewDimension || output.height > maximumOverviewDimension)
+        return {{},QStringLiteral("Overview width and height must each be 1–%1 pixels; requested %2×%3")
+            .arg(maximumOverviewDimension).arg(output.width).arg(output.height),false,{}};
     return flattenImpl(doc,std::move(progress),{},std::nullopt,output,{},profile,false,{},nullptr,true);
 }
 FlattenedDocumentResult flattenLayerItems(const core::Document& doc, std::span<const core::LayerId> ids, FlattenedDocumentProgress progress, FlattenedDocumentLimits limits, MergeProfile* profile)

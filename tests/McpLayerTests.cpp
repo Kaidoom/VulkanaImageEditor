@@ -43,6 +43,41 @@ struct Fixture {
     const c::Layer& layer(const QString& id) { const auto* value = doc().layer(id.toULongLong()); if (!value) throw std::runtime_error("Missing test layer"); return *value; }
 };
 
+void argumentAndSelectionFeedback()
+{
+    Fixture f;
+    const auto first = f.create("raster", {{"name", "First"}, {"width", 8}, {"height", 8}});
+    const auto second = f.create("raster", {{"name", "Second"}, {"width", 8}, {"height", 8}});
+    const auto revision = f.doc().revision();
+    const auto history = f.session().history().undoDepth();
+    const auto missing = f.request("vulkana_layer_create", {}, true)["error"].toObject()["message"].toString();
+    for (const auto word : {"arguments.kind", "raster", "text", "shape", "adjustment"}) CHECK(missing.contains(word));
+    const auto rename = f.request("vulkana_layer_rename", {{"layerId", first}, {"newName", "Renamed"}}, true)["error"].toObject()["message"].toString();
+    CHECK(rename.contains("arguments.name") && rename.contains("newName") && rename.contains("unknown argument"));
+    CHECK(f.layer(first).name == "First");
+    const auto selected = f.request("vulkana_layer_select", {{"layerIds", QJsonArray{first}}});
+    CHECK(selected["changed"].toBool() && selected["activeLayer"] == first);
+    CHECK(selected["selectedLayers"] == QJsonArray{first} && selected["editingMask"] == false);
+    CHECK(!f.request("vulkana_layer_select", {{"layerIds", QJsonArray{first}}})["changed"].toBool());
+    const auto multiple = f.request("vulkana_layer_select", {{"layerIds", QJsonArray{first,second}}});
+    CHECK(multiple["changed"].toBool() && multiple["activeLayer"] == second);
+    CHECK(f.request("vulkana_layer_select", {{"layerIds", QJsonArray{second,first}}})["changed"].toBool());
+    CHECK(f.doc().revision() == revision && f.session().history().undoDepth() == history);
+    CHECK(multiple["revision"] == selected["revision"]);
+    const auto selection = f.session().layerSelectionState();
+    f.request("vulkana_layer_select", {{"layerIds", QJsonArray{second}}, {"target", "mask"}}, true);
+    CHECK(f.session().layerSelectionState() == selection);
+    f.request("vulkana_layer_mask", {{"layerId", first}, {"operation", "reveal_all"}});
+    f.request("vulkana_layer_select", {{"layerIds", QJsonArray{first}}, {"target", "content"}});
+    const auto masked = f.request("vulkana_layer_select", {{"layerIds", QJsonArray{first}}, {"target", "mask"}});
+    CHECK(masked["changed"].toBool() && masked["editingMask"] == true);
+    CHECK(!f.request("vulkana_layer_select", {{"layerIds", QJsonArray{first}}, {"target", "mask"}})["changed"].toBool());
+    CHECK(f.request("vulkana_layer_select", {{"layerIds", QJsonArray{first}}, {"target", "content"}})["changed"].toBool());
+    CHECK(f.request("vulkana_layer_rename", {{"layerId", first}, {"name", "Renamed"}})["changed"].toBool());
+    CHECK(f.layer(first).name == "Renamed");
+    CHECK(!f.request("vulkana_layer_rename", {{"layerId", first}, {"name", "Renamed"}})["changed"].toBool());
+}
+
 void creationAndHistory()
 {
     Fixture f;
@@ -180,7 +215,7 @@ int main(int argc, char** argv)
     QTemporaryDir settings;
     QSettings::setDefaultFormat(QSettings::IniFormat);
     QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settings.path());
-    creationAndHistory(); shapesTransformsAndGroups(); masksAndStyles();
+    argumentAndSelectionFeedback(); creationAndHistory(); shapesTransformsAndGroups(); masksAndStyles();
     std::cout << "MCP layer checks: " << failures << " failures\n";
     return failures ? 1 : 0;
 }

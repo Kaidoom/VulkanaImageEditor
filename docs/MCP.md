@@ -119,11 +119,37 @@ The server supports MCP `initialize`, `notifications/initialized`, `ping`, `tool
 2. Call `vulkana_get_state`. Identify the intended document and any blockers.
 3. Use returned IDs, not guessed names or row positions. Query `vulkana_layer_get` before modifying an existing layer. Query the effect/adjustment/filter catalogs for exact parameter schemas and defaults.
 4. Supply `documentId` on document-scoped calls. Add the last returned `revision` as `expectedRevision` when editing against a known state.
-5. Inspect `isError`, `structuredContent`, and `changed` rather than assuming a response means success.
+5. Inspect `isError` first. A successful operation can return `changed:false` when the requested state is already in place; this is not a failure. Read the returned state before retrying.
 6. Request `vulkana_canvas_preview` and verify the visual result. Undo a mistake with `vulkana_history`.
 7. Save explicitly when appropriate. Exporting an image does not save the native project.
 
 IDs are decimal **strings**, avoiding loss of 64-bit precision in JSON clients. Document IDs identify open tabs and are session-local; layer IDs survive native project save/load. A revision is an **opaque string** covering persistent content, document geometry and pixel selection, including brush strokes. Copy it exactly; do not increment or interpret it. It is not a timestamp or an undo-depth number. View, tool and drawing-color changes do not modify this document token; specify explicit colors/layer targets when an operation must not depend on current session choices.
+
+Layer selection is also session state. `vulkana_layer_select` returns `changed:true`
+when its selected layers, primary layer or content/mask target changes, together
+with `selectedLayers`, `activeLayer` and `editingMask`. Repeating the same selection
+returns `changed:false`. Neither operation changes the document revision or undo
+history. Queries and file exports can also return `changed:false` on success;
+inspect their image, path or other result fields.
+
+### Recovering from argument errors
+
+Vulkana rejects invalid arguments before executing the tool and returns
+`isError:true`, `error.code:invalid_arguments`, and `error.details.changed:false`.
+The message identifies the field and the expected type, allowed choices, numeric
+bounds, text format or array limits. Missing and unknown fields are reported
+together. For example:
+
+- A missing `kind` on `vulkana_layer_create` lists `raster`, `text`, `shape` and `adjustment`.
+- Supplying `newName` to `vulkana_layer_rename` reports that `name` is required and `newName` is unknown. Resend with `name`; fields are never silently renamed.
+- A `maxSize` above 2048 reports the maximum instead of an unspecified dimension error.
+
+Error text contains the same JSON as `structuredContent`, including codes,
+blockers and recovery details, so clients that expose only text retain this
+information. Diagnostics are bounded; `tools/list` supplies the complete schema,
+and effect/filter/adjustment catalogs supply the parameters for a chosen type.
+Clients can also validate schemas locally and reject a request before sending
+it; those messages come from the client rather than this server response.
 
 `documentId` must match the active document. The API does not switch tabs implicitly to satisfy a layer edit. `vulkana_document_activate` explicitly changes tabs. Stale revisions and wrong-document requests return errors without modifying the document.
 
@@ -157,11 +183,11 @@ The live `tools/list` schemas are the authoritative argument reference. The tabl
 | `vulkana_import_layer` | Import a static raster image using absolute `path`, optional `name`. Adds and selects a new layer; keeps existing layers and pixel selection. |
 | `vulkana_canvas_resize` | `width`, `height`, optional `x`, `y` defining the new boundary in old canvas coordinates. No resampling. |
 | `vulkana_canvas_view` | `operation`: `fit`, `reset` (100%), or `set` with `zoom`, `centerX`, `centerY`. View only. |
-| `vulkana_canvas_preview` | MCP PNG image, optional `maxSize` (default 1024, maximum 2048), `quality` (`overview`/`exact`), and `background` (`checkerboard`/`transparent`/`white`/`black`). |
+| `vulkana_canvas_preview` | MCP PNG image, optional `maxSize` (32–2048, default 1024 for both qualities), `quality` (`overview` by default, or `exact`), and `background` (`checkerboard` by default, `transparent`, `white` or `black`). |
 | `vulkana_export_image` | `path`, `format` (`png`/`jpeg`/`webp`), optional paired `width`/`height`, `quality`, WebP `lossless`, opaque PNG/JPEG `matte`, `overwrite`. |
 | `vulkana_history` | `operation`: `undo` or `redo`, one action. |
 
-Preview is a rendered composite, not a screenshot of the visible viewport. It includes layers, masks, blending and effects but excludes selection outlines, handles and UI panels. `overview` uses the fast navigation sampler; `exact` uses the export compositor and is preferable for checking fine edges. The response includes preview and document dimensions. Neither mode changes document pixels. Export defaults to current canvas dimensions, not preview dimensions.
+Preview is a rendered composite, not a screenshot of the visible viewport. It includes layers, masks, blending and effects but excludes selection outlines, handles and UI panels. `overview` uses the fast navigation sampler; `exact` uses the export compositor and is preferable for checking fine edges. Both support the full `maxSize` range: the longest output side uses that size and the other follows the canvas aspect ratio (at least one pixel). Larger previews require more rendering work. The response includes preview and document dimensions. Neither mode changes document pixels. Export defaults to current canvas dimensions, not preview dimensions.
 
 File destinations must be absolute and their parent directory must already exist. New outputs are staged and published without replacing an existing destination; `overwrite:true` explicitly enables replacement. Native save and image export use the existing atomic writers. Saving marks the native document saved; exporting does not. Project and image formats are not inferred interchangeably from a filename.
 

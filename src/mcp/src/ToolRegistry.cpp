@@ -2,6 +2,7 @@
 #include <QJsonDocument>
 #include <QRegularExpression>
 #include <QSet>
+#include <QStringList>
 #include <cmath>
 #include <stdexcept>
 
@@ -10,6 +11,33 @@ namespace {
 QString invalid(const QString& path, const QString& reason)
 {
     return path + ": " + reason;
+}
+QString json(const QJsonValue& value)
+{
+    const auto wrapped = QJsonDocument(QJsonArray{value}).toJson(QJsonDocument::Compact);
+    return QString::fromUtf8(wrapped.mid(1, wrapped.size() - 2));
+}
+QString expected(const QJsonObject& schema)
+{
+    QStringList parts;
+    if (schema.contains("type")) parts << "type " + json(schema["type"]);
+    if (schema.contains("enum")) parts << "one of " + json(schema["enum"]);
+    if (schema.contains("const")) parts << "constant " + json(schema["const"]);
+    for (const auto* bound : {"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum",
+             "minItems", "maxItems", "minLength", "maxLength"})
+        if (schema.contains(bound)) parts << QString::fromLatin1(bound) + " " + json(schema[bound]);
+    if (schema.contains("pattern")) parts << "pattern " + json(schema["pattern"]);
+    if (!schema["description"].toString().isEmpty()) parts << schema["description"].toString();
+    return parts.isEmpty() ? QStringLiteral("see tools/list for the input schema") : parts.join("; ");
+}
+QString actualType(const QJsonValue& value)
+{
+    if (value.isNull()) return "null";
+    if (value.isBool()) return "boolean";
+    if (value.isString()) return "string";
+    if (value.isArray()) return "array";
+    if (value.isObject()) return "object";
+    return "number";
 }
 bool typeMatches(const QString& type, const QJsonValue& value)
 {
@@ -30,41 +58,65 @@ QString check(const QJsonObject& schema, const QJsonValue& value, const QString&
         const auto type = schema.value("type");
         bool matches = type.isString() && typeMatches(type.toString(), value);
         for (const auto item : type.toArray()) matches |= typeMatches(item.toString(), value);
-        if (!matches) return invalid(path, "unexpected value type");
+        if (!matches) return invalid(path, "unexpected " + actualType(value) + "; expected " + expected(schema));
     }
     if (schema.contains("enum") && !schema.value("enum").toArray().contains(value))
-        return invalid(path, "value is not one of the supported choices");
+        return invalid(path, "expected one of " + json(schema["enum"]));
     if (schema.contains("const") && schema.value("const") != value)
-        return invalid(path, "value does not match the required constant");
+        return invalid(path, "expected constant " + json(schema["const"]));
     for (const auto* combinator : {"anyOf", "oneOf", "allOf"}) {
         if (!schema.contains(combinator)) continue;
         const auto alternatives = schema.value(combinator).toArray();
         qsizetype matches = 0;
-        for (const auto alternative : alternatives)
-            if (check(alternative.toObject(), value, path, depth + 1).isEmpty()) ++matches;
+        QStringList reasons;
+        for (const auto alternative : alternatives) {
+            const auto error = check(alternative.toObject(), value, path, depth + 1);
+            if (error.isEmpty()) ++matches;
+            else if (reasons.size() < 3 && !reasons.contains(error)) reasons.append(error);
+        }
         if ((QStringView(u"anyOf") == QLatin1StringView(combinator) && matches == 0)
             || (QStringView(u"oneOf") == QLatin1StringView(combinator) && matches != 1)
             || (QStringView(u"allOf") == QLatin1StringView(combinator) && matches != alternatives.size()))
-            return invalid(path, QStringLiteral("value does not satisfy %1").arg(combinator));
+            return invalid(path, QStringView(u"oneOf") == QLatin1StringView(combinator) && matches > 1
+                ? QStringLiteral("matches %1 alternatives; exactly one is required").arg(matches)
+                : QStringLiteral("value does not satisfy %1. Alternative requirements: %2. See tools/list for all alternatives.")
+                    .arg(QLatin1String(combinator), reasons.join(" | ")));
     }
     if (value.isObject()) {
         const auto object = value.toObject();
         const auto properties = schema.value("properties").toObject();
-        for (const auto required : schema.value("required").toArray())
-            if (!object.contains(required.toString()))
-                return invalid(path + '.' + required.toString(), "required argument is missing");
         // An unconstrained combinator branch must not override its sibling's
         // object validation. Ordinary object schemas are closed by default.
         const bool alternatives = schema.contains("anyOf") || schema.contains("oneOf") || schema.contains("allOf");
         const bool constrained = schema.contains("properties") || schema.contains("additionalProperties")
             || (schema.value("type") == QJsonValue("object") && !alternatives);
+        // Report missing AND unknown fields together, so a misspelled name is
+        // not hidden behind the missing required field. Never rename/coerce it.
+        QStringList fields;
+        int fieldErrors = 0;
+        const auto addFieldError = [&](const QString& error) {
+            ++fieldErrors;
+            if (fields.size() < 8) fields.append(error);
+        };
+        for (const auto required : schema.value("required").toArray())
+            if (!object.contains(required.toString()))
+                addFieldError(invalid(path + '.' + required.toString(), "required argument is missing; expected "
+                    + expected(properties[required.toString()].toObject())));
+        if (constrained && !schema.value("additionalProperties").isObject()
+            && !schema.value("additionalProperties").toBool(false)) {
+            for (auto it = object.begin(); it != object.end(); ++it)
+                if (!properties.contains(it.key()))
+                    addFieldError(invalid(path + '.' + it.key().left(128), "unknown argument"));
+            if (fieldErrors > 0) fields.append("Allowed arguments at " + path + ": "
+                + json(QJsonArray::fromStringList(properties.keys())));
+        }
+        if (fieldErrors > 8) fields.append(QStringLiteral("%1 more field errors; see tools/list for the input schema").arg(fieldErrors - 8));
+        if (!fields.isEmpty()) return fields.join('\n');
         for (auto it = object.begin(); it != object.end(); ++it) {
             QJsonObject child;
             if (properties.contains(it.key())) child = properties.value(it.key()).toObject();
             else if (schema.value("additionalProperties").isObject())
                 child = schema.value("additionalProperties").toObject();
-            else if (constrained && !schema.value("additionalProperties").toBool(false))
-                return invalid(path + '.' + it.key(), "unknown argument");
             const auto error = check(child, it.value(), path + '.' + it.key(), depth + 1);
             if (!error.isEmpty()) return error;
         }
@@ -72,14 +124,14 @@ QString check(const QJsonObject& schema, const QJsonValue& value, const QString&
     if (value.isArray()) {
         const auto array = value.toArray();
         if (schema.contains("minItems") && double(array.size()) < schema.value("minItems").toDouble())
-            return invalid(path, "too few items");
+            return invalid(path, "too few items; minimum " + json(schema["minItems"]));
         if (schema.contains("maxItems") && double(array.size()) > schema.value("maxItems").toDouble())
-            return invalid(path, "too many items");
+            return invalid(path, "too many items; maximum " + json(schema["maxItems"]));
         QSet<QByteArray> seen;
         for (qsizetype i = 0; i < array.size(); ++i) {
             if (schema.value("uniqueItems").toBool()) {
                 const auto key = QJsonDocument(QJsonArray {array[i]}).toJson(QJsonDocument::Compact);
-                if (seen.contains(key)) return invalid(path, "duplicate items are not allowed");
+                if (seen.contains(key)) return invalid(path + '[' + QString::number(i) + ']', "duplicate item; items must be unique");
                 seen.insert(key);
             }
             const auto error = check(schema.value("items").toObject(), array[i],
@@ -91,23 +143,23 @@ QString check(const QJsonObject& schema, const QJsonValue& value, const QString&
         const double number = value.toDouble();
         if (!std::isfinite(number)) return invalid(path, "number must be finite");
         if (schema.contains("minimum") && number < schema.value("minimum").toDouble())
-            return invalid(path, "number is below the minimum");
+            return invalid(path, "number must be at least " + json(schema["minimum"]));
         if (schema.contains("maximum") && number > schema.value("maximum").toDouble())
-            return invalid(path, "number exceeds the maximum");
+            return invalid(path, "number must be at most " + json(schema["maximum"]));
         if (schema.contains("exclusiveMinimum") && number <= schema.value("exclusiveMinimum").toDouble())
-            return invalid(path, "number must exceed the minimum");
+            return invalid(path, "number must exceed " + json(schema["exclusiveMinimum"]));
         if (schema.contains("exclusiveMaximum") && number >= schema.value("exclusiveMaximum").toDouble())
-            return invalid(path, "number must be below the maximum");
+            return invalid(path, "number must be below " + json(schema["exclusiveMaximum"]));
     }
     if (value.isString()) {
         const auto text = value.toString();
         const auto length = text.toUcs4().size();
         if (schema.contains("minLength") && double(length) < schema.value("minLength").toDouble())
-            return invalid(path, "text is too short");
+            return invalid(path, "text must contain at least " + json(schema["minLength"]) + " characters");
         if (schema.contains("maxLength") && double(length) > schema.value("maxLength").toDouble())
-            return invalid(path, "text is too long");
+            return invalid(path, "text must contain at most " + json(schema["maxLength"]) + " characters");
         if (schema.contains("pattern") && !QRegularExpression(schema.value("pattern").toString()).match(text).hasMatch())
-            return invalid(path, "text does not match the required pattern");
+            return invalid(path, "text does not match " + json(schema["pattern"]) + "; " + schema["description"].toString());
     }
     return {};
 }
@@ -177,13 +229,16 @@ QJsonObject toolSuccess(QJsonObject data, const QString& message)
 QJsonObject toolFailure(const QString& code, const QString& message, QJsonObject details)
 {
     QJsonObject data {{"ok", false}, {"error", QJsonObject {{"code", code}, {"message", message}, {"details", std::move(details)}}}};
-    auto result = toolSuccess(std::move(data), message);
+    // Some clients only forward content to the model. Keep error codes,
+    // blockers and recovery details visible there as well as structuredContent.
+    auto result = toolSuccess(std::move(data));
     result["isError"] = true;
     return result;
 }
 QString validateArguments(const QJsonObject& schema, const QJsonObject& arguments)
 {
-    return check(schema, arguments, "arguments", 0);
+    const auto error = check(schema, arguments, "arguments", 0);
+    return error.size() <= 4096 ? error : error.left(4000) + "\nFurther details omitted; see tools/list for the full input schema.";
 }
 void ToolRegistry::add(Tool tool)
 {
@@ -211,7 +266,8 @@ QJsonObject ToolRegistry::call(const QString& name, const QJsonObject& arguments
 {
     for (const auto& tool : tools_) if (tool.name == name) {
         const auto invalid = validateArguments(tool.inputSchema, arguments);
-        if (!invalid.isEmpty()) return toolFailure("invalid_arguments", invalid);
+        if (!invalid.isEmpty()) return toolFailure("invalid_arguments", invalid,
+            {{"tool", name}, {"changed", false}, {"recovery", "Correct the named arguments using the tool's inputSchema from tools/list and retry. The operation was not executed."}});
         try {
             const auto result = tool.handler(arguments);
             if (!result.value("content").isArray()
@@ -225,7 +281,7 @@ QJsonObject ToolRegistry::call(const QString& name, const QJsonObject& arguments
             return toolFailure("operation_failed", "Unexpected editor operation failure");
         }
     }
-    return toolFailure("unknown_tool", "Unknown tool: " + name);
+    return toolFailure("unknown_tool", "Unknown tool: " + name + "; call tools/list for available tool names");
 }
 
 } // namespace imageeditor::mcp

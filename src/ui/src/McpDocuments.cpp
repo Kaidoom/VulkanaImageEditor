@@ -191,7 +191,9 @@ void McpController::registerDocumentTools()
             return state(false);
         });
     add("vulkana_canvas_preview", "Return a composited PNG image for visual verification, without UI chrome. Layers, masks, blends and effects are included. Overview is fast; exact uses the export compositor. The returned dimensions may differ from document pixels.",
-        {{"maxSize", integer(32, 2048)}, {"quality", choice({"overview", "exact"})}, {"background", choice({"checkerboard", "transparent", "white", "black"})}}, {}, Access::DocumentQuery,
+        {{"maxSize", integer(32, int(maximumOverviewDimension), "Longest output side in pixels, 32–2048 for both qualities; aspect ratio is preserved. Default: 1024.")},
+            {"quality", choice({"overview", "exact"}, "Default: overview. Both qualities support the full maxSize range.")},
+            {"background", choice({"checkerboard", "transparent", "white", "black"}, "Default: checkerboard.")}}, {}, Access::DocumentQuery,
         [this](const QJsonObject& args) {
             const auto extent = document().canvas().extent;
             const int maximum = args.value("maxSize").toInt(1024);
