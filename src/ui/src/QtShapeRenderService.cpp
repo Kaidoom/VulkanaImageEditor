@@ -52,6 +52,16 @@ QPainterPath geometryPath(const core::ShapeLayer& shape)
         if (!rect.isEmpty())
             path.addEllipse(rect);
         break;
+    case core::ShapeKind::Arc:
+        if (std::abs(shape.sweepAngle) == 360) {
+            path.addEllipse(rect); // Close a full turn, without overlapping end caps.
+        } else {
+            // Model angles follow document coordinates: zero right, clockwise
+            // positive. Qt's arc API uses the opposite angular direction.
+            path.arcMoveTo(rect, -shape.startAngle);
+            path.arcTo(rect, -shape.startAngle, -shape.sweepAngle);
+        }
+        break;
     case core::ShapeKind::Triangle:
         if (!rect.isEmpty()) {
             path.moveTo(rect.width() * .5, 0);
@@ -223,7 +233,7 @@ public:
         , stroke_(shape.strokeEnabled ? strokePath(path_, shape.strokeWidth,shape.strokeJoin,shape.strokeCap,shape.strokeMiterLimit) : QPainterPath {})
         , bounds_(stroke_.isEmpty() ? path_.boundingRect()
                                   : path_.boundingRect().united(stroke_.boundingRect()))
-        , closed_(shape.kind != core::ShapeKind::Line)
+        , closed_(shape.kind != core::ShapeKind::Line && shape.kind != core::ShapeKind::Arc)
     {
     }
 
@@ -315,7 +325,7 @@ RasterPreparation prepareRaster(const core::ShapeRenderRequest& request)
     const double requested = result.requested = std::isfinite(request.rasterDensity) && request.rasterDensity > 0
         ? request.rasterDensity : 1;
     const auto path = geometryPath(shape);
-    const bool drawFill = shape.kind != core::ShapeKind::Line && shape.fillEnabled && shape.fillColor.alpha;
+    const bool drawFill = shape.kind != core::ShapeKind::Line && shape.kind != core::ShapeKind::Arc && shape.fillEnabled && shape.fillColor.alpha;
     const bool drawStroke = shape.strokeEnabled && shape.strokeWidth > 0 && shape.strokeColor.alpha;
     const auto stroke = drawStroke ? strokePath(path, shape.strokeWidth,shape.strokeJoin,shape.strokeCap,shape.strokeMiterLimit) : QPainterPath {};
     if (path.isEmpty() || (!drawFill && stroke.isEmpty()))
@@ -399,7 +409,7 @@ core::RectD QtShapeRenderService::documentBounds(const core::ShapeLayer& shape,
     if (!localToDocument.inverted())
         throw std::invalid_argument("Invalid shape transform in document rasterization");
     const auto path = geometryPath(shape);
-    const bool drawFill = shape.kind != core::ShapeKind::Line && shape.fillEnabled && shape.fillColor.alpha;
+    const bool drawFill = shape.kind != core::ShapeKind::Line && shape.kind != core::ShapeKind::Arc && shape.fillEnabled && shape.fillColor.alpha;
     const auto stroke = shape.strokeEnabled && shape.strokeColor.alpha
         ? strokePath(path, shape.strokeWidth,shape.strokeJoin,shape.strokeCap,shape.strokeMiterLimit) : QPainterPath {};
     const auto rect = shapeDocumentBounds(path, stroke, drawFill, localToDocument);
@@ -416,7 +426,7 @@ std::shared_ptr<const core::LayerRenderCache> QtShapeRenderService::renderDocume
     if (!inverse)
         throw std::invalid_argument("Invalid shape transform in document rasterization");
     const auto path = geometryPath(shape);
-    const bool drawFill = shape.kind != core::ShapeKind::Line && shape.fillEnabled && shape.fillColor.alpha;
+    const bool drawFill = shape.kind != core::ShapeKind::Line && shape.kind != core::ShapeKind::Arc && shape.fillEnabled && shape.fillColor.alpha;
     const auto stroke = shape.strokeEnabled && shape.strokeColor.alpha
         ? strokePath(path, shape.strokeWidth,shape.strokeJoin,shape.strokeCap,shape.strokeMiterLimit) : QPainterPath {};
     auto rect = shapeDocumentBounds(path, stroke, drawFill, localToDocument);

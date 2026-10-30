@@ -11208,4 +11208,27 @@ Prepare %3 · Finish %4 · Total %5</source>
     <message id="preferences.layer.focus.expand"><source>Focus and Expand</source><translation type="unfinished" /></message>
     <message id="preferences.layer.focus.hint"><source>Focus scrolls to the selected layer or its visible parent. Focus and Expand also opens collapsed parents.</source><translation type="unfinished" /></message>
   </context>
+  <context>
+    <name>ArcShape</name>
+    <message id="shape.arc">
+      <source>Arc</source>
+      <translation>圆弧</translation>
+    </message>
+    <message id="shape.arc.start">
+      <source>Start</source>
+      <translation>起点</translation>
+    </message>
+    <message id="shape.arc.sweep">
+      <source>Sweep</source>
+      <translation>跨度</translation>
+    </message>
+    <message id="shape.arc.start.hint">
+      <source>Start angle in degrees. Zero points right; positive angles run clockwise.</source>
+      <translation>起始角度，单位为度。零度朝右，正角度沿顺时针方向。</translation>
+    </message>
+    <message id="shape.arc.sweep.hint">
+      <source>Arc length in degrees. Positive runs clockwise; negative runs counterclockwise. 360 makes a full ellipse.</source>
+      <translation>圆弧跨度，单位为度。正值为顺时针，负值为逆时针。360 表示完整椭圆。</translation>
+    </message>
+  </context>
 </TS>

@@ -181,7 +181,7 @@ void roundTrip(Fixture& fixture)
 {
     c::Document document({ { 512, 384 }, 144 });
     const std::array kinds { c::ShapeKind::Rectangle, c::ShapeKind::RoundedRectangle, c::ShapeKind::Ellipse,
-        c::ShapeKind::Triangle, c::ShapeKind::Line, c::ShapeKind::Polygon };
+        c::ShapeKind::Triangle, c::ShapeKind::Line, c::ShapeKind::Polygon, c::ShapeKind::Arc };
     for (const auto kind : kinds) {
         for (unsigned style = 0; style != 4; ++style) {
             c::ShapeLayer shape;
@@ -217,6 +217,7 @@ void roundTrip(Fixture& fixture)
     }
     CHECK(loaded.metadata["version"].toInt() == 1);
     CHECK(loaded.metadata["required"].toArray().contains("shape-v1"));
+    CHECK(loaded.metadata["required"].toArray().contains("shape-arc-v1"));
     CHECK(loaded.document->canvas() == document.canvas());
     CHECK(loaded.document->layers().size() == document.layers().size());
     CHECK(!loaded.document->isModified());
@@ -408,6 +409,56 @@ void independentAndDegenerate(Fixture& fixture)
         });
         CHECK(fixture.load(data)); // Degenerate but editable is not a corrupt file.
     }
+}
+
+void arcDescriptorsAndCompatibility(Fixture& fixture)
+{
+    auto data = manifest();
+    data["required"] = QJsonArray{"shape-v1", "shape-arc-v1"};
+    editShape(data, [](auto& shape) {
+        shape["kind"] = "arc";
+        shape["startAngle"] = -37.25;
+        shape["sweepAngle"] = -281.5;
+        shape["fillEnabled"] = false;
+    });
+    auto loaded = fixture.load(data);
+    CHECK(loaded);
+    if (!loaded) return;
+    const auto id = loaded.document->layers().front().id;
+    const auto arc = std::get<c::ShapeLayer>(loaded.document->layer(id)->payload);
+    CHECK(arc.kind == c::ShapeKind::Arc && arc.startAngle == -37.25 && arc.sweepAngle == -281.5);
+    const auto path = fixture.path("arc.vulkana");
+    CHECK(u::saveProject(path, *loaded.document, loaded.metadata));
+    const auto restored = u::loadProject(path); CHECK(restored);
+    if (restored) CHECK(std::get<c::ShapeLayer>(restored.document->layer(id)->payload) == arc);
+    for (double sweep : {-360., 0., 360.}) {
+        auto boundary = data; editShape(boundary, [sweep](auto& shape) {shape["sweepAngle"] = sweep;});
+        CHECK(fixture.load(boundary));
+    }
+    auto missingCapability = data; missingCapability["required"] = QJsonArray{"shape-v1"};
+    fixture.rejects(missingCapability);
+    for (const auto* field : {"startAngle", "sweepAngle"}) {
+        auto missing = data; editShape(missing, [field](auto& shape) {shape.remove(field);});
+        fixture.rejects(missing);
+        for (const auto value : {QJsonValue(-360.1), QJsonValue(360.1), QJsonValue("90"), QJsonValue(QJsonValue::Null)}) {
+            auto invalid = data; editShape(invalid, [&](auto& shape) {shape[field] = value;});
+            fixture.rejects(invalid);
+        }
+    }
+    // Changing the last arc to an ordinary shape removes both the capability
+    // and its owned angle fields, even when carrying the original manifest.
+    auto rectangle = arc; rectangle.kind = c::ShapeKind::Rectangle;
+    CHECK(loaded.document->setLayerShape(id, rectangle));
+    CHECK(u::saveProject(path, *loaded.document, loaded.metadata));
+    const auto converted = u::loadProject(path); CHECK(converted);
+    if (converted) {
+        CHECK(!converted.metadata["required"].toArray().contains("shape-arc-v1"));
+        const auto descriptor = converted.metadata["layers"].toArray()[0].toObject()["shape"].toObject();
+        CHECK(!descriptor.contains("startAngle") && !descriptor.contains("sweepAngle"));
+        CHECK(std::get<c::ShapeLayer>(converted.document->layer(id)->payload) == rectangle);
+    }
+    const auto legacy = fixture.load(manifest()); CHECK(legacy);
+    if (legacy) CHECK(!legacy.metadata["required"].toArray().contains("shape-arc-v1"));
 }
 void malformed(Fixture& fixture)
 {
@@ -656,6 +707,7 @@ int main(int argc, char** argv)
         resizedGeometryRoundTrip(fixture);
         resizeGestureHistoryRoundTrip(fixture);
         independentAndDegenerate(fixture);
+        arcDescriptorsAndCompatibility(fixture);
         malformed(fixture);
         compatibilityAndOpaqueMetadata(fixture);
         failedSaveIsAtomic(fixture);

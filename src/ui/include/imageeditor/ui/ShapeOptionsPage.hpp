@@ -36,7 +36,8 @@ private:
     QButtonGroup* modeGroup_;
     ToolOptionsButton *fill_, *stroke_, *fillColor_, *strokeColor_;
     ToolOptionsNumber *width_, *radius_, *geometryWidth_ { nullptr }, *geometryHeight_ { nullptr }, *vertex_ { nullptr }, *vertexX_ { nullptr }, *vertexY_ { nullptr };
-    std::array<ToolOptionsNumber*, 7> numbers_ { };
+    ToolOptionsNumber *startAngle_, *sweepAngle_;
+    std::array<ToolOptionsNumber*, 9> numbers_ { };
     core::ShapeLayer shape_;
     bool updating_ { false }, editable_ { false };
 };

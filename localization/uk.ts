@@ -11218,4 +11218,27 @@ Prepare %3 · Finish %4 · Total %5</source>
     <message id="preferences.layer.focus.expand"><source>Focus and Expand</source><translation type="unfinished" /></message>
     <message id="preferences.layer.focus.hint"><source>Focus scrolls to the selected layer or its visible parent. Focus and Expand also opens collapsed parents.</source><translation type="unfinished" /></message>
   </context>
+  <context>
+    <name>ArcShape</name>
+    <message id="shape.arc">
+      <source>Arc</source>
+      <translation>Дуга</translation>
+    </message>
+    <message id="shape.arc.start">
+      <source>Start</source>
+      <translation>Початок</translation>
+    </message>
+    <message id="shape.arc.sweep">
+      <source>Sweep</source>
+      <translation>Розмах</translation>
+    </message>
+    <message id="shape.arc.start.hint">
+      <source>Start angle in degrees. Zero points right; positive angles run clockwise.</source>
+      <translation>Початковий кут у градусах. Нуль спрямований праворуч; додатні кути йдуть за годинниковою стрілкою.</translation>
+    </message>
+    <message id="shape.arc.sweep.hint">
+      <source>Arc length in degrees. Positive runs clockwise; negative runs counterclockwise. 360 makes a full ellipse.</source>
+      <translation>Розмах дуги в градусах. Додатний: за годинниковою стрілкою. Від’ємний: проти. 360 утворює повний еліпс.</translation>
+    </message>
+  </context>
 </TS>

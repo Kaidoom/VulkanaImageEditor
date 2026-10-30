@@ -7,13 +7,13 @@
 
 namespace imageeditor::core {
 
-enum class ShapeKind { Rectangle, RoundedRectangle, Ellipse, Triangle, Line, Polygon };
+enum class ShapeKind { Rectangle, RoundedRectangle, Ellipse, Triangle, Line, Polygon, Arc };
 enum class ShapeJoin { Round, Miter, Bevel };
 enum class ShapeCap { Round, Butt, Square };
 
 // Authoritative geometry is measured in layer-local document pixels (+X right,
 // +Y down). The canonical frame starts at (0,0); viewport zoom never changes it.
-// Rectangle/ellipse/triangle use size. Line has two points; polygon has >=3,
+// Rectangle/ellipse/triangle/arc use size. Line has two points; polygon has >=3,
 // with points inside that frame. Polygon fill is even-odd, including crossings.
 struct ShapeLayer {
     ShapeKind kind {ShapeKind::Rectangle};
@@ -32,6 +32,12 @@ struct ShapeLayer {
     ShapeJoin strokeJoin {ShapeJoin::Round};
     ShapeCap strokeCap {ShapeCap::Round};
     double strokeMiterLimit {2}; // Ratio to complete stroke width (Qt convention).
+    // Open elliptical arc in the size frame. Zero degrees is right; positive
+    // sweep is clockwise. Both angles are in [-360,360]; zero sweep is empty.
+    // Arcs ignore fill and use the ordinary centered stroke/caps. These fields
+    // are inactive for other kinds and excluded from their equality/serialization.
+    double startAngle {0};
+    double sweepAngle {270};
 
     friend bool operator==(const ShapeLayer& a, const ShapeLayer& b)
     {
@@ -40,7 +46,8 @@ struct ShapeLayer {
             && a.fillEnabled == b.fillEnabled && a.strokeEnabled == b.strokeEnabled
             && a.fillColor == b.fillColor && a.strokeColor == b.strokeColor
             && a.strokeWidth == b.strokeWidth && a.strokeJoin == b.strokeJoin
-            && a.strokeCap == b.strokeCap && a.strokeMiterLimit == b.strokeMiterLimit;
+            && a.strokeCap == b.strokeCap && a.strokeMiterLimit == b.strokeMiterLimit
+            && (a.kind != ShapeKind::Arc || (a.startAngle == b.startAngle && a.sweepAngle == b.sweepAngle));
     }
 };
 
@@ -53,8 +60,8 @@ inline constexpr std::size_t maximumShapePoints = 100'000;
 [[nodiscard]] bool validShape(const ShapeLayer&) noexcept;
 [[nodiscard]] bool hasShapeGeometry(const ShapeLayer&) noexcept;
 // Enclosed interior independent of paint alpha/fill enablement, for picking
-// hollow closed shapes. Line proximity is a screen-space concern at the UI
-// path-service boundary; a line has no enclosed interior here.
+// hollow closed shapes. Line/arc proximity is a screen-space concern at the UI
+// path-service boundary; neither has an enclosed interior here.
 [[nodiscard]] bool shapeContainsPoint(const ShapeLayer&, Vec2d localPoint) noexcept;
 // Logical transform frame excludes stroke/AA outsets. Disposable render caches
 // contain those outsets and supply an independent pixelsToLocal offset.

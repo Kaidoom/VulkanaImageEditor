@@ -175,6 +175,42 @@ u::PsdExportResult write(c::Document &d, QString path,
     std::cerr << result.error.toStdString() << "\n";
   return result;
 }
+void arcPixelFallback(QString dir) {
+  c::Document document({{96,80},96});
+  c::ShapeLayer arc;
+  arc.kind = c::ShapeKind::Arc;
+  arc.size = {60,40};
+  arc.startAngle = -25;
+  arc.sweepAngle = 240;
+  arc.fillEnabled = false;
+  arc.strokeEnabled = true;
+  arc.strokeWidth = 5;
+  arc.strokeColor = {230,80,30,255};
+  auto layer = c::Layer::shape("Editable arc",arc);
+  layer.localToDocument = {.m02=15,.m12=20};
+  const auto id = layer.id;
+  CHECK(document.insertLayer(0,std::move(layer)));
+  std::atomic_bool cancel = false;
+  const auto snapshot = u::capturePsdExport(document,20);
+  const auto plan = u::planPsdExport(snapshot,{},cancel);
+  CHECK(plan && plan.needsReview && plan.entries.size() == 1);
+  if (!plan || plan.entries.empty()) return;
+  CHECK(!plan.entries[0].editable && plan.entries[0].action == u::PsdExportAction::Pixels);
+  CHECK(plan.entries[0].reasons.join(';').contains("arc geometry"));
+  u::PsdExportOptions forced;
+  forced.actions[id] = u::PsdExportAction::Editable;
+  CHECK(!u::planPsdExport(snapshot,forced,cancel));
+  const auto path = dir + "/arc-pixels.psd";
+  CHECK(write(document,path));
+  const auto parsed = parse(path);
+  CHECK(parsed && parsed->records.size() == 1);
+  if (parsed) CHECK(!parsed->records[0].tags.contains("vmsk"));
+  const auto inspection = u::inspectPsd(path,std::make_shared<u::PsdJob>());
+  const auto reopened = u::convertPsd(inspection,u::defaultPsdOptions(inspection),std::make_shared<u::PsdJob>(),{},false);
+  CHECK(reopened.document);
+  if (reopened.document) CHECK(same(u::flattenDocument(document).image,u::flattenDocument(*reopened.document).image));
+  CHECK(std::get<c::ShapeLayer>(document.layer(id)->payload) == arc);
+}
 void gradientStops(QString dir) {
   for (bool multi : {false, true}) {
     c::Document document({{48, 24}, 72, c::CompositingSpace::EncodedSRgb});
@@ -1070,6 +1106,11 @@ int main(int argc, char **argv) {
     std::cout << "PSD gradient export failures: " << failures << '\n';
     return failures ? 1 : 0;
   }
+  if (argc >= 2 && QString::fromLocal8Bit(argv[1]) == "--arcs") {
+    arcPixelFallback(temporary.path());
+    std::cout << "PSD arc export failures: " << failures << '\n';
+    return failures ? 1 : 0;
+  }
   if (argc > 3 && QString::fromLocal8Bit(argv[1]) == "--reference") {
     reference(QString::fromLocal8Bit(argv[2]), QString::fromLocal8Bit(argv[3]));
     return failures ? 1 : 0;
@@ -1080,6 +1121,7 @@ int main(int argc, char **argv) {
   modernText(dir);
   blendV3Psd(dir);
   gradientStops(dir);
+  arcPixelFallback(dir);
   exact(dir);
   masks(dir);
   transformedMasks(dir);

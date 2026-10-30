@@ -8,7 +8,7 @@ enum class ToolGlyph {
     Replace, Add, Subtract, Intersect, Transform, SelectionAdjustments, MergedVisible, ActiveLayer,
     FillSelection, FillContiguous, UnderMouse, Measure, LassoFreehand, LassoPolygonal, LassoMagnetic,
     SelectRectangle, SelectEllipse, ShapeRectangle, ShapeRoundedRectangle,
-    ShapeEllipse, ShapeTriangle, ShapeLine, ShapePolygon, ShapeFill, ShapeStroke, Folder, Group, ClippingGroup, LayerRaster,
+    ShapeEllipse, ShapeTriangle, ShapeLine, ShapePolygon, ShapeArc, ShapeFill, ShapeStroke, Folder, Group, ClippingGroup, LayerRaster,
     SelectByColor, Crop, ShowSource, Chamfer, ResetCrop, AspectLock, FlipHorizontal, FlipVertical,
     QuickSelection, MagicWand, ObjectSelection, Cloning, CloneStamp, CloneHeal, SpotHeal, CloneSource,
     CurrentAndBelow, CloneAligned, FollowStrokeDirection, LocalBlur,

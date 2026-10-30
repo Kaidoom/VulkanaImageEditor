@@ -11209,4 +11209,27 @@ Vorbereitung %3 · Abschluss %4 · Gesamt %5</translation>
     <message id="preferences.layer.focus.expand"><source>Focus and Expand</source><translation type="unfinished" /></message>
     <message id="preferences.layer.focus.hint"><source>Focus scrolls to the selected layer or its visible parent. Focus and Expand also opens collapsed parents.</source><translation type="unfinished" /></message>
   </context>
+  <context>
+    <name>ArcShape</name>
+    <message id="shape.arc">
+      <source>Arc</source>
+      <translation>Bogen</translation>
+    </message>
+    <message id="shape.arc.start">
+      <source>Start</source>
+      <translation>Start</translation>
+    </message>
+    <message id="shape.arc.sweep">
+      <source>Sweep</source>
+      <translation>Winkel</translation>
+    </message>
+    <message id="shape.arc.start.hint">
+      <source>Start angle in degrees. Zero points right; positive angles run clockwise.</source>
+      <translation>Startwinkel in Grad. Null zeigt nach rechts; positive Winkel verlaufen im Uhrzeigersinn.</translation>
+    </message>
+    <message id="shape.arc.sweep.hint">
+      <source>Arc length in degrees. Positive runs clockwise; negative runs counterclockwise. 360 makes a full ellipse.</source>
+      <translation>Bogenwinkel in Grad. Positiv: im Uhrzeigersinn. Negativ: gegen den Uhrzeigersinn. 360 ergibt eine ganze Ellipse.</translation>
+    </message>
+  </context>
 </TS>

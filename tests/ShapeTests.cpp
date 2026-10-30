@@ -230,6 +230,45 @@ void documentAdmissionRevisionsAndSnapshots()
     CHECK(std::get<ShapeLayer>(snapshot.layersBottomToTop.front().payload) == original);
 }
 
+void arcGeometryAndHistory()
+{
+    ShapeLayer arc;
+    arc.kind = ShapeKind::Arc;
+    arc.size = {80.5, 40.25};
+    arc.fillEnabled = false;
+    arc.strokeEnabled = true;
+    CHECK(validShape(arc) && hasShapeGeometry(arc));
+    CHECK(shapeGeometryExtent(arc) == Extent2u({81, 41}));
+    for (double sweep : {-360., -270., -.125, .125, 90., 360.}) {
+        arc.sweepAngle = sweep;
+        CHECK(validShape(arc) && hasShapeGeometry(arc));
+        CHECK(!shapeContainsPoint(arc, {40,20}));
+        CHECK(!shapeContainsPoint(arc, {80.5,20.125}));
+    }
+    arc.sweepAngle = 0;
+    CHECK(validShape(arc) && !hasShapeGeometry(arc));
+    arc.sweepAngle = 90;
+    for (double invalid : {-360.01, 360.01, std::numeric_limits<double>::infinity(), std::numeric_limits<double>::quiet_NaN()}) {
+        auto bad = arc; bad.startAngle = invalid; CHECK(!validShape(bad));
+        bad = arc; bad.sweepAngle = invalid; CHECK(!validShape(bad));
+    }
+    auto bad = arc; bad.points.push_back({0,0}); CHECK(!validShape(bad));
+    bad = arc; bad.size.width = 0; CHECK(validShape(bad) && !hasShapeGeometry(bad));
+    auto ordinary = arc; ordinary.kind = ShapeKind::Ellipse;
+    auto inactiveAngles = ordinary; inactiveAngles.startAngle = 180; inactiveAngles.sweepAngle = -90;
+    CHECK(inactiveAngles == ordinary); // Inactive arc values are not serialized.
+
+    Fixture fixture(arc);
+    auto changed = arc; changed.startAngle = -25.5; changed.sweepAngle = -220.25;
+    const auto revision = fixture.document.layer(fixture.id)->shapeRevision;
+    CHECK(fixture.edit(changed));
+    CHECK(fixture.document.layer(fixture.id)->shapeRevision == revision + 1);
+    CHECK(fixture.content() == changed && fixture.content() != arc);
+    CHECK(fixture.history.undoDepth() == 1);
+    CHECK(fixture.history.undo(fixture.document)); CHECK(fixture.content() == arc);
+    CHECK(fixture.history.redo(fixture.document)); CHECK(fixture.content() == changed);
+}
+
 void commandsGroupingNoOpsAndStableTargets()
 {
     Fixture f;
@@ -516,6 +555,7 @@ int main()
     canonicalDataAndStyleAreIndependent();
     invalidAndDegenerateGeometry();
     documentAdmissionRevisionsAndSnapshots();
+    arcGeometryAndHistory();
     commandsGroupingNoOpsAndStableTargets();
     liveCommitCancelAndCreationConsequences();
     pixelEditsNeverFlattenAndMemoryAccounting();

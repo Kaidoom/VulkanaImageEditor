@@ -665,6 +665,37 @@ void defaultStyleModeSwitch(QVulkanInstance* instance)
     CHECK(f.session().history().undoDepth() == before + 1);
 }
 }
+void arcCreationAndAngles(QVulkanInstance* instance)
+{
+    Fixture f(instance);
+    f.mode(int(c::ShapeKind::Arc));
+    f.drag({100,100},{300,220});
+    CHECK(f.shape().kind == c::ShapeKind::Arc && f.shape().strokeEnabled && !f.shape().fillEnabled);
+    CHECK(f.shape().size.width == 200 && f.shape().size.height == 120);
+    const auto arcId = f.active().id;
+    auto* start = f.window.findChild<QDoubleSpinBox*>("ShapeStartAngle");
+    auto* sweep = f.window.findChild<QDoubleSpinBox*>("ShapeSweepAngle");
+    auto* radius = f.window.findChild<QDoubleSpinBox*>("ShapeCornerRadius");
+    CHECK(start && sweep && radius);
+    if (!start || !sweep || !radius) return;
+    CHECK(start->isVisible() && sweep->isVisible() && !radius->isVisible());
+    const auto depth = f.session().history().undoDepth();
+    start->setValue(45); events();
+    CHECK(f.shape().startAngle == 45 && f.session().history().undoDepth() == depth + 1);
+    sweep->setValue(-120); events();
+    CHECK(f.shape().sweepAngle == -120 && f.session().history().undoDepth() == depth + 2);
+    f.undo(); CHECK(f.shape().sweepAngle == 270);
+    f.undo(); CHECK(f.shape().startAngle == 0);
+    f.redo(); CHECK(f.shape().startAngle == 45);
+    const auto review = qEnvironmentVariable("IMAGEEDITOR_ARC_CONTROLS_REVIEW");
+    if (!review.isEmpty()) CHECK(start->parentWidget()->grab().save(review));
+    f.mode(int(c::ShapeKind::Rectangle));
+    f.drag({400,100},{480,180});
+    CHECK(f.shape().kind == c::ShapeKind::Rectangle);
+    CHECK(!start->isVisible() && !sweep->isVisible());
+    CHECK(std::get<c::ShapeLayer>(f.session().document()->layer(arcId)->payload).startAngle == 45);
+}
+
 int main(int argc, char** argv)
 {
     QCoreApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
@@ -700,6 +731,7 @@ int main(int argc, char** argv)
             return 1;
     }
     creationAndHistory(native ? &instance : nullptr);
+    arcCreationAndAngles(native ? &instance : nullptr);
     stylesPolygonsAndTransforms(native ? &instance : nullptr);
     defaultStyleModeSwitch(native ? &instance : nullptr);
     creationModifiersAndMode(native ? &instance : nullptr);

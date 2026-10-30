@@ -7510,4 +7510,12 @@ Prepare %3 · Finish %4 · Total %5</source>
     <message id="preferences.layer.focus.expand"><source>Focus and Expand</source></message>
     <message id="preferences.layer.focus.hint"><source>Focus scrolls to the selected layer or its visible parent. Focus and Expand also opens collapsed parents.</source></message>
   </context>
+  <context>
+    <name>ArcShape</name>
+    <message id="shape.arc"><source>Arc</source></message>
+    <message id="shape.arc.start"><source>Start</source></message>
+    <message id="shape.arc.sweep"><source>Sweep</source></message>
+    <message id="shape.arc.start.hint"><source>Start angle in degrees. Zero points right; positive angles run clockwise.</source></message>
+    <message id="shape.arc.sweep.hint"><source>Arc length in degrees. Positive runs clockwise; negative runs counterclockwise. 360 makes a full ellipse.</source></message>
+  </context>
 </TS>

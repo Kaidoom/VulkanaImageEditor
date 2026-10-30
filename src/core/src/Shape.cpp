@@ -51,6 +51,10 @@ bool validShape(const ShapeLayer& shape) noexcept
     case ShapeKind::Triangle:
         if (!shape.points.empty()) return false;
         break;
+    case ShapeKind::Arc:
+        if (!shape.points.empty() || !std::isfinite(shape.startAngle) || !std::isfinite(shape.sweepAngle)
+            || std::abs(shape.startAngle) > 360 || std::abs(shape.sweepAngle) > 360) return false;
+        break;
     case ShapeKind::Line:
         if (shape.points.size() != 2) return false;
         break;
@@ -70,6 +74,7 @@ bool hasShapeGeometry(const ShapeLayer& shape) noexcept
     if (!validShape(shape)) return false;
     if (shape.kind == ShapeKind::Line) return shape.points[0] != shape.points[1];
     if (shape.size.width <= 0 || shape.size.height <= 0) return false;
+    if (shape.kind == ShapeKind::Arc) return shape.sweepAngle != 0;
     if (shape.kind != ShapeKind::Polygon) return true;
 
     // Do not use signed area: valid even-odd figure-eights can sum to zero.
@@ -90,7 +95,7 @@ bool hasShapeGeometry(const ShapeLayer& shape) noexcept
 
 bool shapeContainsPoint(const ShapeLayer& shape, Vec2d point) noexcept
 {
-    if (!hasShapeGeometry(shape) || shape.kind == ShapeKind::Line
+    if (!hasShapeGeometry(shape) || shape.kind == ShapeKind::Line || shape.kind == ShapeKind::Arc
         || !bounded(point.x, shape.size.width) || !bounded(point.y, shape.size.height))
         return false;
     switch (shape.kind) {
@@ -116,6 +121,7 @@ bool shapeContainsPoint(const ShapeLayer& shape, Vec2d point) noexcept
     case ShapeKind::Polygon:
         return polygonContainsPoint(shape.points, point);
     case ShapeKind::Line:
+    case ShapeKind::Arc:
         return false;
     }
     return false;

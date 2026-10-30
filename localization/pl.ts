@@ -11218,4 +11218,27 @@ Przygotowanie %3 · Finalizacja %4 · Łącznie %5</translation>
     <message id="preferences.layer.focus.expand"><source>Focus and Expand</source><translation type="unfinished" /></message>
     <message id="preferences.layer.focus.hint"><source>Focus scrolls to the selected layer or its visible parent. Focus and Expand also opens collapsed parents.</source><translation type="unfinished" /></message>
   </context>
+  <context>
+    <name>ArcShape</name>
+    <message id="shape.arc">
+      <source>Arc</source>
+      <translation>Łuk</translation>
+    </message>
+    <message id="shape.arc.start">
+      <source>Start</source>
+      <translation>Początek</translation>
+    </message>
+    <message id="shape.arc.sweep">
+      <source>Sweep</source>
+      <translation>Zakres</translation>
+    </message>
+    <message id="shape.arc.start.hint">
+      <source>Start angle in degrees. Zero points right; positive angles run clockwise.</source>
+      <translation>Kąt początkowy w stopniach. Zero wskazuje w prawo; kąty dodatnie biegną zgodnie z ruchem wskazówek zegara.</translation>
+    </message>
+    <message id="shape.arc.sweep.hint">
+      <source>Arc length in degrees. Positive runs clockwise; negative runs counterclockwise. 360 makes a full ellipse.</source>
+      <translation>Zakres łuku w stopniach. Dodatni: zgodnie z ruchem wskazówek zegara. Ujemny: przeciwnie. 360 tworzy pełną elipsę.</translation>
+    </message>
+  </context>
 </TS>

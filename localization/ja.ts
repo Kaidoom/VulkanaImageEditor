@@ -11208,4 +11208,27 @@ Prepare %3 · Finish %4 · Total %5</source>
     <message id="preferences.layer.focus.expand"><source>Focus and Expand</source><translation type="unfinished" /></message>
     <message id="preferences.layer.focus.hint"><source>Focus scrolls to the selected layer or its visible parent. Focus and Expand also opens collapsed parents.</source><translation type="unfinished" /></message>
   </context>
+  <context>
+    <name>ArcShape</name>
+    <message id="shape.arc">
+      <source>Arc</source>
+      <translation>円弧</translation>
+    </message>
+    <message id="shape.arc.start">
+      <source>Start</source>
+      <translation>開始</translation>
+    </message>
+    <message id="shape.arc.sweep">
+      <source>Sweep</source>
+      <translation>範囲</translation>
+    </message>
+    <message id="shape.arc.start.hint">
+      <source>Start angle in degrees. Zero points right; positive angles run clockwise.</source>
+      <translation>開始角度（度）。0度は右向きで、正の角度は時計回りです。</translation>
+    </message>
+    <message id="shape.arc.sweep.hint">
+      <source>Arc length in degrees. Positive runs clockwise; negative runs counterclockwise. 360 makes a full ellipse.</source>
+      <translation>円弧の角度範囲（度）。正は時計回り、負は反時計回りです。360で完全な楕円になります。</translation>
+    </message>
+  </context>
 </TS>

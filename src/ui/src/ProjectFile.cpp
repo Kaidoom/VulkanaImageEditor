@@ -158,8 +158,8 @@ namespace {
         }
         return known;
     }
-    constexpr std::array<const char*, 6> shapeKinds {
-        "rectangle", "rounded-rectangle", "ellipse", "triangle", "line", "polygon"
+    constexpr std::array<const char*, 7> shapeKinds {
+        "rectangle", "rounded-rectangle", "ellipse", "triangle", "line", "polygon", "arc"
     };
     QJsonArray shapeColor(core::Rgba8 color)
     {
@@ -180,7 +180,7 @@ namespace {
         QJsonArray points;
         for (const auto& point : shape.points)
             points.append(QJsonArray { point.x, point.y });
-        return { { "version", 1 }, { "kind", shapeKinds.at(size_t(shape.kind)) },
+        QJsonObject result { { "version", 1 }, { "kind", shapeKinds.at(size_t(shape.kind)) },
             { "size", QJsonArray { shape.size.width, shape.size.height } }, { "points", points },
             { "cornerRadius", shape.cornerRadius }, { "fillEnabled", shape.fillEnabled },
             { "fillRgba", shapeColor(shape.fillColor) }, { "strokeEnabled", shape.strokeEnabled },
@@ -189,6 +189,11 @@ namespace {
             { "cap", shape.strokeCap==core::ShapeCap::Butt?"butt":shape.strokeCap==core::ShapeCap::Square?"square":"round" },
             { "join", shape.strokeJoin==core::ShapeJoin::Miter?"miter":shape.strokeJoin==core::ShapeJoin::Bevel?"bevel":"round" },
             { "miterLimit", shape.strokeMiterLimit } };
+        if (shape.kind == core::ShapeKind::Arc) {
+            result["startAngle"] = shape.startAngle;
+            result["sweepAngle"] = shape.sweepAngle;
+        }
+        return result;
     }
     core::ShapeLayer decodeShape(const QJsonObject& object)
     {
@@ -200,6 +205,10 @@ namespace {
         require(kind != shapeKinds.end(), "Unsupported shape kind");
         core::ShapeLayer shape;
         shape.kind = core::ShapeKind(std::distance(shapeKinds.begin(), kind));
+        if (shape.kind == core::ShapeKind::Arc) {
+            shape.startAngle = number(object["startAngle"], -360, 360, "Missing or invalid arc start angle");
+            shape.sweepAngle = number(object["sweepAngle"], -360, 360, "Missing or invalid arc sweep angle");
+        }
         const auto size = object["size"].toArray();
         require(object["size"].isArray() && size.size() == 2, "Missing or invalid shape size");
         shape.size = { number(size[0], 0, core::maximumShapeDimension, "Invalid shape width"),
@@ -236,6 +245,7 @@ namespace {
     {
         QJsonArray layers;
         bool containsShapes = false;
+        bool containsArcs = false;
         bool containsShapeStrokeV2 = false;
         bool containsLabels = false;
         bool containsBlendModes = false;
@@ -305,10 +315,18 @@ namespace {
                 o["shape"] = encodeShape(std::get<core::ShapeLayer>(layer.payload));
                 containsShapes = true;
                 const auto& shape=std::get<core::ShapeLayer>(layer.payload);
+                containsArcs |= shape.kind == core::ShapeKind::Arc;
                 containsShapeStrokeV2 |= shape.strokeJoin!=core::ShapeJoin::Round || shape.strokeCap!=core::ShapeCap::Round;
             }
             require(layer.colorLabel <= uint8_t(core::ColorLabel::Purple), "Invalid layer color label");
             auto saved = overlayJson(oldLayers[layer.id], o).toObject();
+            if (const auto* shape = std::get_if<core::ShapeLayer>(&layer.payload); shape && shape->kind != core::ShapeKind::Arc) {
+                // Owned arc geometry must not survive conversion as opaque
+                // descriptor metadata on another shape kind.
+                auto descriptor = saved["shape"].toObject();
+                descriptor.remove("startAngle"); descriptor.remove("sweepAngle");
+                saved["shape"] = descriptor;
+            }
             saved.remove("layerMask");
             if (layer.mask) {
                 require(core::validLayerMask(layer.mask), "Invalid layer mask");
@@ -423,6 +441,7 @@ namespace {
         if (containsShapes) {
             auto required = result["required"].toArray();
             required.append("shape-v1");
+            if (containsArcs) required.append("shape-arc-v1");
             if(containsShapeStrokeV2)required.append("shape-stroke-v2");
             result["required"] = required;
         }
@@ -590,7 +609,7 @@ namespace {
         require(!o.contains("required") || o["required"].isArray(), "Invalid required capabilities");
         const auto required = o["required"].toArray();
         for (const auto& capability : required)
-            require(capability == "rgba8" || capability == "rich-text-v1" || capability == "shape-v1" || capability == "shape-stroke-v2"
+            require(capability == "rgba8" || capability == "rich-text-v1" || capability == "shape-v1" || capability == "shape-stroke-v2" || capability == "shape-arc-v1"
                     || capability == "hierarchy-v1" || capability == "container-visibility-v1" || capability == "clipping-mask-group-v1"
                     || capability == "blend-modes-v3" || capability == "layer-blend-modes-v1" || capability == "layer-blend-modes-v2"
                     || capability == "adjustments-v1" || capability == "adjustment-layer-v1" || capability == "spatial-filters-v1" || capability == "layer-crop-v1" || capability == "layer-crop-chamfer-v1"
@@ -844,6 +863,8 @@ namespace {
                 require(required.contains("shape-v1"), "Shape layer requires declared shape-v1 capability");
                 require(l["shape"].isObject(), "Missing shape descriptor");
                 auto shape=decodeShape(l["shape"].toObject());
+                require(shape.kind != core::ShapeKind::Arc || required.contains("shape-arc-v1"),
+                    "Arc shape requires declared shape-arc-v1 capability");
                 require((shape.strokeJoin==core::ShapeJoin::Round && shape.strokeCap==core::ShapeCap::Round)
                         || required.contains("shape-stroke-v2"),
                     "Non-round shape stroke requires declared shape-stroke-v2 capability");

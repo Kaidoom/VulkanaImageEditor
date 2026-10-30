@@ -280,7 +280,17 @@ A layer with `type: "shape"` contains the following authoritative descriptor and
 }
 ```
 
-Every descriptor field above is required. Kinds are `rectangle`, `rounded-rectangle`, `ellipse`, `triangle`, `line`, and `polygon`. Size, radius, stroke width and vertices are doubles measured in **layer-local document pixels** (+X right, +Y down), unaffected by monitor DPI or viewport zoom. `points` is empty for primitives, exactly two `[x,y]` pairs for lines, and at least three for polygons; each vertex lies in the inclusive local frame `[0,width] × [0,height]`. Polygon filling is even-odd, including self-intersections. Structurally valid degenerate geometry can be reopened and edited even though empty creation gestures do not create layers.
+Every descriptor field above is required. Kinds are `rectangle`, `rounded-rectangle`, `ellipse`, `triangle`, `line`, `polygon`, and `arc`. Size, radius, stroke width and vertices are doubles measured in **layer-local document pixels** (+X right, +Y down), unaffected by monitor DPI or viewport zoom. `points` is empty for primitives, exactly two `[x,y]` pairs for lines, and at least three for polygons; each vertex lies in the inclusive local frame `[0,width] × [0,height]`. Polygon filling is even-odd, including self-intersections. Structurally valid degenerate geometry can be reopened and edited even though empty creation gestures do not create layers.
+
+An `arc` additionally requires the root capability `shape-arc-v1` and descriptor
+fields `startAngle` and `sweepAngle`. Both are finite doubles in `[-360,360]`, in
+degrees around the ellipse defined by `size`. Zero points right; positive sweeps
+run clockwise and negative sweeps run counterclockwise. A zero sweep retains an
+editable empty arc; a complete ±360-degree sweep closes the contour without end
+caps. Arcs use the centered stroke and ignore fill, including for a complete
+turn. Angle fields are owned only by arcs and are omitted for other kinds.
+Converting or deleting the last arc removes `shape-arc-v1` on the next save, so
+older readers remain compatible with documents containing only older shapes.
 
 Fill and stroke each retain their own straight-sRGB RGBA8 color, including hidden RGB at zero alpha. Disabled fill means no fill. Disabled stroke or zero stroke width means **no stroke**, never a device-pixel hairline. Strokes are centered. Round joins/caps remain the default; `shape-stroke-v2` permits `miter`/`bevel` joins and `butt`/`square` caps. Non-round semantics require that capability. Optional `miterLimit` defaults to 2 and is measured in whole stroke widths, with a valid range of 0.5–1000. Stroke and geometry share the layer transform, including stretching, rotation and negative scales. Corner radius is stored without permanently clamping it to the current size; rendering applies the geometric clamp.
 

@@ -26,6 +26,7 @@ namespace imageeditor::ui {
 namespace {
     QString shapeName(core::ShapeKind kind)
     {
+        if (kind == core::ShapeKind::Arc) return i18n::text("shape.arc");
         constexpr std::array names { "Rectangle", "Rounded rectangle", "Ellipse", "Triangle", "Line", "Polygon" };
         return QString::fromLatin1(names[static_cast<std::size_t>(kind)]);
     }
@@ -112,7 +113,7 @@ void MainWindow::createShapeControls()
         if (shapeCreation_)
             return;
         shapeMode_ = kind;
-        if (kind == core::ShapeKind::Line)
+        if (kind == core::ShapeKind::Line || kind == core::ShapeKind::Arc)
             shapeDefaults_.strokeEnabled = true;
         // A mode chooses future geometry; selecting it never rewrites a layer.
         const auto* layer = session().document() && session().activeLayer() ? session().document()->layer(*session().activeLayer()) : nullptr;
@@ -226,6 +227,7 @@ void MainWindow::createShapeControls()
             shape.fillEnabled = false;
             shape.points = { { 0, 0 }, { 0, 0 } };
         }
+        if (shape.kind == core::ShapeKind::Arc) shape.fillEnabled = false;
         if (shape.kind == core::ShapeKind::Polygon)
             shape.points = { { 0, 0 }, { 0, 0 }, { 0, 0 } };
         shapeCreation_.emplace(ShapeCreation { core::Layer::shape(shapeName(shape.kind).toStdString(), shape), p, p, { }, mods.testFlag(Qt::ShiftModifier), true });
@@ -579,6 +581,7 @@ void MainWindow::refreshShapeControls()
         defaults.fillEnabled = false;
         defaults.points = { { 0, 0 }, { defaults.size.width, defaults.size.height } };
     }
+    if (defaults.kind == core::ShapeKind::Arc) defaults.fillEnabled = false;
     if (defaults.kind == core::ShapeKind::Polygon)
         defaults.points = { { 0, 0 }, { defaults.size.width, 0 }, { 0, defaults.size.height } };
     shapeOptionsPage_->setShape(shape ? *shape : defaults, shape != nullptr);

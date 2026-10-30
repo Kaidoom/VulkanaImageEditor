@@ -11206,4 +11206,27 @@ Preparazione %3 · Completamento %4 · Totale %5</translation>
     <message id="preferences.layer.focus.expand"><source>Focus and Expand</source><translation type="unfinished" /></message>
     <message id="preferences.layer.focus.hint"><source>Focus scrolls to the selected layer or its visible parent. Focus and Expand also opens collapsed parents.</source><translation type="unfinished" /></message>
   </context>
+  <context>
+    <name>ArcShape</name>
+    <message id="shape.arc">
+      <source>Arc</source>
+      <translation>Arco</translation>
+    </message>
+    <message id="shape.arc.start">
+      <source>Start</source>
+      <translation>Inizio</translation>
+    </message>
+    <message id="shape.arc.sweep">
+      <source>Sweep</source>
+      <translation>Ampiezza</translation>
+    </message>
+    <message id="shape.arc.start.hint">
+      <source>Start angle in degrees. Zero points right; positive angles run clockwise.</source>
+      <translation>Angolo iniziale in gradi. Zero punta a destra; gli angoli positivi procedono in senso orario.</translation>
+    </message>
+    <message id="shape.arc.sweep.hint">
+      <source>Arc length in degrees. Positive runs clockwise; negative runs counterclockwise. 360 makes a full ellipse.</source>
+      <translation>Ampiezza dell’arco in gradi. Positiva: senso orario. Negativa: senso antiorario. 360 crea un’ellisse completa.</translation>
+    </message>
+  </context>
 </TS>

@@ -37,10 +37,11 @@ ShapeOptionsPage::ShapeOptionsPage(QWidget* parent)
     auto* modesRow = new QHBoxLayout(modes_);
     modesRow->setContentsMargins(0, 0, 0, 0);
     modesRow->setSpacing(4);
-    const std::array labels { "Rectangle", "Rounded rectangle", "Ellipse", "Triangle", "Line", "Polygon" };
+    const std::array labels { "Rectangle", "Rounded rectangle", "Ellipse", "Triangle", "Line", "Polygon", "Arc" };
     for (std::size_t i = 0; i < labels.size(); ++i) {
-        auto* b = new ToolOptionsButton(QStringLiteral("ShapeMode%1").arg(i), QString::fromLatin1(labels[i]),
-            i18n::text("shape.options.page.1.create.a.new.editable.shape").arg(QString::fromLatin1(labels[i])),
+        const auto label = i == std::size_t(core::ShapeKind::Arc) ? i18n::text("shape.arc") : QString::fromLatin1(labels[i]);
+        auto* b = new ToolOptionsButton(QStringLiteral("ShapeMode%1").arg(i), label,
+            i18n::text("shape.options.page.1.create.a.new.editable.shape").arg(label),
             ToolOptionsButton::Kind::Toggle, modes_, ToolOptionsButton::Presentation::Icon);
         b->setIcon(toolGlyph(static_cast<ToolGlyph>(static_cast<int>(ToolGlyph::ShapeRectangle) + static_cast<int>(i))));
         modeGroup_->addButton(b, static_cast<int>(i));
@@ -84,6 +85,16 @@ ShapeOptionsPage::ShapeOptionsPage(QWidget* parent)
     };
     width_ = number("ShapeStrokeWidth", "Stroke", core::maximumShapeStyleDimension);
     radius_ = number("ShapeCornerRadius", "Radius", core::maximumShapeStyleDimension);
+    startAngle_ = number("ShapeStartAngle", "Start", 360);
+    sweepAngle_ = number("ShapeSweepAngle", "Sweep", 360);
+    i18n::setPrefix(startAngle_, i18n::text("shape.arc.start") + ": ");
+    i18n::setPrefix(sweepAngle_, i18n::text("shape.arc.sweep") + ": ");
+    i18n::setToolTip(startAngle_, i18n::text("shape.arc.start.hint"));
+    i18n::setToolTip(sweepAngle_, i18n::text("shape.arc.sweep.hint"));
+    for (auto* n : {startAngle_, sweepAngle_}) {
+        n->setRange(-360, 360); n->setDecimals(1);
+        i18n::setSuffix(n, QStringLiteral("°")); n->setFixedWidth(135);
+    }
     auto* transform = new ToolOptionsButton(QStringLiteral("ShapeTransform"), i18n::text("shape.options.page.transform"), i18n::text("shape.options.page.explicit.transform.session.layertransformaction.finishoperationaction.applies.escape.cancels.the"), ToolOptionsButton::Kind::Action, this, ToolOptionsButton::Presentation::Icon);
     transform->setIcon(toolGlyph(ToolGlyph::Transform));
     row->addWidget(transform);
@@ -95,8 +106,12 @@ ShapeOptionsPage::ShapeOptionsPage(QWidget* parent)
     connect(stroke_, &QToolButton::toggled, this, [this](bool b) {if(updating_)return;finishNumericInput();shape_.strokeEnabled=b;publish();if(onNumericFinished)onNumericFinished(true); });
     connect(width_, &QDoubleSpinBox::valueChanged, this, [this](double v) {if(updating_)return;shape_.strokeWidth=v;publish();if(!width_->interactionActive()&&onNumericFinished)onNumericFinished(true); });
     connect(radius_, &QDoubleSpinBox::valueChanged, this, [this](double v) {if(updating_)return;shape_.cornerRadius=v;publish();if(!radius_->interactionActive()&&onNumericFinished)onNumericFinished(true); });
+    connect(startAngle_, &QDoubleSpinBox::valueChanged, this, [this](double v) {if(updating_)return;shape_.startAngle=v;publish();if(!startAngle_->interactionActive()&&onNumericFinished)onNumericFinished(true); });
+    connect(sweepAngle_, &QDoubleSpinBox::valueChanged, this, [this](double v) {if(updating_)return;shape_.sweepAngle=v;publish();if(!sweepAngle_->interactionActive()&&onNumericFinished)onNumericFinished(true); });
     numbers_[0] = width_;
     numbers_[1] = radius_;
+    numbers_[7] = startAngle_;
+    numbers_[8] = sweepAngle_;
     // Retain vertex editing for later refinement without exposing its UI.
     auto* retained = new QWidget(this);
     retained->setObjectName("ShapeVertexEditorRetained");
@@ -217,17 +232,21 @@ void ShapeOptionsPage::publish()
 void ShapeOptionsPage::refresh()
 {
     const QScopedValueRollback guard(updating_, true);
+    const bool arc = shape_.kind == core::ShapeKind::Arc;
     fill_->setChecked(shape_.fillEnabled);
     stroke_->setChecked(shape_.strokeEnabled);
-    fill_->setEnabled(shape_.kind != core::ShapeKind::Line);
+    fill_->setEnabled(shape_.kind != core::ShapeKind::Line && !arc);
     fillColor_->setIcon(swatch(shape_.fillColor));
     strokeColor_->setIcon(swatch(shape_.strokeColor));
-    fillColor_->setEnabled(shape_.fillEnabled && shape_.kind != core::ShapeKind::Line);
+    fillColor_->setEnabled(shape_.fillEnabled && shape_.kind != core::ShapeKind::Line && !arc);
     strokeColor_->setEnabled(shape_.strokeEnabled);
     width_->setValue(shape_.strokeWidth);
     width_->setEnabled(shape_.strokeEnabled);
     radius_->setValue(shape_.cornerRadius);
     radius_->setEnabled(shape_.kind == core::ShapeKind::RoundedRectangle);
+    radius_->setVisible(!arc);
+    startAngle_->setVisible(arc); sweepAngle_->setVisible(arc);
+    startAngle_->setValue(shape_.startAngle); sweepAngle_->setValue(shape_.sweepAngle);
     if (geometryWidth_) {
         geometryWidth_->setValue(shape_.size.width);
         geometryHeight_->setValue(shape_.size.height);

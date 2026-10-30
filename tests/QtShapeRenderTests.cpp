@@ -744,11 +744,42 @@ void previewBudgetSizing()
     check(limit, "insufficient AA fringe budget rejects without an endless density loop");
 }
 
+void arcs()
+{
+    u::QtShapeRenderService service;
+    c::ShapeLayer arc; arc.kind = c::ShapeKind::Arc; arc.size = {100,100};
+    arc.strokeEnabled = true; arc.strokeWidth = 8; arc.strokeColor = {220,40,60,255};
+    arc.startAngle = 0; arc.sweepAngle = 90;
+    auto image = service.render({arc,1});
+    check(at(*image,{100,50}).alpha > 0 && at(*image,{50,100}).alpha > 0, "clockwise quarter arc reaches right and bottom");
+    check(at(*image,{50,50}).alpha == 0 && at(*image,{75,75}).alpha == 0, "arc never fills its interior or implicit chord");
+    check(!service.hit(arc,{}, {50,50},0) && !service.hit(arc,{}, {75,75},0), "open arc has no interior picking region");
+    check(service.hit(arc,{}, {100,50},0) && !service.hit(arc,{}, {50,0},0), "arc picks only its swept path");
+    check(at(*image,{100,47}).alpha > 0, "round cap extends beyond angular endpoint");
+    arc.strokeCap = c::ShapeCap::Butt;
+    check(at(*service.render({arc,1}),{100,47}).alpha == 0, "butt cap stops at endpoint");
+    arc.strokeCap = c::ShapeCap::Round; arc.sweepAngle = -90;
+    image = service.render({arc,1});
+    check(at(*image,{50,0}).alpha > 0 && at(*image,{50,100}).alpha == 0, "negative sweep runs counterclockwise");
+    arc.startAngle = 45; arc.sweepAngle = 360; arc.fillEnabled = false;
+    auto ellipse = arc; ellipse.kind = c::ShapeKind::Ellipse;
+    check(pixels(*service.render({arc,1})->surface) == pixels(*service.render({ellipse,1})->surface), "complete arc is a seamless stroked ellipse");
+    arc.sweepAngle = 0;
+    check(empty(*service.render({arc,1})), "zero sweep is empty, not a full circle");
+    arc.sweepAngle = 180; arc.startAngle = 0;
+    const c::AffineTransform transform{0,-2,240,1,0,10};
+    const auto mapped = transform.map({100,50});
+    check(service.hit(arc,transform,mapped,0), "arc picking follows anisotropic rotated transforms");
+    check(!service.documentBounds(arc,transform).empty(), "transformed arc has export bounds");
+    check(!empty(*service.renderDocument(arc,transform,1024*1024)), "arc renders through document export path");
+}
+
 int main(int argc, char** argv)
 {
     QGuiApplication app(argc, argv);
     try {
         fillStrokeAndAlpha();
+        arcs();
         kindsAndDegeneracy();
         ellipsesAndResolution();
         geometricHits();

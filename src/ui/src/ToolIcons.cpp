@@ -517,6 +517,7 @@ QPixmap rasterizedGlyph(ToolGlyph glyph, const QColor& ink, const QSize& size, q
         else if (glyph==ToolGlyph::ShapeTriangle) p.drawPolygon(QPolygonF({{12,3},{22,21},{2,21}}));
         else if (glyph==ToolGlyph::ShapeLine) p.drawLine(QPointF(4,20),QPointF(20,4));
         else if (glyph==ToolGlyph::ShapePolygon) p.drawPolygon(QPolygonF({{12,2},{22,9},{18,21},{5,20},{2,8}}));
+        else if (glyph==ToolGlyph::ShapeArc) p.drawArc(QRectF(3,3,18,18),30*16,285*16);
         else if (glyph==ToolGlyph::ShapeFill) { p.setBrush(ink); p.drawRect(QRectF(5,5,14,14)); }
         else { p.setPen(QPen(ink,3)); p.drawRect(QRectF(5,5,14,14)); }
     } else if (glyph==ToolGlyph::SelectRectangle || glyph==ToolGlyph::SelectEllipse) {

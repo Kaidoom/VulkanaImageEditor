@@ -309,6 +309,8 @@ QMap<QByteArray, QByteArray> shapeRecords(const core::Layer &layer,
           "Nonuniform/sheared vector strokes must be baked");
   require(s.fillColor.alpha == 255 || !s.fillEnabled,
           "Translucent vector fills must be baked");
+  require(s.kind != core::ShapeKind::Arc,
+          "Open arc geometry requires raster output in PSD");
   require(s.kind != core::ShapeKind::Line &&
               s.kind != core::ShapeKind::RoundedRectangle,
           "This geometry requires raster output in PSD V1");

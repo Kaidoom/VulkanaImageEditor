@@ -140,13 +140,15 @@ QJsonObject textData(const c::TextLayer& value)
     result["paragraphs"] = paragraphs;
     return result;
 }
-const QStringList shapeKinds {"rectangle", "rounded_rectangle", "ellipse", "triangle", "line", "polygon"};
+const QStringList shapeKinds {"rectangle", "rounded_rectangle", "ellipse", "triangle", "line", "polygon", "arc"};
 QJsonObject shapeProperties()
 {
     return {{"kind", choice(QJsonArray::fromStringList(shapeKinds))},
         {"width", number(0, c::maximumShapeDimension)}, {"height", number(0, c::maximumShapeDimension)},
         {"points", array(object({{"x", number(0, c::maximumShapeDimension)}, {"y", number(0, c::maximumShapeDimension)}}, {"x", "y"}), 0, 4096)},
         {"cornerRadius", number(0, c::maximumShapeStyleDimension)}, {"fillEnabled", boolean()}, {"fillColor", colorSchema()},
+        {"startAngle", number(-360, 360, "Arc only: degrees, zero at the right, positive clockwise; default 0.")},
+        {"sweepAngle", number(-360, 360, "Arc only: signed angular span; default 270. Negative runs counterclockwise; ±360 makes a complete ellipse. Arcs are stroke-only.")},
         {"strokeEnabled", boolean()}, {"strokeColor", colorSchema()}, {"strokeWidth", number(0, c::maximumShapeStyleDimension)},
         {"strokeJoin", choice({"round", "miter", "bevel"})}, {"strokeCap", choice({"round", "butt", "square"})},
         {"strokeMiterLimit", number(.5, 1000)}};
@@ -154,6 +156,10 @@ QJsonObject shapeProperties()
 c::ShapeLayer editShape(c::ShapeLayer value, const QJsonObject& patch)
 {
     if (patch.contains("kind")) value.kind = c::ShapeKind(shapeKinds.indexOf(patch["kind"].toString()));
+    require(value.kind == c::ShapeKind::Arc || (!patch.contains("startAngle") && !patch.contains("sweepAngle")), "startAngle and sweepAngle require shape kind=arc");
+    if (value.kind == c::ShapeKind::Arc && patch.contains("kind") && !patch.contains("strokeEnabled")) value.strokeEnabled = true;
+    if (patch.contains("startAngle")) value.startAngle = patch["startAngle"].toDouble();
+    if (patch.contains("sweepAngle")) value.sweepAngle = patch["sweepAngle"].toDouble();
     if (patch.contains("width")) value.size.width = patch["width"].toDouble();
     if (patch.contains("height")) value.size.height = patch["height"].toDouble();
     if (patch.contains("points")) {
@@ -169,18 +175,20 @@ c::ShapeLayer editShape(c::ShapeLayer value, const QJsonObject& patch)
     if (patch.contains("strokeJoin")) value.strokeJoin = c::ShapeJoin(QStringList{"round", "miter", "bevel"}.indexOf(patch["strokeJoin"].toString()));
     if (patch.contains("strokeCap")) value.strokeCap = c::ShapeCap(QStringList{"round", "butt", "square"}.indexOf(patch["strokeCap"].toString()));
     if (patch.contains("strokeMiterLimit")) value.strokeMiterLimit = patch["strokeMiterLimit"].toDouble();
-    require(c::validShape(value) && c::hasShapeGeometry(value), "Invalid or empty shape geometry; lines need two points and polygons at least three within width/height");
+    require(c::validShape(value) && c::hasShapeGeometry(value), "Invalid or empty shape geometry; arcs need positive width/height and nonzero sweep, lines need two points and polygons at least three within width/height");
     return value;
 }
 QJsonObject shapeData(const c::ShapeLayer& value)
 {
     QJsonArray points;
     for (const auto p : value.points) points.append(QJsonObject{{"x", p.x}, {"y", p.y}});
-    return {{"kind", shapeKinds.at(int(value.kind))}, {"width", value.size.width}, {"height", value.size.height},
+    QJsonObject result{{"kind", shapeKinds.at(int(value.kind))}, {"width", value.size.width}, {"height", value.size.height},
         {"points", points}, {"cornerRadius", value.cornerRadius}, {"fillEnabled", value.fillEnabled}, {"fillColor", color(value.fillColor)},
         {"strokeEnabled", value.strokeEnabled}, {"strokeColor", color(value.strokeColor)}, {"strokeWidth", value.strokeWidth},
         {"strokeJoin", QStringList{"round", "miter", "bevel"}.at(int(value.strokeJoin))},
         {"strokeCap", QStringList{"round", "butt", "square"}.at(int(value.strokeCap))}, {"strokeMiterLimit", value.strokeMiterLimit}};
+    if (value.kind == c::ShapeKind::Arc) { result["startAngle"] = value.startAngle; result["sweepAngle"] = value.sweepAngle; }
+    return result;
 }
 
 QJsonObject effectProperties(c::LayerEffectType type)

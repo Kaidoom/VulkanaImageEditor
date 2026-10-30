@@ -44,7 +44,7 @@ void iconsRenderRequestedSizesAndPreserveExplicitTint()
     std::vector<QIcon> icons;
     for (const auto glyph : {ToolGlyph::LayerRaster, ToolGlyph::Folder, ToolGlyph::Group,
              ToolGlyph::ShapeRectangle, ToolGlyph::ShapeRoundedRectangle, ToolGlyph::ShapeEllipse,
-             ToolGlyph::ShapeTriangle, ToolGlyph::ShapeLine, ToolGlyph::ShapePolygon,
+             ToolGlyph::ShapeTriangle, ToolGlyph::ShapeLine, ToolGlyph::ShapePolygon, ToolGlyph::ShapeArc,
              ToolGlyph::ObjectSelection}) {
         icons.push_back(toolGlyph(glyph, ink));
     }

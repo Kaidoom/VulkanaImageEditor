@@ -11208,4 +11208,27 @@ Prepare %3 · Finish %4 · Total %5</source>
     <message id="preferences.layer.focus.expand"><source>Focus and Expand</source><translation type="unfinished" /></message>
     <message id="preferences.layer.focus.hint"><source>Focus scrolls to the selected layer or its visible parent. Focus and Expand also opens collapsed parents.</source><translation type="unfinished" /></message>
   </context>
+  <context>
+    <name>ArcShape</name>
+    <message id="shape.arc">
+      <source>Arc</source>
+      <translation>호</translation>
+    </message>
+    <message id="shape.arc.start">
+      <source>Start</source>
+      <translation>시작</translation>
+    </message>
+    <message id="shape.arc.sweep">
+      <source>Sweep</source>
+      <translation>범위</translation>
+    </message>
+    <message id="shape.arc.start.hint">
+      <source>Start angle in degrees. Zero points right; positive angles run clockwise.</source>
+      <translation>시작 각도(도). 0은 오른쪽을 가리키며, 양수는 시계 방향입니다.</translation>
+    </message>
+    <message id="shape.arc.sweep.hint">
+      <source>Arc length in degrees. Positive runs clockwise; negative runs counterclockwise. 360 makes a full ellipse.</source>
+      <translation>호의 각도 범위(도). 양수는 시계 방향, 음수는 반시계 방향입니다. 360이면 완전한 타원이 됩니다.</translation>
+    </message>
+  </context>
 </TS>
