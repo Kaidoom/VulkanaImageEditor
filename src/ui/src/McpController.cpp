@@ -1,6 +1,7 @@
 #include "imageeditor/ui/McpController.hpp"
 #include "McpToolHelpers.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
+#include "imageeditor/ui/NewDocumentDialog.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/WorkspaceDialog.hpp"
 #include "imageeditor/ui/TextController.hpp"
@@ -94,21 +95,26 @@ McpController::Status McpController::status() const
 }
 void McpController::refreshStatus()
 {
-    const bool visible = running() || !error_.isEmpty();
+    const StatusSnapshot next{status(), clientCount(), endpoint(), error_, running()};
+    if (lastStatus_ && *lastStatus_ == next) return;
+    lastStatus_ = next;
+    const bool visible = next.running || !next.error.isEmpty();
     if (visible && !indicator_) {
         indicator_ = new QLabel(&window_); indicator_->setObjectName("McpConnectionStatus");
         window_.statusBar()->addPermanentWidget(indicator_);
         stopButton_ = new QPushButton(QStringLiteral("Stop MCP"), &window_); stopButton_->setObjectName("McpStopButton");
+        stopButton_->setAutoDefault(false);
         window_.statusBar()->addPermanentWidget(stopButton_);
         connect(stopButton_, &QPushButton::clicked, this, &McpController::stop);
     }
-    if (!indicator_) return;
-    const auto current = status();
-    indicator_->setText(current == Status::Connected ? QStringLiteral("MCP connected (%1)").arg(clientCount()) : current == Status::Stopping ? "MCP stopping…"
-        : current == Status::Error ? "MCP error" : "MCP enabled");
-    indicator_->setToolTip(error_.isEmpty() ? QStringLiteral("Local document automation. Endpoint: ") + endpoint() : error_);
-    indicator_->setVisible(visible); stopButton_->setVisible(visible);
-    stopButton_->setEnabled(current != Status::Stopping);
+    if (indicator_) {
+        indicator_->setText(next.status == Status::Connected ? QStringLiteral("MCP connected (%1)").arg(next.clients) : next.status == Status::Stopping ? "MCP stopping…"
+            : next.status == Status::Error ? "MCP error" : "MCP enabled");
+        indicator_->setToolTip(next.error.isEmpty() ? QStringLiteral("Local document automation. Endpoint: ") + next.endpoint : next.error);
+        indicator_->setVisible(visible); stopButton_->setVisible(visible);
+        stopButton_->setEnabled(next.status != Status::Stopping);
+    }
+    emit statusChanged();
 }
 core::EditorSession& McpController::session() const { return window_.session(); }
 core::Document& McpController::document() const
@@ -142,20 +148,34 @@ QJsonObject McpController::result(bool didChange) const
     return {{"documentId", id(window_.activeDocumentId())},
         {"revision", session().document() ? revisionToken(document()) : QString()}, {"changed", didChange}};
 }
-QJsonArray McpController::blockers() const
+NewDocumentDialog* McpController::newDocumentDialog() const
 {
+    auto* presenter = window_.workspaceDialog_;
+    if (!presenter || !presenter->active() || !presenter->isVisible()
+        || window_.workspace_->modalOverlay() != presenter) return nullptr;
+    for (auto* child : presenter->findChildren<QWidget*>(QString(), Qt::FindDirectChildrenOnly))
+        if (auto* dialog = dynamic_cast<NewDocumentDialog*>(child);
+            dialog && dialog->isVisible() && dialog->mode() == NewDocumentDialog::Mode::CreateDocument)
+            return dialog;
+    return nullptr;
+}
+QJsonArray McpController::blockers(bool allowNewDocumentDialog) const
+{
+    const auto* chooser = newDocumentDialog();
+    const auto* creationDialog = allowNewDocumentDialog ? chooser : nullptr;
     QJsonArray values;
     const auto add = [&](const char* code, QString message, const char* resolution = "Finish or cancel this interaction in Vulkana, then query state again.") {
         values.append(QJsonObject{{"code", QLatin1String(code)}, {"message", message}, {"resolution", QLatin1String(resolution)}});
     };
     if (window_.graphicsStartupPending_) add("graphics_initializing", "Graphics are initializing.", "Wait and query state again.");
     if (window_.fileBusy_) add("file_operation", "A file operation is in progress.", "Wait and query state again.");
-    if (window_.workspaceDialog_ && window_.workspaceDialog_->isVisible()) {
+    if (window_.workspaceDialog_ && window_.workspaceDialog_->isVisible() && !creationDialog) {
         QString title;
         for (auto* child : window_.workspaceDialog_->findChildren<QWidget*>())
             if (!child->windowTitle().isEmpty()) { title = child->windowTitle(); break; }
         add("workspace_dialog", title.isEmpty() ? QStringLiteral("An editor dialog is open.") : title,
-            "Resolve the dialog in Vulkana or explicitly cancel it with vulkana_cancel_interaction.");
+            chooser ? "vulkana_document_create can dismiss New Canvas and create a document directly when canCreateDocument is true. Other edits require closing it or using vulkana_cancel_interaction."
+                    : "Resolve the dialog in Vulkana or explicitly cancel it with vulkana_cancel_interaction.");
     }
     if (auto* modal = QApplication::activeModalWidget()) add("modal_dialog", modal->windowTitle());
     if (auto* popup = QApplication::activePopupWidget()) add("popup_menu", popup->objectName(), "Close the menu or popup in Vulkana.");
@@ -169,11 +189,12 @@ QJsonArray McpController::blockers() const
     const auto* focus = QApplication::focusWidget();
     const auto* field = qobject_cast<const QLineEdit*>(focus);
     if (!field && qobject_cast<const QAbstractSpinBox*>(focus)) field = focus->findChild<QLineEdit*>();
-    if (field && field->isModified()) add("field_edit", "A focused text or numeric field contains an uncommitted edit.");
+    if (field && field->isModified() && (!creationDialog || !creationDialog->isAncestorOf(field)))
+        add("field_edit", "A focused text or numeric field contains an uncommitted edit.");
     if (window_.cloneProcessing_ || window_.localBlurProcessing_ || window_.spotHealJob_)
         add("image_processing", "Image processing is in progress.", "Wait and query state again.");
     if (!window_.shortcutGestureIdle(true)) add("editing_gesture", "A brush, selection, drag or numeric edit is in progress.");
-    if (window_.workspace_->hasModalOverlay() && values.isEmpty()) add("modal_overlay", "A canvas overlay is blocking editing.");
+    if (window_.workspace_->hasModalOverlay() && values.isEmpty() && !creationDialog) add("modal_overlay", "A canvas overlay is blocking editing.");
     return values;
 }
 QJsonObject McpController::state(bool includeLayers) const
@@ -187,7 +208,7 @@ QJsonObject McpController::state(bool includeLayers) const
             {"active", documentId == window_.activeDocumentId()}});
     }
     QJsonObject out {{"documents", documents}, {"blockers", blocked}, {"canEdit", session().document() && blocked.isEmpty()},
-        {"canCreateDocument", blocked.isEmpty()},
+        {"canCreateDocument", blocked.isEmpty() || (newDocumentDialog() && blockers(true).isEmpty())},
         {"connected", server_.connected()}, {"connectedClients", clientCount()}, {"coordinates", "Document pixels, origin top-left, x right, y down. IDs are decimal strings; revision is an opaque string."}};
     if (!session().document()) { out["document"] = QJsonValue::Null; return out; }
     const auto& doc = document();
@@ -273,7 +294,7 @@ void McpController::add(QString name, QString description, QJsonObject propertie
                 }
             }
             if (access != Access::Query && access != Access::Interaction) {
-                const auto blocked = blockers();
+                const auto blocked = blockers(access == Access::CreateDocument);
                 if (!blocked.isEmpty()) return mcp::toolFailure("blocked", "Editing is blocked by an active interaction.", {{"blockers", blocked}});
             }
             if (access == Access::Interaction && (QApplication::activeModalWidget() || QApplication::activePopupWidget()))

@@ -21,12 +21,13 @@ public:
         CreateDocument,
         ChangeCanvasSize,
     };
-    enum Result { OpenDocument = 2, OpenRecent = 4, OpenDropped = 5, FromClipboard = 6 };
+    enum Result { OpenDocument = 2, OpenRecent = 4, OpenDropped = 5, FromClipboard = 6, McpPreferences = 7 };
 
     explicit NewDocumentDialog(QWidget* parent = nullptr);
     NewDocumentDialog(Mode mode, core::CanvasSpec initialSpec, QWidget* parent = nullptr);
 
     [[nodiscard]] core::CanvasSpec canvasSpec() const;
+    [[nodiscard]] Mode mode() const noexcept { return mode_; }
     [[nodiscard]] core::Rgba8 backgroundColor() const;
     // The caller owns the recent-files store and handles the returned open
     // request. The dialog never decodes image pixels or mutates a document.

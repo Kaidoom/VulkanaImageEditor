@@ -67,16 +67,26 @@ void McpController::registerDocumentTools()
     add("vulkana_get_state", "Query open documents, active canvas, stable layer IDs, bottom-to-top tree, selection, undo, snapshots and UI blockers. Safe while dialogs or edits are active. Start here.",
         {{"includeLayers", boolean("Include the active document's layer tree; default true.")}}, {}, Access::Query,
         [this](const QJsonObject& args) { return state(args.value("includeLayers").toBool(true)); });
-    add("vulkana_document_create", "Create a new document tab with one raster layer. Only the untouched launch placeholder may be replaced; explicit or edited documents remain open. Coordinates and dimensions are pixels. Background defaults to transparent.",
+    add("vulkana_document_create", "Create a new document tab with one raster layer. Automatically dismisses the New Canvas dialog after validating and preparing the requested document; other dialogs remain blocking. Uses the supplied values, not the dialog's draft. Only the untouched launch placeholder may be replaced; explicit or edited documents remain open. Coordinates and dimensions are pixels. Background defaults to transparent.",
         {{"width", integer(1, int(kMaximumRasterDimension))}, {"height", integer(1, int(kMaximumRasterDimension))},
-            {"name", string()}, {"background", colorSchema()}, {"dpi", number(1, 9600)}}, {"width", "height"}, Access::Session,
+            {"name", string()}, {"background", colorSchema()}, {"dpi", number(1, 9600)}}, {"width", "height"}, Access::CreateDocument,
         [this](const QJsonObject& args) {
-            const core::Extent2u extent{std::uint32_t(args["width"].toInt()), std::uint32_t(args["height"].toInt())};
-            require(rasterExtentWithinLimits(extent.width, extent.height), "Canvas exceeds the raster allocation limit");
-            auto doc = std::make_unique<core::Document>(core::CanvasSpec{extent, args.value("dpi").toDouble(96)});
-            const auto background = args.contains("background") ? color(args["background"].toString()) : core::Rgba8{};
-            auto layer = core::Layer::raster("Background", std::make_shared<core::ContiguousRasterSurface>(extent, background));
-            require(doc->insertLayer(0, std::move(layer)), "Could not create the initial layer");
+            auto doc = validateBeforeMutation([&] {
+                const core::Extent2u extent{std::uint32_t(args["width"].toInt()), std::uint32_t(args["height"].toInt())};
+                require(rasterExtentWithinLimits(extent.width, extent.height), "Canvas exceeds the raster allocation limit");
+                auto next = std::make_unique<core::Document>(core::CanvasSpec{extent, args.value("dpi").toDouble(96)});
+                const auto background = args.contains("background") ? color(args["background"].toString()) : core::Rgba8{};
+                auto layer = core::Layer::raster("Background", std::make_shared<core::ContiguousRasterSurface>(extent, background));
+                require(next->insertLayer(0, std::move(layer)), "Could not create the initial layer");
+                return next;
+            });
+            if (newDocumentDialog()) {
+                window_.workspaceDialog_->reject();
+                // The chooser's nested exec() unwinds after this MCP request.
+                // It is already closed; allow publication now without pumping
+                // events or submitting the chooser's draft as a second document.
+                window_.workspaceDialog_ = nullptr;
+            }
             require(window_.initializeDocument(std::move(doc), args.value("name").toString("Untitled")), "Could not activate the new document");
             return state();
         });

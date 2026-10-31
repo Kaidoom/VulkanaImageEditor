@@ -57,6 +57,7 @@ PreferencesDialog::PreferencesDialog(PreferencesState initial, QWidget* parent)
     auto* heading = i18n::make<QLabel>(i18n::text("preferences.dialog.preferences"), this); heading->setObjectName(QStringLiteral("ToolTitle"));
     layout->addWidget(heading);
     auto* tabs = new QTabWidget(this); tabs->setObjectName(QStringLiteral("PreferencesTabs"));
+    tabs_ = tabs;
     layout->addWidget(tabs, 1);
     auto* general = new QWidget(tabs);
     auto* generalLayout = new QVBoxLayout(general); generalLayout->setContentsMargins(16, 14, 16, 12); generalLayout->setSpacing(10);
@@ -222,6 +223,8 @@ PreferencesDialog::PreferencesDialog(PreferencesState initial, QWidget* parent)
         draft_.language = language_->currentData().toString(); preview();
     });
 }
+void PreferencesDialog::showMcpPage() { tabs_->setCurrentWidget(mcp_); }
+
 void PreferencesDialog::refresh()
 {
     const QSignalBlocker languageBlocker(language_);

@@ -1,7 +1,6 @@
 #pragma once
 #include "imageeditor/platform/McpSettings.hpp"
 #include <QPointer>
-#include <QTimer>
 #include <QWidget>
 #include <functional>
 class QCheckBox;
@@ -19,6 +18,8 @@ public:
     bool validate(QString* error = nullptr) const;
     void refreshStatus();
     std::function<void()> onChanged;
+protected:
+    void showEvent(QShowEvent*) override;
 private:
     void changed();
     QString connectionEndpoint() const;
@@ -27,6 +28,5 @@ private:
     QLineEdit *endpoint_{}, *command_{}, *connection_{};
     QLabel *status_{}, *error_{}, *pending_{}, *copied_{};
     QPushButton *toggle_{}, *copy_{};
-    QTimer timer_;
 };
 }

@@ -17,6 +17,10 @@ Open **Edit → Preferences → MCP**. No command-line flags are needed.
 
 Start/Stop are immediate session actions, separate from preference drafts. Cancel discards unapplied settings, but does not undo an explicit Start/Stop. If Stop is requested during a synchronous command, the listener stops accepting work and the UI shows **Stopping…** until the current command finishes. Its completed response is flushed when possible, allowing up to one second for unread output to drain; queued commands are not run. This is not cancellation or rollback of that command.
 
+The compact **MCP** button in the New Canvas header opens Preferences directly
+on the MCP page. Closing Preferences returns to the same canvas setup, keeping
+its size, resolution and background choices.
+
 ## Build and command-line connection
 
 Build the editor normally. The `imageeditor` target also builds the small `vulkana-mcp` companion executable. Both are installed into the normal binary directory. No Python, Node.js or MCP SDK is required at runtime.
@@ -187,7 +191,7 @@ The live `tools/list` schemas are the authoritative argument reference. The tabl
 | Tool | Purpose and main arguments |
 | --- | --- |
 | `vulkana_get_state` | Open tabs, active document, IDs/tree, geometry, selected layers, tool, drawing colors, pixel selection, undo/redo depths, snapshots and UI blockers. `includeLayers:false` reduces the response. Safe while editing is blocked. |
-| `vulkana_document_create` | New canvas: `width`, `height`, optional `name`, `dpi`, `background`. Creates one transparent raster layer by default. |
+| `vulkana_document_create` | New canvas: `width`, `height`, optional `name`, `dpi`, `background`. Creates one transparent raster layer by default. Dismisses the New Canvas dialog once the requested document is validated and prepared; other dialogs remain blocking. |
 | `vulkana_document_open` | Open an absolute `path`: native project, static raster image or animated GIF. GIF imports retain frames and timing. |
 | `vulkana_document_activate` | Explicitly activate `documentId`. |
 | `vulkana_document_save` | Save native `.vulkana` to absolute `path`. Existing files require `overwrite:true`. |
@@ -198,6 +202,13 @@ The live `tools/list` schemas are the authoritative argument reference. The tabl
 | `vulkana_canvas_preview` | MCP PNG image, optional `maxSize` (32–2048, default 1024 for both qualities), `quality` (`overview` by default, or `exact`), and `background` (`checkerboard` by default, `transparent`, `white` or `black`). |
 | `vulkana_export_image` | `path`, `format` (`png`/`jpeg`/`webp`), optional paired `width`/`height`, `quality`, WebP `lossless`, opaque PNG/JPEG `matte`, `overwrite`. |
 | `vulkana_history` | `operation`: `undo` or `redo`, one action. |
+
+`canCreateDocument` can be true while `canEdit` is false when New Canvas is the
+only blocking interaction. `vulkana_document_create` uses its supplied arguments
+and dismisses that chooser, including one opened through File → New. Invalid
+arguments or preparation failures leave the chooser open. Canvas Size,
+Preferences, native dialogs and other pending interactions remain blocking;
+existing documents are preserved under the usual creation rules.
 
 Preview is a rendered composite, not a screenshot of the visible viewport. It includes layers, masks, blending and effects but excludes selection outlines, handles and UI panels. `overview` uses the fast navigation sampler; `exact` uses the export compositor and is preferable for checking fine edges. Both support the full `maxSize` range: the longest output side uses that size and the other follows the canvas aspect ratio (at least one pixel). Larger previews require more rendering work. The response includes preview and document dimensions. Neither mode changes document pixels. Export defaults to current canvas dimensions, not preview dimensions.
 

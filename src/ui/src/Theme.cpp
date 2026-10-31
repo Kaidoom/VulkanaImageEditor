@@ -430,6 +430,10 @@ void applyEditorTheme(QApplication& application, const ThemeSettings& settings)
             padding: 4px;
             border-radius: 6px;
         }
+        QToolButton#NewCanvasMcpButton {
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
         QToolButton:focus {
             border-color: #8D9AF8;
         }
@@ -882,6 +886,13 @@ void applyEditorTheme(QApplication& application, const ThemeSettings& settings)
         }
         QStatusBar::item {
             border: none;
+        }
+        /* Fit the existing text-height status bar without resizing the canvas. */
+        QPushButton#McpStopButton {
+            min-height: 0;
+            padding: 0 6px;
+            border: none;
+            border-radius: 3px;
         }
         QToolTip {
             background: #272C38;

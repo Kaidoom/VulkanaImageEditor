@@ -2007,6 +2007,10 @@ bool MainWindow::configureMcpStartup(bool explicitStart, const QString& endpoint
 }
 void MainWindow::showPreferences()
 {
+    showPreferencesPage(false);
+}
+void MainWindow::showPreferencesPage(bool openMcpPage)
+{
     if (fileBusy_ || workspaceDialog_) return;
     // Preferences is not a document edit: preserve text/transform sessions and
     // their history. A live pointer gesture must finish before opening a card.
@@ -2019,6 +2023,7 @@ void MainWindow::showPreferences()
         i18n::Localization::instance().preference(),platform::loadPerformanceSettings(preferences),
         static_cast<LayerListView*>(layerList_)->layerInfoVisible(), platform::loadMcpSettings(preferences), layerSelectionFocus_}, &presenter);
     dialog.mcpPanel()->setController(&mcpController());
+    if (openMcpPage) dialog.showMcpPage();
     dialog.performancePanel()->setGraphicsDevices(canvasWindow_->graphicsDevices());
     dialog.performancePanel()->readUsage=[this]{return performanceUsage();};
     dialog.performancePanel()->onClearCaches=[this]{clearInactiveCaches();};
@@ -3218,6 +3223,11 @@ void MainWindow::createNewDocument()
             return presenter.exec(dialog);
         }();
         if (result == QDialog::Accepted) break;
+        if (result == NewDocumentDialog::McpPreferences) {
+            showPreferencesPage(true);
+            if (!isVisible()) return;
+            continue; // Resume the same chooser, preserving its draft values.
+        }
         if (result == NewDocumentDialog::FromClipboard) {
             if (createDocumentFromClipboard()) return;
             continue; // Keep size choices and existing documents after a failed decode.

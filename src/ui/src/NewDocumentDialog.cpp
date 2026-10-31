@@ -25,6 +25,7 @@
 #include <QShowEvent>
 #include <QStyle>
 #include <QStyledItemDelegate>
+#include <QToolButton>
 #include <QVBoxLayout>
 #include <array>
 
@@ -83,7 +84,20 @@ NewDocumentDialog::NewDocumentDialog(Mode mode, core::CanvasSpec initialSpec, QW
             : i18n::text("new.document.dialog.v1.documents.use.8.bit.rgba.in.the.srgb"));
     help->setObjectName(QStringLiteral("MutedLabel"));
     help->setWordWrap(true);
-    layout->addWidget(heading);
+    auto* header = new QHBoxLayout;
+    header->addWidget(heading, 1);
+    if (!changingCanvas) {
+        auto* mcp = new QToolButton(this);
+        mcp->setObjectName(QStringLiteral("NewCanvasMcpButton"));
+        i18n::setText(mcp, i18n::text("mcp.preferences.title"));
+        i18n::setToolTip(mcp, i18n::text("preferences.dialog.preferences"));
+        mcp->setIcon(toolGlyph(ToolGlyph::Preferences));
+        mcp->setIconSize(QSize(14,14));
+        mcp->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        header->addWidget(mcp, 0, Qt::AlignVCenter);
+        connect(mcp, &QToolButton::clicked, this, [this] { done(McpPreferences); });
+    }
+    layout->addLayout(header);
     layout->addWidget(help);
 
     // Keep five readable recent rows alongside the form, rather than making

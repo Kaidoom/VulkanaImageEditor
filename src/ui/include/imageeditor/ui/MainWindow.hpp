@@ -579,6 +579,7 @@ private:
     void showStartupUpdateNotice();
     void dismissStartupUpdateNotice();
     void showPreferences();
+    void showPreferencesPage(bool openMcpPage);
     void showAbout();
     void showFeedback();
     void refreshThemeAppearance();

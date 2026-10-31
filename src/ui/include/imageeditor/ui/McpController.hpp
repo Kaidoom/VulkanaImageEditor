@@ -8,15 +8,18 @@
 #include <QJsonObject>
 #include <QPointer>
 #include <functional>
+#include <optional>
 
 class QLabel;
 class QPushButton;
 namespace imageeditor::ui {
 class MainWindow;
+class NewDocumentDialog;
 
 // All document automation enters through this boundary on the GUI thread.
 // Individual tool modules use ordinary commands and share the same guards.
 class McpController final : public QObject {
+    Q_OBJECT
 public:
     enum class Status { Stopped, Listening, Connected, Stopping, Error };
     explicit McpController(MainWindow&);
@@ -31,14 +34,18 @@ public:
     [[nodiscard]] mcp::ToolRegistry& registry() { return registry_; }
     [[nodiscard]] QJsonObject state(bool includeLayers = true) const;
 
+signals:
+    void statusChanged();
+
 private:
     // Focused tests inject failures at the same dispatch boundary as real tools.
     friend class McpControllerTestAccess;
-    enum class Access { Query, Session, Document, DocumentQuery, Interaction };
+    enum class Access { Query, Session, CreateDocument, Document, DocumentQuery, Interaction };
     using Handler = std::function<QJsonObject(const QJsonObject&)>;
     void add(QString name, QString description, QJsonObject properties,
         QJsonArray required, Access, Handler, bool destructive = false);
-    [[nodiscard]] QJsonArray blockers() const;
+    [[nodiscard]] NewDocumentDialog* newDocumentDialog() const;
+    [[nodiscard]] QJsonArray blockers(bool allowNewDocumentDialog = false) const;
     [[nodiscard]] core::EditorSession& session() const;
     [[nodiscard]] core::Document& document() const;
     [[nodiscard]] core::Layer& layer(const QJsonObject&, const char* key = "layerId") const;
@@ -50,6 +57,14 @@ private:
     void registerPaintingTools();
     void registerLayoutTools();
     void refreshStatus();
+    struct StatusSnapshot {
+        Status status;
+        qsizetype clients;
+        QString endpoint, error;
+        bool running;
+        bool operator==(const StatusSnapshot&) const = default;
+    };
+    std::optional<StatusSnapshot> lastStatus_;
     MainWindow& window_;
     mcp::ToolRegistry registry_;
     mcp::LocalServer server_;

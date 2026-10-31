@@ -54,6 +54,7 @@ add_library(imageeditor_ui STATIC
     src/LayerDrag.cpp
     src/MainWindow.cpp
     src/McpController.cpp
+    include/imageeditor/ui/McpController.hpp
     src/McpPanel.cpp
     src/McpDocuments.cpp
     src/McpLayers.cpp

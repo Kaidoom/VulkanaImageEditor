@@ -14,6 +14,7 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QSignalBlocker>
+#include <QShowEvent>
 #include <QToolButton>
 #include <QVBoxLayout>
 namespace imageeditor::ui {
@@ -74,7 +75,6 @@ McpPanel::McpPanel(QWidget* parent) : QWidget(parent)
             if (!validate(&error)) { error_->setText(error); error_->show(); return; }
             controller_->start(settings().customEndpoint);
         }
-        refreshStatus();
     });
     connect(copy_, &QPushButton::clicked, this, [this] {
         if ((!controller_ || !controller_->running()) && !validate()) return;
@@ -83,10 +83,25 @@ McpPanel::McpPanel(QWidget* parent) : QWidget(parent)
         QApplication::clipboard()->setText(QString::fromUtf8(QJsonDocument(config).toJson(QJsonDocument::Indented)));
         copied_->show();
     });
-    timer_.setInterval(200); connect(&timer_, &QTimer::timeout, this, [this] { if (isVisible()) refreshStatus(); }); timer_.start();
     setSettings({});
 }
-void McpPanel::setController(McpController* controller) { controller_ = controller; refreshStatus(); }
+void McpPanel::setController(McpController* controller)
+{
+    if (controller_ != controller) {
+        if (controller_) disconnect(controller_, nullptr, this, nullptr);
+        controller_ = controller;
+        if (controller_) {
+            connect(controller_, &McpController::statusChanged, this, &McpPanel::refreshStatus);
+            connect(controller_, &QObject::destroyed, this, [this] { controller_ = nullptr; refreshStatus(); });
+        }
+    }
+    refreshStatus();
+}
+void McpPanel::showEvent(QShowEvent* event)
+{
+    QWidget::showEvent(event);
+    refreshStatus();
+}
 void McpPanel::setSettings(const platform::McpSettings& value)
 {
     const QSignalBlocker a(autoStart_), b(custom_), c(endpoint_);

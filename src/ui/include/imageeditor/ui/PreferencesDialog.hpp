@@ -12,6 +12,7 @@ class QCheckBox;
 class QLabel;
 class QPushButton;
 class QDoubleSpinBox;
+class QTabWidget;
 namespace imageeditor::ui {
 class ShortcutsPanel;
 class PerformancePanel;
@@ -43,6 +44,7 @@ public:
     std::function<std::uint64_t()> currentUndoBudget;
     PerformancePanel* performancePanel() const { return performance_; }
     McpPanel* mcpPanel() const { return mcp_; }
+    void showMcpPage();
     void reject() override;
 private:
     void refresh();
@@ -64,6 +66,7 @@ private:
     ShortcutsPanel* shortcuts_ {};
     PerformancePanel* performance_ {};
     McpPanel* mcp_ {};
+    QTabWidget* tabs_ {};
     std::array<QPushButton*, static_cast<std::size_t>(ThemeColor::Count)> swatches_ {};
 };
 }

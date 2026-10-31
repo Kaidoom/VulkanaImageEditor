@@ -2,11 +2,14 @@
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/WorkspaceDialog.hpp"
+#include "imageeditor/ui/NewDocumentDialog.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "NativeGraphicsStartup.hpp"
 #include <QApplication>
+#include <QAction>
 #include <QDialog>
+#include <QDoubleSpinBox>
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
@@ -23,6 +26,81 @@
 namespace ui = imageeditor::ui;
 int failures = 0;
 #define CHECK(value) do { if (!(value)) { std::cerr << "FAIL " << __LINE__ << ": " << #value << '\n'; ++failures; } } while(false)
+void documentCreationDialogTests(QVulkanInstance* instance)
+{
+    ui::MainWindow window(instance,false,false); window.setUnsavedPromptEnabled(false); window.show();
+    CHECK(imageeditor::test::waitForGraphicsStartup(window));
+    ui::McpController controller(window);
+    auto call = [&](const char* tool,QJsonObject args={},bool error=false) {
+        const auto result=controller.registry().call(tool,args);
+        if(result["isError"].toBool()!=error)std::cerr<<QJsonDocument(result).toJson().constData();
+        CHECK(result["isError"].toBool()==error);return result["structuredContent"].toObject();
+    };
+    auto withDialog = [&](auto open,auto inspect) {
+        bool handled=false;
+        QTimer responder,deadline; deadline.setSingleShot(true);
+        QObject::connect(&responder,&QTimer::timeout,&window,[&] {
+            for(auto* dialog:window.findChildren<QDialog*>()) if(dialog->isVisible()) {
+                responder.stop();handled=true;inspect(dialog);
+                if(dialog->isVisible())dialog->reject();
+                return;
+            }
+        });
+        QObject::connect(&deadline,&QTimer::timeout,&window,[&] {window.close();});
+        responder.start(5);deadline.start(5000);open();deadline.stop();responder.stop();CHECK(handled);
+        QApplication::processEvents();
+    };
+    const QJsonObject requested{{"width",64},{"height",48},{"dpi",144},{"background","#123456"},{"name","Created through chooser"}};
+    const auto placeholder=window.activeDocumentId();
+    withDialog([&] {window.showStartupDocument();},[&](QDialog* dialog) {
+        CHECK(dynamic_cast<ui::NewDocumentDialog*>(dialog));
+        const auto blocked=call("vulkana_get_state");
+        CHECK(!blocked["canEdit"].toBool() && blocked["canCreateDocument"].toBool());
+        CHECK(blocked["blockers"].toArray().first().toObject()["resolution"].toString().contains("vulkana_document_create"));
+        auto* spin=dialog->findChild<QDoubleSpinBox*>();CHECK(spin);
+        if(spin) {
+            auto* draft=spin->findChild<QLineEdit*>();CHECK(draft);
+            if(draft){draft->setText("999");draft->setModified(true);draft->setFocus();}
+        }
+        CHECK(call("vulkana_get_state")["canCreateDocument"].toBool());
+        const auto before=call("vulkana_get_state");
+        for(const int width:{0,16384}) {
+            const auto error=call("vulkana_document_create",{{"width",width},{"height",16384}},true)["error"].toObject();
+            CHECK(error["code"]=="invalid_arguments" && error["details"].toObject()["noChanges"]==true);
+            CHECK(dialog->isVisible() && call("vulkana_get_state")==before);
+        }
+        // A native confirmation over the chooser is never implicitly dismissed.
+        QDialog native(dialog);native.setModal(true);native.show();QApplication::processEvents();
+        CHECK(!call("vulkana_get_state")["canCreateDocument"].toBool());
+        CHECK(call("vulkana_document_create",requested,true)["error"].toObject()["code"]=="blocked");
+        CHECK(dialog->isVisible() && native.isVisible());native.reject();QApplication::processEvents();
+        const auto created=call("vulkana_document_create",requested);
+        CHECK(!dialog->isVisible() && created["canEdit"].toBool());
+        CHECK(created["document"].toObject()["width"]==64 && created["document"].toObject()["height"]==48);
+        CHECK(created["document"].toObject()["dpi"]==144);
+    });
+    CHECK(window.documentCount()==1 && window.activeDocumentId()!=placeholder);
+    CHECK(window.editorSession().document()->canvas().extent==(imageeditor::core::Extent2u{64,48}));
+    const auto original=window.activeDocumentId();
+    call("vulkana_layer_create",{{"documentId",QString::number(original)},{"kind","shape"}});
+    const auto existing=call("vulkana_get_state")["document"].toObject();
+    withDialog([&] {window.findChild<QAction*>("NewDocumentAction")->trigger();},[&](QDialog* dialog) {
+        CHECK(call("vulkana_get_state")["canCreateDocument"].toBool());
+        call("vulkana_document_create",requested);CHECK(!dialog->isVisible());
+    });
+    CHECK(window.documentCount()==2 && window.activeDocumentId()!=original);
+    call("vulkana_document_activate",{{"documentId",QString::number(original)}});
+    CHECK(call("vulkana_get_state")["document"].toObject()==existing);
+    for(const auto* action: {"ChangeCanvasSizeAction","PreferencesAction"}) {
+        withDialog([&] {window.findChild<QAction*>(action)->trigger();},[&](QDialog* dialog) {
+            CHECK(!call("vulkana_get_state")["canCreateDocument"].toBool());
+            CHECK(call("vulkana_document_create",requested,true)["error"].toObject()["code"]=="blocked");
+            CHECK(dialog->isVisible() && window.documentCount()==2);
+        });
+    }
+    CHECK(call("vulkana_get_state")["document"].toObject()==existing);
+    window.close();QApplication::processEvents();
+}
 int main(int argc, char** argv)
 {
     QCoreApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
@@ -157,6 +235,7 @@ int main(int argc, char** argv)
     for (const auto quality : {"overview", "exact"})
         checkPreview({{"documentId", portrait}, {"maxSize", 2048}, {"quality", quality}}, QSize(64,96).scaled(2048,2048,Qt::KeepAspectRatio));
     window.close(); QApplication::processEvents();
+    documentCreationDialogTests(native ? &instance : nullptr);
     std::cout << "MCP editor tests: " << failures << " failures\n";
     return failures ? 1 : 0;
 }

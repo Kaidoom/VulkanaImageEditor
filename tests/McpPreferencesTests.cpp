@@ -2,7 +2,11 @@
 #include "imageeditor/ui/McpController.hpp"
 #include "imageeditor/ui/McpPanel.hpp"
 #include "imageeditor/ui/PreferencesDialog.hpp"
+#include "imageeditor/ui/NewDocumentDialog.hpp"
+#include "imageeditor/ui/OverlayDockWorkspace.hpp"
+#include "imageeditor/ui/WorkspaceDialog.hpp"
 #include "imageeditor/ui/Theme.hpp"
+#include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/mcp/Integration.hpp"
 #include "imageeditor/mcp/LocalServer.hpp"
 #include "imageeditor/platform/McpSettings.hpp"
@@ -10,8 +14,10 @@
 #include <QApplication>
 #include <QAction>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QClipboard>
 #include <QFile>
+#include <QDoubleSpinBox>
 #include <QJsonDocument>
 #include <QLabel>
 #include <QLineEdit>
@@ -20,11 +26,15 @@
 #include <QPushButton>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QStatusBar>
+#include <QSignalSpy>
 #include <QTabWidget>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTimer>
+#include <QToolButton>
 #include <QUuid>
+#include <QVulkanInstance>
 #include <iostream>
 #include <cstring>
 #ifdef Q_OS_UNIX
@@ -133,6 +143,135 @@ void settingsAndDiscovery()
 #else
     CHECK(!mcp::validateEndpoint("\\\\remote\\pipe\\unsafe").isEmpty());
 #endif
+}
+class LayoutEvents final : public QObject {
+public:
+    int moves = 0, resizes = 0, requests = 0;
+    bool eventFilter(QObject*, QEvent* event) override
+    {
+        if (event->type() == QEvent::Move) ++moves;
+        if (event->type() == QEvent::Resize) ++resizes;
+        if (event->type() == QEvent::LayoutRequest) ++requests;
+        return false;
+    }
+};
+void stableMcpLayout(QVulkanInstance* instance)
+{
+    QTemporaryDir files;
+    ui::MainWindow window(instance, false, false);
+    window.setUnsavedPromptEnabled(false); window.resize(1280,900); window.show();
+    CHECK(imageeditor::test::waitForGraphicsStartup(window));
+    auto* workspace = dynamic_cast<ui::OverlayDockWorkspace*>(window.findChild<QWidget*>("CanvasWorkspace"));
+    CHECK(workspace); if (!workspace) return;
+    imageeditor::render::CanvasWindow* canvas = nullptr;
+    for (auto* candidate : QGuiApplication::allWindows())
+        if (auto* value = dynamic_cast<imageeditor::render::CanvasWindow*>(candidate)) canvas = value;
+    CHECK(canvas); if (!canvas) return;
+    auto& controller = window.mcpController();
+    ui::WorkspaceDialog presenter(*workspace,window);
+    ui::PreferencesDialog dialog({},&presenter);
+    auto* panel = dialog.mcpPanel(); panel->setController(&controller);
+    panel->setSettings({false,endpoint(files,"layout")});
+    dialog.findChild<QTabWidget*>("PreferencesTabs")->setCurrentWidget(panel);
+    presenter.open(dialog); QTest::qWait(150);
+    const auto barHeight = window.statusBar()->height();
+    const auto canvasSize = canvas->size();
+    const auto cardRect = dialog.geometry();
+    const auto generation = canvas->rendererStats().swapchainGeneration;
+    if (instance) CHECK(generation > 0);
+    LayoutEvents canvasEvents, cardEvents, bodyEvents;
+    canvas->installEventFilter(&canvasEvents); dialog.installEventFilter(&cardEvents);
+    auto* toggle = dialog.findChild<QPushButton*>("McpServerToggle");
+    toggle->parentWidget()->installEventFilter(&bodyEvents);
+    auto* status = dialog.findChild<QLabel*>("McpServerStatus");
+    QSignalSpy notifications(&controller,&ui::McpController::statusChanged);
+    const auto stable = [&] {
+        QTest::qWait(50);
+        CHECK(window.statusBar()->height() == barHeight);
+        CHECK(canvas->size() == canvasSize && canvasEvents.resizes == 0);
+        CHECK(dialog.geometry() == cardRect && cardEvents.moves == 0 && cardEvents.resizes == 0);
+        CHECK(canvas->rendererStats().swapchainGeneration == generation);
+    };
+    toggle->click(); CHECK(status->text() == "Listening"); stable();
+    const auto path = controller.endpoint();
+    QLocalSocket first, second;
+    first.connectToServer(path); CHECK(spin([&] { return controller.clientCount() == 1; })); handshake(first);
+    CHECK(status->text() == "Connected · Clients: 1"); stable();
+    second.connectToServer(path); CHECK(spin([&] { return controller.clientCount() == 2; })); handshake(second);
+    CHECK(status->text() == "Connected · Clients: 2"); stable();
+    first.disconnectFromServer(); CHECK(spin([&] { return controller.clientCount() == 1; }));
+    CHECK(status->text() == "Connected · Clients: 1"); stable();
+    // An unchanged connection must not keep relaying out the visible page.
+    bodyEvents.requests = 0; const auto count = notifications.count(); QTest::qWait(450);
+    CHECK(bodyEvents.requests == 0 && notifications.count() == count); stable();
+    toggle->click(); CHECK(status->text() == "Stopped"); stable();
+    toggle->click(); CHECK(status->text() == "Listening"); stable();
+    auto* stop = window.findChild<QPushButton*>("McpStopButton"); CHECK(stop);
+    if (stop) stop->click(); // The Preferences status follows the external control immediately.
+    CHECK(status->text() == "Stopped"); stable();
+    std::cout << "MCP layout: status height " << barHeight << ", canvas " << canvasSize.width()
+        << 'x' << canvasSize.height() << ", swapchain generation " << generation << " unchanged\n";
+    presenter.reject(); window.close(); QApplication::processEvents();
+}
+void newCanvasMcpNavigation(QVulkanInstance* instance)
+{
+    QTemporaryDir files;
+    ui::MainWindow window(instance,false,false);window.setUnsavedPromptEnabled(false);window.show();
+    CHECK(imageeditor::test::waitForGraphicsStartup(window));
+    auto& controller=window.mcpController();
+    const auto original=window.activeDocumentId();
+    const imageeditor::core::CanvasSpec draft{{321,123},144};
+    QPointer<ui::NewDocumentDialog> chooser;
+    QTimer responder,deadline;deadline.setSingleShot(true);
+    int step=0;
+    QObject::connect(&responder,&QTimer::timeout,&window,[&] {
+        for(auto* candidate:window.findChildren<QDialog*>()) {
+            if(!candidate->isVisible())continue;
+            if(auto* dialog=dynamic_cast<ui::NewDocumentDialog*>(candidate)) {
+                auto* button=dialog->findChild<QToolButton*>("NewCanvasMcpButton");CHECK(button);
+                if(!button){responder.stop();dialog->reject();return;}
+                CHECK(!button->icon().isNull() && button->text()=="MCP");
+                if(step==0) {
+                    chooser=dialog;
+                    dialog->findChild<QDoubleSpinBox*>("CanvasWidthSpinBox")->setValue(draft.extent.width);
+                    dialog->findChild<QDoubleSpinBox*>("CanvasHeightSpinBox")->setValue(draft.extent.height);
+                    dialog->findChild<QDoubleSpinBox*>("CanvasDpiSpinBox")->setValue(draft.dotsPerInch);
+                    dialog->findChild<QComboBox*>("CanvasBackgroundCombo")->setCurrentIndex(2);
+                    const auto screenshot=qEnvironmentVariable("VULKANA_NEW_CANVAS_SCREENSHOT");
+                    if(!screenshot.isEmpty())CHECK(dialog->grab().save(screenshot));
+                    ++step;button->click();return;
+                }
+                CHECK(dialog==chooser && dialog->canvasSpec()==draft);
+                CHECK(dialog->backgroundColor()==(imageeditor::core::Rgba8{0,0,0,255}));
+                CHECK(window.activeDocumentId()==original && window.documentCount()==1);
+                CHECK(controller.running());
+                if(step==2){++step;button->click();return;}
+                CHECK(step==4);++step;responder.stop();
+                const auto result=controller.registry().call("vulkana_document_create",{{"width",64},{"height",48}});
+                CHECK(!result["isError"].toBool() && !dialog->isVisible());
+                if(dialog->isVisible())dialog->reject();
+                return;
+            }
+            if(auto* dialog=dynamic_cast<ui::PreferencesDialog*>(candidate)) {
+                CHECK(!chooser->isVisible());
+                CHECK(dialog->findChild<QTabWidget*>("PreferencesTabs")->currentWidget()==dialog->mcpPanel());
+                CHECK(!controller.state(false)["canCreateDocument"].toBool());
+                if(step==1) {
+                    dialog->mcpPanel()->setSettings({false,endpoint(files,"chooser")});
+                    dialog->findChild<QPushButton*>("McpServerToggle")->click();
+                    CHECK(controller.running());++step;dialog->reject();return;
+                }
+                CHECK(step==3);++step;dialog->findChild<QPushButton*>("PreferencesOk")->click();return;
+            }
+        }
+    });
+    QObject::connect(&deadline,&QTimer::timeout,&window,[&]{window.close();});
+    responder.start(5);deadline.start(5000);window.showStartupDocument();deadline.stop();responder.stop();
+    CHECK(step==5 && window.documentCount()==1 && window.activeDocumentId()!=original);
+    CHECK(window.editorSession().document()->canvas().extent==(imageeditor::core::Extent2u{64,48}));
+    ui::NewDocumentDialog resize(ui::NewDocumentDialog::Mode::ChangeCanvasSize,draft);
+    CHECK(!resize.findChild<QToolButton*>("NewCanvasMcpButton"));
+    controller.stop();window.close();QApplication::processEvents();
 }
 void preferencesAndStartup(const QString& application)
 {
@@ -248,9 +387,17 @@ int main(int argc, char** argv)
     QStandardPaths::setTestModeEnabled(true); QTemporaryDir config;
     QSettings::setDefaultFormat(QSettings::IniFormat); QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, config.path());
     ui::applyEditorTheme(app);
-    settingsAndDiscovery(); stoppingCompletesOnlyTheCurrentCommand();
-    CHECK(app.arguments().size() > 1);
-    if (app.arguments().size() > 1) preferencesAndStartup(app.arguments()[1]);
+    if (app.arguments().contains("--layout-only")) {
+        QVulkanInstance instance;
+        const bool native = app.arguments().contains("--native");
+        if (native) { instance.setApiVersion(QVersionNumber(1,2)); CHECK(instance.create()); if (!instance.isValid()) return 1; }
+        stableMcpLayout(native ? &instance : nullptr);
+        newCanvasMcpNavigation(native ? &instance : nullptr);
+    } else {
+        settingsAndDiscovery(); stoppingCompletesOnlyTheCurrentCommand(); stableMcpLayout(nullptr);newCanvasMcpNavigation(nullptr);
+        CHECK(app.arguments().size() > 1);
+        if (app.arguments().size() > 1) preferencesAndStartup(app.arguments()[1]);
+    }
     std::cout << "MCP preferences/lifecycle: " << failures << " failures\n";
     return failures ? 1 : 0;
 }
