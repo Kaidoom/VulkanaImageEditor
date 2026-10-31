@@ -3,6 +3,8 @@
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/WorkspacePanel.hpp"
 #include "imageeditor/ui/PreferencesDialog.hpp"
+#include "imageeditor/ui/McpPanel.hpp"
+#include "imageeditor/ui/McpController.hpp"
 #include "imageeditor/ui/PerformancePanel.hpp"
 #include "imageeditor/ui/ScreenshotDialog.hpp"
 #include "imageeditor/ui/ScreenshotPreview.hpp"
@@ -39,9 +41,11 @@
 #include <QInputMethodEvent>
 #include <QLabel>
 #include <QLineEdit>
+#include <QLocalSocket>
 #include <QListWidget>
 #include <QMenuBar>
 #include <QSettings>
+#include <QStatusBar>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTest>
@@ -54,6 +58,7 @@
 #include <QCheckBox>
 #include <QElapsedTimer>
 #include <QVBoxLayout>
+#include <QUuid>
 #include <iostream>
 #include <cstring>
 namespace u = imageeditor::ui;
@@ -79,6 +84,56 @@ void localeMatching()
     CHECK(service.resolveLanguage("pt-BR") == "pt-BR");
     CHECK(service.resolveLanguage("hi-IN") == "hi");
     CHECK(service.resolveLanguage("ko-KR") == "ko");
+}
+void mcpUi(const QString& output)
+{
+    auto& service=i::Localization::instance();service.setLanguage("en");
+    u::MainWindow window(nullptr,false,false);window.setUnsavedPromptEnabled(false);window.show();
+    auto& controller=window.mcpController();
+    u::PreferencesDialog preferences({});preferences.mcpPanel()->setController(&controller);
+    preferences.showMcpPage();service.direction(&preferences);preferences.show();
+    u::NewDocumentDialog chooser;service.direction(&chooser);chooser.show();
+    settle();
+    const auto draft=preferences.draft();const auto canvas=chooser.canvasSpec();
+    const auto before=controller.state(false)["document"].toObject();
+    QTemporaryDir files;
+#ifdef Q_OS_WIN
+    const auto endpoint="vulkana-mcp-localization-"+QUuid::createUuid().toString(QUuid::Id128);
+#else
+    const auto endpoint=files.filePath("editor.sock");
+#endif
+    for(const auto* language:{"en","fr","es","de","it","pt-BR","pl","tr","ru","uk","ar","hi","zh-Hans","zh-Hant","ja","ko","qps"}) {
+        service.setLanguage(language);settle();
+        const auto height=window.statusBar()->height();
+        CHECK(controller.start(endpoint));settle();
+        auto* indicator=window.findChild<QLabel*>("McpConnectionStatus");
+        auto* stop=window.findChild<QPushButton*>("McpStopButton");
+        CHECK(indicator && stop);
+        if(indicator)CHECK(indicator->text()==i::text("mcp.status.enabled"));
+        if(stop)CHECK(stop->text()==i::text("mcp.preferences.stop") && stop->width()>=stop->minimumSizeHint().width());
+        CHECK(preferences.findChild<QLabel*>("McpServerStatus")->text()==i::text("mcp.preferences.listening"));
+        CHECK(preferences.findChild<QLineEdit*>("McpConnectionEndpoint")->layoutDirection()==Qt::LeftToRight);
+        CHECK(chooser.findChild<QToolButton*>("NewCanvasMcpButton")->text()==i::text("mcp.preferences.title"));
+        QLocalSocket client;client.connectToServer(endpoint);
+        CHECK(QTest::qWaitFor([&]{return controller.clientCount()==1;},2000));settle();
+        CHECK(preferences.findChild<QLabel*>("McpServerStatus")->text()==i::text("mcp.preferences.connected").arg(1));
+        if(indicator)CHECK(indicator->text()==i::text("mcp.status.connected").arg(1));
+        for(auto* button:preferences.findChildren<QPushButton*>())if(button->isVisible()&&!button->text().isEmpty())
+            CHECK(button->width()>=button->minimumSizeHint().width());
+        if(window.statusBar()->height()!=height)
+            std::cerr<<"MCP status height "<<language<<": "<<height<<" -> "<<window.statusBar()->height()
+                     <<" label="<<indicator->sizeHint().height()<<" button="<<stop->sizeHint().height()<<'\n';
+        CHECK(window.statusBar()->height()==height);
+        CHECK(preferences.draft()==draft && chooser.canvasSpec()==canvas);
+        CHECK(controller.state(false)["document"].toObject()==before);
+        if(!output.isEmpty() && (QString(language)=="fr"||QString(language)=="ar"||QString(language)=="ja"||QString(language)=="qps")) {
+            QDir().mkpath(output);preferences.grab().save(output+"/mcp-"+language+".png");
+            window.statusBar()->grab().save(output+"/mcp-status-"+language+".png");
+        }
+        controller.stop();settle();
+        CHECK(preferences.findChild<QLabel*>("McpServerStatus")->text()==i::text("mcp.preferences.stopped"));
+    }
+    chooser.reject();preferences.reject();window.close();settle();service.setLanguage("en");
 }
 void recentUi(const QString& output)
 {
@@ -663,7 +718,7 @@ int main(int argc, char** argv)
 #endif
     u::applyEditorTheme(app);
     const auto output = qEnvironmentVariable("VULKANA_LOCALIZATION_SCREENSHOTS");
-    localeMatching(); bindings(); composition(); dropdown(output); dialogButtons();recentUi(output);gifAndTimeline(output);
+    localeMatching(); bindings(); composition(); dropdown(output); dialogButtons();recentUi(output);mcpUi(output);gifAndTimeline(output);
     adjustmentCategories(output); psdReview(output); workspace(output); workspace({}, "ar");
     std::cout << "Localization failures: " << failures << '\n'; return failures ? 1 : 0;
 }

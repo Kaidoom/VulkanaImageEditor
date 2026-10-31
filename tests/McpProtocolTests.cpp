@@ -9,6 +9,7 @@
 #include <QProcess>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QUuid>
 #include <iostream>
 #include <stdexcept>
 
@@ -16,6 +17,16 @@ namespace mcp = imageeditor::mcp;
 namespace {
 int failures = 0;
 #define CHECK(value) do { if (!(value)) { std::cerr << "FAIL " << __LINE__ << ": " #value "\n"; ++failures; } } while (false)
+
+QString endpoint(const QTemporaryDir& directory, const QString& name)
+{
+#ifdef Q_OS_WIN
+    Q_UNUSED(directory);
+    return "vulkana-mcp-protocol-" + name + QUuid::createUuid().toString(QUuid::Id128);
+#else
+    return directory.path() + "/private/" + name + ".sock";
+#endif
+}
 
 QByteArray rpc(int id, const QString& method, QJsonObject params = {})
 {
@@ -164,7 +175,7 @@ void transport()
 {
     QTemporaryDir directory;
     CHECK(directory.isValid());
-    const auto path = directory.path() + "/private/editor.sock";
+    const auto path = endpoint(directory, "editor");
     mcp::ToolRegistry registry;
     mcp::LocalServer server(registry, "test");
     QString error;
@@ -235,7 +246,7 @@ void bridge(const QString& executable)
 {
     if (executable.isEmpty()) return;
     QTemporaryDir directory;
-    const auto path = directory.path() + "/private/bridge.sock";
+    const auto path = endpoint(directory, "bridge");
     mcp::ToolRegistry registry;
     registry.add({"echo", "Echo", {{"type", "object"}}, {}, [](const QJsonObject&) {
         return mcp::toolSuccess({{"alive", true}});
@@ -261,7 +272,7 @@ void bridge(const QString& executable)
     process.closeWriteChannel();
     CHECK(spin([&] { return process.state() == QProcess::NotRunning; }));
     CHECK(process.exitCode() == 0 && process.readAllStandardError().isEmpty());
-    CHECK(!server.connected());
+    CHECK(spin([&] { return !server.connected(); }));
     CHECK(server.socketName().endsWith(path)); // Detach does not close the editor server.
     if (process.state() != QProcess::NotRunning) { process.kill(); process.waitForFinished(); }
 }

@@ -11173,41 +11173,41 @@ Prepare %3 · Finish %4 · Total %5</source>
   </context>
   <context>
     <name>McpPreferences</name>
-    <message id="mcp.preferences.title"><source>MCP</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.start"><source>Start MCP</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.stop"><source>Stop MCP</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.stopped"><source>Stopped</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.listening"><source>Listening</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.connected"><source>Connected · Clients: %1</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.stopping"><source>Stopping…</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.error"><source>Error</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.autostart"><source>Start automatically with Vulkana</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.security"><source>Only connect clients you trust. MCP clients can modify documents and read or write files with your Vulkana host-user permissions. A client running in a container is not limited to that container's files.</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.connection"><source>Connection</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.local"><source>MCP uses local communication, without a network port. Multiple trusted clients can connect; editing commands run one at a time. Copy the configuration into OpenCode V2; Vulkana does not edit its configuration files.</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.command"><source>Bridge command</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.endpoint"><source>Endpoint</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.copy"><source>Copy Configuration · OpenCode V2</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.copied"><source>Copied</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.advanced"><source>Advanced Settings</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.custom"><source>Use a custom endpoint</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.next.start"><source>Endpoint changes take effect on the next Start. While MCP is running, Copy Configuration uses its current endpoint.</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.apply.note"><source>Start and Stop affect this session immediately. Apply saves automatic startup and endpoint settings; it does not restart an active connection.</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.finishing"><source>Waiting for the current command to finish before disconnecting. Its changes are not cancelled or rolled back.</source><translation type="unfinished" /></message>
+    <message id="mcp.preferences.title"><source>MCP</source><translation>MCP</translation></message>
+    <message id="mcp.preferences.start"><source>Start MCP</source><translation>MCP शुरू करें</translation></message>
+    <message id="mcp.preferences.stop"><source>Stop MCP</source><translation>MCP बंद करें</translation></message>
+    <message id="mcp.preferences.stopped"><source>Stopped</source><translation>बंद</translation></message>
+    <message id="mcp.preferences.listening"><source>Listening</source><translation>कनेक्शन की प्रतीक्षा</translation></message>
+    <message id="mcp.preferences.connected"><source>Connected · Clients: %1</source><translation>जुड़ा है · क्लाइंट: %1</translation></message>
+    <message id="mcp.preferences.stopping"><source>Stopping…</source><translation>बंद हो रहा है…</translation></message>
+    <message id="mcp.preferences.error"><source>Error</source><translation>त्रुटि</translation></message>
+    <message id="mcp.preferences.autostart"><source>Start automatically with Vulkana</source><translation>Vulkana के साथ अपने आप शुरू करें</translation></message>
+    <message id="mcp.preferences.security"><source>Only connect clients you trust. MCP clients can modify documents and read or write files with your Vulkana host-user permissions. A client running in a container is not limited to that container's files.</source><translation>केवल भरोसेमंद क्लाइंट जोड़ें। MCP क्लाइंट दस्तावेज़ बदल सकते हैं और Vulkana चलाने वाले उपयोगकर्ता की अनुमतियों से फ़ाइलें पढ़ या लिख सकते हैं। कंटेनर में चलने वाला क्लाइंट केवल उसी कंटेनर की फ़ाइलों तक सीमित नहीं होता।</translation></message>
+    <message id="mcp.preferences.connection"><source>Connection</source><translation>कनेक्शन</translation></message>
+    <message id="mcp.preferences.local"><source>MCP uses local communication, without a network port. Multiple trusted clients can connect; editing commands run one at a time. Copy the configuration into OpenCode V2; Vulkana does not edit its configuration files.</source><translation>MCP नेटवर्क पोर्ट के बिना स्थानीय रूप से संचार करता है। कई भरोसेमंद क्लाइंट जुड़ सकते हैं; संपादन आदेश एक-एक करके चलते हैं। सेटिंग OpenCode V2 में कॉपी करें; Vulkana उसकी सेटिंग फ़ाइलें नहीं बदलता।</translation></message>
+    <message id="mcp.preferences.command"><source>Bridge command</source><translation>ब्रिज कमांड</translation></message>
+    <message id="mcp.preferences.endpoint"><source>Endpoint</source><translation>कनेक्शन पता</translation></message>
+    <message id="mcp.preferences.copy"><source>Copy Configuration · OpenCode V2</source><translation>सेटिंग कॉपी करें · OpenCode V2</translation></message>
+    <message id="mcp.preferences.copied"><source>Copied</source><translation>कॉपी किया गया</translation></message>
+    <message id="mcp.preferences.advanced"><source>Advanced Settings</source><translation>उन्नत सेटिंग</translation></message>
+    <message id="mcp.preferences.custom"><source>Use a custom endpoint</source><translation>कस्टम कनेक्शन पता इस्तेमाल करें</translation></message>
+    <message id="mcp.preferences.next.start"><source>Endpoint changes take effect on the next Start. While MCP is running, Copy Configuration uses its current endpoint.</source><translation>कनेक्शन पते के बदलाव अगली बार शुरू करने पर लागू होंगे। MCP चल रहा हो तो सेटिंग कॉपी करें वर्तमान कनेक्शन पता इस्तेमाल करता है।</translation></message>
+    <message id="mcp.preferences.apply.note"><source>Start and Stop affect this session immediately. Apply saves automatic startup and endpoint settings; it does not restart an active connection.</source><translation>शुरू और बंद इस सत्र पर तुरंत असर करते हैं। लागू करें से अपने आप शुरू करने और कनेक्शन पते की सेटिंग सहेजी जाती हैं; सक्रिय कनेक्शन फिर से शुरू नहीं होता।</translation></message>
+    <message id="mcp.preferences.finishing"><source>Waiting for the current command to finish before disconnecting. Its changes are not cancelled or rolled back.</source><translation>कनेक्शन बंद करने से पहले वर्तमान आदेश पूरा होने की प्रतीक्षा है। उसके बदलाव रद्द नहीं होंगे और न ही वापस किए जाएँगे।</translation></message>
   </context>
   <context>
     <name>ShapePreview</name>
-    <message id="main.window.shape.preview.limit.named"><source>Shape “%1” (layer %2) exceeds the preview limit. Its editable data is retained.</source><translation type="unfinished" /></message>
-    <message id="main.window.shape.preview.memory.named"><source>Not enough memory to render shape “%1” (layer %2). Its editable data is retained.</source><translation type="unfinished" /></message>
-    <message id="main.window.shape.preview.failed.named"><source>Could not render shape “%1” (layer %2): %3. Its editable data is retained.</source><translation type="unfinished" /></message>
-    <message id="main.window.shape.preview.reduced.named"><source>Shape “%1” (layer %2) is shown at reduced preview resolution. Its editable data is retained.</source><translation type="unfinished" /></message>
+    <message id="main.window.shape.preview.limit.named"><source>Shape “%1” (layer %2) exceeds the preview limit. Its editable data is retained.</source><translation>आकृति “%1” (परत %2) पूर्वावलोकन की सीमा से बड़ी है। संपादन योग्य डेटा सुरक्षित है।</translation></message>
+    <message id="main.window.shape.preview.memory.named"><source>Not enough memory to render shape “%1” (layer %2). Its editable data is retained.</source><translation>आकृति “%1” (परत %2) दिखाने के लिए पर्याप्त मेमोरी नहीं है। संपादन योग्य डेटा सुरक्षित है।</translation></message>
+    <message id="main.window.shape.preview.failed.named"><source>Could not render shape “%1” (layer %2): %3. Its editable data is retained.</source><translation>आकृति “%1” (परत %2) नहीं दिखाई जा सकी: %3। संपादन योग्य डेटा सुरक्षित है।</translation></message>
+    <message id="main.window.shape.preview.reduced.named"><source>Shape “%1” (layer %2) is shown at reduced preview resolution. Its editable data is retained.</source><translation>आकृति “%1” (परत %2) कम पूर्वावलोकन रिज़ॉल्यूशन पर दिखाई गई है। संपादन योग्य डेटा सुरक्षित है।</translation></message>
   </context>
   <context>
     <name>LayerSelectionFocus</name>
-    <message id="preferences.layer.focus.label"><source>Auto-scroll to selected layer</source><translation type="unfinished" /></message>
-    <message id="preferences.layer.focus.normal"><source>Focus</source><translation type="unfinished" /></message>
-    <message id="preferences.layer.focus.expand"><source>Focus and Expand</source><translation type="unfinished" /></message>
-    <message id="preferences.layer.focus.hint"><source>Focus scrolls to the selected layer or its visible parent. Focus and Expand also opens collapsed parents.</source><translation type="unfinished" /></message>
+    <message id="preferences.layer.focus.label"><source>Auto-scroll to selected layer</source><translation>चुनी गई परत तक अपने आप स्क्रॉल करें</translation></message>
+    <message id="preferences.layer.focus.normal"><source>Focus</source><translation>दिखाएँ</translation></message>
+    <message id="preferences.layer.focus.expand"><source>Focus and Expand</source><translation>दिखाएँ और खोलें</translation></message>
+    <message id="preferences.layer.focus.hint"><source>Focus scrolls to the selected layer or its visible parent. Focus and Expand also opens collapsed parents.</source><translation>दिखाएँ चुनी गई परत या उसके दिखाई देने वाले मूल समूह तक स्क्रॉल करता है। दिखाएँ और खोलें बंद मूल समूहों को भी खोलता है।</translation></message>
   </context>
   <context>
     <name>ArcShape</name>
@@ -11254,5 +11254,13 @@ Prepare %3 · Finish %4 · Total %5</source>
       <source>Edit layer properties</source>
       <translation>लेयर के गुण संपादित करें</translation>
     </message>
+  </context>
+  <context>
+    <name>McpStatus</name>
+    <message id="mcp.status.connected"><source>MCP connected (%1)</source><translation>MCP जुड़ा है (%1)</translation></message>
+    <message id="mcp.status.stopping"><source>MCP stopping…</source><translation>MCP बंद हो रहा है…</translation></message>
+    <message id="mcp.status.error"><source>MCP error</source><translation>MCP त्रुटि</translation></message>
+    <message id="mcp.status.enabled"><source>MCP enabled</source><translation>MCP चालू है</translation></message>
+    <message id="mcp.status.endpoint.hint"><source>Local document automation. Endpoint: %1</source><translation>स्थानीय दस्तावेज़ स्वचालन। कनेक्शन पता: %1</translation></message>
   </context>
 </TS>

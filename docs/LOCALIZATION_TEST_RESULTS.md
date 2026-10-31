@@ -2,7 +2,7 @@
 
 All 16 language choices are enabled: en, fr, es, de, it, pt-BR, pl, tr, ru, uk,
 ar, hi, zh-Hans, zh-Hant, ja and ko. Each non-English catalog contains a first
-translation of all **1,800 active English entries**, including the required
+translation of all **1,923 active English entries**, including the required
 plural forms. Retired contributor entries remain in the catalogs but do not
 count toward active coverage.
 
@@ -28,6 +28,13 @@ multi-stop gradient editor. All 15 translated catalogs have complete active-ID
 coverage; existing translations and source text are unchanged. Language-wide
 review remains pending.
 
+The 0.3.7 pass completes 34 messages per non-English language for MCP setup,
+connection status, shape-preview notices and automatic layer-list focus.
+Existing arc controls and batch-edit history translations are retained. MCP
+protocol identifiers and low-level diagnostic details remain in English.
+Compact status controls use a stable row height across scripts, and endpoint
+paths remain left-to-right in Arabic tooltips and fields.
+
 ## Recorded technical checks
 
 These results describe specific regression runs, not a guarantee for every
@@ -49,6 +56,9 @@ desktop configuration or a claim that every page has been visually reviewed.
 | Linux, Qt 6.11.2; 2026-10-18 | 28/28 focused Release and 14/14 Debug checks passed for localization, installed/offline pack loading, canvas resize, Properties, gradients/swatches, effects, masks, PSD import/export, save/reopen, updates and text input; all 16 README checks passed |
 | Native Wayland at 125% and XCB at 150%; 2026-10-18 | Repeated language switching and layout checks passed without changing gradient stops, paint colors, history, document tabs or panel placement; native Quick canvas resize checks passed on both platforms |
 | Windows 11, Qt 6.10.3, MSVC 19.51, NVIDIA RTX 3050 Ti; 2026-10-18 | Fresh Release build and 17/17 focused checks passed, including all language packs, gradients/swatches, Properties, canvas resize, text input, PSD import/export and Vulkan effects |
+| Linux x86-64, Qt 6.11.2; 2026-10-31 | All 16 catalogs and MCP UI controls checked, including live status changes, stable canvas/status geometry, unchanged document state and pseudo-language expansion; 21 final focused Release and 23 distinct Debug checks passed |
+| Native Wayland at 125% and XCB at 150%; 2026-10-31 | Localization UI checks passed, including MCP Preferences and the New Canvas shortcut |
+| Windows 11, Qt 6.10.3, NVIDIA RTX 3050 Ti; 2026-10-31 | All 16 catalogs and pseudo-language layouts checked; 14/14 final focused Release checks passed, including named-pipe MCP lifecycle, editing, batching, Preferences and HiDPI layouts; native MCP editing, timeline, background removal and relocated clean-PATH app smoke checks passed |
 
 The 0.3.5 preflight also covers a Windows compiler-memory regression in the PSD
 text defaults. Smaller construction steps retain the complete table; a fixed

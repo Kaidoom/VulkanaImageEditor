@@ -49,13 +49,15 @@ function(vulkana_windows_test name source)
     file(GLOB icons "${PROJECT_SOURCE_DIR}/assets/icons/*.svg")
     qt_add_resources(${name} "${name}_icons" PREFIX "/" BASE "${PROJECT_SOURCE_DIR}/assets"
         FILES ${icons} "${PROJECT_SOURCE_DIR}/assets/Vulkana512.png")
-    add_test(NAME ${name} COMMAND ${name})
+    add_test(NAME ${name} COMMAND ${name} ${ARGN})
     # Qt's offscreen plugin has no native Windows font database. Use the native
     # QPA even for noninteractive tests so shaping/metrics use real system fonts.
     set_tests_properties(${name} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=windows;QT_FORCE_STDERR_LOGGING=1" TIMEOUT 120)
 endfunction()
 vulkana_windows_test(imageeditor_windows_platform_tests WindowsPlatformTests.cpp)
 vulkana_windows_test(imageeditor_core_tests CoreTests.cpp)
+vulkana_windows_test(imageeditor_shape_tests ShapeTests.cpp)
+vulkana_windows_test(imageeditor_shape_resize_tests ShapeResizeTests.cpp)
 vulkana_windows_test(imageeditor_project_file_tests ProjectFileTests.cpp)
 target_link_libraries(imageeditor_project_file_tests PRIVATE MINIZIP::minizip-ng imageeditor_project_preview)
 target_compile_definitions(imageeditor_project_file_tests PRIVATE IMAGEEDITOR_PROJECT_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/projects")
@@ -114,6 +116,29 @@ vulkana_windows_test(imageeditor_pdf_export_tests PdfExportTests.cpp)
 target_link_libraries(imageeditor_pdf_export_tests PRIVATE Qt6::Pdf qpdf::libqpdf)
 set_tests_properties(imageeditor_pdf_export_tests PROPERTIES TIMEOUT 180)
 add_test(NAME imageeditor_localization_catalogs COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/tools/localization.py" validate)
+
+# Exercise the same MCP protocol and document operations over Windows named
+# pipes, including the packaged app's headless stdio bridge entry point.
+add_executable(imageeditor_mcp_protocol_tests McpProtocolTests.cpp)
+target_link_libraries(imageeditor_mcp_protocol_tests PRIVATE imageeditor_mcp Qt6::Test)
+imageeditor_enable_warnings(imageeditor_mcp_protocol_tests)
+add_test(NAME imageeditor_mcp_protocol_tests COMMAND imageeditor_mcp_protocol_tests $<TARGET_FILE:vulkana-mcp>)
+set_tests_properties(imageeditor_mcp_protocol_tests PROPERTIES TIMEOUT 60 LABELS "mcp;protocol;windows")
+vulkana_windows_test(imageeditor_mcp_connection_tests McpConnectionTests.cpp $<TARGET_FILE:imageeditor> $<TARGET_FILE:vulkana-mcp>)
+vulkana_windows_test(imageeditor_mcp_preferences_tests McpPreferencesTests.cpp $<TARGET_FILE:imageeditor>)
+set_tests_properties(imageeditor_mcp_connection_tests imageeditor_mcp_preferences_tests PROPERTIES
+    RUN_SERIAL TRUE LABELS "mcp;preferences;windows")
+foreach(module Editor Layer Painting BatchLayer Layout Validation PropertyBatch)
+    string(TOLOWER "${module}" module_lower)
+    vulkana_windows_test(imageeditor_mcp_${module_lower}_tests Mcp${module}Tests.cpp)
+    set_tests_properties(imageeditor_mcp_${module_lower}_tests PROPERTIES RUN_SERIAL TRUE LABELS "mcp;history;windows")
+endforeach()
+add_test(NAME imageeditor_windows_mcp_layout COMMAND imageeditor_mcp_preferences_tests --layout-only --native)
+set_tests_properties(imageeditor_windows_mcp_layout PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=windows;QT_FORCE_STDERR_LOGGING=1" TIMEOUT 120 RUN_SERIAL TRUE LABELS "mcp;preferences;vulkan;windows")
+add_test(NAME imageeditor_mcp_preferences_hidpi COMMAND imageeditor_mcp_preferences_tests --layout-only)
+set_tests_properties(imageeditor_mcp_preferences_hidpi PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=windows;QT_FORCE_STDERR_LOGGING=1;QT_SCALE_FACTOR=1.5" TIMEOUT 120 RUN_SERIAL TRUE LABELS "mcp;preferences;windows")
 
 # Interactive desktop only: run explicitly next to the staged app's DLLs/data.
 # A session-0/offscreen run cannot inspect Windows' actual alpha composition.

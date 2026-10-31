@@ -1,4 +1,5 @@
 #include "imageeditor/ui/McpController.hpp"
+#include "imageeditor/ui/Localization.hpp"
 #include "McpToolHelpers.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/NewDocumentDialog.hpp"
@@ -20,6 +21,23 @@
 namespace imageeditor::ui {
 using namespace mcpdetail;
 namespace {
+template<class Widget>
+class CompactStatusControl final : public Widget {
+public:
+    using Widget::Widget;
+    QSize sizeHint() const override
+    {
+        auto size = Widget::sizeHint();
+        size.setHeight(this->fontMetrics().height());
+        return size;
+    }
+    QSize minimumSizeHint() const override
+    {
+        auto size = Widget::minimumSizeHint();
+        size.setHeight(this->fontMetrics().height());
+        return size;
+    }
+};
 QString revisionToken(const core::Document& document)
 {
     // Geometry revision alone excludes journalled raster edits; content state
@@ -100,17 +118,19 @@ void McpController::refreshStatus()
     lastStatus_ = next;
     const bool visible = next.running || !next.error.isEmpty();
     if (visible && !indicator_) {
-        indicator_ = new QLabel(&window_); indicator_->setObjectName("McpConnectionStatus");
+        indicator_ = new CompactStatusControl<QLabel>(&window_); indicator_->setObjectName("McpConnectionStatus");
         window_.statusBar()->addPermanentWidget(indicator_);
-        stopButton_ = new QPushButton(QStringLiteral("Stop MCP"), &window_); stopButton_->setObjectName("McpStopButton");
+        stopButton_ = i18n::make<CompactStatusControl<QPushButton>>(i18n::text("mcp.preferences.stop"), &window_); stopButton_->setObjectName("McpStopButton");
         stopButton_->setAutoDefault(false);
         window_.statusBar()->addPermanentWidget(stopButton_);
         connect(stopButton_, &QPushButton::clicked, this, &McpController::stop);
     }
     if (indicator_) {
-        indicator_->setText(next.status == Status::Connected ? QStringLiteral("MCP connected (%1)").arg(next.clients) : next.status == Status::Stopping ? "MCP stopping…"
-            : next.status == Status::Error ? "MCP error" : "MCP enabled");
-        indicator_->setToolTip(next.error.isEmpty() ? QStringLiteral("Local document automation. Endpoint: ") + next.endpoint : next.error);
+        i18n::setText(indicator_, next.status == Status::Connected ? i18n::text("mcp.status.connected").arg(next.clients)
+            : i18n::text(next.status == Status::Stopping ? "mcp.status.stopping"
+                : next.status == Status::Error ? "mcp.status.error" : "mcp.status.enabled"));
+        i18n::setToolTip(indicator_, next.error.isEmpty()
+            ? i18n::text("mcp.status.endpoint.hint").arg(i18n::ltrToken(next.endpoint)) : i18n::Message(next.error));
         indicator_->setVisible(visible); stopButton_->setVisible(visible);
         stopButton_->setEnabled(next.status != Status::Stopping);
     }

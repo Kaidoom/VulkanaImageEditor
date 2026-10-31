@@ -169,7 +169,9 @@ public:
     }
     QSize sizeHint() const override
     {
-        return {0, std::max({left_->sizeHint().height(), center_->sizeHint().height(), right_->sizeHint().height()})};
+        // Single-line status text shares one font-height row. Fallback scripts
+        // can add generous line spacing without needing taller visible glyphs.
+        return {0, fontMetrics().height()};
     }
     QSize minimumSizeHint() const override { return sizeHint(); }
 protected:

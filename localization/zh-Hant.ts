@@ -11172,41 +11172,41 @@ Prepare %3 · Finish %4 · Total %5</source>
   </context>
   <context>
     <name>McpPreferences</name>
-    <message id="mcp.preferences.title"><source>MCP</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.start"><source>Start MCP</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.stop"><source>Stop MCP</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.stopped"><source>Stopped</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.listening"><source>Listening</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.connected"><source>Connected · Clients: %1</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.stopping"><source>Stopping…</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.error"><source>Error</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.autostart"><source>Start automatically with Vulkana</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.security"><source>Only connect clients you trust. MCP clients can modify documents and read or write files with your Vulkana host-user permissions. A client running in a container is not limited to that container's files.</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.connection"><source>Connection</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.local"><source>MCP uses local communication, without a network port. Multiple trusted clients can connect; editing commands run one at a time. Copy the configuration into OpenCode V2; Vulkana does not edit its configuration files.</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.command"><source>Bridge command</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.endpoint"><source>Endpoint</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.copy"><source>Copy Configuration · OpenCode V2</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.copied"><source>Copied</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.advanced"><source>Advanced Settings</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.custom"><source>Use a custom endpoint</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.next.start"><source>Endpoint changes take effect on the next Start. While MCP is running, Copy Configuration uses its current endpoint.</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.apply.note"><source>Start and Stop affect this session immediately. Apply saves automatic startup and endpoint settings; it does not restart an active connection.</source><translation type="unfinished" /></message>
-    <message id="mcp.preferences.finishing"><source>Waiting for the current command to finish before disconnecting. Its changes are not cancelled or rolled back.</source><translation type="unfinished" /></message>
+    <message id="mcp.preferences.title"><source>MCP</source><translation>MCP</translation></message>
+    <message id="mcp.preferences.start"><source>Start MCP</source><translation>啟動 MCP</translation></message>
+    <message id="mcp.preferences.stop"><source>Stop MCP</source><translation>停止 MCP</translation></message>
+    <message id="mcp.preferences.stopped"><source>Stopped</source><translation>已停止</translation></message>
+    <message id="mcp.preferences.listening"><source>Listening</source><translation>等待連線</translation></message>
+    <message id="mcp.preferences.connected"><source>Connected · Clients: %1</source><translation>已連線 · 用戶端：%1</translation></message>
+    <message id="mcp.preferences.stopping"><source>Stopping…</source><translation>正在停止…</translation></message>
+    <message id="mcp.preferences.error"><source>Error</source><translation>錯誤</translation></message>
+    <message id="mcp.preferences.autostart"><source>Start automatically with Vulkana</source><translation>隨 Vulkana 自動啟動</translation></message>
+    <message id="mcp.preferences.security"><source>Only connect clients you trust. MCP clients can modify documents and read or write files with your Vulkana host-user permissions. A client running in a container is not limited to that container's files.</source><translation>僅連接可信任的用戶端。MCP 用戶端可使用執行 Vulkana 的使用者權限修改文件、讀寫檔案。即使用戶端在容器中執行，其存取範圍也不限於容器內的檔案。</translation></message>
+    <message id="mcp.preferences.connection"><source>Connection</source><translation>連線</translation></message>
+    <message id="mcp.preferences.local"><source>MCP uses local communication, without a network port. Multiple trusted clients can connect; editing commands run one at a time. Copy the configuration into OpenCode V2; Vulkana does not edit its configuration files.</source><translation>MCP 透過本機通訊連線，不使用網路連接埠。可連接多個可信任的用戶端，編輯命令會依序執行。請將設定複製到 OpenCode V2；Vulkana 不會修改其設定檔。</translation></message>
+    <message id="mcp.preferences.command"><source>Bridge command</source><translation>橋接命令</translation></message>
+    <message id="mcp.preferences.endpoint"><source>Endpoint</source><translation>連線位址</translation></message>
+    <message id="mcp.preferences.copy"><source>Copy Configuration · OpenCode V2</source><translation>複製設定 · OpenCode V2</translation></message>
+    <message id="mcp.preferences.copied"><source>Copied</source><translation>已複製</translation></message>
+    <message id="mcp.preferences.advanced"><source>Advanced Settings</source><translation>進階設定</translation></message>
+    <message id="mcp.preferences.custom"><source>Use a custom endpoint</source><translation>使用自訂連線位址</translation></message>
+    <message id="mcp.preferences.next.start"><source>Endpoint changes take effect on the next Start. While MCP is running, Copy Configuration uses its current endpoint.</source><translation>連線位址的變更將於下次啟動時生效。MCP 執行期間，複製設定使用目前的連線位址。</translation></message>
+    <message id="mcp.preferences.apply.note"><source>Start and Stop affect this session immediately. Apply saves automatic startup and endpoint settings; it does not restart an active connection.</source><translation>啟動和停止會立即影響目前的工作階段。「套用」會儲存自動啟動和連線位址設定，不會重新啟動現有連線。</translation></message>
+    <message id="mcp.preferences.finishing"><source>Waiting for the current command to finish before disconnecting. Its changes are not cancelled or rolled back.</source><translation>正在等待目前的命令完成後中斷連線。其變更不會被取消或復原。</translation></message>
   </context>
   <context>
     <name>ShapePreview</name>
-    <message id="main.window.shape.preview.limit.named"><source>Shape “%1” (layer %2) exceeds the preview limit. Its editable data is retained.</source><translation type="unfinished" /></message>
-    <message id="main.window.shape.preview.memory.named"><source>Not enough memory to render shape “%1” (layer %2). Its editable data is retained.</source><translation type="unfinished" /></message>
-    <message id="main.window.shape.preview.failed.named"><source>Could not render shape “%1” (layer %2): %3. Its editable data is retained.</source><translation type="unfinished" /></message>
-    <message id="main.window.shape.preview.reduced.named"><source>Shape “%1” (layer %2) is shown at reduced preview resolution. Its editable data is retained.</source><translation type="unfinished" /></message>
+    <message id="main.window.shape.preview.limit.named"><source>Shape “%1” (layer %2) exceeds the preview limit. Its editable data is retained.</source><translation>形狀「%1」（圖層 %2）超出預覽限制。可編輯資料已保留。</translation></message>
+    <message id="main.window.shape.preview.memory.named"><source>Not enough memory to render shape “%1” (layer %2). Its editable data is retained.</source><translation>記憶體不足，無法繪製形狀「%1」（圖層 %2）。可編輯資料已保留。</translation></message>
+    <message id="main.window.shape.preview.failed.named"><source>Could not render shape “%1” (layer %2): %3. Its editable data is retained.</source><translation>無法繪製形狀「%1」（圖層 %2）：%3。可編輯資料已保留。</translation></message>
+    <message id="main.window.shape.preview.reduced.named"><source>Shape “%1” (layer %2) is shown at reduced preview resolution. Its editable data is retained.</source><translation>形狀「%1」（圖層 %2）以較低的預覽解析度顯示。可編輯資料已保留。</translation></message>
   </context>
   <context>
     <name>LayerSelectionFocus</name>
-    <message id="preferences.layer.focus.label"><source>Auto-scroll to selected layer</source><translation type="unfinished" /></message>
-    <message id="preferences.layer.focus.normal"><source>Focus</source><translation type="unfinished" /></message>
-    <message id="preferences.layer.focus.expand"><source>Focus and Expand</source><translation type="unfinished" /></message>
-    <message id="preferences.layer.focus.hint"><source>Focus scrolls to the selected layer or its visible parent. Focus and Expand also opens collapsed parents.</source><translation type="unfinished" /></message>
+    <message id="preferences.layer.focus.label"><source>Auto-scroll to selected layer</source><translation>自動捲動至所選圖層</translation></message>
+    <message id="preferences.layer.focus.normal"><source>Focus</source><translation>定位</translation></message>
+    <message id="preferences.layer.focus.expand"><source>Focus and Expand</source><translation>定位並展開</translation></message>
+    <message id="preferences.layer.focus.hint"><source>Focus scrolls to the selected layer or its visible parent. Focus and Expand also opens collapsed parents.</source><translation>「定位」會捲動至所選圖層或其可見的上層。「定位並展開」還會展開摺疊的上層。</translation></message>
   </context>
   <context>
     <name>ArcShape</name>
@@ -11253,5 +11253,13 @@ Prepare %3 · Finish %4 · Total %5</source>
       <source>Edit layer properties</source>
       <translation>編輯圖層屬性</translation>
     </message>
+  </context>
+  <context>
+    <name>McpStatus</name>
+    <message id="mcp.status.connected"><source>MCP connected (%1)</source><translation>MCP 已連線（%1）</translation></message>
+    <message id="mcp.status.stopping"><source>MCP stopping…</source><translation>MCP 正在停止…</translation></message>
+    <message id="mcp.status.error"><source>MCP error</source><translation>MCP 錯誤</translation></message>
+    <message id="mcp.status.enabled"><source>MCP enabled</source><translation>MCP 已啟用</translation></message>
+    <message id="mcp.status.endpoint.hint"><source>Local document automation. Endpoint: %1</source><translation>本機文件自動化。連線位址：%1</translation></message>
   </context>
 </TS>

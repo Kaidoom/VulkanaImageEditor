@@ -7526,4 +7526,12 @@ Prepare %3 · Finish %4 · Total %5</source>
     <message id="history.style.layers"><source>Style layers</source></message>
     <message id="history.edit.layer.properties"><source>Edit layer properties</source></message>
   </context>
+  <context>
+    <name>McpStatus</name>
+    <message id="mcp.status.connected"><source>MCP connected (%1)</source></message>
+    <message id="mcp.status.stopping"><source>MCP stopping…</source></message>
+    <message id="mcp.status.error"><source>MCP error</source></message>
+    <message id="mcp.status.enabled"><source>MCP enabled</source></message>
+    <message id="mcp.status.endpoint.hint"><source>Local document automation. Endpoint: %1</source></message>
+  </context>
 </TS>

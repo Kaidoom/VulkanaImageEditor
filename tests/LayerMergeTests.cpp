@@ -628,8 +628,17 @@ void exactOutputDensityAndPreflight(const std::string& font)
             CHECK(std::memcmp(merged.image.constScanLine(y),
                 expectedPixels.data() + size_t(y) * 164 * 4, 164 * 4) == 0);
     }
-    const auto denied = u::flattenLayerItems(document, std::array { id }, {}, { 65536, 1, 65536 });
-    CHECK(!denied && denied.image.isNull() && denied.error.contains("budget"));
+    // Admission uses the actual document-grid cache, without falling back to
+    // the smaller viewport cache. Check the exact byte boundary as well as a
+    // zero-pixel allowance; the shape rasterizer rejects before allocation.
+    const auto cacheExtent = exact->surface->extent();
+    const auto cacheBytes = std::uint64_t(cacheExtent.width) * cacheExtent.height * 4;
+    const auto bounded = u::flattenLayerItems(document, std::array { id }, {}, { 65536, cacheBytes, 65536 });
+    CHECK(bounded && merged && bounded.image == merged.image && bounded.origin == merged.origin);
+    for (const auto budget : { std::uint64_t(1), cacheBytes - 1 }) {
+        const auto denied = u::flattenLayerItems(document, std::array { id }, {}, { 65536, budget, 65536 });
+        CHECK(!denied && denied.image.isNull() && !denied.cancelled && !denied.error.isEmpty());
+    }
     before.unchanged(document);
 
     c::TextLayer text;
