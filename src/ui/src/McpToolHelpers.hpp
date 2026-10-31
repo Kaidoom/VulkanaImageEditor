@@ -5,9 +5,50 @@
 #include <QString>
 #include <cstdint>
 #include <stdexcept>
+#include <string>
+#include <utility>
 #include "imageeditor/core/Geometry.hpp"
 
 namespace imageeditor::ui::mcpdetail {
+// A preflight is limited to validation and private preparation. Its callback
+// must not mutate live document/session state, write files, or publish edits.
+// These types identify a guarantee supplied by that phase, not an inference
+// from a document revision (which excludes UI and filesystem changes).
+class PreflightError : public std::runtime_error {
+public:
+    PreflightError(const std::string& message, bool invalidArguments)
+        : std::runtime_error(message), invalidArguments_(invalidArguments) {}
+    bool invalidArguments() const noexcept { return invalidArguments_; }
+private:
+    bool invalidArguments_;
+};
+class ValidationError final : public PreflightError {
+public:
+    explicit ValidationError(const std::string& message) : PreflightError(message, true) {}
+};
+class PreparationError final : public PreflightError {
+public:
+    explicit PreparationError(const std::string& message) : PreflightError(message, false) {}
+};
+inline thread_local unsigned validationPreflightDepth = 0;
+inline bool inValidationPreflight() noexcept { return validationPreflightDepth != 0; }
+template<class Function>
+decltype(auto) validateBeforeMutation(Function&& function)
+{
+    struct Scope {
+        Scope() { ++validationPreflightDepth; }
+        ~Scope() { --validationPreflightDepth; }
+    } scope;
+    try {
+        return std::forward<Function>(function)();
+    } catch (const PreflightError&) {
+        throw;
+    } catch (const std::invalid_argument& error) {
+        throw ValidationError(error.what());
+    } catch (const std::exception& error) {
+        throw PreparationError(error.what());
+    }
+}
 inline void require(bool value, const QString& error)
 { if (!value) throw std::invalid_argument(error.toStdString()); }
 inline QString id(std::uint64_t value) { return QString::number(value); }

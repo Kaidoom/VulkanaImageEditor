@@ -11247,5 +11247,9 @@ Preparação %3 · Finalização %4 · Total %5</translation>
       <source>Style layers</source>
       <translation>Alterar estilo das camadas</translation>
     </message>
+    <message id="history.edit.layer.properties">
+      <source>Edit layer properties</source>
+      <translation>Editar propriedades das camadas</translation>
+    </message>
   </context>
 </TS>

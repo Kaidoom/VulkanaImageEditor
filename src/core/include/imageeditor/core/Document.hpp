@@ -77,6 +77,13 @@ struct LayerTransformUpdate {
     LayerId id;
     AffineTransform before, after;
 };
+// Editable model content only. No raster pixels, masks, effects, names or
+// transforms are retained/copied by a text/shape property transaction.
+using EditableLayerContent = std::variant<TextLayer, ShapeLayer>;
+struct LayerContentUpdate {
+    LayerId id;
+    EditableLayerContent before, after;
+};
 struct ItemVisibilityUpdate {
     LayerId id;
     bool before, after;
@@ -142,6 +149,9 @@ public:
     bool renameLayer(LayerId id, std::string name);
     bool setLayerTransform(LayerId id, const AffineTransform& transform);
     bool setLayerTransforms(std::span<const LayerTransformUpdate> updates);
+    // Guard/normalize every replacement before publishing any; copies and
+    // allocations happen before the final allocation-free move pass.
+    bool setLayerContents(std::vector<LayerContentUpdate> updates);
     bool setLayerText(LayerId id, TextLayer text);
     bool setLayerShape(LayerId id, ShapeLayer shape);
     bool setLayerShapeGeometry(LayerId id, ShapeLayer shape, const AffineTransform&);

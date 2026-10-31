@@ -134,8 +134,13 @@ inspect their image, path or other result fields.
 
 ### Recovering from argument errors
 
-Vulkana rejects invalid arguments before executing the tool and returns
-`isError:true`, `error.code:invalid_arguments`, and `error.details.changed:false`.
+Schema validation and explicitly separated preparation phases reject invalid
+arguments before publishing an edit. They return `isError:true`,
+`error.code:invalid_arguments`, `error.details.changed:false`, and
+`error.details.noChanges:true`, with the explicit recovery message **No changes
+were made**. A preparation failure such as insufficient memory uses
+`operation_failed` with the same no-change guarantee when it occurs entirely
+before publication.
 The message identifies the field and the expected type, allowed choices, numeric
 bounds, text format or array limits. Missing and unknown fields are reported
 together. For example:
@@ -151,7 +156,14 @@ and effect/filter/adjustment catalogs supply the parameters for a chosen type.
 Clients can also validate schemas locally and reject a request before sending
 it; those messages come from the client rather than this server response.
 
-`documentId` must match the active document. The API does not switch tabs implicitly to satisfy a layer edit. `vulkana_document_activate` explicitly changes tabs. Stale revisions and wrong-document requests return errors without modifying the document.
+Unexpected execution or presentation failures retain `operation_failed` and a
+warning to inspect current state before retrying. They do not include
+`noChanges:true`: a command may already have committed, and session or filesystem
+work can change without advancing the document revision. `changed:false` alone
+is therefore not a rollback guarantee. Only the explicit preflight guarantee
+means this request left live artwork, session state and files untouched.
+
+`documentId` must match the active document. The API does not switch tabs implicitly to satisfy a layer edit. `vulkana_document_activate` explicitly changes tabs. Stale revisions and wrong-document requests return errors without modifying the document. `stale_revision` includes `error.details.changed:false`, `noChanges:true`, and the current state; query current state and reconsider the edit before retrying with its revision.
 
 An untouched launch placeholder may be replaced by the first new/opened document, matching the editor's normal behavior. Explicitly created, opened or edited documents remain separate tabs.
 
@@ -197,13 +209,13 @@ File destinations must be absolute and their parent directory must already exist
 | --- | --- |
 | `vulkana_layer_get` | Editable data for `layerId`: text/shape properties, logical geometry, matrix/transform values, mask metadata and effect/adjustment/filter settings. Optional `activeOnly:true` omits disabled entries from those three arrays; the default returns complete settings. |
 | `vulkana_layer_create` | `kind`: `raster`, `text`, `shape`, `adjustment`; optional `name`, `x`, `y`, `parentId`, `index`. Raster uses `width`, `height`, `color`; text/shape use nested `text`/`shape` properties. Adjustment supports `scope`. |
-| `vulkana_layers_create` | Atomic creation of `layers`: 1–256 entries using the same fields as `vulkana_layer_create`. Returns IDs and geometry in input order; selects all created layers. |
+| `vulkana_layers_create` | Atomic creation of `layers`: 1–256 leaf/container entries. Optional `ref` names a batch-local item; `parentRef` attaches to a container in the same batch. Supports forward references. Returns input-order IDs and a `refs` mapping; `response:"ids"` omits geometry. |
 | `vulkana_layer_select` | `layerIds`, optional `target`: `content` or `mask`. Mask target requires one layer with a mask. |
 | `vulkana_layer_rename` | `layerId`, `name`. |
 | `vulkana_layer_delete` | Delete `layerIds`, including container descendants; undoable. Cannot delete the last content layer. |
 | `vulkana_layer_duplicate` | Duplicate `layerIds`; preserves editable payloads and selects the copies. |
 | `vulkana_layer_reparent` | Move `layerIds` to optional `parentId` and sibling `index`; omitted parent is the document root. Cycles are rejected. |
-| `vulkana_layer_group` | Group `layerIds` with `kind`: `folder`, `group` or `clipping_group`, optional `name`. Structural compatibility is validated. |
+| `vulkana_layer_group` | Group `layerIds` with `kind`: `folder`, `group` or `clipping_group`, optional `name`. Structural compatibility is validated. Returns the new `layerId` and logical `geometry`; `response:"ids"` omits geometry. |
 | `vulkana_layer_ungroup` | Dissolve container `layerId`, preserving children and effective visibility. |
 | `vulkana_layer_set_visibility` | `layerId`, `visible`; supports containers. |
 | `vulkana_layer_set_opacity` | `layerId`, `opacity`; affects pixels and effects. |
@@ -214,9 +226,10 @@ File destinations must be absolute and their parent directory must already exist
 | `vulkana_font_list` | Installed font families/styles, optional filtering as described by its schema. Does not install fonts. |
 | `vulkana_text_set` | `layerId`, `properties`: text, font family/style/size, weight, italic, color, alignment. Missing fonts/styles are rejected. |
 | `vulkana_shape_set` | `layerId`, `properties`: kind, width/height, points, corner radius, fill/stroke styling. Geometry is layer-local. |
+| `vulkana_layers_update` | Atomic property edits on 1–256 existing layers. Each `updates` entry contains a unique `layerId` and exactly one `text` or `shape` property object. Optional `response`: `geometry` (default) or `ids`. |
 | `vulkana_layer_mask` | `layerId`, `operation`: `reveal_all`, `hide_all`, `from_selection`, `remove`, `invert`, `enable`, `disable`. Existing masks are not silently replaced. |
 
-Layer creation, `vulkana_text_set`, `vulkana_shape_set` and leaf-layer inspection
+Layer creation/grouping, `vulkana_text_set`, `vulkana_shape_set` and layer inspection
 return `geometry` alongside the layer ID. It contains `localBounds`, the transformed
 axis-aligned `documentBounds`, and `documentQuad` corners in top-left, top-right,
 bottom-right, bottom-left order. These are logical layout bounds: text uses its
@@ -225,19 +238,62 @@ rectangle and storage origin. Stroke, effects, masks, crop and transparent-pixel
 trimming are excluded (`includesEffects:false`). Adjustment layers return `null`
 because they have no independent layout box. These bounds are measured without
 rasterizing an image and are also returned for unchanged text/shape updates.
+Groups and folders return the union of their measurable descendants, including
+hidden children. They have `localBounds:null` because containers have no independent
+local coordinate frame; their `documentQuad` is the axis-aligned union rectangle.
+Empty and adjustment-only containers return `geometry:null`. Inspection, layout,
+creation and repetition use the same geometry rules.
 The existing top-level `localBounds` in layer inspection remains the editor's
 interaction frame, which can differ for cropped or partially transparent layers.
 
-`vulkana_layers_create` validates every entry, its parent/index and the total new
-raster area before allocating pixel surfaces. The combined raster limit is
-64 megapixels per call. The editor then publishes all new layers in one undoable
-operation and refreshes once; rejected batches leave document content, selection
-and undo/redo history unchanged. Existing raster pixels are shared rather than copied.
-Entries are inserted in array order. Each `index` refers to bottom-to-top siblings
-after earlier entries have been inserted; omission appends to that parent's list.
-`parentId` must name an existing container, and entries cannot refer to IDs being
-created in the same call. Results contain `layerIds` and a matching `layers` array
-of `{layerId, geometry}` objects. The last created layer becomes primary.
+Tools that return creation, edit or layout geometry accept `response:"ids"` to
+omit optional geometry and its measurement. The default `response:"geometry"`
+keeps detailed bounds. Compact results retain document ID, revision, `changed`
+and result IDs; repetition also retains its instance-to-ID mapping. Alignment and
+distribution still measure geometry needed to perform the operation, but omit the
+optional `items` response. Repetition omits its optional `layers` response. Use
+`vulkana_layer_get` when detailed bounds are needed later.
+
+`vulkana_layers_create` accepts the leaf kinds supported by `vulkana_layer_create`
+plus `folder`, `group` and `clipping_group`. Containers have no position; specify
+document-space `x`/`y` on their children. An empty container is valid and has
+`geometry:null`. A clipping group's bottommost child is its clipping base.
+
+Each entry may have a unique `ref` matching `[A-Za-z][A-Za-z0-9_.-]{0,63}`.
+References are case-sensitive, scoped to this call, and never stored in the
+project. `parentRef` names a container entry anywhere in the same array, including
+one that appears later. `parentId` instead names an existing container. Supplying
+both is an error. Unknown, duplicate, non-container and cyclic references are
+rejected before any pixel surfaces are allocated.
+
+Entries are inserted in array order even when using forward references. Each
+`index` refers to bottom-to-top siblings after earlier entries have been inserted;
+omission appends. New containers start empty, so a forward-referenced first child
+uses index 0, not an index based on children that appear later in the array.
+
+The complete hierarchy, depth, native limits and aggregate raster area are
+validated before image allocation. New raster pixels are limited to 64 megapixels
+per call. Publication is one undoable operation with one refresh. Rejected batches
+leave content, selection and undo/redo history unchanged, and existing raster
+pixels are never copied merely to create new items.
+
+Results contain `layerIds` in input order and `refs`, a map from supplied local
+references to persistent IDs. The default `response:"geometry"` also includes a
+matching `layers` array of `{layerId, geometry}` objects. `response:"ids"` skips
+that array and optional geometry measurement while retaining document/revision/
+changed metadata, IDs and references. Single-layer creation accepts the same
+response option. Newly created roots become selected; children of a newly created
+selected container are not selected separately. The last selected root in input
+order becomes primary. Undo restores the previous selection.
+
+For example, create a group and its caption together:
+
+```json
+{"name":"vulkana_layers_create","arguments":{"documentId":"3","response":"ids","layers":[{"kind":"group","ref":"card","name":"Card"},{"kind":"text","ref":"caption","parentRef":"card","x":40,"y":60,"text":{"text":"Hello","fontSize":24}}]}}
+```
+
+Use the returned `refs.card` and `refs.caption` IDs in later calls; the strings
+`"card"` and `"caption"` themselves are not persistent layer IDs.
 
 Creation also respects the native project limit of 1024 leaf layers and 4096
 total layers/containers. Layer/container names must fit within 4096 UTF-8 bytes;
@@ -261,6 +317,27 @@ clockwise and negative sweeps run counterclockwise. Angles range from -360 to
 width and cap settings, with stroke enabled by default on creation. Fill does
 not paint an arc interior. The shape tool exposes the same Start/Sweep controls.
 
+`vulkana_layers_update` applies different text/shape patches in one call and one
+undo step. Property names and formatting rules match `vulkana_text_set` and
+`vulkana_shape_set`: omitted fields stay unchanged, text replacement resets its
+character runs, and supplied text formatting applies to every character.
+Transforms, masks, effects, raster pixels, pixel selection and current layer
+selection are preserved. Use real layer IDs, including those returned in a
+creation batch's `refs` map; creation-local references are not persistent IDs.
+Duplicate target IDs, mismatched layer types, and invalid late entries reject
+the entire batch before publication. An unchanged batch preserves redo.
+
+Results contain `layerIds` in input order and `changedLayerIds`. Geometry mode
+also returns `layers:[{layerId,geometry}]`, including unchanged targets. IDs mode
+skips optional layout measurement and omits that array. The retained before/after
+model data is limited to 64 MiB per property batch; split larger edits into smaller
+batches. History retains text/shape data, never copies of their raster previews
+or unrelated masks and effects.
+
+```json
+{"name":"vulkana_layers_update","arguments":{"documentId":"3","response":"ids","updates":[{"layerId":"42","text":{"text":"Ready","fontSize":24}},{"layerId":"43","shape":{"sweepAngle":240,"strokeWidth":6}}]}}
+```
+
 ### Layout and repetition
 
 | Tool | Purpose and main arguments |
@@ -282,8 +359,9 @@ position; centers retain the outer centers for selection reference, while gaps
 span the combined bounds. Canvas reference fits the outer items to the canvas
 edges. Negative equal gaps represent overlap. Layout changes one undo step and
 preserves layer selection; an already aligned/distributed request reports
-`changed:false` without changing revision or undo/redo. Results include each
-normalized item's `documentBounds`.
+`changed:false` without changing revision or undo/redo. Results always include
+normalized `layerIds`. By default, `items` includes each normalized item's
+`documentBounds` and the same `geometry` object returned by layer inspection.
 
 Repetition leaves originals unchanged and treats the selected set as one motif.
 Linear repetition applies the step multiplied by the copy index. Radial angles
@@ -296,7 +374,9 @@ Every copy retains its parent and complete subtree. Raster pixels are independen
 editable text/shapes, masks, effects and group kinds are retained. All copies form
 one undo step and become selected; undo restores the previous selection. The
 result includes `sourceLayerIds`, all new root `layerIds`, and `instances` with
-copy indices and root IDs.
+copy indices and root IDs. By default it also includes `layers` with `{layerId,
+geometry}` for each new root, including groups. Optional geometry is prepared
+before publication, and `response:"ids"` skips those measurements.
 
 These tools accept up to 256 root targets. Repetition allows 1–128 new copies,
 subject to 1024 resulting content layers, 4096 total tree items and 256 MiB of

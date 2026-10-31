@@ -11250,5 +11250,9 @@ Prepare %3 · Finish %4 · Total %5</source>
       <source>Style layers</source>
       <translation>परतों की शैली बदलें</translation>
     </message>
+    <message id="history.edit.layer.properties">
+      <source>Edit layer properties</source>
+      <translation>लेयर के गुण संपादित करें</translation>
+    </message>
   </context>
 </TS>

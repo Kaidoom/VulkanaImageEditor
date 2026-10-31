@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
+#include <type_traits>
 #include <utility>
 
 namespace imageeditor::core {
@@ -463,6 +464,41 @@ bool Document::setLayerTransforms(std::span<const LayerTransformUpdate> updates)
     if (!changed) return false;
     // No allocations, callbacks or fallible work after the all-target guard.
     for (const auto& update : updates) layer(update.id)->localToDocument = update.after;
+    touch();
+    return true;
+}
+
+bool Document::setLayerContents(std::vector<LayerContentUpdate> updates)
+{
+    static_assert(std::is_nothrow_move_assignable_v<TextLayer>);
+    static_assert(std::is_nothrow_move_assignable_v<ShapeLayer>);
+    bool changed = false;
+    for (std::size_t i = 0; i < updates.size(); ++i) {
+        auto& update = updates[i];
+        const auto* target = layer(update.id);
+        if (!target || update.before.index() != update.after.index()) return false;
+        for (std::size_t j = 0; j < i; ++j) if (updates[j].id == update.id) return false;
+        const bool matches = std::visit([&](const auto& before) {
+            const auto* current = std::get_if<std::decay_t<decltype(before)>>(&target->payload);
+            return current && *current == before;
+        }, update.before);
+        if (!matches) return false;
+        if (auto* text = std::get_if<TextLayer>(&update.after)) *text = normalizedText(std::move(*text));
+        else if (!validShape(std::get<ShapeLayer>(update.after))) return false;
+        changed |= update.before != update.after;
+    }
+    if (!changed) return false;
+    // No allocation, validation, callbacks or fallible work after this point.
+    for (auto& update : updates) {
+        if (update.before == update.after) continue;
+        auto* target = layer(update.id);
+        if (auto* text = std::get_if<TextLayer>(&update.after)) {
+            std::get<TextLayer>(target->payload) = std::move(*text); ++target->textRevision;
+        } else {
+            std::get<ShapeLayer>(target->payload) = std::move(std::get<ShapeLayer>(update.after)); ++target->shapeRevision;
+        }
+        target->renderCache.reset();
+    }
     touch();
     return true;
 }

@@ -11247,5 +11247,9 @@ Preparazione %3 · Completamento %4 · Totale %5</translation>
       <source>Style layers</source>
       <translation>Modifica stile dei livelli</translation>
     </message>
+    <message id="history.edit.layer.properties">
+      <source>Edit layer properties</source>
+      <translation>Modifica proprietà dei livelli</translation>
+    </message>
   </context>
 </TS>

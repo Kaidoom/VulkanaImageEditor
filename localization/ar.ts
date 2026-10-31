@@ -11373,5 +11373,9 @@ Prepare %3 · Finish %4 · Total %5</source>
       <source>Style layers</source>
       <translation>تعديل نمط الطبقات</translation>
     </message>
+    <message id="history.edit.layer.properties">
+      <source>Edit layer properties</source>
+      <translation>تعديل خصائص الطبقات</translation>
+    </message>
   </context>
 </TS>

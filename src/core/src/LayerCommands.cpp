@@ -48,6 +48,40 @@ std::size_t retainedLayerCost(const Layer& layer) noexcept
 
 } // namespace
 
+SetLayerContentsCommand::SetLayerContentsCommand(std::vector<LayerContentUpdate> updates)
+    : updates_(std::move(updates))
+{
+    for (std::size_t i = 0; i < updates_.size(); ++i) {
+        auto& update = updates_[i];
+        if (update.before.index() != update.after.index()) throw std::invalid_argument("Layer property edits cannot change layer type");
+        for (std::size_t j = 0; j < i; ++j)
+            if (updates_[j].id == update.id) throw std::invalid_argument("Duplicate layer property target");
+        for (auto* value : {&update.before, &update.after}) {
+            if (auto* text = std::get_if<TextLayer>(value)) *text = normalizedText(std::move(*text));
+            else if (!validShape(std::get<ShapeLayer>(*value))) throw std::invalid_argument("Invalid shape property data");
+        }
+    }
+}
+bool SetLayerContentsCommand::apply(Document& document) { return document.setLayerContents(updates_); }
+bool SetLayerContentsCommand::undo(Document& document)
+{
+    auto reversed = updates_;
+    for (auto& update : reversed) std::swap(update.before, update.after);
+    return document.setLayerContents(std::move(reversed));
+}
+std::size_t SetLayerContentsCommand::memoryCost() const noexcept
+{
+    auto bytes = sizeof(*this) + updates_.capacity() * sizeof(LayerContentUpdate);
+    for (const auto& update : updates_) for (const auto* value : {&update.before, &update.after}) {
+        const auto cost = std::visit([](const auto& payload) {
+            if constexpr (std::is_same_v<std::decay_t<decltype(payload)>, TextLayer>) return textMemoryCost(payload);
+            else return shapeMemoryCost(payload);
+        }, *value);
+        bytes = saturatingAdd(bytes, cost);
+    }
+    return bytes;
+}
+
 SetItemsVisibilityCommand::SetItemsVisibilityCommand(const Document& document,
     std::span<const LayerId> selection, VisibilityOperation operation)
     : operation_(operation)

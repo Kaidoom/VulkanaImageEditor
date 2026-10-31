@@ -11259,5 +11259,9 @@ Przygotowanie %3 · Finalizacja %4 · Łącznie %5</translation>
       <source>Style layers</source>
       <translation>Zmień styl warstw</translation>
     </message>
+    <message id="history.edit.layer.properties">
+      <source>Edit layer properties</source>
+      <translation>Edytuj właściwości warstw</translation>
+    </message>
   </context>
 </TS>

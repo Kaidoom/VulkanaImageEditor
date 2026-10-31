@@ -360,94 +360,171 @@ QString validatedLayerName(QString name)
     require(name.toUtf8().size() <= 4096, "arguments.name exceeds the native project limit of 4096 UTF-8 bytes");
     return name;
 }
-QJsonObject layerCreationProperties()
+QJsonObject batchReferenceSchema()
 {
-    return {{"kind", choice({"raster", "text", "shape", "adjustment"})}, {"name", layerNameSchema()},
+    return {{"type", "string"}, {"minLength", 1}, {"maxLength", 64},
+        {"pattern", "^[A-Za-z][A-Za-z0-9_.-]{0,63}$"},
+        {"description", "Batch-local reference, not a persistent layer ID. References are case-sensitive."}};
+}
+QJsonObject layerCreationProperties(bool batch = false)
+{
+    QJsonObject properties{{"kind", choice({"raster", "text", "shape", "adjustment"})}, {"name", layerNameSchema()},
         {"width", integer(1, 32768)}, {"height", integer(1, 32768)},
         {"x", number(-1000000, 1000000)}, {"y", number(-1000000, 1000000)}, {"color", colorSchema()},
         {"text", object(textProperties())}, {"shape", object(shapeProperties())},
         {"scope", choice({"all_below", "this_group"})}, {"parentId", identifier()}, {"index", integer(0, 4096)}};
+    if (batch) {
+        properties["kind"] = choice({"raster", "text", "shape", "adjustment", "folder", "group", "clipping_group"});
+        properties["ref"] = batchReferenceSchema();
+        properties["parentRef"] = batchReferenceSchema();
+    }
+    return properties;
 }
 struct NewRaster { c::Extent2u size; c::Rgba8 fill; };
 struct LayerCreationPlan {
+    c::LayerId id {};
     std::string name;
-    std::variant<NewRaster, c::TextLayer, c::ShapeLayer, c::AdjustmentLayer> payload;
+    std::variant<NewRaster, c::TextLayer, c::ShapeLayer, c::AdjustmentLayer, c::ContainerKind> payload;
     c::Vec2d origin;
     c::LayerId parent {};
-    std::size_t index {};
+    QString ref, parentRef;
+    std::optional<std::size_t> index;
 };
 struct PreparedLayerCreation {
     c::LayerTree tree;
     std::vector<c::Layer> layers;
-    std::vector<c::LayerId> ids;
+    std::vector<c::LayerId> ids, selected;
     QJsonArray results;
+    QJsonObject refs;
 };
-PreparedLayerCreation prepareLayerCreation(const c::Document& document, const QJsonArray& entries, bool batch)
+PreparedLayerCreation prepareLayerCreation(const c::Document& document, const QJsonArray& entries, bool batch, bool geometry)
 {
-    // Match native project saving and flattened output admission.
-    require(document.layers().size() + std::size_t(entries.size()) <= 1024,
-        "Layer creation would exceed the native project limit of 1024 layers");
     require(document.layers().size() + document.tree().containers.size() + std::size_t(entries.size()) <= c::LayerTree::maxItems,
         "Layer creation would exceed the document's 4096 layer/container limit");
     std::vector<LayerCreationPlan> plans;
     plans.reserve(std::size_t(entries.size()));
-    std::map<c::LayerId, std::size_t> siblingCounts;
+    std::map<QString, std::size_t> references;
     std::uint64_t rasterPixels = 0;
+    std::size_t leafCount = 0;
     for (qsizetype ordinal = 0; ordinal < entries.size(); ++ordinal) {
         try {
             const auto args = entries[ordinal].toObject();
             const auto kind = args["kind"].toString();
+            const bool container = kind == "folder" || kind == "group" || kind == "clipping_group";
+            require(batch || !container, "Containers must be created with vulkana_layers_create or vulkana_layer_group");
             require(kind == "text" || !args.contains("text"), "text parameters require kind=text");
             require(kind == "shape" || !args.contains("shape"), "shape parameters require kind=shape");
             require(kind == "adjustment" || !args.contains("scope"), "scope requires kind=adjustment");
             require(kind == "raster" || (!args.contains("width") && !args.contains("height") && !args.contains("color")),
                 "width/height/color are raster parameters; use nested text or shape properties for other layer types");
+            require(!container || (!args.contains("x") && !args.contains("y")),
+                "Containers have no position; set x/y on their child layers in document pixels");
+            require(!(args.contains("parentId") && args.contains("parentRef")), "Use either parentId or parentRef, not both");
             LayerCreationPlan plan;
-            const auto name = validatedLayerName(args["name"].toString(kind == "raster" ? "Layer" : kind == "text" ? "Text" : kind == "shape" ? "Shape" : "Adjustment"));
-            plan.name = name.toStdString();
+            const auto defaultName = kind == "raster" ? "Layer" : kind == "text" ? "Text" : kind == "shape" ? "Shape"
+                : kind == "folder" ? "Folder" : kind == "clipping_group" ? "Clipping group" : kind == "group" ? "Group" : "Adjustment";
+            plan.name = validatedLayerName(args["name"].toString(defaultName)).toStdString();
             plan.parent = args.contains("parentId") ? id(args, "parentId") : 0;
-            const auto* children = document.tree().children(plan.parent);
-            require(children != nullptr, "Unknown parent container; parentId must identify an existing container");
-            auto [count, inserted] = siblingCounts.try_emplace(plan.parent, children->size());
-            (void)inserted;
-            plan.index = args.contains("index") ? std::size_t(args["index"].toInt()) : count->second;
-            require(plan.index <= count->second, "Insertion index exceeds sibling count (bottom first, after earlier batch entries)");
-            ++count->second;
+            require(!args.contains("parentId") || document.tree().container(plan.parent),
+                "Unknown parent container; parentId must identify an existing container, or use parentRef for this batch");
+            plan.ref = args["ref"].toString(); plan.parentRef = args["parentRef"].toString();
+            if (args.contains("ref")) {
+                require(!references.contains(plan.ref), "Duplicate ref " + plan.ref + "; each batch reference must be unique");
+                references.emplace(plan.ref, plans.size());
+            }
+            if (args.contains("index")) plan.index = std::size_t(args["index"].toInt());
             plan.origin = {args["x"].toDouble(), args["y"].toDouble()};
-            if (kind == "raster") {
-                const auto canvas = document.canvas().extent;
-                const c::Extent2u size{std::uint32_t(args["width"].toInt(int(canvas.width))), std::uint32_t(args["height"].toInt(int(canvas.height)))};
-                rasterPixels += std::uint64_t(size.width) * size.height;
-                require(rasterPixels <= 64ULL * 1024 * 1024, "Raster layer creation exceeds the total 64-megapixel budget for this call");
-                plan.payload = NewRaster{size, args.contains("color") ? color(args["color"].toString()) : c::Rgba8{}};
-            } else if (kind == "text") plan.payload = editText({}, args["text"].toObject());
-            else if (kind == "shape") plan.payload = editShape({}, args["shape"].toObject());
-            else plan.payload = c::AdjustmentLayer{args["scope"] == "this_group" ? c::AdjustmentScope::ThisGroup : c::AdjustmentScope::AllBelow};
+            if (container) plan.payload = kind == "folder" ? c::ContainerKind::Folder
+                : kind == "group" ? c::ContainerKind::Group : c::ContainerKind::ClippingMaskGroup;
+            else {
+                ++leafCount;
+                require(document.layers().size() + leafCount <= 1024,
+                    "Layer creation would exceed the native project limit of 1024 layers");
+                if (kind == "raster") {
+                    const auto canvas = document.canvas().extent;
+                    const c::Extent2u size{std::uint32_t(args["width"].toInt(int(canvas.width))), std::uint32_t(args["height"].toInt(int(canvas.height)))};
+                    rasterPixels += std::uint64_t(size.width) * size.height;
+                    require(rasterPixels <= 64ULL * 1024 * 1024, "Raster layer creation exceeds the total 64-megapixel budget for this call");
+                    plan.payload = NewRaster{size, args.contains("color") ? color(args["color"].toString()) : c::Rgba8{}};
+                } else if (kind == "text") plan.payload = editText({}, args["text"].toObject());
+                else if (kind == "shape") plan.payload = editShape({}, args["shape"].toObject());
+                else plan.payload = c::AdjustmentLayer{args["scope"] == "this_group" ? c::AdjustmentScope::ThisGroup : c::AdjustmentScope::AllBelow};
+            }
             plans.push_back(std::move(plan));
         } catch (const std::invalid_argument& error) {
             if (!batch) throw;
             throw std::invalid_argument(QStringLiteral("arguments.layers[%1]: %2").arg(ordinal).arg(QString::fromUtf8(error.what())).toStdString());
         }
     }
-    // Validate every entry and the aggregate allocation before allocating any
-    // raster. All generated layers, response geometry and tree edits remain
-    // private until one native structural command publishes them together.
-    PreparedLayerCreation prepared{document.tree(), {}, {}, {}};
-    prepared.layers.reserve(plans.size()); prepared.ids.reserve(plans.size());
+    // Resolve every local edge before reserving persistent IDs or allocating
+    // image pixels. Forward references have exactly the same meaning as earlier ones.
+    std::vector<std::optional<std::size_t>> parentPlans(plans.size());
+    for (std::size_t i = 0; i < plans.size(); ++i) if (!plans[i].parentRef.isEmpty()) {
+        const auto found = references.find(plans[i].parentRef);
+        require(found != references.end(), QStringLiteral("arguments.layers[%1].parentRef: unknown reference %2").arg(i).arg(plans[i].parentRef));
+        require(std::holds_alternative<c::ContainerKind>(plans[found->second].payload),
+            QStringLiteral("arguments.layers[%1].parentRef: %2 is not a container").arg(i).arg(plans[i].parentRef));
+        parentPlans[i] = found->second;
+    }
+    for (std::size_t i = 0; i < plans.size(); ++i) {
+        std::vector<bool> seen(plans.size());
+        for (auto current = std::optional(i); current; current = parentPlans[*current]) {
+            require(!seen[*current], QStringLiteral("arguments.layers[%1].parentRef: cyclic hierarchy; a container cannot contain itself or an ancestor").arg(i));
+            seen[*current] = true;
+        }
+    }
+    PreparedLayerCreation prepared{document.tree(), {}, {}, {}, {}, {}};
+    prepared.layers.reserve(leafCount); prepared.ids.reserve(plans.size());
     for (auto& plan : plans) {
+        plan.id = c::makeLayerId(); prepared.ids.push_back(plan.id);
+        if (!plan.ref.isEmpty()) prepared.refs[plan.ref] = id(plan.id);
+        if (const auto* kind = std::get_if<c::ContainerKind>(&plan.payload))
+            prepared.tree.containers.push_back({plan.id,plan.name,*kind,c::ColorLabel::None,{}});
+    }
+    for (std::size_t i = 0; i < plans.size(); ++i) {
+        auto& plan = plans[i];
+        if (parentPlans[i]) plan.parent = plans[*parentPlans[i]].id;
+        auto* siblings = prepared.tree.children(plan.parent);
+        const auto index = plan.index.value_or(siblings->size());
+        const auto indexPath = batch ? QStringLiteral("arguments.layers[%1].index").arg(i) : QStringLiteral("arguments.index");
+        require(index <= siblings->size(), indexPath + ": exceeds sibling count (bottom first, after earlier batch entries)");
+        siblings->insert(siblings->begin() + std::ptrdiff_t(index), plan.id);
+    }
+    std::vector<c::LayerId> leafIds;
+    for (const auto& layer : document.layers()) leafIds.push_back(layer.id);
+    for (const auto& plan : plans) if (!std::holds_alternative<c::ContainerKind>(plan.payload)) leafIds.push_back(plan.id);
+    try { (void)prepared.tree.orderedLeaves(leafIds); }
+    catch (const std::invalid_argument& error) {
+        throw std::invalid_argument(std::string(batch ? "arguments.layers: " : "arguments.parentId: ") + error.what() + "; maximum hierarchy depth is 64");
+    }
+    // Keep input selection order, but select a newly created subtree only once.
+    const auto normalized = prepared.tree.normalize(prepared.ids);
+    for (auto target : prepared.ids)
+        if (std::ranges::find(normalized,target) != normalized.end()) prepared.selected.push_back(target);
+    // Every entry, parent/index, graph and aggregate allocation is now admitted.
+    // New layers and response geometry stay private until one structural command.
+    for (auto& plan : plans) {
+        if (std::holds_alternative<c::ContainerKind>(plan.payload)) continue;
         auto layer = std::visit([&](auto& payload) -> c::Layer {
             using T = std::decay_t<decltype(payload)>;
             if constexpr (std::is_same_v<T, NewRaster>)
                 return c::Layer::raster(plan.name, std::make_shared<c::ContiguousRasterSurface>(payload.size, payload.fill));
             else if constexpr (std::is_same_v<T, c::TextLayer>) return c::Layer::text(plan.name, std::move(payload));
             else if constexpr (std::is_same_v<T, c::ShapeLayer>) return c::Layer::shape(plan.name, std::move(payload));
-            else return c::Layer::adjustment(plan.name, payload.scope);
+            else if constexpr (std::is_same_v<T, c::AdjustmentLayer>) return c::Layer::adjustment(plan.name,payload.scope);
+            else throw std::logic_error("Container passed to leaf construction");
         }, plan.payload);
+        layer.id = plan.id;
         layer.localToDocument.m02 = plan.origin.x; layer.localToDocument.m12 = plan.origin.y;
-        auto* siblings = prepared.tree.children(plan.parent);
-        siblings->insert(siblings->begin() + std::ptrdiff_t(plan.index), layer.id);
-        prepared.results.append(QJsonObject{{"layerId", id(layer.id)}, {"geometry", layerGeometryData(layer)}});
-        prepared.ids.push_back(layer.id); prepared.layers.push_back(std::move(layer));
+        prepared.layers.push_back(std::move(layer));
+    }
+    if (geometry) {
+        const auto lookup = [&](c::LayerId target) -> const c::Layer* {
+            const auto found = std::ranges::find(prepared.layers,target,&c::Layer::id);
+            return found == prepared.layers.end() ? document.layer(target) : &*found;
+        };
+        for (auto target : prepared.ids)
+            prepared.results.append(QJsonObject{{"layerId",id(target)},{"geometry",itemGeometryData(prepared.tree,target,lookup)}});
     }
     return prepared;
 }
@@ -507,6 +584,64 @@ private:
     }
     std::vector<LayerStyleChange> changes_;
 };
+
+struct PreparedProperties {
+    std::unique_ptr<c::Command> command;
+    QJsonArray ids, changedIds, layers;
+};
+struct PreparedStyles {
+    std::vector<c::LayerId> targets;
+    QJsonArray changedIds;
+    std::unique_ptr<c::Command> command;
+};
+PreparedProperties preparePropertyUpdates(const c::Document& document, const QJsonArray& entries, bool geometry)
+{
+    PreparedProperties result;
+    std::vector<c::LayerContentUpdate> updates;
+    std::vector<c::LayerId> seen;
+    std::size_t modelBytes = 0;
+    for (qsizetype index = 0; index < entries.size(); ++index) {
+        try {
+            const auto args = entries[index].toObject();
+            const auto target = id(args,"layerId");
+            require(std::ranges::find(seen,target) == seen.end(), "Duplicate layerId; combine its properties into one entry");
+            seen.push_back(target);
+            const auto* item = document.layer(target);
+            require(item, "Expected an existing editable text or shape layer ID");
+            require(args.contains("text") != args.contains("shape"), "Specify exactly one of text or shape");
+            c::EditableLayerContent before, after;
+            if (args.contains("text")) {
+                const auto* text = std::get_if<c::TextLayer>(&item->payload);
+                require(text, "text properties require an editable text layer");
+                before = *text; after = editText(*text,args["text"].toObject());
+            } else {
+                const auto* shape = std::get_if<c::ShapeLayer>(&item->payload);
+                require(shape, "shape properties require an editable shape layer");
+                before = *shape; after = editShape(*shape,args["shape"].toObject());
+            }
+            result.ids.append(id(target));
+            if (geometry) {
+                auto candidate = *item;
+                std::visit([&](const auto& value) { candidate.payload = value; },after);
+                result.layers.append(QJsonObject{{"layerId",id(target)},{"geometry",layerGeometryData(candidate)}});
+            }
+            if (before == after) continue;
+            for (const auto* content : {&before,&after}) {
+                modelBytes += sizeof(c::EditableLayerContent) + std::visit([](const auto& value) {
+                    if constexpr (std::is_same_v<std::decay_t<decltype(value)>,c::TextLayer>) return c::textMemoryCost(value);
+                    else return c::shapeMemoryCost(value);
+                },*content);
+                require(modelBytes <= 64ULL*1024*1024, "Layer property batch exceeds 64 MiB of model data; split into smaller batches");
+            }
+            updates.push_back({target,std::move(before),std::move(after)});
+            result.changedIds.append(id(target));
+        } catch (const std::invalid_argument& error) {
+            throw std::invalid_argument(QStringLiteral("arguments.updates[%1]: %2").arg(index).arg(QString::fromUtf8(error.what())).toStdString());
+        }
+    }
+    if (!updates.empty()) result.command = std::make_unique<c::SetLayerContentsCommand>(std::move(updates));
+    return result;
+}
 } // namespace
 
 void McpController::registerLayerTools()
@@ -528,6 +663,7 @@ void McpController::registerLayerTools()
                 data["layerId"] = id(target); data["name"] = text(container->name);
                 data["type"] = container->kind == c::ContainerKind::Folder ? "folder" : container->kind == c::ContainerKind::Group ? "group" : "clipping_group";
                 data["visible"] = container->visible; data["children"] = ids(container->children);
+                data["geometry"] = itemGeometryData(document(),target);
                 return data;
             }
             const auto& item = layer(args);
@@ -541,7 +677,7 @@ void McpController::registerLayerTools()
             data["width"] = double(extent.width); data["height"] = double(extent.height);
             const auto bounds = c::layerInteractionBounds(item);
             data["localBounds"] = QJsonObject{{"x", bounds.x}, {"y", bounds.y}, {"width", bounds.width}, {"height", bounds.height}};
-            data["geometry"] = layerGeometryData(item);
+            data["geometry"] = itemGeometryData(document(),target);
             data["rasterOrigin"] = QJsonObject{{"x", item.rasterOrigin.x}, {"y", item.rasterOrigin.y}};
             const auto frame = c::composeAffine(t, {1, 0, bounds.x, 0, 1, bounds.y});
             if (const auto values = c::geometryValuesFromTransform(frame, {bounds.width, bounds.height})) data["transformValues"] = QJsonObject{{"centerX", values->center.x}, {"centerY", values->center.y}, {"scaleX", values->scaleX}, {"scaleY", values->scaleY}, {"rotation", values->rotationDegrees}};
@@ -575,24 +711,30 @@ void McpController::registerLayerTools()
             return data;
         });
     add("vulkana_layer_create", "Create an independent raster, text, shape, or adjustment layer and select it. Raster color defaults to transparent; x/y locate the layer-local origin in document pixels. Text styles affect the whole text. New layers go at the top level by default, or into an explicit parent. One undoable action.",
-        layerCreationProperties(), {"kind"}, Access::Document,
+        [&] { auto properties = layerCreationProperties(); properties["response"] = geometryResponseSchema(); return properties; }(), {"kind"}, Access::Document,
         [this](const QJsonObject& args) {
-            auto prepared = prepareLayerCreation(document(), QJsonArray{args}, false);
-            const auto created = prepared.results[0].toObject();
-            const bool applied = execute(std::make_unique<c::LayerStructureCommand>("Add layer", document(), std::move(prepared.tree), std::vector<c::LayerId>{}, std::move(prepared.layers), session().layerSelectionState(), selection(prepared.ids)));
+            const bool geometry = wantsGeometry(args);
+            auto prepared = validateBeforeMutation([&] { return prepareLayerCreation(document(), QJsonArray{args}, false, geometry); });
+            const auto target = prepared.ids.front();
+            auto command = validateBeforeMutation([&] { return std::make_unique<c::LayerStructureCommand>("Add layer", document(), std::move(prepared.tree), std::vector<c::LayerId>{}, std::move(prepared.layers), session().layerSelectionState(), selection(prepared.selected)); });
+            const bool applied = execute(std::move(command));
             require(applied, "Layer creation was rejected; no layer was added");
-            auto data = result(applied); data["layerId"] = created["layerId"];
-            data["geometry"] = created["geometry"]; return data;
+            auto data = result(applied); data["layerId"] = id(target);
+            if (geometry) data["geometry"] = prepared.results[0].toObject()["geometry"];
+            return data;
         });
-    add("vulkana_layers_create", "Create 1–256 raster/text/shape/adjustment layers atomically, with one undo step and one refresh. Each entry uses layer_create fields. Entries are inserted in input order; index is bottom-first after earlier entries. parentId must identify an existing container. The total new raster area is limited to 64 megapixels. Returns layers with IDs and geometry in input order, selects all created layers, and makes the last primary. Invalid batches add nothing.",
-        {{"layers", array(object(layerCreationProperties(), {"kind"}), 1, 256)}}, {"layers"}, Access::Document,
+    add("vulkana_layers_create", "Create 1–256 layers and/or folder/group/clipping_group containers atomically with one undo step. Entries use layer_create fields plus optional unique ref and parentRef for a container in the same batch, including forward references. parentId selects an existing container; it cannot be combined with parentRef. Containers have no x/y; children use document pixels. Entries and bottom-first indices are processed in input order. Returns input-order layerIds and refs mapping; response=geometry (default) adds layers with bounds, response=ids skips them. Selects normalized created roots, last in input order primary. Total new raster area: 64 megapixels. Invalid batches add nothing.",
+        {{"layers", array(object(layerCreationProperties(true), {"kind"}), 1, 256)}, {"response", geometryResponseSchema()}}, {"layers"}, Access::Document,
         [this](const QJsonObject& args) {
-            auto prepared = prepareLayerCreation(document(), args["layers"].toArray(), true);
-            const auto created = prepared.results;
+            const bool geometry = wantsGeometry(args);
+            auto prepared = validateBeforeMutation([&] { return prepareLayerCreation(document(), args["layers"].toArray(), true, geometry); });
             const auto targets = prepared.ids;
-            const bool applied = execute(std::make_unique<c::LayerStructureCommand>("Add layers", document(), std::move(prepared.tree), std::vector<c::LayerId>{}, std::move(prepared.layers), session().layerSelectionState(), selection(targets)));
+            auto command = validateBeforeMutation([&] { return std::make_unique<c::LayerStructureCommand>("Add layers", document(), std::move(prepared.tree), std::vector<c::LayerId>{}, std::move(prepared.layers), session().layerSelectionState(), selection(prepared.selected)); });
+            const bool applied = execute(std::move(command));
             require(applied, "Layer batch was rejected; no layers were added");
-            auto data = result(applied); data["layers"] = created; data["layerIds"] = ids(targets); return data;
+            auto data = result(applied); data["layerIds"] = ids(targets); data["refs"] = prepared.refs;
+            if (geometry) data["layers"] = prepared.results;
+            return data;
         });
     add("vulkana_layer_select", "Select explicit layers or containers; the last ID is primary. target=mask requires exactly one existing layer mask. Returns the selectedLayers, activeLayer and editingMask. changed reports a selection/target change; selection is session state, not an undo entry or document revision change.",
         {{"layerIds", array(identifier(), 1)}, {"target", choice({"content", "mask"})}}, {"layerIds"}, Access::Document,
@@ -635,17 +777,35 @@ void McpController::registerLayerTools()
             for (const auto target : targets) require(target != parent && !tree.isAncestor(target, parent), "Cannot move a container into itself or its descendants");
             const bool moved = tree.reparent(targets, {parent, std::size_t(args["index"].toInt())});
             return result(moved && execute(std::make_unique<c::LayerStructureCommand>("Reorder layers", document(), std::move(tree), std::vector<c::LayerId>{}, std::vector<c::Layer>{}, session().layerSelectionState(), selection(targets)))); });
-    add("vulkana_layer_group", "Wrap consecutive sibling items in a folder, ordinary group, or clipping group. Clipping uses the bottommost child as its base. Layers keep their document-space positions.",
-        {{"layerIds", array(identifier(), 1)}, {"kind", choice({"folder", "group", "clipping_group"})}, {"name", layerNameSchema()}}, {"layerIds", "kind"}, Access::Document,
-        [this](const QJsonObject& args) { const auto targets = selectedIds(document(), args); auto tree = document().tree(); require(tree.consecutiveSiblings(targets), "Grouping requires consecutive siblings");
-            const auto position = tree.placement(targets.front()); require(position.has_value(), "Missing layer placement");
-            const auto target = c::makeLayerId(); const auto kind = args["kind"].toString();
-            const auto name = validatedLayerName(args["name"].toString(kind == "folder" ? "Folder" : "Group"));
-            auto* siblings = tree.children(position->parent);
-            for (const auto child : targets) std::erase(*siblings, child);
-            siblings->insert(siblings->begin() + std::ptrdiff_t(position->index), target);
-            tree.containers.push_back({target, name.toStdString(), kind == "folder" ? c::ContainerKind::Folder : kind == "group" ? c::ContainerKind::Group : c::ContainerKind::ClippingMaskGroup, c::ColorLabel::None, targets});
-            auto data = result(execute(std::make_unique<c::LayerStructureCommand>("Group layers", document(), std::move(tree), std::vector<c::LayerId>{}, std::vector<c::Layer>{}, session().layerSelectionState(), selection({target})))); data["layerId"] = id(target); return data; });
+    add("vulkana_layer_group", "Wrap consecutive sibling items in a folder, ordinary group, or clipping group. Clipping uses the bottommost child as its base. Layers keep their document-space positions. Returns the new layerId and logical geometry; response=ids omits geometry.",
+        {{"layerIds", array(identifier(), 1)}, {"kind", choice({"folder", "group", "clipping_group"})}, {"name", layerNameSchema()}, {"response", geometryResponseSchema()}}, {"layerIds", "kind"}, Access::Document,
+        [this](const QJsonObject& args) {
+            c::LayerId target {};
+            QJsonValue geometry;
+            auto command = validateBeforeMutation([&] {
+                const auto targets = selectedIds(document(), args);
+                auto tree = document().tree();
+                require(tree.consecutiveSiblings(targets), "Grouping requires consecutive siblings");
+                const auto position = tree.placement(targets.front());
+                require(position.has_value(), "Missing layer placement");
+                target = c::makeLayerId();
+                const auto kind = args["kind"].toString();
+                const auto name = validatedLayerName(args["name"].toString(kind == "folder" ? "Folder" : "Group"));
+                auto* siblings = tree.children(position->parent);
+                for (const auto child : targets) std::erase(*siblings, child);
+                siblings->insert(siblings->begin() + std::ptrdiff_t(position->index), target);
+                tree.containers.push_back({target, name.toStdString(), kind == "folder" ? c::ContainerKind::Folder : kind == "group" ? c::ContainerKind::Group : c::ContainerKind::ClippingMaskGroup, c::ColorLabel::None, targets});
+                if (wantsGeometry(args))
+                    geometry = itemGeometryData(tree, target, [&](c::LayerId child) { return document().layer(child); });
+                return std::make_unique<c::LayerStructureCommand>("Group layers", document(), std::move(tree), std::vector<c::LayerId>{}, std::vector<c::Layer>{}, session().layerSelectionState(), selection({target}));
+            });
+            const bool applied = execute(std::move(command));
+            require(applied, "Grouping could not be committed; query current state before retrying");
+            auto data = result(applied);
+            data["layerId"] = id(target);
+            if (wantsGeometry(args)) data["geometry"] = geometry;
+            return data;
+        });
     add("vulkana_layer_ungroup", "Dissolve one folder/group while keeping all contents. Preserves effective hidden state using the editor's normal ungroup operation.", layerArgument, {"layerId"}, Access::Document,
         [this](const QJsonObject& args) { const auto target = id(args, "layerId"); require(document().tree().container(target), "Layer is not a container"); const auto revision = document().revision(); window_.dissolveLayerItem(target); require(!document().containsItem(target), "Container could not be dissolved"); return result(revision != document().revision()); });
     add("vulkana_layer_set_visibility", "Set visibility of one layer or container. A hidden ancestor still hides its children.",
@@ -671,29 +831,52 @@ void McpController::registerLayerTools()
             require(edit.setValues(values), "Transform is invalid over the layer's content and effects");
             const auto committed = edit.commit(session().history()); require(committed != c::TransformCommitResult::TargetUnavailable, "Transform target became unavailable"); changed(); return result(committed == c::TransformCommitResult::Committed); });
     add("vulkana_text_set", "Edit an existing text layer. Content replacement resets character runs. Each explicitly supplied formatting property applies to all characters; other mixed formatting is preserved. Alignment applies to every paragraph.",
-        {{"layerId", identifier()}, {"properties", object(textProperties())}}, {"layerId", "properties"}, Access::Document,
-        [this](const QJsonObject& args) { const auto& item = layer(args); const auto* value = std::get_if<c::TextLayer>(&item.payload); require(value, "Layer is not editable text");
-            const auto next = editText(*value, args["properties"].toObject());
-            const auto target = item.id;
-            auto candidate = item; candidate.payload = next;
-            const auto geometry = layerGeometryData(candidate);
-            const bool edit = next != *value;
-            const bool applied = edit && execute(std::make_unique<c::TextEditCommand>(target, *value, next, c::TextEditHint{}, c::TextEditHint{}));
-            require(!edit || applied, "Text changes are not valid for this layer geometry");
-            auto data = result(applied); data["layerId"] = id(target);
-            data["geometry"] = geometry; return data; });
+        {{"layerId", identifier()}, {"properties", object(textProperties())}, {"response",geometryResponseSchema()}}, {"layerId", "properties"}, Access::Document,
+        [this](const QJsonObject& args) {
+            QJsonValue geometry;
+            c::LayerId target {};
+            auto command = validateBeforeMutation([&]() -> std::unique_ptr<c::Command> {
+                const auto& item = layer(args); const auto* value = std::get_if<c::TextLayer>(&item.payload);
+                target = item.id;
+                require(value,"Layer is not editable text");
+                const auto next = editText(*value,args["properties"].toObject());
+                if (wantsGeometry(args)) { auto candidate=item;candidate.payload=next;geometry=layerGeometryData(candidate); }
+                if (next == *value) return {};
+                return std::make_unique<c::TextEditCommand>(target,*value,next,c::TextEditHint{},c::TextEditHint{});
+            });
+            const bool edit = bool(command), applied = edit && execute(std::move(command));
+            require(!edit || applied,"Text changes were rejected; query current layer state");
+            auto data=result(applied);data["layerId"]=id(target);if(wantsGeometry(args))data["geometry"]=geometry;return data;
+        });
     add("vulkana_shape_set", "Edit existing shape geometry/paint in layer-local pixels without rasterizing it. For lines/polygons supply points within the size frame; resizing does not silently rescale those points.",
-        {{"layerId", identifier()}, {"properties", object(shapeProperties())}}, {"layerId", "properties"}, Access::Document,
-        [this](const QJsonObject& args) { const auto& item = layer(args); const auto* value = std::get_if<c::ShapeLayer>(&item.payload); require(value, "Layer is not an editable shape");
-            const auto next = editShape(*value, args["properties"].toObject());
-            const auto target = item.id;
-            auto candidate = item; candidate.payload = next;
-            const auto geometry = layerGeometryData(candidate);
-            const bool edit = next != *value;
-            const bool applied = edit && execute(std::make_unique<c::SetShapeCommand>(target, *value, next));
-            require(!edit || applied, "Shape changes are not valid for this layer geometry");
-            auto data = result(applied); data["layerId"] = id(target);
-            data["geometry"] = geometry; return data; });
+        {{"layerId", identifier()}, {"properties", object(shapeProperties())}, {"response",geometryResponseSchema()}}, {"layerId", "properties"}, Access::Document,
+        [this](const QJsonObject& args) {
+            QJsonValue geometry;
+            c::LayerId target {};
+            auto command = validateBeforeMutation([&]() -> std::unique_ptr<c::Command> {
+                const auto& item=layer(args);const auto* value=std::get_if<c::ShapeLayer>(&item.payload);
+                target = item.id;
+                require(value,"Layer is not an editable shape");
+                const auto next=editShape(*value,args["properties"].toObject());
+                if(wantsGeometry(args)){auto candidate=item;candidate.payload=next;geometry=layerGeometryData(candidate);}
+                if(next==*value)return {};
+                return std::make_unique<c::SetShapeCommand>(target,*value,next);
+            });
+            const bool edit=bool(command),applied=edit&&execute(std::move(command));
+            require(!edit||applied,"Shape changes were rejected; query current layer state");
+            auto data=result(applied);data["layerId"]=id(target);if(wantsGeometry(args))data["geometry"]=geometry;return data;
+        });
+    add("vulkana_layers_update", "Update properties on 1–256 existing text/shape layers atomically with one undo step. Each update has a unique layerId and exactly one text or shape property object, using text_set/shape_set fields. Omitted properties remain unchanged. Text replacement resets character runs; supplied formatting applies to all characters. Keeps transforms, masks, effects and current selection. response=ids omits geometry. Invalid batches change nothing; no-op preserves redo.",
+        {{"updates",array(object({{"layerId",identifier()},{"text",object(textProperties())},{"shape",object(shapeProperties())}},{"layerId"}),1,256)},
+            {"response",geometryResponseSchema()}}, {"updates"},Access::Document,
+        [this](const QJsonObject& args){
+            auto prepared=validateBeforeMutation([&]{return preparePropertyUpdates(document(),args["updates"].toArray(),wantsGeometry(args));});
+            const bool edit=bool(prepared.command),applied=edit&&execute(std::move(prepared.command));
+            require(!edit||applied,"Layer properties changed before publication; query state before retrying");
+            auto data=result(applied);data["layerIds"]=prepared.ids;data["changedLayerIds"]=prepared.changedIds;
+            if(wantsGeometry(args))data["layers"]=prepared.layers;
+            return data;
+        });
     add("vulkana_layer_mask", "Add a reveal-all/hide-all mask, capture the current selection, remove/invert an existing mask, or set enabled state. Existing masks are never replaced implicitly. from_selection preserves active selection and document coordinates. One undoable action.",
         {{"layerId", identifier()}, {"operation", choice({"reveal_all", "hide_all", "from_selection", "remove", "invert", "enable", "disable"})}}, {"layerId", "operation"}, Access::Document,
         [this](const QJsonObject& args) {
@@ -738,6 +921,7 @@ void McpController::registerLayerTools()
             {"fillOpacity",number(0,1)}, {"blendMode",choice(blendIds())},
             {"effect",object({{"type",choice(effectTypes)}, {"parameters",parameterUnion(effectVariants)}, {"enabled",boolean()}}, {"type","parameters"})}},
         {"layerIds"}, Access::Document, [this](const QJsonObject& args) {
+            auto prepared = validateBeforeMutation([&] {
             require(args.contains("visible") || args.contains("opacity") || args.contains("fillOpacity") || args.contains("blendMode") || args.contains("effect"),
                 "Specify at least one of visible, opacity, fillOpacity, blendMode or effect");
             const auto targets = selectedIds(document(),args,false);
@@ -780,9 +964,13 @@ void McpController::registerLayerTools()
                 require(before.valid() && after.valid(), "Layer style contains unsupported values; no target was changed");
                 if (before != after) { changes.push_back({target,before,std::move(after)}); changedIds.append(id(target)); }
             }
-            const bool applied = !changes.empty() && execute(std::make_unique<SetLayerStylesCommand>(std::move(changes)));
-            require(changedIds.isEmpty() || applied, "Layer styles changed before publication; query state before retrying");
-            auto data = result(applied); data["layerIds"] = ids(targets); data["changedLayerIds"] = changedIds; return data;
+            std::unique_ptr<c::Command> command;
+            if (!changes.empty()) command = std::make_unique<SetLayerStylesCommand>(std::move(changes));
+            return PreparedStyles{targets,changedIds,std::move(command)};
+            });
+            const bool applied = prepared.command && execute(std::move(prepared.command));
+            require(prepared.changedIds.isEmpty() || applied, "Layer styles changed before publication; query state before retrying");
+            auto data = result(applied); data["layerIds"] = ids(prepared.targets); data["changedLayerIds"] = prepared.changedIds; return data;
         });
     add("vulkana_effect_catalog", "Discover every layer effect with exact parameter schema and defaults. Sizes are layer-local pixels; opacity/spread use 0..1; gradient stop positions must be sorted. Effects are not available on adjustment layers.", {}, {}, Access::Query,
         [](const QJsonObject&) { QJsonArray values; for (std::size_t i = 0; i < c::layerEffectCount; ++i) { const auto type = c::LayerEffectType(i); values.append(QJsonObject{{"type", text(c::layerEffectIdentifier(type))}, {"name", text(c::layerEffectName(type))}, {"schema", object(effectProperties(type))}, {"defaults", effectData(type, c::defaultLayerEffect(type))}}); } return QJsonObject{{"effects", values}}; });

@@ -11250,5 +11250,9 @@ Vorbereitung %3 · Abschluss %4 · Gesamt %5</translation>
       <source>Style layers</source>
       <translation>Ebenenstil ändern</translation>
     </message>
+    <message id="history.edit.layer.properties">
+      <source>Edit layer properties</source>
+      <translation>Ebeneneigenschaften bearbeiten</translation>
+    </message>
   </context>
 </TS>

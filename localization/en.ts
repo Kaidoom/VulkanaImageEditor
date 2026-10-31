@@ -7524,5 +7524,6 @@ Prepare %3 · Finish %4 · Total %5</source>
     <message id="history.paint.strokes"><source>Paint strokes</source></message>
     <message id="history.repeat.layers"><source>Repeat layers</source></message>
     <message id="history.style.layers"><source>Style layers</source></message>
+    <message id="history.edit.layer.properties"><source>Edit layer properties</source></message>
   </context>
 </TS>

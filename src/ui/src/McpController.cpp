@@ -124,6 +124,9 @@ core::Layer& McpController::layer(const QJsonObject& args, const char* key) cons
 }
 bool McpController::execute(std::unique_ptr<core::Command> command)
 {
+    if (inValidationPreflight())
+        throw std::logic_error("Document edits cannot execute inside MCP validation/preparation");
+    publicationAttempted_ = true;
     const bool applied = window_.executeDocumentCommand(std::move(command));
     if (applied) changed();
     return applied;
@@ -261,8 +264,13 @@ void McpController::add(QString name, QString description, QJsonObject propertie
             if (documentScoped) {
                 if (!session().document() || id(args, "documentId") != window_.activeDocumentId())
                     return mcp::toolFailure("wrong_document", "The active document changed. Query state and explicitly activate the intended document.", state(false));
-                if (args.contains("expectedRevision") && args["expectedRevision"].toString() != revisionToken(document()))
-                    return mcp::toolFailure("stale_revision", "The document changed. Query its current state before editing.", state(false));
+                if (args.contains("expectedRevision") && args["expectedRevision"].toString() != revisionToken(document())) {
+                    auto details = state(false);
+                    details["changed"] = false;
+                    details["noChanges"] = true;
+                    details["recovery"] = "No changes were made. Query current state and reconsider the edit using its current revision before retrying.";
+                    return mcp::toolFailure("stale_revision", "The document changed. Query its current state before editing.", details);
+                }
             }
             if (access != Access::Query && access != Access::Interaction) {
                 const auto blocked = blockers();
@@ -271,8 +279,25 @@ void McpController::add(QString name, QString description, QJsonObject propertie
             if (access == Access::Interaction && (QApplication::activeModalWidget() || QApplication::activePopupWidget()))
                 return mcp::toolFailure("blocked", "Resolve the native modal dialog or popup before changing its underlying interaction.", {{"blockers", blockers()}});
             const QScopedValueRollback guard(executing_, true);
-            const auto previousDocument = window_.activeDocumentId();
-            const auto previousRevision = session().document() ? revisionToken(document()) : QString();
+            const QScopedValueRollback publicationGuard(publicationAttempted_, false);
+            // Session changes also matter: selection, colors and view do not
+            // change the document revision. This is a defensive check on the
+            // explicit preflight contract, never proof about filesystem work.
+            const auto previousState = state(false);
+            const auto failure = [&](const std::exception& error, const PreflightError* preflight = nullptr) {
+                const bool didChange = state(false) != previousState;
+                auto details = result(didChange);
+                if (preflight && !publicationAttempted_ && !didChange) {
+                    details["noChanges"] = true;
+                    details["recovery"] = preflight->invalidArguments()
+                        ? "No changes were made. Correct the named arguments and retry."
+                        : "No changes were made. Resolve the preparation failure before retrying.";
+                    return mcp::toolFailure(preflight->invalidArguments() ? "invalid_arguments" : "operation_failed",
+                        QString::fromUtf8(error.what()), details);
+                }
+                details["recovery"] = "Query current state before retrying; a command may have committed before presentation failed.";
+                return mcp::toolFailure("operation_failed", QString::fromUtf8(error.what()), details);
+            };
             try {
                 auto data = handler(args);
                 const auto image = data.take("_mcpImage").toString();
@@ -284,12 +309,10 @@ void McpController::add(QString name, QString description, QJsonObject propertie
                 }
                 if (!readOnly) window_.statusBar()->showMessage(QStringLiteral("MCP · ") + name, 2500);
                 return response;
+            } catch (const PreflightError& error) {
+                return failure(error, &error);
             } catch (const std::exception& error) {
-                const bool didChange = window_.activeDocumentId() != previousDocument
-                    || (session().document() ? revisionToken(document()) : QString()) != previousRevision;
-                auto details = result(didChange);
-                details["recovery"] = "Query current state before retrying; a command may have committed before presentation failed.";
-                return mcp::toolFailure("operation_failed", QString::fromUtf8(error.what()), details);
+                return failure(error);
             }
         }});
 }

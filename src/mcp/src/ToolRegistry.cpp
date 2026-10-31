@@ -267,7 +267,7 @@ QJsonObject ToolRegistry::call(const QString& name, const QJsonObject& arguments
     for (const auto& tool : tools_) if (tool.name == name) {
         const auto invalid = validateArguments(tool.inputSchema, arguments);
         if (!invalid.isEmpty()) return toolFailure("invalid_arguments", invalid,
-            {{"tool", name}, {"changed", false}, {"recovery", "Correct the named arguments using the tool's inputSchema from tools/list and retry. The operation was not executed."}});
+            {{"tool", name}, {"changed", false}, {"noChanges", true}, {"recovery", "No changes were made. Correct the named arguments using the tool's inputSchema from tools/list and retry. The operation was not executed."}});
         try {
             const auto result = tool.handler(arguments);
             if (!result.value("content").isArray()

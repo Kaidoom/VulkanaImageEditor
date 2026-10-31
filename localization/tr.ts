@@ -11257,5 +11257,9 @@ Hazırlık %3 · Tamamlama %4 · Toplam %5</translation>
       <source>Style layers</source>
       <translation>Katman stilini değiştir</translation>
     </message>
+    <message id="history.edit.layer.properties">
+      <source>Edit layer properties</source>
+      <translation>Katman özelliklerini düzenle</translation>
+    </message>
   </context>
 </TS>

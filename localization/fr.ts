@@ -11361,5 +11361,9 @@ Préparation %3 · Finition %4 · Total %5</translation>
       <source>Style layers</source>
       <translation>Modifier le style des calques</translation>
     </message>
+    <message id="history.edit.layer.properties">
+      <source>Edit layer properties</source>
+      <translation>Modifier les propriétés des calques</translation>
+    </message>
   </context>
 </TS>

@@ -11249,5 +11249,9 @@ Prepare %3 · Finish %4 · Total %5</source>
       <source>Style layers</source>
       <translation>修改图层样式</translation>
     </message>
+    <message id="history.edit.layer.properties">
+      <source>Edit layer properties</source>
+      <translation>编辑图层属性</translation>
+    </message>
   </context>
 </TS>

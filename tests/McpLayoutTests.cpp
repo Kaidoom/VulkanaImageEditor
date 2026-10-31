@@ -190,6 +190,115 @@ void generatedNamesArePreflighted()
     request["layerIds"]=QJsonArray{group};request["copies"]=1;
     const auto tree=f.doc().tree();f.request("vulkana_layers_repeat",request,true);CHECK(f.doc().tree()==tree);
 }
+void inspectionGeometryMatchesLayout()
+{
+    Fixture f;
+    const auto raster=f.request("vulkana_layer_create",{{"kind","raster"},{"width",8},{"height",6}})["layerId"].toString();
+    const auto pixels=std::get<c::RasterLayer>(f.layer(raster).payload).surface;
+    CHECK(f.doc().setLayerRasterStorage(raster.toULongLong(),pixels,{-5,-2},{}));
+    CHECK(f.doc().setLayerTransform(raster.toULongLong(),{0,-1,50,1,0,30}));
+    const auto shape=f.shape(100,5,10,20);
+    f.request("vulkana_effect_set",{{"layerId",shape},{"type","stroke"},{"parameters",QJsonObject{{"size",75}}}});
+    const auto adjustment=f.request("vulkana_layer_create",{{"kind","adjustment"}})["layerId"].toString();
+    const auto inner=f.group({raster,shape,adjustment}), outer=f.group({inner});
+    f.request("vulkana_layer_set_visibility",{{"layerId",outer},{"visible",false}});
+    const auto revision=f.doc().revision(), depth=f.session().history().undoDepth();
+    const auto original=f.request("vulkana_layer_get",{{"layerId",outer}})["geometry"].toObject();
+    CHECK(original["localBounds"].isNull() && original["includesEffects"]==false);
+    const auto bounds=original["documentBounds"].toObject();
+    CHECK(bounds["x"]==46 && bounds["y"]==5 && bounds["width"]==64 && bounds["height"]==28);
+    const auto quad=original["documentQuad"].toArray();
+    CHECK(quad.size()==4 && quad[0].toObject()["x"]==46 && quad[2].toObject()["y"]==33);
+    CHECK(f.request("vulkana_layer_get",{{"layerId",inner}})["geometry"].toObject()==original);
+    CHECK(f.doc().revision()==revision && f.session().history().undoDepth()==depth);
+    const auto aligned=f.request("vulkana_layers_align",{{"layerIds",QJsonArray{outer,raster}},{"reference","canvas"},{"horizontal","right"}});
+    const auto item=aligned["items"].toArray()[0].toObject();
+    CHECK(aligned["layerIds"].toArray()==QJsonArray{outer});
+    CHECK(item["geometry"]==f.request("vulkana_layer_get",{{"layerId",outer}})["geometry"]);
+    CHECK(item["documentBounds"]==item["geometry"].toObject()["documentBounds"]);
+    CHECK(item["documentBounds"].toObject()["x"]==176);
+    CHECK(f.session().undo());
+    CHECK(f.request("vulkana_layer_get",{{"layerId",outer}})["geometry"].toObject()==original);
+}
+void nullContainerGeometry()
+{
+    Fixture f;
+    const auto adjustment=f.request("vulkana_layer_create",{{"kind","adjustment"}})["layerId"].toString();
+    const auto grouped=f.request("vulkana_layer_group",{{"layerIds",QJsonArray{adjustment}},{"kind","folder"}});
+    CHECK(grouped.contains("geometry") && grouped["geometry"].isNull());
+    const auto onlyAdjustment=grouped["layerId"].toString();
+    auto tree=f.doc().tree();const auto empty=c::makeLayerId();
+    tree.containers.push_back({empty,"Empty",c::ContainerKind::Folder,c::ColorLabel::None,{}});tree.roots.push_back(empty);
+    CHECK(f.doc().replaceStructure(f.doc().tree(),tree));
+    for (const auto& item : {adjustment,onlyAdjustment,QString::number(empty)}) {
+        const auto result=f.request("vulkana_layer_get",{{"layerId",item}});
+        CHECK(result.contains("geometry") && result["geometry"].isNull());
+    }
+    const auto revision=f.doc().revision(), depth=f.session().history().undoDepth();
+    const auto error=f.request("vulkana_layers_align",{{"layerIds",QJsonArray{onlyAdjustment}},{"horizontal","center"}},true)["error"].toObject();
+    CHECK(error["details"].toObject()["noChanges"]==true);
+    CHECK(f.doc().revision()==revision && f.session().history().undoDepth()==depth);
+    const auto repeated=f.request("vulkana_layers_repeat",{{"layerIds",QJsonArray{onlyAdjustment}},{"mode","linear"},{"copies",1},{"stepX",5},{"stepY",0}});
+    CHECK(repeated["layers"].toArray().size()==1 && repeated["layers"].toArray()[0].toObject()["geometry"].isNull());
+}
+void groupingGeometryResponses()
+{
+    for (const auto* kind : {"folder", "group", "clipping_group"}) {
+        Fixture f;
+        const auto first=f.shape(20,10,12,8), second=f.shape(75,60,10,30);
+        f.request("vulkana_layer_set_visibility",{{"layerId",second},{"visible",false}});
+        const auto tree=f.doc().tree();const auto selection=f.session().layerSelectionState();
+        const auto depth=f.session().history().undoDepth();
+        const QJsonObject arguments{{"layerIds",QJsonArray{first,second}},{"kind",kind}};
+        const auto grouped=f.request("vulkana_layer_group",arguments);
+        CHECK(grouped["changed"]==true && grouped["geometry"].isObject());
+        CHECK(grouped["geometry"]==f.request("vulkana_layer_get",{{"layerId",grouped["layerId"]}})["geometry"]);
+        const auto bounds=grouped["geometry"].toObject()["documentBounds"].toObject();
+        CHECK(bounds["x"]==20 && bounds["y"]==10 && bounds["width"]==65 && bounds["height"]==80);
+        CHECK(f.session().history().undoDepth()==depth+1);
+        CHECK(f.session().undo() && f.doc().tree()==tree && f.session().layerSelectionState()==selection);
+        CHECK(f.session().redo());
+        CHECK(grouped["geometry"]==f.request("vulkana_layer_get",{{"layerId",grouped["layerId"]}})["geometry"]);
+        CHECK(f.session().undo());
+        auto compactArguments=arguments;compactArguments["response"]="ids";
+        const auto compact=f.request("vulkana_layer_group",compactArguments);
+        CHECK(compact["changed"]==true && compact.contains("layerId") && compact.contains("revision") && !compact.contains("geometry"));
+    }
+}
+void geometryAndCompactResponses()
+{
+    Fixture f;const auto leaf=f.shape(20,10,12,8), other=f.shape(75,60,10,30);
+    const auto group=f.group({leaf,other},"clipping_group");
+    const auto before=f.request("vulkana_layer_get",{{"layerId",group}})["geometry"].toObject();
+    const auto repeated=f.request("vulkana_layers_repeat",{{"layerIds",QJsonArray{group}},{"mode","linear"},{"copies",2},{"stepX",7},{"stepY",11}});
+    const auto ids=repeated["layerIds"].toArray(), layers=repeated["layers"].toArray();
+    CHECK(ids.size()==2 && layers.size()==2 && repeated["instances"].toArray().size()==2);
+    for (qsizetype i=0;i<ids.size();++i) {
+        const auto item=layers[i].toObject();
+        CHECK(item["layerId"]==ids[i]);
+        CHECK(item["geometry"]==f.request("vulkana_layer_get",{{"layerId",ids[i]}})["geometry"]);
+        CHECK(near(item["geometry"].toObject()["documentBounds"].toObject()["x"].toDouble(),20+7*double(i+1)));
+        CHECK(item["geometry"].toObject()["localBounds"].isNull());
+    }
+    CHECK(f.request("vulkana_layer_get",{{"layerId",group}})["geometry"].toObject()==before);
+    auto compact=f.request("vulkana_layers_repeat",{{"layerIds",QJsonArray{leaf}},{"mode","radial"},{"copies",1},{"centerX",0},{"centerY",0},{"angleStep",90},{"response","ids"}});
+    CHECK(compact["changed"]==true && !compact.contains("layers") && compact["layerIds"].toArray().size()==1);
+    CHECK(compact.contains("documentId") && compact.contains("revision") && compact.contains("instances"));
+    const auto rotated=f.request("vulkana_layers_repeat",{{"layerIds",QJsonArray{leaf}},{"mode","radial"},{"copies",1},{"centerX",0},{"centerY",0},{"angleStep",90}});
+    CHECK(rotated["layers"].toArray()[0].toObject()["geometry"]==f.request("vulkana_layer_get",{{"layerId",rotated["layerIds"].toArray()[0]}})["geometry"]);
+    compact=f.request("vulkana_layers_align",{{"layerIds",ids},{"horizontal","left"},{"response","ids"}});
+    CHECK(!compact.contains("items") && compact["layerIds"].toArray()==ids && compact.contains("revision"));
+    compact=f.request("vulkana_layers_distribute",{{"layerIds",ids},{"axis","vertical"},{"response","ids"}});
+    CHECK(!compact.contains("items") && compact["layerIds"].toArray()==ids && compact.contains("changed"));
+    const auto distributed=f.request("vulkana_layers_distribute",{{"layerIds",ids},{"axis","vertical"}});
+    for (const auto value : distributed["items"].toArray()) {
+        const auto item=value.toObject();
+        CHECK(item["geometry"]==f.request("vulkana_layer_get",{{"layerId",item["layerId"]}})["geometry"]);
+    }
+    const auto revision=f.doc().revision();
+    f.request("vulkana_layers_repeat",{{"layerIds",QJsonArray{leaf}},{"mode","linear"},{"copies",1},{"stepX",1},{"stepY",0},{"response","unknown"}},true);
+    CHECK(f.doc().revision()==revision);
+}
 }
 int main(int argc,char** argv)
 {
@@ -197,5 +306,6 @@ int main(int argc,char** argv)
     QStandardPaths::setTestModeEnabled(true);QTemporaryDir settings;
     QSettings::setDefaultFormat(QSettings::IniFormat);QSettings::setPath(QSettings::IniFormat,QSettings::UserScope,settings.path());
     alignmentAndNoOps();containerBoundsAndDistribution();independentRepetition();radialAndGuards();repetitionKeepsMotifStacking();generatedNamesArePreflighted();
+    inspectionGeometryMatchesLayout();nullContainerGeometry();geometryAndCompactResponses();groupingGeometryResponses();
     std::cout << "MCP layout: " << failures << " failures\n";return failures?1:0;
 }

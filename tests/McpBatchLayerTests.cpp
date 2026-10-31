@@ -156,6 +156,126 @@ void nativeLimitsAndArcIdempotence()
     CHECK(u::saveProject(path,f.doc())); const auto reopened = u::loadProject(path); CHECK(reopened);
     if (reopened) CHECK(reopened.document->layers().size() == 1024 && reopened.document->layers().back().name.size() == 4096);
 }
+void hierarchicalCreationAndForwardReferences()
+{
+    Fixture f;
+    const auto tree = f.doc().tree(); const auto selection = f.session().layerSelectionState();
+    const auto history = f.session().history().undoDepth();
+    const auto original = std::get<c::RasterLayer>(f.doc().layers().front().payload).surface;
+    auto base = pixel("Base"); base["ref"] = "base"; base["parentRef"] = "clip"; base["x"] = 20; base["y"] = 30;
+    const QJsonArray entries{
+        QJsonObject{{"kind","text"},{"ref","caption"},{"parentRef","card"},{"x",5},{"y",8},
+            {"text",QJsonObject{{"text","Caption"},{"fontSize",14}}}},
+        QJsonObject{{"kind","folder"},{"name","Root"},{"ref","root"}},
+        QJsonObject{{"kind","group"},{"ref","card"},{"parentRef","root"}},
+        QJsonObject{{"kind","clipping_group"},{"ref","clip"},{"parentRef","root"}},
+        base,
+        QJsonObject{{"kind","shape"},{"ref","accent"},{"parentRef","clip"},{"x",22},{"y",32},
+            {"shape",QJsonObject{{"kind","rectangle"},{"width",6},{"height",4}}}},
+        QJsonObject{{"kind","folder"},{"ref","empty"},{"parentRef","root"}},
+        QJsonObject{{"kind","group"},{"ref","adjustments"},{"parentRef","root"}},
+        QJsonObject{{"kind","adjustment"},{"parentRef","adjustments"}}};
+    const auto created = f.batch(entries);
+    const auto ids = created["layerIds"].toArray(), results = created["layers"].toArray();
+    const auto refs = created["refs"].toObject();
+    CHECK(ids.size() == entries.size() && results.size() == entries.size() && refs.size() == 8);
+    if(ids.size()!=entries.size() || results.size()!=entries.size()) return;
+    const auto target = [&](const char* ref) { return refs[QLatin1String(ref)].toString().toULongLong(); };
+    CHECK(refs["caption"] == ids[0] && refs["root"] == ids[1] && refs["base"] == ids[4]);
+    CHECK((f.session().selectedLayers() == std::vector<c::LayerId>{target("root")}));
+    CHECK(f.session().activeLayer() == target("root") && f.session().history().undoDepth() == history+1);
+    const auto* card = f.doc().tree().container(target("card"));
+    const auto* clip = f.doc().tree().container(target("clip"));
+    CHECK(card && clip);
+    if (!card || !clip) return;
+    CHECK(card->kind == c::ContainerKind::Group);
+    CHECK(clip->kind == c::ContainerKind::ClippingMaskGroup);
+    CHECK((clip->children == std::vector<c::LayerId>{target("base"),target("accent")}));
+    CHECK(f.doc().layer(target("base"))->localToDocument.m02 == 20 && f.doc().layer(target("base"))->localToDocument.m12 == 30);
+    CHECK(results[1].toObject()["geometry"].toObject()["localBounds"].isNull());
+    CHECK(results[1].toObject()["geometry"].toObject()["documentBounds"].isObject());
+    CHECK(results[6].toObject()["geometry"].isNull() && results[7].toObject()["geometry"].isNull());
+    const auto clipBounds = results[3].toObject()["geometry"].toObject()["documentBounds"].toObject();
+    CHECK(clipBounds["x"] == 20 && clipBounds["y"] == 30 && clipBounds["width"] == 8 && clipBounds["height"] == 6);
+    for(qsizetype i=0;i<ids.size();++i) CHECK(results[i].toObject()["layerId"] == ids[i]);
+    CHECK(f.session().undo() && f.doc().tree() == tree && f.session().layerSelectionState() == selection);
+    CHECK(std::get<c::RasterLayer>(f.doc().layers().front().payload).surface == original);
+    CHECK(f.session().redo() && f.doc().tree().container(target("root")));
+    QTemporaryDir files; const auto path=files.filePath("hierarchy.vulkana");
+    CHECK(u::saveProject(path,f.doc())); const auto read=u::loadProject(path); CHECK(read);
+    if(read) CHECK(read.document->tree()==f.doc().tree() && !read.metadata.contains("refs"));
+}
+void hierarchyFailuresDoNotPublish()
+{
+    Fixture f; f.request("vulkana_layer_create",pixel("Redo")); CHECK(f.session().undo());
+    const auto tree=f.doc().tree(); const auto selection=f.session().layerSelectionState();
+    const auto revision=f.doc().revision(), content=f.doc().contentState();
+    const auto undo=f.session().history().undoDepth(), redo=f.session().history().redoDepth();
+    const auto rejected=[&](QJsonArray entries) {
+        const auto error=f.batch(entries,true)["error"].toObject();
+        CHECK(error["details"].toObject()["noChanges"] == true);
+        CHECK(!error["details"].toObject()["recovery"].toString().contains("may have committed"));
+        CHECK(f.doc().tree()==tree && f.doc().revision()==revision && f.doc().contentState()==content);
+        CHECK(f.session().layerSelectionState()==selection && f.session().history().undoDepth()==undo && f.session().history().redoDepth()==redo);
+    };
+    auto first=pixel(); first["ref"]="same";
+    auto second=pixel(); second["ref"]="same"; rejected({first,second});
+    second=pixel(); second["parentRef"]="missing"; rejected({first,second});
+    second["parentRef"]="same"; rejected({first,second}); // A leaf is not a parent.
+    rejected({QJsonObject{{"kind","folder"},{"ref","self"},{"parentRef","self"}}});
+    rejected({QJsonObject{{"kind","folder"},{"ref","a"},{"parentRef","b"}},
+        QJsonObject{{"kind","group"},{"ref","b"},{"parentRef","a"}}});
+    second=pixel(); second["parentRef"]="root"; second["parentId"]=QString::number(f.doc().layers().front().id);
+    rejected({second,QJsonObject{{"kind","folder"},{"ref","root"}}});
+    rejected({QJsonObject{{"kind","folder"},{"ref",""}}});
+    rejected({QJsonObject{{"kind","folder"},{"ref","has spaces"}}});
+    rejected({QJsonObject{{"kind","folder"},{"x",4}}});
+    rejected({QJsonObject{{"kind","group"},{"width",5}}});
+    second=pixel(); second["parentRef"]="root"; second["index"]=1;
+    rejected({second,QJsonObject{{"kind","folder"},{"ref","root"}}});
+    QJsonArray tooDeep;
+    for(int i=0;i<66;++i) {
+        QJsonObject entry{{"kind","folder"},{"ref",QStringLiteral("r%1").arg(i)}};
+        if(i) entry["parentRef"]=QStringLiteral("r%1").arg(i-1);
+        tooDeep.append(entry);
+    }
+    rejected(tooDeep);
+    // Even a large first raster stays unallocated until all hierarchy edges
+    // and aggregate admission have been validated.
+    second=QJsonObject{{"kind","folder"},{"parentRef","absent"}};
+    rejected({QJsonObject{{"kind","raster"},{"width",8192},{"height",8192}},second});
+    CHECK(f.session().redo() && f.doc().layers().back().name=="Redo");
+    f.request("vulkana_layer_create",{{"kind","folder"}},true);
+    f.request("vulkana_layer_create",{{"kind","raster"},{"ref","single"}},true);
+}
+void hierarchyIndicesAndCompactResponses()
+{
+    Fixture f;
+    auto first=pixel("First"); first["parentRef"]="Parent"; first["index"]=0;
+    auto second=pixel("Second"); second["parentRef"]="Parent"; second["index"]=0;
+    const auto made=f.batch({first,QJsonObject{{"kind","folder"},{"ref","Parent"}},second,
+        QJsonObject{{"kind","folder"},{"ref","parent"}}});
+    const auto refs=made["refs"].toObject();
+    const auto ids=made["layerIds"].toArray();
+    CHECK(ids.size()==4 && refs.size()==2); if(ids.size()!=4) return;
+    CHECK(refs["Parent"] != refs["parent"]);
+    const auto* folder=f.doc().tree().container(refs["Parent"].toString().toULongLong());
+    CHECK(folder && folder->children == (std::vector<c::LayerId>{ids[2].toString().toULongLong(),ids[0].toString().toULongLong()}));
+    auto child=pixel(); child["parentId"]=refs["Parent"];
+    const auto compact=f.request("vulkana_layers_create",{{"layers",QJsonArray{child}},{"response","ids"}});
+    CHECK(compact["changed"].toBool() && compact["layerIds"].toArray().size()==1);
+    CHECK(compact.contains("documentId") && compact.contains("revision") && !compact.contains("layers") && !compact.contains("geometry"));
+    const auto single=f.request("vulkana_layer_create",{{"kind","text"},{"text",QJsonObject{{"text","No geometry requested"}}},{"response","ids"}});
+    CHECK(single.contains("layerId") && single.contains("revision") && !single.contains("geometry"));
+    QJsonArray many; for(int i=0;i<256;++i) many.append(pixel());
+    const auto small=f.request("vulkana_layers_create",{{"layers",many},{"response","ids"}});
+    CHECK(small["layerIds"].toArray().size()==256 && !small.contains("layers"));
+    CHECK(QJsonDocument(small).toJson(QJsonDocument::Compact).size() < 8192);
+    const auto empty=f.request("vulkana_layers_create",{{"layers",QJsonArray{QJsonObject{{"kind","folder"},{"ref","only"}}}},{"response","ids"}});
+    CHECK(!empty.contains("layers") && empty["refs"].toObject().contains("only"));
+    CHECK(f.doc().tree().container(empty["refs"].toObject()["only"].toString().toULongLong()));
+}
+
 void bulkStyleIsAtomicAndLightweight()
 {
     Fixture f;
@@ -243,6 +363,7 @@ int main(int argc, char** argv)
     QSettings::setDefaultFormat(QSettings::IniFormat); QSettings::setPath(QSettings::IniFormat,QSettings::UserScope,settings.path());
     mixedCreationIsOneUndo(); parentAndIndexAreSequential(); rejectionPreservesDocumentAndRedo();
     nativeLimitsAndArcIdempotence(); bulkStyleIsAtomicAndLightweight(); bulkStyleRejectsBeforeEditing(); effectStateEquality();
+    hierarchicalCreationAndForwardReferences(); hierarchyFailuresDoNotPublish(); hierarchyIndicesAndCompactResponses();
     std::cout << "MCP layer batching: " << failures << " failures\n";
     return failures ? 1 : 0;
 }

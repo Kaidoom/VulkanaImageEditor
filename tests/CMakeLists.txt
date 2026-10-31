@@ -1566,7 +1566,7 @@ target_link_libraries(imageeditor_mcp_protocol_tests PRIVATE imageeditor_mcp Qt6
 imageeditor_enable_warnings(imageeditor_mcp_protocol_tests)
 add_test(NAME imageeditor_mcp_protocol_tests COMMAND imageeditor_mcp_protocol_tests $<TARGET_FILE:vulkana-mcp>)
 set_tests_properties(imageeditor_mcp_protocol_tests PROPERTIES TIMEOUT 30 LABELS "mcp;protocol")
-foreach(module Editor Layer Painting BatchLayer Layout)
+foreach(module Editor Layer Painting BatchLayer Layout Validation PropertyBatch)
     string(TOLOWER "${module}" module_lower)
     add_executable(imageeditor_mcp_${module_lower}_tests Mcp${module}Tests.cpp)
     target_link_libraries(imageeditor_mcp_${module_lower}_tests PRIVATE imageeditor_ui Qt6::Test)

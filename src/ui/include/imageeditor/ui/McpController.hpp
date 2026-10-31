@@ -32,6 +32,8 @@ public:
     [[nodiscard]] QJsonObject state(bool includeLayers = true) const;
 
 private:
+    // Focused tests inject failures at the same dispatch boundary as real tools.
+    friend class McpControllerTestAccess;
     enum class Access { Query, Session, Document, DocumentQuery, Interaction };
     using Handler = std::function<QJsonObject(const QJsonObject&)>;
     void add(QString name, QString description, QJsonObject properties,
@@ -55,5 +57,6 @@ private:
     QPointer<QPushButton> stopButton_;
     QString error_;
     bool executing_ {false};
+    bool publicationAttempted_ {false};
 };
 } // namespace imageeditor::ui

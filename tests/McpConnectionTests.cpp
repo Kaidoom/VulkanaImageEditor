@@ -113,7 +113,10 @@ void bridgesAndEditor(const QString& application, const QString& standalone)
     const auto ar = a.reply(), br = b.reply();
     const bool aFailed = ar["result"].toObject()["isError"].toBool();
     CHECK(aFailed != br["result"].toObject()["isError"].toBool());
-    CHECK(data(aFailed ? ar : br)["error"].toObject()["code"] == "stale_revision");
+    const auto stale = data(aFailed ? ar : br)["error"].toObject();
+    CHECK(stale["code"] == "stale_revision");
+    CHECK(stale["details"].toObject()["noChanges"] == true);
+    CHECK(stale["details"].toObject()["changed"] == false);
     CHECK(window.editorSession().history().undoDepth() == depth + 1);
     CHECK(window.editorSession().document()->canvas().extent.width == (aFailed ? 70u : 80u));
     b.tool("vulkana_history", {{"documentId", docId}, {"operation", "undo"}});

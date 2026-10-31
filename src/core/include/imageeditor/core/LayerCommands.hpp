@@ -13,6 +13,17 @@
 namespace imageeditor::core {
 
 enum class VisibilityOperation { Hide, Show, Isolate, ShowAll };
+class SetLayerContentsCommand final : public Command {
+public:
+    explicit SetLayerContentsCommand(std::vector<LayerContentUpdate> updates);
+    bool apply(Document&) override;
+    bool undo(Document&) override;
+    [[nodiscard]] std::string_view label() const noexcept override { return "Edit layer properties"; }
+    [[nodiscard]] std::size_t memoryCost() const noexcept override;
+private:
+    std::vector<LayerContentUpdate> updates_;
+};
+
 class SetItemsVisibilityCommand final : public Command {
 public:
     SetItemsVisibilityCommand(const Document&, std::span<const LayerId>, VisibilityOperation);

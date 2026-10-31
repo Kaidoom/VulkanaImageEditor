@@ -11249,5 +11249,9 @@ Prepare %3 · Finish %4 · Total %5</source>
       <source>Style layers</source>
       <translation>レイヤーのスタイルを変更</translation>
     </message>
+    <message id="history.edit.layer.properties">
+      <source>Edit layer properties</source>
+      <translation>レイヤーのプロパティを編集</translation>
+    </message>
   </context>
 </TS>
