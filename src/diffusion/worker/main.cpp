@@ -179,6 +179,7 @@ class Worker {
     std::atomic<bool> busy { false }, cancelled { false };
     sd_ctx_t* context = nullptr; // protected by stateMutex when accessed by the control thread
     Json loadedProfile, effectiveSettings, files;
+    Json loadedModels = Json::array(); // Immutable snapshots, protected by stateMutex.
     std::string jobId, state = "idle", lastError;
     uint64_t generation = 0;
     bool oom = false, memoryLimited = false, exited = false;
@@ -291,7 +292,7 @@ public:
     {
         std::lock_guard lock(stateMutex);
         return { { "state", state }, { "loaded", context != nullptr }, { "jobId", busy.load() ? jobId : "" },
-            { "contextGeneration", generation } };
+            { "contextGeneration", generation }, { "loadedModels", loadedModels } };
     }
     void announce()
     {
@@ -349,8 +350,14 @@ public:
             old = context;
             context = nullptr;
         }
-        if (old)
+        if (old) {
             free_sd_ctx(old);
+            {
+                std::lock_guard lock(stateMutex);
+                loadedModels = Json::array();
+            }
+            stateEvent();
+        }
     }
     void checkCancel()
     {
@@ -604,6 +611,9 @@ Json Worker::load(const Json& params)
         std::lock_guard lock(stateMutex);
         context = fresh;
         ++generation;
+        loadedModels = Json::array({ { { "contextGeneration", generation },
+            { "profile", profile }, { "files", f }, { "effectiveSettings", effective },
+            { "backend", VULKANA_DIFFUSION_BACKEND } } });
     }
     loadedProfile = profile;
     effectiveSettings = effective;

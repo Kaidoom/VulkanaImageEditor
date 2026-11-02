@@ -142,7 +142,6 @@ QPixmap rasterizedGlyph(ToolGlyph glyph, const QColor& ink, const QSize& size, q
         p.drawRect(QRectF(7,7,10,10));
     } else if (glyph == ToolGlyph::ZoomActual) {
         p.drawEllipse(QRectF(3,3,13,13)); p.drawLine(15,15,22,22);
-        p.drawPolyline(QPolygonF{{8,8},{10,6},{10,13}});
     } else if (glyph == ToolGlyph::Palette) {
         QPainterPath palette; palette.moveTo(12,2); palette.cubicTo(25,2,25,16,17,16);
         palette.cubicTo(10,14,17,22,10,22); palette.cubicTo(-2,21,-1,3,12,2); p.drawPath(palette);

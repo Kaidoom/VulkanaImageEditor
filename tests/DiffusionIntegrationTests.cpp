@@ -9,6 +9,8 @@
 #include "imageeditor/ui/Theme.hpp"
 #include <QAction>
 #include <QApplication>
+#include <QCheckBox>
+#include <QDoubleSpinBox>
 #include <QClipboard>
 #include <QComboBox>
 #include <QDialog>
@@ -34,6 +36,7 @@
 #include <QTimer>
 #include <QToolButton>
 #include <memory>
+#include <tuple>
 namespace u = imageeditor::ui;
 namespace c = imageeditor::core;
 class DiffusionIntegrationTests : public QObject {
@@ -487,6 +490,154 @@ private slots:
     QCOMPARE(native(), after);
     QCOMPARE(panel->results().size(), 1);
   }
+  void modeControlsChooseTheInferencePath() {
+    openMode("AIEditLayerAction");
+    auto *denoise = child<QCheckBox>("DiffusionImageToImage");
+    auto *strength = child<QDoubleSpinBox>("Diffusion_strength");
+    QVERIFY(denoise && strength);
+    strength->setValue(.75);
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    auto request = panel->selectedResult()->metadata["request"].toObject();
+    QCOMPARE(request["referenceImages"].toArray().size(), 1);
+    QVERIFY(!request.contains("initialImage"));
+    QVERIFY(!request.contains("strength"));
+    QVERIFY(!request.contains("mask"));
+    denoise->setChecked(true);
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    request = panel->selectedResult()->metadata["request"].toObject();
+    QCOMPARE(QImage(request["initialImage"].toString()).size(), QSize(64, 64));
+    QCOMPARE(request["strength"].toDouble(), .75);
+    QVERIFY(!request.contains("mask"));
+    session().document()->setSelection(
+        c::SelectionMask::rectangle({64, 64}, {16, 16, 32, 32}));
+    openMode("AIGenerativeFillAction");
+    strength->setValue(1);
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    request = panel->selectedResult()->metadata["request"].toObject();
+    QVERIFY(request.contains("initialImage"));
+    QVERIFY(request.contains("mask"));
+    QCOMPARE(request["strength"].toDouble(), 1.0);
+    openMode("AIGenerateImageAction");
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    request = panel->selectedResult()->metadata["request"].toObject();
+    QVERIFY(!request.contains("initialImage"));
+    QVERIFY(!request.contains("strength"));
+    QVERIFY(!request.contains("mask"));
+  }
+  void fillUsesCanvasSpaceBeyondLayerBounds() {
+    const auto project = qEnvironmentVariable("VULKANA_DIFFUSION_TEST_PROJECT");
+    if (!project.isEmpty())
+      QVERIFY(window->openImageFromPath(project));
+    else {
+      auto canvas = session().document()->canvas();
+      canvas.extent = {96, 64};
+      QVERIFY(session().document()->setCanvas(canvas));
+      QVERIFY(session().document()->setLayerTransform(*session().activeLayer(),
+                                                      {1, 0, 16, 0, 1, 0}));
+    }
+    auto *doc = session().document();
+    const auto size = doc->canvas().extent;
+    for (const auto &layer : doc->layers()) {
+      if (const auto *raster = std::get_if<c::RasterLayer>(&layer.payload);
+          raster && raster->surface->extent().width < size.width) {
+        session().setActiveLayer(layer.id);
+        break;
+      }
+    }
+    const auto originalLayer = *session().activeLayer();
+    const auto original = native();
+    const int margin = (int(size.width) - original.width()) / 2;
+    QVERIFY(margin > 0);
+    std::vector<std::uint8_t> coverage(std::size_t(size.width) * size.height, 0);
+    for (unsigned y = 0; y < size.height; ++y)
+      for (unsigned x = 0; x < size.width; ++x)
+        if (x < unsigned(margin + 4) || x >= size.width - unsigned(margin + 4))
+          coverage[std::size_t(y) * size.width + x] = 255;
+    QVERIFY(doc->setSelection(c::SelectionMask::fromR8(size, coverage, size.width)));
+    const auto selection = doc->selection();
+    const auto revision = doc->revision();
+    openMode("AIGenerativeFillAction");
+    panel->clearInputs();
+    panel->onAddInput(u::DiffusionPanel::InputSource::VisibleCanvas);
+    const auto inputSnapshot = panel->inputs().front().image.copy();
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QCOMPARE(doc->revision(), revision);
+    const auto request = panel->selectedResult()->metadata["request"].toObject();
+    const QSize canvasSize(int(size.width), int(size.height));
+    const QImage initial(request["initialImage"].toString());
+    const QImage reference(request["referenceImages"].toArray().first().toString());
+    const QImage mask(request["mask"].toString());
+    QCOMPARE(initial.size(), canvasSize);
+    QCOMPARE(reference.size(), canvasSize);
+    QCOMPARE(mask.size(), canvasSize);
+    QCOMPARE(initial.pixelColor(0, 0), QColor(Qt::white));
+    QCOMPARE(reference.pixelColor(0, 0), QColor(Qt::white));
+    QCOMPARE(panel->inputs().front().image, inputSnapshot);
+    if (project.isEmpty())
+      QCOMPARE(inputSnapshot.pixelColor(0, 0).alpha(), 0);
+    QCOMPARE(mask.pixelColor(0, 0).red(), 255);
+    QCOMPARE(mask.pixelColor(canvasSize.width() - 1, 0).red(), 255);
+    QCOMPARE(mask.pixelColor(canvasSize.width() / 2, 0).red(), 0);
+    const auto capture = qEnvironmentVariable("VULKANA_DIFFUSION_INTEGRATION_CAPTURE");
+    if (!capture.isEmpty()) {
+      QVERIFY(initial.save(capture + "-fill-initial.png"));
+      QVERIFY(reference.save(capture + "-fill-reference.png"));
+      QVERIFY(mask.save(capture + "-fill-mask.png"));
+    }
+    QCOMPARE(panel->selectedResult()->image.size(), canvasSize);
+    QCOMPARE(panel->selectedResult()->image.pixelColor(0, 0), QColor(30, 200, 90));
+    panel->setDestination(u::DiffusionPanel::Destination::NewLayer);
+    panel->onApply();
+    const auto result = *session().activeLayer();
+    QVERIFY(result != originalLayer);
+    const auto pixels = native();
+    QCOMPARE(pixels.size(), canvasSize);
+    QCOMPARE(pixels.pixelColor(0, 0), QColor(30, 200, 90));
+    QCOMPARE(pixels.pixelColor(canvasSize.width() - 1, 0), QColor(30, 200, 90));
+    QCOMPARE(pixels.pixelColor(canvasSize.width() / 2, 0).alpha(), 0);
+    QCOMPARE(doc->layer(result)->localToDocument, c::AffineTransform{});
+    QCOMPARE(u::diffusionRawLayer(*doc->layer(originalLayer)), original);
+    QCOMPARE(doc->selection(), selection);
+    QVERIFY(session().undo());
+    QVERIFY(!doc->layer(result));
+    QVERIFY(session().redo());
+    QCOMPARE(u::diffusionRawLayer(*doc->layer(result)), pixels);
+  }
+  void modeControlsAcceptNativeKeyboard() {
+    openMode("AIEditLayerAction");
+    auto *denoise = child<QCheckBox>("DiffusionImageToImage");
+    auto *strength = child<QDoubleSpinBox>("Diffusion_strength");
+    auto *scroll = child<QScrollArea>("DiffusionGenerationPage");
+    QVERIFY(denoise && strength && scroll);
+    scroll->ensureWidgetVisible(denoise);
+    QCoreApplication::processEvents();
+    QTest::mouseClick(denoise, Qt::LeftButton, {}, QPoint(8, denoise->height() / 2));
+    QVERIFY(denoise->isChecked());
+    scroll->ensureWidgetVisible(strength);
+    QCoreApplication::processEvents();
+    QTest::mouseClick(strength, Qt::LeftButton);
+    QTRY_VERIFY(strength->hasFocus());
+    const auto tool = session().activeTool();
+    const auto revision = session().document()->revision();
+    for (const auto &[code, modifiers, text] :
+         std::initializer_list<std::tuple<int, Qt::KeyboardModifiers, QString>>{
+             {Qt::Key_A, Qt::ControlModifier, {}},
+             {Qt::Key_1, Qt::NoModifier, "1"},
+             {Qt::Key_Return, Qt::NoModifier, {}}}) {
+      QKeyEvent press(QEvent::KeyPress, code, modifiers, text);
+      QCoreApplication::sendEvent(window->windowHandle(), &press);
+      QKeyEvent release(QEvent::KeyRelease, code, modifiers, text);
+      QCoreApplication::sendEvent(window->windowHandle(), &release);
+    }
+    QCOMPARE(strength->value(), 1.0);
+    QCOMPARE(session().activeTool(), tool);
+    QCOMPARE(session().document()->revision(), revision);
+  }
   void historySurvivesDocumentClosureAndModeChanges() {
     const auto owner = window->activeDocumentId();
     openMode("AIEditLayerAction");
@@ -718,15 +869,15 @@ private slots:
     generate("slow");
     QTRY_VERIFY(child<QWidget>("DiffusionProgressNotification"));
     QVERIFY(child<QWidget>("DiffusionProgressNotification")->isHidden());
-    auto *unload = panel->findChild<QPushButton *>("DiffusionUnloadAll");
-    QVERIFY(unload && !unload->isEnabled());
+    QTRY_VERIFY(child<QPushButton>("DiffusionUnloadModel"));
+    QVERIFY(!child<QPushButton>("DiffusionUnloadModel")->isEnabled());
     panel->onClose();
     QVERIFY(child<QWidget>("DiffusionProgressNotification")->isVisible());
     openMode("AIImageEditorAction");
     QVERIFY(child<QWidget>("DiffusionProgressNotification")->isHidden());
     panel->onCancel();
     QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
-    QVERIFY(unload->isEnabled());
+    QTRY_VERIFY(child<QPushButton>("DiffusionUnloadModel")->isEnabled());
     panel->findChild<QComboBox *>("DiffusionBackend")->setCurrentIndex(1);
     generate();
     QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
@@ -738,7 +889,8 @@ private slots:
     QCOMPARE(panel->results().size(), 1);
     QVERIFY(child<QWidget>("DiffusionProgressNotification")
                 ->isVisible()); // completion remains visible
-    unload->click();
+    QTRY_VERIFY(child<QPushButton>("DiffusionUnloadModel")->isEnabled());
+    child<QPushButton>("DiffusionUnloadModel")->click();
     generate();
     QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
     QCOMPARE(panel->results().size(), 2);
@@ -779,16 +931,82 @@ private slots:
     }
     child<QDialog>("DiffusionPreviewDialog")->close();
   }
+  void loadedModelsTrackReplacementFailureAndUnload() {
+    openMode("AIGenerateImageAction");
+    QVERIFY(child<QLabel>("DiffusionLoadedModelsEmpty"));
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QTRY_VERIFY(child<QPushButton>("DiffusionUnloadModel"));
+    QTRY_VERIFY(child<QPushButton>("DiffusionUnloadModel")->isEnabled());
+    const auto oldId = child<QPushButton>("DiffusionUnloadModel")
+                           ->property("modelId").toString();
+    const auto oldText = child<QLabel>("DiffusionLoadedFile_diffusion")->text();
+    auto config = panel->configuration();
+    const auto originalConfig = config;
+    const auto otherModel = temporary.filePath("another-model.gguf");
+    if (!QFile::exists(otherModel))
+      QVERIFY(QFile::copy(modelPath, otherModel));
+    auto files = config["files"].toObject();
+    files["diffusion"] = otherModel;
+    config["files"] = files;
+    auto settings = config["settings"].toObject();
+    settings["device"] = "invalid-test-device";
+    config["settings"] = settings;
+    panel->setConfiguration(config);
+    QCOMPARE(child<QLabel>("DiffusionLoadedFile_diffusion")->text(), oldText);
+    generate(); // definite load validation failure preserves the old context
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QCOMPARE(panel->results().size(), 1);
+    QTRY_VERIFY(child<QPushButton>("DiffusionUnloadModel")->isEnabled());
+    QCOMPARE(child<QPushButton>("DiffusionUnloadModel")->property("modelId").toString(), oldId);
+    QCOMPARE(child<QLabel>("DiffusionLoadedFile_diffusion")->text(), oldText);
+    config["settings"] = originalConfig["settings"];
+    panel->setConfiguration(config);
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QTRY_VERIFY(child<QPushButton>("DiffusionUnloadModel")->isEnabled());
+    const auto newId = child<QPushButton>("DiffusionUnloadModel")
+                           ->property("modelId").toString();
+    QVERIFY(newId != oldId);
+    QCOMPARE(child<QLabel>("DiffusionLoadedFile_diffusion")->text(),
+             QString("Diffusion · another-model.gguf"));
+    panel->onUnloadModel(oldId); // stale actions must not unload a replacement
+    QCOMPARE(child<QPushButton>("DiffusionUnloadModel")->property("modelId").toString(), newId);
+    generate("slow");
+    QVERIFY(!child<QPushButton>("DiffusionUnloadModel")->isEnabled());
+    panel->onUnloadModel(newId); // cannot interrupt a running generation
+    QTest::qWait(60);
+    QVERIFY(panel->isBusy());
+    panel->onClose();
+    panel->onCancel();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QTRY_VERIFY(child<QPushButton>("DiffusionUnloadModel")->isEnabled());
+    const auto resultCount = panel->results().size();
+    child<QPushButton>("DiffusionUnloadModel")->click();
+    QVERIFY(!child<QPushButton>("DiffusionUnloadModel")->isEnabled());
+    QTRY_VERIFY_WITH_TIMEOUT(child<QLabel>("DiffusionLoadedModelsEmpty"), 10000);
+    QVERIFY(!child<QPushButton>("DiffusionUnloadModel"));
+    QCOMPARE(panel->results().size(), resultCount);
+    openMode("AIImageEditorAction");
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QTRY_VERIFY(child<QPushButton>("DiffusionUnloadModel"));
+    QVERIFY(child<QPushButton>("DiffusionUnloadModel")->property("modelId").toString() != newId);
+    QCOMPARE(panel->results().size(), resultCount + 1);
+  }
   void workerCrashRecoveryAndUnloadQueue() {
     openMode("AIGenerateImageAction");
     generate("crash");
     QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
     QCOMPARE(panel->results().size(), 0);
     QTest::qWait(50);
+    QVERIFY(child<QLabel>("DiffusionLoadedModelsEmpty"));
     generate();
     QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
     QCOMPARE(panel->results().size(), 1);
-    panel->onUnload();
+    QTRY_VERIFY(child<QPushButton>("DiffusionUnloadModel"));
+    QTRY_VERIFY(child<QPushButton>("DiffusionUnloadModel")->isEnabled());
+    child<QPushButton>("DiffusionUnloadModel")->click();
     generate();
     QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
     QCOMPARE(panel->results().size(), 2);

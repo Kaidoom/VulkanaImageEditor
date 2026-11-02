@@ -2,6 +2,7 @@
 #include "imageeditor/diffusion/ModelProfiles.h"
 #include "imageeditor/diffusion/PromptPresets.h"
 #include "imageeditor/ui/CollapsibleSection.hpp"
+#include "imageeditor/ui/CompactValueControl.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/PopupOwnership.hpp"
 #include "imageeditor/ui/Theme.hpp"
@@ -345,10 +346,17 @@ struct DiffusionPanel::Impl {
   QLineEdit *seed{};
   QString workerOverride;
   QComboBox *seedMode{};
-  QPushButton *unload{};
+  QToolButton *randomSeed{};
+  QVBoxLayout *loadedModelsLayout{};
+  QJsonArray loadedModels;
+  QVector<QPushButton *> unloadButtons;
+  bool canUnloadModels{};
   QPlainTextEdit *prompt{}, *negative{}, *sigmas{};
   QSpinBox *width{}, *height{};
   QCheckBox *imageToImage{};
+  QWidget *modeSettings{};
+  bool editImageToImage{};
+  bool hasExplicitStrength{}; // A saved or edited value takes precedence over mode defaults.
   QLabel *status{}, *regionHint{}, *resultImage{};
   QListWidget *inputList{}, *resultList{};
   QListWidgetItem *pendingItem{};
@@ -401,7 +409,8 @@ struct DiffusionPanel::Impl {
                                       : "<Missing configuration>");
     const bool hasInputs = q.mode() == Mode::Generate || !inputs.isEmpty();
     generate->setEnabled(!busy && configured && hasInputs);
-    unload->setEnabled(!busy);
+    for (auto *button : unloadButtons)
+      button->setEnabled(!busy && canUnloadModels);
     generate->setToolTip(
         configured ? QString{} : "Add model files in the Configuration tab.");
     regenerate->setEnabled(!busy && ready && configured && hasInputs);
@@ -437,9 +446,11 @@ struct DiffusionPanel::Impl {
     configurationPage->setEnabled(!busy);
     models->setEnabled(!busy);
     seedMode->setEnabled(!busy);
+    randomSeed->setEnabled(!busy);
     seed->setEnabled(!busy && seedMode->currentData() != "random");
     profiles->setEnabled(!busy);
     mode->setEnabled(!busy);
+    updateModeControls();
     inputList->setEnabled(!busy);
     if (auto *add = inputList->item(int(inputs.size())))
       add->setFlags(!busy && inputs.size() < maxInputs() ? Qt::ItemIsEnabled
@@ -525,6 +536,37 @@ struct DiffusionPanel::Impl {
     resultList->setCurrentRow(next);
     resultList->scrollToItem(resultList->item(next));
   }
+  void updateModeControls() {
+    const auto mode = q.mode();
+    if (!hasExplicitStrength)
+      setControl(sampling["strength"], mode == Mode::Fill ? 1.0 : .75);
+    modeSettings->setEnabled(!busy);
+    {
+      const QSignalBlocker block(imageToImage);
+      imageToImage->setChecked(mode == Mode::Fill ||
+                              (mode == Mode::Edit && editImageToImage));
+    }
+    imageToImage->setEnabled(mode == Mode::Edit);
+    imageToImage->setToolTip(
+        mode == Mode::Fill
+            ? "Always used for Generative Fill. The canvas is the starting "
+              "image; the selection limits where the result is applied."
+        : mode == Mode::Edit
+            ? "Off: edit using image references. On: start from Image 1 and "
+              "use Denoising strength."
+            : "Starts denoising from an input image. Available in Edit layer; "
+              "always used for Generative Fill.");
+    sampling["strength"]->setEnabled(q.imageToImageEnabled());
+    sampling["strength"]->setToolTip(
+        q.imageToImageEnabled()
+            ? "Lower values retain more of the starting image. Try 1.0 for "
+              "larger changes or new objects."
+        : mode == Mode::Edit
+            ? "Enable image-to-image denoising to use strength. Reference-only "
+              "edits do not use this value."
+            : "Available in Generative Fill, or Edit layer with image-to-image "
+              "denoising enabled.");
+  }
   void updateCapabilities(bool defaults) {
     const auto p = profile();
     const bool qwen = p.value("family").toString() == "qwen-image-2.1";
@@ -532,12 +574,21 @@ struct DiffusionPanel::Impl {
         qobject_cast<QComboBox *>(resource["weights"])->currentData() ==
         "manual";
     for (const auto &name :
-         {QString("diffusion"), QString("textEncoder"), QString("vae")})
+         {QString("diffusion"), QString("textEncoder"), QString("vae")}) {
       resource["placement_" + name]->setEnabled(manual);
-    for (const auto &key : {QString("prefixCache"), QString("prefixCacheType")})
+      resource["placement_" + name]->setToolTip(
+          "Choose where weights are kept. Available when Keep weights in is manual.");
+    }
+    for (const auto &key : {QString("prefixCache"), QString("prefixCacheType")}) {
       resource[key]->setEnabled(qwen);
+      resource[key]->setToolTip("Reuse text-encoder prefix data. Available for Qwen models.");
+    }
     files["vision"]->parentWidget()->setEnabled(
         p.value("visionRequiredForReferences").toBool());
+    files["vision"]->parentWidget()->setToolTip(
+        p.value("visionRequiredForReferences").toBool()
+            ? "Vision weights are required when this model uses reference images."
+            : "This model does not need a separate vision component.");
     if (defaults) {
       putControls(sampling,
                   {{"steps", p.value("steps")},
@@ -546,7 +597,6 @@ struct DiffusionPanel::Impl {
                    {"scheduler", p.value("scheduler").toString("auto")},
                    {"schedule", p.value("schedule")},
                    {"flowShift", 0.0},
-                   {"strength", .75},
                    {"batch", 1},
                    {"vaeTiling", false},
                    {"vaeTileSize", 256},
@@ -562,14 +612,26 @@ struct DiffusionPanel::Impl {
     }
     const double cfg =
         qobject_cast<QDoubleSpinBox *>(sampling["guidance"])->value();
-    negative->setEnabled(cfg > 1);
-    negative->setVisible(cfg > 1);
+    const bool supportsNegative = p.value("negativePrompt").toBool();
+    negative->setEnabled(supportsNegative && cfg > 1);
+    negative->setToolTip(
+        !supportsNegative ? "This model does not support a negative prompt."
+        : cfg <= 1 ? "Describe what to avoid. Requires Guidance (CFG) above 1 "
+                     "in Configuration."
+                   : "Describe what to avoid in the generated image.");
     const auto schedule = qobject_cast<QComboBox *>(sampling["schedule"])
                               ->currentData()
                               .toString();
     sigmas->setEnabled(schedule == "custom");
+    sigmas->setToolTip("Enter steps + 1 descending values ending in zero. "
+                       "Available with a custom sigma schedule.");
     sampling["scheduler"]->setEnabled(schedule == "auto");
+    sampling["scheduler"]->setToolTip(
+        "Controls how noise levels are spaced. Available with the auto sigma schedule.");
     sampling["flowShift"]->setEnabled(schedule == "auto");
+    sampling["flowShift"]->setToolTip(
+        "Adjusts the flow schedule. Available with the auto sigma schedule. "
+        "Auto uses the model default; FLUX.3 recommends 6.93.");
     auto *scheduleCombo = qobject_cast<QComboBox *>(sampling["schedule"]);
     if (auto *items =
             qobject_cast<QStandardItemModel *>(scheduleCombo->model()))
@@ -584,10 +646,6 @@ struct DiffusionPanel::Impl {
             ? "Regions are supplied as visual annotations. Use Generative Fill "
               "to protect pixels outside a selection."
             : "This model does not expose region guidance.");
-    sampling["strength"]->setEnabled(
-        q.mode() == Mode::Fill ||
-        (q.mode() == Mode::Edit && imageToImage->isChecked()));
-    imageToImage->setEnabled(q.mode() == Mode::Edit && !busy);
     const auto sampler = qobject_cast<QComboBox *>(sampling["sampler"])
                              ->currentData()
                              .toString();
@@ -596,12 +654,16 @@ struct DiffusionPanel::Impl {
         QStringList{"ddim_trailing", "tcd", "res_multistep", "res_2s"}.contains(
             sampler);
     sampling["eta"]->setEnabled(stochastic);
+    sampling["eta"]->setToolTip(
+        "Controls added sampler noise. Available for samplers that use eta.");
     const bool caching = qobject_cast<QComboBox *>(sampling["cacheMode"])
                              ->currentData()
                              .toString() != "disabled";
     for (const auto &key : {QString("cacheReuseThreshold"),
-                            QString("cacheStart"), QString("cacheEnd")})
+                            QString("cacheStart"), QString("cacheEnd")}) {
       sampling[key]->setEnabled(caching);
+      sampling[key]->setToolTip("Available when Approximate cache is enabled.");
+    }
     updateActions();
   }
   void rebuildModels() {
@@ -974,6 +1036,19 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   d->seed->setObjectName("DiffusionSeed");
   d->seed->setToolTip("Use the same seed to reproduce a result.");
   seedRow->addWidget(d->seed, 1);
+  d->randomSeed = iconButton(ToolGlyph::Refresh, "Generate a random seed", content);
+  d->randomSeed->setObjectName("DiffusionRandomSeed");
+  d->randomSeed->setToolTip(
+      "Generate a random seed. Random mode also chooses a new seed for each generation.");
+  seedRow->addWidget(d->randomSeed);
+  connect(d->randomSeed, &QToolButton::clicked, this, [this] {
+    QString seed;
+    do {
+      seed = QString::number(QRandomGenerator::global()->generate());
+    } while (seed == d->seed->text());
+    d->seed->setText(seed);
+    saveSettings();
+  });
   d->seedMode = combo({"Random", "Fixed", "Increment"},
                       {"random", "fixed", "increment"}, content);
   d->seedMode->setObjectName("DiffusionSeedMode");
@@ -987,6 +1062,12 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   });
   essentials->addLayout(seedRow);
   layout->addLayout(essentials);
+  d->modeSettings = new QWidget(content);
+  d->modeSettings->setObjectName("DiffusionModeSettings");
+  auto *modeLayout = new QHBoxLayout(d->modeSettings);
+  modeLayout->setContentsMargins(0, 0, 0, 0);
+  modeLayout->setSpacing(8);
+  layout->addWidget(d->modeSettings);
   QVBoxLayout *inputsLayout{};
   layout->addWidget(
       section("Input images", "DiffusionInputs", inputsLayout, true));
@@ -1146,16 +1227,29 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   auto *shift = addSpin(samplingForm, d->sampling, "flowShift", "Flow shift", 0,
                         100, 0, 3);
   shift->setSpecialValueText("Auto");
-  shift->setToolTip("Auto uses the model schedule. FLUX.3 recommends 6.93. "
-                    "Other values are experimental.");
   d->imageToImage = new QCheckBox("Use image-to-image denoising");
-  d->imageToImage->setToolTip("Off uses reference editing. On also starts from "
-                              "the target image's latents.");
-  advanced->addWidget(d->imageToImage);
+  d->imageToImage->setObjectName("DiffusionImageToImage");
+  modeLayout->addWidget(d->imageToImage);
   connect(d->imageToImage, &QCheckBox::toggled, this,
-          [this] { d->updateCapabilities(false); });
-  addSpin(samplingForm, d->sampling, "strength", "Denoising strength", 0, 1,
-          .75, 2);
+          [this](bool enabled) {
+            if (mode() == Mode::Edit)
+              d->editImageToImage = enabled;
+            d->updateModeControls();
+          });
+  auto *strength = new CompactValueControl(d->modeSettings);
+  strength->setObjectName("Diffusion_strength");
+  strength->setAccessibleName("Denoising strength");
+  strength->setDecimals(2);
+  strength->setRange(0, 1);
+  strength->setSingleStep(.01);
+  strength->setValue(.75);
+  strength->setFixedHeight(30);
+  strength->setMinimumWidth(90);
+  strength->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+  modeLayout->addWidget(strength, 1);
+  d->sampling["strength"] = strength;
+  connect(strength, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
+          [this] { d->hasExplicitStrength = true; });
   addSpin(samplingForm, d->sampling, "batch", "Images per job", 1, 8, 1);
   addFlag(samplingForm, d->sampling, "vaeTiling", "VAE tiling", false);
   addSpin(samplingForm, d->sampling, "vaeTileSize", "VAE tile size", 64, 2048,
@@ -1190,7 +1284,10 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   auto *defaults = new QPushButton("Restore recommended generation settings");
   advanced->addWidget(defaults);
   connect(defaults, &QPushButton::clicked, this,
-          [this] { d->updateCapabilities(true); });
+          [this] {
+            d->hasExplicitStrength = false;
+            d->updateCapabilities(true);
+          });
   connect(guidance, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
           [this] { d->updateCapabilities(false); });
   connect(schedule, &QComboBox::currentIndexChanged, this,
@@ -1259,13 +1356,11 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   };
   connect(weights, &QComboBox::currentIndexChanged, this, updatePlacement);
   updatePlacement();
-  d->unload = new QPushButton("Unload all models");
-  d->unload->setObjectName("DiffusionUnloadAll");
-  configLayout->addWidget(d->unload);
-  connect(d->unload, &QPushButton::clicked, this, [this] {
-    if (onUnload)
-      onUnload();
-  });
+  configLayout->addWidget(section("Loaded models", "DiffusionLoadedModels",
+                                 d->loadedModelsLayout, true));
+  auto *empty = new QLabel("No models loaded");
+  empty->setObjectName("DiffusionLoadedModelsEmpty");
+  d->loadedModelsLayout->addWidget(empty);
   d->generate = new GenerateButton(toolGlyph(ToolGlyph::Effects), "Generate");
   d->generate->setObjectName("DiffusionGenerate");
   layout->addWidget(d->generate);
@@ -1371,15 +1466,22 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
     if (d->updating)
       return;
     const auto id = d->models->currentData().toString();
-    if (id.isEmpty())
+    if (id.isEmpty()) {
+      d->hasExplicitStrength = false;
       setConfiguration({{"profile", d->profiles->currentData().toString()},
                         {"files", QJsonObject{}}});
+    }
     for (const auto &value : d->modelConfigs) {
       const auto c = value.toObject();
       if (c["id"] == id) {
         setConfiguration(c["configuration"].toObject());
         putControls(d->sampling, c["generation"].toObject());
+        d->hasExplicitStrength = c["generation"].toObject().contains("strength");
         d->sigmas->setPlainText(c.value("customSigmas").toString());
+        // Older configurations did not store this preference. Keep the
+        // current Edit-layer choice when loading one of those configurations.
+        if (c.contains("editImageToImage"))
+          d->editImageToImage = c.value("editImageToImage").toBool();
         break;
       }
     }
@@ -1397,11 +1499,13 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
             .trimmed();
     if (!ok || name.isEmpty())
       return;
+    d->hasExplicitStrength = true;
     QJsonObject entry{
         {"id", QUuid::createUuid().toString(QUuid::WithoutBraces)},
         {"name", name},
         {"configuration", configuration()},
         {"generation", controls(d->sampling)},
+        {"editImageToImage", d->editImageToImage},
         {"customSigmas", d->sigmas->toPlainText()}};
     bool replaced = false;
     for (qsizetype i = 0; i < d->modelConfigs.size(); ++i)
@@ -1511,8 +1615,13 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   select(d->backend, settings.value("diffusion/backend", "auto").toString());
   const auto savedGeneration = QJsonDocument::fromJson(
       settings.value("diffusion/generation").toByteArray());
-  if (savedGeneration.isObject())
+  if (savedGeneration.isObject()) {
     putControls(d->sampling, savedGeneration.object());
+    if (savedGeneration.object().contains("strength"))
+      d->hasExplicitStrength = true;
+  }
+  d->editImageToImage = settings.value("diffusion/editImageToImage",
+                                      d->editImageToImage).toBool();
   d->prompt->setPlainText(settings.value("diffusion/prompt").toString());
   d->negative->setPlainText(
       settings.value("diffusion/negativePrompt").toString());
@@ -1568,7 +1677,7 @@ void DiffusionPanel::setDestination(Destination value) {
 }
 bool DiffusionPanel::imageToImageEnabled() const {
   return mode() == Mode::Fill ||
-         (mode() == Mode::Edit && d->imageToImage->isChecked());
+         (mode() == Mode::Edit && d->editImageToImage);
 }
 QString DiffusionPanel::workerExecutable() const { return d->workerOverride; }
 void DiffusionPanel::setWorkerExecutable(const QString &path) {
@@ -1605,7 +1714,7 @@ QJsonObject DiffusionPanel::generationParameters() const {
   auto params = controls(d->sampling);
   if (!d->sampling["eta"]->isEnabled())
     params.remove("eta");
-  if (!d->sampling["strength"]->isEnabled())
+  if (!imageToImageEnabled())
     params.remove("strength");
   params["prompt"] = d->prompt->toPlainText();
   if (d->negative->isEnabled() &&
@@ -1658,6 +1767,69 @@ void DiffusionPanel::setProfiles(const QJsonArray &profiles) {
   select(d->profiles, current);
   if (d->resource.contains("prefixCache"))
     d->updateCapabilities(initial);
+}
+void DiffusionPanel::setLoadedModels(const QJsonArray &models, bool canUnload) {
+  d->canUnloadModels = canUnload;
+  if (models != d->loadedModels) {
+    d->loadedModels = models;
+    d->unloadButtons.clear();
+    while (auto *item = d->loadedModelsLayout->takeAt(0)) {
+      delete item->widget();
+      delete item;
+    }
+    if (models.isEmpty()) {
+      auto *empty = new QLabel("No models loaded");
+      empty->setObjectName("DiffusionLoadedModelsEmpty");
+      d->loadedModelsLayout->addWidget(empty);
+    }
+    for (const auto &value : models) {
+      const auto model = value.toObject();
+      auto *row = new QWidget;
+      row->setObjectName("DiffusionLoadedModel");
+      auto *layout = new QVBoxLayout(row);
+      layout->setContentsMargins(0, 0, 0, 0);
+      layout->setSpacing(4);
+      auto *header = new QHBoxLayout;
+      const auto profile = model.value("profile").toObject();
+      auto *title = new QLabel(profile.value("name").toString() + " · " +
+                              model.value("backend").toString().toUpper());
+      title->setObjectName("DiffusionLoadedModelTitle");
+      title->setTextFormat(Qt::PlainText);
+      title->setWordWrap(true);
+      header->addWidget(title, 1);
+      auto *unload = new QPushButton("Unload");
+      unload->setObjectName("DiffusionUnloadModel");
+      const auto id = model.value("id").toString();
+      unload->setProperty("modelId", id);
+      unload->setToolTip("Unload this configuration and its components to "
+                         "release memory. Generated images are kept.");
+      connect(unload, &QPushButton::clicked, this, [this, id] {
+        if (!d->busy && d->canUnloadModels && onUnloadModel)
+          onUnloadModel(id);
+      });
+      d->unloadButtons.push_back(unload);
+      header->addWidget(unload);
+      layout->addLayout(header);
+      const auto files = model.value("files").toObject();
+      for (const auto &[key, label] : QVector<QPair<QString, QString>>{
+               {"diffusion", "Diffusion"}, {"textEncoder", "Text encoder"},
+               {"vae", "VAE"}, {"vision", "Vision"}}) {
+        const auto path = files.value(key).toString();
+        if (path.isEmpty())
+          continue;
+        auto *file = new QLabel(label + " · " + QFileInfo(path).fileName());
+        file->setObjectName("DiffusionLoadedFile_" + key);
+        file->setTextFormat(Qt::PlainText);
+        file->setWordWrap(true);
+        file->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+        file->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        file->setToolTip(path);
+        layout->addWidget(file);
+      }
+      d->loadedModelsLayout->addWidget(row);
+    }
+  }
+  d->updateActions();
 }
 void DiffusionPanel::setDevices(const QJsonArray &devices) {
   auto *c = qobject_cast<QComboBox *>(d->resource["device"]);
@@ -1948,5 +2120,6 @@ void DiffusionPanel::saveSettings() {
   s.setValue("diffusion/width", d->width->value());
   s.setValue("diffusion/height", d->height->value());
   s.setValue("diffusion/mode", int(mode()));
+  s.setValue("diffusion/editImageToImage", d->editImageToImage);
 }
 } // namespace imageeditor::ui

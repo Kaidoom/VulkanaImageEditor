@@ -41,6 +41,10 @@ struct DiffusionTarget {
 // for inference. Full-size coverage
 // is retained when applying; no thresholding discards soft selection values.
 [[nodiscard]] QImage diffusionSelectionMask(const DiffusionTarget&, QSize outputSize = {}, bool documentSpace = false);
+// Inference-only canvas copy: selected, fully transparent pixels represent
+// missing content to generate, rather than an instruction to retain alpha zero.
+// Original pixels and the soft application mask remain untouched.
+[[nodiscard]] QImage diffusionPrepareFillInput(const QImage&, const QImage& coverage);
 // Resizes generated pixels to the original native grid and composites through
 // the captured selection. Pixels with zero coverage are copied byte-for-byte.
 [[nodiscard]] QImage diffusionResolvedPixels(

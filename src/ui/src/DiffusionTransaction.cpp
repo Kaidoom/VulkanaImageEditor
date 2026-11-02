@@ -220,6 +220,27 @@ QImage diffusionSelectionMask(const DiffusionTarget& target, QSize size, bool do
     return mask;
 }
 
+QImage diffusionPrepareFillInput(const QImage& source, const QImage& coverage)
+{
+    auto image = rgba(source);
+    if (coverage.size() != image.size() || coverage.format() != QImage::Format_Grayscale8)
+        throw std::invalid_argument("Fill input requires a matching grayscale selection mask.");
+    for (int y = 0; y < image.height(); ++y) {
+        auto* pixels = image.scanLine(y);
+        const auto* mask = coverage.constScanLine(y);
+        for (int x = 0; x < image.width(); ++x) {
+            auto* pixel = pixels + x * 4;
+            if (mask[x] && pixel[3] == 0) {
+                // RGBA-aware models can interpret empty canvas as transparency
+                // to preserve. A neutral opaque placeholder makes the selected
+                // space available for synthesis without changing real content.
+                pixel[0] = pixel[1] = pixel[2] = pixel[3] = 255;
+            }
+        }
+    }
+    return image;
+}
+
 QImage diffusionCompositeSelection(const QImage& beforeImage, const QImage& generatedImage, const QImage& coverageImage)
 {
     auto before = rgba(beforeImage);

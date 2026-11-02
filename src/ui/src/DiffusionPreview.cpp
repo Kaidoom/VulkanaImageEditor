@@ -243,7 +243,7 @@ void DiffusionPreview::paintEvent(QPaintEvent *) {
     p.setBrush(QColor(255, 140, 70, 18));
     p.drawRect(box);
     const QString title = regions_[i].label.isEmpty()
-                              ? QString("Region %1").arg(i + 1)
+                              ? QString("Region%1").arg(i + 1)
                               : regions_[i].label;
     const auto label =
         p.fontMetrics().boundingRect(title).adjusted(-5, -3, 5, 3);
@@ -311,7 +311,7 @@ void DiffusionPreview::mousePressEvent(QMouseEvent *e) {
     } else {
       anchor_ = start_;
       regions_.append({QRectF(start_, QSizeF()),
-                       QString("Region %1").arg(regions_.size() + 1)});
+                       QString("Region%1").arg(regions_.size() + 1)});
       setSelectedRegion(int(regions_.size()) - 1);
       drag_ = Drag::Draw;
     }

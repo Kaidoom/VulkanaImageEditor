@@ -3,9 +3,11 @@
 #include "imageeditor/ui/DiffusionPreview.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include <QApplication>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
 #include <QDoubleSpinBox>
+#include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
@@ -39,6 +41,49 @@ private slots:
         *qobject_cast<QApplication *>(QCoreApplication::instance()));
   }
   void init() { QSettings().clear(); }
+  void loadedModelsReflectWorkerNotConfiguration() {
+    DiffusionPanel panel;
+    QVERIFY(panel.findChild<QLabel *>("DiffusionLoadedModelsEmpty"));
+    QVERIFY(!panel.findChild<QPushButton *>("DiffusionUnloadModel"));
+    const QJsonArray loaded{QJsonObject{
+        {"id", "worker:1"}, {"backend", "cuda"},
+        {"profile", QJsonObject{{"name", "Qwen Image 2.1 Turbo"}}},
+        {"files", QJsonObject{{"diffusion", "/models/qwen-q4.gguf"},
+                              {"textEncoder", "/models/text-q4.gguf"},
+                              {"vae", "/models/vae.safetensors"},
+                              {"vision", "/models/vision.gguf"}}}}};
+    panel.setLoadedModels(loaded, true);
+    auto *unload = panel.findChild<QPushButton *>("DiffusionUnloadModel");
+    QVERIFY(unload && unload->isEnabled());
+    QString unloaded;
+    panel.onUnloadModel = [&](const QString &id) { unloaded = id; };
+    panel.setConfiguration({{"profile", "flux3-image-klein-distilled"},
+                            {"files", QJsonObject{{"diffusion", "/models/flux.gguf"}}}});
+    QCOMPARE(panel.findChild<QLabel *>("DiffusionLoadedFile_diffusion")->text(),
+             QString("Diffusion · qwen-q4.gguf"));
+    QVERIFY(panel.findChild<QLabel *>("DiffusionLoadedFile_vision"));
+    if (const auto capture = qEnvironmentVariable("VULKANA_DIFFUSION_PANEL_CAPTURE");
+        !capture.isEmpty()) {
+      panel.resize(480, 800);
+      panel.show();
+      panel.findChild<QTabWidget *>("DiffusionTabs")->setCurrentIndex(0);
+      QCoreApplication::processEvents();
+      QVERIFY(panel.grab().save(capture + "-loaded-models.png"));
+    }
+    panel.setBusy(true);
+    QVERIFY(!unload->isEnabled());
+    unload->click();
+    QVERIFY(unloaded.isEmpty());
+    panel.setBusy(false);
+    panel.setLoadedModels(loaded, false); // stopping, not yet unloaded
+    QVERIFY(!unload->isEnabled());
+    panel.setLoadedModels(loaded, true);
+    unload->click();
+    QCOMPARE(unloaded, QString("worker:1"));
+    panel.setLoadedModels({}, false);
+    QVERIFY(panel.findChild<QLabel *>("DiffusionLoadedModelsEmpty"));
+    QVERIFY(!panel.findChild<QPushButton *>("DiffusionUnloadModel"));
+  }
   void capabilityDefaultsAndUserOverrides() {
     DiffusionPanel panel;
     panel.setConfiguration({{"profile", "flux3-image-klein-distilled"},
@@ -63,6 +108,152 @@ private slots:
                             {"settings", QJsonObject{}}});
     QCOMPARE(panel.request()["steps"].toInt(), 8);
     QCOMPARE(panel.request()["schedule"].toString(), QString("turbo"));
+  }
+  void modeSpecificControls_data() {
+    QTest::addColumn<QString>("profile");
+    QTest::newRow("flux3") << QString("flux3-image-klein-distilled");
+    QTest::newRow("qwen") << QString("qwen-image-2.1-turbo");
+  }
+  void newFillStrengthDefaultsRemainAdjustable_data() {
+    QTest::addColumn<QString>("profile");
+    QTest::newRow("qwen-turbo") << QString("qwen-image-2.1-turbo");
+    QTest::newRow("qwen") << QString("qwen-image-2.1");
+    QTest::newRow("flux3") << QString("flux3-image-klein-distilled");
+  }
+  void newFillStrengthDefaultsRemainAdjustable() {
+    QFETCH(QString, profile);
+    DiffusionPanel panel;
+    panel.setConfiguration({{"profile", profile}});
+    auto *strength = panel.findChild<QDoubleSpinBox *>("Diffusion_strength");
+    QVERIFY(strength);
+    QCOMPARE(strength->value(), .75); // other modes keep their default
+    panel.setMode(DiffusionPanel::Mode::Fill);
+    QCOMPARE(strength->value(), 1.0);
+    QCOMPARE(panel.prepareGeneration()["strength"].toDouble(), 1.0);
+    QVERIFY(strength->isEnabled());
+    QVERIFY(panel.findChild<QTabWidget *>("DiffusionTabs")
+                ->widget(1)->isAncestorOf(strength));
+    strength->setValue(.6);
+    panel.setMode(DiffusionPanel::Mode::Edit);
+    panel.setMode(DiffusionPanel::Mode::Fill);
+    QCOMPARE(panel.request()["strength"].toDouble(), .6);
+    panel.saveSettings();
+    DiffusionPanel restored;
+    QCOMPARE(restored.request()["strength"].toDouble(), .6);
+  }
+  void savedFillStrengthIsPreserved_data() {
+    QTest::addColumn<double>("value");
+    for (double value : {0.0, .75, 1.0})
+      QTest::newRow(qPrintable(QString::number(value))) << value;
+  }
+  void savedFillStrengthIsPreserved() {
+    QFETCH(double, value);
+    const QJsonObject generation{{"strength", value}};
+    QSettings().setValue("diffusion/generation", QJsonDocument(generation).toJson());
+    QSettings().setValue("diffusion/modelConfigurations", QJsonDocument(QJsonArray{
+        QJsonObject{{"id", "saved"}, {"name", "Saved configuration"},
+                    {"configuration", QJsonObject{{"profile", "flux3-image-klein-distilled"}}},
+                    {"generation", generation}}}).toJson());
+    DiffusionPanel panel;
+    panel.setMode(DiffusionPanel::Mode::Fill);
+    QCOMPARE(panel.request()["strength"].toDouble(), value);
+    auto *models = panel.findChild<QComboBox *>("DiffusionModels");
+    models->setCurrentIndex(models->findData("saved"));
+    QCOMPARE(panel.request()["strength"].toDouble(), value);
+    models->setCurrentIndex(0); // genuinely new configuration
+    QCOMPARE(panel.request()["strength"].toDouble(), 1.0);
+    models->setCurrentIndex(models->findData("saved"));
+    QCOMPARE(panel.request()["strength"].toDouble(), value);
+  }
+  void modeSpecificControls() {
+    QFETCH(QString, profile);
+    DiffusionPanel panel;
+    panel.setConfiguration({{"profile", profile}});
+    auto *tabs = panel.findChild<QTabWidget *>("DiffusionTabs");
+    auto *denoise = panel.findChild<QCheckBox *>("DiffusionImageToImage");
+    auto *strength = panel.findChild<QDoubleSpinBox *>("Diffusion_strength");
+    auto *negative = panel.findChild<QPlainTextEdit *>("DiffusionNegativePrompt");
+    QVERIFY(denoise && strength && negative);
+    QVERIFY(tabs->widget(1)->isAncestorOf(denoise));
+    QVERIFY(tabs->widget(1)->isAncestorOf(strength));
+    QVERIFY(!tabs->widget(0)->isAncestorOf(strength));
+    QVERIFY(!denoise->isHidden() && !strength->isHidden());
+    QVERIFY(!negative->isHidden() && !negative->isEnabled());
+    QVERIFY(negative->toolTip().contains("CFG"));
+    panel.setMode(DiffusionPanel::Mode::Generate);
+    strength->setValue(1);
+    QVERIFY(!denoise->isChecked() && !denoise->isEnabled());
+    QVERIFY(!strength->isEnabled());
+    QVERIFY(!panel.request().contains("strength"));
+    panel.setMode(DiffusionPanel::Mode::Edit);
+    QVERIFY(denoise->isEnabled() && !denoise->isChecked());
+    QVERIFY(!strength->isEnabled());
+    QVERIFY(strength->toolTip().contains("Reference-only"));
+    denoise->setChecked(true);
+    QVERIFY(strength->isEnabled());
+    QCOMPARE(panel.request()["strength"].toDouble(), 1.0);
+    panel.setBusy(true);
+    QVERIFY(!denoise->isEnabled() && !strength->isEnabled());
+    QCOMPARE(panel.request()["strength"].toDouble(), 1.0); // mode, not widget state
+    panel.setBusy(false);
+    QVERIFY(denoise->isEnabled() && strength->isEnabled());
+    panel.setMode(DiffusionPanel::Mode::Fill);
+    QVERIFY(denoise->isChecked() && !denoise->isEnabled());
+    QVERIFY(strength->isEnabled());
+    QVERIFY(denoise->toolTip().contains("Always used"));
+    strength->setValue(.75);
+    panel.setMode(DiffusionPanel::Mode::Generate);
+    QVERIFY(!denoise->isChecked() && !strength->isEnabled());
+    panel.setMode(DiffusionPanel::Mode::Edit);
+    QVERIFY(denoise->isChecked());
+    QCOMPARE(panel.request()["strength"].toDouble(), .75);
+    denoise->setChecked(false);
+    panel.setMode(DiffusionPanel::Mode::Fill);
+    QVERIFY(denoise->isChecked());
+    panel.setMode(DiffusionPanel::Mode::Edit);
+    QVERIFY(!denoise->isChecked());
+    QVERIFY(!panel.request().contains("strength"));
+    QCOMPARE(strength->value(), .75); // unavailable values are retained
+    if (const auto capture = qEnvironmentVariable("VULKANA_DIFFUSION_PANEL_CAPTURE");
+        !capture.isEmpty() && profile.startsWith("flux3")) {
+      panel.setMode(DiffusionPanel::Mode::Fill);
+      panel.resize(480, 900);
+      panel.showGeneration();
+      panel.show();
+      QCoreApplication::processEvents();
+      QVERIFY(panel.grab().save(capture + "-mode-settings.png"));
+    }
+  }
+  void modeSettingsSurviveRestartAndLegacyConfigurations() {
+    const QJsonObject configuration{{"profile", "flux3-image-klein-distilled"}};
+    QSettings().setValue("diffusion/modelConfigurations", QJsonDocument(QJsonArray{
+        QJsonObject{{"id", "legacy"}, {"name", "Legacy"},
+                    {"configuration", configuration},
+                    {"generation", QJsonObject{{"strength", 1.0}}}},
+        QJsonObject{{"id", "reference"}, {"name", "Reference editing"},
+                    {"configuration", configuration}, {"editImageToImage", false},
+                    {"generation", QJsonObject{{"strength", .8}}}}}).toJson());
+    {
+      DiffusionPanel panel;
+      panel.setMode(DiffusionPanel::Mode::Edit);
+      auto *denoise = panel.findChild<QCheckBox *>("DiffusionImageToImage");
+      denoise->setChecked(true);
+      auto *configs = panel.findChild<QComboBox *>("DiffusionModels");
+      configs->setCurrentIndex(configs->findData("legacy"));
+      QCOMPARE(panel.request()["strength"].toDouble(), 1.0);
+      QVERIFY(denoise->isChecked()); // absent legacy preference keeps current choice
+      configs->setCurrentIndex(configs->findData("reference"));
+      QVERIFY(!denoise->isChecked());
+      QCOMPARE(panel.findChild<QDoubleSpinBox *>("Diffusion_strength")->value(), .8);
+      denoise->setChecked(true);
+      panel.setMode(DiffusionPanel::Mode::Generate);
+      panel.saveSettings();
+    }
+    DiffusionPanel restored;
+    QVERIFY(!restored.findChild<QCheckBox *>("DiffusionImageToImage")->isChecked());
+    restored.setMode(DiffusionPanel::Mode::Edit);
+    QVERIFY(restored.imageToImageEnabled());
+    QCOMPARE(restored.request()["strength"].toDouble(), .8);
   }
   void compactTabsAndSafeScrolling() {
     DiffusionPanel panel;
@@ -113,6 +304,13 @@ private slots:
     QCOMPARE(panel.prepareGeneration()["seed"].toInt(), 42);
     panel.generationAccepted();
     QCOMPARE(panel.prepareGeneration()["seed"].toInt(), 42);
+    auto *randomSeed = panel.findChild<QToolButton *>("DiffusionRandomSeed");
+    QVERIFY(randomSeed);
+    randomSeed->click();
+    QVERIFY(seed->text() != "42");
+    QCOMPARE(policy->currentData().toString(), QString("fixed"));
+    QCOMPARE(panel.prepareGeneration()["seed"].toDouble(), seed->text().toDouble());
+    seed->setText("42");
     policy->setCurrentIndex(policy->findData("increment"));
     panel.findChild<QDoubleSpinBox *>("Diffusion_batch")->setValue(2);
     panel.generationAccepted();

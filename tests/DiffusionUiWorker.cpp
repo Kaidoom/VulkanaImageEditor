@@ -46,6 +46,17 @@ int main(int argc, char** argv)
     QString active;
     QJsonObject params;
     int serial = 0;
+    QJsonArray loadedModels;
+    const auto status = [&] {
+        return QJsonObject { { "loaded", !loadedModels.isEmpty() },
+            { "contextGeneration", serial }, { "loadedModels", loadedModels },
+            { "state", active.isEmpty() ? "idle" : "generating" }, { "jobId", active } };
+    };
+    const auto stateEvent = [&] {
+        auto event = status();
+        event["event"] = "state";
+        send(event);
+    };
     QObject::connect(&job, &QTimer::timeout, &app, [&] {
         if (active.isEmpty())
             return;
@@ -54,7 +65,9 @@ int main(int argc, char** argv)
         if (params.value("prompt").toString() == "crash")
             std::_Exit(3);
         if (params.value("prompt").toString() == "fail") {
+            loadedModels = {};
             fail(id, "generation_failed", "Test inference failure; reload required.");
+            stateEvent();
             return;
         }
         const auto folder = QDir(root).filePath("job-" + id);
@@ -76,6 +89,7 @@ int main(int argc, char** argv)
                       { "path", path }, { "width", image.width() }, { "height", image.height() } } } },
                 { "request", params }, { "contextGeneration", serial },
                 { "timings", QJsonObject { { "totalMs", 180 } } } });
+        stateEvent();
     });
     QObject::connect(&notifier, &QSocketNotifier::activated, &app, [&] {
         char bytes[65536];
@@ -92,14 +106,27 @@ int main(int argc, char** argv)
             const auto request = QJsonDocument::fromJson(line).object();
             const auto id = request.value("id").toString(), method = request.value("method").toString();
             if (method == "load") {
+                const auto load = request.value("params").toObject();
+                if (load["settings"].toObject()["device"] == "invalid-test-device") {
+                    fail(id, "invalid_arguments", "Unknown test device; existing model retained.");
+                    stateEvent();
+                    continue;
+                }
                 ++serial;
+                loadedModels = QJsonArray { QJsonObject {
+                    { "contextGeneration", serial }, { "backend", "test" },
+                    { "profile", QJsonObject { { "id", load["profile"] },
+                        { "name", "Qwen Image 2.1 Turbo" } } },
+                    { "files", load["files"] }, { "effectiveSettings", load["settings"] } } };
                 ok(id, { { "contextGeneration", serial } });
+                stateEvent();
             } else if (method == "generate") {
                 if (!active.isEmpty()) {
                     fail(id, "busy", "Busy");
                     return;
                 }
                 active = id;
+                stateEvent();
                 params = request.value("params").toObject();
                 send({ { "event", "progress" }, { "jobId", id }, { "step", 1 }, { "steps", 2 },
                     { "elapsedMs", 10 } });
@@ -119,12 +146,17 @@ int main(int argc, char** argv)
                 ok(id, { { "requested", !old.isEmpty() } });
                 if (!old.isEmpty())
                     fail(old, "cancelled", "Cancelled");
+                stateEvent();
+            } else if (method == "unload") {
+                loadedModels = {};
+                ok(id, { { "unloaded", true } });
+                stateEvent();
             } else if (method == "shutdown") {
                 job.stop();
                 ok(id, { });
                 app.quit();
             } else
-                ok(id, { { "loaded", serial > 0 }, { "contextGeneration", serial } });
+                ok(id, status());
         }
     });
     return app.exec();

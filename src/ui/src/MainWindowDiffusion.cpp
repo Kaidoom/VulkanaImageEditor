@@ -145,10 +145,32 @@ struct DiffusionWorkspace {
   QImage before;
   DiffusionPanel::Mode mode{DiffusionPanel::Mode::Generate};
   QJsonObject pendingConfiguration, loadedConfiguration, pendingGeneration;
+  QJsonArray residentModels;
+  bool unloadingModel{};
   QString loadId, generateId;
   QStringList sessionFiles;
   bool wanted{}, cleanup{}, shuttingDown{};
   std::uint64_t epoch{}, requestEpoch{}, variationCounter{};
+  void refreshLoadedModels() {
+    panel->setLoadedModels(residentModels,
+                          !wanted && worker->state() ==
+                                         diffusion::WorkerClient::State::Idle);
+  }
+  void receiveLoadedModels(const QJsonObject &event) {
+    if (!event.value("loadedModels").isArray())
+      return;
+    residentModels = {};
+    for (const auto &value : event.value("loadedModels").toArray()) {
+      auto model = value.toObject();
+      // Context counters restart with the process. Scope the row's action to
+      // this exact worker as well, so an old action cannot unload a new model.
+      model["id"] = QString("%1:%2")
+                        .arg(worker->processId())
+                        .arg(model.value("contextGeneration").toInteger());
+      residentModels.append(model);
+    }
+    refreshLoadedModels();
+  }
   ~DiffusionWorkspace() { worker.reset(); }
 };
 
@@ -238,13 +260,19 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
     if (active())
       hideDiffusion();
   };
-  state->panel->onUnload = [this, active] {
-    if (!active() || diffusion_->panel->isBusy())
+  state->panel->onUnloadModel = [this, active](const QString &id) {
+    if (!active() || diffusion_->panel->isBusy() || diffusion_->wanted ||
+        diffusion_->worker->state() != diffusion::WorkerClient::State::Idle)
+      return;
+    const auto &models = diffusion_->residentModels;
+    if (std::none_of(models.begin(), models.end(), [&](const QJsonValue &item) {
+          return item.toObject().value("id").toString() == id;
+        }))
       return;
     diffusion_->loadedConfiguration = {};
+    diffusion_->unloadingModel = true;
+    diffusion_->panel->setStatus("Unloading model…");
     diffusion_->worker->stop();
-    diffusion_->panel->setStatus("All models unloaded. The next generation "
-                                 "will load its configuration.");
   };
   state->panel->onResetSize = [this, active] {
     if (active())
@@ -285,6 +313,8 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
             if (!active())
               return;
             diffusion_->loadedConfiguration = {};
+            diffusion_->residentModels = {};
+            diffusion_->refreshLoadedModels();
             diffusion_->panel->setProfiles(hello.value("profiles").toArray());
             diffusion_->panel->setDevices(hello.value("devices").toArray());
             diffusion_->panel->setSamplers(hello.value("samplers").toArray(),
@@ -293,7 +323,11 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
           });
   connect(state->worker.get(), &diffusion::WorkerClient::eventReceived, this,
           [this, active](const QJsonObject &event) {
-            if (!active() || !diffusion_->wanted)
+            if (!active())
+              return;
+            if (event.value("event") == "state")
+              diffusion_->receiveLoadedModels(event);
+            if (!diffusion_->wanted)
               return;
             const auto job = event.value("jobId").toString();
             if (job != diffusion_->generateId && job != diffusion_->loadId)
@@ -440,6 +474,7 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
           [this, active](auto value) {
             if (!active())
               return;
+            diffusion_->refreshLoadedModels();
             if (value == diffusion::WorkerClient::State::Idle)
               QTimer::singleShot(0, this, [this, active] {
                 if (active()) {
@@ -450,6 +485,14 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
             if (value == diffusion::WorkerClient::State::Stopped ||
                 value == diffusion::WorkerClient::State::Error) {
               diffusion_->loadedConfiguration = {};
+              diffusion_->residentModels = {};
+              diffusion_->refreshLoadedModels();
+              if (diffusion_->unloadingModel &&
+                  value == diffusion::WorkerClient::State::Stopped &&
+                  !diffusion_->wanted)
+                diffusion_->panel->setStatus(
+                    "Model unloaded. Generate again to load a configuration.");
+              diffusion_->unloadingModel = false;
               cleanupDiffusionFiles();
               QTimer::singleShot(0, this, [this, active] {
                 if (active())
@@ -517,7 +560,8 @@ bool MainWindow::captureDiffusionSession() {
                         : "Target · raw layer pixels",
                     true,
                     {{"documentId", QString::number(s.owner->id)},
-                     {"layerId", QString::number(s.target->layerId)}},
+                     {"layerId", QString::number(s.target->layerId)},
+                     {"visibleCanvas", s.mode == DiffusionPanel::Mode::Fill}},
                     s.mode == DiffusionPanel::Mode::Fill
                         ? QTransform{}
                         : QTransform::fromTranslate(s.target->rasterOrigin.x,
@@ -611,22 +655,35 @@ void MainWindow::generateDiffusion() {
         throw std::runtime_error("Cannot write an inference input image.");
       return path;
     };
+    QImage fillMask;
+    QImage initial = s.before;
+    if (s.mode == DiffusionPanel::Mode::Fill) {
+      fillMask = diffusionSelectionMask(*s.target, {}, true);
+      initial = diffusionPrepareFillInput(s.before, fillMask);
+    }
     QJsonArray refs;
-    for (int i = 0; i < s.panel->inputs().size(); ++i)
-      refs.append(save(srgb(s.panel->inputs()[i].image),
-                       QString("image-%1").arg(i + 1)));
+    for (int i = 0; i < s.panel->inputs().size(); ++i) {
+      const auto &input = s.panel->inputs()[i];
+      auto image = srgb(input.image);
+      if (!fillMask.isNull() && input.metadata["visibleCanvas"].toBool() &&
+          input.metadata["documentId"].toString() == QString::number(s.owner->id) &&
+          input.toDocument.isIdentity() && image.size() == fillMask.size())
+        image = diffusionPrepareFillInput(image, fillMask);
+      refs.append(save(image, QString("image-%1").arg(i + 1)));
+    }
     if (!refs.isEmpty())
       s.pendingGeneration["referenceImages"] = refs;
     const bool imageToImage = s.panel->imageToImageEnabled();
     if (s.mode == DiffusionPanel::Mode::Fill ||
         (s.mode == DiffusionPanel::Mode::Edit && imageToImage)) {
       s.pendingGeneration["initialImage"] =
-          save(s.before.scaled(size, Qt::IgnoreAspectRatio,
+          save(initial.scaled(size, Qt::IgnoreAspectRatio,
                                Qt::SmoothTransformation),
                "initial");
       if (s.mode == DiffusionPanel::Mode::Fill)
         s.pendingGeneration["mask"] =
-            save(diffusionSelectionMask(*s.target, size, true), "mask");
+            save(fillMask.scaled(size, Qt::IgnoreAspectRatio,
+                                  Qt::SmoothTransformation), "mask");
     }
     const auto regions = s.panel->regionsJson();
     if (!regions.isEmpty()) {
@@ -982,7 +1039,7 @@ void MainWindow::shutdownDiffusion() {
   state->panel->onClose = {};
   state->panel->onAddInput = {};
   state->panel->onModeChanged = {};
-  state->panel->onUnload = {};
+  state->panel->onUnloadModel = {};
   state->panel->onResultSelected = {};
   state->panel->onDestinationChanged = {};
   state->panel->onInputsChanged = {};
@@ -1056,7 +1113,8 @@ void MainWindow::addDiffusionInput(int sourceValue) {
         input.image = srgb(rendered.image);
         input.label = owner->displayName;
         input.source = "Visible canvas";
-        input.metadata = {{"documentId", QString::number(owner->id)}};
+        input.metadata = {{"documentId", QString::number(owner->id)},
+                          {"visibleCanvas", true}};
       } else {
         const auto *layer = id ? doc->layer(*id) : nullptr;
         if (!layer)

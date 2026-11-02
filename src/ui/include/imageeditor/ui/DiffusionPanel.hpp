@@ -58,6 +58,7 @@ public:
   QJsonObject request() const { return generationParameters(); }
   void setProfiles(const QJsonArray &profiles);
   void setDevices(const QJsonArray &devices);
+  void setLoadedModels(const QJsonArray &models, bool canUnload);
   void setSamplers(const QJsonArray &samplers, const QJsonArray &schedulers);
   void setConfiguration(const QJsonObject &configuration,
                         const QString &name = {});
@@ -94,7 +95,7 @@ public:
   std::function<void()> onApply;
   std::function<void()> onDiscard;
   std::function<void()> onCancel;
-  std::function<void()> onUnload;
+  std::function<void(const QString &)> onUnloadModel;
   std::function<void()> onResetSize;
   std::function<void()> onCompareRequest;
   std::function<void()> onClose;

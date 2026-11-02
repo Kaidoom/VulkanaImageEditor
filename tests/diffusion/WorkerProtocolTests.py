@@ -63,9 +63,12 @@ class ProtocolTests(unittest.TestCase):
         self.assertTrue(self.hello["devices"])
         self.assertIn("euler", self.hello["samplers"])
         self.assertTrue(any(p["id"] == "qwen-image-2.1-turbo" for p in self.hello["profiles"]))
-        self.assertFalse(self.call("status")["result"]["loaded"])
+        status = self.call("status")["result"]
+        self.assertFalse(status["loaded"])
+        self.assertEqual(status["loadedModels"], [])
         self.assertFalse(self.call("cancel")["result"]["requested"])
         self.assertTrue(self.call("unload")["ok"])
+        self.assertEqual(self.call("status")["result"]["loadedModels"], [])
         self.assertTrue(self.call("shutdown")["ok"])
         self.assertEqual(self.process.wait(timeout=10), 0)
 
@@ -80,6 +83,7 @@ class ProtocolTests(unittest.TestCase):
             self.assertTrue(error["error"]["message"])
         self.assertTrue(self.call("ping")["ok"])
         self.assertFalse(self.call("status")["result"]["loaded"])
+        self.assertEqual(self.call("status")["result"]["loadedModels"], [])
 
     def test_pointer_rejection(self):
         pointer = Path(self.directory.name) / "model.gguf"

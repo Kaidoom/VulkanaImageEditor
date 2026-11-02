@@ -217,6 +217,31 @@ void transparentFillPreviewMatchesNewLayer()
         }
     }
 }
+void transparentFillInputIsOnlyAnInferenceCopy()
+{
+    auto original = image(5, 2, {40, 80, 120, 0});
+    original.setPixelColor(1, 0, QColor(70, 80, 90, 128));
+    original.setPixelColor(2, 0, QColor(100, 120, 140, 255));
+    auto mask = gray(5, 2, 0);
+    mask.scanLine(0)[0] = 255;
+    mask.scanLine(0)[1] = mask.scanLine(0)[2] = mask.scanLine(0)[3] = 128;
+    const auto frozen = original.copy();
+    const auto prepared = u::diffusionPrepareFillInput(original, mask);
+    CHECK(original == frozen);
+    CHECK(prepared.pixelColor(0, 0) == QColor(Qt::white));
+    CHECK(prepared.pixelColor(3, 0) == QColor(Qt::white));
+    CHECK(prepared.pixelColor(1, 0) == original.pixelColor(1, 0));
+    CHECK(prepared.pixelColor(2, 0) == original.pixelColor(2, 0));
+    CHECK(prepared.pixelColor(4, 0) == original.pixelColor(4, 0));
+    CHECK(prepared.pixelColor(0, 1) == original.pixelColor(0, 1));
+    CHECK(u::diffusionPrepareFillInput(original, gray(5, 2, 0)) == original);
+    const auto opaque = image(5, 2, {40, 80, 120, 255});
+    CHECK(u::diffusionPrepareFillInput(opaque, mask) == opaque);
+    const auto applied = u::diffusionCompositeSelection(original,
+        image(5, 2, {20, 170, 50, 255}), mask);
+    CHECK(applied.pixelColor(4, 0) == original.pixelColor(4, 0));
+    CHECK(applied.pixelColor(3, 0).alpha() == 128);
+}
 void renderedAppearanceDiffersFromRaw()
 {
     c::Layer layer;auto doc=document(&layer);
@@ -233,7 +258,7 @@ int main(int argc,char** argv)
 {
     QGuiApplication app(argc,argv);
     captureAndStaleGuards();selectionMappingAndSoftEdges();
-    replacePreservesStateAndUndo();transformedDocumentResults();regionalRasterOriginIsPreserved();newLayerFramesAndMask();fillLayerPreservesVisibleOutside();transparentFillPreviewMatchesNewLayer();renderedAppearanceDiffersFromRaw();
+    replacePreservesStateAndUndo();transformedDocumentResults();regionalRasterOriginIsPreserved();newLayerFramesAndMask();fillLayerPreservesVisibleOutside();transparentFillPreviewMatchesNewLayer();transparentFillInputIsOnlyAnInferenceCopy();renderedAppearanceDiffersFromRaw();
     std::cout << (failures?"FAIL":"PASS") << " diffusion transaction checks: " << failures << " failures\n";
     return failures?1:0;
 }
