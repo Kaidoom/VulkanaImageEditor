@@ -435,6 +435,7 @@ bool MainWindow::closeDocument(DocumentInstanceId id)
     auto it = std::ranges::find_if(documents_, [id](const auto& context) { return context->id == id; });
     if (it == documents_.end()) return false;
     auto closing = *it;
+    if (!guardDiffusionClose(id)) return false;
     if (!guardRefinement(id)) return false;
     cancelDocumentRepair(id, true);
     const auto previous = activeDocumentId();

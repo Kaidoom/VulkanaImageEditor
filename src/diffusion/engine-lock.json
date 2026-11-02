@@ -1,0 +1,9 @@
+{
+  "engine": {"url": "https://github.com/leejet/stable-diffusion.cpp.git", "revision": "c6dfa9def12fd0cb36ac7149ba30a75792bedbf0"},
+  "dependencies": {
+    "ggml": "c57b71a3448809d07d49360273201bb5a5e7cafb",
+    "ggml/src/ggml-cuda/vendors/cutlass": "ad7b2f5e84fcfa124cb02b91d5bd26d238c0459e"
+  },
+  "patches": [],
+  "policy": "Pinned baseline; review upgrades and record downstream patches. No automatic source or model downloads."
+}

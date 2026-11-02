@@ -1147,6 +1147,7 @@ MainWindow::~MainWindow()
         graphicsStartupPresenter_->finish();delete graphicsStartupPresenter_.data();
     }
     workspace_->onCanvasAreaChanged={};
+    shutdownDiffusion();
     shutdownSnapshotTimeline();
     if(navigatorPanel_)navigatorPanel_->shutdown();
     shutdownBackgroundRemoval();
@@ -1302,6 +1303,7 @@ void MainWindow::finishLayerRename(bool commit)
 
 bool MainWindow::eventFilter(QObject* watched, QEvent* event)
 {
+    if (diffusionEvent(watched, event)) return true;
     if (backgroundRemoval_) {
         if (backgroundRemovalEvent(watched, event)) return true;
         return QMainWindow::eventFilter(watched, event);
@@ -1735,6 +1737,8 @@ void MainWindow::closeEvent(QCloseEvent* event)
     if (canvasWindow_->transformDragging()) canvasWindow_->cancelTransformInput();
     if (activeLayerMove_ && activeLayerMove_->dragging()) finishLayerMove(false);
     if (!guardAllDocuments()) { event->ignore(); return; }
+    if (!guardDiffusionClose()) { event->ignore(); return; }
+    discardDiffusion();
     canvasWindow_->cancelColorSampling();
     cancelPendingEdits();
     if (persistWindowState_) {
@@ -2190,6 +2194,8 @@ void MainWindow::createMenus()
     addLayer->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+N")));
     editMenu->addAction(deleteLayerAction_);
     editMenu->addAction(selectionActions_[3]);
+    editMenu->addSeparator();
+    createDiffusionActions(editMenu);
     editMenu->addSeparator();
     auto* preferences = i18n::addAction(editMenu, toolGlyph(ToolGlyph::Preferences), i18n::text("main.window.preferences"), this, &MainWindow::showPreferences);
     preferences->setObjectName(QStringLiteral("PreferencesAction"));
@@ -4656,6 +4662,7 @@ void MainWindow::synchronizeUi(bool resetLayerModel, bool fitCanvas)
     }
     refreshShapeControls();
     refreshShapeOverlay();
+    refreshDiffusion();
 }
 
 void MainWindow::synchronizeLayerSelection()
@@ -4674,7 +4681,10 @@ void MainWindow::synchronizeLayerSelection()
     const auto row=session().activeLayer()?layerModel_->rowForLayer(*session().activeLayer()):-1;
     layerList_->selectionModel()->setCurrentIndex(row>=0?layerModel_->index(row):QModelIndex{},QItemSelectionModel::NoUpdate);
     layerList_->viewport()->update();
-    if (changed) queueSelectedLayerFocus();
+    if (changed) {
+        queueSelectedLayerFocus();
+        refreshDiffusion();
+    }
 }
 
 void MainWindow::queueSelectedLayerFocus()

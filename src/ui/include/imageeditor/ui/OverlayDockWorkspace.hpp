@@ -130,8 +130,13 @@ public:
     // Anchored at the bottom-right; only its card contributes input coverage.
     // Temporarily hidden while a modal workspace card owns the panel plane.
     void setNotificationOverlay(QWidget* overlay, bool visible);
+    // A dismissible background-task card, stacked above any update notice.
+    void setTaskNotificationOverlay(QWidget* overlay, bool visible);
     // Interactive view-state badge below the top ruler, without canvas reflow.
     void setViewModeOverlay(QWidget* overlay, bool visible);
+    // Non-dockable tool card on the right edge. Only the card intercepts input;
+    // existing dock placement and canvas geometry remain unchanged.
+    void setSideToolOverlay(QWidget* overlay, bool visible);
     // Full-workspace preview shield, above docks and the live canvas. Separate
     // from the renderer and hidden while a modal card owns the surface.
     void setCanvasPreviewOverlay(QWidget* overlay, bool visible);
@@ -177,10 +182,14 @@ private:
     QRegion contextInteractionRegion_;
     QPointer<QWidget> passiveOverlay_;
     bool passiveOverlayRequestedVisible_ {false};
+    QPointer<QWidget> taskNotificationOverlay_;
+    bool taskNotificationRequestedVisible_ {false};
     QPointer<QWidget> notificationOverlay_;
     bool notificationOverlayRequestedVisible_ {false};
     QPointer<QWidget> viewModeOverlay_;
     bool viewModeOverlayRequestedVisible_ {false};
+    QPointer<QWidget> sideToolOverlay_;
+    bool sideToolOverlayRequestedVisible_ {false};
     QPointer<QWidget> canvasPreviewOverlay_;
     bool canvasPreviewRequestedVisible_ {false};
     QPointer<QWidget> modalOverlay_;

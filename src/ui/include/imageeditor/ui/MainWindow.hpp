@@ -113,6 +113,7 @@ class ScreenCapture;
 struct PerformanceUsage;
 struct RefinementWorkspace;
 struct BackgroundRemovalWorkspace;
+struct DiffusionWorkspace;
 
 class MainWindow final : public QMainWindow {
 public:
@@ -238,6 +239,26 @@ private:
     QTimer* refinementCleanupTimer_{};
     QAction* refineSelectionAction_{};
     QAction* refineMaskAction_{};
+    void createDiffusionActions(QMenu*);
+    void openDiffusion(int mode = -1);
+    void generateDiffusion();
+    void continueDiffusionJob();
+    void applyDiffusion();
+    void discardDiffusion(bool closePanel = false);
+    void cancelDiffusion();
+    void shutdownDiffusion();
+    void refreshDiffusion();
+    void refreshDiffusionPreview();
+    void compareDiffusionLayer();
+    void resetDiffusionSize();
+    void addDiffusionInput(int source);
+    bool captureDiffusionSession();
+    void hideDiffusion();
+    bool guardDiffusionClose(std::optional<DocumentInstanceId> id = std::nullopt);
+    void updateDiffusionNotice(const QString&, int step = 0, int total = 0, bool finished = false);
+    void cleanupDiffusionFiles();
+    bool diffusionEvent(QObject*, QEvent*);
+    std::shared_ptr<DiffusionWorkspace> diffusion_;
     void createBackgroundRemovalAction(QMenu*);
     void refreshBackgroundRemovalAction();
     void beginBackgroundRemoval();

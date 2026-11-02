@@ -22,6 +22,7 @@ if(NOT WIN32)
     endforeach()
 endif()
 
+include(DiffusionTests.cmake)
 include(BackgroundRemovalTests.cmake)
 include(SnapshotTimelineTests.cmake)
 

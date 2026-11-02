@@ -33,7 +33,8 @@ QWidget* inputOwner(QWidget* widget)
     for (auto* p = widget; p; p = p->parentWidget()) {
         // A spin box owns its internal line edit even in slide mode.
         if (qobject_cast<QLineEdit*>(p) && qobject_cast<QAbstractSpinBox*>(p->parentWidget())) return p->parentWidget();
-        if (qobject_cast<QLineEdit*>(p) || qobject_cast<QAbstractSpinBox*>(p)
+        if (qobject_cast<QLineEdit*>(p) || qobject_cast<QTextEdit*>(p) || qobject_cast<QPlainTextEdit*>(p)
+            || qobject_cast<QAbstractSpinBox*>(p)
             || qobject_cast<QAbstractSlider*>(p) || qobject_cast<QComboBox*>(p)
             || qobject_cast<QAbstractItemView*>(p) || dynamic_cast<AdjustmentCurveEditor*>(p)
             || (qobject_cast<QAbstractButton*>(p) && p->focusPolicy() != Qt::NoFocus)) return p;

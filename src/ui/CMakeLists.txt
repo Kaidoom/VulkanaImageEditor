@@ -52,6 +52,11 @@ add_library(imageeditor_ui STATIC
     src/LayerListModel.cpp
     src/LayerListView.cpp
     src/LayerDrag.cpp
+    src/DiffusionPanel.cpp
+    src/DiffusionPreview.cpp
+    src/DiffusionTransaction.cpp
+    src/DiffusionSpatial.cpp
+    src/MainWindowDiffusion.cpp
     src/MainWindow.cpp
     src/McpController.cpp
     include/imageeditor/ui/McpController.hpp
@@ -167,6 +172,7 @@ target_include_directories(imageeditor_ui
 
 target_link_libraries(imageeditor_ui
     PUBLIC
+        imageeditor_diffusion
         imageeditor_core
         imageeditor_render
         Qt6::Widgets
@@ -201,3 +207,9 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 endif()
 target_link_libraries(imageeditor_ui PRIVATE ZLIB::ZLIB)
 target_link_libraries(imageeditor_ui PRIVATE imageeditor_project_preview)
+
+set(VULKANA_DIFFUSION_WORKER "" CACHE FILEPATH "Optional development diffusion worker executable")
+if(IMAGEEDITOR_DEVELOPMENT_RESOURCES AND VULKANA_DIFFUSION_WORKER)
+    target_compile_definitions(imageeditor_ui PRIVATE
+        VULKANA_DEVELOPMENT_DIFFUSION_WORKER="${VULKANA_DIFFUSION_WORKER}")
+endif()

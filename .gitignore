@@ -18,3 +18,7 @@ compile_commands.json
 *.user
 *.swp
 *~
+
+# Diffusion model weights are supplied locally, never bundled.
+*.gguf
+*.safetensors
