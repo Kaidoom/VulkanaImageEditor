@@ -173,7 +173,13 @@ private slots:
     auto *denoise = panel.findChild<QCheckBox *>("DiffusionImageToImage");
     auto *strength = panel.findChild<QDoubleSpinBox *>("Diffusion_strength");
     auto *negative = panel.findChild<QPlainTextEdit *>("DiffusionNegativePrompt");
+    auto *negativeHeader = panel.findChild<QToolButton *>("DiffusionNegativeSectionHeader");
     QVERIFY(denoise && strength && negative);
+    QVERIFY(negativeHeader && !negativeHeader->isChecked());
+    QVERIFY(tabs->widget(1)->isAncestorOf(negativeHeader));
+    QVERIFY(negativeHeader->toolTip().contains("CFG"));
+    negativeHeader->click();
+    QVERIFY(negativeHeader->isChecked());
     QVERIFY(tabs->widget(1)->isAncestorOf(denoise));
     QVERIFY(tabs->widget(1)->isAncestorOf(strength));
     QVERIFY(!tabs->widget(0)->isAncestorOf(strength));
@@ -379,6 +385,8 @@ private slots:
     auto *section = panel.findChild<QWidget *>("DiffusionInputsSection");
     auto *header =
         panel.findChild<QToolButton *>("DiffusionInputsSectionHeader");
+    auto *limit = panel.findChild<QSpinBox *>("DiffusionMaxInputSize");
+    QVERIFY(limit);
     QImage input(1024, 1536, QImage::Format_RGBA8888);
     input.fill(Qt::red);
     int capped = 0;
@@ -386,7 +394,7 @@ private slots:
       if (count)
         QVERIFY(panel.addInput({input, "Portrait", "Test", false, {}}));
       QCoreApplication::processEvents();
-      QVERIFY2(section->height() <= list->height() + header->height() + 20,
+      QVERIFY2(section->height() <= list->height() + header->height() + limit->height() + 30,
                qPrintable(QString("Section %1, list %2")
                               .arg(section->height())
                               .arg(list->height())));
@@ -399,6 +407,189 @@ private slots:
         QVERIFY(list->verticalScrollBar()->maximum() > 0);
       }
     }
+  }
+  void inputRegionsFollowTheirImages() {
+    DiffusionPanel panel;
+    panel.resize(600, 900);
+    panel.showGeneration();
+    panel.show();
+    QImage red(200, 100, QImage::Format_RGBA8888), blue(100, 200, QImage::Format_RGBA8888);
+    red.fill(Qt::red); blue.fill(Qt::blue);
+    QVERIFY(panel.addInput({red, "Cats", "Test"}));
+    QVERIFY(panel.addInput({blue, "Other cats", "Test"}));
+    const auto redId = panel.inputs()[0].id, blueId = panel.inputs()[1].id;
+    QVERIFY(!redId.isEmpty() && redId != blueId);
+    QVERIFY(panel.setInputRegions(redId, {{QRectF(.1, .2, .3, .4), "Region1"}}));
+    QVERIFY(panel.setInputRegions(blueId, {{QRectF(.2, .1, .5, .3), "Region1"}}));
+    panel.setRegions({{QRectF(.1, .1, .8, .8), "Output object"}});
+    panel.showInputRegions(redId);
+    auto *dialog = panel.findChild<QDialog *>("DiffusionPreviewDialog");
+    QVERIFY(dialog && dialog->parentWidget());
+    QVERIFY(!(dialog->windowFlags() & Qt::WindowMinMaxButtonsHint));
+    auto *preview = dynamic_cast<DiffusionPreview *>(dialog->findChild<QWidget *>("DiffusionPreview"));
+    QVERIFY(preview);
+    QCOMPARE(preview->image(), red);
+    QCOMPARE(preview->regions()[0].bounds, QRectF(.1, .2, .3, .4));
+    preview->setSelectedRegion(0);
+    preview->setSelectedRegionLabel("Cat A");
+    QCOMPARE(panel.inputs()[0].regions[0].label, QString("Cat A"));
+    QCOMPARE(panel.inputs()[1].regions[0].label, QString("Region1"));
+    QCOMPARE(panel.regions()[0].label, QString("Output object"));
+    auto *list = panel.findChild<QListWidget *>("DiffusionInputsList");
+    QVERIFY(list->model()->moveRows({}, 0, 1, {}, 2));
+    QCOMPARE(panel.inputs()[0].id, blueId);
+    QCOMPARE(panel.inputs()[1].id, redId);
+    QCOMPARE(panel.inputs()[1].regions[0].label, QString("Cat A"));
+    const auto groups = panel.inputRegionsJson();
+    QCOMPARE(groups.size(), 2);
+    QCOMPARE(groups[1].toObject()["image"].toInt(), 2);
+    QCOMPARE(groups[1].toObject()["regions"].toArray()[0].toObject()["label"].toString(), QString("Cat A"));
+    QCOMPARE(preview->image(), red);
+    if (const auto capture = qEnvironmentVariable("VULKANA_DIFFUSION_PANEL_CAPTURE"); !capture.isEmpty())
+      QVERIFY(dialog->grab().save(capture + "-input-regions.png"));
+    dialog->close();
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    const auto remove = [&](int row) {
+      const auto box = list->visualItemRect(list->item(row));
+      QTest::mouseClick(list->viewport(), Qt::LeftButton, {}, QPoint(box.right() - 12, box.center().y()));
+      QCoreApplication::processEvents();
+    };
+    remove(0);
+    QCOMPARE(panel.inputs().size(), 1);
+    QCOMPARE(panel.inputs()[0].id, redId);
+    QCOMPARE(panel.inputs()[0].regions[0].label, QString("Cat A"));
+    QVERIFY(!panel.setInputRegions(blueId, {}));
+    panel.clearInputs();
+    QVERIFY(panel.inputRegionsJson().isEmpty());
+    QCOMPARE(panel.regions().size(), 1); // output layout is independent
+  }
+  void inputRegionsRespectReferenceBudget() {
+    DiffusionPanel panel;
+    const QJsonObject files{{"diffusion", "/models/diffusion.gguf"},
+                           {"textEncoder", "/models/text.gguf"}, {"vae", "/models/vae.safetensors"}};
+    panel.setConfiguration({{"profile", "qwen-image-2.1-turbo"}, {"files", files}});
+    QImage image(100, 100, QImage::Format_RGBA8888); image.fill(Qt::red);
+    QVERIFY(panel.addInput({image, "First", "Test"}));
+    QVERIFY(panel.addInput({image, "Second", "Test"}));
+    QVector<DiffusionRegion> regions;
+    for (int i = 0; i < 6; ++i)
+      regions.push_back({QRectF(.1, .1, .2, .2), QString("Region%1").arg(i + 1)});
+    QVERIFY(panel.setInputRegions(panel.inputs()[0].id, regions));
+    auto *generate = panel.findChild<QPushButton *>("DiffusionGenerate");
+    QVERIFY(generate->isEnabled()); // two full references + six crops = eight
+    panel.setRegions({{QRectF(.1, .1, .5, .5), "Placement"}});
+    QVERIFY(!generate->isEnabled()); // Qwen output annotation also uses a slot
+    QVERIFY_EXCEPTION_THROWN(panel.prepareGeneration(), std::invalid_argument);
+    panel.setConfiguration({{"profile", "flux3-image-klein-distilled"}, {"files", files}});
+    QVERIFY(generate->isEnabled()); // FLUX uses a caption for output layout
+    auto *crop = panel.findChild<QCheckBox *>("DiffusionRegionCropGuidance");
+    QVERIFY(crop && !crop->isChecked());
+    QVERIFY(!panel.regionCropGuidance());
+    for (int i = 6; i < 12; ++i)
+      regions.push_back({QRectF(.1, .1, .2, .2), QString("Region%1").arg(i + 1)});
+    QVERIFY(panel.setInputRegions(panel.inputs()[0].id, regions));
+    QVERIFY(generate->isEnabled()); // native boxes do not consume image slots
+    crop->click();
+    QVERIFY(panel.regionCropGuidance());
+    QVERIFY(!generate->isEnabled());
+    crop->click();
+    QVERIFY(generate->isEnabled());
+    panel.setBusy(true);
+    QVERIFY(!crop->isEnabled());
+    QVERIFY(!panel.setInputRegions(panel.inputs()[0].id, {}));
+    panel.setBusy(false);
+    QVERIFY(panel.setInputRegions(panel.inputs()[0].id, {}));
+    QVERIFY(generate->isEnabled());
+  }
+  void fluxCropGuidancePersistsOnlyWhenEnabled() {
+    DiffusionPanel panel;
+    panel.setConfiguration({{"profile", "flux3-image-klein-distilled"}});
+    auto *crop = panel.findChild<QCheckBox *>("DiffusionRegionCropGuidance");
+    QVERIFY(!crop->isChecked());
+    crop->click(); panel.saveSettings();
+    DiffusionPanel restored;
+    QVERIFY(restored.regionCropGuidance());
+    restored.setConfiguration({{"profile", "qwen-image-2.1-turbo"}});
+    QVERIFY(!restored.regionCropGuidance());
+    QVERIFY(restored.findChild<QCheckBox *>("DiffusionRegionCropGuidance")->isHidden());
+  }
+  void canvasCropTogglePreservesSnapshotAndRegions() {
+    DiffusionPanel panel;
+    panel.resize(560, 800); panel.showGeneration(); panel.show();
+    QImage image(120, 80, QImage::Format_RGBA8888); image.fill(Qt::green);
+    DiffusionPanel::Input input{image, "Oversized", "Layer"};
+    input.sourceCanvas = QSize(80, 64);
+    input.toDocument = QTransform::fromTranslate(-20, -10);
+    QVERIFY(panel.addInput(input));
+    const auto id = panel.inputs().front().id;
+    QVERIFY(panel.setInputRegions(id, {{QRectF(.5, .25, .25, .25), "Region1"},
+                                      {QRectF(0, 0, .1, .1), "Outside"}}));
+    const auto originalRegions = panel.inputs().front().regions;
+    auto *list = panel.findChild<QListWidget *>("DiffusionInputsList");
+    QCoreApplication::processEvents();
+    const auto row = list->visualItemRect(list->item(0));
+    QTest::mouseClick(list->viewport(), Qt::LeftButton, {}, QPoint(row.right() - 44, row.center().y()));
+    QTRY_VERIFY(panel.inputs().front().cropToCanvas);
+    const auto &cropped = panel.inputs().front();
+    QCOMPARE(cropped.image.size(), QSize(80, 64));
+    QCOMPARE(cropped.toDocument, QTransform{});
+    QCOMPARE(cropped.regions.size(), 1);
+    QCOMPARE(cropped.regions[0].id, originalRegions[0].id);
+    QCOMPARE(cropped.regions[0].bounds, QRectF(.5, 10.0 / 64, 30.0 / 80, 20.0 / 64));
+    auto edited = cropped.regions; edited[0].label = "Hair";
+    QVERIFY(panel.setInputRegions(id, edited));
+    QVERIFY(panel.setInputCropToCanvas(id, false));
+    QCOMPARE(panel.inputs().front().image, image);
+    QCOMPARE(panel.inputs().front().toDocument, input.toDocument);
+    QCOMPARE(panel.inputs().front().regions.size(), 2);
+    QCOMPARE(panel.inputs().front().regions[0].bounds, originalRegions[0].bounds);
+    QCOMPARE(panel.inputs().front().regions[0].label, QString("Hair"));
+    QCOMPARE(panel.inputs().front().regions[1].label, QString("Outside"));
+    QVERIFY(panel.addInput({image, "External file", "File"}));
+    QVERIFY(!panel.setInputCropToCanvas(panel.inputs()[1].id, true));
+    auto copy = panel.inputs(); copy[0].fullToDocument = QTransform::fromTranslate(1000, 0);
+    panel.setInputs(copy);
+    QVERIFY(panel.setInputCropToCanvas(id, true));
+    QVERIFY(panel.inputs()[0].image.isNull());
+    QVERIFY_EXCEPTION_THROWN(panel.prepareGeneration(), std::invalid_argument);
+    QVERIFY(panel.setInputCropToCanvas(id, false));
+    QCOMPARE(panel.inputs()[0].image, image);
+  }
+  void inputSizeLimitPreservesProportionsAndRegions() {
+    DiffusionPanel panel;
+    QImage image(1600, 800, QImage::Format_RGBA8888); image.fill(Qt::red);
+    DiffusionPanel::Input input{image, "Large layer", "Test"};
+    input.sourceCanvas = QSize(600, 400);
+    input.toDocument = QTransform::fromScale(.5, .5);
+    QVERIFY(panel.addInput(input));
+    const auto id = panel.inputs().front().id;
+    QVERIFY(panel.setInputRegions(id, {{QRectF(.25, .25, .5, .5), "Region1"}}));
+    QCOMPARE(panel.inputs()[0].image.size(), QSize(1024, 512));
+    QCOMPARE(panel.inputs()[0].toDocument.map(QPointF(1024, 512)), QPointF(800, 400));
+    const auto region = panel.inputs()[0].regions[0];
+    panel.setMaxInputSize(256);
+    QCOMPARE(panel.inputs()[0].image.size(), QSize(256, 128));
+    QCOMPARE(panel.inputs()[0].regions[0].bounds, region.bounds);
+    QCOMPARE(panel.inputs()[0].regions[0].id, region.id);
+    if (const auto capture = qEnvironmentVariable("VULKANA_DIFFUSION_PANEL_CAPTURE"); !capture.isEmpty()) {
+      panel.resize(560, 950); panel.showGeneration(); panel.show();
+      QCoreApplication::processEvents();
+      QVERIFY(panel.grab().save(capture + "-input-size.png"));
+    }
+    QVERIFY(panel.setInputCropToCanvas(id, true));
+    QCOMPARE(panel.inputs()[0].image.width(), 256);
+    QVERIFY(std::abs(double(panel.inputs()[0].image.width()) / panel.inputs()[0].image.height() - 1.5) < .01);
+    QCOMPARE(panel.inputs()[0].outputSize, QSize(600, 400));
+    QCOMPARE(panel.inputs()[0].regions[0].id, region.id);
+    panel.setMaxInputSize(2048);
+    QCOMPARE(panel.inputs()[0].image.size(), QSize(600, 400));
+    QVERIFY(panel.setInputCropToCanvas(id, false));
+    QCOMPARE(panel.inputs()[0].image, image);
+    QCOMPARE(panel.inputs()[0].regions[0].bounds, region.bounds);
+    QCOMPARE(panel.request()["referenceMaxSize"].toInt(), 2048);
+    panel.saveSettings();
+    DiffusionPanel restored;
+    QCOMPARE(restored.maxInputSize(), 2048);
   }
   void comparisonAlignmentAndDivider() {
     DiffusionPreview preview;

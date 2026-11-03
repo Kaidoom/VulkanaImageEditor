@@ -32,11 +32,19 @@ int main(int argc, char** argv)
             { "error", QJsonObject { { "code", code }, { "message", message } } } });
     };
     send({ { "event", "hello" }, { "protocol", 1 }, { "backend", "test" },
+        { "referenceSizeLimit", true },
+        { "flux3NativeRegions", !qEnvironmentVariableIsSet("VULKANA_TEST_DIFFUSION_SPATIAL_V1") },
+        { "spatialVersions", qEnvironmentVariableIsSet("VULKANA_TEST_DIFFUSION_SPATIAL_V1")
+              ? QJsonArray { 1 } : QJsonArray { 1, 2 } },
         { "profiles",
             QJsonArray { QJsonObject { { "id", "qwen-image-2.1-turbo" }, { "family", "qwen-image-2.1" },
                 { "name", "Qwen Image 2.1 Turbo" }, { "steps", 8 }, { "guidance", 1 }, { "sampler", "euler" },
                 { "schedule", "turbo" }, { "alignment", 32 }, { "maxReferenceImages", 8 },
-                { "spatialGuidance", "annotation" }, { "visionRequiredForReferences", true } } } },
+                { "spatialGuidance", "annotation" }, { "visionRequiredForReferences", true } },
+                QJsonObject { { "id", "flux3-image-klein-distilled" }, { "family", "flux3" },
+                    { "name", "FLUX.3" }, { "steps", 16 }, { "guidance", 1 }, { "sampler", "euler" },
+                    { "schedule", "auto" }, { "alignment", 32 }, { "maxReferenceImages", 10 },
+                    { "spatialGuidance", "structured-caption" }, { "visionRequiredForReferences", false } } } },
         { "devices", QJsonArray { QJsonObject { { "id", "CPU" }, { "name", "Test CPU" } } } },
         { "samplers", QJsonArray { "euler" } }, { "schedulers", QJsonArray { "discrete" } } });
     QByteArray input;

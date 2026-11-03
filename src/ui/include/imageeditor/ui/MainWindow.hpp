@@ -251,6 +251,7 @@ private:
     void refreshDiffusionPreview();
     void compareDiffusionLayer();
     void resetDiffusionSize();
+    void matchSelectedDiffusionSize();
     void addDiffusionInput(int source);
     bool captureDiffusionSession();
     void hideDiffusion();

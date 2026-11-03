@@ -3,6 +3,7 @@
 #include "imageeditor/core/ColorMath.hpp"
 
 #include <QColorSpace>
+#include <QPainter>
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -325,6 +326,35 @@ std::unique_ptr<core::Command> diffusionReplaceCommand(const core::Document& doc
             std::get<core::RasterLayer>(loaded.layer->payload).surface, layer->rasterEffectFrame);
     } catch (const std::exception& exception) {
         if (error) *error = QString::fromUtf8(exception.what());
+        return {};
+    }
+}
+
+std::unique_ptr<core::Command> diffusionReplacePlacedCommand(const core::Document& doc,
+    const DiffusionTarget& target, const QImage& generated, const QTransform& placement, QString* error)
+{
+    try {
+        const QSize size(int(target.canvas.extent.width), int(target.canvas.extent.height));
+        validateSize(size);
+        const auto bounds = placement.mapRect(QRectF(QPointF{}, generated.size()))
+                                .intersected(QRectF(QPointF{}, size)).toAlignedRect()
+                                .intersected(QRect(QPoint{}, size));
+        if (bounds.isEmpty()) throw std::invalid_argument("The cropped result is outside the destination canvas.");
+        QImage positioned(size, QImage::Format_RGBA8888);
+        if (positioned.isNull()) throw std::bad_alloc();
+        positioned.fill(Qt::transparent);
+        positioned.setColorSpace(QColorSpace::SRgb);
+        QPainter painter(&positioned);
+        painter.setRenderHint(QPainter::SmoothPixmapTransform);
+        painter.setTransform(placement);
+        painter.drawImage(QPointF{}, rgba(generated));
+        painter.end();
+        auto scoped = target;
+        scoped.selection = core::SelectionMask::rectangle(target.canvas.extent,
+            {bounds.x(), bounds.y(), bounds.width(), bounds.height()});
+        return diffusionReplaceCommand(doc, scoped, positioned, true, true, error);
+    } catch (const std::exception& e) {
+        if (error) *error = QString::fromUtf8(e.what());
         return {};
     }
 }

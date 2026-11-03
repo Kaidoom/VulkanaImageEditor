@@ -2,6 +2,9 @@
 // never bring down the editor. stdout is reserved exclusively for this protocol.
 #include "Profiles.h"
 #include "SpatialGuidance.h"
+#include "FluxSpatial.h"
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#include "ReferenceSizing.h"
 #include <json.hpp>
 #include <stable-diffusion.h>
 #define STB_IMAGE_IMPLEMENTATION
@@ -302,7 +305,9 @@ public:
         for (int i = 0; i < SCHEDULER_COUNT; ++i)
             schedulers.push_back(scheduler_to_str[i]);
         send({ { "samplers", samplers }, { "schedulers", schedulers }, { "event", "hello" },
-            { "protocol", 1 }, { "spatialVersions", Json::array({1}) }, { "engineCommit", VULKANA_DIFFUSION_ENGINE_COMMIT },
+            { "referenceSizeLimit", true },
+            { "flux3NativeRegions", true },
+            { "protocol", 1 }, { "spatialVersions", Json::array({1, 2}) }, { "engineCommit", VULKANA_DIFFUSION_ENGINE_COMMIT },
             { "backend", VULKANA_DIFFUSION_BACKEND }, { "devices", devices }, { "profiles", profiles() } });
     }
     void stateEvent()
@@ -632,30 +637,32 @@ Json Worker::generate(const Json& p)
         { "prompt", "negativePrompt", "width", "height", "steps", "guidance", "seed", "batch", "sampler",
             "scheduler", "schedule", "sigmas", "strength", "referenceImages", "initialImage", "mask",
             "vaeTiling", "vaeTileSize", "vaeTileOverlap", "preview", "previewInterval", "flowShift",
-            "spatial", "eta", "cacheMode", "cacheReuseThreshold", "cacheStart", "cacheEnd" });
+            "spatial", "eta", "cacheMode", "cacheReuseThreshold", "cacheStart", "cacheEnd", "referenceMaxSize" });
     if (!context)
         throw Failure("model_not_loaded", "Load a model before generating");
     auto prompt = str(p, "prompt");
+    const bool nativeFlux = loadedProfile["family"] == "flux3";
     const auto negative = str(p, "negativePrompt");
     Json regions = Json::array();
+    Json inputRegions = Json::array();
     std::string annotation;
     if (p.contains("spatial")) {
         try {
             regions = vulkana::diffusion::spatialRegions(p["spatial"]);
+            const auto count = p.contains("referenceImages") && p["referenceImages"].is_array()
+                ? p["referenceImages"].size() : 0;
+            inputRegions = vulkana::diffusion::inputRegionGroups(p["spatial"], count);
         } catch (const std::invalid_argument& e) {
             throw Failure("invalid_arguments", e.what());
         }
-        if (!regions.empty() && loadedProfile["family"] == "flux3") {
+        if (nativeFlux) {
             require(!p["spatial"].contains("annotationImage"),
                 "FLUX.3 uses structured captions, not annotationImage");
-            try {
-                prompt = vulkana::diffusion::flux3RegionPrompt(prompt, regions);
-            } catch (const std::invalid_argument& e) {
-                throw Failure("invalid_arguments", e.what());
-            }
         } else if (!regions.empty())
             annotation = inputFile(p["spatial"], "annotationImage", true);
     }
+    const bool cropGuidance = p.contains("spatial") && p["spatial"].value("cropGuidance", false);
+    require(nativeFlux || !cropGuidance, "spatial.cropGuidance applies only to FLUX.3");
     require(!prompt.empty(), "prompt is required");
     const int width = integer(p, "width", 1024, 32, 8192), height = integer(p, "height", 1024, 32, 8192);
     const int alignment = loadedProfile["alignment"];
@@ -666,6 +673,8 @@ Json Worker::generate(const Json& p)
     require(
         uint64_t(width) * height * batch <= 67108864, "Combined batch output must not exceed 64 megapixels");
     const auto guidance = number(p, "guidance", loadedProfile["guidance"], 0, 100);
+    const int referenceMaxSize = integer(p, "referenceMaxSize", 0, 0, 8192);
+    require(referenceMaxSize == 0 || referenceMaxSize >= 64, "referenceMaxSize must be 0 or 64–8192 pixels");
     require(negative.empty() || guidance > 1,
         "negativePrompt requires guidance greater than 1; it is not used with CFG 1");
     const double seed = number(p, "seed", -1, -1, 9007199254740991.0);
@@ -714,6 +723,16 @@ Json Worker::generate(const Json& p)
         require(!p.contains("sigmas"), "sigmas require schedule=custom");
     std::vector<Image> images;
     std::vector<sd_image_t> refs;
+    std::vector<std::vector<unsigned char>> regionPixels;
+    Json regionReferences = Json::array();
+    std::size_t cropCount = 0;
+    for (const auto& group : inputRegions)
+        if (!nativeFlux || cropGuidance) cropCount += group["regions"].size();
+    const auto originalRefCount = p.contains("referenceImages") && p["referenceImages"].is_array()
+        ? p["referenceImages"].size() : 0;
+    require(originalRefCount + cropCount + (annotation.empty() ? 0 : 1)
+            <= std::size_t(loadedProfile.value("maxReferenceImages", 8)),
+        "Input images and region guides exceed this model's reference limit; remove an image or region");
     if (p.contains("referenceImages")) {
         require(p["referenceImages"].is_array()
                 && p["referenceImages"].size() <= loadedProfile.value("maxReferenceImages", 8),
@@ -725,6 +744,32 @@ Json Worker::generate(const Json& p)
             images.emplace_back(inputFile({ { "path", path } }, "path", true));
             refs.push_back(images.back().view);
         }
+    }
+    if (!nativeFlux || cropGuidance) for (const auto& group : inputRegions) {
+        const auto sourceNumber = group["image"].get<int>();
+        const auto source = refs.at(std::size_t(sourceNumber - 1));
+        for (const auto& region : group["regions"]) {
+            checkCancel();
+            const auto crop = vulkana::diffusion::inputRegionCrop(region, int(source.width), int(source.height));
+            auto& pixels = regionPixels.emplace_back(std::size_t(crop.width) * crop.height * source.channel);
+            const auto rowBytes = std::size_t(crop.width) * source.channel;
+            for (int y = 0; y < crop.height; ++y)
+                std::copy_n(source.data + (std::size_t(crop.y + y) * source.width + crop.x) * source.channel,
+                            rowBytes, pixels.data() + std::size_t(y) * rowBytes);
+            refs.push_back({uint32_t(crop.width), uint32_t(crop.height), source.channel, pixels.data()});
+            regionReferences.push_back({
+                {"name", "Image" + std::to_string(sourceNumber) + "/" + region["label"].get<std::string>()},
+                {"sourceImage", "Image" + std::to_string(sourceNumber)},
+                {"detailImage", "Image" + std::to_string(refs.size())},
+                {"sourceBox", {{"x", region["x"]}, {"y", region["y"]},
+                               {"width", region["width"]}, {"height", region["height"]}}},
+                {"cropPixels", {crop.x, crop.y, crop.width, crop.height}}});
+        }
+    }
+    try {
+        if (!nativeFlux) prompt = vulkana::diffusion::inputRegionPrompt(prompt, regionReferences, originalRefCount);
+    } catch (const std::invalid_argument& e) {
+        throw Failure("invalid_arguments", e.what());
     }
     if (!annotation.empty()) {
         require(refs.size() < loadedProfile.value("maxReferenceImages", 8),
@@ -756,6 +801,42 @@ Json Worker::generate(const Json& p)
     }
     sd_img_gen_params_t params;
     sd_img_gen_params_init(&params);
+    std::string referenceArgs;
+    std::vector<vulkana::diffusion::SizedReference> resizedReferences;
+    Json referenceSizes = Json::array();
+    auto fluxInputRegions = inputRegions;
+    if (referenceMaxSize > 0 && !refs.empty()) {
+        referenceArgs = "resize_before_vae=false";
+        if (loadedProfile["family"] == "qwen-image-2.1")
+            referenceArgs += ",vlm_resize_mode=longest_side,vlm_max_size=" + std::to_string(referenceMaxSize);
+        for (std::size_t i = 0; i < refs.size(); ++i) {
+            auto& ref = refs[i];
+            auto& resized = resizedReferences.emplace_back(vulkana::diffusion::resizeReference(
+                ref.data, int(ref.width), int(ref.height), int(ref.channel), referenceMaxSize));
+            const auto size = resized.size;
+            referenceSizes.push_back({{"image", i + 1}, {"sourceWidth", ref.width}, {"sourceHeight", ref.height},
+                                      {"width", size.width}, {"height", size.height}});
+            if (nativeFlux && i < originalRefCount)
+                for (auto& group : fluxInputRegions) if (group["image"] == i + 1)
+                    for (auto& r : group["regions"]) {
+                        r["x"] = (r["x"].get<double>() * resized.contentWidth + resized.left) / size.width;
+                        r["y"] = (r["y"].get<double>() * resized.contentHeight + resized.top) / size.height;
+                        r["width"] = r["width"].get<double>() * resized.contentWidth / size.width;
+                        r["height"] = r["height"].get<double>() * resized.contentHeight / size.height;
+                    }
+            ref = {uint32_t(size.width), uint32_t(size.height), ref.channel, resized.pixels.data()};
+        }
+        params.ref_image_args = referenceArgs.c_str();
+    }
+    Json fluxRegionBindings = Json::array(), fluxRegionRows = Json::array();
+    if (nativeFlux) {
+        try {
+            auto compiled = vulkana::diffusion::fluxSpatialCaption(prompt, regions, fluxInputRegions, originalRefCount, regionReferences);
+            prompt = std::move(compiled.prompt);
+            fluxRegionBindings = compiled.bindings; fluxRegionRows = compiled.rows;
+        } catch (const std::invalid_argument& e) { throw Failure("invalid_arguments", e.what()); }
+        require(prompt.size() <= 65536, "Prompt plus region labels exceeds 65536 bytes");
+    }
     params.prompt = prompt.c_str();
     params.negative_prompt = negative.c_str();
     params.width = width;
@@ -865,7 +946,9 @@ Json Worker::generate(const Json& p)
         timings["engineStagesMs"] = engineTimings;
     }
     return { { "images", outputs }, { "profile", loadedProfile["id"] }, { "contextGeneration", generation },
-        { "effectiveSettings", effectiveSettings }, { "request", p }, { "timings", timings } };
+        { "effectiveSettings", effectiveSettings }, { "request", p }, { "timings", timings },
+        { "inputRegionReferences", regionReferences }, { "referenceSizes", referenceSizes },
+        { "fluxRegionBindings", fluxRegionBindings }, { "fluxRegionRows", fluxRegionRows } };
 }
 
 int main(int argc, char** argv)

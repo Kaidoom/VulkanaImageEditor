@@ -20,6 +20,8 @@
 #include <QJsonDocument>
 #include <QKeyEvent>
 #include <QLabel>
+#include <QLineEdit>
+#include <QScopeGuard>
 #include <QListView>
 #include <QListWidget>
 #include <QMessageBox>
@@ -187,6 +189,50 @@ private slots:
     QCOMPARE(field->toPlainText(), snippet);
     field->undo();
     QVERIFY(field->toPlainText() != snippet); // preset changes are undoable too
+  }
+  void inputLimitAcceptsNativeKeyboard() {
+    openMode("AIEditLayerAction");
+    auto *limit = panel->findChild<QSpinBox *>("DiffusionMaxInputSize");
+    QVERIFY(limit);
+    panel->findChild<QScrollArea *>("DiffusionGenerationPage")->ensureWidgetVisible(limit);
+    QCoreApplication::processEvents();
+    QTest::mouseClick(limit, Qt::LeftButton, {}, QPoint(50, limit->height() / 2));
+    QTRY_VERIFY(limit->hasFocus());
+    limit->selectAll();
+    for (const auto ch : QString("2048")) {
+      QKeyEvent key(QEvent::KeyPress, ch.unicode(), Qt::NoModifier, QString(ch));
+      QCoreApplication::sendEvent(window->windowHandle(), &key);
+    }
+    QKeyEvent enter(QEvent::KeyPress, Qt::Key_Return, Qt::NoModifier);
+    QCoreApplication::sendEvent(window->windowHandle(), &enter);
+    QCOMPARE(panel->maxInputSize(), 2048);
+    QCOMPARE(panel->request()["referenceMaxSize"].toInt(), 2048);
+  }
+  void collapsedNegativePromptAcceptsNativeKeyboard() {
+    openMode("AIGenerateImageAction");
+    auto *header = panel->findChild<QToolButton *>("DiffusionNegativeSectionHeader");
+    auto *negative = panel->findChild<QPlainTextEdit *>("DiffusionNegativePrompt");
+    auto *positive = panel->findChild<QPlainTextEdit *>("DiffusionPrompt");
+    QVERIFY(header && negative && !header->isChecked());
+    QVERIFY(!negative->isVisible() && !negative->isEnabled());
+    panel->findChild<QDoubleSpinBox *>("Diffusion_guidance")->setValue(2.0);
+    QVERIFY(negative->isEnabled());
+    header->click();
+    panel->findChild<QScrollArea *>("DiffusionGenerationPage")->ensureWidgetVisible(negative);
+    QCoreApplication::processEvents();
+    QVERIFY(negative->isVisible());
+    QVERIFY(header->mapTo(panel, QPoint()).y() >= positive->mapTo(panel, QPoint(0, positive->height())).y());
+    QTest::mouseClick(negative->viewport(), Qt::LeftButton);
+    QTRY_VERIFY(negative->hasFocus());
+    QInputMethodEvent ime;
+    ime.setCommitString("Avoid text");
+    QCoreApplication::sendEvent(window->windowHandle(), &ime);
+    QCOMPARE(negative->toPlainText(), QString("Avoid text"));
+    header->click();
+    QCOMPARE(panel->request()["negativePrompt"].toString(), QString("Avoid text"));
+    panel->findChild<QDoubleSpinBox *>("Diffusion_guidance")->setValue(1.0);
+    QVERIFY(!panel->request().contains("negativePrompt"));
+    QCOMPARE(negative->toPlainText(), QString("Avoid text"));
   }
   void livePreviewAppearsBesidePreviousResults() {
     openMode("AIGenerateImageAction");
@@ -529,6 +575,7 @@ private slots:
     QVERIFY(!request.contains("mask"));
   }
   void fillUsesCanvasSpaceBeyondLayerBounds() {
+    panel->setMaxInputSize(8192); // This check inspects native full-canvas snapshots.
     const auto project = qEnvironmentVariable("VULKANA_DIFFUSION_TEST_PROJECT");
     if (!project.isEmpty())
       QVERIFY(window->openImageFromPath(project));
@@ -637,6 +684,173 @@ private slots:
     QCOMPARE(strength->value(), 1.0);
     QCOMPARE(session().activeTool(), tool);
     QCOMPARE(session().document()->revision(), revision);
+  }
+  void inputRegionsReachWorkerIndependently() {
+    openMode("AIGenerateImageAction");
+    QImage red(120, 60, QImage::Format_RGBA8888), blue(60, 120, QImage::Format_RGBA8888);
+    red.fill(Qt::red); blue.fill(Qt::blue);
+    panel->setInputs({{red, "First cats", "Test"}, {blue, "Second cats", "Test"}});
+    const auto firstId = panel->inputs()[0].id, secondId = panel->inputs()[1].id;
+    QVERIFY(panel->setInputRegions(firstId, {{QRectF(.1, .2, .3, .4), "Region1"}}));
+    QVERIFY(panel->setInputRegions(secondId, {{QRectF(.2, .1, .5, .3), "Region1"}}));
+    auto *list = child<QListWidget>("DiffusionInputsList");
+    QVERIFY(list->model()->moveRows({}, 0, 1, {}, 2));
+    const auto revision = session().document()->revision();
+    generate("Give <Image1/Region1> the color of <Image2/Region1>.");
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QCOMPARE(panel->results().size(), 1);
+    QCOMPARE(session().document()->revision(), revision);
+    auto request = panel->selectedResult()->metadata["request"].toObject();
+    auto spatial = request["spatial"].toObject();
+    QCOMPARE(spatial["version"].toInt(), 2);
+    QVERIFY(spatial["regions"].toArray().isEmpty());
+    QVERIFY(!spatial.contains("annotationImage"));
+    QCOMPARE(spatial["inputRegions"].toArray().size(), 2);
+    QCOMPARE(spatial["inputRegions"].toArray()[0].toObject()["image"].toInt(), 1);
+    QCOMPARE(spatial["inputRegions"].toArray()[0].toObject()["regions"].toArray()[0].toObject()["x"].toDouble(), .2);
+    QCOMPARE(QImage(request["referenceImages"].toArray()[0].toString()).pixelColor(0, 0), QColor(Qt::blue));
+    QCOMPARE(QImage(request["referenceImages"].toArray()[1].toString()).pixelColor(0, 0), QColor(Qt::red));
+    panel->setRegions({{QRectF(.1, .1, .6, .6), "Output subject"}});
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    request = panel->selectedResult()->metadata["request"].toObject();
+    spatial = request["spatial"].toObject();
+    QCOMPARE(spatial["inputRegions"].toArray().size(), 2);
+    QVERIFY(QFileInfo::exists(spatial["annotationImage"].toString()));
+    QCOMPARE(session().document()->revision(), revision);
+  }
+  void fluxNativeRegionsAndOptionalCrops() {
+    openMode("AIEditLayerAction");
+    panel->setConfiguration({{"profile", "flux3-image-klein-distilled"},
+      {"files", QJsonObject{{"diffusion", modelPath}, {"textEncoder", modelPath}, {"vae", modelPath}}}});
+    QVERIFY(panel->setInputRegions(panel->inputs()[0].id, {{QRectF(.1, .2, .3, .4), "Region1"}}));
+    const auto revision = session().document()->revision();
+    generate("In <Image1>, change <Region1>.");
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QVERIFY(panel->selectedResult());
+    auto request = panel->selectedResult()->metadata["request"].toObject();
+    QVERIFY(!request["spatial"].toObject()["cropGuidance"].toBool());
+    QCOMPARE(request["referenceImages"].toArray().size(), 1);
+    QCOMPARE(request["prompt"].toString(), QString("In <Image1>, change <Region1>."));
+    panel->findChild<QCheckBox *>("DiffusionRegionCropGuidance")->click();
+    generate("In <Image1>, change <Image1/Region1>.");
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    request = panel->selectedResult()->metadata["request"].toObject();
+    QVERIFY(request["spatial"].toObject()["cropGuidance"].toBool());
+    QCOMPARE(session().document()->revision(), revision);
+  }
+  void fluxRejectsLegacyRegionWorker() {
+    qputenv("VULKANA_TEST_DIFFUSION_SPATIAL_V1", "1");
+    const auto restore = qScopeGuard([]{qunsetenv("VULKANA_TEST_DIFFUSION_SPATIAL_V1");});
+    openMode("AIGenerateImageAction");
+    panel->setConfiguration({{"profile", "flux3-image-klein-distilled"},
+      {"files", QJsonObject{{"diffusion", modelPath}, {"textEncoder", modelPath}, {"vae", modelPath}}}});
+    const auto revision = session().document()->revision();
+    generate("A cat");
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QVERIFY(panel->results().isEmpty());
+    QCOMPARE(session().document()->revision(), revision);
+  }
+  void croppedLayerInputMatchesSizeAndKeepsOutsidePixels() {
+    auto *doc = session().document();
+    const auto id = *session().activeLayer();
+    QVERIFY(doc->setLayerTransform(id, {1, 0, -32, 0, 1, 0}));
+    const auto selection = c::SelectionMask::rectangle({64, 64}, {50, 50, 8, 8});
+    QVERIFY(doc->setSelection(selection));
+    const auto before = native();
+    openMode("AIEditLayerAction");
+    const auto inputId = panel->inputs().front().id;
+    QCOMPARE(panel->inputs().front().sourceCanvas, QSize(64, 64));
+    QVERIFY(panel->setInputCropToCanvas(inputId, true));
+    auto *inputs = child<QListWidget>("DiffusionInputsList");
+    inputs->setCurrentRow(0);
+    auto *match = child<QToolButton>("DiffusionMatchSelectedSize");
+    QVERIFY(match);
+    match->click();
+    QCOMPARE(panel->request()["width"].toInt(), 32);
+    QCOMPARE(panel->request()["height"].toInt(), 64);
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    const auto request = panel->selectedResult()->metadata["request"].toObject();
+    QCOMPARE(QImage(request["referenceImages"].toArray()[0].toString()).size(), QSize(32, 64));
+    QCOMPARE(native(), before);
+    QCOMPARE(panel->selectedResult()->toDocument.map(QPointF{}), QPointF{});
+    panel->setDestination(u::DiffusionPanel::Destination::ReplaceSelected);
+    panel->onApply();
+    const auto after = native();
+    QCOMPARE(after.size(), before.size());
+    QCOMPARE(after.pixelColor(0, 0), before.pixelColor(0, 0));
+    QCOMPARE(after.pixelColor(31, 0), before.pixelColor(31, 0));
+    QCOMPARE(after.pixelColor(32, 0), QColor(30, 200, 90));
+    QCOMPARE(after.pixelColor(63, 63), QColor(30, 200, 90));
+    QCOMPARE(doc->selection(), selection);
+    QVERIFY(session().undo());
+    QCOMPARE(native(), before);
+    QVERIFY(session().redo());
+    QCOMPARE(native(), after);
+  }
+  void limitedCanvasReferenceRetainsFillPreparation() {
+    auto *doc = session().document();
+    const auto id = *session().activeLayer();
+    auto canvas = doc->canvas(); canvas.extent = {128, 128};
+    QVERIFY(doc->setCanvas(canvas));
+    QVERIFY(doc->setLayerTransform(id, {1, 0, 32, 0, 1, 32}));
+    QVERIFY(doc->setSelection(c::SelectionMask::filled({128, 128}, 255)));
+    openMode("AIGenerativeFillAction");
+    panel->setMaxInputSize(64);
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    const auto request = panel->selectedResult()->metadata["request"].toObject();
+    const QImage reference(request["referenceImages"].toArray()[0].toString());
+    QCOMPARE(reference.size(), QSize(64, 64));
+    QCOMPARE(reference.pixelColor(0, 0), QColor(Qt::white));
+    QCOMPARE(QImage(request["initialImage"].toString()).size(), QSize(128, 128));
+    QCOMPARE(request["referenceMaxSize"].toInt(), 64);
+    QCOMPARE(panel->inputs()[0].image.pixelColor(0, 0).alpha(), 0);
+  }
+  void inputRegionLabelsAcceptNativeKeyboard() {
+    openMode("AIEditLayerAction");
+    const auto id = panel->inputs().front().id;
+    QVERIFY(panel->setInputRegions(id, {{QRectF(.1, .1, .5, .5), "Region1"}}));
+    panel->showInputRegions(id);
+    auto *dialog = child<QDialog>("DiffusionPreviewDialog");
+    QVERIFY(dialog);
+    auto *preview = dynamic_cast<u::DiffusionPreview *>(child<QWidget>("DiffusionPreview"));
+    QVERIFY(preview);
+    preview->setSelectedRegion(0);
+    auto *label = child<QLineEdit>("DiffusionRegionLabel");
+    QVERIFY(label);
+    QTest::mouseClick(label, Qt::LeftButton);
+    QTRY_VERIFY(label->hasFocus());
+    label->selectAll();
+    QKeyEvent press(QEvent::KeyPress, Qt::Key_C, Qt::NoModifier, "Cat");
+    QCoreApplication::sendEvent(dialog->windowHandle(), &press);
+    QKeyEvent release(QEvent::KeyRelease, Qt::Key_C, Qt::NoModifier, "Cat");
+    QCoreApplication::sendEvent(dialog->windowHandle(), &release);
+    QCOMPARE(panel->inputs().front().regions[0].label, QString("Cat"));
+    QVERIFY(panel->regions().isEmpty());
+    QCOMPARE(panel->inputs().front().id, id);
+    dialog->close();
+  }
+  void inputRegionsRejectAnOlderWorkerCleanly() {
+    const auto previous = qgetenv("VULKANA_TEST_DIFFUSION_SPATIAL_V1");
+    const auto restore = qScopeGuard([previous] {
+      if (previous.isNull()) qunsetenv("VULKANA_TEST_DIFFUSION_SPATIAL_V1");
+      else qputenv("VULKANA_TEST_DIFFUSION_SPATIAL_V1", previous);
+    });
+    qputenv("VULKANA_TEST_DIFFUSION_SPATIAL_V1", "1");
+    openMode("AIEditLayerAction");
+    const auto id = panel->inputs().front().id;
+    QVERIFY(panel->setInputRegions(id, {{QRectF(.1, .1, .4, .4), "Region1"}}));
+    const auto revision = session().document()->revision();
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QVERIFY(panel->results().isEmpty());
+    QCOMPARE(session().document()->revision(), revision);
+    QVERIFY(panel->setInputRegions(id, {}));
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QCOMPARE(panel->results().size(), 1); // existing editing still works on schema 1
   }
   void historySurvivesDocumentClosureAndModeChanges() {
     const auto owner = window->activeDocumentId();
@@ -795,13 +1009,15 @@ private slots:
     const auto *result = panel->selectedResult();
     QVERIFY(result);
     QCOMPARE(result->image.size(), QSize(1024, 1536));
-    QCOMPARE(result->before.size(), result->image.size());
-    QCOMPARE(result->image, original);
+    QCOMPARE(result->before.size(), QSize(682, 1024));
+    QCOMPARE(panel->inputs().front().toDocument.map(QPointF(682, 1024)), QPointF(1024, 1536));
+    const auto expected = result->before.scaled(original.size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    QCOMPARE(result->image, expected);
     QCOMPARE(result->metadata["request"].toObject()["width"].toInt(), 1024);
     QCOMPARE(result->metadata["request"].toObject()["height"].toInt(), 1536);
     panel->setDestination(u::DiffusionPanel::Destination::NewDocument);
     panel->onApply();
-    QCOMPARE(native(), original);
+    QCOMPARE(native(), expected);
   }
   void removableEditInputResetAndComparison() {
     openMode("AIEditLayerAction");

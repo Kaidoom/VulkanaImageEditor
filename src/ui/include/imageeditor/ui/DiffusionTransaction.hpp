@@ -5,6 +5,7 @@
 
 #include <QImage>
 #include <QString>
+#include <QTransform>
 #include <memory>
 #include <optional>
 
@@ -63,6 +64,10 @@ struct DiffusionTarget {
 [[nodiscard]] std::unique_ptr<core::Command> diffusionReplaceCommand(
     const core::Document&, const DiffusionTarget&, const QImage& generated,
     bool resultInDocumentSpace, bool useSelection, QString* error = nullptr);
+// A cropped input edit replaces only its captured document rectangle.
+[[nodiscard]] std::unique_ptr<core::Command> diffusionReplacePlacedCommand(
+    const core::Document&, const DiffusionTarget&, const QImage&, const QTransform& resultToDocument,
+    QString* error = nullptr);
 // Native new-layer output retains the target's pixel frame and transform.
 // Document-space output occupies the canvas grid with an identity transform.
 // Selection-limited new layers are transparent outside the captured region.

@@ -42,6 +42,7 @@
 #include <QUuid>
 #include <QVBoxLayout>
 #include <algorithm>
+#include <array>
 #include <optional>
 
 namespace imageeditor::ui {
@@ -127,6 +128,7 @@ struct DiffusionWorkspace {
     DiffusionPanel::Mode mode{DiffusionPanel::Mode::Generate};
     QTransform inputToDocument;
     QSize inputSize;
+    bool croppedEdit{};
   };
   QMap<QString, ResultContext> resultContexts;
   ResultContext jobContext;
@@ -277,6 +279,9 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
   state->panel->onResetSize = [this, active] {
     if (active())
       resetDiffusionSize();
+  };
+  state->panel->onMatchSelectedSize = [this, active] {
+    if (active()) matchSelectedDiffusionSize();
   };
   state->panel->onCompareRequest = [this, active] {
     if (active())
@@ -567,6 +572,8 @@ bool MainWindow::captureDiffusionSession() {
                         : QTransform::fromTranslate(s.target->rasterOrigin.x,
                                                     s.target->rasterOrigin.y) *
                               qtTransform(s.target->localToDocument)});
+    if (s.mode == DiffusionPanel::Mode::Edit)
+      inputs.front().sourceCanvas = QSize(int(s.target->canvas.extent.width), int(s.target->canvas.extent.height));
     s.panel->setInputs(std::move(inputs));
     s.panel->setResolution(s.before.size());
     s.panel->setTargetCompatible(true);
@@ -623,6 +630,7 @@ void MainWindow::generateDiffusion() {
     if (s.mode == DiffusionPanel::Mode::Edit) {
       s.jobContext.inputToDocument = s.panel->inputs().front().toDocument;
       s.jobContext.inputSize = s.before.size();
+      s.jobContext.croppedEdit = s.panel->inputs().front().cropToCanvas;
     }
     s.jobDocuments.clear();
     if (s.owner)
@@ -667,8 +675,9 @@ void MainWindow::generateDiffusion() {
       auto image = srgb(input.image);
       if (!fillMask.isNull() && input.metadata["visibleCanvas"].toBool() &&
           input.metadata["documentId"].toString() == QString::number(s.owner->id) &&
-          input.toDocument.isIdentity() && image.size() == fillMask.size())
-        image = diffusionPrepareFillInput(image, fillMask);
+          input.fullToDocument.isIdentity() && input.fullImage.size() == fillMask.size())
+        image = diffusionPrepareFillInput(image, fillMask.scaled(image.size(), Qt::IgnoreAspectRatio,
+                                                                Qt::SmoothTransformation));
       refs.append(save(image, QString("image-%1").arg(i + 1)));
     }
     if (!refs.isEmpty())
@@ -686,11 +695,15 @@ void MainWindow::generateDiffusion() {
                                   Qt::SmoothTransformation), "mask");
     }
     const auto regions = s.panel->regionsJson();
-    if (!regions.isEmpty()) {
-      QJsonObject spatial{{"version", 1}, {"regions", regions}};
-      const auto profile = diffusion::modelProfile(
-          s.pendingConfiguration.value("profile").toString());
-      if (profile.value("family") == "qwen-image-2.1") {
+    const auto inputRegions = s.panel->inputRegionsJson();
+    if (!regions.isEmpty() || !inputRegions.isEmpty()) {
+      const auto profile = diffusion::modelProfile(s.pendingConfiguration.value("profile").toString());
+      const bool nativeFlux = profile.value("family") == "flux3";
+      QJsonObject spatial{{"version", inputRegions.isEmpty() && !nativeFlux ? 1 : 2}, {"regions", regions}};
+      if (!inputRegions.isEmpty())
+        spatial["inputRegions"] = inputRegions;
+      if (nativeFlux) spatial["cropGuidance"] = s.panel->regionCropGuidance();
+      if (!regions.isEmpty() && profile.value("family") == "qwen-image-2.1") {
         const QImage base = s.panel->inputs().isEmpty()
                                 ? QImage{}
                                 : s.panel->inputs().front().image;
@@ -750,6 +763,31 @@ void MainWindow::continueDiffusionJob() {
       !s.loadId.isEmpty() || !s.generateId.isEmpty())
     return;
   const auto actualBackend = s.worker->hello()["backend"].toString();
+  if (diffusion::modelProfile(s.pendingConfiguration.value("profile").toString()).value("family") == "flux3" &&
+      !s.worker->hello().value("flux3NativeRegions").toBool()) {
+    s.wanted = false;
+    s.panel->setBusy(false);
+    s.panel->setStatus("Update the inference worker to use native FLUX.3 image and region references.", true);
+    updateDiffusionNotice("Generation could not start", 0, 0, true);
+    return;
+  }
+  if (s.pendingGeneration["referenceMaxSize"].toInt() > 0 &&
+      !s.worker->hello().value("referenceSizeLimit").toBool()) {
+    s.wanted = false;
+    s.panel->setBusy(false);
+    s.panel->setStatus("Update the inference worker to use the input-size limit.", true);
+    updateDiffusionNotice("Generation could not start", 0, 0, true);
+    return;
+  }
+  if (s.pendingGeneration["spatial"].toObject().value("version").toInt() == 2 &&
+      !s.worker->hello().value("spatialVersions").toArray().contains(2)) {
+    s.wanted = false;
+    s.panel->setBusy(false);
+    s.panel->setStatus("The installed inference worker does not support per-image regions. "
+                       "Update the worker before generating with input regions.", true);
+    updateDiffusionNotice("Generation could not start", 0, 0, true);
+    return;
+  }
   if (s.pendingBackend != "auto" && actualBackend != s.pendingBackend) {
     s.wanted = false;
     s.panel->setBusy(false);
@@ -844,8 +882,11 @@ void MainWindow::applyDiffusion() {
                                           *session().activeLayer(), false);
           target->selection = originalSelection;
         }
-        command = diffusionReplaceCommand(*session().document(), *target, image,
-                                          documentSpace, selection, &error);
+        command = context.croppedEdit
+            ? diffusionReplacePlacedCommand(*session().document(), *target, image,
+                                             s.panel->selectedResult()->toDocument, &error)
+            : diffusionReplaceCommand(*session().document(), *target, image,
+                                      documentSpace, selection, &error);
       } else {
         auto layer =
             diffusionResultLayer(target ? &*target : nullptr, image,
@@ -960,10 +1001,39 @@ void MainWindow::resetDiffusionSize() {
   if (diffusion_->panel->mode() == DiffusionPanel::Mode::Edit &&
       !diffusion_->panel->inputs().isEmpty())
     diffusion_->panel->setResolution(
-        diffusion_->panel->inputs().front().image.size());
+        diffusion_->panel->inputs().front().outputSize);
   else if (const auto *doc = session().document())
     diffusion_->panel->setResolution(QSize(int(doc->canvas().extent.width),
                                            int(doc->canvas().extent.height)));
+}
+void MainWindow::matchSelectedDiffusionSize() {
+  if (!diffusion_ || diffusion_->panel->isBusy()) return;
+  try {
+    if (const auto *input = diffusion_->panel->selectedInput()) {
+      if (input->image.isNull()) throw std::runtime_error("This input has no pixels inside its canvas.");
+      diffusion_->panel->setResolution(input->outputSize);
+      return;
+    }
+    const auto *doc = session().document();
+    if (!doc || !session().activeLayer()) throw std::runtime_error("Select an input image or a layer first.");
+    if (!doc->layer(*session().activeLayer())) throw std::runtime_error("Select an image layer rather than a container.");
+    for (const auto &input : diffusion_->panel->inputs())
+      if (input.cropToCanvas && !input.image.isNull() &&
+          input.metadata["documentId"].toString() == QString::number(activeDocumentId()) &&
+          input.metadata["layerId"].toString() == QString::number(*session().activeLayer())) {
+        diffusion_->panel->setResolution(input.outputSize);
+        return;
+      }
+    auto copy = *doc;
+    copy.layer(*session().activeLayer())->visible = true;
+    const std::array ids{*session().activeLayer()};
+    const auto bounds = evaluatedLayerItemsBounds(copy, ids);
+    if (!bounds.error.isEmpty()) throw std::runtime_error(bounds.error.toStdString());
+    if (bounds.rect.empty()) throw std::runtime_error("The selected layer has no visible bounds.");
+    diffusion_->panel->setResolution(QSize(bounds.rect.width, bounds.rect.height));
+  } catch (const std::exception &e) {
+    diffusion_->panel->setStatus(QString::fromUtf8(e.what()), true);
+  }
 }
 void MainWindow::compareDiffusionLayer() {
   if (!diffusion_)
@@ -1044,6 +1114,7 @@ void MainWindow::shutdownDiffusion() {
   state->panel->onDestinationChanged = {};
   state->panel->onInputsChanged = {};
   state->panel->onResetSize = {};
+  state->panel->onMatchSelectedSize = {};
   state->panel->onCompareRequest = {};
   state->worker.reset();
   diffusion_.reset();
@@ -1140,6 +1211,7 @@ void MainWindow::addDiffusionInput(int sourceValue) {
             raw ? "Raw pixels" : "Rendered appearance · isolated layer";
         input.metadata = {{"documentId", QString::number(owner->id)},
                           {"layerId", QString::number(*id)}};
+        input.sourceCanvas = QSize(int(doc->canvas().extent.width), int(doc->canvas().extent.height));
       }
     }
     s.panel->addInput(std::move(input));

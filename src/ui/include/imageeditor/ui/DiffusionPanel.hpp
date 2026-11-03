@@ -28,6 +28,15 @@ public:
     bool target{};
     QJsonObject metadata;
     QTransform toDocument;
+    QString id; // Stable ownership while inputs are reordered.
+    QVector<DiffusionRegion> regions;
+    QSize sourceCanvas;
+    bool cropToCanvas{};
+    QImage fullImage;
+    QTransform fullToDocument;
+    QVector<DiffusionRegion> fullRegions;
+    QStringList visibleRegionIds;
+    QSize outputSize; // Before the reference-only size limit.
   };
   struct Result {
     QImage image;
@@ -68,6 +77,14 @@ public:
   addInput(Input input); // Maximum is the selected profile's reference limit.
   void setInputs(QVector<Input> inputs);
   void clearInputs();
+  bool setInputCropToCanvas(const QString &inputId, bool cropped);
+  const Input *selectedInput() const;
+  int maxInputSize() const;
+  void setMaxInputSize(int size);
+  QJsonArray inputRegionsJson() const;
+  bool regionCropGuidance() const;
+  bool setInputRegions(const QString &inputId, QVector<DiffusionRegion> regions);
+  void showInputRegions(const QString &inputId);
   QJsonArray regionsJson() const;
   void setRegions(QVector<DiffusionRegion> regions);
   QVector<DiffusionRegion> regions() const;
@@ -97,6 +114,7 @@ public:
   std::function<void()> onCancel;
   std::function<void(const QString &)> onUnloadModel;
   std::function<void()> onResetSize;
+  std::function<void()> onMatchSelectedSize;
   std::function<void()> onCompareRequest;
   std::function<void()> onClose;
   std::function<void(InputSource)> onAddInput;

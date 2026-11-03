@@ -13,6 +13,7 @@ struct DiffusionRegion {
   QRectF bounds; // Normalized image coordinates, independent of inference
                  // resolution.
   QString label;
+  QString id; // Stable identity when a cropped input view hides or remaps a box.
 };
 
 class DiffusionPreview final : public QWidget {

@@ -1,4 +1,5 @@
 #include "imageeditor/ui/DiffusionPanel.hpp"
+#include "imageeditor/ui/DiffusionSpatial.hpp"
 #include "imageeditor/diffusion/ModelProfiles.h"
 #include "imageeditor/diffusion/PromptPresets.h"
 #include "imageeditor/ui/CollapsibleSection.hpp"
@@ -19,6 +20,7 @@
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QHBoxLayout>
+#include <QHelpEvent>
 #include <QInputDialog>
 #include <QJsonDocument>
 #include <QLabel>
@@ -37,6 +39,7 @@
 #include <QScreen>
 #include <QScrollArea>
 #include <QSettings>
+#include <QSet>
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QStandardItemModel>
@@ -47,6 +50,7 @@
 #include <QTextCursor>
 #include <QTimer>
 #include <QToolButton>
+#include <QToolTip>
 #include <QUuid>
 #include <QVBoxLayout>
 #include <QWheelEvent>
@@ -108,6 +112,7 @@ class InputDelegate final : public SubtleItemDelegate {
 public:
   using SubtleItemDelegate::SubtleItemDelegate;
   std::function<void(int)> remove;
+  std::function<void(int)> crop;
   std::function<void()> add;
   QSize sizeHint(const QStyleOptionViewItem &,
                  const QModelIndex &index) const override {
@@ -122,12 +127,34 @@ public:
       return;
     }
     auto item = option;
-    item.rect.adjust(0, 0, -30, 0);
+    const bool canCrop = index.data(Qt::UserRole + 2).toBool();
+    item.rect.adjust(0, 0, canCrop ? -60 : -30, 0);
     SubtleItemDelegate::paint(painter, item, index);
     if (!index.data(Qt::UserRole + 1).toBool())
       toolGlyph(ToolGlyph::Trash)
           .paint(painter, QRect(option.rect.right() - 24,
                                 option.rect.center().y() - 8, 16, 16));
+    if (canCrop) {
+      const QRect button(option.rect.right() - 56, option.rect.center().y() - 12, 24, 24);
+      painter->save();
+      if (index.data(Qt::UserRole + 3).toBool()) {
+        auto color = themeColor(ThemeColor::Accent); color.setAlphaF(.2);
+        painter->setPen(Qt::NoPen); painter->setBrush(color);
+        painter->drawRoundedRect(button, 3, 3);
+      }
+      toolGlyph(ToolGlyph::Crop).paint(painter, button.adjusted(4, 4, -4, -4));
+      painter->restore();
+    }
+  }
+  bool helpEvent(QHelpEvent *event, QAbstractItemView *view,
+                 const QStyleOptionViewItem &option, const QModelIndex &index) override {
+    if (index.data(Qt::UserRole + 2).toBool() && event->pos().x() >= option.rect.right() - 60 &&
+        event->pos().x() < option.rect.right() - 30) {
+      QToolTip::showText(event->globalPos(), index.data(Qt::UserRole + 3).toBool()
+          ? "Restore the full layer input" : "Crop this layer input to its canvas", view);
+      return true;
+    }
+    return SubtleItemDelegate::helpEvent(event, view, option, index);
   }
   bool editorEvent(QEvent *event, QAbstractItemModel *,
                    const QStyleOptionViewItem &option,
@@ -146,6 +173,11 @@ public:
         mouse->position().x() >= option.rect.right() - 30) {
       if (remove)
         remove(index.row());
+      return true;
+    }
+    if (index.data(Qt::UserRole + 2).toBool() &&
+        mouse->position().x() >= option.rect.right() - 60) {
+      if (crop) crop(index.row());
       return true;
     }
     return false;
@@ -340,7 +372,7 @@ QImage thumbnail(const QImage &source, QSize size) {
 struct DiffusionPanel::Impl {
   DiffusionPanel &q;
   QComboBox *mode{}, *outputDestination{}, *backend{}, *models{},
-      *configModels{}, *profiles{}, *presets{};
+      *configModels{}, *profiles{}, *presets{}, *regionSource{};
   QTabWidget *tabs{};
   QWidget *configurationPage{};
   QLineEdit *seed{};
@@ -352,10 +384,12 @@ struct DiffusionPanel::Impl {
   QVector<QPushButton *> unloadButtons;
   bool canUnloadModels{};
   QPlainTextEdit *prompt{}, *negative{}, *sigmas{};
-  QSpinBox *width{}, *height{};
+  QSpinBox *width{}, *height{}, *maxInputSize{};
   QCheckBox *imageToImage{};
+  QCheckBox *cropGuidance{};
   QWidget *modeSettings{};
   bool editImageToImage{};
+  bool referenceLimitShown{};
   bool hasExplicitStrength{}; // A saved or edited value takes precedence over mode defaults.
   QLabel *status{}, *regionHint{}, *resultImage{};
   QListWidget *inputList{}, *resultList{};
@@ -371,6 +405,7 @@ struct DiffusionPanel::Impl {
   QVector<Result> results;
   QImage draftPreview;
   QVector<DiffusionRegion> regions;
+  QString regionEditorInput;
   QPointer<QDialog> lightbox;
   QPointer<DiffusionPreview> lightboxPreview;
   QPointer<QLabel> lightboxTitle, previewPosition;
@@ -386,6 +421,75 @@ struct DiffusionPanel::Impl {
       diffusion::PromptPresetStore::defaultFilePath()};
   QVector<diffusion::PromptPreset> presetList;
   explicit Impl(DiffusionPanel &panel) : q(panel) {}
+  static void regionIds(QVector<DiffusionRegion> &regions) {
+    QSet<QString> ids;
+    for (auto &region : regions) {
+      if (region.id.isEmpty() || ids.contains(region.id))
+        region.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+      ids.insert(region.id);
+    }
+  }
+  void prepareInput(Input &input) {
+    regionIds(input.regions);
+    if (input.fullImage.isNull()) {
+      input.fullImage = input.image;
+      input.fullToDocument = input.toDocument;
+      input.fullRegions = input.regions;
+    }
+    if (input.cropToCanvas && !input.sourceCanvas.isEmpty()) {
+      const auto cropped = diffusionCropToCanvas(input.fullImage, input.fullToDocument, input.sourceCanvas);
+      input.image = cropped.image; input.toDocument = cropped.toDocument;
+    } else {
+      input.cropToCanvas = false;
+      input.image = input.fullImage; input.toDocument = input.fullToDocument;
+    }
+    input.outputSize = input.image.size();
+    const int limit = maxInputSize->value();
+    if (!input.image.isNull() && std::max(input.image.width(), input.image.height()) > limit) {
+      const auto oldSize = input.image.size();
+      input.image = input.image.scaled(QSize(limit, limit), Qt::KeepAspectRatio, Qt::SmoothTransformation);
+      if (input.image.isNull()) throw std::bad_alloc();
+      input.toDocument = QTransform::fromScale(double(oldSize.width()) / input.image.width(),
+                                               double(oldSize.height()) / input.image.height()) * input.toDocument;
+    }
+    input.regions = diffusionMapInputRegions(input.fullRegions, input.fullImage.size(),
+        input.fullToDocument, input.image.size(), input.toDocument);
+    input.visibleRegionIds.clear();
+    for (const auto &region : input.regions) input.visibleRegionIds.append(region.id);
+  }
+  void rememberInputRegions(Input &input) {
+    regionIds(input.regions);
+    if (!input.cropToCanvas) {
+      input.fullRegions = input.regions;
+      input.visibleRegionIds.clear();
+      for (const auto &r : input.regions) input.visibleRegionIds.append(r.id);
+      return;
+    }
+    QVector<DiffusionRegion> stored;
+    QSet<QString> handled;
+    for (const auto &old : input.fullRegions) {
+      if (!input.visibleRegionIds.contains(old.id)) { stored.append(old); continue; }
+      const auto it = std::find_if(input.regions.begin(), input.regions.end(),
+          [&](const auto &r) { return r.id == old.id; });
+      if (it == input.regions.end()) continue;
+      handled.insert(it->id);
+      const auto oldView = diffusionMapInputRegions({old}, input.fullImage.size(), input.fullToDocument,
+                                                    input.image.size(), input.toDocument);
+      if (!oldView.isEmpty() && oldView.front().bounds == it->bounds) {
+        auto retained = old; retained.label = it->label; stored.append(retained);
+      } else {
+        stored += diffusionMapInputRegions({*it}, input.image.size(), input.toDocument,
+                                           input.fullImage.size(), input.fullToDocument);
+      }
+    }
+    for (const auto &r : input.regions)
+      if (!handled.contains(r.id))
+        stored += diffusionMapInputRegions({r}, input.image.size(), input.toDocument,
+                                           input.fullImage.size(), input.fullToDocument);
+    input.fullRegions = stored;
+    input.visibleRegionIds.clear();
+    for (const auto &r : input.regions) input.visibleRegionIds.append(r.id);
+  }
   QJsonObject profile() const {
     const auto id = profiles->currentData().toString();
     for (const auto &p : profileList)
@@ -397,8 +501,44 @@ struct DiffusionPanel::Impl {
     const bool annotation =
         profile().value("spatialGuidance").toString() == "annotation" &&
         !regions.isEmpty();
+    int crops = 0;
+    if (profile().value("family") != "flux3" || (cropGuidance && cropGuidance->isChecked()))
+      for (const auto &input : inputs)
+        crops += int(input.regions.size());
     return profile().value("maxReferenceImages").toInt(8) -
-           (annotation ? 1 : 0);
+           (annotation ? 1 : 0) - crops;
+  }
+  bool referencesFit() const { return inputs.size() <= maxInputs(); }
+  void reportReferenceLimit() {
+    if (!referencesFit()) {
+      referenceLimitShown = true;
+      q.setStatus(QString("Images and region guides exceed this model's %1-reference limit. "
+                          "Remove an image or region before generating.")
+                      .arg(profile().value("maxReferenceImages").toInt(8)), true);
+    } else if (referenceLimitShown) {
+      referenceLimitShown = false;
+      q.setStatus("Reference limit satisfied.");
+    }
+  }
+  int inputIndex(const QString &id) const {
+    for (int i = 0; i < inputs.size(); ++i)
+      if (inputs[i].id == id)
+        return i;
+    return -1;
+  }
+  void rebuildRegionSources() {
+    if (!regionSource)
+      return;
+    const auto selected = regionSource->currentData().toString();
+    const QSignalBlocker block(regionSource);
+    regionSource->clear();
+    regionSource->addItem("Output layout", QString{});
+    for (int i = 0; i < inputs.size(); ++i)
+      regionSource->addItem(QString("Image%1 · %2").arg(i + 1).arg(inputs[i].label),
+                            inputs[i].id);
+    select(regionSource, selected);
+    if (regionSource->currentIndex() < 0)
+      regionSource->setCurrentIndex(0);
   }
   void updateActions() {
     const bool ready = q.selectedResult() != nullptr;
@@ -408,12 +548,15 @@ struct DiffusionPanel::Impl {
     models->setItemText(0, configured ? "Unsaved configuration"
                                       : "<Missing configuration>");
     const bool hasInputs = q.mode() == Mode::Generate || !inputs.isEmpty();
-    generate->setEnabled(!busy && configured && hasInputs);
+    const bool nonempty = std::none_of(inputs.begin(), inputs.end(), [](const auto &in) { return in.image.isNull(); });
+    generate->setEnabled(!busy && configured && hasInputs && nonempty && referencesFit());
     for (auto *button : unloadButtons)
       button->setEnabled(!busy && canUnloadModels);
-    generate->setToolTip(
-        configured ? QString{} : "Add model files in the Configuration tab.");
-    regenerate->setEnabled(!busy && ready && configured && hasInputs);
+    generate->setToolTip(!nonempty ? "A cropped layer is outside its canvas. Restore or remove that input."
+        : !referencesFit()
+        ? "Remove an image or region to stay within the model's reference limit."
+        : configured ? QString{} : "Add model files in the Configuration tab.");
+    regenerate->setEnabled(!busy && ready && configured && hasInputs && nonempty && referencesFit());
     apply->setEnabled(!busy && ready);
     cancel->setVisible(busy);
     discard->setEnabled(!busy && ready);
@@ -452,15 +595,29 @@ struct DiffusionPanel::Impl {
     mode->setEnabled(!busy);
     updateModeControls();
     inputList->setEnabled(!busy);
+    maxInputSize->setEnabled(!busy);
     if (auto *add = inputList->item(int(inputs.size())))
       add->setFlags(!busy && inputs.size() < maxInputs() ? Qt::ItemIsEnabled
                                                          : Qt::NoItemFlags);
-    clearRegions->setEnabled(!busy && !regions.isEmpty());
+    const auto regionInput = inputIndex(regionSource->currentData().toString());
+    const int regionCount = regionInput < 0 ? int(regions.size())
+                                          : int(inputs[regionInput].regions.size());
+    clearRegions->setEnabled(!busy && regionCount > 0);
+    regionSource->setEnabled(!busy);
+    cropGuidance->setVisible(profile().value("family") == "flux3");
+    cropGuidance->setEnabled(!busy);
     if (auto *header =
             q.findChild<QToolButton *>("DiffusionRegionsSectionHeader"))
-      header->setText(regions.isEmpty()
+      header->setText(regionCount == 0
                           ? QString("Regions")
-                          : QString("Regions · %1").arg(regions.size()));
+                          : QString("Regions · %1").arg(regionCount));
+    if (regionInput >= 0)
+      regionHint->setText(QString("Use <Image%1> for this image and <Image%1/Region1> for a named region.").arg(regionInput + 1)
+          + (inputs.size() == 1 ? " With one input, <Region1> also works." : QString{}));
+    else
+      regionHint->setText(profile().value("spatialGuidance").toString() == "structured-caption"
+          ? "Refer to output regions as <Output/Region1>. Regions guide placement; they do not protect pixels."
+          : "Output placement guide. Use Generative Fill to protect pixels outside a selection.");
     regionsButton->setEnabled(
         !busy && profile().value("spatialGuidance").toString() != "none");
 
@@ -470,6 +627,8 @@ struct DiffusionPanel::Impl {
           ->setEnabled(canReplaceSelected);
     if (!canReplaceSelected && q.destination() == Destination::ReplaceSelected)
       q.setDestination(Destination::NewLayer);
+    if (referenceLimitShown || !referencesFit())
+      reportReferenceLimit();
   }
   bool pendingSelected() const {
     return pendingItem && resultList->currentItem() == pendingItem;
@@ -619,6 +778,8 @@ struct DiffusionPanel::Impl {
         : cfg <= 1 ? "Describe what to avoid. Requires Guidance (CFG) above 1 "
                      "in Configuration."
                    : "Describe what to avoid in the generated image.");
+    if (auto *header = q.findChild<QToolButton *>("DiffusionNegativeSectionHeader"))
+      header->setToolTip(negative->toolTip());
     const auto schedule = qobject_cast<QComboBox *>(sampling["schedule"])
                               ->currentData()
                               .toString();
@@ -637,15 +798,6 @@ struct DiffusionPanel::Impl {
             qobject_cast<QStandardItemModel *>(scheduleCombo->model()))
       items->item(scheduleCombo->findData("turbo"))
           ->setEnabled(p.value("id") == "qwen-image-2.1-turbo");
-    const auto spatial = p.value("spatialGuidance").toString();
-    regionHint->setText(
-        spatial == "structured-caption"
-            ? "Semantic placement guidance (experimental). Regions do not "
-              "protect pixels."
-        : spatial == "annotation"
-            ? "Regions are supplied as visual annotations. Use Generative Fill "
-              "to protect pixels outside a selection."
-            : "This model does not expose region guidance.");
     const auto sampler = qobject_cast<QComboBox *>(sampling["sampler"])
                              ->currentData()
                              .toString();
@@ -681,6 +833,20 @@ struct DiffusionPanel::Impl {
       select(box, selected);
     }
   }
+  QString inputTitle(int index) const {
+    const auto &input = inputs[index];
+    return QString("Image%1%2\n%3%4").arg(index + 1)
+        .arg(index == 0 && q.mode() != Mode::Generate ? " · Edit image" : "")
+        .arg(input.label)
+        .arg(input.regions.isEmpty() ? QString{}
+             : input.regions.size() == 1 ? QString(" · 1 region")
+                                        : QString(" · %1 regions").arg(input.regions.size()));
+  }
+  void refreshInputRegionLabels() {
+    for (int i = 0; i < inputs.size(); ++i)
+      if (auto *item = inputList->item(i))
+        item->setText(inputTitle(i));
+  }
   void rebuildInputs() {
     const QSignalBlocker block(inputList);
     const int selected = inputList->currentRow();
@@ -689,24 +855,34 @@ struct DiffusionPanel::Impl {
       const auto &in = inputs[i];
       auto *item = new QListWidgetItem(
           QIcon(QPixmap::fromImage(thumbnail(in.image, {48, 40}))),
-          QString("Image %1%2\n%3")
-              .arg(i + 1)
-              .arg(i == 0 && q.mode() != Mode::Generate ? " · Edit image" : "")
-              .arg(in.label),
+          inputTitle(i),
           inputList);
       item->setData(Qt::UserRole, i);
       item->setData(Qt::UserRole + 1, false);
+      item->setData(Qt::UserRole + 2, !in.sourceCanvas.isEmpty());
+      item->setData(Qt::UserRole + 3, in.cropToCanvas);
       item->setToolTip(QString("%1 · %2 × %3 px\n%4")
                            .arg(in.source)
                            .arg(in.image.width())
                            .arg(in.image.height())
-                           .arg(in.label));
+                           .arg(in.label) + (in.cropToCanvas ? "\nCropped to the source canvas." : "") +
+                                            "\nDouble-click to inspect and edit this image's regions. "
+                                            "Image numbers follow the list order.");
     }
     auto *add = new QListWidgetItem(inputList);
     add->setData(Qt::UserRole, -1);
     add->setToolTip("Add input image");
     inputList->setFixedHeight(std::min(5, int(inputs.size())) * 48 + 32);
     inputList->setCurrentRow(std::min(selected, int(inputs.size()) - 1));
+    rebuildRegionSources();
+    if (!regionEditorInput.isEmpty() && inputIndex(regionEditorInput) < 0 && lightbox)
+      lightbox->close();
+    else if (!regionEditorInput.isEmpty() && lightbox && lightboxTitle) {
+      const int index = inputIndex(regionEditorInput);
+      lightboxTitle->setText(QString("Regions — Image%1 · %2 · %3 × %4 px")
+                                .arg(index + 1).arg(inputs[index].label)
+                                .arg(inputs[index].image.width()).arg(inputs[index].image.height()));
+    }
     updateActions();
   }
   void rebuildPresets() {
@@ -718,13 +894,15 @@ struct DiffusionPanel::Impl {
       presets->addItem(p.name, p.id);
   }
   void showPreview(const QImage &image, const QImage &, const QString &title,
-                   bool editRegions = false, bool resultPreview = false) {
+                   bool editRegions = false, bool resultPreview = false,
+                   const QString &inputId = {}) {
     if (image.isNull() && !resultPreview)
       return;
     if (lightbox)
       lightbox->close();
     auto *dialog = new QDialog(&q, Qt::Dialog | Qt::FramelessWindowHint);
     lightbox = dialog;
+    regionEditorInput = editRegions ? inputId : QString{};
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setObjectName("DiffusionPreviewDialog");
     dialog->setWindowTitle(title);
@@ -784,7 +962,8 @@ struct DiffusionPanel::Impl {
     previewShowsResult = resultPreview;
     preview->setImage(image);
     preview->setRegionEditing(editRegions);
-    preview->setRegions(regions);
+    const int regionIndex = inputIndex(inputId);
+    preview->setRegions(regionIndex < 0 ? regions : inputs[regionIndex].regions);
     root->addWidget(preview, 1);
     QObject::connect(fit, &QToolButton::clicked, preview,
                      &DiffusionPreview::fitView);
@@ -835,6 +1014,7 @@ struct DiffusionPanel::Impl {
     }
     if (editRegions) {
       auto *regionName = new QLineEdit;
+      regionName->setObjectName("DiffusionRegionLabel");
       regionName->setPlaceholderText("Region label");
       regionName->setMaxLength(200);
       regionName->setMaximumWidth(240);
@@ -847,16 +1027,19 @@ struct DiffusionPanel::Impl {
         regionName->setText(index >= 0 ? preview->regions().value(index).label
                                        : QString{});
       };
-      preview->onRegionsChanged = [this, preview] {
-        regions = preview->regions();
+      preview->onRegionsChanged = [this, preview, inputId] {
+        if (inputId.isEmpty())
+          regions = preview->regions();
+        else {
+          const int index = inputIndex(inputId);
+          if (index < 0)
+            return;
+          inputs[index].regions = preview->regions();
+          rememberInputRegions(inputs[index]);
+        }
+        refreshInputRegionLabels();
         updateActions();
-        if (inputs.size() > maxInputs())
-          q.setStatus(
-              QString("The region guide uses one reference slot. Remove an "
-                      "input image "
-                      "before generating (maximum %1 images with regions).")
-                  .arg(maxInputs()),
-              true);
+        reportReferenceLimit();
       };
       QObject::connect(regionName, &QLineEdit::textEdited, preview,
                        &DiffusionPreview::setSelectedRegionLabel);
@@ -1000,6 +1183,13 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   d->prompt->setMinimumHeight(80);
   d->prompt->setMaximumHeight(100);
   layout->addWidget(d->prompt);
+  QVBoxLayout *negativeLayout{};
+  layout->addWidget(section("Negative prompt", "DiffusionNegative", negativeLayout));
+  d->negative = new QPlainTextEdit;
+  d->negative->setObjectName("DiffusionNegativePrompt");
+  d->negative->setPlaceholderText("Describe what to avoid…");
+  d->negative->setMaximumHeight(70);
+  negativeLayout->addWidget(d->negative);
   auto *essentials = new QVBoxLayout;
   auto *outputRow = new QHBoxLayout;
   outputRow->setSpacing(4);
@@ -1024,6 +1214,13 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
       iconButton(ToolGlyph::FitCanvas, "Match layer / canvas size", content);
   resetSize->setObjectName("DiffusionResetSize");
   outputRow->addWidget(resetSize);
+  auto *selectedSize = iconButton(ToolGlyph::LayerRaster, "Match selected input / layer size", content);
+  selectedSize->setObjectName("DiffusionMatchSelectedSize");
+  selectedSize->setToolTip("Match the selected input, including its canvas crop. With no input selected, use the active layer.");
+  outputRow->addWidget(selectedSize);
+  connect(selectedSize, &QToolButton::clicked, this, [this] {
+    if (onMatchSelectedSize) onMatchSelectedSize();
+  });
   outputRow->addStretch();
   connect(resetSize, &QToolButton::clicked, this, [this] {
     if (onResetSize)
@@ -1082,6 +1279,37 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   auto *inputDelegate = new InputDelegate(d->inputList);
   d->inputList->setItemDelegate(inputDelegate);
   inputsLayout->addWidget(d->inputList);
+  d->maxInputSize = new ScrollSafe<QSpinBox>;
+  d->maxInputSize->setObjectName("DiffusionMaxInputSize");
+  d->maxInputSize->setRange(64, 8192);
+  d->maxInputSize->setSingleStep(128);
+  d->maxInputSize->setPrefix("Max input: ");
+  d->maxInputSize->setSuffix(" px");
+  d->maxInputSize->setKeyboardTracking(false);
+  d->maxInputSize->setMaximumWidth(220);
+  d->maxInputSize->setValue(QSettings().value("diffusion/maxInputSize", 1024).toInt());
+  d->maxInputSize->setToolTip("Limit the longest side of input images after canvas cropping, keeping their proportions. Output size is separate.");
+  inputsLayout->addWidget(d->maxInputSize);
+  connect(d->maxInputSize, &QSpinBox::valueChanged, this, [this, previous = d->maxInputSize->value()]() mutable {
+    if (d->lightbox && !d->regionEditorInput.isEmpty()) d->lightbox->close();
+    try {
+      auto inputs = d->inputs;
+      for (auto &input : inputs) {
+        d->rememberInputRegions(input);
+        d->prepareInput(input);
+      }
+      d->inputs = std::move(inputs);
+      previous = d->maxInputSize->value();
+    } catch (const std::exception &error) {
+      const QSignalBlocker blocker(d->maxInputSize);
+      d->maxInputSize->setValue(previous);
+      setStatus(QString::fromUtf8(error.what()), true);
+      return;
+    }
+    d->rebuildInputs();
+    if (onInputsChanged) onInputsChanged();
+    saveSettings();
+  });
   inputDelegate->add = [this] {
     if (d->busy || d->inputs.size() >= d->maxInputs())
       return;
@@ -1117,14 +1345,28 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
         onInputsChanged();
     });
   };
+  inputDelegate->crop = [this](int row) {
+    if (d->busy || row < 0 || row >= d->inputs.size()) return;
+    const auto id = d->inputs[row].id;
+    const bool enabled = !d->inputs[row].cropToCanvas;
+    // The delegate is still dispatching this item; defer the model rebuild.
+    QTimer::singleShot(0, this, [this, id, enabled] { setInputCropToCanvas(id, enabled); });
+  };
   connect(d->inputList, &QListWidget::currentRowChanged, this,
-          [this] { d->updateActions(); });
+          [this](int row) {
+            if (d->regionSource && row >= 0 && row < d->inputs.size())
+              select(d->regionSource, d->inputs[row].id);
+            d->updateActions();
+          });
   connect(d->inputList, &QListWidget::itemDoubleClicked, this,
           [this](QListWidgetItem *item) {
             if (d->inputList->row(item) >= d->inputs.size())
               return;
             const auto &in = d->inputs[d->inputList->row(item)];
-            d->showPreview(in.image, {}, in.label);
+            if (!d->busy)
+              showInputRegions(in.id);
+            else
+              d->showPreview(in.image, {}, in.label);
           });
   connect(d->inputList->model(), &QAbstractItemModel::rowsMoved, this, [this] {
     QVector<Input> reordered;
@@ -1140,22 +1382,48 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   });
   QVBoxLayout *regionsLayout{};
   layout->addWidget(section("Regions", "DiffusionRegions", regionsLayout));
+  d->regionSource = new ScrollSafe<QComboBox>;
+  d->regionSource->setObjectName("DiffusionRegionSource");
+  d->regionSource->setToolTip("Choose an input image to identify objects, or Output layout to guide placement.");
+  regionsLayout->addWidget(d->regionSource);
+  d->rebuildRegionSources();
+  connect(d->regionSource, &QComboBox::currentIndexChanged, this,
+          [this] { d->updateActions(); });
   d->regionHint = new QLabel;
+  d->regionHint->setTextFormat(Qt::PlainText);
   d->regionHint->setWordWrap(true);
   regionsLayout->addWidget(d->regionHint);
   d->regionsButton = new QPushButton("Edit regions…");
   d->regionsButton->setObjectName("DiffusionRegionsButton");
   auto *regionButtons = new QHBoxLayout;
   regionButtons->addWidget(d->regionsButton, 1);
-  d->clearRegions = iconButton(ToolGlyph::Trash, "Remove all regions", content);
+  d->clearRegions = iconButton(ToolGlyph::Trash, "Remove regions from this image or output layout", content);
+  d->clearRegions->setObjectName("DiffusionClearRegions");
   regionButtons->addWidget(d->clearRegions);
   regionsLayout->addLayout(regionButtons);
+  d->cropGuidance = new QCheckBox("Extra crop guidance (experimental)");
+  d->cropGuidance->setObjectName("DiffusionRegionCropGuidance");
+  d->cropGuidance->setChecked(QSettings().value("diffusion/fluxCropGuidance", false).toBool());
+  d->cropGuidance->setToolTip("Optional Vulkana guidance: also send each input region as a cropped reference. Uses extra memory and reference slots. Leave off to use FLUX's native bounding-box format alone.");
+  regionsLayout->addWidget(d->cropGuidance);
+  connect(d->cropGuidance, &QCheckBox::toggled, this, [this] {
+    d->updateActions(); d->reportReferenceLimit(); saveSettings();
+  });
   connect(d->clearRegions, &QToolButton::clicked, this, [this] {
-    setRegions({});
-    if (d->lightboxPreview)
+    const auto id = d->regionSource->currentData().toString();
+    if (id.isEmpty())
+      setRegions({});
+    else
+      setInputRegions(id, {});
+    if (d->lightboxPreview && d->regionEditorInput == id && !d->previewShowsResult)
       d->lightboxPreview->setRegions({});
   });
   connect(d->regionsButton, &QPushButton::clicked, this, [this] {
+    const auto id = d->regionSource->currentData().toString();
+    if (!id.isEmpty()) {
+      showInputRegions(id);
+      return;
+    }
     QImage image;
     if (!d->inputs.isEmpty())
       image = d->inputs.front().image;
@@ -1164,7 +1432,7 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
                      QImage::Format_RGBA8888);
       image.fill(Qt::white);
     }
-    d->showPreview(image, {}, "Semantic regions", true);
+    d->showPreview(image, {}, "Output layout regions", true);
   });
   QVBoxLayout *advanced{};
   configLayout->addWidget(
@@ -1276,11 +1544,6 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   connect(qobject_cast<QComboBox *>(d->sampling["sampler"]),
           &QComboBox::currentIndexChanged, this,
           [this] { d->updateCapabilities(false); });
-  d->negative = new QPlainTextEdit;
-  d->negative->setObjectName("DiffusionNegativePrompt");
-  d->negative->setPlaceholderText("Negative prompt");
-  d->negative->setMaximumHeight(70);
-  layout->addWidget(d->negative);
   auto *defaults = new QPushButton("Restore recommended generation settings");
   advanced->addWidget(defaults);
   connect(defaults, &QPushButton::clicked, this,
@@ -1712,6 +1975,7 @@ QJsonObject DiffusionPanel::configuration() const {
 }
 QJsonObject DiffusionPanel::generationParameters() const {
   auto params = controls(d->sampling);
+  params["referenceMaxSize"] = d->maxInputSize->value();
   if (!d->sampling["eta"]->isEnabled())
     params.remove("eta");
   if (!imageToImageEnabled())
@@ -1736,6 +2000,10 @@ QJsonObject DiffusionPanel::generationParameters() const {
   return params;
 }
 QJsonObject DiffusionPanel::prepareGeneration() {
+  if (std::any_of(d->inputs.begin(), d->inputs.end(), [](const auto &in) { return in.image.isNull(); }))
+    throw std::invalid_argument("A cropped layer is outside its canvas. Restore or remove that input.");
+  if (!d->referencesFit())
+    throw std::invalid_argument("Images and region guides exceed the model's reference limit. Remove an image or region.");
   if (d->seedMode->currentData() == "random")
     d->seed->setText(QString::number(QRandomGenerator::global()->generate()));
   bool valid = false;
@@ -1897,12 +2165,15 @@ bool DiffusionPanel::addInput(Input input) {
   if (input.image.isNull())
     return false;
   if (d->inputs.size() >= d->maxInputs()) {
-    setStatus(QString("This model accepts up to %1 input images.")
-                  .arg(d->maxInputs()),
+    setStatus(QString("This model accepts %1 references in total, including input images and region guides.")
+                  .arg(d->profile().value("maxReferenceImages").toInt(8)),
               true);
     return false;
   }
   input.image = input.image.copy();
+  if (input.id.isEmpty() || d->inputIndex(input.id) >= 0)
+    input.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+  d->prepareInput(input);
   d->inputs.append(std::move(input));
   d->rebuildInputs();
   if (onInputsChanged)
@@ -1910,13 +2181,47 @@ bool DiffusionPanel::addInput(Input input) {
   return true;
 }
 void DiffusionPanel::setInputs(QVector<Input> inputs) {
+  QSet<QString> ids;
+  for (auto &input : inputs) {
+    if (input.id.isEmpty() || ids.contains(input.id))
+      input.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    ids.insert(input.id);
+    d->prepareInput(input);
+  }
   d->inputs = std::move(inputs);
   d->rebuildInputs();
 }
 void DiffusionPanel::clearInputs() {
   d->inputs.clear();
-  d->regions.clear();
   d->rebuildInputs();
+}
+const DiffusionPanel::Input *DiffusionPanel::selectedInput() const {
+  const int row = d->inputList->currentRow();
+  return row >= 0 && row < d->inputs.size() ? &d->inputs[row] : nullptr;
+}
+int DiffusionPanel::maxInputSize() const { return d->maxInputSize->value(); }
+void DiffusionPanel::setMaxInputSize(int size) { d->maxInputSize->setValue(size); }
+bool DiffusionPanel::setInputCropToCanvas(const QString &id, bool cropped) {
+  const int index = d->inputIndex(id);
+  if (d->busy || index < 0 || d->inputs[index].sourceCanvas.isEmpty()) return false;
+  try {
+    auto input = d->inputs[index];
+    d->rememberInputRegions(input);
+    input.cropToCanvas = cropped;
+    d->prepareInput(input);
+    if (d->lightbox && d->regionEditorInput == id) d->lightbox->close();
+    d->inputs[index] = std::move(input);
+    d->rebuildInputs();
+    if (d->inputs[index].image.isNull())
+      setStatus("This layer is outside its source canvas. Restore or remove the input.", true);
+    else if (d->inputs[index].regions.size() < d->inputs[index].fullRegions.size())
+      setStatus("Regions outside the canvas are hidden until the full input is restored.");
+    if (onInputsChanged) onInputsChanged();
+    return true;
+  } catch (const std::exception &error) {
+    setStatus(QString::fromUtf8(error.what()), true);
+    return false;
+  }
 }
 QJsonArray DiffusionPanel::regionsJson() const {
   QJsonArray array;
@@ -1929,15 +2234,47 @@ QJsonArray DiffusionPanel::regionsJson() const {
                                {"label", r.label}});
   return array;
 }
+QJsonArray DiffusionPanel::inputRegionsJson() const {
+  QJsonArray groups;
+  for (int i = 0; i < d->inputs.size(); ++i) {
+    QJsonArray regions;
+    for (const auto &r : d->inputs[i].regions)
+      regions.append(QJsonObject{{"x", r.bounds.x()}, {"y", r.bounds.y()},
+                                  {"width", r.bounds.width()}, {"height", r.bounds.height()},
+                                  {"label", r.label}});
+    if (!regions.isEmpty())
+      groups.append(QJsonObject{{"image", i + 1}, {"regions", regions}});
+  }
+  return groups;
+}
+bool DiffusionPanel::regionCropGuidance() const {
+  return d->profile().value("family") == "flux3" && d->cropGuidance->isChecked();
+}
+bool DiffusionPanel::setInputRegions(const QString &id, QVector<DiffusionRegion> regions) {
+  const int index = d->inputIndex(id);
+  if (index < 0 || d->busy)
+    return false;
+  d->inputs[index].regions = std::move(regions);
+  d->rememberInputRegions(d->inputs[index]);
+  d->refreshInputRegionLabels();
+  d->updateActions();
+  d->reportReferenceLimit();
+  return true;
+}
+void DiffusionPanel::showInputRegions(const QString &id) {
+  const int index = d->inputIndex(id);
+  if (index < 0 || d->busy)
+    return;
+  select(d->regionSource, id);
+  d->showPreview(d->inputs[index].image, {},
+                 QString("Regions — Image%1 · %2").arg(index + 1).arg(d->inputs[index].label),
+                 true, false, id);
+}
 void DiffusionPanel::setRegions(QVector<DiffusionRegion> regions) {
+  Impl::regionIds(regions);
   d->regions = std::move(regions);
   d->updateActions();
-  if (d->inputs.size() > d->maxInputs())
-    setStatus(QString("The region guide uses one reference slot. Remove an "
-                      "input image before generating "
-                      "(maximum %1 images with regions).")
-                  .arg(d->maxInputs()),
-              true);
+  d->reportReferenceLimit();
 }
 QVector<DiffusionRegion> DiffusionPanel::regions() const { return d->regions; }
 void DiffusionPanel::appendResult(Result result) {
@@ -2102,6 +2439,8 @@ void DiffusionPanel::setComparisonReference(QImage image, QTransform toDocument,
 }
 void DiffusionPanel::saveSettings() {
   QSettings s;
+  s.setValue("diffusion/maxInputSize", d->maxInputSize->value());
+  s.setValue("diffusion/fluxCropGuidance", d->cropGuidance->isChecked());
   s.setValue("diffusion/modelId", d->models->currentData().toString());
   s.setValue("diffusion/modelConfigurations",
              QJsonDocument(d->modelConfigs).toJson(QJsonDocument::Compact));

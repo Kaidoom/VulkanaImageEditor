@@ -1,4 +1,5 @@
 #include "imageeditor/ui/DiffusionPreview.hpp"
+#include <QUuid>
 #include "imageeditor/ui/Theme.hpp"
 #include <QKeyEvent>
 #include <QMouseEvent>
@@ -146,8 +147,10 @@ void DiffusionPreview::setRegionEditing(bool enabled) {
 }
 void DiffusionPreview::setRegions(QVector<DiffusionRegion> regions) {
   regions_ = std::move(regions);
-  for (auto &region : regions_)
+  for (auto &region : regions_) {
     region.bounds = region.bounds.normalized().intersected(QRectF(0, 0, 1, 1));
+    if (region.id.isEmpty()) region.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+  }
   selected_ = std::min(selected_, int(regions_.size()) - 1);
   update();
 }
@@ -310,8 +313,13 @@ void DiffusionPreview::mousePressEvent(QMouseEvent *e) {
       drag_ = Drag::Move;
     } else {
       anchor_ = start_;
+      int number = 1;
+      while (std::any_of(regions_.begin(), regions_.end(), [number](const auto &region) {
+        return region.label == QString("Region%1").arg(number);
+      }))
+        ++number;
       regions_.append({QRectF(start_, QSizeF()),
-                       QString("Region%1").arg(regions_.size() + 1)});
+                       QString("Region%1").arg(number), QUuid::createUuid().toString(QUuid::WithoutBraces)});
       setSelectedRegion(int(regions_.size()) - 1);
       drag_ = Drag::Draw;
     }

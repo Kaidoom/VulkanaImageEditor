@@ -1,4 +1,5 @@
 #include "imageeditor/ui/DiffusionTransaction.hpp"
+#include "imageeditor/ui/DiffusionSpatial.hpp"
 #include "imageeditor/core/LayerCommands.hpp"
 #include "imageeditor/core/ColorMath.hpp"
 #include <QGuiApplication>
@@ -242,6 +243,37 @@ void transparentFillInputIsOnlyAnInferenceCopy()
     CHECK(applied.pixelColor(4, 0) == original.pixelColor(4, 0));
     CHECK(applied.pixelColor(3, 0).alpha() == 128);
 }
+void canvasCroppedInputsAndPlacedReplacement()
+{
+    auto source = image(12, 8, {0, 200, 80, 255});
+    for (int y = 0; y < 8; ++y)
+        for (int x = 0; x < 2; ++x) source.setPixelColor(x, y, Qt::red);
+    const auto crop = u::diffusionCropToCanvas(source, QTransform::fromTranslate(-2, -1), QSize(8, 6));
+    CHECK(crop.image.size() == QSize(8, 6));
+    CHECK(crop.toDocument == QTransform{});
+    CHECK(crop.image.pixelColor(0, 0) == QColor(0, 200, 80));
+    CHECK(source.pixelColor(0, 0) == QColor(Qt::red));
+    QTransform rotated; rotated.translate(8, 0); rotated.rotate(90);
+    const auto rotatedCrop = u::diffusionCropToCanvas(image(6, 8, {10, 20, 30, 255}), rotated, QSize(8, 6));
+    CHECK(rotatedCrop.image.size() == QSize(8, 6));
+    CHECK(rotatedCrop.image.pixelColor(0, 0) == QColor(10, 20, 30));
+    c::Layer layer; c::EditorSession session; session.replaceDocument(document(&layer));
+    auto* doc = session.document();
+    const auto unrelated = c::SelectionMask::rectangle({8, 6}, {0, 0, 1, 1});
+    CHECK(doc->setSelection(unrelated));
+    const auto target = u::captureDiffusionTarget(*doc, layer.id, false);
+    auto command = u::diffusionReplacePlacedCommand(*doc, target,
+        image(1, 1, {240, 100, 20, 255}), QTransform::fromTranslate(3, 2));
+    CHECK(command && session.execute(std::move(command)));
+    const auto after = u::diffusionRawLayer(*doc->layer(layer.id));
+    CHECK(after.pixelColor(1, 1) == QColor(240, 100, 20));
+    CHECK(after.pixelColor(0, 0) == target.originalPixels.pixelColor(0, 0));
+    CHECK(doc->selection() == unrelated);
+    CHECK(session.undo());
+    CHECK(u::diffusionRawLayer(*doc->layer(layer.id)) == target.originalPixels);
+    CHECK(session.redo());
+    CHECK(u::diffusionRawLayer(*doc->layer(layer.id)) == after);
+}
 void renderedAppearanceDiffersFromRaw()
 {
     c::Layer layer;auto doc=document(&layer);
@@ -258,7 +290,7 @@ int main(int argc,char** argv)
 {
     QGuiApplication app(argc,argv);
     captureAndStaleGuards();selectionMappingAndSoftEdges();
-    replacePreservesStateAndUndo();transformedDocumentResults();regionalRasterOriginIsPreserved();newLayerFramesAndMask();fillLayerPreservesVisibleOutside();transparentFillPreviewMatchesNewLayer();transparentFillInputIsOnlyAnInferenceCopy();renderedAppearanceDiffersFromRaw();
+    replacePreservesStateAndUndo();transformedDocumentResults();regionalRasterOriginIsPreserved();newLayerFramesAndMask();fillLayerPreservesVisibleOutside();transparentFillPreviewMatchesNewLayer();transparentFillInputIsOnlyAnInferenceCopy();canvasCroppedInputsAndPlacedReplacement();renderedAppearanceDiffersFromRaw();
     std::cout << (failures?"FAIL":"PASS") << " diffusion transaction checks: " << failures << " failures\n";
     return failures?1:0;
 }
