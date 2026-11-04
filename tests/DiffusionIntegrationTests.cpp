@@ -287,6 +287,41 @@ private slots:
     QVERIFY(session().document()->revision() != edited);
     QCOMPARE(panel->results().size(), 1);
   }
+  void discardCompletedPreviewWhileNextJobStarts() {
+    openMode("AIGenerateImageAction");
+    generate();
+    QTRY_COMPARE_WITH_TIMEOUT(panel->results().size(), 1, 10000);
+    const auto previous = panel->selectedResult()->label;
+    QTRY_VERIFY(child<QPushButton>("DiffusionUnloadModel") && child<QPushButton>("DiffusionUnloadModel")->isEnabled());
+    child<QPushButton>("DiffusionUnloadModel")->click();
+    QTRY_VERIFY(child<QLabel>("DiffusionLoadedModelsEmpty"));
+
+    openMode("AIEditLayerAction");
+    generate("identity"); // The new worker still needs the captured input file.
+    panel->findChild<QTabWidget *>("DiffusionTabs")->setCurrentIndex(2);
+    auto *list = child<QListWidget>("DiffusionResultsList");
+    auto *discard = child<QPushButton>("DiffusionDiscard");
+    QCOMPARE(list->movement(), QListView::Static);
+    QCOMPARE(list->count(), 2);
+    auto *pending = list->item(1);
+    list->setCurrentItem(pending);
+    QVERIFY(!discard->isEnabled());
+    panel->onDiscard();
+    QCOMPARE(panel->results().size(), 1);
+    list->setCurrentRow(0);
+    QVERIFY(discard->isVisible() && discard->isEnabled());
+    discard->click();
+    QVERIFY(panel->isBusy());
+    QVERIFY(panel->results().isEmpty());
+    QCOMPARE(list->count(), 1);
+    QCOMPARE(list->currentItem(), pending);
+    QCOMPARE(child<QLabel>("DiffusionResultThumbnail")->text(), QString("Generating…"));
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QCOMPARE(list->count(), 1);
+    QVERIFY(panel->selectedResult());
+    QVERIFY(panel->selectedResult()->label != previous);
+    QCOMPARE(panel->selectedResult()->image.pixelColor(0, 0), native().pixelColor(0, 0));
+  }
   void generationHistoryAndDestinations() {
     openMode("AIGenerateImageAction");
     const auto before = session().document()->revision();
@@ -294,6 +329,9 @@ private slots:
     generate();
     QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
     QCOMPARE(panel->results().size(), 1);
+    const auto request = panel->selectedResult()->metadata.value("request").toObject();
+    QVERIFY(!request.contains("referenceImages"));
+    QVERIFY(!request.contains("spatial"));
     QCOMPARE(session().document()->revision(), before);
     const auto previous = panel->results().front().image;
     generate();

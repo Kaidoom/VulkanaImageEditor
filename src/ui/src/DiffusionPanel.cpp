@@ -606,7 +606,7 @@ struct DiffusionPanel::Impl {
     regenerate->setEnabled(!busy && ready && configured && hasInputs && nonempty && referencesFit() && linkError.isEmpty());
     apply->setEnabled(!busy && ready);
     cancel->setVisible(busy);
-    discard->setEnabled(!busy && ready);
+    discard->setEnabled(ready);
     resultImage->setVisible(true);
     tabs->setTabText(2, results.isEmpty()
                             ? "Preview"
@@ -1794,6 +1794,8 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   d->resultList->setObjectName("DiffusionResultsList");
   d->resultList->setItemDelegate(new SubtleItemDelegate(d->resultList));
   d->resultList->setViewMode(QListView::IconMode);
+  d->resultList->setMovement(QListView::Static);
+  d->resultList->setDragDropMode(QAbstractItemView::NoDragDrop);
   d->resultList->setFlow(QListView::LeftToRight);
   d->resultList->setWrapping(false);
   d->resultList->setIconSize({64, 48});
@@ -1803,19 +1805,24 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
       combo({"Add new layer", "Replace selected layer", "Open new document"},
             {"newLayer", "replaceSelected", "newDocument"}, this);
   d->outputDestination->setObjectName("DiffusionOutputDestination");
-  outputLayout->addWidget(d->outputDestination);
   connect(d->outputDestination, &QComboBox::currentIndexChanged, this, [this] {
     if (onDestinationChanged)
       onDestinationChanged();
   });
-  auto *resultsActions = new QHBoxLayout;
   d->apply = new QPushButton("Apply");
   d->apply->setObjectName("DiffusionApply");
+  auto *applyRow = new QHBoxLayout;
+  applyRow->addWidget(d->outputDestination, 1);
+  applyRow->addWidget(d->apply);
+  outputLayout->addLayout(applyRow);
   d->regenerate = new QPushButton(toolGlyph(ToolGlyph::Refresh), "Regenerate");
   d->discard = new QPushButton("Discard");
-  resultsActions->addWidget(d->apply);
+  d->discard->setObjectName("DiffusionDiscard");
+  auto *resultsActions = new QHBoxLayout;
+  resultsActions->addStretch();
   resultsActions->addWidget(d->regenerate);
   resultsActions->addWidget(d->discard);
+  resultsActions->addStretch();
   outputLayout->addLayout(resultsActions);
   layout->addStretch();
   configLayout->addStretch();
@@ -2544,19 +2551,16 @@ void DiffusionPanel::removeSelectedResult() {
     return;
   if (d->lightbox)
     d->lightbox->close();
-  const QSignalBlocker block(d->resultList);
-  d->results.removeAt(index);
-  delete d->resultList->takeItem(index);
-  if (d->results.isEmpty()) {
-    d->resultImage->clear();
-    d->resultImage->setText("Generated previews appear here");
-  } else {
-    const int next = std::min(index, int(d->results.size()) - 1);
-    d->resultList->setCurrentRow(next);
-    d->resultImage->setPixmap(
-        QPixmap::fromImage(thumbnail(d->results[next].image, {420, 180})));
+  {
+    const QSignalBlocker block(d->resultList);
+    d->results.removeAt(index);
+    delete d->resultList->takeItem(index);
+    if (d->results.isEmpty())
+      d->resultList->setCurrentItem(d->pendingItem);
+    else
+      d->resultList->setCurrentRow(std::min(index, int(d->results.size()) - 1));
   }
-  d->updateActions();
+  d->refreshDisplayedPreview();
   if (onResultSelected)
     onResultSelected(selectedResultIndex());
 }

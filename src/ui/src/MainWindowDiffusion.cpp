@@ -239,7 +239,7 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
       applyDiffusion();
   };
   state->panel->onDiscard = [this, active] {
-    if (!active())
+    if (!active() || !diffusion_->panel->selectedResult())
       return;
     auto &s = *diffusion_;
     s.panel->removeSelectedResult();
@@ -767,7 +767,7 @@ void MainWindow::continueDiffusionJob() {
     updateDiffusionNotice("Generation could not start", 0, 0, true);
     return;
   }
-  if (s.pendingGeneration["referenceMaxSize"].toInt() > 0 &&
+  if (s.pendingGeneration.value("referenceMaxSize").toInt() > 0 &&
       !s.worker->hello().value("referenceSizeLimit").toBool()) {
     s.wanted = false;
     s.panel->setBusy(false);
@@ -775,7 +775,7 @@ void MainWindow::continueDiffusionJob() {
     updateDiffusionNotice("Generation could not start", 0, 0, true);
     return;
   }
-  const int spatialVersion = s.pendingGeneration["spatial"].toObject().value("version").toInt();
+  const int spatialVersion = s.pendingGeneration.value("spatial").toObject().value("version").toInt();
   if (spatialVersion >= 2 && !s.worker->hello().value("spatialVersions").toArray().contains(spatialVersion)) {
     s.wanted = false;
     s.panel->setBusy(false);
@@ -942,7 +942,7 @@ void MainWindow::cancelDiffusion() {
   }
 }
 void MainWindow::cleanupDiffusionFiles() {
-  if (!diffusion_ || !diffusion_->cleanup ||
+  if (!diffusion_ || !diffusion_->cleanup || diffusion_->wanted ||
       diffusion_->worker->pendingRequestCount() ||
       !diffusion_->panel->results().isEmpty())
     return;
