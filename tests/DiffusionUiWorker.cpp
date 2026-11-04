@@ -35,7 +35,7 @@ int main(int argc, char** argv)
         { "referenceSizeLimit", true },
         { "flux3NativeRegions", !qEnvironmentVariableIsSet("VULKANA_TEST_DIFFUSION_SPATIAL_V1") },
         { "spatialVersions", qEnvironmentVariableIsSet("VULKANA_TEST_DIFFUSION_SPATIAL_V1")
-              ? QJsonArray { 1 } : QJsonArray { 1, 2 } },
+              ? QJsonArray { 1 } : QJsonArray { 1, 2, 3 } },
         { "profiles",
             QJsonArray { QJsonObject { { "id", "qwen-image-2.1-turbo" }, { "family", "qwen-image-2.1" },
                 { "name", "Qwen Image 2.1 Turbo" }, { "steps", 8 }, { "guidance", 1 }, { "sampler", "euler" },

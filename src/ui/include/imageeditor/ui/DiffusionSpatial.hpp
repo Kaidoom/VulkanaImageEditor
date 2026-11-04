@@ -14,4 +14,5 @@ QVector<DiffusionRegion> diffusionMapInputRegions(const QVector<DiffusionRegion>
 // A visual reference only. Neither this diagram nor semantic region bounds
 // replaces the original soft selection used to composite a fill result.
 QImage diffusionRegionAnnotation(const QImage& base, const QJsonArray& regions, QSize outputSize);
+QImage diffusionOutputLayout(const QImage& scene, QSize outputSize);
 }

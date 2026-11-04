@@ -27,6 +27,7 @@
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QPointer>
 #include <QScrollArea>
 #include <QSettings>
 #include <QSlider>
@@ -737,6 +738,77 @@ private slots:
     QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
     request = panel->selectedResult()->metadata["request"].toObject();
     QVERIFY(request["spatial"].toObject()["cropGuidance"].toBool());
+    QCOMPARE(session().document()->revision(), revision);
+  }
+  void regionDescriptionAndDestinationThroughOwnedUi() {
+    openMode("AIGenerateImageAction");
+    panel->setConfiguration({{"profile", "flux3-image-klein-distilled"},
+      {"files", QJsonObject{{"diffusion", modelPath}, {"textEncoder", modelPath}, {"vae", modelPath}}}});
+    QImage room(128, 128, QImage::Format_RGBA8888), donor(128, 128, QImage::Format_RGBA8888);
+    room.fill(Qt::red); donor.fill(Qt::blue);
+    panel->setInputs({{room, "Room", "Test"}, {donor, "Cats", "Test"}});
+    const auto sourceId = panel->inputs()[1].id;
+    QVERIFY(panel->setOutputSceneId(panel->inputs()[0].id));
+    panel->setResolution({128, 128});
+    QVERIFY(panel->setInputRegions(sourceId, {{QRectF(.1, .1, .3, .5), "Region1", "cat-source"}}));
+    const auto revision = session().document()->revision();
+    panel->showInputRegions(sourceId);
+    QPointer<QDialog> sourceDialog = child<QDialog>("DiffusionPreviewDialog");
+    auto *preview = dynamic_cast<u::DiffusionPreview *>(sourceDialog->findChild<QWidget *>("DiffusionPreview"));
+    preview->setSelectedRegion(0);
+    auto *description = sourceDialog->findChild<QLineEdit *>("DiffusionRegionDescription");
+    QVERIFY(description && description->isEnabled());
+    QTest::mouseClick(description, Qt::LeftButton);
+    QTRY_VERIFY(description->hasFocus());
+    QKeyEvent typed(QEvent::KeyPress, Qt::Key_A, Qt::NoModifier, "a kitten");
+    QCoreApplication::sendEvent(sourceDialog->windowHandle(), &typed);
+    QCOMPARE(description->text(), QString("a kitten"));
+    QVERIFY(description->hasFocus());
+    // Exercise the native canvas-host IME bridge after focusing the owned popup.
+    QInputMethodEvent ime; ime.setCommitString(QString::fromUtf8(" 日本語"));
+    QCoreApplication::sendEvent(window->windowHandle(), &ime);
+    QCOMPARE(panel->inputs()[1].regions[0].description, QString::fromUtf8("a kitten 日本語"));
+    if (const auto path = qEnvironmentVariable("VULKANA_DIFFUSION_PANEL_CAPTURE"); !path.isEmpty())
+      QVERIFY(sourceDialog->grab().save(path + "-source.png"));
+    auto *dest = sourceDialog->findChild<QComboBox *>("DiffusionRegionDestination");
+    QVERIFY(dest && dest->isVisible());
+    dest->setCurrentIndex(dest->findData("__new_target__"));
+    dest->activated(dest->currentIndex());
+    QTRY_VERIFY(sourceDialog.isNull());
+    auto *targetDialog = child<QDialog>("DiffusionPreviewDialog");
+    QVERIFY(targetDialog && targetDialog->parentWidget());
+    QVERIFY(targetDialog->windowFlags() & Qt::FramelessWindowHint);
+    QVERIFY(!(targetDialog->windowFlags() & Qt::WindowMinMaxButtonsHint));
+    preview = dynamic_cast<u::DiffusionPreview *>(targetDialog->findChild<QWidget *>("DiffusionPreview"));
+    QCoreApplication::processEvents();
+    const auto frame = preview->imageRect();
+    const auto start = (frame.topLeft() + QPointF(frame.width() * .6, frame.height() * .6)).toPoint();
+    const auto end = (frame.topLeft() + QPointF(frame.width() * .9, frame.height() * .9)).toPoint();
+    QTest::mousePress(preview, Qt::LeftButton, {}, start);
+    QTest::mouseMove(preview, end);
+    QTest::keyClick(preview, Qt::Key_Escape);
+    QVERIFY(panel->regions().isEmpty());
+    QVERIFY(panel->inputs()[1].regions[0].destinationId.isEmpty());
+    QTest::mousePress(preview, Qt::LeftButton, {}, start);
+    QTest::mouseMove(preview, end);
+    QTest::mouseRelease(preview, Qt::LeftButton, {}, end);
+    QCOMPARE(panel->regions().size(), 1);
+    QVERIFY(panel->regions()[0].targetOnly);
+    QCOMPARE(panel->inputs()[1].regions[0].destinationId, panel->regions()[0].id);
+    QVERIFY(!targetDialog->findChild<QLineEdit *>("DiffusionRegionDescription")->isEnabled());
+    if (const auto path = qEnvironmentVariable("VULKANA_DIFFUSION_PANEL_CAPTURE"); !path.isEmpty())
+      QVERIFY(targetDialog->grab().save(path + "-target.png"));
+    targetDialog->close();
+    generate("Use <Scene> as the output scene. Transfer <Image2/Region1> to its target position.");
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QVERIFY(panel->selectedResult());
+    const auto request = panel->selectedResult()->metadata["request"].toObject();
+    const auto spatial = request["spatial"].toObject();
+    QCOMPARE(spatial["version"].toInt(), 3);
+    QCOMPARE(spatial["outputScene"].toInt(), 1);
+    const auto region = spatial["inputRegions"].toArray()[0].toObject()["regions"].toArray()[0].toObject();
+    QCOMPARE(region["description"].toString(), QString::fromUtf8("a kitten 日本語"));
+    QCOMPARE(region["targetId"].toString(), spatial["regions"].toArray()[0].toObject()["id"].toString());
     QCOMPARE(session().document()->revision(), revision);
   }
   void fluxRejectsLegacyRegionWorker() {

@@ -38,7 +38,7 @@ inline std::string resolveSpatialAliases(const std::string& prompt, const Spatia
             const auto end = prompt.find('>', pos + 1);
             if (end != std::string::npos) {
                 const auto name = prompt.substr(pos + 1, end - pos - 1);
-                if (aliases.contains(name) || imageName(name) || name.starts_with("Region") || name.starts_with("Output/"))
+                if (aliases.contains(name) || name == "Scene" || imageName(name) || name.starts_with("Region") || name.starts_with("Output/"))
                     result += resolve(name);
                 else result += prompt.substr(pos, end - pos + 1); // native tags and literal markup
                 pos = end + 1;

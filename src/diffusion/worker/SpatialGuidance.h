@@ -10,7 +10,7 @@
 #include "SpatialAliases.h"
 
 namespace vulkana::diffusion {
-inline void validateRegionArray(const nlohmann::json& regions)
+inline void validateRegionArray(const nlohmann::json& regions, bool extended = false)
 {
     const auto invalid = [](const std::string& message) { throw std::invalid_argument(message); };
     if (!regions.is_array() || regions.size() > 128)
@@ -20,7 +20,7 @@ inline void validateRegionArray(const nlohmann::json& regions)
             invalid("Each region must be an object");
         for (const auto& item : region.items())
             if (item.key() != "x" && item.key() != "y" && item.key() != "width" && item.key() != "height"
-                && item.key() != "label")
+                && item.key() != "label" && !(extended && (item.key() == "id" || item.key() == "description" || item.key() == "targetId" || item.key() == "targetOnly")))
                 invalid("Unknown region field: " + item.key());
         for (const char* key : { "x", "y", "width", "height" }) {
             if (!region.contains(key) || !region[key].is_number())
@@ -37,6 +37,13 @@ inline void validateRegionArray(const nlohmann::json& regions)
         const auto label = region["label"].get<std::string>();
         if (label.empty() || label.size() > 2048 || label.find('\0') != std::string::npos)
             invalid("Region label must contain 1–2048 UTF-8 bytes without NUL");
+        for (const auto* field : {"id", "description", "targetId"}) if (region.contains(field)) {
+            if (!region[field].is_string()) invalid(std::string("Region ") + field + " must be a string");
+            const auto text = region[field].get<std::string>();
+            if (text.size() > (std::string(field) == "description" ? 8192 : 200) || text.find('\0') != std::string::npos)
+                invalid(std::string("Region ") + field + " is too long or contains NUL");
+        }
+        if (region.contains("targetOnly") && !region["targetOnly"].is_boolean()) invalid("Region targetOnly must be boolean");
     }
 }
 // Version 1 retains output placement. Version 2 also identifies regions in
@@ -46,17 +53,20 @@ inline nlohmann::json spatialRegions(const nlohmann::json& spatial)
     if (!spatial.is_object())
         throw std::invalid_argument("spatial must be an object");
     if (!spatial.contains("version") || !spatial["version"].is_number_integer()
-        || (spatial["version"] != 1 && spatial["version"] != 2))
-        throw std::invalid_argument("spatial.version must be 1 or 2");
+        || (spatial["version"] != 1 && spatial["version"] != 2 && spatial["version"] != 3))
+        throw std::invalid_argument("spatial.version must be 1, 2 or 3");
     for (const auto& item : spatial.items())
         if (item.key() != "version" && item.key() != "regions" && item.key() != "annotationImage"
-            && !(spatial["version"] == 2 && (item.key() == "inputRegions" || item.key() == "cropGuidance")))
+            && !(spatial["version"] >= 2 && (item.key() == "inputRegions" || item.key() == "cropGuidance"))
+            && !(spatial["version"] == 3 && item.key() == "outputScene"))
             throw std::invalid_argument("Unknown spatial field: " + item.key());
     if (spatial.contains("cropGuidance") && !spatial["cropGuidance"].is_boolean())
         throw std::invalid_argument("spatial.cropGuidance must be boolean");
     if (!spatial.contains("regions"))
         throw std::invalid_argument("spatial.regions is required (use [] for no output regions)");
-    validateRegionArray(spatial["regions"]);
+    if (spatial.contains("outputScene") && (!spatial["outputScene"].is_number_integer() || spatial["outputScene"] < 1))
+        throw std::invalid_argument("spatial.outputScene must be a one-based input image number");
+    validateRegionArray(spatial["regions"], spatial["version"] == 3);
     return spatial["regions"];
 }
 inline nlohmann::json inputRegionGroups(const nlohmann::json& spatial, std::size_t imageCount)
@@ -65,8 +75,8 @@ inline nlohmann::json inputRegionGroups(const nlohmann::json& spatial, std::size
     if (!spatial.contains("inputRegions"))
         return J::array();
     const auto& groups = spatial["inputRegions"];
-    if (spatial.value("version", 0) != 2 || !groups.is_array() || groups.size() > imageCount)
-        throw std::invalid_argument("spatial.inputRegions requires version 2 and at most one group per input image");
+    if (spatial.value("version", 0) < 2 || !groups.is_array() || groups.size() > imageCount)
+        throw std::invalid_argument("spatial.inputRegions requires version 2 or 3 and at most one group per input image");
     std::set<int> seen;
     std::size_t total = spatial["regions"].size();
     for (const auto& group : groups) {
@@ -82,7 +92,7 @@ inline nlohmann::json inputRegionGroups(const nlohmann::json& spatial, std::size
             throw std::invalid_argument("Input region groups must not repeat an image");
         if (!group.contains("regions"))
             throw std::invalid_argument("Input region group needs regions");
-        validateRegionArray(group["regions"]);
+        validateRegionArray(group["regions"], spatial["version"] == 3);
         std::set<std::string> labels;
         for (const auto& r : group["regions"])
             if (!labels.insert(r["label"].get<std::string>()).second)

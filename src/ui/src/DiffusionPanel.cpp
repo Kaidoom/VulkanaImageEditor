@@ -378,6 +378,9 @@ struct DiffusionPanel::Impl {
   QLineEdit *seed{};
   QString workerOverride;
   QComboBox *seedMode{};
+  QComboBox *outputScene{};
+  QWidget *outputSceneRow{};
+  QString outputSceneId;
   QToolButton *randomSeed{};
   QVBoxLayout *loadedModelsLayout{};
   QJsonArray loadedModels;
@@ -476,7 +479,7 @@ struct DiffusionPanel::Impl {
       const auto oldView = diffusionMapInputRegions({old}, input.fullImage.size(), input.fullToDocument,
                                                     input.image.size(), input.toDocument);
       if (!oldView.isEmpty() && oldView.front().bounds == it->bounds) {
-        auto retained = old; retained.label = it->label; stored.append(retained);
+        auto retained = *it; retained.bounds = old.bounds; stored.append(retained);
       } else {
         stored += diffusionMapInputRegions({*it}, input.image.size(), input.toDocument,
                                            input.fullImage.size(), input.fullToDocument);
@@ -526,7 +529,48 @@ struct DiffusionPanel::Impl {
         return i;
     return -1;
   }
+  bool hasTransfers() const {
+    for (const auto& input : inputs)
+      for (const auto& region : input.fullRegions)
+        if (!region.destinationId.isEmpty()) return true;
+    return false;
+  }
+  QString transferError() const {
+    const bool flux = profile().value("family") == "flux3";
+    if (hasTransfers() && !flux) return "Linked region transfers are available with FLUX.3. Unlink the destinations or select a FLUX configuration.";
+    if (hasTransfers() && inputs.size() < 2) return "Linked transfers need at least two input images. Add the missing input or unlink the destinations.";
+    if ((hasTransfers() || (flux && prompt->toPlainText().contains("<Scene>"))) && inputIndex(outputSceneId) < 0)
+      return "Choose an available output scene before generating.";
+    for (const auto& input : inputs) for (const auto& region : input.fullRegions) {
+      if (region.destinationId.isEmpty()) continue;
+      if (std::none_of(input.regions.begin(), input.regions.end(), [&](const auto& r) { return r.id == region.id; }))
+        return QString("Source region %1 is outside the cropped input. Restore the input to use or unlink it.").arg(region.label);
+      if (std::none_of(regions.begin(), regions.end(), [&](const auto& r) { return r.id == region.destinationId && r.targetOnly; }))
+        return QString("The destination for %1 is missing. Choose another target or unlink it.").arg(region.label);
+    }
+    return {};
+  }
+  QImage outputLayoutImage() const {
+    const int scene = inputIndex(outputSceneId);
+    return diffusionOutputLayout(scene < 0 ? QImage{} : inputs[scene].image, {width->value(), height->value()});
+  }
+  void rebuildScenes() {
+    if (!outputScene) return;
+    if (outputSceneId.isEmpty() && !inputs.isEmpty()) outputSceneId = inputs.front().id;
+    if (inputIndex(outputSceneId) < 0 && inputs.size() == 1 && !hasTransfers()) outputSceneId = inputs.front().id;
+    const QSignalBlocker block(outputScene);
+    outputScene->clear();
+    for (int i = 0; i < inputs.size(); ++i)
+      outputScene->addItem(QString("<Image%1> · %2").arg(i + 1).arg(inputs[i].label), inputs[i].id);
+    if (inputIndex(outputSceneId) < 0) outputScene->addItem("Choose output scene…", outputSceneId);
+    select(outputScene, outputSceneId);
+    if (profile().value("family") == "flux3" && lightbox && lightboxPreview && regionEditorInput.isEmpty() && !previewShowsResult) {
+      lightboxPreview->setImage(outputLayoutImage(), true);
+      lightboxTitle->setText(QString("Output layout · %1 × %2 px").arg(width->value()).arg(height->value()));
+    }
+  }
   void rebuildRegionSources() {
+    rebuildScenes();
     if (!regionSource)
       return;
     const auto selected = regionSource->currentData().toString();
@@ -541,6 +585,8 @@ struct DiffusionPanel::Impl {
       regionSource->setCurrentIndex(0);
   }
   void updateActions() {
+    if (inputs.size() == 1 && inputIndex(outputSceneId) < 0 && !hasTransfers())
+      rebuildScenes();
     const bool ready = q.selectedResult() != nullptr;
     const bool configured = !files["diffusion"]->text().trimmed().isEmpty() &&
                             !files["textEncoder"]->text().trimmed().isEmpty() &&
@@ -549,14 +595,15 @@ struct DiffusionPanel::Impl {
                                       : "<Missing configuration>");
     const bool hasInputs = q.mode() == Mode::Generate || !inputs.isEmpty();
     const bool nonempty = std::none_of(inputs.begin(), inputs.end(), [](const auto &in) { return in.image.isNull(); });
-    generate->setEnabled(!busy && configured && hasInputs && nonempty && referencesFit());
+    const auto linkError = transferError();
+    generate->setEnabled(!busy && configured && hasInputs && nonempty && referencesFit() && linkError.isEmpty());
     for (auto *button : unloadButtons)
       button->setEnabled(!busy && canUnloadModels);
-    generate->setToolTip(!nonempty ? "A cropped layer is outside its canvas. Restore or remove that input."
+    generate->setToolTip(!linkError.isEmpty() ? linkError : !nonempty ? "A cropped layer is outside its canvas. Restore or remove that input."
         : !referencesFit()
         ? "Remove an image or region to stay within the model's reference limit."
         : configured ? QString{} : "Add model files in the Configuration tab.");
-    regenerate->setEnabled(!busy && ready && configured && hasInputs && nonempty && referencesFit());
+    regenerate->setEnabled(!busy && ready && configured && hasInputs && nonempty && referencesFit() && linkError.isEmpty());
     apply->setEnabled(!busy && ready);
     cancel->setVisible(busy);
     discard->setEnabled(!busy && ready);
@@ -606,6 +653,8 @@ struct DiffusionPanel::Impl {
     regionSource->setEnabled(!busy);
     cropGuidance->setVisible(profile().value("family") == "flux3");
     cropGuidance->setEnabled(!busy);
+    if (outputSceneRow) outputSceneRow->setVisible(profile().value("family") == "flux3" && (inputs.size() > 1 || hasTransfers()));
+    if (outputScene) outputScene->setEnabled(!busy);
     if (auto *header =
             q.findChild<QToolButton *>("DiffusionRegionsSectionHeader"))
       header->setText(regionCount == 0
@@ -895,7 +944,8 @@ struct DiffusionPanel::Impl {
   }
   void showPreview(const QImage &image, const QImage &, const QString &title,
                    bool editRegions = false, bool resultPreview = false,
-                   const QString &inputId = {}) {
+                   const QString &inputId = {}, const QString &destinationInput = {},
+                   const QString &destinationRegion = {}, bool createTarget = false) {
     if (image.isNull() && !resultPreview)
       return;
     if (lightbox)
@@ -919,6 +969,7 @@ struct DiffusionPanel::Impl {
         title +
         QString(" · %1 × %2 px").arg(image.width()).arg(image.height()));
     lightboxTitle = label;
+    label->setTextFormat(Qt::PlainText);
     label->setWordWrap(true);
     bar->addWidget(label, 1);
     if (resultPreview) {
@@ -962,6 +1013,7 @@ struct DiffusionPanel::Impl {
     previewShowsResult = resultPreview;
     preview->setImage(image);
     preview->setRegionEditing(editRegions);
+    preview->setNewRegionsAreTargets(!destinationRegion.isEmpty());
     const int regionIndex = inputIndex(inputId);
     preview->setRegions(regionIndex < 0 ? regions : inputs[regionIndex].regions);
     root->addWidget(preview, 1);
@@ -1013,19 +1065,58 @@ struct DiffusionPanel::Impl {
                        });
     }
     if (editRegions) {
+      if (inputId.isEmpty() && profile().value("family") == "flux3")
+        hint->setText(createTarget ? "Draw the destination box. Scene is fitted as a guide; coordinates belong to the output frame."
+                                  : "Scene is fitted as a guide · Boxes use output coordinates · Middle mouse pans");
+      auto *metadata = new QHBoxLayout;
       auto *regionName = new QLineEdit;
       regionName->setObjectName("DiffusionRegionLabel");
       regionName->setPlaceholderText("Region label");
       regionName->setMaxLength(200);
       regionName->setMaximumWidth(240);
-      bottom->addWidget(regionName);
+      metadata->addWidget(regionName);
+      auto *description = new QLineEdit;
+      description->setObjectName("DiffusionRegionDescription");
+      description->setPlaceholderText("Description (optional)");
+      description->setMaxLength(2000);
+      description->setVisible(profile().value("family") == "flux3");
+      description->setToolTip("Optional semantic guidance sent as desc. The region name is only an alias.");
+      metadata->addWidget(description, 1);
       auto *remove =
           iconButton(ToolGlyph::Trash, "Remove selected region", dialog);
-      bottom->addWidget(remove);
-      preview->onRegionSelected = [regionName, preview](int index) {
+      metadata->addWidget(remove);
+      root->addLayout(metadata);
+      auto *destinationRow = new QWidget(dialog);
+      auto *destLayout = new QHBoxLayout(destinationRow);
+      destLayout->setContentsMargins(0, 0, 0, 0);
+      destLayout->addWidget(new QLabel("Destination"));
+      auto *destination = new ScrollSafe<QComboBox>;
+      destination->setObjectName("DiffusionRegionDestination");
+      destLayout->addWidget(destination, 1);
+      auto *editTarget = new QPushButton("Edit…");
+      editTarget->setObjectName("DiffusionEditDestination");
+      destLayout->addWidget(editTarget);
+      destinationRow->setVisible(!inputId.isEmpty() && profile().value("family") == "flux3" && (inputs.size() > 1 || hasTransfers()));
+      root->addWidget(destinationRow);
+      preview->onRegionSelected = [this, regionName, description, destination, editTarget, preview](int index) {
         QSignalBlocker b(regionName);
-        regionName->setText(index >= 0 ? preview->regions().value(index).label
-                                       : QString{});
+        QSignalBlocker c(description), d(destination);
+        const auto region = index >= 0 ? preview->regions().value(index) : DiffusionRegion{};
+        regionName->setText(region.label);
+        regionName->setEnabled(index >= 0);
+        description->setText(region.description);
+        description->setEnabled(index >= 0 && !region.targetOnly);
+        description->setPlaceholderText(region.targetOnly ? "Target location — no object description" : "Description (optional)");
+        destination->clear(); destination->addItem("None", QString{});
+        const bool canLink = inputs.size() > 1 && inputIndex(outputSceneId) >= 0;
+        for (const auto& r : regions) if (canLink || r.id == region.destinationId)
+          destination->addItem("Output/" + r.label, r.id);
+        if (!region.destinationId.isEmpty() && destination->findData(region.destinationId) < 0)
+          destination->addItem("Missing target — choose another", region.destinationId);
+        if (canLink) destination->addItem("New target…", "__new_target__");
+        select(destination, region.destinationId);
+        destination->setEnabled(index >= 0);
+        editTarget->setEnabled(index >= 0 && std::any_of(regions.begin(), regions.end(), [&](const auto& r) {return r.id == region.destinationId;}));
       };
       preview->onRegionsChanged = [this, preview, inputId] {
         if (inputId.isEmpty())
@@ -1043,8 +1134,43 @@ struct DiffusionPanel::Impl {
       };
       QObject::connect(regionName, &QLineEdit::textEdited, preview,
                        &DiffusionPreview::setSelectedRegionLabel);
+      QObject::connect(description, &QLineEdit::textEdited, preview, &DiffusionPreview::setSelectedRegionDescription);
+      QObject::connect(destination, &QComboBox::activated, &q, [this, preview, inputId, destination](int) {
+        const auto selected = preview->selectedRegion();
+        if (selected < 0) return;
+        const auto regionId = preview->regions()[selected].id;
+        const auto targetId = destination->currentData().toString();
+        if (targetId == "__new_target__") {
+          QTimer::singleShot(0, &q, [this, inputId, regionId] { editDestination(inputId, regionId, true); });
+        } else if (q.setRegionDestination(inputId, regionId, targetId)) {
+          preview->setRegions(inputs[inputIndex(inputId)].regions);
+          preview->setSelectedRegion(selected);
+        }
+      });
+      QObject::connect(editTarget, &QPushButton::clicked, &q, [this, preview, inputId] {
+        if (preview->selectedRegion() < 0) return;
+        const auto regionId = preview->regions()[preview->selectedRegion()].id;
+        QTimer::singleShot(0, &q, [this, inputId, regionId] { editDestination(inputId, regionId, false); });
+      });
+      if (createTarget) {
+        QSet<QString> previous;
+        for (const auto& r : regions) previous.insert(r.id);
+        preview->onRegionEditFinished = [this, preview, destinationInput, destinationRegion, previous, pending = true]() mutable {
+          if (!pending) return;
+          const auto index = preview->selectedRegion();
+          if (index < 0 || previous.contains(preview->regions()[index].id)) return;
+          const auto& target = preview->regions()[index];
+          if (!target.bounds.isEmpty() && q.setRegionDestination(destinationInput, destinationRegion, target.id)) pending = false;
+        };
+      }
       QObject::connect(remove, &QToolButton::clicked, preview,
                        &DiffusionPreview::removeSelectedRegion);
+      preview->setSelectedRegion(preview->selectedRegion());
+      if (!createTarget && !destinationRegion.isEmpty()) {
+        const int source = inputIndex(destinationInput);
+        if (source >= 0) for (const auto& r : inputs[source].regions) if (r.id == destinationRegion)
+          for (int i = 0; i < regions.size(); ++i) if (regions[i].id == r.destinationId) preview->setSelectedRegion(i);
+      }
     }
     root->addLayout(bottom);
     if (resultPreview)
@@ -1052,6 +1178,13 @@ struct DiffusionPanel::Impl {
     dialog->show();
     dialog->raise();
     preview->setFocus();
+  }
+  void editDestination(const QString& inputId, const QString& regionId, bool create) {
+    const int source = inputIndex(inputId);
+    if (busy || source < 0 || inputIndex(outputSceneId) < 0) { q.setStatus("Choose an output scene first.", true); return; }
+    const auto it = std::find_if(inputs[source].regions.begin(), inputs[source].regions.end(), [&](const auto& r) {return r.id == regionId;});
+    if (it == inputs[source].regions.end()) return;
+    showPreview(outputLayoutImage(), {}, QString("Destination for Image%1/%2").arg(source + 1).arg(it->label), true, false, {}, inputId, regionId, create);
   }
 };
 
@@ -1382,6 +1515,20 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   });
   QVBoxLayout *regionsLayout{};
   layout->addWidget(section("Regions", "DiffusionRegions", regionsLayout));
+  d->outputSceneRow = new QWidget;
+  auto *sceneLayout = new QHBoxLayout(d->outputSceneRow);
+  sceneLayout->setContentsMargins(0, 0, 0, 0);
+  sceneLayout->addWidget(new QLabel("Output scene"));
+  d->outputScene = new ScrollSafe<QComboBox>;
+  d->outputScene->setObjectName("DiffusionOutputScene");
+  d->outputScene->setToolTip("Use <Scene> in your prompt to reference this image. It is the backdrop for destination boxes; input order and your instructions are not changed.");
+  sceneLayout->addWidget(d->outputScene, 1);
+  regionsLayout->addWidget(d->outputSceneRow);
+  connect(d->outputScene, &QComboBox::activated, this, [this] {
+    setOutputSceneId(d->outputScene->currentData().toString());
+  });
+  for (auto *size : {d->width, d->height})
+    connect(size, &QSpinBox::valueChanged, this, [this] { d->rebuildScenes(); });
   d->regionSource = new ScrollSafe<QComboBox>;
   d->regionSource->setObjectName("DiffusionRegionSource");
   d->regionSource->setToolTip("Choose an input image to identify objects, or Output layout to guide placement.");
@@ -1424,15 +1571,7 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
       showInputRegions(id);
       return;
     }
-    QImage image;
-    if (!d->inputs.isEmpty())
-      image = d->inputs.front().image;
-    else {
-      image = QImage(d->width->value(), d->height->value(),
-                     QImage::Format_RGBA8888);
-      image.fill(Qt::white);
-    }
-    d->showPreview(image, {}, "Output layout regions", true);
+    showOutputRegions();
   });
   QVBoxLayout *advanced{};
   configLayout->addWidget(
@@ -2000,6 +2139,8 @@ QJsonObject DiffusionPanel::generationParameters() const {
   return params;
 }
 QJsonObject DiffusionPanel::prepareGeneration() {
+  if (const auto error = d->transferError(); !error.isEmpty())
+    throw std::invalid_argument(error.toStdString());
   if (std::any_of(d->inputs.begin(), d->inputs.end(), [](const auto &in) { return in.image.isNull(); }))
     throw std::invalid_argument("A cropped layer is outside its canvas. Restore or remove that input.");
   if (!d->referencesFit())
@@ -2193,6 +2334,7 @@ void DiffusionPanel::setInputs(QVector<Input> inputs) {
 }
 void DiffusionPanel::clearInputs() {
   d->inputs.clear();
+  d->outputSceneId.clear();
   d->rebuildInputs();
 }
 const DiffusionPanel::Input *DiffusionPanel::selectedInput() const {
@@ -2226,22 +2368,35 @@ bool DiffusionPanel::setInputCropToCanvas(const QString &id, bool cropped) {
 QJsonArray DiffusionPanel::regionsJson() const {
   QJsonArray array;
   for (const auto &r : d->regions)
-    if (!r.bounds.isEmpty())
-      array.append(QJsonObject{{"x", r.bounds.x()},
+    if (!r.bounds.isEmpty()) {
+      if (r.targetOnly && d->profile().value("family") != "flux3") continue;
+      QJsonObject row{{"x", r.bounds.x()},
                                {"y", r.bounds.y()},
                                {"width", r.bounds.width()},
                                {"height", r.bounds.height()},
-                               {"label", r.label}});
+                               {"label", r.label}};
+      if (d->profile().value("family") == "flux3") {
+        row["id"] = r.id; row["description"] = r.description;
+        if (r.targetOnly) row["targetOnly"] = true;
+      }
+      array.append(row);
+    }
   return array;
 }
 QJsonArray DiffusionPanel::inputRegionsJson() const {
   QJsonArray groups;
   for (int i = 0; i < d->inputs.size(); ++i) {
     QJsonArray regions;
-    for (const auto &r : d->inputs[i].regions)
-      regions.append(QJsonObject{{"x", r.bounds.x()}, {"y", r.bounds.y()},
+    for (const auto &r : d->inputs[i].regions) {
+      QJsonObject row{{"x", r.bounds.x()}, {"y", r.bounds.y()},
                                   {"width", r.bounds.width()}, {"height", r.bounds.height()},
-                                  {"label", r.label}});
+                                  {"label", r.label}};
+      if (d->profile().value("family") == "flux3") {
+        row["id"] = r.id; row["description"] = r.description;
+        if (!r.destinationId.isEmpty()) row["targetId"] = r.destinationId;
+      }
+      regions.append(row);
+    }
     if (!regions.isEmpty())
       groups.append(QJsonObject{{"image", i + 1}, {"regions", regions}});
   }
@@ -2249,6 +2404,54 @@ QJsonArray DiffusionPanel::inputRegionsJson() const {
 }
 bool DiffusionPanel::regionCropGuidance() const {
   return d->profile().value("family") == "flux3" && d->cropGuidance->isChecked();
+}
+QString DiffusionPanel::outputSceneId() const { return d->outputSceneId; }
+int DiffusionPanel::outputSceneIndex() const { return d->inputIndex(d->outputSceneId) + 1; }
+bool DiffusionPanel::setOutputSceneId(const QString &id) {
+  if (d->busy || d->inputIndex(id) < 0) return false;
+  d->outputSceneId = id; d->rebuildScenes(); d->updateActions(); return true;
+}
+QJsonObject DiffusionPanel::spatialParameters() const {
+  const auto output = regionsJson(), inputs = inputRegionsJson();
+  const bool flux = d->profile().value("family") == "flux3";
+  if (output.isEmpty() && inputs.isEmpty() && !(flux && outputSceneIndex() > 0)) return {};
+  QJsonObject spatial{{"version", flux ? 3 : inputs.isEmpty() ? 1 : 2}, {"regions", output}};
+  if (!inputs.isEmpty()) spatial["inputRegions"] = inputs;
+  if (flux) {
+    spatial["cropGuidance"] = regionCropGuidance();
+    if (outputSceneIndex() > 0) spatial["outputScene"] = outputSceneIndex();
+  }
+  return spatial;
+}
+bool DiffusionPanel::setRegionDestination(const QString &inputId, const QString &regionId, const QString &targetId) {
+  const int input = d->inputIndex(inputId);
+  if (d->busy || input < 0) return false;
+  auto source = std::find_if(d->inputs[input].regions.begin(), d->inputs[input].regions.end(), [&](const auto &r) {return r.id == regionId;});
+  if (source == d->inputs[input].regions.end()) return false;
+  if (!targetId.isEmpty()) {
+    if (d->profile().value("family") != "flux3" || d->inputs.size() < 2 || outputSceneIndex() < 1) return false;
+    auto target = std::find_if(d->regions.begin(), d->regions.end(), [&](const auto& r) {return r.id == targetId;});
+    if (target == d->regions.end()) return false;
+    target->targetOnly = true;
+  }
+  source->destinationId = targetId;
+  d->rememberInputRegions(d->inputs[input]);
+  d->rebuildScenes();
+  d->updateActions(); return true;
+}
+void DiffusionPanel::showOutputRegions() {
+  if (d->busy) return;
+  if (d->profile().value("family") == "flux3")
+    d->showPreview(d->outputLayoutImage(), {}, "Output layout", true);
+  else {
+    QImage image;
+    if (!d->inputs.isEmpty()) image = d->inputs.front().image;
+    else {
+      image = QImage(d->width->value(), d->height->value(), QImage::Format_RGBA8888);
+      image.fill(Qt::white);
+    }
+    d->showPreview(image, {}, "Output layout regions", true);
+  }
 }
 bool DiffusionPanel::setInputRegions(const QString &id, QVector<DiffusionRegion> regions) {
   const int index = d->inputIndex(id);

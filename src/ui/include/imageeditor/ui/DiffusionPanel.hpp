@@ -83,6 +83,12 @@ public:
   void setMaxInputSize(int size);
   QJsonArray inputRegionsJson() const;
   bool regionCropGuidance() const;
+  QString outputSceneId() const;
+  bool setOutputSceneId(const QString &inputId);
+  int outputSceneIndex() const; // One-based request reference number, or zero.
+  QJsonObject spatialParameters() const;
+  bool setRegionDestination(const QString &inputId, const QString &regionId, const QString &targetId);
+  void showOutputRegions();
   bool setInputRegions(const QString &inputId, QVector<DiffusionRegion> regions);
   void showInputRegions(const QString &inputId);
   QJsonArray regionsJson() const;

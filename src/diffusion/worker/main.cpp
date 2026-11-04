@@ -307,7 +307,7 @@ public:
         send({ { "samplers", samplers }, { "schedulers", schedulers }, { "event", "hello" },
             { "referenceSizeLimit", true },
             { "flux3NativeRegions", true },
-            { "protocol", 1 }, { "spatialVersions", Json::array({1, 2}) }, { "engineCommit", VULKANA_DIFFUSION_ENGINE_COMMIT },
+            { "protocol", 1 }, { "spatialVersions", Json::array({1, 2, 3}) }, { "engineCommit", VULKANA_DIFFUSION_ENGINE_COMMIT },
             { "backend", VULKANA_DIFFUSION_BACKEND }, { "devices", devices }, { "profiles", profiles() } });
     }
     void stateEvent()
@@ -662,6 +662,8 @@ Json Worker::generate(const Json& p)
             annotation = inputFile(p["spatial"], "annotationImage", true);
     }
     const bool cropGuidance = p.contains("spatial") && p["spatial"].value("cropGuidance", false);
+    const bool extendedSpatial = p.contains("spatial") && p["spatial"].value("version", 1) == 3;
+    require(nativeFlux || !extendedSpatial, "Spatial schema 3 descriptions and transfers currently apply only to FLUX.3");
     require(nativeFlux || !cropGuidance, "spatial.cropGuidance applies only to FLUX.3");
     require(!prompt.empty(), "prompt is required");
     const int width = integer(p, "width", 1024, 32, 8192), height = integer(p, "height", 1024, 32, 8192);
@@ -831,7 +833,8 @@ Json Worker::generate(const Json& p)
     Json fluxRegionBindings = Json::array(), fluxRegionRows = Json::array();
     if (nativeFlux) {
         try {
-            auto compiled = vulkana::diffusion::fluxSpatialCaption(prompt, regions, fluxInputRegions, originalRefCount, regionReferences);
+            const int outputScene = extendedSpatial ? integer(p["spatial"], "outputScene", 0, 0, int(originalRefCount)) : 0;
+            auto compiled = vulkana::diffusion::fluxSpatialCaption(prompt, regions, fluxInputRegions, originalRefCount, regionReferences, outputScene, extendedSpatial);
             prompt = std::move(compiled.prompt);
             fluxRegionBindings = compiled.bindings; fluxRegionRows = compiled.rows;
         } catch (const std::invalid_argument& e) { throw Failure("invalid_arguments", e.what()); }

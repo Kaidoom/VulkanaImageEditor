@@ -6,6 +6,22 @@
 #include <cmath>
 #include <stdexcept>
 namespace imageeditor::ui {
+QImage diffusionOutputLayout(const QImage& scene, QSize outputSize)
+{
+    if (outputSize.isEmpty() || qint64(outputSize.width()) * outputSize.height() > 67108864) return {};
+    QImage result(outputSize, QImage::Format_RGBA8888);
+    if (result.isNull()) return {};
+    result.fill(Qt::transparent);
+    result.setColorSpace(QColorSpace::SRgb);
+    if (!scene.isNull()) {
+        const auto fit = scene.size().scaled(outputSize, Qt::KeepAspectRatio);
+        const QRect frame(QPoint((outputSize.width() - fit.width()) / 2, (outputSize.height() - fit.height()) / 2), fit);
+        QPainter painter(&result);
+        painter.setRenderHint(QPainter::SmoothPixmapTransform);
+        painter.drawImage(frame, scene);
+    }
+    return result;
+}
 DiffusionInputCrop diffusionCropToCanvas(const QImage& source, const QTransform& transform, QSize canvas)
 {
     if (source.isNull() || canvas.isEmpty() || !transform.isInvertible())

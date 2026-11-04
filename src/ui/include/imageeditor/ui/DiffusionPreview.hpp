@@ -14,6 +14,9 @@ struct DiffusionRegion {
                  // resolution.
   QString label;
   QString id; // Stable identity when a cropped input view hides or remaps a box.
+  QString description;
+  QString destinationId; // Stable ID of an output location; empty means no transfer.
+  bool targetOnly{}; // Locations never become independent model objects.
 };
 
 class DiffusionPreview final : public QWidget {
@@ -46,8 +49,11 @@ public:
   void setSelectedRegion(int index);
   void removeSelectedRegion();
   void setSelectedRegionLabel(const QString &label);
+  void setSelectedRegionDescription(const QString &description);
+  void setNewRegionsAreTargets(bool value) { newRegionsAreTargets_ = value; }
   std::function<void()> onViewChanged;
   std::function<void()> onRegionsChanged;
+  std::function<void()> onRegionEditFinished;
   std::function<void(int)> onRegionSelected;
 
 protected:
@@ -81,6 +87,7 @@ private:
   QVector<DiffusionRegion> oldRegions_;
   int selected_{-1}, resizeCorner_{-1};
   bool editing_{}, fitted_{true};
+  bool newRegionsAreTargets_{};
   QPointF anchor_, start_, panStart_;
   QRectF oldBounds_;
   enum class Drag { None, Draw, Move, Resize, Pan, Compare } drag_{Drag::None};

@@ -25,7 +25,7 @@ int main()
         }
     };
     auto bad = valid;
-    bad["version"] = 3;
+    bad["version"] = 4;
     if (!rejects(bad))
         return 2;
     bad = valid;
@@ -157,5 +157,35 @@ int main()
     auto tied = single; tied[0]["regions"][0]["x"] = .0625;
     const auto tiedCaption = vulkana::diffusion::fluxSpatialCaption("Change <Region1>", J::array(), tied, 1);
     if (tiedCaption.rows[0]["bbox"][1] != 62) return 42;
+    auto transferInput = single;
+    transferInput[0]["image"] = 2;
+    auto& source = transferInput[0]["regions"][0];
+    source["id"] = "source-id"; source["description"] = "a kitten"; source["targetId"] = "floor-id";
+    const auto locations = J::array({{{"id", "floor-id"}, {"label", "Floor"}, {"targetOnly", true},
+       {"description", ""}, {"x", .617}, {"y", .679}, {"width", .287}, {"height", .308}}});
+    const auto linked = vulkana::diffusion::fluxSpatialCaption("Use <Scene>. Transfer <Image2/Region1> to <Output/Floor>.", locations, transferInput, 2, J::array(), 1, true);
+    if (!linked.prompt.starts_with("Use <ref_image_0>. Transfer <obj_1> to the target position of <obj_1>.") || linked.rows.size() != 1 ||
+        linked.rows[0]["src_bbox"] != J::array({186,31,834,366}) || linked.rows[0]["tgt_bbox"] != J::array({679,617,987,904}) ||
+        linked.rows[0]["desc"] != "a kitten") return 43;
+    auto schema3 = J{{"version", 3}, {"outputScene", 1}, {"regions", locations}, {"inputRegions", transferInput}, {"cropGuidance", false}};
+    vulkana::diffusion::spatialRegions(schema3); vulkana::diffusion::inputRegionGroups(schema3, 2);
+    const auto rejectsTransfer = [&](const J& dest, const J& sources, int scene) {
+        try { vulkana::diffusion::fluxSpatialCaption("test", dest, sources, 2, J::array(), scene, true); return false; }
+        catch (const std::invalid_argument&) {return true;}
+    };
+    if (!rejectsTransfer(J::array(), transferInput, 1) || !rejectsTransfer(locations, transferInput, 0)) return 44;
+    auto duplicate = locations; duplicate[0]["id"] = "source-id";
+    if (!rejectsTransfer(duplicate, transferInput, 1)) return 45;
+    auto unlinked = transferInput; unlinked[0]["regions"][0].erase("targetId");
+    const auto noTargetObject = vulkana::diffusion::fluxSpatialCaption("Edit <Image2/Region1>", locations, unlinked, 2, J::array(), 1, true);
+    if (noTargetObject.rows.size() != 1 || !noTargetObject.rows[0]["tgt_bbox"].is_null()) return 46;
+    const auto noInventedDescription = vulkana::diffusion::fluxSpatialCaption("Edit <Image1>", regions, J::array(), 1, J::array(), 1, true);
+    if (noInventedDescription.rows[0]["desc"] != "") return 47;
+    const auto singleV3 = vulkana::diffusion::fluxSpatialCaption("In <Image1>, add a collar to <Region1>.", locations, single, 1, J::array(), 1, true);
+    if (singleV3.prompt != collar.prompt) return 48; // orphan locations cannot regress single-image formatting
+    bad = schema3; bad["inputRegions"][0]["regions"][0]["description"] = 7;
+    if (!rejectsInput(bad)) return 49;
+    bad = schema3; bad["outputScene"] = 1.5;
+    if (!rejectsInput(bad)) return 50;
     std::cout << "Spatial schema, axis order, reference sizing, bounds and escaped labels passed\n";
 }

@@ -41,6 +41,7 @@
 #include <QToolButton>
 #include <QUuid>
 #include <QVBoxLayout>
+#include <QWindow>
 #include <algorithm>
 #include <array>
 #include <optional>
@@ -695,14 +696,9 @@ void MainWindow::generateDiffusion() {
                                   Qt::SmoothTransformation), "mask");
     }
     const auto regions = s.panel->regionsJson();
-    const auto inputRegions = s.panel->inputRegionsJson();
-    if (!regions.isEmpty() || !inputRegions.isEmpty()) {
+    auto spatial = s.panel->spatialParameters();
+    if (!spatial.isEmpty()) {
       const auto profile = diffusion::modelProfile(s.pendingConfiguration.value("profile").toString());
-      const bool nativeFlux = profile.value("family") == "flux3";
-      QJsonObject spatial{{"version", inputRegions.isEmpty() && !nativeFlux ? 1 : 2}, {"regions", regions}};
-      if (!inputRegions.isEmpty())
-        spatial["inputRegions"] = inputRegions;
-      if (nativeFlux) spatial["cropGuidance"] = s.panel->regionCropGuidance();
       if (!regions.isEmpty() && profile.value("family") == "qwen-image-2.1") {
         const QImage base = s.panel->inputs().isEmpty()
                                 ? QImage{}
@@ -779,12 +775,13 @@ void MainWindow::continueDiffusionJob() {
     updateDiffusionNotice("Generation could not start", 0, 0, true);
     return;
   }
-  if (s.pendingGeneration["spatial"].toObject().value("version").toInt() == 2 &&
-      !s.worker->hello().value("spatialVersions").toArray().contains(2)) {
+  const int spatialVersion = s.pendingGeneration["spatial"].toObject().value("version").toInt();
+  if (spatialVersion >= 2 && !s.worker->hello().value("spatialVersions").toArray().contains(spatialVersion)) {
     s.wanted = false;
     s.panel->setBusy(false);
-    s.panel->setStatus("The installed inference worker does not support per-image regions. "
-                       "Update the worker before generating with input regions.", true);
+    s.panel->setStatus(spatialVersion == 3
+        ? "Update the inference worker to use region descriptions, output scenes and linked destinations."
+        : "The installed inference worker does not support per-image regions. Update the worker before generating with input regions.", true);
     updateDiffusionNotice("Generation could not start", 0, 0, true);
     return;
   }
@@ -1221,6 +1218,21 @@ void MainWindow::addDiffusionInput(int sourceValue) {
 }
 
 bool MainWindow::diffusionEvent(QObject *watched, QEvent *event) {
+  // The owned preview has ordinary Qt keyboard focus, but the native Vulkan
+  // host may still carry IME events. Follow that focus without routing input
+  // to a different dialog or back to the canvas.
+  if (diffusion_ && event->type() == QEvent::InputMethod) {
+    auto *focus = QApplication::focusWidget();
+    auto *native = qobject_cast<QWindow *>(watched);
+    if (focus && native && focus->isEnabled() && focus->isVisible() &&
+        focus->window()->objectName() == "DiffusionPreviewDialog" &&
+        popupBelongsTo(focus, diffusion_->panel) &&
+        (native == windowHandle() || native == canvasWindow_ ||
+         native == workspace_->panelOverlay()->windowHandle() || native == focus->window()->windowHandle())) {
+      QCoreApplication::sendEvent(focus, event);
+      return true;
+    }
+  }
   if (diffusion_ && watched == diffusion_->shell &&
       event->type() == QEvent::Close && !diffusion_->shuttingDown) {
     hideDiffusion();

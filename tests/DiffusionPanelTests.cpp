@@ -513,6 +513,83 @@ private slots:
     QVERIFY(!restored.regionCropGuidance());
     QVERIFY(restored.findChild<QCheckBox *>("DiffusionRegionCropGuidance")->isHidden());
   }
+  void transferLinksSurviveNamesOrderAndCropping() {
+    DiffusionPanel panel;
+    panel.setConfiguration({{"profile", "flux3-image-klein-distilled"},
+      {"files", QJsonObject{{"diffusion", "/models/d.gguf"}, {"textEncoder", "/models/t.gguf"}, {"vae", "/models/v.safetensors"}}}});
+    QImage room(200, 100, QImage::Format_RGBA8888), cats(100, 200, QImage::Format_RGBA8888);
+    room.fill(Qt::red); cats.fill(Qt::blue);
+    DiffusionPanel::Input donor{cats, "Cats", "Test"}; donor.sourceCanvas = {100, 120};
+    panel.setInputs({{room, "Room", "Test"}, donor});
+    const auto roomId = panel.inputs()[0].id, donorId = panel.inputs()[1].id;
+    QVERIFY(panel.setOutputSceneId(roomId));
+    QVERIFY(panel.setInputRegions(donorId, {{QRectF(.1, .1, .3, .4), "Region1", "source-id", "a kitten"}}));
+    panel.setRegions({{QRectF(.6, .6, .3, .3), "Floor", "target-id"}});
+    QVERIFY(panel.setRegionDestination(donorId, "source-id", "target-id"));
+    QVERIFY(panel.regions()[0].targetOnly);
+    auto spatial = panel.spatialParameters();
+    QCOMPARE(spatial["version"].toInt(), 3);
+    QCOMPARE(spatial["outputScene"].toInt(), 1);
+    QCOMPARE(spatial["inputRegions"].toArray()[0].toObject()["regions"].toArray()[0].toObject()["description"].toString(), QString("a kitten"));
+    QVERIFY(panel.findChild<QListWidget *>("DiffusionInputsList")->model()->moveRows({}, 1, 1, {}, 0));
+    QCOMPARE(panel.outputSceneId(), roomId);
+    QCOMPARE(panel.outputSceneIndex(), 2);
+    QCOMPARE(panel.inputs()[0].regions[0].destinationId, QString("target-id"));
+    QVERIFY(panel.setInputCropToCanvas(donorId, true));
+    auto regions = panel.inputs()[0].regions;
+    regions[0].label = "Chosen cat"; regions[0].description = "a kitten with a collar";
+    QVERIFY(panel.setInputRegions(donorId, regions));
+    QVERIFY(panel.setInputCropToCanvas(donorId, false));
+    QCOMPARE(panel.inputs()[0].regions[0].description, QString("a kitten with a collar"));
+    QCOMPARE(panel.inputs()[0].regions[0].destinationId, QString("target-id"));
+    const auto target = panel.regions()[0];
+    panel.setRegions({});
+    QVERIFY(!panel.findChild<QPushButton *>("DiffusionGenerate")->isEnabled());
+    QVERIFY_EXCEPTION_THROWN(panel.prepareGeneration(), std::invalid_argument);
+    panel.setRegions({target});
+    QVERIFY(panel.setRegionDestination(donorId, "source-id", {}));
+    QVERIFY(panel.regions()[0].targetOnly); // unlinking never inserts a new model object
+    QVERIFY(panel.findChild<QPushButton *>("DiffusionGenerate")->isEnabled());
+    QVERIFY(panel.setRegionDestination(donorId, "source-id", "target-id"));
+    panel.setInputs({panel.inputs()[0]}); // remove the room
+    QVERIFY_EXCEPTION_THROWN(panel.prepareGeneration(), std::invalid_argument);
+    panel.showInputRegions(donorId);
+    auto *dialog = panel.findChild<QDialog *>("DiffusionPreviewDialog");
+    auto *view = dynamic_cast<DiffusionPreview *>(dialog->findChild<QWidget *>("DiffusionPreview"));
+    view->setSelectedRegion(0);
+    auto *destination = dialog->findChild<QComboBox *>("DiffusionRegionDestination");
+    QVERIFY(destination->isVisible()); // a removed scene must not hide the way to unlink
+    QVERIFY(destination->findData("__new_target__") < 0);
+    destination->setCurrentIndex(0);
+    destination->activated(0);
+    QVERIFY(panel.inputs()[0].regions[0].destinationId.isEmpty());
+    QCOMPARE(panel.outputSceneId(), donorId);
+    QVERIFY(panel.findChild<QPushButton *>("DiffusionGenerate")->isEnabled());
+    dialog->close();
+    QVERIFY(panel.addInput({room, "Room", "Test"}));
+    QVERIFY(panel.setOutputSceneId(panel.inputs()[1].id));
+    QVERIFY(panel.setRegionDestination(donorId, "source-id", "target-id"));
+    panel.setInputs({panel.inputs()[0]});
+    QVERIFY(panel.setInputRegions(donorId, {})); // deleting the linked source also repairs the scene choice
+    QCOMPARE(panel.outputSceneId(), donorId);
+    QVERIFY(panel.findChild<QPushButton *>("DiffusionGenerate")->isEnabled());
+  }
+  void outputFrameUsesSelectedSceneAndOutputAspect() {
+    DiffusionPanel panel;
+    panel.setConfiguration({{"profile", "flux3-image-klein-distilled"}});
+    QImage room(128, 64, QImage::Format_RGBA8888); room.fill(Qt::red);
+    QImage other(64, 64, QImage::Format_RGBA8888); other.fill(Qt::blue);
+    panel.setInputs({{other, "Other", "Test"}, {room, "Room", "Test"}});
+    panel.setResolution({128, 256});
+    QVERIFY(panel.setOutputSceneId(panel.inputs()[1].id));
+    panel.showOutputRegions();
+    auto *view = dynamic_cast<DiffusionPreview *>(panel.findChild<QWidget *>("DiffusionPreview"));
+    QVERIFY(view);
+    QCOMPARE(view->image().size(), QSize(128, 256));
+    QCOMPARE(view->image().pixelColor(64, 128), QColor(Qt::red));
+    QCOMPARE(view->image().pixelColor(64, 0).alpha(), 0); // proportionate fit, no stretching
+    panel.findChild<QDialog *>("DiffusionPreviewDialog")->close();
+  }
   void canvasCropTogglePreservesSnapshotAndRegions() {
     DiffusionPanel panel;
     panel.resize(560, 800); panel.showGeneration(); panel.show();

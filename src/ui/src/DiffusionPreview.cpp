@@ -173,6 +173,11 @@ void DiffusionPreview::setSelectedRegionLabel(const QString &label) {
   regions_[selected_].label = label.trimmed().left(200);
   changed();
 }
+void DiffusionPreview::setSelectedRegionDescription(const QString &description) {
+  if (selected_ < 0 || selected_ >= regions_.size() || regions_[selected_].targetOnly) return;
+  regions_[selected_].description = description.left(2000);
+  changed();
+}
 void DiffusionPreview::changed() {
   update();
   if (onRegionsChanged)
@@ -245,9 +250,10 @@ void DiffusionPreview::paintEvent(QPaintEvent *) {
     p.setPen(QPen(themeColor(ThemeColor::Accent), i == selected_ ? 2 : 1));
     p.setBrush(QColor(255, 140, 70, 18));
     p.drawRect(box);
-    const QString title = regions_[i].label.isEmpty()
+    QString title = regions_[i].label.isEmpty()
                               ? QString("Region%1").arg(i + 1)
                               : regions_[i].label;
+    if (regions_[i].targetOnly) title += " · Target";
     const auto label =
         p.fontMetrics().boundingRect(title).adjusted(-5, -3, 5, 3);
     QRectF labelBox(box.topLeft(), label.size());
@@ -319,7 +325,7 @@ void DiffusionPreview::mousePressEvent(QMouseEvent *e) {
       }))
         ++number;
       regions_.append({QRectF(start_, QSizeF()),
-                       QString("Region%1").arg(number), QUuid::createUuid().toString(QUuid::WithoutBraces)});
+                       QString("Region%1").arg(number), QUuid::createUuid().toString(QUuid::WithoutBraces), {}, {}, newRegionsAreTargets_});
       setSelectedRegion(int(regions_.size()) - 1);
       drag_ = Drag::Draw;
     }
@@ -377,6 +383,7 @@ void DiffusionPreview::mouseReleaseEvent(QMouseEvent *e) {
   if ((e->button() == Qt::MiddleButton && drag_ == Drag::Pan) ||
       (e->button() == Qt::LeftButton && drag_ != Drag::None &&
        drag_ != Drag::Pan)) {
+    const bool edited = drag_ == Drag::Draw || drag_ == Drag::Move || drag_ == Drag::Resize;
     updateDrag(e->position());
     if (drag_ == Drag::Draw && selected_ >= 0 &&
         (regions_[selected_].bounds.width() * image_.width() < 2 ||
@@ -385,6 +392,7 @@ void DiffusionPreview::mouseReleaseEvent(QMouseEvent *e) {
     drag_ = Drag::None;
     unsetCursor();
     changed();
+    if (edited && onRegionEditFinished) onRegionEditFinished();
     e->accept();
     return;
   }
