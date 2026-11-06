@@ -63,6 +63,13 @@ class ProtocolTests(unittest.TestCase):
         self.assertTrue(self.hello["devices"])
         self.assertIn("euler", self.hello["samplers"])
         self.assertTrue(any(p["id"] == "qwen-image-2.1-turbo" for p in self.hello["profiles"]))
+        krea = next(p for p in self.hello["profiles"] if p["id"] == "krea-2-turbo")
+        self.assertEqual(krea["modes"], ["generate"])
+        self.assertFalse(krea["referenceImages"])
+        self.assertEqual(krea["spatialGuidance"], "none")
+        self.assertEqual(krea["steps"], 8)
+        self.assertEqual(krea["guidance"], 1)
+        self.assertEqual(krea["scheduler"], "simple")
         status = self.call("status")["result"]
         self.assertFalse(status["loaded"])
         self.assertEqual(status["loadedModels"], [])

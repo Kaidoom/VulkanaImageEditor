@@ -225,9 +225,9 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
                       : nullptr;
     const auto *raster =
         layer ? std::get_if<core::RasterLayer>(&layer->payload) : nullptr;
-    edit->setEnabled(raster && raster->surface && !fileBusy_ &&
+    edit->setEnabled(diffusion_->panel->supportsMode(DiffusionPanel::Mode::Edit) && raster && raster->surface && !fileBusy_ &&
                      !workspaceDialog_);
-    fill->setEnabled(edit->isEnabled() && doc->selection() &&
+    fill->setEnabled(diffusion_->panel->supportsMode(DiffusionPanel::Mode::Fill) && edit->isEnabled() && doc->selection() &&
                      !doc->selection()->bounds().empty());
   });
   state->panel->onGenerate = [this, active] {
@@ -523,10 +523,12 @@ void MainWindow::openDiffusion(int requested) {
   const auto mode = requested < 0
                         ? s.panel->mode()
                         : static_cast<DiffusionPanel::Mode>(requested);
-  s.mode = mode;
   s.panel->setMode(mode);
-  if (requested >= 0 && mode != DiffusionPanel::Mode::Generate)
+  s.mode = s.panel->mode();
+  if (requested >= 0 && s.mode != DiffusionPanel::Mode::Generate)
     captureDiffusionSession();
+  if (s.mode != mode)
+    s.panel->setStatus("This model generates from text only. Choose an editing model to edit a layer or selection.");
   refreshDiffusion();
 }
 
@@ -601,7 +603,8 @@ void MainWindow::generateDiffusion() {
   auto &s = *diffusion_;
   try {
     s.mode = s.panel->mode();
-    if (s.mode != DiffusionPanel::Mode::Generate && s.panel->inputs().isEmpty())
+    const auto inputs = s.panel->supportsImageInputs() ? s.panel->inputs() : QVector<DiffusionPanel::Input>{};
+    if (s.mode != DiffusionPanel::Mode::Generate && inputs.isEmpty())
       throw std::runtime_error("Add an input image before generating an edit.");
     s.target.reset();
     s.owner.reset();
@@ -618,7 +621,7 @@ void MainWindow::generateDiffusion() {
         throw std::runtime_error(rendered.error.toStdString());
       s.before = srgb(rendered.image);
     } else if (s.mode == DiffusionPanel::Mode::Edit) {
-      const auto &input = s.panel->inputs().front();
+      const auto &input = inputs.front();
       s.before = input.image;
       const auto id = input.metadata["documentId"].toString().toULongLong();
       for (const auto &owner : documents_)
@@ -629,14 +632,14 @@ void MainWindow::generateDiffusion() {
     }
     s.jobContext = {s.owner, s.target, s.before, s.mode, {}, {}};
     if (s.mode == DiffusionPanel::Mode::Edit) {
-      s.jobContext.inputToDocument = s.panel->inputs().front().toDocument;
+      s.jobContext.inputToDocument = inputs.front().toDocument;
       s.jobContext.inputSize = s.before.size();
-      s.jobContext.croppedEdit = s.panel->inputs().front().cropToCanvas;
+      s.jobContext.croppedEdit = inputs.front().cropToCanvas;
     }
     s.jobDocuments.clear();
     if (s.owner)
       s.jobDocuments.insert(s.owner->id);
-    for (const auto &input : s.panel->inputs()) {
+    for (const auto &input : inputs) {
       bool ok = false;
       const auto id = input.metadata["documentId"].toString().toULongLong(&ok);
       if (ok)
@@ -671,8 +674,8 @@ void MainWindow::generateDiffusion() {
       initial = diffusionPrepareFillInput(s.before, fillMask);
     }
     QJsonArray refs;
-    for (int i = 0; i < s.panel->inputs().size(); ++i) {
-      const auto &input = s.panel->inputs()[i];
+    for (int i = 0; i < inputs.size(); ++i) {
+      const auto &input = inputs[i];
       auto image = srgb(input.image);
       if (!fillMask.isNull() && input.metadata["visibleCanvas"].toBool() &&
           input.metadata["documentId"].toString() == QString::number(s.owner->id) &&
@@ -1118,7 +1121,7 @@ void MainWindow::shutdownDiffusion() {
 }
 
 void MainWindow::addDiffusionInput(int sourceValue) {
-  if (!diffusion_ || diffusion_->panel->isBusy())
+  if (!diffusion_ || diffusion_->panel->isBusy() || !diffusion_->panel->supportsImageInputs())
     return;
   auto &s = *diffusion_;
   const auto source = static_cast<DiffusionPanel::InputSource>(sourceValue);

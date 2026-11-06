@@ -358,6 +358,40 @@ private slots:
     QCOMPARE(window->documentCount(), docs + 1);
     QCOMPARE(session().document()->canvas().extent.width, 64u);
   }
+  void generationOnlyModelOmitsRetainedEditingInputs() {
+    openMode("AIEditLayerAction");
+    const auto inputId = panel->inputs().front().id;
+    panel->setRegions({{QRectF(.1, .1, .4, .4), "Region1"}});
+    auto configuration = panel->configuration();
+    configuration["profile"] = "krea-2-turbo";
+    panel->setConfiguration(configuration);
+    QCOMPARE(panel->mode(), u::DiffusionPanel::Mode::Generate);
+    child<QMenu>("AIImageEditorMenu")->aboutToShow();
+    QVERIFY(!child<QAction>("AIEditLayerAction")->isEnabled());
+    QVERIFY(!child<QAction>("AIGenerativeFillAction")->isEnabled());
+    panel->onAddInput(u::DiffusionPanel::InputSource::File);
+    QVERIFY(!QApplication::activeModalWidget());
+    const auto revision = session().document()->revision();
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QCOMPARE(panel->results().size(), 1);
+    const auto request = panel->selectedResult()->metadata["request"].toObject();
+    for (const auto *field : {"referenceImages", "referenceMaxSize", "initialImage", "mask", "strength", "spatial"})
+      QVERIFY2(!request.contains(field), field);
+    QCOMPARE(panel->inputs().front().id, inputId);
+    QCOMPARE(session().document()->revision(), revision);
+    configuration["profile"] = "flux3-image-klein-distilled";
+    panel->setConfiguration(configuration);
+    child<QMenu>("AIImageEditorMenu")->aboutToShow();
+    QVERIFY(child<QAction>("AIEditLayerAction")->isEnabled());
+    panel->setMode(u::DiffusionPanel::Mode::Edit);
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QCOMPARE(panel->results().size(), 2);
+    const auto edit = panel->selectedResult()->metadata["request"].toObject();
+    QCOMPARE(edit["referenceImages"].toArray().size(), 1);
+    QVERIFY(edit.contains("spatial"));
+  }
   void editOtherDocumentAndReplacement() {
     const auto originalId = window->activeDocumentId();
     const auto original = native();

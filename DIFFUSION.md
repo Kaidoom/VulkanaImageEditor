@@ -6,7 +6,7 @@ Vulkana Diffusion is a local AI image editor powered by an isolated native worke
 
 Open **Edit → AI** and choose:
 
-- **Generate Image:** generate without a target. Optional references are still allowed, and other editing can continue during inference.
+- **Generate Image:** generate without a target. References can be added when the selected model supports them, and other editing can continue during inference.
 - **Edit Current Layer:** capture the selected raster layer as Image 1 and begin an editing session.
 - **Generative Fill:** capture the visible canvas and current soft selection, then restrict application of the result to that selection.
 - **AI Image Editor:** reopen the panel in its previous mode.
@@ -183,7 +183,13 @@ Generated PNGs are independently owned files under `job-<id>/`. Result objects i
 
 ## Model profiles and resource settings
 
-The profile registry is `src/diffusion/profiles.json`. Qwen Image 2.1 Turbo has been exercised with local GGUF components. Base Qwen needs independent validation with base weights; the distilled FLUX.3 profile has been exercised with local GGUF components. The engine checks the loaded architecture against the selected family; Turbo/base and distilled/base variants still require the user to choose the matching profile. A GGUF filename alone does not establish compatibility.
+The shared profile registry declares supported modes, image references, region guidance, negative prompts and sampling defaults. The panel disables unavailable modes and controls. Selecting a generation-only model switches the panel to Generate. Existing input images and regions stay available for switching back to a compatible model, and are omitted from generation-only requests. The worker also validates these capabilities before inference.
+
+**Krea 2 Turbo** supports text-to-image generation. Configure its diffusion weights, a compatible Qwen3-VL 4B text encoder and the Wan 2.1 VAE. Recommended starting settings are **1024 × 1024, 8 steps, Euler, Simple scheduler, Guidance 1 and Flow shift Auto (1.15)**. Dimensions must be multiples of 16. The Simple scheduler reproduces the published Turbo timestep spacing at eight steps. Krea's reference implementation uses CFG 0 to disable guidance, which corresponds to Guidance 1 in this worker. Higher guidance and alternative sampling settings remain adjustable for experimentation. Negative prompts become available above Guidance 1. [Official Turbo configuration and sampler](https://github.com/krea-ai/krea-2).
+
+Krea 2 Turbo's editing, image-input and region controls are disabled. Input files, initial images, masks and spatial requests are rejected by the worker for this profile. Generated results use the usual preview, comparison and undoable Apply workflow. Krea 2 Raw is not included.
+
+The profile registry is `src/diffusion/profiles.json`. Qwen Image 2.1 Turbo has been exercised with local GGUF components. Base Qwen needs independent validation with base weights; the distilled FLUX.3 and Krea 2 Turbo profiles have been exercised with local GGUF components. The engine checks the loaded architecture against the selected family; Turbo/base and distilled/base variants still require the user to choose the matching profile. A GGUF filename alone does not establish compatibility.
 
 Example `load` parameters:
 
@@ -247,7 +253,7 @@ Example `generate` parameters:
 | `initialImage`, `mask`, `strength` | Optional image-to-image input, matching-size grayscale mask, and strength 0–1 (default 0.75). Mask requires initialImage. |
 | `vaeTiling`, `vaeTileSize`, `vaeTileOverlap` | false / 256 / 0.25; tile size 64–2048 in multiples of 32, overlap 0–0.5. |
 | `preview`, `previewInterval` | true / every step by default; latent projection previews. |
-| `flowShift` | 0 selects the engine's model default; positive values override it. FLUX.3's default is 6.93. |
+| `flowShift` | 0 selects the engine's model default; positive values override it. FLUX.3's default is 6.93; Krea 2 Turbo uses 1.15. |
 | `eta` | -1 selects the sampler default; non-negative values override stochastic sampler noise. |
 | `cacheMode`, `cacheReuseThreshold`, `cacheStart`, `cacheEnd` | Experimental `disabled` / `easycache` / `ucache`; defaults disabled, 0.2, 0.15, 0.95. |
 | `spatial` | Optional output-layout schema `{version:1, regions:[{x,y,width,height,label}], annotationImage?:path}`. Version 2 additionally accepts `inputRegions:[{image:1, regions:[...]}]`, where `image` is a one-based entry in `referenceImages`, and optional FLUX-only `cropGuidance:boolean` (default false). Use `regions:[]` when there is no output layout. Bounds are normalized, finite and inside the relevant image. Qwen requires an annotation image only for output regions. |

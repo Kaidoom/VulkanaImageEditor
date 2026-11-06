@@ -1,4 +1,5 @@
 // Deterministic process fixture for editor transaction tests; never used by the app.
+#include <imageeditor/diffusion/ModelProfiles.h>
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
@@ -36,15 +37,7 @@ int main(int argc, char** argv)
         { "flux3NativeRegions", !qEnvironmentVariableIsSet("VULKANA_TEST_DIFFUSION_SPATIAL_V1") },
         { "spatialVersions", qEnvironmentVariableIsSet("VULKANA_TEST_DIFFUSION_SPATIAL_V1")
               ? QJsonArray { 1 } : QJsonArray { 1, 2, 3 } },
-        { "profiles",
-            QJsonArray { QJsonObject { { "id", "qwen-image-2.1-turbo" }, { "family", "qwen-image-2.1" },
-                { "name", "Qwen Image 2.1 Turbo" }, { "steps", 8 }, { "guidance", 1 }, { "sampler", "euler" },
-                { "schedule", "turbo" }, { "alignment", 32 }, { "maxReferenceImages", 8 },
-                { "spatialGuidance", "annotation" }, { "visionRequiredForReferences", true } },
-                QJsonObject { { "id", "flux3-image-klein-distilled" }, { "family", "flux3" },
-                    { "name", "FLUX.3" }, { "steps", 16 }, { "guidance", 1 }, { "sampler", "euler" },
-                    { "schedule", "auto" }, { "alignment", 32 }, { "maxReferenceImages", 10 },
-                    { "spatialGuidance", "structured-caption" }, { "visionRequiredForReferences", false } } } },
+        { "profiles", imageeditor::diffusion::modelProfiles() },
         { "devices", QJsonArray { QJsonObject { { "id", "CPU" }, { "name", "Test CPU" } } } },
         { "samplers", QJsonArray { "euler" } }, { "schedulers", QJsonArray { "discrete" } } });
     QByteArray input;

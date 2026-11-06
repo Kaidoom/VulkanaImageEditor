@@ -114,6 +114,64 @@ private slots:
     QTest::newRow("flux3") << QString("flux3-image-klein-distilled");
     QTest::newRow("qwen") << QString("qwen-image-2.1-turbo");
   }
+  void generationOnlyCapabilitiesKeepExistingInputs() {
+    DiffusionPanel panel;
+    panel.setConfiguration({{"profile", "flux3-image-klein-distilled"}});
+    QImage image(80, 64, QImage::Format_RGBA8888);
+    image.fill(Qt::blue);
+    QVERIFY(panel.addInput({image, "Reference", "Test"}));
+    const auto inputId = panel.inputs().front().id;
+    panel.setRegions({{QRectF(.1, .1, .4, .4), "Region1"}});
+    panel.setMode(DiffusionPanel::Mode::Fill);
+    panel.setConfiguration({{"profile", "krea-2-turbo"},
+      {"files", QJsonObject{{"diffusion", "/models/d.gguf"}, {"textEncoder", "/models/t.gguf"}, {"vae", "/models/v.safetensors"}}}});
+    QCOMPARE(panel.mode(), DiffusionPanel::Mode::Generate);
+    QVERIFY(panel.supportsMode(DiffusionPanel::Mode::Generate));
+    QVERIFY(!panel.supportsMode(DiffusionPanel::Mode::Edit));
+    QVERIFY(!panel.supportsMode(DiffusionPanel::Mode::Fill));
+    QVERIFY(!panel.supportsImageInputs());
+    QVERIFY(!panel.supportsRegions());
+    QVERIFY(!panel.addInput({image, "Ignored", "Test"}));
+    QVERIFY(!panel.findChild<QListWidget *>("DiffusionInputsList")->isEnabled());
+    QVERIFY(!panel.findChild<QPushButton *>("DiffusionRegionsButton")->isEnabled());
+    QVERIFY(!panel.findChild<QDoubleSpinBox *>("Diffusion_strength")->isEnabled());
+    auto *modes = panel.findChild<QComboBox *>("DiffusionMode");
+    QVERIFY(!(modes->model()->flags(modes->model()->index(1, 0)) & Qt::ItemIsEnabled));
+    QVERIFY(!(modes->model()->flags(modes->model()->index(2, 0)) & Qt::ItemIsEnabled));
+    panel.setMode(DiffusionPanel::Mode::Edit);
+    QCOMPARE(panel.mode(), DiffusionPanel::Mode::Generate);
+    QCOMPARE(panel.inputs().front().id, inputId);
+    QVERIFY(panel.spatialParameters().isEmpty());
+    const auto request = panel.prepareGeneration();
+    QCOMPARE(request["steps"].toInt(), 8);
+    QCOMPARE(request["guidance"].toDouble(), 1.0);
+    QCOMPARE(request["sampler"].toString(), QString("euler"));
+    QCOMPARE(request["scheduler"].toString(), QString("simple"));
+    QCOMPARE(request["schedule"].toString(), QString("auto"));
+    QVERIFY(!request.contains("strength"));
+    QVERIFY(!request.contains("referenceMaxSize"));
+    QVERIFY(panel.findChild<QPushButton *>("DiffusionGenerate")->isEnabled());
+    if (const auto capture = qEnvironmentVariable("VULKANA_DIFFUSION_PANEL_CAPTURE"); !capture.isEmpty()) {
+      panel.resize(520, 900);
+      panel.showGeneration();
+      panel.show();
+      QCoreApplication::processEvents();
+      QVERIFY(panel.grab().save(capture + "-generation-only.png"));
+    }
+    panel.findChild<QDoubleSpinBox *>("Diffusion_steps")->setValue(12);
+    panel.saveSettings();
+    DiffusionPanel restored;
+    QCOMPARE(restored.configuration()["profile"].toString(), QString("krea-2-turbo"));
+    QCOMPARE(restored.request()["steps"].toInt(), 12);
+    QVERIFY(!restored.supportsImageInputs());
+    panel.setConfiguration({{"profile", "flux3-image-klein-distilled"}});
+    QVERIFY(panel.supportsImageInputs());
+    QCOMPARE(panel.inputs().front().id, inputId);
+    QCOMPARE(panel.inputs().front().image, image);
+    QCOMPARE(panel.regions().size(), 1);
+    panel.setMode(DiffusionPanel::Mode::Edit);
+    QCOMPARE(panel.mode(), DiffusionPanel::Mode::Edit);
+  }
   void newFillStrengthDefaultsRemainAdjustable_data() {
     QTest::addColumn<QString>("profile");
     QTest::newRow("qwen-turbo") << QString("qwen-image-2.1-turbo");

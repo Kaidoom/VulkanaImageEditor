@@ -17,7 +17,12 @@
     "maxReferenceImages": 8,
     "spatialGuidance": "annotation",
     "negativePrompt": true,
-    "flowShift": 0
+    "flowShift": 0,
+    "modes": [
+      "generate",
+      "edit",
+      "fill"
+    ]
   },
   {
     "id": "qwen-image-2.1",
@@ -37,7 +42,12 @@
     "maxReferenceImages": 8,
     "spatialGuidance": "annotation",
     "negativePrompt": true,
-    "flowShift": 0
+    "flowShift": 0,
+    "modes": [
+      "generate",
+      "edit",
+      "fill"
+    ]
   },
   {
     "id": "flux3-image-klein-distilled",
@@ -58,6 +68,35 @@
     "nativeInpainting": false,
     "rgba": false,
     "spatialGuidance": "structured-caption",
+    "negativePrompt": true,
+    "modes": [
+      "generate",
+      "edit",
+      "fill"
+    ]
+  },
+  {
+    "id": "krea-2-turbo",
+    "name": "Krea 2 Turbo",
+    "family": "krea2",
+    "engineModel": "Krea2",
+    "tested": true,
+    "alignment": 16,
+    "steps": 8,
+    "guidance": 1,
+    "sampler": "euler",
+    "scheduler": "simple",
+    "schedule": "auto",
+    "flowShift": 1.15,
+    "modes": [
+      "generate"
+    ],
+    "referenceImages": false,
+    "maxReferenceImages": 0,
+    "visionRequiredForReferences": false,
+    "nativeInpainting": false,
+    "rgba": false,
+    "spatialGuidance": "none",
     "negativePrompt": true
   }
 ]

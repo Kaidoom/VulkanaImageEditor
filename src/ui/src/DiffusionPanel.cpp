@@ -501,6 +501,8 @@ struct DiffusionPanel::Impl {
     return {};
   }
   int maxInputs() const {
+    if (!q.supportsImageInputs())
+      return 0;
     const bool annotation =
         profile().value("spatialGuidance").toString() == "annotation" &&
         !regions.isEmpty();
@@ -511,7 +513,7 @@ struct DiffusionPanel::Impl {
     return profile().value("maxReferenceImages").toInt(8) -
            (annotation ? 1 : 0) - crops;
   }
-  bool referencesFit() const { return inputs.size() <= maxInputs(); }
+  bool referencesFit() const { return !q.supportsImageInputs() || inputs.size() <= maxInputs(); }
   void reportReferenceLimit() {
     if (!referencesFit()) {
       referenceLimitShown = true;
@@ -536,6 +538,7 @@ struct DiffusionPanel::Impl {
     return false;
   }
   QString transferError() const {
+    if (!q.supportsRegions()) return {};
     const bool flux = profile().value("family") == "flux3";
     if (hasTransfers() && !flux) return "Linked region transfers are available with FLUX.3. Unlink the destinations or select a FLUX configuration.";
     if (hasTransfers() && inputs.size() < 2) return "Linked transfers need at least two input images. Add the missing input or unlink the destinations.";
@@ -594,7 +597,7 @@ struct DiffusionPanel::Impl {
     models->setItemText(0, configured ? "Unsaved configuration"
                                       : "<Missing configuration>");
     const bool hasInputs = q.mode() == Mode::Generate || !inputs.isEmpty();
-    const bool nonempty = std::none_of(inputs.begin(), inputs.end(), [](const auto &in) { return in.image.isNull(); });
+    const bool nonempty = !q.supportsImageInputs() || std::none_of(inputs.begin(), inputs.end(), [](const auto &in) { return in.image.isNull(); });
     const auto linkError = transferError();
     generate->setEnabled(!busy && configured && hasInputs && nonempty && referencesFit() && linkError.isEmpty());
     for (auto *button : unloadButtons)
@@ -641,16 +644,19 @@ struct DiffusionPanel::Impl {
     profiles->setEnabled(!busy);
     mode->setEnabled(!busy);
     updateModeControls();
-    inputList->setEnabled(!busy);
-    maxInputSize->setEnabled(!busy);
+    inputList->setEnabled(!busy && q.supportsImageInputs());
+    inputList->setToolTip(q.supportsImageInputs() ? QString{} : "This model generates from text only. Stored inputs will be available when you switch to a compatible model.");
+    maxInputSize->setEnabled(!busy && q.supportsImageInputs());
+    if (auto *header = q.findChild<QToolButton *>("DiffusionInputsSectionHeader"))
+      header->setToolTip(inputList->toolTip());
     if (auto *add = inputList->item(int(inputs.size())))
       add->setFlags(!busy && inputs.size() < maxInputs() ? Qt::ItemIsEnabled
                                                          : Qt::NoItemFlags);
     const auto regionInput = inputIndex(regionSource->currentData().toString());
     const int regionCount = regionInput < 0 ? int(regions.size())
                                           : int(inputs[regionInput].regions.size());
-    clearRegions->setEnabled(!busy && regionCount > 0);
-    regionSource->setEnabled(!busy);
+    clearRegions->setEnabled(!busy && q.supportsRegions() && regionCount > 0);
+    regionSource->setEnabled(!busy && q.supportsRegions());
     cropGuidance->setVisible(profile().value("family") == "flux3");
     cropGuidance->setEnabled(!busy);
     if (outputSceneRow) outputSceneRow->setVisible(profile().value("family") == "flux3" && (inputs.size() > 1 || hasTransfers()));
@@ -667,8 +673,10 @@ struct DiffusionPanel::Impl {
       regionHint->setText(profile().value("spatialGuidance").toString() == "structured-caption"
           ? "Refer to output regions as <Output/Region1>. Regions guide placement; they do not protect pixels."
           : "Output placement guide. Use Generative Fill to protect pixels outside a selection.");
-    regionsButton->setEnabled(
-        !busy && profile().value("spatialGuidance").toString() != "none");
+    regionsButton->setEnabled(!busy && q.supportsRegions());
+    regionsButton->setToolTip(q.supportsRegions() ? QString{} : "Region guidance is unavailable for this model.");
+    if (!q.supportsRegions())
+      regionHint->setText("Region guidance is unavailable for this model.");
 
     if (auto *model =
             qobject_cast<QStandardItemModel *>(outputDestination->model()))
@@ -754,9 +762,11 @@ struct DiffusionPanel::Impl {
       imageToImage->setChecked(mode == Mode::Fill ||
                               (mode == Mode::Edit && editImageToImage));
     }
-    imageToImage->setEnabled(mode == Mode::Edit);
+    imageToImage->setEnabled(mode == Mode::Edit && q.supportsMode(Mode::Edit));
     imageToImage->setToolTip(
-        mode == Mode::Fill
+        !q.supportsMode(Mode::Edit) && !q.supportsMode(Mode::Fill)
+            ? "This model generates from text only. Image-to-image denoising is unavailable."
+        : mode == Mode::Fill
             ? "Always used for Generative Fill. The canvas is the starting "
               "image; the selection limits where the result is applied."
         : mode == Mode::Edit
@@ -766,7 +776,9 @@ struct DiffusionPanel::Impl {
               "always used for Generative Fill.");
     sampling["strength"]->setEnabled(q.imageToImageEnabled());
     sampling["strength"]->setToolTip(
-        q.imageToImageEnabled()
+        !q.supportsMode(Mode::Edit) && !q.supportsMode(Mode::Fill)
+            ? "Denoising strength is available for models that edit input images."
+        : q.imageToImageEnabled()
             ? "Lower values retain more of the starting image. Try 1.0 for "
               "larger changes or new objects."
         : mode == Mode::Edit
@@ -777,6 +789,21 @@ struct DiffusionPanel::Impl {
   }
   void updateCapabilities(bool defaults) {
     const auto p = profile();
+    if (auto *items = qobject_cast<QStandardItemModel *>(mode->model())) {
+      for (const auto value : {Mode::Generate, Mode::Edit, Mode::Fill}) {
+        const bool supported = q.supportsMode(value);
+        items->item(int(value))->setEnabled(supported);
+        items->item(int(value))->setToolTip(supported ? QString{} : "This mode is unavailable for the selected model.");
+      }
+    }
+    if (!q.supportsMode(q.mode())) {
+      const QSignalBlocker block(mode);
+      mode->setCurrentIndex(int(Mode::Generate));
+    }
+    const int alignment = p.value("alignment").toInt(32);
+    width->setSingleStep(alignment);
+    height->setSingleStep(alignment);
+    q.setResolution({width->value(), height->value()});
     const bool qwen = p.value("family").toString() == "qwen-image-2.1";
     const bool manual =
         qobject_cast<QComboBox *>(resource["weights"])->currentData() ==
@@ -840,8 +867,8 @@ struct DiffusionPanel::Impl {
         "Controls how noise levels are spaced. Available with the auto sigma schedule.");
     sampling["flowShift"]->setEnabled(schedule == "auto");
     sampling["flowShift"]->setToolTip(
-        "Adjusts the flow schedule. Available with the auto sigma schedule. "
-        "Auto uses the model default; FLUX.3 recommends 6.93.");
+        QString("Adjusts the flow schedule. Available with the auto sigma schedule. Auto uses the model default (%1).")
+            .arg(p.value("flowShift").toDouble()));
     auto *scheduleCombo = qobject_cast<QComboBox *>(sampling["schedule"]);
     if (auto *items =
             qobject_cast<QStandardItemModel *>(scheduleCombo->model()))
@@ -2068,6 +2095,18 @@ DiffusionPanel::~DiffusionPanel() {
 DiffusionPanel::Mode DiffusionPanel::mode() const {
   return Mode(d->mode->currentIndex());
 }
+bool DiffusionPanel::supportsMode(Mode mode) const {
+  const auto modes = d->profile().value("modes");
+  if (!modes.isArray()) return true; // Older worker profiles supported all three modes.
+  const QStringList names{"generate", "edit", "fill"};
+  return modes.toArray().contains(names.value(int(mode)));
+}
+bool DiffusionPanel::supportsImageInputs() const {
+  return d->profile().value("referenceImages").toBool(true);
+}
+bool DiffusionPanel::supportsRegions() const {
+  return d->profile().value("spatialGuidance").toString("none") != "none";
+}
 void DiffusionPanel::showGeneration() { d->tabs->setCurrentIndex(1); }
 void DiffusionPanel::showResults() { d->tabs->setCurrentIndex(2); }
 void DiffusionPanel::setMode(Mode value, bool notify) {
@@ -2076,7 +2115,7 @@ void DiffusionPanel::setMode(Mode value, bool notify) {
   d->updateCapabilities(false);
   d->rebuildInputs();
   if (notify && onModeChanged)
-    onModeChanged(value);
+    onModeChanged(mode());
 }
 DiffusionPanel::Destination DiffusionPanel::destination() const {
   return Destination(d->outputDestination->currentIndex());
@@ -2085,8 +2124,8 @@ void DiffusionPanel::setDestination(Destination value) {
   d->outputDestination->setCurrentIndex(int(value));
 }
 bool DiffusionPanel::imageToImageEnabled() const {
-  return mode() == Mode::Fill ||
-         (mode() == Mode::Edit && d->editImageToImage);
+  return (supportsMode(Mode::Fill) && mode() == Mode::Fill) ||
+         (supportsMode(Mode::Edit) && mode() == Mode::Edit && d->editImageToImage);
 }
 QString DiffusionPanel::workerExecutable() const { return d->workerOverride; }
 void DiffusionPanel::setWorkerExecutable(const QString &path) {
@@ -2121,7 +2160,8 @@ QJsonObject DiffusionPanel::configuration() const {
 }
 QJsonObject DiffusionPanel::generationParameters() const {
   auto params = controls(d->sampling);
-  params["referenceMaxSize"] = d->maxInputSize->value();
+  if (supportsImageInputs())
+    params["referenceMaxSize"] = d->maxInputSize->value();
   if (!d->sampling["eta"]->isEnabled())
     params.remove("eta");
   if (!imageToImageEnabled())
@@ -2148,7 +2188,7 @@ QJsonObject DiffusionPanel::generationParameters() const {
 QJsonObject DiffusionPanel::prepareGeneration() {
   if (const auto error = d->transferError(); !error.isEmpty())
     throw std::invalid_argument(error.toStdString());
-  if (std::any_of(d->inputs.begin(), d->inputs.end(), [](const auto &in) { return in.image.isNull(); }))
+  if (supportsImageInputs() && std::any_of(d->inputs.begin(), d->inputs.end(), [](const auto &in) { return in.image.isNull(); }))
     throw std::invalid_argument("A cropped layer is outside its canvas. Restore or remove that input.");
   if (!d->referencesFit())
     throw std::invalid_argument("Images and region guides exceed the model's reference limit. Remove an image or region.");
@@ -2310,6 +2350,10 @@ const QVector<DiffusionPanel::Input> &DiffusionPanel::inputs() const {
   return d->inputs;
 }
 bool DiffusionPanel::addInput(Input input) {
+  if (!supportsImageInputs()) {
+    setStatus("This model generates from text only. Choose a compatible model to add input images.");
+    return false;
+  }
   if (input.image.isNull())
     return false;
   if (d->inputs.size() >= d->maxInputs()) {
@@ -2419,6 +2463,7 @@ bool DiffusionPanel::setOutputSceneId(const QString &id) {
   d->outputSceneId = id; d->rebuildScenes(); d->updateActions(); return true;
 }
 QJsonObject DiffusionPanel::spatialParameters() const {
+  if (!supportsRegions()) return {};
   const auto output = regionsJson(), inputs = inputRegionsJson();
   const bool flux = d->profile().value("family") == "flux3";
   if (output.isEmpty() && inputs.isEmpty() && !(flux && outputSceneIndex() > 0)) return {};
@@ -2447,7 +2492,7 @@ bool DiffusionPanel::setRegionDestination(const QString &inputId, const QString 
   d->updateActions(); return true;
 }
 void DiffusionPanel::showOutputRegions() {
-  if (d->busy) return;
+  if (d->busy || !supportsRegions()) return;
   if (d->profile().value("family") == "flux3")
     d->showPreview(d->outputLayoutImage(), {}, "Output layout", true);
   else {
@@ -2473,7 +2518,7 @@ bool DiffusionPanel::setInputRegions(const QString &id, QVector<DiffusionRegion>
 }
 void DiffusionPanel::showInputRegions(const QString &id) {
   const int index = d->inputIndex(id);
-  if (index < 0 || d->busy)
+  if (index < 0 || d->busy || !supportsRegions())
     return;
   select(d->regionSource, id);
   d->showPreview(d->inputs[index].image, {},

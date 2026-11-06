@@ -640,6 +640,18 @@ Json Worker::generate(const Json& p)
             "spatial", "eta", "cacheMode", "cacheReuseThreshold", "cacheStart", "cacheEnd", "referenceMaxSize" });
     if (!context)
         throw Failure("model_not_loaded", "Load a model before generating");
+    const auto modes = loadedProfile.value("modes", Json::array({"generate", "edit", "fill"}));
+    const auto supportsMode = [&](const char* mode) {
+        return std::find(modes.begin(), modes.end(), mode) != modes.end();
+    };
+    const std::string modelName = loadedProfile["name"];
+    require(loadedProfile.value("referenceImages", true) || !p.contains("referenceImages"),
+        modelName + " generates from text only; reference images are unavailable");
+    require(supportsMode("edit") || supportsMode("fill") || (!p.contains("initialImage") && !p.contains("strength")),
+        modelName + " does not support image-to-image denoising");
+    require(supportsMode("fill") || !p.contains("mask"), modelName + " does not support Generative Fill");
+    require(loadedProfile.value("spatialGuidance", "none") != "none" || !p.contains("spatial"),
+        modelName + " does not support region guidance");
     auto prompt = str(p, "prompt");
     const bool nativeFlux = loadedProfile["family"] == "flux3";
     const auto negative = str(p, "negativePrompt");
@@ -681,7 +693,8 @@ Json Worker::generate(const Json& p)
         "negativePrompt requires guidance greater than 1; it is not used with CFG 1");
     const double seed = number(p, "seed", -1, -1, 9007199254740991.0);
     require(std::floor(seed) == seed, "seed must be an integer");
-    const auto sampler = str(p, "sampler", loadedProfile["sampler"]), scheduler = str(p, "scheduler", "auto");
+    const auto sampler = str(p, "sampler", loadedProfile["sampler"]),
+               scheduler = str(p, "scheduler", loadedProfile.value("scheduler", "auto"));
     sample_method_t method = SAMPLE_METHOD_COUNT;
     for (int i = 0; i < SAMPLE_METHOD_COUNT; ++i)
         if (sampler == sample_method_to_str[i])

@@ -49,6 +49,9 @@ public:
   explicit DiffusionPanel(QWidget *parent = nullptr);
   ~DiffusionPanel() override;
   Mode mode() const;
+  bool supportsMode(Mode mode) const;
+  bool supportsImageInputs() const;
+  bool supportsRegions() const;
   void showGeneration();
   void showResults();
   QJsonObject prepareGeneration();
