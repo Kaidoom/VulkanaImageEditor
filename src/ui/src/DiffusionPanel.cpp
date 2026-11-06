@@ -3,6 +3,7 @@
 #include "imageeditor/ui/DiffusionSpatial.hpp"
 #include "imageeditor/diffusion/ModelProfiles.h"
 #include "imageeditor/diffusion/PromptPresets.h"
+#include "imageeditor/diffusion/Resolution.h"
 #include "imageeditor/ui/CollapsibleSection.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
@@ -38,6 +39,7 @@
 #include <QPushButton>
 #include <QRandomGenerator>
 #include <QScreen>
+#include <QScopedValueRollback>
 #include <QScrollArea>
 #include <QSettings>
 #include <QSet>
@@ -389,6 +391,9 @@ struct DiffusionPanel::Impl {
   bool canUnloadModels{};
   QPlainTextEdit *prompt{}, *negative{}, *sigmas{};
   QSpinBox *width{}, *height{}, *maxInputSize{};
+  QComboBox *aspectRatio{}, *megapixels{}, *resolutionMultiple{};
+  QLabel *resolutionRequirement{};
+  bool updatingResolution{};
   QCheckBox *imageToImage{};
   QCheckBox *cropGuidance{};
   QWidget *modeSettings{};
@@ -501,6 +506,47 @@ struct DiffusionPanel::Impl {
       if (p.toObject()["id"].toString() == id)
         return p.toObject();
     return {};
+  }
+  void writeResolution(QSize size) {
+    QScopedValueRollback<bool> guard(updatingResolution, true);
+    width->setValue(size.width());
+    height->setValue(size.height());
+  }
+  void setAlignedSize(QSize size) {
+    const int alignment = profile().value("alignment").toInt(32);
+    writeResolution({std::max(alignment, ((size.width() + alignment - 1) / alignment) * alignment),
+                     std::max(alignment, ((size.height() + alignment - 1) / alignment) * alignment)});
+  }
+  void detectAspectRatio() {
+    const double current = double(width->value()) / height->value();
+    int best = aspectRatio->count() - 1; // Custom
+    double bestError = .01; // Allow one percent for dimensions rounded to a multiple.
+    for (int index = 0; index < aspectRatio->count() - 1; ++index) {
+      const auto ratio = aspectRatio->itemData(index).toSize();
+      const double error = std::abs(current / (double(ratio.width()) / ratio.height()) - 1);
+      if (error <= bestError) {
+        best = index;
+        bestError = error;
+      }
+    }
+    const QSignalBlocker block(aspectRatio);
+    aspectRatio->setCurrentIndex(best);
+  }
+  void applyResolutionPreset() {
+    const auto ratio = aspectRatio->currentData().toSize();
+    if (ratio.isEmpty()) return;
+    const double pixels = megapixels->currentData().toDouble() * 1024 * 1024;
+    const double scale = std::sqrt(pixels / (ratio.width() * ratio.height()));
+    const int selected = resolutionMultiple->currentData().toInt();
+    const int multiple = selected ? selected : profile().value("alignment").toInt(32);
+    const auto rounded = [multiple](double dimension) {
+      const double units = dimension / multiple;
+      const double lower = std::floor(units);
+      // Match the reference's nearest-multiple rounding, including ties to even.
+      const double nearest = units - lower == .5 ? lower + std::fmod(lower, 2.0) : std::round(units);
+      return int(nearest) * multiple;
+    };
+    writeResolution({rounded(ratio.width() * scale), rounded(ratio.height() * scale)});
   }
   int maxInputs() const {
     if (!q.supportsImageInputs())
@@ -806,7 +852,12 @@ struct DiffusionPanel::Impl {
     const int alignment = p.value("alignment").toInt(32);
     width->setSingleStep(alignment);
     height->setSingleStep(alignment);
-    q.setResolution({width->value(), height->value()});
+    // Discovery, configuration and mode changes must not rewrite a size already
+    // captured for a job (or one the user is still choosing).
+    resolutionRequirement->setText(QString("%1: width and height must be multiples of %2.")
+                                      .arg(p.value("name").toString()).arg(alignment));
+    resolutionMultiple->setItemText(0, QString("Auto (%1)").arg(alignment));
+    resolutionMultiple->setToolTip("Auto uses the selected model's required multiple.");
     const bool qwen = p.value("family").toString() == "qwen-image-2.1";
     const bool manual =
         qobject_cast<QComboBox *>(resource["weights"])->currentData() ==
@@ -1358,7 +1409,9 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   layout->addWidget(d->loras->generationSection());
   auto *essentials = new QVBoxLayout;
   auto *outputRow = new QHBoxLayout;
+  outputRow->setObjectName("DiffusionSizeRow");
   outputRow->setSpacing(4);
+  outputRow->addStretch();
   outputRow->addWidget(new QLabel("Size"));
   d->width = new ScrollSafe<QSpinBox>;
   d->height = new ScrollSafe<QSpinBox>;
@@ -1393,6 +1446,51 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
       onResetSize();
   });
   essentials->addLayout(outputRow);
+  QVBoxLayout *resolutionLayout{};
+  essentials->addWidget(section("Resolution Selector", "DiffusionResolution", resolutionLayout));
+  auto *resolutionForm = form(resolutionLayout);
+  d->aspectRatio = new ScrollSafe<QComboBox>;
+  d->aspectRatio->setObjectName("DiffusionAspectRatio");
+  d->aspectRatio->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+  d->aspectRatio->setMinimumContentsLength(6);
+  const QVector<QPair<QString, QSize>> ratios{
+      {"1:1 (Square)", {1, 1}}, {"2:3 (Portrait Photo)", {2, 3}},
+      {"3:2 (Photo)", {3, 2}}, {"3:4 (Portrait Standard)", {3, 4}},
+      {"4:3 (Standard)", {4, 3}}, {"9:16 (Portrait Widescreen)", {9, 16}},
+      {"16:9 (Widescreen)", {16, 9}}, {"21:9 (Ultrawide)", {21, 9}}, {"Custom", {}}};
+  for (const auto &[name, ratio] : ratios)
+    d->aspectRatio->addItem(name, ratio);
+  d->aspectRatio->setToolTip("Choose a ratio to calculate the output size. Custom keeps the current dimensions.");
+  resolutionForm->addRow("Aspect Ratio", d->aspectRatio);
+  d->megapixels = new ScrollSafe<QComboBox>;
+  d->megapixels->setObjectName("DiffusionMegapixels");
+  for (int tenths = 1; tenths <= 160; ++tenths)
+    d->megapixels->addItem(QString("%1 MP").arg(tenths / 10.0, 0, 'f', 1), tenths / 10.0);
+  d->megapixels->setCurrentIndex(9);
+  d->megapixels->setMaxVisibleItems(12);
+  d->megapixels->setToolTip("Approximate pixel count. 1.0 MP is 1024 × 1024 for Square. Rounding can change the total.");
+  resolutionForm->addRow("Megapixels", d->megapixels);
+  d->resolutionMultiple = new ScrollSafe<QComboBox>;
+  d->resolutionMultiple->setObjectName("DiffusionResolutionMultiple");
+  d->resolutionMultiple->addItem("Auto", 0);
+  for (int multiple = 8; multiple <= 128; multiple += 4)
+    d->resolutionMultiple->addItem(QString::number(multiple), multiple);
+  d->resolutionMultiple->setMaxVisibleItems(12);
+  d->resolutionMultiple->setToolTip("Round each dimension to the nearest multiple.");
+  resolutionForm->addRow("Multiple", d->resolutionMultiple);
+  d->resolutionRequirement = new QLabel;
+  d->resolutionRequirement->setObjectName("DiffusionResolutionRequirement");
+  d->resolutionRequirement->setWordWrap(true);
+  resolutionLayout->addWidget(d->resolutionRequirement);
+  connect(d->aspectRatio, &QComboBox::activated, this, [this] { d->applyResolutionPreset(); });
+  for (auto *selector : {d->megapixels, d->resolutionMultiple})
+    connect(selector, &QComboBox::currentIndexChanged, this, [this] { d->applyResolutionPreset(); });
+  for (auto *dimension : {d->width, d->height})
+    connect(dimension, &QSpinBox::valueChanged, this, [this] {
+      if (d->updatingResolution) return;
+      const QSignalBlocker block(d->aspectRatio);
+      d->aspectRatio->setCurrentIndex(d->aspectRatio->count() - 1);
+    });
   auto *seedRow = new QHBoxLayout;
   seedRow->addWidget(new QLabel("Seed"));
   d->seed = new QLineEdit("0");
@@ -1897,6 +1995,8 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   });
   connect(d->profiles, &QComboBox::currentIndexChanged, this, [this] {
     d->updateCapabilities(true);
+    if (!d->updating && d->resolutionMultiple->currentData().toInt() == 0)
+      d->applyResolutionPreset();
     if (!d->updating && onConfigurationChanged)
       onConfigurationChanged();
   });
@@ -1907,6 +2007,7 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
     d->configModels->setCurrentIndex(d->models->currentIndex());
     if (d->updating)
       return;
+    const auto previousProfile = d->profiles->currentData();
     const auto id = d->models->currentData().toString();
     if (id.isEmpty()) {
       d->hasExplicitStrength = false;
@@ -1928,6 +2029,9 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
       }
     }
     d->updateCapabilities(false);
+    if (previousProfile != d->profiles->currentData() &&
+        d->resolutionMultiple->currentData().toInt() == 0)
+      d->applyResolutionPreset();
     if (onConfigurationChanged)
       onConfigurationChanged();
   });
@@ -2084,6 +2188,7 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   setMode(Mode(std::clamp(settings.value("diffusion/mode", 0).toInt(), 0, 2)));
   d->updateCapabilities(false);
   d->rebuildInputs();
+  d->detectAspectRatio();
   connect(d->backend, &QComboBox::currentIndexChanged, this, [this] {
     // Device IDs belong to a backend, so don't carry a CUDA ID into Vulkan.
     select(qobject_cast<QComboBox *>(d->resource["device"]), QString{});
@@ -2198,6 +2303,12 @@ QJsonObject DiffusionPanel::generationParameters() const {
   return params;
 }
 QJsonObject DiffusionPanel::prepareGeneration() {
+  const auto profile = d->profile();
+  const int alignment = profile.value("alignment").toInt(32);
+  const auto sizeError = diffusion::resolutionError(d->width->value(), d->height->value(),
+      alignment, profile.value("name").toString().toStdString());
+  if (!sizeError.empty())
+    throw std::invalid_argument(sizeError);
   if (const auto error = d->transferError(); !error.isEmpty())
     throw std::invalid_argument(error.toStdString());
   if (supportsImageInputs() && std::any_of(d->inputs.begin(), d->inputs.end(), [](const auto &in) { return in.image.isNull(); }))
@@ -2360,9 +2471,8 @@ void DiffusionPanel::setConfiguration(const QJsonObject &config,
   d->updateCapabilities(false);
 }
 void DiffusionPanel::setResolution(QSize size) {
-  const int a = d->profile().value("alignment").toInt(32);
-  d->width->setValue(std::max(a, ((size.width() + a - 1) / a) * a));
-  d->height->setValue(std::max(a, ((size.height() + a - 1) / a) * a));
+  d->setAlignedSize(size);
+  d->detectAspectRatio();
 }
 const QVector<DiffusionPanel::Input> &DiffusionPanel::inputs() const {
   return d->inputs;

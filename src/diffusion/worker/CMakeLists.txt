@@ -40,7 +40,7 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../profiles.json" profile_json)
 configure_file(Profiles.h.in "${CMAKE_CURRENT_BINARY_DIR}/Profiles.h" @ONLY)
 add_executable(vulkana-diffusion-worker main.cpp)
-target_include_directories(vulkana-diffusion-worker PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+target_include_directories(vulkana-diffusion-worker PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" "../include")
 target_include_directories(vulkana-diffusion-worker PRIVATE
     "${VULKANA_DIFFUSION_ENGINE_DIR}/include" "${VULKANA_DIFFUSION_ENGINE_DIR}/thirdparty")
 target_link_libraries(vulkana-diffusion-worker PRIVATE stable-diffusion Threads::Threads)

@@ -4,6 +4,7 @@
 #include "SpatialGuidance.h"
 #include "FluxSpatial.h"
 #include "LoraReport.h"
+#include <imageeditor/diffusion/Resolution.h>
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "ReferenceSizing.h"
 #include <json.hpp>
@@ -711,8 +712,8 @@ Json Worker::generate(const Json& p)
     require(!prompt.empty(), "prompt is required");
     const int width = integer(p, "width", 1024, 32, 8192), height = integer(p, "height", 1024, 32, 8192);
     const int alignment = loadedProfile["alignment"];
-    require(width % alignment == 0 && height % alignment == 0,
-        "width and height must be multiples of " + std::to_string(alignment));
+    const auto sizeError = imageeditor::diffusion::resolutionError(width, height, alignment, modelName);
+    require(sizeError.empty(), sizeError);
     const int steps = integer(p, "steps", loadedProfile["steps"], 1, 1000),
               batch = integer(p, "batch", 1, 1, 8);
     require(

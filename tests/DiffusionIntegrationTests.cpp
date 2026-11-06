@@ -455,6 +455,100 @@ private slots:
     QVERIFY(!result["request"].toObject().contains("loras"));
     QCOMPARE(result["contextGeneration"], context);
   }
+  void resolutionSelectorNativeEditsAndMatchActions() {
+    openMode("AIGenerateImageAction");
+    auto *ratio = panel->findChild<QComboBox *>("DiffusionAspectRatio");
+    auto *width = panel->findChild<QSpinBox *>("DiffusionWidth");
+    auto *height = panel->findChild<QSpinBox *>("DiffusionHeight");
+    QCOMPARE(ratio->currentData().toSize(), QSize(1, 1));
+    const auto revision = session().document()->revision();
+    panel->findChild<QToolButton *>("DiffusionResolutionSectionHeader")->click();
+    for (auto *field : {width, height}) {
+      panel->findChild<QScrollArea *>("DiffusionGenerationPage")->ensureWidgetVisible(field);
+      QCoreApplication::processEvents();
+      QTest::mouseClick(field, Qt::LeftButton, {}, QPoint(25, field->height() / 2));
+      QTRY_VERIFY(field->hasFocus());
+      field->selectAll();
+      for (auto digit : QString("1024")) {
+        QKeyEvent key(QEvent::KeyPress, digit.unicode(), Qt::NoModifier, QString(digit));
+        QCoreApplication::sendEvent(window->windowHandle(), &key);
+      }
+      QKeyEvent enter(QEvent::KeyPress, Qt::Key_Return, Qt::NoModifier);
+      QCoreApplication::sendEvent(window->windowHandle(), &enter);
+      QCOMPARE(field->value(), 1024);
+      QCOMPARE(ratio->currentText(), QString("Custom"));
+    }
+    child<QToolButton>("DiffusionResetSize")->click();
+    QCOMPARE(width->value(), 64);
+    QCOMPARE(height->value(), 64);
+    QCOMPARE(ratio->currentData().toSize(), QSize(1, 1));
+    QImage reference(128, 192, QImage::Format_RGBA8888);
+    reference.fill(Qt::blue);
+    QVERIFY(panel->addInput({reference, "Portrait", "Test"}));
+    child<QListWidget>("DiffusionInputsList")->setCurrentRow(0);
+    child<QToolButton>("DiffusionMatchSelectedSize")->click();
+    QCOMPARE(width->value(), 128);
+    QCOMPARE(height->value(), 192);
+    QCOMPARE(ratio->currentData().toSize(), QSize(2, 3));
+    QCOMPARE(panel->findChild<QComboBox *>("DiffusionMegapixels")->currentData().toDouble(), 1.0);
+    panel->clearInputs();
+    child<QToolButton>("DiffusionMatchSelectedSize")->click();
+    QCOMPARE(width->value(), 64);
+    QCOMPARE(height->value(), 64);
+    QCOMPARE(ratio->currentData().toSize(), QSize(1, 1));
+    QCOMPARE(session().document()->revision(), revision);
+  }
+  void incompatibleResolutionFailsBeforeWorkerStartupAndRecovers() {
+    openMode("AIGenerateImageAction");
+    auto config = panel->configuration();
+    config["profile"] = "krea-2-turbo";
+    panel->setConfiguration(config);
+    auto *ratio = child<QComboBox>("DiffusionAspectRatio");
+    auto *multiple = child<QComboBox>("DiffusionResolutionMultiple");
+    auto *width = child<QSpinBox>("DiffusionWidth");
+    auto *height = child<QSpinBox>("DiffusionHeight");
+    ratio->setCurrentIndex(ratio->findData(QSize(2, 3)));
+    ratio->activated(ratio->currentIndex());
+    width->setValue(841);
+    height->setValue(1257);
+    const auto revision = session().document()->revision();
+    const auto worker = panel->workerExecutable();
+    // A missing worker would fail discovery if validation did not run first.
+    panel->setWorkerExecutable(temporary.filePath("missing-worker"));
+    generate();
+    QVERIFY(!panel->isBusy());
+    QVERIFY(panel->results().isEmpty());
+    QVERIFY(child<QLabel>("DiffusionLoadedModelsEmpty"));
+    bool sawSizeError = false;
+    for (auto *label : panel->findChildren<QLabel *>())
+      sawSizeError |= label->text() == "Invalid resolution: 841 × 1257. Krea 2 Turbo requires dimensions divisible by 8. Try 840 × 1256 or 848 × 1264.";
+    QVERIFY(sawSizeError);
+    QCOMPARE(QSize(width->value(), height->value()), QSize(841, 1257));
+    QCOMPARE(session().document()->revision(), revision);
+
+    panel->setWorkerExecutable(worker);
+    ratio->setCurrentIndex(ratio->findData(QSize(2, 3)));
+    ratio->activated(ratio->currentIndex());
+    QCOMPARE(QSize(width->value(), height->value()), QSize(840, 1256));
+    generate(); // first handshake must not change the accepted request
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QCOMPARE(panel->results().size(), 1);
+    QCOMPARE(panel->selectedResult()->image.size(), QSize(840, 1256));
+    QCOMPARE(QSize(width->value(), height->value()), QSize(840, 1256));
+    QCOMPARE(session().document()->revision(), revision);
+    multiple->setCurrentIndex(multiple->findData(16));
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QCOMPARE(panel->results().size(), 2);
+    QCOMPARE(panel->selectedResult()->image.size(), QSize(832, 1248));
+    width->setValue(841);
+    height->setValue(1257);
+    generate(); // Same early rejection with an already-loaded worker.
+    QVERIFY(!panel->isBusy());
+    QCOMPARE(panel->results().size(), 2);
+    QCOMPARE(QSize(width->value(), height->value()), QSize(841, 1257));
+    QCOMPARE(session().document()->revision(), revision);
+  }
   void editOtherDocumentAndReplacement() {
     const auto originalId = window->activeDocumentId();
     const auto original = native();

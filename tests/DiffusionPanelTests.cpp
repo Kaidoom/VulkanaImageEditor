@@ -1,4 +1,5 @@
 #include "imageeditor/diffusion/ModelProfiles.h"
+#include "imageeditor/diffusion/Resolution.h"
 #include "imageeditor/ui/DiffusionPanel.hpp"
 #include "imageeditor/ui/DiffusionPreview.hpp"
 #include "imageeditor/ui/Theme.hpp"
@@ -7,6 +8,7 @@
 #include <QComboBox>
 #include <QDialog>
 #include <QDoubleSpinBox>
+#include <QHBoxLayout>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
@@ -18,6 +20,7 @@
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QSettings>
+#include <QSignalSpy>
 #include <QSpinBox>
 #include <QStandardPaths>
 #include <QTabWidget>
@@ -496,6 +499,229 @@ private slots:
     QVERIFY(generate->isEnabled());
     QVERIFY(!tabs->widget(1)->isAncestorOf(steps));
     QVERIFY(tabs->widget(0)->isAncestorOf(steps));
+  }
+  void resolutionSelectorSynchronization() {
+    DiffusionPanel panel;
+    auto *width = panel.findChild<QSpinBox *>("DiffusionWidth");
+    auto *height = panel.findChild<QSpinBox *>("DiffusionHeight");
+    auto *ratio = panel.findChild<QComboBox *>("DiffusionAspectRatio");
+    auto *mp = panel.findChild<QComboBox *>("DiffusionMegapixels");
+    auto *multiple = panel.findChild<QComboBox *>("DiffusionResolutionMultiple");
+    auto *header = panel.findChild<QToolButton *>("DiffusionResolutionSectionHeader");
+    const auto size = [&] { return QSize(width->value(), height->value()); };
+    const auto choose = [&](QSize preset) {
+      ratio->setCurrentIndex(ratio->findData(preset));
+      ratio->activated(ratio->currentIndex());
+    };
+    QVERIFY(!header->isChecked());
+    QCOMPARE(size(), QSize(1024, 1024));
+    QCOMPARE(ratio->currentData().toSize(), QSize(1, 1));
+    QCOMPARE(mp->currentData().toDouble(), 1.0);
+    QCOMPARE(multiple->currentData().toInt(), 0);
+    QVERIFY(multiple->currentText().startsWith("Auto"));
+    multiple->setCurrentIndex(multiple->findData(8));
+    header->click();
+    QCOMPARE(size(), QSize(1024, 1024));
+    QSignalSpy widthChanges(width, &QSpinBox::valueChanged);
+    QSignalSpy heightChanges(height, &QSpinBox::valueChanged);
+    choose({16, 9});
+    QCOMPARE(size(), QSize(1368, 768));
+    QCOMPARE(widthChanges.count(), 1);
+    QCOMPARE(heightChanges.count(), 1);
+    QCOMPARE(panel.request()["width"].toInt(), 1368);
+    choose({1, 1});
+    mp->setCurrentIndex(mp->findData(2.0));
+    QCOMPARE(size(), QSize(1448, 1448));
+    multiple->setCurrentIndex(multiple->findData(64));
+    QCOMPARE(size(), QSize(1472, 1472));
+    width->setValue(1504);
+    width->setValue(1472);
+    QCOMPARE(size(), QSize(1472, 1472));
+    QCOMPARE(ratio->currentText(), QString("Custom"));
+    mp->setCurrentIndex(mp->findData(1.0));
+    multiple->setCurrentIndex(multiple->findData(8));
+    QCOMPARE(size(), QSize(1472, 1472));
+    choose({1, 1});
+    QCOMPARE(size(), QSize(1024, 1024));
+    choose({});
+    QCOMPARE(size(), QSize(1024, 1024));
+    panel.setMode(DiffusionPanel::Mode::Edit);
+    QCOMPARE(ratio->currentText(), QString("Custom"));
+    panel.setResolution({1024, 1536});
+    QCOMPARE(size(), QSize(1024, 1536));
+    QCOMPARE(ratio->currentData().toSize(), QSize(2, 3));
+    header->click();
+    header->click();
+    QCOMPARE(size(), QSize(1024, 1536));
+    panel.setResolution({1376, 768}); // Within 1% of 16:9 after rounding.
+    QCOMPARE(ratio->currentData().toSize(), QSize(16, 9));
+    panel.setResolution({2016, 1312});
+    QCOMPARE(ratio->currentText(), QString("Custom"));
+    panel.saveSettings();
+    DiffusionPanel restored;
+    QCOMPARE(restored.request()["width"].toInt(), 2016);
+    QCOMPARE(restored.request()["height"].toInt(), 1312);
+    QCOMPARE(restored.findChild<QComboBox *>("DiffusionAspectRatio")->currentText(), QString("Custom"));
+  }
+  void resolutionSelectorDetectsStoredSizeWithoutRecalculating() {
+    QSettings().setValue("diffusion/width", 1536);
+    QSettings().setValue("diffusion/height", 1024);
+    DiffusionPanel panel;
+    QCOMPARE(panel.request()["width"].toInt(), 1536);
+    QCOMPARE(panel.request()["height"].toInt(), 1024);
+    QCOMPARE(panel.findChild<QComboBox *>("DiffusionAspectRatio")->currentData().toSize(), QSize(3, 2));
+    panel.findChild<QToolButton *>("DiffusionResolutionSectionHeader")->click();
+    QCOMPARE(panel.request()["width"].toInt(), 1536);
+    QCOMPARE(panel.request()["height"].toInt(), 1024);
+  }
+  void automaticResolutionUsesSelectedModel() {
+    QJsonArray configs;
+    for (const auto &profile : imageeditor::diffusion::modelProfiles()) {
+      const auto id = profile.toObject().value("id");
+      configs.append(QJsonObject{{"id", id}, {"name", id},
+          {"configuration", QJsonObject{{"profile", id}}}});
+    }
+    QSettings().setValue("diffusion/modelConfigurations", QJsonDocument(configs).toJson());
+    QSettings().setValue("diffusion/modelId", "krea-2-turbo");
+    DiffusionPanel panel;
+    auto *models = panel.findChild<QComboBox *>("DiffusionModels");
+    auto *profiles = panel.findChild<QComboBox *>("DiffusionProfile");
+    auto *multiple = panel.findChild<QComboBox *>("DiffusionResolutionMultiple");
+    auto *ratio = panel.findChild<QComboBox *>("DiffusionAspectRatio");
+    auto *width = panel.findChild<QSpinBox *>("DiffusionWidth");
+    auto *height = panel.findChild<QSpinBox *>("DiffusionHeight");
+    const auto size = [&] { return QSize(width->value(), height->value()); };
+    const auto portrait = [&] {
+      ratio->setCurrentIndex(ratio->findData(QSize(2, 3)));
+      ratio->activated(ratio->currentIndex());
+    };
+    QCOMPARE(multiple->currentData().toInt(), 0);
+    QCOMPARE(multiple->currentText(), QString("Auto (8)"));
+    portrait();
+    QCOMPARE(size(), QSize(840, 1256));
+    models->setCurrentIndex(models->findData("flux3-image-klein-distilled"));
+    QCOMPARE(multiple->currentText(), QString("Auto (16)"));
+    QCOMPARE(size(), QSize(832, 1248));
+    models->setCurrentIndex(models->findData("qwen-image-2.1-turbo"));
+    QCOMPARE(multiple->currentText(), QString("Auto (32)"));
+    QCOMPARE(size(), QSize(832, 1248));
+    multiple->setCurrentIndex(multiple->findData(8));
+    models->setCurrentIndex(models->findData("flux3-image-klein-distilled"));
+    QCOMPARE(multiple->currentData().toInt(), 8);
+    QCOMPARE(size(), QSize(840, 1256));
+    multiple->setCurrentIndex(multiple->findData(0));
+    QCOMPARE(size(), QSize(832, 1248));
+    width->setValue(841);
+    models->setCurrentIndex(models->findData("krea-2-turbo"));
+    QCOMPARE(size(), QSize(841, 1248));
+    QCOMPARE(ratio->currentText(), QString("Custom"));
+    profiles->setCurrentIndex(profiles->findData("qwen-image-2.1-turbo"));
+    QCOMPARE(size(), QSize(841, 1248));
+    portrait();
+    QCOMPARE(size(), QSize(832, 1248));
+    profiles->setCurrentIndex(profiles->findData("krea-2-turbo"));
+    QCOMPARE(size(), QSize(840, 1256));
+    panel.setResolution({512, 768});
+    panel.setProfiles(imageeditor::diffusion::modelProfiles());
+    panel.setMode(DiffusionPanel::Mode::Generate);
+    QCOMPARE(size(), QSize(512, 768)); // No recalculation on handshake or mode refresh.
+  }
+  void resolutionErrorsSuggestNearbySizes() {
+    using imageeditor::diffusion::resolutionError;
+    QCOMPARE(QString::fromStdString(resolutionError(840, 1260, 8, "Krea 2 Turbo")),
+        QString("Invalid resolution: 840 × 1260. Krea 2 Turbo requires dimensions divisible by 8. Try 840 × 1256 or 840 × 1264."));
+    QVERIFY(resolutionError(840, 1256, 8, "Krea 2 Turbo").empty());
+    QCOMPARE(QString::fromStdString(resolutionError(33, 8191, 32, "Qwen Image 2.1")),
+        QString("Invalid resolution: 33 × 8191. Qwen Image 2.1 requires dimensions divisible by 32. Try 32 × 8160 or 64 × 8192."));
+  }
+  void resolutionRemainsAuthoritativeAcrossCapabilitiesAndModes() {
+    for (const auto &value : imageeditor::diffusion::modelProfiles()) {
+      const auto profile = value.toObject();
+      DiffusionPanel panel;
+      panel.setConfiguration({{"profile", profile["id"]}});
+      auto *width = panel.findChild<QSpinBox *>("DiffusionWidth");
+      auto *height = panel.findChild<QSpinBox *>("DiffusionHeight");
+      auto *ratio = panel.findChild<QComboBox *>("DiffusionAspectRatio");
+      auto *multiple = panel.findChild<QComboBox *>("DiffusionResolutionMultiple");
+      auto *seed = panel.findChild<QLineEdit *>("DiffusionSeed");
+      multiple->setCurrentIndex(multiple->findData(8));
+      ratio->setCurrentIndex(ratio->findData(QSize(2, 3)));
+      ratio->activated(ratio->currentIndex());
+      QCOMPARE(QSize(width->value(), height->value()), QSize(840, 1256));
+      if (profile["family"] == "krea2") {
+        QCOMPARE(panel.prepareGeneration()["width"].toInt(), 840);
+        QCOMPARE(panel.prepareGeneration()["height"].toInt(), 1256);
+      }
+      width->setValue(841);
+      height->setValue(1257);
+      const auto previousSeed = seed->text();
+      QSignalSpy widthChanges(width, &QSpinBox::valueChanged);
+      QSignalSpy heightChanges(height, &QSpinBox::valueChanged);
+      // First worker handshake, reconnect, configuration refresh and mode
+      // switches all use this path. None may align the user's dimensions.
+      panel.setProfiles(imageeditor::diffusion::modelProfiles());
+      panel.setConfiguration(panel.configuration());
+      for (auto mode : {DiffusionPanel::Mode::Generate, DiffusionPanel::Mode::Edit, DiffusionPanel::Mode::Fill}) {
+        panel.setMode(mode);
+        try {
+          panel.prepareGeneration();
+          QFAIL("An incompatible resolution must be rejected before generation");
+        } catch (const std::invalid_argument &e) {
+          const auto message = QString::fromUtf8(e.what());
+          QVERIFY(message.contains(profile["name"].toString()));
+          QVERIFY(message.contains(QString("divisible by %1").arg(profile["alignment"].toInt())));
+          QVERIFY(message.contains("841 × 1257"));
+          QVERIFY(message.contains("Try "));
+        }
+        QCOMPARE(seed->text(), previousSeed);
+        QCOMPARE(QSize(width->value(), height->value()), QSize(841, 1257));
+        QCOMPARE(ratio->currentText(), QString("Custom"));
+      }
+      QCOMPARE(widthChanges.count(), 0);
+      QCOMPARE(heightChanges.count(), 0);
+      panel.saveSettings();
+      DiffusionPanel restored;
+      QCOMPARE(restored.request()["width"].toInt(), 841);
+      QCOMPARE(restored.request()["height"].toInt(), 1257);
+      QCOMPARE(restored.findChild<QComboBox *>("DiffusionAspectRatio")->currentData().toSize(), QSize(2, 3));
+      multiple->setCurrentIndex(multiple->findData(profile["alignment"].toInt()));
+      ratio->setCurrentIndex(ratio->findData(QSize(2, 3)));
+      ratio->activated(ratio->currentIndex());
+      const QSize expected = profile["family"] == "krea2" ? QSize(840, 1256) : QSize(832, 1248);
+      QCOMPARE(QSize(width->value(), height->value()), expected);
+      const auto request = panel.prepareGeneration();
+      QCOMPARE(request["width"].toInt(), expected.width());
+      QCOMPARE(request["height"].toInt(), expected.height());
+      QVERIFY(panel.findChild<QLabel *>("DiffusionResolutionRequirement")->text().contains(profile["name"].toString()));
+      QSettings().clear();
+    }
+  }
+  void centeredSizeAndNarrowResolutionLayout() {
+    DiffusionPanel panel;
+    panel.showGeneration();
+    panel.show();
+    panel.findChild<QToolButton *>("DiffusionResolutionSectionHeader")->click();
+    for (int panelWidth : {520, panel.minimumWidth()}) {
+      panel.resize(panelWidth, 900);
+      QCoreApplication::processEvents();
+      QCOMPARE(panel.width(), panelWidth);
+      auto *row = panel.findChild<QHBoxLayout *>("DiffusionSizeRow");
+      auto *first = row->itemAt(1)->widget();
+      auto *last = panel.findChild<QToolButton *>("DiffusionMatchSelectedSize");
+      const auto left = first->mapTo(&panel, QPoint{}).x();
+      const auto right = last->mapTo(&panel, QPoint(last->width(), 0)).x();
+      const auto origin = row->parentWidget()->mapTo(&panel, row->geometry().topLeft()).x();
+      QVERIFY(std::abs((left + right) - (origin * 2 + row->geometry().width())) <= 2);
+      auto *area = panel.findChild<QScrollArea *>("DiffusionGenerationPage");
+      QCOMPARE(area->horizontalScrollBar()->maximum(), 0);
+      for (const auto *name : {"DiffusionAspectRatio", "DiffusionMegapixels", "DiffusionResolutionMultiple"}) {
+        auto *box = panel.findChild<QComboBox *>(name);
+        QVERIFY(box->width() >= 70);
+        QVERIFY(box->geometry().right() < box->parentWidget()->width());
+      }
+      if (const auto capture = qEnvironmentVariable("VULKANA_DIFFUSION_PANEL_CAPTURE"); !capture.isEmpty())
+        QVERIFY(panel.grab().save(capture + QString("-resolution-%1.png").arg(panelWidth)));
+    }
   }
   void inputSectionGrowsOnlyWithImages() {
     DiffusionPanel panel;

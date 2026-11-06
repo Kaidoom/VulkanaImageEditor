@@ -70,6 +70,11 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(krea["steps"], 8)
         self.assertEqual(krea["guidance"], 1)
         self.assertEqual(krea["scheduler"], "simple")
+        self.assertEqual(krea["alignment"], 8)
+        flux = next(p for p in self.hello["profiles"] if p["id"] == "flux3-image-klein-distilled")
+        self.assertEqual(flux["alignment"], 16)
+        qwen = next(p for p in self.hello["profiles"] if p["id"] == "qwen-image-2.1-turbo")
+        self.assertEqual(qwen["alignment"], 32)
         status = self.call("status")["result"]
         self.assertFalse(status["loaded"])
         self.assertEqual(status["loadedModels"], [])
