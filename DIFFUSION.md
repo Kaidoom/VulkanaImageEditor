@@ -181,6 +181,22 @@ Events report `state`, `progress`, `preview`, or a fatal protocol error. Progres
 
 Generated PNGs are independently owned files under `job-<id>/`. Result objects include `images[].path`, dimensions/channels, engine generation metadata, profile, effective resource settings, context generation number and timings. Timings distinguish model construction, engine execution and PNG output; `engineStagesMs` provides conditioning/encoding/sampling/decoding durations reported by the pinned engine. Lazy weight preparation also contributes to the first generation's time. Cooperative cancellation removes that job's partial outputs. Forced process termination can leave partial files; the caller owns cleanup of its private work directory.
 
+## LoRAs
+
+In **Configuration → Model files → LoRAs (optional)**, add local adapter files and give each a friendly name, default strength and enabled-by-default state. Save the model configuration to retain the list. The section starts collapsed between Vision and Backend. Strength ranges from −4 to 4, with 1 as the default and 0 producing no effect.
+
+**Generate → LoRAs**, below Negative prompt, shows only entries from the current configuration. Toggle entries and adjust strengths for the next job. The header shows the enabled count, and the reset icon restores configuration defaults. These overrides last for the editor session and follow their configuration across mode/configuration switches. Saving a configuration always stores its configured defaults. Generation overrides are never written into the saved defaults. An empty list hides the Generate section.
+
+Enabled, nonzero adapters are passed together to the native generation API. The complete effective set is supplied on every job, including an empty set when all are off. Runtime application keeps base weights intact, allows changes without a model reload and invalidates conditioning caches when necessary. Additional adapters can increase memory use and inference time. Enter any recommended trigger words in the prompt yourself.
+
+Choose adapters trained for the selected model family and compatible variant. A missing file is rejected before inference. With the pinned engine, Vulkana checks runtime tensor-application reports and rejects results from adapters that failed to load, matched no tensors or skipped incompatible tensors. The error names the affected entry. Such failures release the model context for a clean reload on the next job. Existing successful previews remain available.
+
+Saved configuration entries contain `id`, `path`, `name`, `strength` and `enabled`. The editor sends only the effective adapters as optional `generate.loras` entries containing `path`, `name` and `strength`. Model `load` parameters exclude the adapter list. The worker advertises `loraParameters:true`; an older worker produces an update-required message. Duplicate enabled paths are rejected, and strengths must be finite and within −4 to 4.
+
+```json
+{"loras":[{"path":"/models/portrait-style.safetensors","name":"Portrait style","strength":0.8}]}
+```
+
 ## Model profiles and resource settings
 
 The shared profile registry declares supported modes, image references, region guidance, negative prompts and sampling defaults. The panel disables unavailable modes and controls. Selecting a generation-only model switches the panel to Generate. Existing input images and regions stay available for switching back to a compatible model, and are omitted from generation-only requests. The worker also validates these capabilities before inference.

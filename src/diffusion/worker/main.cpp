@@ -3,6 +3,7 @@
 #include "Profiles.h"
 #include "SpatialGuidance.h"
 #include "FluxSpatial.h"
+#include "LoraReport.h"
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "ReferenceSizing.h"
 #include <json.hpp>
@@ -188,6 +189,7 @@ class Worker {
     bool oom = false, memoryLimited = false, exited = false;
     std::string memoryError;
     Json engineTimings = Json::object();
+    vulkana::diffusion::LoraReport loraReport;
     Clock::time_point jobStart, firstStep, lastStep;
     bool stepped = false;
     fs::path jobDirectory;
@@ -204,6 +206,10 @@ public:
                 // Callbacks can arrive from engine pool threads. Do not take stateMutex here.
                 const std::string message = text ? text : "";
                 std::fputs(message.c_str(), stderr);
+                {
+                    std::lock_guard lock(w.logMutex);
+                    w.loraReport.observe(message);
+                }
                 // Timings are extracted from this pinned engine's stage reports;
                 // overall worker timings remain independent of log formatting.
                 {
@@ -306,6 +312,7 @@ public:
             schedulers.push_back(scheduler_to_str[i]);
         send({ { "samplers", samplers }, { "schedulers", schedulers }, { "event", "hello" },
             { "referenceSizeLimit", true },
+            { "loraParameters", true },
             { "flux3NativeRegions", true },
             { "protocol", 1 }, { "spatialVersions", Json::array({1, 2, 3}) }, { "engineCommit", VULKANA_DIFFUSION_ENGINE_COMMIT },
             { "backend", VULKANA_DIFFUSION_BACKEND }, { "devices", devices }, { "profiles", profiles() } });
@@ -583,6 +590,7 @@ Json Worker::load(const Json& params)
     options.eager_load = flag(s, "eagerLoad", false);
     options.conditioning_cache_size = cacheSize;
     options.model_args = modelArgs.c_str();
+    options.lora_apply_mode = LORA_APPLY_AT_RUNTIME;
     Json effective = { { "device", device }, { "maxVramGiB", budget }, { "threads", options.n_threads },
         { "weights", weights }, { "computeBackend", backend }, { "weightBackend", storage },
         { "autoFit", options.auto_fit }, { "flashAttention", flash }, { "directConvolution", conv },
@@ -637,9 +645,32 @@ Json Worker::generate(const Json& p)
         { "prompt", "negativePrompt", "width", "height", "steps", "guidance", "seed", "batch", "sampler",
             "scheduler", "schedule", "sigmas", "strength", "referenceImages", "initialImage", "mask",
             "vaeTiling", "vaeTileSize", "vaeTileOverlap", "preview", "previewInterval", "flowShift",
-            "spatial", "eta", "cacheMode", "cacheReuseThreshold", "cacheStart", "cacheEnd", "referenceMaxSize" });
+            "spatial", "eta", "cacheMode", "cacheReuseThreshold", "cacheStart", "cacheEnd", "referenceMaxSize", "loras" });
     if (!context)
         throw Failure("model_not_loaded", "Load a model before generating");
+    struct LoraInput { std::string path, name; float strength; };
+    std::vector<LoraInput> loraInputs;
+    if (p.contains("loras")) {
+        require(p["loras"].is_array(), "loras must be an array of path, name and strength objects");
+        std::set<fs::path> paths;
+        for (const auto& item : p["loras"]) {
+            keys(item, {"path", "name", "strength"});
+            const auto strength = number(item, "strength", 1, -4, 4);
+            if (strength == 0) continue;
+            const auto name = str(item, "name", str(item, "path"));
+            try {
+                const auto path = inputFile(item, "path", true);
+                require(paths.insert(fs::canonical(fs::u8path(path))).second,
+                    "The same file is enabled more than once. Use a single entry with the combined strength.");
+                loraInputs.push_back({path, name, static_cast<float>(strength)});
+            } catch (const std::exception& error) {
+                throw Failure("invalid_arguments", "LoRA '" + name + "': " + error.what());
+            }
+        }
+    }
+    std::vector<sd_lora_t> loras;
+    for (const auto& input : loraInputs)
+        loras.push_back({false, input.strength, input.path.c_str()});
     const auto modes = loadedProfile.value("modes", Json::array({"generate", "edit", "fill"}));
     const auto supportsMode = [&](const char* mode) {
         return std::find(modes.begin(), modes.end(), mode) != modes.end();
@@ -854,6 +885,8 @@ Json Worker::generate(const Json& p)
         require(prompt.size() <= 65536, "Prompt plus region labels exceeds 65536 bytes");
     }
     params.prompt = prompt.c_str();
+    params.loras = loras.empty() ? nullptr : loras.data();
+    params.lora_count = static_cast<uint32_t>(loras.size());
     params.negative_prompt = negative.c_str();
     params.width = width;
     params.height = height;
@@ -914,6 +947,10 @@ Json Worker::generate(const Json& p)
         preview ? PREVIEW_PROJ : PREVIEW_NONE, interval, true, false, this);
     checkCancel();
     const auto engineStart = Clock::now();
+    {
+        std::lock_guard lock(logMutex);
+        loraReport.files.clear();
+    }
     sd_image_generation_result_t* raw = nullptr;
     const bool success = generate_image(context, &params, &raw);
     std::unique_ptr<sd_image_generation_result_t, decltype(&free_sd_image_generation_result)> result(
@@ -934,6 +971,20 @@ Json Worker::generate(const Json& p)
                         : oom    ? "Reduce image size or use RAM/disk weight offloading. "
                                  : "")
                 + (memoryError.empty() ? lastError : memoryError));
+    }
+    std::string incompatibleLora;
+    {
+        std::lock_guard lock(logMutex);
+        for (const auto& input : loraInputs)
+            if (!loraReport.compatible(input.path)) {
+                incompatibleLora = input.name.empty() ? input.path : input.name;
+                break;
+            }
+    }
+    if (!incompatibleLora.empty()) {
+        release();
+        throw Failure("lora_incompatible", "LoRA '" + incompatibleLora
+            + "' could not be applied compatibly to this model. Check the LoRA's model family and file, or disable it. The model will reload on the next generation.");
     }
     const auto outputStart = Clock::now();
     Json outputs = Json::array();

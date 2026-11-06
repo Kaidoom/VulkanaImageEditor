@@ -34,6 +34,7 @@ int main(int argc, char** argv)
     };
     send({ { "event", "hello" }, { "protocol", 1 }, { "backend", "test" },
         { "referenceSizeLimit", true },
+        { "loraParameters", true },
         { "flux3NativeRegions", !qEnvironmentVariableIsSet("VULKANA_TEST_DIFFUSION_SPATIAL_V1") },
         { "spatialVersions", qEnvironmentVariableIsSet("VULKANA_TEST_DIFFUSION_SPATIAL_V1")
               ? QJsonArray { 1 } : QJsonArray { 1, 2, 3 } },
@@ -108,6 +109,10 @@ int main(int argc, char** argv)
             const auto id = request.value("id").toString(), method = request.value("method").toString();
             if (method == "load") {
                 const auto load = request.value("params").toObject();
+                if (load.contains("loras")) {
+                    fail(id, "invalid_arguments", "LoRAs belong to generate requests, not model loading.");
+                    continue;
+                }
                 if (load["settings"].toObject()["device"] == "invalid-test-device") {
                     fail(id, "invalid_arguments", "Unknown test device; existing model retained.");
                     stateEvent();

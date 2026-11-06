@@ -646,6 +646,9 @@ void MainWindow::generateDiffusion() {
         s.jobDocuments.insert(id);
     }
     s.pendingConfiguration = s.panel->configuration();
+    // LoRA defaults belong to the saved configuration. Effective adapters are
+    // sent per job so changing an override can reuse the loaded model.
+    s.pendingConfiguration.remove("loras");
     s.pendingGeneration = s.panel->prepareGeneration();
     const auto size = QSize(s.pendingGeneration.value("width").toInt(1024),
                             s.pendingGeneration.value("height").toInt(1024));
@@ -762,6 +765,14 @@ void MainWindow::continueDiffusionJob() {
       !s.loadId.isEmpty() || !s.generateId.isEmpty())
     return;
   const auto actualBackend = s.worker->hello()["backend"].toString();
+  if (!s.pendingGeneration.value("loras").toArray().isEmpty() &&
+      !s.worker->hello().value("loraParameters").toBool()) {
+    s.wanted = false;
+    s.panel->setBusy(false);
+    s.panel->setStatus("Update the inference worker to use LoRAs.", true);
+    updateDiffusionNotice("Generation could not start", 0, 0, true);
+    return;
+  }
   if (diffusion::modelProfile(s.pendingConfiguration.value("profile").toString()).value("family") == "flux3" &&
       !s.worker->hello().value("flux3NativeRegions").toBool()) {
     s.wanted = false;

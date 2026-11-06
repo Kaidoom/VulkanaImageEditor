@@ -109,6 +109,69 @@ private slots:
     QCOMPARE(panel.request()["steps"].toInt(), 8);
     QCOMPARE(panel.request()["schedule"].toString(), QString("turbo"));
   }
+  void loraDefaultsAndConfigurationScopedOverrides() {
+    const QJsonArray defaultsA{
+        QJsonObject{{"id", "first"}, {"path", "/models/a.safetensors"}, {"name", "Mythic"}, {"strength", .8}, {"enabled", true}},
+        QJsonObject{{"id", "second"}, {"path", "/models/b.safetensors"}, {"name", "Lighting"}, {"strength", .5}, {"enabled", false}}};
+    const QJsonArray defaultsB{
+        QJsonObject{{"id", "first"}, {"path", "/models/c.safetensors"}, {"name", "Different model"}, {"strength", .3}, {"enabled", true}}};
+    const QJsonArray configurations{
+        QJsonObject{{"id", "A"}, {"name", "A"}, {"configuration", QJsonObject{{"profile", "flux3-image-klein-distilled"}, {"loras", defaultsA}}}},
+        QJsonObject{{"id", "B"}, {"name", "B"}, {"configuration", QJsonObject{{"profile", "qwen-image-2.1-turbo"}, {"loras", defaultsB}}}}};
+    QSettings().setValue("diffusion/modelConfigurations", QJsonDocument(configurations).toJson());
+    QSettings().setValue("diffusion/modelId", "A");
+    DiffusionPanel panel;
+    auto *models = panel.findChild<QComboBox *>("DiffusionModels");
+    auto *header = panel.findChild<QToolButton *>("DiffusionLorasSectionHeader");
+    QVERIFY(!header->isChecked());
+    QCOMPARE(header->text(), QString("LoRAs (1/2 enabled)"));
+    QCOMPARE(panel.configuration()["loras"].toArray(), defaultsA);
+    auto checkboxes = panel.findChildren<QCheckBox *>("DiffusionLoraEnabled");
+    auto strengths = panel.findChildren<QDoubleSpinBox *>("DiffusionLoraStrength");
+    checkboxes[0]->setChecked(false);
+    checkboxes[1]->setChecked(true);
+    strengths[1]->setValue(-.4);
+    QCOMPARE(panel.configuration()["loras"].toArray(), defaultsA);
+    for (auto mode : {DiffusionPanel::Mode::Edit, DiffusionPanel::Mode::Fill, DiffusionPanel::Mode::Generate}) {
+      panel.setMode(mode);
+      const auto enabled = panel.request()["loras"].toArray();
+      QCOMPARE(enabled.size(), 1);
+      QCOMPARE(enabled[0].toObject()["name"].toString(), QString("Lighting"));
+      QCOMPARE(enabled[0].toObject()["strength"].toDouble(), -.4);
+    }
+    models->setCurrentIndex(models->findData("B"));
+    QCOMPARE(panel.request()["loras"].toArray()[0].toObject()["strength"].toDouble(), .3);
+    panel.findChild<QDoubleSpinBox *>("DiffusionLoraStrength")->setValue(1.4);
+    models->setCurrentIndex(models->findData("A"));
+    QCOMPARE(panel.request()["loras"].toArray()[0].toObject()["strength"].toDouble(), -.4);
+    panel.findChild<QToolButton *>("DiffusionLorasReset")->click();
+    QTRY_COMPARE(panel.request()["loras"].toArray()[0].toObject()["strength"].toDouble(), .8);
+    models->setCurrentIndex(models->findData("B"));
+    QCOMPARE(panel.request()["loras"].toArray()[0].toObject()["strength"].toDouble(), 1.4);
+    panel.saveSettings();
+    QCOMPARE(QJsonDocument::fromJson(QSettings().value("diffusion/modelConfigurations").toByteArray()).array(), configurations);
+    DiffusionPanel restored;
+    QCOMPARE(restored.configuration()["loras"].toArray(), defaultsB);
+    QCOMPARE(restored.request()["loras"].toArray()[0].toObject()["strength"].toDouble(), .3);
+    models->setCurrentIndex(0);
+    QVERIFY(panel.findChild<QWidget *>("DiffusionLorasSection")->isHidden());
+    QVERIFY(!panel.request().contains("loras"));
+    panel.findChild<QToolButton *>("DiffusionLoraAdd")->click();
+    QTRY_COMPARE(panel.findChildren<QLineEdit *>("DiffusionLoraPath").size(), 1);
+    panel.findChild<QLineEdit *>("DiffusionLoraPath")->setText("/models/new-style.safetensors");
+    QCOMPARE(panel.configuration()["loras"].toArray()[0].toObject()["name"].toString(), QString("new-style"));
+    panel.findChild<QCheckBox *>("DiffusionLoraDefaultEnabled")->setChecked(false);
+    QVERIFY(!panel.request().contains("loras"));
+    panel.findChild<QCheckBox *>("DiffusionLoraEnabled")->setChecked(true);
+    QVERIFY(panel.request().contains("loras"));
+    auto *generation = panel.findChild<QWidget *>("DiffusionLorasSection");
+    QVERIFY(!generation->findChild<QLineEdit *>("DiffusionLoraPath"));
+    QVERIFY(!generation->findChild<QLineEdit *>("DiffusionLoraFriendlyName"));
+    QVERIFY(!generation->findChild<QToolButton *>("DiffusionLoraAdd"));
+    panel.findChild<QToolButton *>("DiffusionLoraRemove")->click();
+    QTRY_VERIFY(generation->isHidden());
+    QVERIFY(!panel.request().contains("loras"));
+  }
   void modeSpecificControls_data() {
     QTest::addColumn<QString>("profile");
     QTest::newRow("flux3") << QString("flux3-image-klein-distilled");

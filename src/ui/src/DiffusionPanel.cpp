@@ -1,4 +1,5 @@
 #include "imageeditor/ui/DiffusionPanel.hpp"
+#include "imageeditor/ui/DiffusionLoras.hpp"
 #include "imageeditor/ui/DiffusionSpatial.hpp"
 #include "imageeditor/diffusion/ModelProfiles.h"
 #include "imageeditor/diffusion/PromptPresets.h"
@@ -404,6 +405,7 @@ struct DiffusionPanel::Impl {
   QMap<QString, QWidget *> resource, sampling;
   QMap<QString, QLineEdit *> files;
   QJsonArray modelConfigs, profileList;
+  std::unique_ptr<DiffusionLoras> loras;
   QVector<Input> inputs;
   QVector<Result> results;
   QImage draftPreview;
@@ -637,6 +639,7 @@ struct DiffusionPanel::Impl {
     discard->setVisible(ready);
     inputList->setVisible(true);
     configurationPage->setEnabled(!busy);
+    loras->setBusy(busy);
     models->setEnabled(!busy);
     seedMode->setEnabled(!busy);
     randomSeed->setEnabled(!busy);
@@ -1312,6 +1315,8 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
     d->files[pair.first] = edit;
     modelForm->addRow(pair.second, row);
   }
+  d->loras = std::make_unique<DiffusionLoras>(this);
+  modelForm->addRow(d->loras->configurationSection());
   auto *saveModel = d->saveModel = new QPushButton("Save configuration…");
   saveModel->setObjectName("DiffusionSaveConfiguration");
   auto *deleteModel = d->deleteModel = new QPushButton("Delete");
@@ -1350,6 +1355,7 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   d->negative->setPlaceholderText("Describe what to avoid…");
   d->negative->setMaximumHeight(70);
   negativeLayout->addWidget(d->negative);
+  layout->addWidget(d->loras->generationSection());
   auto *essentials = new QVBoxLayout;
   auto *outputRow = new QHBoxLayout;
   outputRow->setSpacing(4);
@@ -1953,6 +1959,7 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
       }
     if (!replaced)
       d->modelConfigs.append(entry);
+    d->loras->retainOverridesFor(entry["id"].toString());
     d->rebuildModels();
     select(d->models, entry["id"].toString());
     saveSettings();
@@ -1961,12 +1968,14 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
     const auto id = d->models->currentData();
     if (id.toString().isEmpty())
       return;
+    d->loras->forgetConfiguration(id.toString());
     for (qsizetype i = 0; i < d->modelConfigs.size(); ++i)
       if (d->modelConfigs[i].toObject()["id"].toString() == id.toString()) {
         d->modelConfigs.removeAt(i);
         break;
       }
     d->rebuildModels();
+    setConfiguration({{"profile", d->profiles->currentData().toString()}});
     saveSettings();
   });
   connect(d->presets, &QComboBox::activated, this, [this](int row) {
@@ -2154,12 +2163,15 @@ QJsonObject DiffusionPanel::configuration() const {
     resources.remove("prefixCacheType");
     files.remove("vision");
   }
-  return {{"profile", d->profiles->currentData().toString()},
-          {"files", files},
-          {"settings", resources}};
+  QJsonObject result{{"profile", d->profiles->currentData().toString()},
+                     {"files", files}, {"settings", resources}};
+  if (!d->loras->defaults().isEmpty()) result["loras"] = d->loras->defaults();
+  return result;
 }
 QJsonObject DiffusionPanel::generationParameters() const {
   auto params = controls(d->sampling);
+  const auto loras = d->loras->enabledLoras();
+  if (!loras.isEmpty()) params["loras"] = loras;
   if (supportsImageInputs())
     params["referenceMaxSize"] = d->maxInputSize->value();
   if (!d->sampling["eta"]->isEnabled())
@@ -2322,6 +2334,12 @@ void DiffusionPanel::setConfiguration(const QJsonObject &config,
                                       const QString &) {
   d->updating = true;
   select(d->profiles, config["profile"].toString());
+  auto key = d->models->currentData().toString();
+  if (key.isEmpty()) {
+    const QJsonObject identity{{"profile", config.value("profile")}, {"files", config.value("files")}};
+    key = "draft:" + QString::fromUtf8(QJsonDocument(identity).toJson(QJsonDocument::Compact));
+  }
+  d->loras->setConfiguration(key, config.value("loras").toArray());
   const auto files = config["files"].toObject();
   for (auto it = d->files.begin(); it != d->files.end(); ++it)
     it.value()->setText(files[it.key()].toString());

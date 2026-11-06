@@ -53,6 +53,7 @@ add_library(imageeditor_ui STATIC
     src/LayerListView.cpp
     src/LayerDrag.cpp
     src/DiffusionPanel.cpp
+    src/DiffusionLoras.cpp
     src/DiffusionPreview.cpp
     src/DiffusionTransaction.cpp
     src/DiffusionSpatial.cpp

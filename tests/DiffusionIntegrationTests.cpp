@@ -392,6 +392,69 @@ private slots:
     QCOMPARE(edit["referenceImages"].toArray().size(), 1);
     QVERIFY(edit.contains("spatial"));
   }
+  void loraControlsUseNativeInputAndWarmGeneration() {
+    openMode("AIGenerateImageAction");
+    auto config = panel->configuration();
+    const QJsonArray defaults{
+        QJsonObject{{"id", "mythic"}, {"path", modelPath}, {"name", "Mythic"}, {"strength", .8}, {"enabled", true}},
+        QJsonObject{{"id", "disabled"}, {"path", "/missing/optional.safetensors"}, {"name", "Optional"}, {"strength", 1}, {"enabled", false}}};
+    config["loras"] = defaults;
+    panel->setConfiguration(config);
+    auto *tabs = panel->findChild<QTabWidget *>("DiffusionTabs");
+    tabs->setCurrentIndex(0);
+    auto *header = child<QToolButton>("DiffusionLoraDefaultsSectionHeader");
+    QVERIFY(!header->isChecked());
+    header->click();
+    auto *name = panel->findChild<QLineEdit *>("DiffusionLoraFriendlyName");
+    panel->findChild<QScrollArea *>("DiffusionConfigurationPage")->ensureWidgetVisible(name);
+    QCoreApplication::processEvents();
+    QTest::mouseClick(name, Qt::LeftButton);
+    QTRY_VERIFY(name->hasFocus());
+    name->selectAll();
+    QKeyEvent typed(QEvent::KeyPress, Qt::Key_M, Qt::NoModifier, "Mythic portrait");
+    QCoreApplication::sendEvent(window->windowHandle(), &typed);
+    QInputMethodEvent ime;
+    ime.setCommitString(QString::fromUtf8(" 日本語"));
+    QCoreApplication::sendEvent(window->windowHandle(), &ime);
+    QCOMPARE(panel->configuration()["loras"].toArray()[0].toObject()["name"].toString(), QString::fromUtf8("Mythic portrait 日本語"));
+    if (const auto capture = qEnvironmentVariable("VULKANA_DIFFUSION_INTEGRATION_CAPTURE"); !capture.isEmpty())
+      QVERIFY(panel->grab().save(capture + "-lora-config.png"));
+    tabs->setCurrentIndex(1);
+    child<QToolButton>("DiffusionLorasSectionHeader")->click();
+    auto *strength = child<QDoubleSpinBox>("DiffusionLoraStrength");
+    strength->setValue(.4);
+    QCoreApplication::processEvents();
+    if (const auto capture = qEnvironmentVariable("VULKANA_DIFFUSION_INTEGRATION_CAPTURE"); !capture.isEmpty())
+      QVERIFY(panel->grab().save(capture + "-lora-generate.png"));
+    QTimer::singleShot(0, window.get(), [this] {
+      auto *dialog = child<QInputDialog>("DiffusionTextPrompt");
+      QVERIFY(dialog);
+      dialog->setTextValue("LoRA configuration");
+      dialog->accept();
+    });
+    child<QPushButton>("DiffusionSaveConfiguration")->click();
+    const auto saved = QJsonDocument::fromJson(QSettings().value("diffusion/modelConfigurations").toByteArray()).array();
+    QCOMPARE(saved.size(), 1);
+    QCOMPARE(saved[0].toObject()["configuration"].toObject()["loras"].toArray()[0].toObject()["strength"].toDouble(), .8);
+    QVERIFY(!saved[0].toObject()["generation"].toObject().contains("loras"));
+    QCOMPARE(panel->request()["loras"].toArray()[0].toObject()["strength"].toDouble(), .4);
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QCOMPARE(panel->results().size(), 1);
+    auto result = panel->selectedResult()->metadata;
+    auto adapters = result["request"].toObject()["loras"].toArray();
+    QCOMPARE(adapters.size(), 1);
+    QCOMPARE(adapters[0].toObject()["strength"].toDouble(), .4);
+    QCOMPARE(panel->configuration()["loras"].toArray()[0].toObject()["strength"].toDouble(), .8);
+    const auto context = result["contextGeneration"];
+    panel->findChild<QCheckBox *>("DiffusionLoraEnabled")->setChecked(false);
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QCOMPARE(panel->results().size(), 2);
+    result = panel->selectedResult()->metadata;
+    QVERIFY(!result["request"].toObject().contains("loras"));
+    QCOMPARE(result["contextGeneration"], context);
+  }
   void editOtherDocumentAndReplacement() {
     const auto originalId = window->activeDocumentId();
     const auto original = native();
