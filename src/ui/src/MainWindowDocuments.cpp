@@ -4,6 +4,7 @@
 #include "imageeditor/ui/WorkspaceDialog.hpp"
 #include "imageeditor/ui/LayerListModel.hpp"
 #include "imageeditor/ui/LayerTransferMimeData.hpp"
+#include "imageeditor/ui/QtRasterImageLoader.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
 #include "imageeditor/ui/TextController.hpp"
 #include "imageeditor/ui/AdjustmentsPanel.hpp"
@@ -17,10 +18,13 @@
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
+#include "imageeditor/core/LayerStructureCommands.hpp"
 #include "imageeditor/core/SpatialFilterCache.hpp"
 #include <QAction>
 #include <QApplication>
 #include <QFileInfo>
+#include <QImageReader>
+#include <QMimeData>
 #include <QHBoxLayout>
 #include <QJsonArray>
 #include <QLabel>
@@ -37,10 +41,26 @@
 #include <QStatusBar>
 #include <QVBoxLayout>
 #include <algorithm>
+#include <stdexcept>
 #include <unordered_set>
 
 namespace imageeditor::ui {
 namespace {
+QStringList imageDropPaths(const QMimeData* mime)
+{
+    if (!mime || !mime->hasUrls()) return {};
+    static const auto formats = QImageReader::supportedImageFormats();
+    QStringList paths;
+    for (const auto& url : mime->urls()) {
+        if (!url.isLocalFile()) return {};
+        const QFileInfo file(url.toLocalFile());
+        if (!file.isFile() || !file.isReadable() || !formats.contains(file.suffix().toLower().toLatin1()))
+            return {};
+        paths.push_back(file.absoluteFilePath());
+    }
+    return paths;
+}
+
 class DocumentTabs final : public QTabBar, public PointerPressPreparation {
 public:
     using QTabBar::QTabBar;
@@ -122,6 +142,10 @@ void MainWindow::createDocumentTabs()
     layerModel_->onTransfer = [this](const QMimeData* data, core::ItemPlacement placement) {
         return receiveLayerTransfer(data, {}, placement);
     };
+    layerModel_->onCanImportFiles = [this](const QMimeData* data) { return canImportLayerFiles(data); };
+    layerModel_->onImportFiles = [this](const QMimeData* data, core::ItemPlacement placement) {
+        return importLayerFiles(data, placement);
+    };
     connect(documentTabs_, &QTabBar::currentChanged, this, [this](int index) {
         if (switchingDocument_ || index < 0) return;
         if (!activateDocument(documentTabs_->tabData(index).toULongLong())) refreshDocumentTabs();
@@ -198,6 +222,52 @@ bool MainWindow::receiveLayerTransfer(const QMimeData* data, std::optional<core:
         return false;
     }
 }
+bool MainWindow::canImportLayerFiles(const QMimeData* data) const
+{
+    return activeDocument_ && !fileBusy_ && !refinement_ && !workspaceDialog_ && !snapshotPreview_
+        && !QApplication::activeModalWidget() && !imageDropPaths(data).isEmpty();
+}
+
+bool MainWindow::importLayerFiles(const QMimeData* data, core::ItemPlacement placement)
+{
+    if (!canImportLayerFiles(data)) return false;
+    try {
+        const auto paths = imageDropPaths(data);
+        if (paths.isEmpty()) return false;
+        const auto& original = *session().document();
+        if (paths.size() > qsizetype(core::LayerTree::maxItems - original.layers().size() - original.tree().containers.size()))
+            throw std::length_error("Layer limit exceeded");
+        std::vector<core::Layer> added;
+        std::vector<core::LayerId> ids;
+        // Decode the whole drop before changing the document or its selection.
+        for (const auto& path : paths) {
+            auto image = loadRasterLayer(path);
+            if (!image) {
+                statusBar()->showMessage(QFileInfo(path).fileName() + ": " + image.error, 6000);
+                return false;
+            }
+            ids.push_back(image.layer->id);
+            added.push_back(std::move(*image.layer));
+        }
+        cancelPendingEdits();
+        auto& document = *session().document();
+        auto tree = document.tree();
+        auto* siblings = tree.children(placement.parent);
+        if (!siblings || placement.index > siblings->size()) return false;
+        siblings->insert(siblings->begin() + std::ptrdiff_t(placement.index), ids.begin(), ids.end());
+        core::LayerSelectionState after {ids, ids.back(), ids.back()};
+        if (!executeDocumentCommand(std::make_unique<core::LayerStructureCommand>("Import images", document,
+            std::move(tree), std::vector<core::LayerId>{}, std::move(added), session().layerSelectionState(), after)))
+            return false;
+        fileState().untouched = false;
+        synchronizeUi(true, false);
+        return true;
+    } catch (const std::exception& error) {
+        statusBar()->showMessage(QString::fromUtf8(error.what()), 6000);
+        return false;
+    }
+}
+
 bool MainWindow::routeDocumentDrag(QObject* watched, QEvent* event)
 {
     const auto clearHover = [this] { tabHoverTimer_->stop(); tabHoverTarget_ = 0; tabHoverPayload_.clear(); };

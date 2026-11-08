@@ -8,6 +8,7 @@
 
 #include <QAbstractItemModel>
 #include <QApplication>
+#include <QDragEnterEvent>
 #include <QDragMoveEvent>
 #include <QDropEvent>
 #include <QEvent>
@@ -665,14 +666,31 @@ void LayerListView::cancelVisibilityGesture() noexcept
     visibilityGestureActive_ = false;
 }
 
+void LayerListView::dragEnterEvent(QDragEnterEvent* event)
+{
+    QListView::dragEnterEvent(event);
+    if (!event->mimeData()->hasUrls()) return;
+    const auto* layers = dynamic_cast<LayerListModel*>(model());
+    if (layers && layers->dropActionForMime(event->mimeData()) == Qt::CopyAction
+        && event->possibleActions().testFlag(Qt::CopyAction)
+        && updateDropTarget(event->position().toPoint(), event->mimeData(), Qt::CopyAction)) {
+        setState(DraggingState);
+        event->setDropAction(Qt::CopyAction);
+        event->accept();
+    } else {
+        clearDropTarget();
+        event->ignore();
+    }
+}
+
 void LayerListView::dragMoveEvent(QDragMoveEvent* event)
 {
     // Retain Qt's autoscroll/state machinery, but own slot feedback/admission.
     setDropIndicatorShown(false);
     QListView::dragMoveEvent(event);
     const auto* layers = dynamic_cast<LayerListModel*>(model());
-    const auto action = layers && layers->onCanTransfer && layers->onCanTransfer(event->mimeData()) ? Qt::CopyAction : Qt::MoveAction;
-    if (updateDropTarget(event->position().toPoint(), event->mimeData(), action)) {
+    const auto action = layers ? layers->dropActionForMime(event->mimeData()) : Qt::MoveAction;
+    if (event->possibleActions().testFlag(action) && updateDropTarget(event->position().toPoint(), event->mimeData(), action)) {
         event->setDropAction(action);
         event->accept();
     } else event->ignore();
@@ -692,7 +710,9 @@ bool LayerListView::updateDropTarget(const QPoint& position, const QMimeData* mi
         const auto r = visualRect(index);
         const auto y = position.y();
         const auto indent = index.data(Qt::UserRole + 2).toInt();
-        if (index.data(Qt::UserRole + 3).toBool() && y > r.top() + r.height() * .25 && y < r.bottom() - r.height() * .25) {
+        const bool container = index.data(Qt::UserRole + 3).toBool()
+            || (action == Qt::CopyAction && mime && mime->hasUrls() && index.data(LayerListModel::ContainerRole).toBool());
+        if (container && y > r.top() + r.height() * .25 && y < r.bottom() - r.height() * .25) {
             dropParent_ = index;
             dropHint_ = r.adjusted(indent, 1, -3, -1);
             dropText_ = QStringLiteral("Into %1").arg(index.data().toString());
@@ -733,10 +753,11 @@ void LayerListView::dragLeaveEvent(QDragLeaveEvent* event)
 void LayerListView::dropEvent(QDropEvent* event)
 {
     const auto* layers = dynamic_cast<LayerListModel*>(model());
-    const auto action = layers && layers->onCanTransfer && layers->onCanTransfer(event->mimeData()) ? Qt::CopyAction : Qt::MoveAction;
+    const auto action = layers ? layers->dropActionForMime(event->mimeData()) : Qt::MoveAction;
     // Re-hit-test even without a pointer move: wheel/edge scrolling and model
     // publication may have moved another row underneath the stationary cursor.
-    const bool allowed = updateDropTarget(event->position().toPoint(), event->mimeData(), action);
+    const bool allowed = event->possibleActions().testFlag(action)
+        && updateDropTarget(event->position().toPoint(), event->mimeData(), action);
     dropMime_.clear();
     if (allowed && model()->dropMimeData(event->mimeData(), action, dropRow_, 0, dropParent_)) {
         event->setDropAction(action);

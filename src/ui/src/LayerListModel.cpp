@@ -300,6 +300,8 @@ QVariant LayerListModel::data(const QModelIndex& index, int role) const
         return rowIndent(index.row());
     case Qt::UserRole + 3:
         return c && core::isExpandable(c->kind);
+    case ContainerRole:
+        return c != nullptr;
     case Qt::UserRole + 4:
         return expanded(*id);
     case Qt::UserRole + 5:
@@ -354,7 +356,7 @@ bool LayerListModel::setData(const QModelIndex& index, const QVariant& value, in
         emit dataChanged(this->index(0), this->index(rowCount() - 1), { Qt::CheckStateRole, Qt::DecorationRole, Qt::UserRole + 6 });
     return true;
 }
-QStringList LayerListModel::mimeTypes() const { return { mimeType, "application/x-vulkana-layer-transfer" }; }
+QStringList LayerListModel::mimeTypes() const { return { mimeType, "application/x-vulkana-layer-transfer", "text/uri-list" }; }
 QMimeData* LayerListModel::mimeData(const QModelIndexList& indexes) const
 {
     std::vector<core::LayerId> ids;
@@ -381,7 +383,7 @@ QMimeData* LayerListModel::mimeData(const QModelIndexList& indexes) const
         result->setData(mimeType, bytes);
     return result;
 }
-std::optional<core::ItemPlacement> LayerListModel::dropPlacement(int row, const QModelIndex& parent) const
+std::optional<core::ItemPlacement> LayerListModel::dropPlacement(int row, const QModelIndex& parent, bool intoGroup) const
 {
     if (!session_ || !session_->document())
         return { };
@@ -393,7 +395,7 @@ std::optional<core::ItemPlacement> LayerListModel::dropPlacement(int row, const 
     if (parent.isValid() && row < 0) {
         const auto id = layerIdAt(parent.row());
         const auto* c = id ? tree.container(*id) : nullptr;
-        if (c && core::isExpandable(c->kind))
+        if (c && (intoGroup || core::isExpandable(c->kind)))
             return core::ItemPlacement { c->id, c->children.size() };
         return { };
     }
@@ -409,6 +411,10 @@ bool LayerListModel::canDropMimeData(const QMimeData* data, Qt::DropAction actio
 {
     if (action == Qt::IgnoreAction)
         return true;
+    if (data && data->hasUrls())
+        return onCanImportFiles && onCanImportFiles(data)
+            && action == Qt::CopyAction && (column == 0 || column == -1)
+            && dropPlacement(row, parent, true).has_value();
     if (const auto* transfer = dynamic_cast<const LayerTransferMimeData*>(data);
         transfer && (!transfer->source || transfer->source->closed || transfer->consumed
             || !session_ || transfer->source->session.document() != session_->document()))
@@ -431,6 +437,8 @@ bool LayerListModel::dropMimeData(const QMimeData* data, Qt::DropAction action, 
         return true;
     if (!canDropMimeData(data, action, row, column, parent))
         return false;
+    if (data && data->hasUrls())
+        return onImportFiles && onImportFiles(data, *dropPlacement(row, parent, true));
     if (onCanTransfer && onCanTransfer(data)) return onTransfer && onTransfer(data, *dropPlacement(row, parent));
     auto ids = dragIds(data);
     const auto p = *dropPlacement(row, parent);
@@ -450,6 +458,11 @@ bool LayerListModel::dropMimeData(const QMimeData* data, Qt::DropAction action, 
 }
 Qt::DropActions LayerListModel::supportedDropActions() const { return Qt::MoveAction | Qt::CopyAction; }
 Qt::DropActions LayerListModel::supportedDragActions() const { return Qt::MoveAction | Qt::CopyAction; }
+Qt::DropAction LayerListModel::dropActionForMime(const QMimeData* data) const
+{
+    return ((onCanImportFiles && onCanImportFiles(data)) || (onCanTransfer && onCanTransfer(data)))
+        ? Qt::CopyAction : Qt::MoveAction;
+}
 
 QIcon LayerListModel::layerThumbnail(const core::Layer& layer) const
 {

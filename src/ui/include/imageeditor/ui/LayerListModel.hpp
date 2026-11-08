@@ -26,6 +26,7 @@ public:
     // Bit per enabled LayerEffectType; presentation only, never a thumbnail bake.
     static constexpr int ActiveEffectsRole = Qt::UserRole + 10;
     static constexpr int BlendModeRole = Qt::UserRole + 11;
+    static constexpr int ContainerRole = Qt::UserRole + 12;
     explicit LayerListModel(QObject* parent = nullptr);
 
     void setSession(core::EditorSession* session);
@@ -59,6 +60,7 @@ public:
         int row, int column, const QModelIndex& parent) override;
     [[nodiscard]] Qt::DropActions supportedDropActions() const override;
     [[nodiscard]] Qt::DropActions supportedDragActions() const override;
+    [[nodiscard]] Qt::DropAction dropActionForMime(const QMimeData*) const;
 
     [[nodiscard]] std::optional<core::LayerId> layerIdAt(int row) const;
     [[nodiscard]] int rowForLayer(core::LayerId layerId) const;
@@ -72,6 +74,8 @@ public:
     std::function<QMimeData*(std::span<const core::LayerId>)> onCaptureTransfer;
     std::function<bool(const QMimeData*)> onCanTransfer;
     std::function<bool(const QMimeData*, core::ItemPlacement)> onTransfer;
+    std::function<bool(const QMimeData*)> onCanImportFiles;
+    std::function<bool(const QMimeData*, core::ItemPlacement)> onImportFiles;
 
 private:
     [[nodiscard]] const core::Layer* layerAt(int row) const;
@@ -91,7 +95,7 @@ private:
     [[nodiscard]] std::set<core::LayerId> selectedAncestorFolders() const;
     [[nodiscard]] QIcon groupThumbnail(core::LayerId) const;
     [[nodiscard]] QIcon layerThumbnail(const core::Layer&) const;
-    [[nodiscard]] std::optional<core::ItemPlacement> dropPlacement(int row, const QModelIndex&) const;
+    [[nodiscard]] std::optional<core::ItemPlacement> dropPlacement(int row, const QModelIndex&, bool intoGroup = false) const;
 };
 
 } // namespace imageeditor::ui

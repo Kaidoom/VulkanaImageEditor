@@ -578,6 +578,8 @@ private:
     QMimeData* captureLayerTransfer(std::span<const core::LayerId>, std::optional<core::Vec2d> = {});
     bool canReceiveLayerTransfer(const QMimeData*) const;
     bool receiveLayerTransfer(const QMimeData*, std::optional<core::Vec2d> = {}, std::optional<core::ItemPlacement> = {});
+    bool canImportLayerFiles(const QMimeData*) const;
+    bool importLayerFiles(const QMimeData*, core::ItemPlacement);
     bool routeDocumentDrag(QObject*, QEvent*);
     QTimer* tabHoverTimer_ {nullptr};
     DocumentInstanceId tabHoverTarget_ {0};

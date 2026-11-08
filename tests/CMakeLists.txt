@@ -375,6 +375,9 @@ target_link_libraries(imageeditor_document_tabs_tests PRIVATE imageeditor_ui Qt6
 imageeditor_enable_warnings(imageeditor_document_tabs_tests)
 add_test(NAME imageeditor_document_tabs_tests COMMAND imageeditor_document_tabs_tests)
 set_tests_properties(imageeditor_document_tabs_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30 LABELS "documents;tabs;widgets")
+add_test(NAME imageeditor_layer_file_drop COMMAND imageeditor_document_tabs_tests --layer-file-drop)
+set_tests_properties(imageeditor_layer_file_drop PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30 LABELS "layers;documents;input")
 add_test(NAME imageeditor_layer_drag_documents COMMAND imageeditor_document_tabs_tests --layer-drag)
 set_tests_properties(imageeditor_layer_drag_documents PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30 LABELS "layers;documents;input")

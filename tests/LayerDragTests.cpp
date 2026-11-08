@@ -6,11 +6,14 @@
 
 #include <QApplication>
 #include <QDragEnterEvent>
+#include <QDragMoveEvent>
+#include <QDropEvent>
 #include <QMimeData>
 #include <QScrollBar>
 #include <QScopedValueRollback>
 #include <QTest>
 #include <QTimer>
+#include <QUrl>
 #include <QWheelEvent>
 #include <iostream>
 #include <memory>
@@ -107,6 +110,38 @@ struct Fixture {
         CHECK(QApplication::overrideCursor() == nullptr);
     }
 };
+
+void fileDragScrollsAndCopies()
+{
+    Fixture f;
+    f.model.onCanImportFiles = [](const QMimeData* data) { return data && data->hasUrls(); };
+    int imports = 0;
+    c::ItemPlacement destination;
+    f.model.onImportFiles = [&](const QMimeData*, c::ItemPlacement p) { ++imports; destination=p; return true; };
+    QMimeData mime;
+    mime.setUrls({QUrl::fromLocalFile("/test/image.png")});
+    QPoint point(f.view.viewport()->width()/2,f.view.viewport()->height()-3);
+    QDragEnterEvent enter(point,Qt::MoveAction|Qt::CopyAction,&mime,Qt::LeftButton,Qt::NoModifier);
+    QApplication::sendEvent(f.view.viewport(),&enter);
+    CHECK(enter.isAccepted() && enter.dropAction()==Qt::CopyAction);
+    QDragMoveEvent move(point,Qt::MoveAction|Qt::CopyAction,&mime,Qt::LeftButton,Qt::NoModifier);
+    QApplication::sendEvent(f.view.viewport(),&move);
+    QTest::qWait(900);
+    CHECK(f.view.verticalScrollBar()->value()>0);
+    point=f.view.viewport()->rect().center();
+    QDragMoveEvent center(point,Qt::MoveAction|Qt::CopyAction,&mime,Qt::LeftButton,Qt::NoModifier);
+    QApplication::sendEvent(f.view.viewport(),&center);
+    const int before=f.view.verticalScrollBar()->value();
+    f.wheel(point,-120);
+    CHECK(f.view.verticalScrollBar()->value()>before);
+    const auto index=f.view.indexAt(point);
+    auto expected=f.session.document()->tree().placement(*f.model.layerIdAt(index.row())).value();
+    if(point.y()<f.view.visualRect(index).center().y()) ++expected.index;
+    QDropEvent drop(QPointF(point),Qt::MoveAction|Qt::CopyAction,&mime,Qt::LeftButton,Qt::NoModifier);
+    QApplication::sendEvent(f.view.viewport(),&drop);
+    CHECK(drop.isAccepted() && drop.dropAction()==Qt::CopyAction);
+    CHECK(imports==1 && destination==expected && f.moves==0);
+}
 
 void wheelAndDrop()
 {
@@ -247,6 +282,7 @@ void noOpAndDeactivation()
 int main(int argc,char** argv)
 {
     LayerDragTestApplication app(argc,argv);
+    fileDragScrollsAndCopies();
     wheelAndDrop();
     pixelScrollingAndCancel();
     edgeScrollingStillWorks();

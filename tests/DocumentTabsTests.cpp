@@ -8,6 +8,7 @@
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/CrossWindowPointerRouter.hpp"
 #include "imageeditor/core/LayerCommands.hpp"
+#include "imageeditor/core/LayerStructureCommands.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "LayerDragTestSupport.hpp"
@@ -244,6 +245,107 @@ void checkLayerWheelTransfer(const QString& imagePath)
     window.close();
 }
 
+void checkLayerFileDrops(QTemporaryDir& files, const QString& background)
+{
+    u::MainWindow window(nullptr,false,false);
+    window.setUnsavedPromptEnabled(false); window.resize(1300,950); window.show();
+    CHECK(window.openImageFromPath(background));
+    QTest::qWait(75);
+    auto& session = const_cast<c::EditorSession&>(window.editorSession());
+    auto* document = session.document();
+    auto* view = dynamic_cast<u::LayerListView*>(window.findChild<QListView*>("LayerList"));
+    auto* model = view ? dynamic_cast<u::LayerListModel*>(view->model()) : nullptr;
+    auto* workspace = dynamic_cast<u::OverlayDockWorkspace*>(window.findChild<QWidget*>("CanvasWorkspace"));
+    CHECK(view && model && workspace);
+    if (!view || !model || !workspace) return;
+    const auto base = *session.activeLayer();
+    auto tree = document->tree();
+    std::vector<c::Layer> children;
+    std::vector<c::LayerId> containers;
+    for (const auto kind : {c::ContainerKind::Folder,c::ContainerKind::Group,c::ContainerKind::ClippingMaskGroup}) {
+        auto child = c::Layer::raster("Child",std::make_shared<c::ContiguousRasterSurface>(c::Extent2u{2,2}));
+        const auto id = c::makeLayerId();
+        tree.containers.push_back({id,"Drop destination",kind,c::ColorLabel::None,{child.id}});
+        tree.roots.push_back(id); children.push_back(std::move(child)); containers.push_back(id);
+    }
+    CHECK(session.execute(std::make_unique<c::LayerStructureCommand>("Setup",*document,std::move(tree),
+        std::vector<c::LayerId>{},std::move(children))));
+    session.setActiveLayer(base); session.history().clear();
+    model->restoreCollapsedFolderIds(containers); model->refresh();
+    const auto before = document->tree();
+    const auto selection = session.layerSelectionState();
+    const auto canvas = document->canvas();
+    QImage a(9,7,QImage::Format_RGBA8888); a.fill(QColor(10,80,220,128));
+    QImage b(11,5,QImage::Format_RGBA8888); b.fill(Qt::green);
+    const auto first = files.filePath("dropped-a.png"), second = files.filePath("dropped-b.png");
+    CHECK(a.save(first)); CHECK(b.save(second));
+    QMimeData mime; mime.setUrls({QUrl::fromLocalFile(first),QUrl::fromLocalFile(second)});
+    CHECK(model->mimeTypes().contains("text/uri-list"));
+    CHECK(!model->canDropMimeData(&mime,Qt::MoveAction,-1,0,{}));
+    const auto drop = [&](const QMimeData& data, c::LayerId target, bool into, bool native) {
+        const auto index = model->index(model->rowForLayer(target));
+        view->scrollTo(index); QCoreApplication::processEvents();
+        const auto rect = view->visualRect(index);
+        QPoint point(rect.center().x(), into ? rect.center().y() : rect.top()+1);
+        QObject* recipient = view->viewport();
+        if (native) {
+            auto* host = workspace->panelOverlay()->windowHandle();
+            point = host->mapFromGlobal(view->viewport()->mapToGlobal(point));
+            recipient = host;
+        }
+        QDragEnterEvent enter(point,Qt::CopyAction|Qt::MoveAction,&data,Qt::LeftButton,Qt::NoModifier);
+        QApplication::sendEvent(recipient,&enter);
+        CHECK(enter.isAccepted());
+        QDragMoveEvent move(point,Qt::CopyAction|Qt::MoveAction,&data,Qt::LeftButton,Qt::NoModifier);
+        QApplication::sendEvent(recipient,&move);
+        CHECK(move.isAccepted() && move.dropAction()==Qt::CopyAction);
+        QDropEvent event(QPointF(point),Qt::CopyAction|Qt::MoveAction,&data,Qt::LeftButton,Qt::NoModifier);
+        QApplication::sendEvent(recipient,&event);
+        return event.isAccepted() && event.dropAction()==Qt::CopyAction;
+    };
+    // Insert between root items via the real native panel host, not the canvas.
+    CHECK(drop(mime,base,false,true));
+    CHECK(window.documentCount()==1 && document->canvas()==canvas);
+    CHECK(document->tree().roots.size()==before.roots.size()+2);
+    const auto importedA=document->tree().roots[1], importedB=document->tree().roots[2];
+    CHECK(document->layer(importedA) && document->layer(importedA)->name=="dropped-a");
+    CHECK(document->layer(importedB) && document->layer(importedB)->name=="dropped-b");
+    if(document->layer(importedA)) {
+        const auto surface=c::renderedSurface(*document->layer(importedA));
+        CHECK(surface && surface->extent()==c::Extent2u(9,7));
+        std::array<std::byte,4> pixel{};
+        surface->copyRgba8({0,0,1,1},pixel,4);
+        CHECK(pixel[3]==std::byte{128});
+    }
+    CHECK(session.history().undoDepth()==1 && session.activeLayer()==importedB);
+    const auto after=document->tree();
+    CHECK(session.undo()); CHECK(document->tree()==before); CHECK(session.layerSelectionState()==selection);
+    CHECK(session.redo()); CHECK(document->tree()==after);
+    CHECK(session.undo()); model->refresh();
+    // Folders (including collapsed), groups and clipping groups all accept files.
+    for (auto id : containers) {
+        const auto originalChildren=document->tree().container(id)->children;
+        CHECK(drop(mime,id,true,false));
+        const auto& next=document->tree().container(id)->children;
+        CHECK(next.size()==originalChildren.size()+2 && next.front()==originalChildren.front());
+        CHECK(document->layer(next.back()) && document->layer(next.back())->name=="dropped-b");
+        CHECK(session.history().undoDepth()==1);
+        CHECK(session.undo()); CHECK(document->tree()==before); model->refresh();
+    }
+    // Decoding a bad member does not leave a partially imported batch or undo entry.
+    const auto broken=files.filePath("broken.png"); QFile bad(broken);
+    CHECK(bad.open(QIODevice::WriteOnly)); bad.write("not a PNG"); bad.close();
+    QMimeData mixed; mixed.setUrls({QUrl::fromLocalFile(first),QUrl::fromLocalFile(broken)});
+    CHECK(!drop(mixed,base,false,false));
+    CHECK(document->tree()==before && session.layerSelectionState()==selection);
+    CHECK(session.history().undoDepth()==0 && session.history().redoDepth()==1);
+    QMimeData remote; remote.setUrls({QUrl("https://example.invalid/image.png")});
+    CHECK(!model->canDropMimeData(&remote,Qt::CopyAction,-1,0,{}));
+    QMimeData missing; missing.setUrls({QUrl::fromLocalFile(files.filePath("missing.png"))});
+    CHECK(!model->canDropMimeData(&missing,Qt::CopyAction,-1,0,{}));
+    CHECK(QFile::exists(first) && QFile::exists(second));
+}
+
 int main(int argc,char** argv)
 {
     QCoreApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
@@ -252,6 +354,12 @@ int main(int argc,char** argv)
     QStandardPaths::setTestModeEnabled(true);QTemporaryDir dir;
     QSettings::setDefaultFormat(QSettings::IniFormat);QSettings::setPath(QSettings::IniFormat,QSettings::UserScope,dir.path());
     u::applyEditorTheme(app);
+    if(app.arguments().contains("--layer-file-drop")) {
+        QImage image(40,30,QImage::Format_RGBA8888);image.fill(Qt::red);
+        const auto path=dir.filePath("background.png");CHECK(image.save(path));
+        checkLayerFileDrops(dir,path);
+        return failures?EXIT_FAILURE:EXIT_SUCCESS;
+    }
     if(app.arguments().contains("--layer-drag")) {
         QImage image(40,30,QImage::Format_RGBA8888);image.fill(Qt::red);
         const auto path=dir.filePath("drag.png");CHECK(image.save(path));

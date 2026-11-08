@@ -202,6 +202,7 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
   };
   auto *ai = editMenu->addMenu("AI");
   ai->setObjectName("AIImageEditorMenu");
+  ai->setIcon(toolGlyph(ToolGlyph::LayerRaster));
   const auto action = [&](const char *name, const char *objectName, int mode) {
     auto *item = ai->addAction(name);
     item->setObjectName(objectName);
