@@ -187,7 +187,7 @@ class Worker {
     Json loadedModels = Json::array(); // Immutable snapshots, protected by stateMutex.
     std::string jobId, state = "idle", lastError;
     uint64_t generation = 0;
-    bool oom = false, memoryLimited = false, exited = false;
+    bool oom = false, memoryLimited = false, missingVision = false, exited = false;
     std::string memoryError, modelCompatibilityError;
     Json engineTimings = Json::object();
     vulkana::diffusion::LoraReport loraReport;
@@ -227,6 +227,10 @@ public:
                 if (level >= SD_LOG_WARN) {
                     std::lock_guard lock(w.logMutex);
                     w.lastError = message.substr(0, 4096);
+                    // Preserve the conditioner's diagnostic before its caller
+                    // replaces it with the generic "failed to encode prompt".
+                    if (message.find("Qwen Image 2.1 editing requires Qwen3-VL vision weights") != std::string::npos)
+                        w.missingVision = true;
                     // Keep the actionable loader error when later engine wrappers
                     // merely report that model construction failed.
                     for (const auto* marker : { "Unsupported ConvRot group size", "Invalid ConvRot group size",
@@ -457,6 +461,7 @@ public:
                 modelCompatibilityError.clear();
                 oom = false;
                 memoryLimited = false;
+                missingVision = false;
                 engineTimings = Json::object();
             }
             jobStart = Clock::now();
@@ -813,9 +818,8 @@ Json Worker::generate(const Json& p)
         require(p["referenceImages"].is_array()
                 && p["referenceImages"].size() <= loadedProfile.value("maxReferenceImages", 8),
             "referenceImages must be an array within the profile maxReferenceImages limit");
-        if (!p["referenceImages"].empty() && loadedProfile["visionRequiredForReferences"] == true)
-            require(!str(files, "vision").empty(),
-                "Reload with files.vision to use reference images with this profile");
+        // The engine detects vision tensors in either a combined text encoder
+        // or a separate projector. A missing sidecar path alone is not an error.
         for (const auto& path : p["referenceImages"]) {
             images.emplace_back(inputFile({ { "path", path } }, "path", true));
             refs.push_back(images.back().view);
@@ -850,7 +854,6 @@ Json Worker::generate(const Json& p)
     if (!annotation.empty()) {
         require(refs.size() < loadedProfile.value("maxReferenceImages", 8),
             "Reserve one reference slot for the region annotation image");
-        require(!str(files, "vision").empty(), "Qwen region annotations require vision weights");
         images.emplace_back(annotation);
         refs.push_back(images.back().view);
         prompt += " Use Image " + std::to_string(refs.size())
@@ -993,6 +996,9 @@ Json Worker::generate(const Json& p)
     if (!success || !result || result->count != batch) {
         release();
         std::lock_guard lock(logMutex);
+        if (missingVision)
+            throw Failure("missing_vision", "This text encoder has no usable vision weights for image editing. "
+                "Choose a combined Qwen3-VL encoder or add its matching projector in Vision, then generate again.");
         throw Failure(oom       ? "out_of_memory"
                 : memoryLimited ? "memory_limit"
                                 : "generation_failed",

@@ -8,6 +8,8 @@
 #include "imageeditor/ui/DiffusionTransaction.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
+#include "imageeditor/ui/LayerListModel.hpp"
+#include "imageeditor/ui/WorkspacePanel.hpp"
 #include "imageeditor/ui/PopupOwnership.hpp"
 #include "imageeditor/ui/QtRasterImageLoader.hpp"
 #include "imageeditor/ui/TextController.hpp"
@@ -139,7 +141,7 @@ struct DiffusionWorkspace {
   QProgressBar *noticeProgress{};
   QToolButton *noticeOpen{};
   bool noticeDismissed{}, noticeFinished{}, panelOpen{};
-  QString pendingExecutable, activeExecutable, pendingBackend;
+  QString pendingExecutable, activeExecutable, pendingBackend, pendingConfigurationName;
   QString comparisonKey;
   std::unique_ptr<diffusion::WorkerClient> worker;
   QTemporaryDir files{QDir::tempPath() + "/vulkana-diffusion-XXXXXX"};
@@ -238,6 +240,21 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
   state->panel->onApply = [this, active] {
     if (active())
       applyDiffusion();
+  };
+  state->panel->onPresentPreview = [this, active](QDialog &dialog) {
+    if (!active()) return;
+    refreshDiffusion(); // Copy thumbnails prepared by the Layers panel since its last refresh.
+    auto *presenter = new WorkspaceDialog(*workspace_, *this);
+    const QPointer<WorkspaceDialog> previous(workspaceDialog_);
+    workspaceDialog_ = presenter;
+    const auto size = dialog.size();
+    dialog.setParent(presenter, Qt::Widget | Qt::FramelessWindowHint);
+    dialog.setProperty("workspacePreferredSize", size);
+    presenter->open(dialog);
+    connect(&dialog, &QDialog::finished, this, [this, presenter, previous] {
+      if (workspaceDialog_ == presenter) workspaceDialog_ = previous;
+      presenter->deleteLater();
+    });
   };
   state->panel->onDiscard = [this, active] {
     if (!active() || !diffusion_->panel->selectedResult())
@@ -399,6 +416,8 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
               metadata["image"] = object;
               metadata["contextId"] = id;
               metadata["request"] = s.pendingGeneration;
+              metadata["configuration"] = s.pendingConfiguration;
+              metadata["configurationName"] = s.pendingConfigurationName;
               s.panel->appendResult(
                   {srgb(image), s.jobContext.before,
                    QString("Variation %1").arg(++s.variationCounter), metadata,
@@ -515,8 +534,10 @@ void MainWindow::openDiffusion(int requested) {
   auto &s = *diffusion_;
   s.panelOpen = true;
   workspace_->setSideToolOverlay(s.shell, true);
-  if (s.notice && !s.noticeFinished)
+  if (s.notice) {
+    if (s.noticeFinished) s.noticeDismissed = true;
     workspace_->setTaskNotificationOverlay(s.notice, false);
+  }
   if (requested >= 0)
     s.panel->showGeneration();
   if (s.panel->isBusy())
@@ -647,6 +668,7 @@ void MainWindow::generateDiffusion() {
         s.jobDocuments.insert(id);
     }
     s.pendingConfiguration = s.panel->configuration();
+    s.pendingConfigurationName = s.panel->configurationName();
     // LoRA defaults belong to the saved configuration. Effective adapters are
     // sent per job so changing an override can reuse the loaded model.
     s.pendingConfiguration.remove("loras");
@@ -994,17 +1016,26 @@ void MainWindow::refreshDiffusion() {
       layer && std::holds_alternative<core::RasterLayer>(layer->payload) &&
       std::get<core::RasterLayer>(layer->payload).surface;
   s.panel->setTargetCompatible(selected);
-  const bool comparable =
-      layer && !std::holds_alternative<core::AdjustmentLayer>(layer->payload);
-  s.panel->setComparisonAvailable(comparable);
+  QVector<DiffusionPanel::ComparisonLayer> choices;
+  if (doc) for (auto it = doc->layers().rbegin(); it != doc->layers().rend(); ++it) {
+    const auto &candidate = *it;
+    QString type;
+    if (const auto *raster = std::get_if<core::RasterLayer>(&candidate.payload)) {
+      if (!raster->surface) continue;
+      type = "Raster";
+    } else if (std::holds_alternative<core::TextLayer>(candidate.payload)) type = "Text";
+    else if (std::holds_alternative<core::ShapeLayer>(candidate.payload)) type = "Shape";
+    else continue;
+    choices.push_back({QString("%1:%2").arg(activeDocumentId()).arg(candidate.id),
+                       QString::fromStdString(candidate.name), type, layerModel_->cachedContentThumbnail(candidate.id)});
+  }
+  s.panel->setComparisonLayers(std::move(choices));
   if (s.panel->comparisonActive()) {
-    const auto key = QString("%1:%2:%3:%4")
-                         .arg(activeDocumentId())
-                         .arg(layer ? layer->id : 0)
+    const auto key = QString("%1:%2:%3")
+                         .arg(s.panel->comparisonLayerId())
                          .arg(doc ? doc->revision() : 0)
                          .arg(doc ? doc->contentState() : 0);
-    if (key != s.comparisonKey)
-      compareDiffusionLayer();
+    if (key != s.comparisonKey) compareDiffusionLayer();
   }
 }
 void MainWindow::resetDiffusionSize() {
@@ -1052,23 +1083,25 @@ void MainWindow::compareDiffusionLayer() {
     return;
   auto &s = *diffusion_;
   const auto *doc = session().document();
-  const auto id = session().activeLayer();
-  const auto *layer = doc && id ? doc->layer(*id) : nullptr;
+  const auto identity = s.panel->comparisonLayerId().split(':');
+  const auto id = identity.size() == 2 ? identity[1].toULongLong() : 0;
+  const auto *layer = doc && identity.size() == 2 && identity[0] == QString::number(activeDocumentId())
+                          ? doc->layer(id) : nullptr;
   if (!layer || std::holds_alternative<core::AdjustmentLayer>(layer->payload)) {
-    s.panel->setComparisonAvailable(false);
+    s.panel->setComparisonReference({}, {}, {});
     return;
   }
   try {
     // A comparison is an immutable isolated appearance, including masks and
     // effects. Hidden sources remain inspectable without changing visibility.
     auto copy = *doc;
-    copy.layer(*id)->visible = true;
-    const auto rendered = diffusionRenderedLayer(copy, *id);
+    copy.layer(id)->visible = true;
+    const auto rendered = diffusionRenderedLayer(copy, id);
     if (!rendered)
       throw std::runtime_error(rendered.error.toStdString());
     s.comparisonKey = QString("%1:%2:%3:%4")
                           .arg(activeDocumentId())
-                          .arg(*id)
+                          .arg(id)
                           .arg(doc->revision())
                           .arg(doc->contentState());
     s.panel->setComparisonReference(
@@ -1077,7 +1110,7 @@ void MainWindow::compareDiffusionLayer() {
         QString::fromStdString(layer->name));
   } catch (const std::exception &e) {
     s.panel->setStatus(QString::fromUtf8(e.what()), true);
-    s.panel->setComparisonAvailable(false);
+    s.panel->setComparisonReference({}, {}, {});
   }
 }
 
@@ -1128,6 +1161,10 @@ void MainWindow::shutdownDiffusion() {
   state->panel->onResetSize = {};
   state->panel->onMatchSelectedSize = {};
   state->panel->onCompareRequest = {};
+  state->panel->onPresentPreview = {};
+  // Finish the preview's workspace shield while the canvas/focus bridge still
+  // exists; QObject child destruction happens after those surfaces tear down.
+  state->panel->clearResults();
   state->worker.reset();
   diffusion_.reset();
 }
@@ -1298,7 +1335,7 @@ void MainWindow::updateDiffusionNotice(const QString &message, int step,
   auto &s = *diffusion_;
   s.noticeFinished = finished;
   if (finished)
-    s.noticeDismissed = false;
+    s.noticeDismissed = s.panelOpen; // An observed completion must not reappear on closing the panel.
   if (!s.notice) {
     s.notice = new QFrame(workspace_->panelOverlay());
     s.notice->setObjectName("DiffusionProgressNotification");
@@ -1320,8 +1357,8 @@ void MainWindow::updateDiffusionNotice(const QString &message, int step,
     s.noticeOpen = new QToolButton;
     s.noticeOpen->setObjectName("DiffusionNoticeOpen");
     s.noticeOpen->setIcon(toolGlyph(ToolGlyph::ZoomActual));
-    s.noticeOpen->setToolTip("Open AI Image Editor");
-    s.noticeOpen->setAccessibleName("Open AI Image Editor");
+    s.noticeOpen->setToolTip("View latest preview");
+    s.noticeOpen->setAccessibleName("View latest preview");
     row->addWidget(s.noticeOpen);
     auto *close = new QToolButton;
     close->setObjectName("DiffusionNoticeDismiss");
@@ -1339,15 +1376,9 @@ void MainWindow::updateDiffusionNotice(const QString &message, int step,
       workspace_->setTaskNotificationOverlay(diffusion_->notice, false);
     });
     connect(s.noticeOpen, &QToolButton::clicked, this, [this] {
-      diffusion_->panelOpen = true;
-      workspace_->setSideToolOverlay(diffusion_->shell, true);
-      if (!diffusion_->panel->results().isEmpty())
-        diffusion_->panel->showResults();
-      else
-        diffusion_->panel->showGeneration();
-      if (diffusion_->noticeFinished)
-        diffusion_->noticeDismissed = true;
-      workspace_->setTaskNotificationOverlay(diffusion_->notice, false);
+      if (workspaceDialog_) return;
+      openDiffusion(-1);
+      diffusion_->panel->showLatestPreview();
     });
   }
   s.noticeLabel->setText(total > 0 ? QString("%1 %2%").arg(message).arg(
@@ -1357,8 +1388,8 @@ void MainWindow::updateDiffusionNotice(const QString &message, int step,
   s.noticeProgress->setRange(0, total);
   s.noticeProgress->setValue(step);
   workspace_->setTaskNotificationOverlay(
-      s.notice, !s.noticeDismissed && (finished || !s.panelOpen));
-  if (finished)
+      s.notice, !s.noticeDismissed && !s.panelOpen);
+  if (finished && !s.panelOpen)
     statusBar()->showMessage(message, 5000);
 }
 } // namespace imageeditor::ui

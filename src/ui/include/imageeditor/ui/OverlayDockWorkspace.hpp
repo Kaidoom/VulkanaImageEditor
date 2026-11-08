@@ -134,8 +134,9 @@ public:
     void setTaskNotificationOverlay(QWidget* overlay, bool visible);
     // Interactive view-state badge below the top ruler, without canvas reflow.
     void setViewModeOverlay(QWidget* overlay, bool visible);
-    // Non-dockable tool card on the right edge. Only the card intercepts input;
-    // existing dock placement and canvas geometry remain unchanged.
+    // Temporary content in the right dock's stack, sharing its width and resize
+    // handle. Reparents the card into that container; closing restores the
+    // existing panels and splitter state without changing their placement.
     void setSideToolOverlay(QWidget* overlay, bool visible);
     // Full-workspace preview shield, above docks and the live canvas. Separate
     // from the renderer and hidden while a modal card owns the surface.

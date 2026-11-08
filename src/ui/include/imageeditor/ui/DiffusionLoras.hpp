@@ -4,6 +4,7 @@
 #include <QJsonArray>
 #include <QString>
 #include <memory>
+#include <functional>
 
 class QWidget;
 
@@ -22,6 +23,7 @@ public:
   QJsonArray defaults() const;
   QJsonArray enabledLoras() const;
   void setBusy(bool busy);
+  std::function<void()> onDefaultsChanged;
 
 private:
   struct Impl;

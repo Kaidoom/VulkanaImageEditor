@@ -349,7 +349,7 @@ public:
     void setHasPanels(bool hasPanels)
     {
         hasPanels_ = hasPanels;
-        stackedLayout_->setCurrentWidget(hasPanels
+        stackedLayout_->setCurrentWidget(overlay_ ? overlay_.data() : hasPanels
                 ? static_cast<QWidget*>(splitter_)
                 : static_cast<QWidget*>(shelf_));
         setProperty("emptyShelf", !hasPanels);
@@ -359,6 +359,18 @@ public:
     void setDockContentVisible(bool visible)
     {
         contentHost_->setVisible(visible);
+    }
+
+    void setContentOverlay(QWidget* overlay)
+    {
+        if (overlay_ == overlay) return;
+        if (overlay_) {
+            stackedLayout_->removeWidget(overlay_);
+            overlay_->hide();
+        }
+        overlay_ = overlay;
+        if (overlay_) stackedLayout_->addWidget(overlay_);
+        setHasPanels(hasPanels_);
     }
 
     void setToolRail(QToolBar* toolRail)
@@ -407,6 +419,7 @@ private:
     QSplitter* splitter_ {nullptr};
     EmptyDockShelf* shelf_ {nullptr};
     QToolBar* toolRail_ {nullptr};
+    QPointer<QWidget> overlay_;
     bool hasPanels_ {false};
 };
 
@@ -979,8 +992,12 @@ void OverlayDockWorkspace::setContextOverlayInteractionRegion(const QRegion& reg
 void OverlayDockWorkspace::setSideToolOverlay(QWidget* overlay, bool visible)
 {
     if (sideToolOverlay_ && sideToolOverlay_ != overlay) sideToolOverlay_->hide();
+    if (overlay && sideToolOverlay_ != overlay) overlay->hide();
     sideToolOverlay_ = overlay;
     sideToolOverlayRequestedVisible_ = visible && overlay;
+    // An inactive card may not have entered the dock stack yet. Explicitly
+    // hide it so showing the panel plane cannot expose it at its default (0,0).
+    if (sideToolOverlay_ && !sideToolOverlayRequestedVisible_) sideToolOverlay_->hide();
     updateOverlayLayoutAndStacking();
 }
 
@@ -1326,10 +1343,13 @@ void OverlayDockWorkspace::finishPanelResize(
 
 void OverlayDockWorkspace::updateColumnContents()
 {
+    const bool sideToolVisible = sideToolOverlay_ && sideToolOverlayRequestedVisible_ && !panelsSuppressed_;
+    const QRect sideArea = rightColumn_->geometry();
     // Hide floating frames, not their individual tabs. Dock frames stay in
     // their unchanged splitter; hiding its host preserves all saved sizes.
     for (auto* panel : floatingPanels_)
-        panel->setVisible(!panelsSuppressed_ && panelRequestedVisible(panel));
+        panel->setVisible(!panelsSuppressed_ && panelRequestedVisible(panel)
+            && !(sideToolVisible && panel->geometry().intersects(sideArea)));
     const bool leftHasPanels = hasVisibleDockedPanel(PanelDockSide::Left);
     const bool rightHasPanels = hasVisibleDockedPanel(PanelDockSide::Right);
     // Empty adoption shelves are drag affordances, not permanent chrome.
@@ -1341,18 +1361,19 @@ void OverlayDockWorkspace::updateColumnContents()
     const bool toolRailOnRight = toolRail_
         && toolRailPlacement_ == ToolRailPlacement::Right;
     const bool showLeft = leftHasPanels || toolRailOnLeft || adoptionNeeded;
-    const bool showRight = rightHasPanels || toolRailOnRight || adoptionNeeded;
+    const bool showRight = rightHasPanels || toolRailOnRight || adoptionNeeded || sideToolVisible;
 
     auto* leftColumn = static_cast<PanelDockColumn*>(leftColumn_);
     auto* rightColumn = static_cast<PanelDockColumn*>(rightColumn_);
+    rightColumn->setContentOverlay(sideToolVisible ? sideToolOverlay_.data() : nullptr);
     leftColumn->setHasPanels(leftHasPanels);
     rightColumn->setHasPanels(rightHasPanels);
     leftColumn->setDockContentVisible(leftHasPanels || adoptionNeeded);
-    rightColumn->setDockContentVisible(rightHasPanels || adoptionNeeded);
+    rightColumn->setDockContentVisible(rightHasPanels || adoptionNeeded || sideToolVisible);
     leftColumn_->setVisible(showLeft);
     rightColumn_->setVisible(showRight);
     leftResizeHandle_->setVisible(leftHasPanels);
-    rightResizeHandle_->setVisible(rightHasPanels);
+    rightResizeHandle_->setVisible(rightHasPanels || sideToolVisible);
 }
 
 void OverlayDockWorkspace::updateDropHighlights(QPoint overlayPosition)
@@ -1580,7 +1601,10 @@ bool OverlayDockWorkspace::eventFilter(QObject* watched, QEvent* event)
             floatingPanels_.erase(found);
             floatingPanels_.push_back(panel);
             panel->raise();
-            if (sideToolOverlay_ && !sideToolOverlay_->isHidden()) sideToolOverlay_->raise();
+            if (sideToolOverlay_ && sideToolOverlay_->isVisible()) {
+                rightColumn_->raise();
+                rightResizeHandle_->raise();
+            }
             if (notificationOverlay_ && !notificationOverlay_->isHidden()) notificationOverlay_->raise();
             if (taskNotificationOverlay_ && !taskNotificationOverlay_->isHidden()) taskNotificationOverlay_->raise();
             if (modalOverlay_) modalOverlay_->raise();
@@ -1747,7 +1771,10 @@ void OverlayDockWorkspace::updateOverlayLayoutAndStacking()
     if (panelDropIndicator_ && !panelDropIndicator_->isHidden()) {
         panelDropIndicator_->raise();
     }
-    if (sideToolOverlay_ && !sideToolOverlay_->isHidden()) sideToolOverlay_->raise();
+    if (sideToolOverlay_ && sideToolOverlay_->isVisible()) {
+        rightColumn_->raise();
+        rightResizeHandle_->raise();
+    }
     if (passiveOverlay_ && !passiveOverlay_->isHidden()) passiveOverlay_->raise();
     if (notificationOverlay_ && !notificationOverlay_->isHidden()) notificationOverlay_->raise();
     if (taskNotificationOverlay_ && !taskNotificationOverlay_->isHidden()) taskNotificationOverlay_->raise();
@@ -1762,7 +1789,8 @@ QRegion OverlayDockWorkspace::calculateInteractionFootprint() const
 {
     if (modalOverlay_) return rect();
     QRegion footprint = transientInteractionRegion_ | contextInteractionRegion_;
-    if (sideToolOverlay_ && !sideToolOverlay_->isHidden()) footprint |= sideToolOverlay_->geometry();
+    if (sideToolOverlay_ && sideToolOverlay_->isVisible())
+        footprint |= QRect(sideToolOverlay_->mapTo(panelOverlay_, QPoint{}), sideToolOverlay_->size());
     if (canvasPreviewOverlay_ && !canvasPreviewOverlay_->isHidden()) footprint |= canvasPreviewOverlay_->geometry();
     if (notificationOverlay_ && !notificationOverlay_->isHidden()) footprint |= notificationOverlay_->geometry();
     if (taskNotificationOverlay_ && !taskNotificationOverlay_->isHidden()) footprint |= taskNotificationOverlay_->geometry();
@@ -1803,7 +1831,10 @@ void OverlayDockWorkspace::updatePanelGeometry()
 
     updateColumnContents();
     const bool leftHasPanels = hasVisibleDockedPanel(PanelDockSide::Left);
-    const bool rightHasPanels = hasVisibleDockedPanel(PanelDockSide::Right);
+    const bool sideToolVisible = sideToolOverlay_ && sideToolOverlayRequestedVisible_ && !panelsSuppressed_;
+    const bool rightHasPanels = hasVisibleDockedPanel(PanelDockSide::Right) || sideToolVisible;
+    const int rightMinimum = sideToolVisible
+        ? std::max(kMinimumPanelWidth, sideToolOverlay_->minimumSizeHint().width()) : kMinimumPanelWidth;
     const bool adoptionNeeded = draggedPanel_ != nullptr;
     const int availableHeight = std::max(0,
         panelOverlay_->height() - 2 * kPanelInset);
@@ -1819,7 +1850,7 @@ void OverlayDockWorkspace::updatePanelGeometry()
                          : (adoptionNeeded ? kEmptyShelfWidth : 0))
             + leftToolRailWidth;
     int rightWidth = rightColumn_->isHidden() ? 0
-        : (rightHasPanels ? requestedRightWidth_
+        : (rightHasPanels ? std::max(requestedRightWidth_, rightMinimum)
                           : (adoptionNeeded ? kEmptyShelfWidth : 0))
             + rightToolRailWidth;
     const int maximumCombined = std::max(0,
@@ -1827,7 +1858,7 @@ void OverlayDockWorkspace::updatePanelGeometry()
     int overflow = std::max(0, leftWidth + rightWidth - maximumCombined);
     if (overflow > 0 && rightHasPanels) {
         const int reduction = std::min(overflow,
-            rightWidth - rightToolRailWidth - kMinimumPanelWidth);
+            std::max(0, rightWidth - rightToolRailWidth - rightMinimum));
         rightWidth -= reduction;
         overflow -= reduction;
     }
@@ -1896,12 +1927,6 @@ void OverlayDockWorkspace::updatePanelGeometry()
 
     updateRulerGeometry();
 
-    if (sideToolOverlay_) {
-        const auto area = rect().adjusted(0, 0, -4, -4);
-        const int width = std::min(std::max(500, panelWidth()), std::max(1, area.width()));
-        sideToolOverlay_->setGeometry(area.right() - width + 1, area.top(), width, area.height());
-        sideToolOverlay_->setVisible(sideToolOverlayRequestedVisible_ && !modalOverlay_ && !panelsSuppressed_);
-    }
     if (canvasPreviewOverlay_) {
         canvasPreviewOverlay_->setGeometry(rect());
         canvasPreviewOverlay_->setVisible(canvasPreviewRequestedVisible_ && !modalOverlay_);

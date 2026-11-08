@@ -24,6 +24,8 @@ public:
     // Opt-in for a starter card: local files dropped anywhere in its owning
     // application are open requests, not edits to the document behind it.
     void setLocalFileDropHandler(std::function<void(const QStringList&)> handler);
+    // Keep application modality while centering a card over a particular panel.
+    void setCenterWidget(QWidget* widget);
 
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
@@ -39,7 +41,7 @@ private:
     QWidget& host_;
     QPointer<QWidget> previousOverlay_;
     QPointer<QDialog> dialog_;
-    QPointer<QWidget> previousFocus_, previousProxy_, lastFocus_;
+    QPointer<QWidget> previousFocus_, previousProxy_, lastFocus_, centerWidget_;
     std::function<void(const QStringList&)> localFileDropHandler_;
     bool running_ {false};
 };

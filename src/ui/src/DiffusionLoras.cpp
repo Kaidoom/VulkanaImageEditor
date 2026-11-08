@@ -203,23 +203,28 @@ struct DiffusionLoras::Impl {
           name->setText(value->name);
         }
         rebuildGeneration();
+        if (owner.onDefaultsChanged) owner.onDefaultsChanged();
       });
       QObject::connect(name, &QLineEdit::textEdited, &owner, [this, id = item.id](const QString &text) {
         if (auto *value = entry(id)) value->name = text;
         rebuildGeneration();
+        if (owner.onDefaultsChanged) owner.onDefaultsChanged();
       });
       QObject::connect(enabled, &QCheckBox::toggled, &owner, [this, id = item.id](bool checked) {
         if (auto *value = entry(id)) value->enabled = checked;
         rebuildGeneration();
+        if (owner.onDefaultsChanged) owner.onDefaultsChanged();
       });
       QObject::connect(strength, &QDoubleSpinBox::valueChanged, &owner, [this, id = item.id](double strength) {
         if (auto *value = entry(id)) value->strength = strength;
         rebuildGeneration();
+        if (owner.onDefaultsChanged) owner.onDefaultsChanged();
       });
       QObject::connect(remove, &QToolButton::clicked, &owner, [this, id = item.id] {
         entries.removeIf([&](const Entry &value) { return value.id == id; });
         overrides[activeKey].remove(id);
         QTimer::singleShot(0, &owner, [this] { rebuildConfiguration(); rebuildGeneration(); });
+        if (owner.onDefaultsChanged) owner.onDefaultsChanged();
       });
     }
     auto *add = button(ToolGlyph::Plus, "Add LoRA", config);
@@ -227,6 +232,7 @@ struct DiffusionLoras::Impl {
     configRows->addWidget(add, 0, Qt::AlignHCenter);
     QObject::connect(add, &QToolButton::clicked, &owner, [this] {
       entries.append({QUuid::createUuid().toString(QUuid::WithoutBraces), {}, {}, 1, true});
+      if (owner.onDefaultsChanged) owner.onDefaultsChanged();
       QTimer::singleShot(0, &owner, [this] { rebuildConfiguration(); rebuildGeneration(); });
     });
   }

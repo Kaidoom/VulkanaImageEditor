@@ -2,10 +2,14 @@
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/DiffusionPanel.hpp"
 #include "imageeditor/ui/DiffusionPreview.hpp"
+#include "imageeditor/ui/LayerListView.hpp"
+#include "imageeditor/ui/LayerListModel.hpp"
 #include "imageeditor/ui/DiffusionTransaction.hpp"
 #include "imageeditor/ui/FlattenedDocument.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
+#include "imageeditor/ui/NewDocumentDialog.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
+#include "imageeditor/ui/WorkspacePanel.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include <QAction>
 #include <QApplication>
@@ -14,6 +18,7 @@
 #include <QClipboard>
 #include <QComboBox>
 #include <QDialog>
+#include <QDialogButtonBox>
 #include <QFile>
 #include <QInputDialog>
 #include <QInputMethodEvent>
@@ -31,6 +36,7 @@
 #include <QScrollArea>
 #include <QSettings>
 #include <QSlider>
+#include <QSplitter>
 #include <QStandardItemModel>
 #include <QStandardPaths>
 #include <QTabWidget>
@@ -96,10 +102,12 @@ private slots:
   void init() {
     QSettings().clear();
     window = std::make_unique<u::MainWindow>(nullptr, false, false);
+    QVERIFY(child<QWidget>("AIImageEditorWorkspace")->isHidden());
     window->setUnsavedPromptEnabled(false);
     window->resize(1280, 900);
     window->show();
     QCoreApplication::processEvents();
+    QVERIFY(child<QWidget>("AIImageEditorWorkspace")->isHidden());
     QVERIFY(window->openImageFromPath(fixturePath));
     auto *widget = child<QWidget>("AIImageEditorPanel");
     QVERIFY(widget);
@@ -117,6 +125,50 @@ private slots:
   void cleanup() {
     window.reset();
     QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+  }
+  void aiStaysHiddenAcrossRestartAndStartupChooser() {
+    openMode("AIGenerateImageAction");
+    panel->saveSettings();
+    window.reset();
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    // Keep the saved model configuration, as on an ordinary subsequent launch.
+    window = std::make_unique<u::MainWindow>(nullptr, false, false);
+    window->setUnsavedPromptEnabled(false);
+    window->resize(1280, 900);
+    auto *shell = child<QWidget>("AIImageEditorWorkspace");
+    QVERIFY(shell && shell->isHidden());
+    window->show();
+    QCoreApplication::processEvents();
+    QVERIFY(shell->isHidden());
+    bool inspected = false, hiddenDuringChooser = false;
+    QTimer probe, watchdog;
+    connect(&probe, &QTimer::timeout, window.get(), [&] {
+      for (auto *dialog : window->findChildren<QDialog *>()) {
+        if (dynamic_cast<u::NewDocumentDialog *>(dialog) && dialog->isVisible()) {
+          inspected = true;
+          hiddenDuringChooser = shell->isHidden();
+          probe.stop();
+          dialog->reject();
+          return;
+        }
+      }
+    });
+    watchdog.setSingleShot(true);
+    connect(&watchdog, &QTimer::timeout, window.get(), [&] { window->close(); });
+    probe.start(10);
+    watchdog.start(5000);
+    window->showStartupDocument();
+    probe.stop(); watchdog.stop();
+    QVERIFY(inspected && hiddenDuringChooser && shell->isHidden());
+    panel = dynamic_cast<u::DiffusionPanel *>(child<QWidget>("AIImageEditorPanel"));
+    QVERIFY(panel);
+    QCOMPARE(panel->configuration()["files"].toObject()["diffusion"].toString(), modelPath);
+    openMode("AIGenerateImageAction");
+    auto *workspace = dynamic_cast<u::OverlayDockWorkspace *>(child<QWidget>("CanvasWorkspace"));
+    QVERIFY(workspace && workspace->rightPanelCard()->isAncestorOf(shell));
+    QVERIFY(shell->isVisible());
+    panel->onClose();
+    QVERIFY(shell->isHidden());
   }
   void presetPromptAcceptsNativeKeyboardAndIme() {
     openMode("AIEditLayerAction");
@@ -427,17 +479,19 @@ private slots:
     if (const auto capture = qEnvironmentVariable("VULKANA_DIFFUSION_INTEGRATION_CAPTURE"); !capture.isEmpty())
       QVERIFY(panel->grab().save(capture + "-lora-generate.png"));
     QTimer::singleShot(0, window.get(), [this] {
-      auto *dialog = child<QInputDialog>("DiffusionTextPrompt");
+      auto *dialog = child<QInputDialog>("DiffusionConfigurationNamePrompt");
       QVERIFY(dialog);
       dialog->setTextValue("LoRA configuration");
       dialog->accept();
     });
-    child<QPushButton>("DiffusionSaveConfiguration")->click();
+    child<QToolButton>("DiffusionDuplicateConfiguration")->click();
     const auto saved = QJsonDocument::fromJson(QSettings().value("diffusion/modelConfigurations").toByteArray()).array();
     QCOMPARE(saved.size(), 1);
     QCOMPARE(saved[0].toObject()["configuration"].toObject()["loras"].toArray()[0].toObject()["strength"].toDouble(), .8);
     QVERIFY(!saved[0].toObject()["generation"].toObject().contains("loras"));
-    QCOMPARE(panel->request()["loras"].toArray()[0].toObject()["strength"].toDouble(), .4);
+    // Duplication copies configuration defaults, not session-only overrides.
+    QCOMPARE(panel->request()["loras"].toArray()[0].toObject()["strength"].toDouble(), .8);
+    panel->findChild<QDoubleSpinBox *>("DiffusionLoraStrength")->setValue(.4);
     generate();
     QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
     QCOMPARE(panel->results().size(), 1);
@@ -661,20 +715,148 @@ private slots:
     QCOMPARE(native().pixelColor(20, 20).alpha(), 0);
     QCOMPARE(native().pixelColor(0, 0), before.pixelColor(0, 0));
   }
+  void configurationPromptsStayCenteredOnAiPanel() {
+    openMode("AIImageEditorAction");
+    child<QTabWidget>("DiffusionTabs")->setCurrentIndex(0);
+    auto *configs = child<QComboBox>("DiffusionConfigurationModels");
+    auto *workspace = dynamic_cast<u::OverlayDockWorkspace *>(child<QWidget>("CanvasWorkspace"));
+    QVERIFY(configs && workspace);
+    QVERIFY(!configs->isEnabled());
+    QCOMPARE(configs->count(), 0);
+    QVERIFY(!child<QComboBox>("DiffusionModels")->isEnabled());
+    auto *add = child<QToolButton>("DiffusionAddConfiguration");
+    QVERIFY(add && add->isEnabled() && !add->icon().isNull());
+    const auto stored = [] { return QJsonDocument::fromJson(QSettings().value("diffusion/modelConfigurations").toByteArray()).array(); };
+    auto centered = [&](QDialog *dialog) {
+      QVERIFY(dialog && !dialog->isWindow());
+      QVERIFY(!(dialog->windowFlags() & (Qt::WindowMinimizeButtonHint | Qt::WindowMaximizeButtonHint)));
+      const auto center = dialog->mapToGlobal(dialog->rect().center());
+      QVERIFY((center - panel->mapToGlobal(panel->rect().center())).manhattanLength() <= 2);
+    };
+    auto namePrompt = [&](const std::function<void()> &trigger, const QString &name, bool accepted) {
+      QTimer watchdog;
+      bool opened = false;
+      watchdog.setSingleShot(true);
+      connect(&watchdog, &QTimer::timeout, window.get(), [this] {
+        if (auto *dialog = child<QInputDialog>("DiffusionConfigurationNamePrompt")) dialog->reject();
+      });
+      watchdog.start(5000);
+      QTimer::singleShot(0, &watchdog, [&, name, accepted] {
+        opened = true;
+        auto *dialog = child<QInputDialog>("DiffusionConfigurationNamePrompt");
+        centered(dialog);
+        if (!dialog) return;
+        auto *field = dialog->findChild<QLineEdit *>();
+        QVERIFY(field);
+        auto *buttons = dialog->findChild<QDialogButtonBox *>();
+        QVERIFY(buttons);
+        if (dialog->textValue().isEmpty()) QVERIFY(!buttons->button(QDialogButtonBox::Ok)->isEnabled());
+        if (name == "Second") {
+          dialog->setTextValue(QString::fromUtf8("First 日本語"));
+          QVERIFY(!buttons->button(QDialogButtonBox::Ok)->isEnabled());
+        }
+        const auto position = workspace->panelOverlay()->mapFromGlobal(field->mapToGlobal(field->rect().center()));
+        QTest::mouseClick(workspace->panelOverlay()->windowHandle(), Qt::LeftButton, {}, position);
+        field->selectAll();
+        QInputMethodEvent input;
+        input.setCommitString(name);
+        QCoreApplication::sendEvent(window->windowHandle(), &input);
+        QCOMPARE(field->text(), name);
+        if (accepted) {
+          QVERIFY(buttons->button(QDialogButtonBox::Ok)->isEnabled());
+          if (const auto capture = qEnvironmentVariable("VULKANA_DIFFUSION_INTEGRATION_CAPTURE"); !capture.isEmpty())
+            QVERIFY(workspace->panelOverlay()->grab().save(capture + "-configuration-name.png"));
+          buttons->button(QDialogButtonBox::Ok)->click();
+        } else buttons->button(QDialogButtonBox::Cancel)->click();
+      });
+      trigger();
+      QVERIFY(opened);
+      QVERIFY(watchdog.isActive());
+    };
+    const auto newConfig = [&] {
+      const auto position = workspace->panelOverlay()->mapFromGlobal(add->mapToGlobal(add->rect().center()));
+      QTest::mouseClick(workspace->panelOverlay()->windowHandle(), Qt::LeftButton, {}, position);
+    };
+    const auto initial = panel->configuration();
+    namePrompt(newConfig, "Abandoned", false);
+    QCOMPARE(panel->configuration(), initial);
+    QCOMPARE(stored().size(), 0);
+    namePrompt(newConfig, "First 日本語", true);
+    QCOMPARE(panel->configurationName(), QString::fromUtf8("First 日本語"));
+    QCOMPARE(stored().size(), 1);
+    QVERIFY(configs->isEnabled());
+    QCOMPARE(configs->count(), 1);
+    QCOMPARE(configs->currentIndex(), 0);
+    QVERIFY(child<QComboBox>("DiffusionModels")->isEnabled());
+    QVERIFY(panel->configuration()["files"].toObject().isEmpty());
+    auto *weights = child<QLineEdit>("DiffusionFile_diffusion");
+    weights->setText(modelPath);
+    QTRY_COMPARE(stored()[0].toObject()["configuration"].toObject()["files"].toObject()["diffusion"].toString(), modelPath);
+    const auto firstId = configs->currentData();
+    namePrompt([&] { child<QToolButton>("DiffusionDuplicateConfiguration")->click(); }, "Second", true);
+    QCOMPARE(stored().size(), 2);
+    QCOMPARE(panel->configurationName(), QString("Second"));
+    QCOMPARE(weights->text(), modelPath);
+    const auto secondId = configs->currentData();
+    QVERIFY(firstId != secondId);
+    weights->setText(modelPath + ".copy");
+    configs->setCurrentIndex(configs->findData(firstId));
+    QCOMPARE(weights->text(), modelPath);
+    namePrompt(newConfig, "Cancelled again", false);
+    QCOMPARE(configs->currentData(), firstId);
+    QCOMPARE(stored().size(), 2);
+    auto remove = [&](bool yes) {
+      QTimer::singleShot(0, window.get(), [&, yes] {
+        auto *dialog = child<QMessageBox>("DiffusionConfigurationDeletePrompt");
+        centered(dialog);
+        if (!dialog) return;
+        QCOMPARE(dialog->defaultButton(), dialog->button(QMessageBox::No));
+        dialog->button(yes ? QMessageBox::Yes : QMessageBox::No)->click();
+      });
+      child<QToolButton>("DiffusionDeleteConfiguration")->click();
+    };
+    remove(false);
+    QCOMPARE(stored().size(), 2);
+    QCOMPARE(configs->currentData(), firstId);
+    remove(true);
+    QCOMPARE(stored().size(), 1);
+    QCOMPARE(configs->currentData(), secondId);
+    QCOMPARE(weights->text(), modelPath + ".copy");
+    remove(true);
+    QVERIFY(stored().isEmpty());
+    QVERIFY(!configs->isEnabled());
+    QCOMPARE(configs->count(), 0);
+    QVERIFY(!child<QComboBox>("DiffusionModels")->isEnabled());
+    QVERIFY(add->isEnabled());
+    QVERIFY(!child<QToolButton>("DiffusionDeleteConfiguration")->isEnabled());
+    if (const auto capture = qEnvironmentVariable("VULKANA_DIFFUSION_INTEGRATION_CAPTURE"); !capture.isEmpty())
+      QVERIFY(panel->grab().save(capture + "-configuration-empty.png"));
+    QVERIFY(child<QWidget>("DiffusionSessionDivider"));
+  }
   void cancellationFailureCloseAndRetarget() {
     openMode("AIEditLayerAction");
-    generate();
+    auto *action = child<QPushButton>("DiffusionGenerate");
+    QVERIFY(action && action->isEnabled());
+    QCOMPARE(action->text(), QString("Generate"));
+    prompt("A green studio object");
+    action->click();
     QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
     QCOMPARE(panel->results().size(), 1);
     generate("slow");
     QVERIFY(panel->isBusy());
-    panel->onCancel();
+    QCOMPARE(action->text(), QString("Cancel"));
+    QVERIFY(action->isEnabled());
+    action->click();
     QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QCOMPARE(action->text(), QString("Generate"));
+    QVERIFY(action->isEnabled());
     QCOMPARE(panel->results().size(), 1);
     generate("fail");
     QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
     QCOMPARE(panel->results().size(), 1);
-    generate();
+    QCOMPARE(action->text(), QString("Generate"));
+    prompt("A green studio object");
+    action->click();
     QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
     QCOMPARE(panel->results().size(), 2);
     const auto first = window->activeDocumentId();
@@ -1245,6 +1427,98 @@ private slots:
       tabs->setCurrentIndex(1);
     }
   }
+  void expandedPreviewOwnsInputAndApplies() {
+    auto *right = child<QSplitter>("RightPanelSplitter");
+    auto *left = child<QSplitter>("LeftPanelSplitter");
+    QVERIFY(right && left && right->isVisible() && left->isVisible());
+    const auto sizes = right->sizes();
+    openMode("AIGenerateImageAction");
+    QVERIFY(!right->isVisible());
+    QVERIFY(left->isVisible());
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    auto *tabs = panel->findChild<QTabWidget *>("DiffusionTabs");
+    QCOMPARE(tabs->currentIndex(), 1);
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QCOMPARE(panel->results().size(), 2);
+    if (const auto path = qEnvironmentVariable("VULKANA_DIFFUSION_INTEGRATION_CAPTURE"); !path.isEmpty()) {
+      panel->findChild<QScrollArea *>("DiffusionGenerationPage")
+          ->ensureWidgetVisible(child<QLabel>("DiffusionGenerationThumbnail"));
+      QCoreApplication::processEvents();
+      QVERIFY(child<QWidget>("AIImageEditorWorkspace")->grab().save(path + "-latest-generation.png"));
+      tabs->setCurrentIndex(2);
+      QCoreApplication::processEvents();
+      QVERIFY(child<QWidget>("AIImageEditorWorkspace")->grab().save(path + "-image-details.png"));
+      tabs->setCurrentIndex(1);
+    }
+    const auto revision = session().document()->revision();
+    auto *shell = child<QWidget>("AIImageEditorWorkspace");
+    const auto aiGeometry = shell->geometry();
+    const auto aiParent = shell->parentWidget();
+    panel->showResultPreview();
+    QVERIFY(shell->isVisible());
+    QCOMPARE(shell->geometry(), aiGeometry);
+    QCOMPARE(shell->parentWidget(), aiParent);
+    QVERIFY(!right->isVisible());
+    auto *dialog = child<QDialog>("DiffusionPreviewDialog");
+    QVERIFY(dialog && !dialog->isWindow());
+    QVERIFY(!(dialog->windowFlags() & (Qt::WindowMinimizeButtonHint | Qt::WindowMaximizeButtonHint)));
+    auto *preview = child<QWidget>("DiffusionPreview");
+    QVERIFY(preview);
+    preview->setFocus();
+    QTRY_VERIFY(preview->hasFocus());
+    // Exercise the actual native host-window bridge, not just a widget key.
+    QKeyEvent previous(QEvent::KeyPress, Qt::Key_Left, {});
+    QCoreApplication::sendEvent(window->windowHandle(), &previous);
+    QCOMPARE(panel->selectedResultIndex(), 0);
+    child<QPushButton>("DiffusionCompareLayer")->setFocus();
+    QKeyEvent next(QEvent::KeyPress, Qt::Key_Right, {});
+    QCoreApplication::sendEvent(window->windowHandle(), &next);
+    QCOMPARE(panel->selectedResultIndex(), 1);
+    QKeyEvent down(QEvent::KeyPress, Qt::Key_Down, {});
+    QCoreApplication::sendEvent(window->windowHandle(), &down);
+    QCOMPARE(session().document()->revision(), revision);
+    if (const auto path = qEnvironmentVariable("VULKANA_DIFFUSION_INTEGRATION_CAPTURE"); !path.isEmpty()) {
+      QVERIFY(dialog->grab().save(path + "-result-overlay.png"));
+    }
+    const auto count = session().document()->layers().size();
+    panel->setDestination(u::DiffusionPanel::Destination::NewLayer);
+    child<QPushButton>("DiffusionApply")->click();
+    QCOMPARE(session().document()->layers().size(), count + 1);
+    QVERIFY(!dialog->isVisible());
+    QVERIFY(child<QWidget>("AIImageEditorWorkspace")->isVisible());
+    QVERIFY(!right->isVisible());
+    panel->onClose();
+    QVERIFY(right->isVisible() && left->isVisible());
+    QCOMPARE(right->sizes(), sizes);
+  }
+  void aiContentSharesTheDockResizeHandle() {
+    auto *workspace = dynamic_cast<u::OverlayDockWorkspace *>(child<QWidget>("CanvasWorkspace"));
+    QVERIFY(workspace);
+    const auto tabs = workspace->savePanelTabs();
+    const int originalWidth = workspace->panelWidth();
+    openMode("AIGenerateImageAction");
+    auto *shell = child<QWidget>("AIImageEditorWorkspace");
+    auto *handle = workspace->panelResizeHandle();
+    QVERIFY(shell && handle->isVisible());
+    QVERIFY(workspace->rightPanelCard()->isAncestorOf(shell));
+    const int before = shell->width();
+    const QPoint start = handle->mapToGlobal(handle->rect().center());
+    QTest::mousePress(handle, Qt::LeftButton, {}, handle->rect().center());
+    const QPoint target = start - QPoint(40, 0);
+    QMouseEvent move(QEvent::MouseMove, handle->mapFromGlobal(target), target,
+                     Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+    QCoreApplication::sendEvent(handle, &move);
+    QTest::mouseRelease(handle, Qt::LeftButton);
+    QCoreApplication::processEvents();
+    QCOMPARE(shell->width(), before + 40);
+    QVERIFY(!child<QSplitter>("RightPanelSplitter")->isVisible());
+    panel->onClose();
+    QVERIFY(child<QSplitter>("RightPanelSplitter")->isVisible());
+    QCOMPARE(workspace->savePanelTabs(), tabs);
+    workspace->setPanelWidth(originalWidth);
+  }
   void backgroundGenerationSurvivesPanelAndDocumentClosure() {
     const auto originalDoc = window->activeDocumentId();
     const auto otherPath = temporary.filePath("continuing.png");
@@ -1289,17 +1563,19 @@ private slots:
     QCOMPARE(panel->results().size(), 1);
     QVERIFY(child<QWidget>("AIImageEditorWorkspace")->isHidden());
     QVERIFY(child<QWidget>("DiffusionProgressNotification")->isVisible());
+    const auto tab = child<QTabWidget>("DiffusionTabs")->currentIndex();
     child<QToolButton>("DiffusionNoticeOpen")->click();
     QVERIFY(child<QWidget>("AIImageEditorWorkspace")->isVisible());
-    auto *destinations =
-        panel->findChild<QComboBox *>("DiffusionOutputDestination");
+    QVERIFY(child<QDialog>("DiffusionPreviewDialog")->isVisible());
+    QCOMPARE(child<QTabWidget>("DiffusionTabs")->currentIndex(), tab);
+    auto *destinations = child<QComboBox>("DiffusionOutputDestination");
     auto *items = qobject_cast<QStandardItemModel *>(destinations->model());
     QCOMPARE(destinations->findData("replaceOriginal"), -1);
     QVERIFY(items->item(int(u::DiffusionPanel::Destination::ReplaceSelected))
                 ->isEnabled());
     const auto before = native();
     panel->setDestination(u::DiffusionPanel::Destination::ReplaceSelected);
-    panel->onApply();
+    child<QPushButton>("DiffusionApply")->click();
     QVERIFY(native() != before);
     QVERIFY(session().undo());
     QCOMPARE(native(), before);
@@ -1388,9 +1664,12 @@ private slots:
     QCOMPARE(panel->selectedResult()->toDocument.map(QPointF{}),
              QPointF(20, 10));
     panel->showResultPreview();
-    auto *compare = child<QPushButton>("DiffusionCompareSelected");
+    auto *compare = child<QPushButton>("DiffusionCompareLayer");
     QVERIFY(compare && compare->isEnabled());
     compare->click();
+    auto *choices = child<QListWidget>("DiffusionComparisonLayers");
+    QVERIFY(choices && choices->count() > 0);
+    choices->setCurrentRow(0);
     QVERIFY(panel->comparisonActive());
     auto *view =
         dynamic_cast<u::DiffusionPreview *>(child<QWidget>("DiffusionPreview"));
@@ -1439,49 +1718,163 @@ private slots:
     generate();
     QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
     QCOMPARE(panel->results().size(), 1);
-    QVERIFY(child<QWidget>("DiffusionProgressNotification")
-                ->isVisible()); // completion remains visible
+    QVERIFY(child<QWidget>("DiffusionProgressNotification")->isHidden());
+    panel->onClose();
+    QVERIFY(child<QWidget>("DiffusionProgressNotification")->isHidden()); // Already observed.
+    openMode("AIImageEditorAction");
     QTRY_VERIFY(child<QPushButton>("DiffusionUnloadModel")->isEnabled());
     child<QPushButton>("DiffusionUnloadModel")->click();
     generate();
     QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
     QCOMPARE(panel->results().size(), 2);
   }
-  void comparisonFollowsLayerSelection() {
+  void notificationOpensLatestPreviewWithoutChangingTabs() {
+    openMode("AIGenerateImageAction");
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QCOMPARE(panel->results().size(), 1);
+    auto *tabs = child<QTabWidget>("DiffusionTabs");
+    tabs->setCurrentIndex(0);
+    generate("slow");
+    panel->onClose();
+    QVERIFY(child<QWidget>("DiffusionProgressNotification")->isVisible());
+    child<QToolButton>("DiffusionNoticeOpen")->click();
+    auto *dialog = child<QDialog>("DiffusionPreviewDialog");
+    QVERIFY(dialog && dialog->isVisible() && !dialog->isWindow());
+    QCOMPARE(tabs->currentIndex(), 0);
+    QVERIFY(!panel->selectedResult()); // Inspect the running job, not an older result.
+    QVERIFY(child<QWidget>("DiffusionProgressNotification")->isHidden());
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QCOMPARE(panel->results().size(), 2);
+    QVERIFY(child<QWidget>("DiffusionProgressNotification")->isHidden());
+    dialog->close();
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    panel->onClose();
+    QVERIFY(child<QWidget>("DiffusionProgressNotification")->isHidden());
+    generate("slow");
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QVERIFY(child<QWidget>("DiffusionProgressNotification")->isVisible());
+    child<QToolButton>("DiffusionNoticeOpen")->click();
+    dialog = child<QDialog>("DiffusionPreviewDialog");
+    QVERIFY(dialog && dialog->isVisible());
+    QCOMPARE(tabs->currentIndex(), 0);
+    QCOMPARE(panel->selectedResultIndex(), 2);
+    QCOMPARE(dynamic_cast<u::DiffusionPreview *>(child<QWidget>("DiffusionPreview"))->image(),
+             panel->results().back().image);
+    QVERIFY(child<QWidget>("DiffusionProgressNotification")->isHidden());
+    dialog->close();
+    panel->onClose();
+    QVERIFY(child<QWidget>("DiffusionProgressNotification")->isHidden());
+  }
+  void comparisonChooserIsIndependentOfDockLayout_data() {
+    QTest::addColumn<int>("placement");
+    QTest::newRow("left") << 0;
+    QTest::newRow("right") << 1;
+    QTest::newRow("floating") << 2;
+  }
+  void comparisonChooserIsIndependentOfDockLayout() {
+    QFETCH(int, placement);
+    auto *workspace = dynamic_cast<u::OverlayDockWorkspace *>(child<QWidget>("CanvasWorkspace"));
+    auto *layerFrame = dynamic_cast<u::WorkspacePanel *>(child<QWidget>("LayersPanel"));
+    QVERIFY(workspace && layerFrame);
+    auto *sourceList = child<QListView>("LayerList");
+    auto *layerModel = dynamic_cast<u::LayerListModel *>(sourceList->model());
+    QVERIFY(layerModel);
+    const auto sourceId = session().activeLayer().value();
+    (void)layerModel->data(layerModel->index(layerModel->rowForLayer(sourceId)), Qt::DecorationRole);
+    const auto sourceThumbnail = layerModel->cachedContentThumbnail(sourceId);
+    QVERIFY(!sourceThumbnail.isNull());
+    if (placement == 1) workspace->dockPanel(layerFrame, u::OverlayDockWorkspace::PanelDockSide::Right, 0);
+    if (placement == 2) workspace->floatPanel(layerFrame, QRect(20, 40, 300, 500));
     openMode("AIGenerateImageAction");
     generate();
     QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
     panel->setDestination(u::DiffusionPanel::Destination::NewLayer);
     panel->onApply();
+    // The chooser includes editable text/shapes and hidden raster layers,
+    // while adjustment layers and raster layers without pixels are excluded.
+    std::vector<c::LayerId> uncachedLayers;
+    for (auto payload : {c::LayerPayload(c::TextLayer{"Comparison text"}),
+                         c::LayerPayload(c::ShapeLayer{}),
+                         c::LayerPayload(c::AdjustmentLayer{}),
+                         c::LayerPayload(c::RasterLayer{})}) {
+      c::Layer layer;
+      layer.id = c::makeLayerId();
+      uncachedLayers.push_back(layer.id);
+      layer.name = "Extra layer";
+      layer.payload = std::move(payload);
+      QVERIFY(session().document()->insertLayer(0, std::move(layer)));
+    }
+    openMode("AIImageEditorAction");
     const auto revision = session().document()->revision();
+    const auto active = session().activeLayer();
+    auto *editorList = child<QListView>("LayerList");
+    QVERIFY(editorList);
     panel->showResultPreview();
-    child<QPushButton>("DiffusionCompareSelected")->click();
-    auto *preview =
-        dynamic_cast<u::DiffusionPreview *>(child<QWidget>("DiffusionPreview"));
+    auto *dialog = child<QDialog>("DiffusionPreviewDialog");
+    auto *shield = dialog->parentWidget();
+    QVERIFY(shield->mask().isEmpty());
+    QVERIFY((dialog->geometry().center() - shield->rect().center()).manhattanLength() <= 2);
+    QVERIFY(child<QWidget>("AIImageEditorWorkspace")->isVisible());
+    // Even a direct event to the underlying list is rejected by the shield.
+    QTest::mouseClick(editorList->viewport(), Qt::LeftButton, {}, QPoint(30, 70));
+    QCOMPARE(session().activeLayer(), active);
+    QCOMPARE(session().document()->revision(), revision);
+    child<QPushButton>("DiffusionCompareLayer")->click();
+    auto *choices = child<QListWidget>("DiffusionComparisonLayers");
+    auto *chooser = child<QWidget>("DiffusionComparisonPanel");
+    auto *main = child<QWidget>("DiffusionPreviewContent");
+    auto *search = child<QLineEdit>("DiffusionComparisonSearch");
+    QVERIFY(choices && chooser && main && search);
+    QCoreApplication::processEvents();
+    QCOMPARE(choices->count(), 4);
+    for (const auto id : uncachedLayers) QVERIFY(layerModel->cachedContentThumbnail(id).isNull());
+    QVERIFY(chooser->isVisible());
+    QVERIFY(chooser->geometry().right() < main->geometry().left());
+    QVERIFY((dialog->geometry().center() - shield->rect().center()).manhattanLength() <= 2);
+    // Use the real host keyboard/IME route for search, including caret keys.
+    const auto searchPoint = workspace->panelOverlay()->mapFromGlobal(search->mapToGlobal(search->rect().center()));
+    QTest::mouseClick(workspace->panelOverlay()->windowHandle(), Qt::LeftButton, {}, searchPoint);
+    QTRY_VERIFY(search->hasFocus());
+    QInputMethodEvent input;
+    input.setCommitString("SOURCE");
+    QCoreApplication::sendEvent(window->windowHandle(), &input);
+    QCOMPARE(search->text(), QString("SOURCE"));
+    const auto resultIndex = panel->selectedResultIndex();
+    QKeyEvent left(QEvent::KeyPress, Qt::Key_Left, {});
+    QCoreApplication::sendEvent(window->windowHandle(), &left);
+    QCOMPARE(search->cursorPosition(), 5);
+    QCOMPARE(panel->selectedResultIndex(), resultIndex);
+    QListWidgetItem *match = nullptr;
+    for (int row = 0; row < choices->count(); ++row) if (!choices->item(row)->isHidden()) {
+      QVERIFY(!match);
+      match = choices->item(row);
+    }
+    QVERIFY(match);
+    QCOMPARE(match->icon().cacheKey(), sourceThumbnail.cacheKey());
+    QCOMPARE(layerModel->cachedContentThumbnail(sourceId).cacheKey(), sourceThumbnail.cacheKey());
+    const auto point = workspace->panelOverlay()->mapFromGlobal(
+        choices->viewport()->mapToGlobal(choices->visualItemRect(match).center()));
+    QTest::mouseClick(workspace->panelOverlay()->windowHandle(), Qt::LeftButton, {}, point);
+    QVERIFY(panel->comparisonActive());
+    QCOMPARE(session().activeLayer(), active);
+    QCOMPARE(session().document()->revision(), revision);
+    auto *preview = dynamic_cast<u::DiffusionPreview *>(child<QWidget>("DiffusionPreview"));
     QVERIFY(preview);
     preview->setComparisonSplit(1);
-    auto *list = child<QListView>("LayerList");
-    QVERIFY(list);
-    const auto original = list->model()->index(1, 0);
-    QVERIFY(original.isValid());
-    list->scrollTo(original);
-    QCoreApplication::processEvents();
-    QTest::mouseClick(list->viewport(), Qt::LeftButton, {},
-                      list->visualRect(original).center());
-    QCoreApplication::processEvents();
-    QCOMPARE(preview->grab().toImage().pixelColor(
-                 preview->imageRect().center().toPoint()),
-             QColor(70, 90, 210));
-    QCOMPARE(session().document()->revision(), revision);
-    const auto captures =
-        qEnvironmentVariable("VULKANA_DIFFUSION_INTEGRATION_CAPTURE");
+    QCOMPARE(preview->grab().toImage().pixelColor(preview->imageRect().center().toPoint()), QColor(70, 90, 210));
+    const auto captures = qEnvironmentVariable("VULKANA_DIFFUSION_INTEGRATION_CAPTURE");
     if (!captures.isEmpty()) {
+      search->clear();
       preview->setComparisonSplit(.5);
-      QVERIFY(child<QDialog>("DiffusionPreviewDialog")
-                  ->grab()
-                  .save(captures + "-comparison.png"));
+      QVERIFY(workspace->panelOverlay()->grab().save(captures + "-comparison-workspace-" + QTest::currentDataTag() + ".png"));
     }
-    child<QDialog>("DiffusionPreviewDialog")->close();
+    child<QPushButton>("DiffusionCompareLayer")->click();
+    QVERIFY(!panel->comparisonActive());
+    QVERIFY(!chooser->isVisible());
+    QVERIFY((dialog->geometry().center() - shield->rect().center()).manhattanLength() <= 2);
+    dialog->close();
+    QCOMPARE(session().activeLayer(), active);
   }
   void loadedModelsTrackReplacementFailureAndUnload() {
     openMode("AIGenerateImageAction");

@@ -64,6 +64,9 @@ public:
 
     [[nodiscard]] std::optional<core::LayerId> layerIdAt(int row) const;
     [[nodiscard]] int rowForLayer(core::LayerId layerId) const;
+    // Share an already-rendered content icon without sampling pixels or
+    // generating a missing thumbnail. Excludes row selection/mask chrome.
+    [[nodiscard]] QIcon cachedContentThumbnail(core::LayerId) const;
 
     std::function<bool(core::LayerId, bool)> onVisibilityChanged;
     // Destination is the layer's final index in Document's bottom-to-top order.

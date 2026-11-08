@@ -259,6 +259,11 @@ int LayerListModel::rowForLayer(core::LayerId id) const
             return int(i);
     return -1;
 }
+QIcon LayerListModel::cachedContentThumbnail(core::LayerId id) const
+{
+    const auto found = thumbnails_.find(id);
+    return found == thumbnails_.end() ? QIcon{} : found->second.icon;
+}
 QVariant LayerListModel::data(const QModelIndex& index, int role) const
 {
     const auto id = layerIdAt(index.row());

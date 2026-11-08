@@ -12,7 +12,10 @@
 #include "imageeditor/ui/ToolIcons.hpp"
 #include "imageeditor/ui/WorkspaceDialog.hpp"
 #include <QAbstractSpinBox>
+#include <QApplication>
 #include <QCheckBox>
+#include <QClipboard>
+#include <QDateTime>
 #include <QComboBox>
 #include <QCoreApplication>
 #include <QDialog>
@@ -21,11 +24,13 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
+#include <QFrame>
 #include <QHBoxLayout>
 #include <QHelpEvent>
 #include <QInputDialog>
 #include <QJsonDocument>
 #include <QLabel>
+#include <QKeyEvent>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMenu>
@@ -240,9 +245,37 @@ protected:
     painter.drawRoundedRect(QRectF(1, 5, 3, height() - 10), 1.5, 1.5);
   }
 };
+class PreviewDialog final : public QDialog {
+public:
+  using QDialog::QDialog;
+  std::function<void(int)> navigate;
+  void routeNavigationKeys() {
+    for (auto *widget : findChildren<QWidget *>()) widget->installEventFilter(this);
+  }
+protected:
+  bool eventFilter(QObject *watched, QEvent *event) override {
+    if (qobject_cast<QLineEdit *>(watched)) return QDialog::eventFilter(watched, event);
+    if (event->type() == QEvent::KeyPress && navigateKey(static_cast<QKeyEvent *>(event))) return true;
+    return QDialog::eventFilter(watched, event);
+  }
+  void keyPressEvent(QKeyEvent *event) override {
+    if (!navigateKey(event)) QDialog::keyPressEvent(event);
+  }
+private:
+  bool navigateKey(QKeyEvent *event) {
+    if (isVisible() && navigate && !QApplication::activePopupWidget() && event->modifiers() == Qt::NoModifier &&
+        (event->key() == Qt::Key_Left || event->key() == Qt::Key_Right)) {
+      navigate(event->key() == Qt::Key_Left ? -1 : 1);
+      event->accept();
+      return true;
+    }
+    return false;
+  }
+};
 QString promptText(QWidget *origin, const QString &title, const QString &label,
                    const QString &initial, bool *accepted,
-                   bool multiline = false) {
+                   bool multiline = false, bool panelLocal = false,
+                   const QStringList &existingNames = {}) {
   auto *host = popupTopLevelOwner(origin);
   OverlayDockWorkspace *workspace = nullptr;
   if (host) {
@@ -253,8 +286,10 @@ QString promptText(QWidget *origin, const QString &title, const QString &label,
   // Declare the presenter first: a stack dialog must be destroyed before
   // its QObject parent, otherwise the parent would delete a stack object.
   std::unique_ptr<WorkspaceDialog> presenter;
-  if (workspace)
+  if (workspace) {
     presenter = std::make_unique<WorkspaceDialog>(*workspace, *host);
+    if (panelLocal) presenter->setCenterWidget(origin);
+  }
   QInputDialog dialog(presenter ? presenter.get() : origin,
                       (presenter ? Qt::SubWindow : Qt::Dialog) |
                           Qt::FramelessWindowHint);
@@ -263,6 +298,21 @@ QString promptText(QWidget *origin, const QString &title, const QString &label,
   dialog.setWindowFlag(Qt::WindowMinMaxButtonsHint, false);
   dialog.setLabelText(title + "\n" + label);
   dialog.setTextValue(initial);
+  if (panelLocal) {
+    dialog.setObjectName("DiffusionConfigurationNamePrompt");
+    dialog.setMinimumWidth(std::max(180, std::min(360, origin->width() - 24)));
+    dialog.findChild<QLineEdit *>()->setMaxLength(200);
+    dialog.setOkButtonText("Create");
+    const auto validate = [&dialog, title, label, existingNames](const QString &value) {
+      const auto name = value.trimmed();
+      const bool duplicate = existingNames.contains(name, Qt::CaseInsensitive);
+      dialog.setLabelText(title + "\n" + (duplicate ? "That name is already in use." : label));
+      if (auto *buttons = dialog.findChild<QDialogButtonBox *>())
+        buttons->button(QDialogButtonBox::Ok)->setEnabled(!name.isEmpty() && !duplicate);
+    };
+    QObject::connect(&dialog, &QInputDialog::textValueChanged, &dialog, validate);
+    validate(initial);
+  }
   if (multiline)
     dialog.setOption(QInputDialog::UsePlainTextEditForTextInput);
   if (!presenter)
@@ -270,6 +320,28 @@ QString promptText(QWidget *origin, const QString &title, const QString &label,
   *accepted = (presenter ? presenter->exec(dialog) : dialog.exec()) ==
               QDialog::Accepted;
   return dialog.textValue();
+}
+
+bool confirmConfigurationDelete(QWidget *origin, const QString &name) {
+  auto *host = popupTopLevelOwner(origin);
+  OverlayDockWorkspace *workspace = nullptr;
+  if (host) for (auto *child : host->findChildren<QWidget *>())
+    if ((workspace = dynamic_cast<OverlayDockWorkspace *>(child))) break;
+  std::unique_ptr<WorkspaceDialog> presenter;
+  if (workspace) {
+    presenter = std::make_unique<WorkspaceDialog>(*workspace, *host);
+    presenter->setCenterWidget(origin);
+  }
+  QMessageBox dialog(QMessageBox::Question, "Delete configuration",
+                    "Delete “" + name + "”?", QMessageBox::Yes | QMessageBox::No,
+                    presenter ? presenter.get() : origin);
+  dialog.setObjectName("DiffusionConfigurationDeletePrompt");
+  dialog.setTextFormat(Qt::PlainText);
+  dialog.setWindowFlags((presenter ? Qt::SubWindow : Qt::Dialog) | Qt::FramelessWindowHint);
+  dialog.setDefaultButton(QMessageBox::No);
+  dialog.setEscapeButton(QMessageBox::No);
+  if (!presenter) preparePopupOwnership(&dialog, origin);
+  return (presenter ? presenter->exec(dialog) : dialog.exec()) == QMessageBox::Yes;
 }
 
 QString chooseFile(QWidget *origin, const QString &title,
@@ -401,16 +473,102 @@ struct DiffusionPanel::Impl {
   bool editImageToImage{};
   bool referenceLimitShown{};
   bool hasExplicitStrength{}; // A saved or edited value takes precedence over mode defaults.
-  QLabel *status{}, *regionHint{}, *resultImage{};
+  QLabel *status{}, *regionHint{}, *resultImage{}, *generationImage{};
+  QWidget *resultDetails{};
+  QLabel *resultConfig{}, *resultModel{}, *resultSize{}, *resultCreated{};
+  QLineEdit *resultSeed{};
+  QToolButton *copyResultSeed{};
   QListWidget *inputList{}, *resultList{};
   QListWidgetItem *pendingItem{};
-  QPushButton *generate{}, *apply{}, *discard{}, *cancel{}, *regenerate{},
-      *regionsButton{}, *saveModel{}, *deleteModel{};
+  QPushButton *generate{}, *apply{}, *discard{}, *regenerate{},
+      *regionsButton{};
+  QToolButton *addModel{}, *duplicateModel{}, *deleteModel{};
   QProgressBar *progress{};
   QToolButton *clearRegions{};
   QMap<QString, QWidget *> resource, sampling;
   QMap<QString, QLineEdit *> files;
   QJsonArray modelConfigs, profileList;
+  QString currentModelId;
+  QJsonObject defaultResources, defaultSampling;
+  QTimer *saveTimer{};
+  bool initializing{true};
+  void queueSave() { if (!initializing && !updating && saveTimer) saveTimer->start(); }
+  QJsonObject modelEntry() const {
+    auto generation = controls(sampling);
+    if (!hasExplicitStrength) generation.remove("strength");
+    return {{"configuration", q.configuration()}, {"generation", generation},
+            {"editImageToImage", editImageToImage}, {"customSigmas", sigmas->toPlainText()},
+            {"backend", q.backend()}};
+  }
+  void loadModel(const QString &id) {
+    q.saveSettings();
+    const auto previousProfile = profiles->currentData();
+    {
+      const QScopedValueRollback guard(updating, true);
+      currentModelId = id;
+      rebuildModels();
+      if (id.isEmpty()) {
+        hasExplicitStrength = false;
+        putControls(resource, defaultResources);
+        putControls(sampling, defaultSampling);
+        q.setConfiguration({{"profile", profiles->currentData().toString()}, {"files", QJsonObject{}}});
+        updateCapabilities(true);
+      } else for (const auto &value : modelConfigs) {
+        const auto entry = value.toObject();
+        if (entry["id"] != id) continue;
+        putControls(resource, defaultResources);
+        putControls(sampling, defaultSampling);
+        q.setConfiguration(entry["configuration"].toObject());
+        updateCapabilities(true);
+        putControls(sampling, entry["generation"].toObject());
+        hasExplicitStrength = entry["generation"].toObject().contains("strength");
+        sigmas->setPlainText(entry.value("customSigmas").toString());
+        if (entry.contains("editImageToImage")) editImageToImage = entry["editImageToImage"].toBool();
+        if (entry.contains("backend")) select(backend, entry["backend"].toString());
+        break;
+      }
+      updateCapabilities(false);
+      if (previousProfile != profiles->currentData() && resolutionMultiple->currentData().toInt() == 0)
+        applyResolutionPreset();
+    }
+    if (q.onConfigurationChanged) q.onConfigurationChanged();
+    q.saveSettings();
+  }
+  void createModel(bool duplicate) {
+    if (busy) return;
+    QStringList names;
+    for (const auto &entry : modelConfigs) names << entry.toObject()["name"].toString();
+    const auto base = q.configurationName() + " copy";
+    auto initial = duplicate ? base : QString{};
+    for (int n = 2; names.contains(initial, Qt::CaseInsensitive); ++n) initial = base + QString(" %1").arg(n);
+    bool accepted = false;
+    const auto name = promptText(&q, duplicate ? "Duplicate configuration" : "New configuration", "Name",
+                                 initial, &accepted, false, true, names).trimmed();
+    if (!accepted || name.isEmpty() || names.contains(name, Qt::CaseInsensitive)) return;
+    q.saveSettings();
+    {
+      const QScopedValueRollback guard(updating, true);
+      currentModelId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+      if (!duplicate) {
+        hasExplicitStrength = false;
+        editImageToImage = false;
+        putControls(resource, defaultResources);
+        putControls(sampling, defaultSampling);
+        select(backend, "auto");
+        q.setConfiguration({{"profile", profiles->currentData().toString()}, {"files", QJsonObject{}}});
+        updateCapabilities(true);
+      }
+      auto entry = modelEntry();
+      entry["id"] = currentModelId;
+      entry["name"] = name;
+      modelConfigs.append(entry);
+      loras->setConfiguration(currentModelId, loras->defaults());
+      rebuildModels();
+      updateActions();
+    }
+    q.saveSettings();
+    if (q.onConfigurationChanged) q.onConfigurationChanged();
+  }
   std::unique_ptr<DiffusionLoras> loras;
   QVector<Input> inputs;
   QVector<Result> results;
@@ -426,7 +584,35 @@ struct DiffusionPanel::Impl {
   QPointer<QComboBox> compareAlignment;
   QImage comparisonReference;
   QTransform comparisonTransform;
-  bool canCompare{};
+  QVector<ComparisonLayer> comparisonLayers;
+  QString comparisonLayerId;
+  QPointer<QListWidget> comparisonList;
+  QPointer<QLineEdit> comparisonSearch;
+  QPointer<QLabel> comparisonEmpty;
+  void filterComparisonLayers() {
+    if (!comparisonList || !comparisonSearch) return;
+    int visible = 0;
+    for (int row = 0; row < comparisonList->count(); ++row) {
+      auto *item = comparisonList->item(row);
+      const bool matches = item->text().contains(comparisonSearch->text(), Qt::CaseInsensitive);
+      item->setHidden(!matches);
+      visible += matches;
+    }
+    if (comparisonEmpty) comparisonEmpty->setVisible(!visible);
+  }
+  void populateComparisonLayers() {
+    if (!comparisonList) return;
+    const QSignalBlocker guard(comparisonList);
+    comparisonList->clear();
+    for (const auto &layer : comparisonLayers) {
+      auto *item = new QListWidgetItem(layer.thumbnail, layer.name + "\n" + layer.type, comparisonList);
+      item->setData(Qt::UserRole, layer.id);
+      item->setToolTip(layer.name);
+      item->setSizeHint(QSize(160, 48));
+      if (layer.id == comparisonLayerId) comparisonList->setCurrentItem(item);
+    }
+    filterComparisonLayers();
+  }
   bool busy{}, canReplaceSelected{}, updating{};
   diffusion::PromptPresetStore presetStore{
       diffusion::PromptPresetStore::defaultFilePath()};
@@ -672,27 +858,31 @@ struct DiffusionPanel::Impl {
                             (profile().value("checkpoint").toBool() ||
                              (!files["textEncoder"]->text().trimmed().isEmpty() &&
                               !files["vae"]->text().trimmed().isEmpty()));
-    models->setItemText(0, configured ? "Unsaved configuration"
+    addModel->setEnabled(!busy);
+    configModels->setEnabled(!busy && !modelConfigs.isEmpty());
+    duplicateModel->setEnabled(!busy && (configured || !currentModelId.isEmpty()));
+    deleteModel->setEnabled(!busy && !currentModelId.isEmpty());
+    models->setItemText(0, configured ? "Current configuration"
                                       : "<Missing configuration>");
     const bool hasInputs = q.mode() == Mode::Generate || !inputs.isEmpty();
     const bool nonempty = !q.supportsImageInputs() || std::none_of(inputs.begin(), inputs.end(), [](const auto &in) { return in.image.isNull(); });
     const auto linkError = transferError();
-    generate->setEnabled(!busy && configured && hasInputs && nonempty && referencesFit() && linkError.isEmpty());
+    generate->setText(busy ? "Cancel" : "Generate");
+    generate->setEnabled(busy || (configured && hasInputs && nonempty && referencesFit() && linkError.isEmpty()));
     for (auto *button : unloadButtons)
       button->setEnabled(!busy && canUnloadModels);
-    generate->setToolTip(!linkError.isEmpty() ? linkError : !nonempty ? "A cropped layer is outside its canvas. Restore or remove that input."
+    generate->setToolTip(busy ? "Cancel generation" : !linkError.isEmpty() ? linkError : !nonempty ? "A cropped layer is outside its canvas. Restore or remove that input."
         : !referencesFit()
         ? "Remove an image or region to stay within the model's reference limit."
         : configured ? QString{} : "Add model files in the Configuration tab.");
     regenerate->setEnabled(!busy && ready && configured && hasInputs && nonempty && referencesFit() && linkError.isEmpty());
     apply->setEnabled(!busy && ready);
-    cancel->setVisible(busy);
     discard->setEnabled(ready);
     resultImage->setVisible(true);
     tabs->setTabText(2, results.isEmpty()
                             ? "Preview"
                             : QString("Preview · %1").arg(results.size()));
-    outputDestination->setVisible(ready);
+    outputDestination->setVisible(lightbox && previewShowsResult && ready);
     resultList->setVisible(resultList->count() > 0);
     if (previousPreview)
       previousPreview->setEnabled(resultList->count() > 1);
@@ -703,20 +893,21 @@ struct DiffusionPanel::Impl {
                                    .arg(resultList->currentRow() + 1)
                                    .arg(resultList->count()));
     if (compareToggle)
-      compareToggle->setEnabled(canCompare && ready);
+      compareToggle->setEnabled(!comparisonLayers.isEmpty() && ready);
     if (compareAlignment)
       compareAlignment->setEnabled(ready && compareToggle &&
-                                   compareToggle->isChecked());
+                                   compareToggle->isChecked() && !comparisonReference.isNull());
     if (previewShowsResult && lightboxPreview && compareToggle)
       lightboxPreview->setComparisonEnabled(ready &&
-                                            compareToggle->isChecked());
-    apply->setVisible(ready);
+                                            compareToggle->isChecked() && !comparisonReference.isNull());
+    if (comparisonList) comparisonList->setEnabled(ready);
+    apply->setVisible(lightbox && previewShowsResult && ready);
     regenerate->setVisible(ready);
     discard->setVisible(ready);
     inputList->setVisible(true);
     configurationPage->setEnabled(!busy);
     loras->setBusy(busy);
-    models->setEnabled(!busy);
+    models->setEnabled(!busy && !modelConfigs.isEmpty());
     seedMode->setEnabled(!busy);
     randomSeed->setEnabled(!busy);
     seed->setEnabled(!busy && seedMode->currentData() != "random");
@@ -789,6 +980,41 @@ struct DiffusionPanel::Impl {
         resultList->setCurrentRow(int(results.size()) - 1);
     }
   }
+  void refreshGenerationPreview() {
+    const QImage image = busy ? draftPreview : results.isEmpty() ? QImage{} : results.back().image;
+    generationImage->setVisible(busy || !image.isNull());
+    if (image.isNull()) {
+      generationImage->clear();
+      generationImage->setText("Generating…");
+    } else {
+      generationImage->setPixmap(QPixmap::fromImage(
+          thumbnail(image, {std::max(80, generationImage->width()), 200})));
+    }
+  }
+  void refreshResultDetails() {
+    const auto *result = q.selectedResult();
+    resultDetails->setVisible(result != nullptr);
+    if (!result) return;
+    const auto &metadata = result->metadata;
+    const auto image = metadata["image"].toObject();
+    const auto info = image["generationInfo"].toObject();
+    const auto config = metadata["configuration"].toObject();
+    const auto request = metadata["request"].toObject();
+    resultConfig->setText(metadata["configurationName"].toString("Unsaved configuration"));
+    const auto model = QFileInfo(config["files"].toObject()["diffusion"].toString()).fileName();
+    resultModel->setText(model.isEmpty() ? metadata["profile"].toObject()["name"].toString("—") : model);
+    resultSize->setText(QString("%1 × %2 px").arg(image["width"].toInt(result->image.width()))
+                                               .arg(image["height"].toInt(result->image.height())));
+    // The worker reports each batch image's actual seed, which can differ from
+    // the submitted seed. Never read current controls for historical results.
+    const auto seedValue = info.contains("seed") ? info["seed"] : request["seed"];
+    const auto seedText = seedValue.toVariant().toString();
+    resultSeed->setText(seedText);
+    copyResultSeed->setEnabled(!seedText.isEmpty() && seedText != "-1");
+    const auto date = QDateTime::fromString(metadata["createdAt"].toString(), Qt::ISODateWithMs);
+    resultCreated->setText(date.isValid() ? date.toLocalTime().toString("d/M/yyyy HH:mm") : QString("—"));
+    resultCreated->setToolTip(date.toLocalTime().toString(Qt::ISODate));
+  }
   void refreshDisplayedPreview() {
     const auto *result = q.selectedResult();
     const QImage image = result              ? result->image
@@ -806,10 +1032,6 @@ struct DiffusionPanel::Impl {
     } else
       resultImage->setPixmap(QPixmap::fromImage(
           thumbnail(image, {std::max(80, resultImage->width()), 180})));
-    resultImage->setToolTip(
-        pendingSelected()
-            ? "Live draft only. Final detail appears when generation finishes."
-            : "Click to inspect full resolution");
     if (previewShowsResult && lightboxPreview) {
       lightboxPreview->setEmptyText(pendingSelected() ? "Generating…"
                                                       : "No image");
@@ -821,6 +1043,8 @@ struct DiffusionPanel::Impl {
                                                   .arg(image.width())
                                                   .arg(image.height())));
     }
+    refreshGenerationPreview();
+    refreshResultDetails();
     updateActions();
   }
   void stepPreview(int direction) {
@@ -916,7 +1140,7 @@ struct DiffusionPanel::Impl {
         p.value("visionRequiredForReferences").toBool());
     files["vision"]->parentWidget()->setToolTip(
         p.value("visionRequiredForReferences").toBool()
-            ? "Vision weights are required when this model uses reference images."
+            ? "For image editing, add a separate vision projector only if the text encoder does not include vision weights."
             : "This model does not need a separate vision component.");
     if (defaults) {
       putControls(sampling,
@@ -990,18 +1214,17 @@ struct DiffusionPanel::Impl {
     updateActions();
   }
   void rebuildModels() {
-    const auto selected = models->currentData().toString();
+    const auto selected = currentModelId;
     for (auto *box : {models, configModels}) {
       const QSignalBlocker block(box);
       box->clear();
-      box->addItem(box == models ? "<Missing configuration>"
-                                 : "New configuration",
-                   QString{});
+      if (box == models) box->addItem("<Missing configuration>", QString{});
+      else box->setPlaceholderText(modelConfigs.isEmpty() ? "No configurations" : "Select configuration");
       for (const auto &entry : modelConfigs) {
         const auto o = entry.toObject();
         box->addItem(o["name"].toString(), o["id"].toString());
       }
-      select(box, selected);
+      box->setCurrentIndex(box->findData(selected));
     }
   }
   QString inputTitle(int index) const {
@@ -1072,18 +1295,42 @@ struct DiffusionPanel::Impl {
       return;
     if (lightbox)
       lightbox->close();
-    auto *dialog = new QDialog(&q, Qt::Dialog | Qt::FramelessWindowHint);
+    auto *dialog = new PreviewDialog(&q, Qt::Dialog | Qt::FramelessWindowHint);
     lightbox = dialog;
     regionEditorInput = editRegions ? inputId : QString{};
     dialog->setAttribute(Qt::WA_DeleteOnClose);
+    QObject::connect(dialog, &QDialog::finished, &q, [this, dialog] {
+      if (lightbox != dialog) return;
+      // These controls retain the destination choice between previews.
+      outputDestination->setParent(&q);
+      apply->setParent(&q);
+      outputDestination->hide();
+      apply->hide();
+      lightbox.clear();
+      lightboxPreview.clear();
+      previewShowsResult = false;
+    });
     dialog->setObjectName("DiffusionPreviewDialog");
     dialog->setWindowTitle(title);
     dialog->setMinimumSize(480, 320);
     const auto available = q.screen()->availableGeometry().size();
     dialog->resize(std::min(1000, int(available.width() * .85)),
                    std::min(760, int(available.height() * .85)));
-    preparePopupOwnership(dialog, &q);
-    auto *root = new QVBoxLayout(dialog);
+    if (!resultPreview || !q.onPresentPreview) preparePopupOwnership(dialog, &q);
+    auto *main = new QWidget(dialog);
+    main->setObjectName("DiffusionPreviewContent");
+    auto *columns = new QHBoxLayout(dialog);
+    columns->setContentsMargins(0, 0, 0, 0);
+    columns->setSpacing(0);
+    auto *chooser = new QFrame(dialog);
+    chooser->setObjectName("DiffusionComparisonPanel");
+    chooser->setFixedWidth(240);
+    chooser->setStyleSheet("QFrame#DiffusionComparisonPanel { border-right: 1px solid " +
+                          themeColor(ThemeColor::Border).name() + "; }");
+    chooser->hide();
+    columns->addWidget(chooser);
+    columns->addWidget(main, 1);
+    auto *root = new QVBoxLayout(main);
     root->setContentsMargins(10, 10, 10, 10);
     root->setSpacing(8);
     auto *bar = new QHBoxLayout;
@@ -1095,6 +1342,7 @@ struct DiffusionPanel::Impl {
     label->setWordWrap(true);
     bar->addWidget(label, 1);
     if (resultPreview) {
+      dialog->navigate = [this](int direction) { stepPreview(direction); };
       auto *previous = new QToolButton(dialog);
       previousPreview = previous;
       previous->setObjectName("DiffusionPreviousPreview");
@@ -1154,12 +1402,17 @@ struct DiffusionPanel::Impl {
                                  "region · Middle mouse pans"
                                : "Mouse wheel zooms · Middle mouse pans");
     hint->setWordWrap(true);
-    bottom->addWidget(hint, 1);
+    if (!resultPreview) bottom->addWidget(hint, 1);
     if (resultPreview) {
-      auto *compare = new QPushButton("Compare selected layer");
-      compare->setObjectName("DiffusionCompareSelected");
+      bottom->addWidget(outputDestination);
+      bottom->addWidget(apply);
+      bottom->addStretch();
+      auto *compare = new QPushButton("Compare with layer");
+      compare->setObjectName("DiffusionCompareLayer");
+      compare->setAutoDefault(false);
+      apply->setAutoDefault(false);
       compare->setCheckable(true);
-      compare->setEnabled(canCompare && q.selectedResult());
+      compare->setEnabled(!comparisonLayers.isEmpty() && q.selectedResult());
       compareToggle = compare;
       bottom->addWidget(compare);
       auto *alignment =
@@ -1173,12 +1426,57 @@ struct DiffusionPanel::Impl {
           "Fit: proportional reference scaling.");
       compareAlignment = alignment;
       bottom->addWidget(alignment);
-      QObject::connect(compare, &QPushButton::toggled, &q,
-                       [this, preview, alignment](bool on) {
-                         alignment->setEnabled(on);
-                         preview->setComparisonEnabled(on);
-                         if (on && q.onCompareRequest)
-                           q.onCompareRequest();
+      auto *chooseLayout = new QVBoxLayout(chooser);
+      chooseLayout->setContentsMargins(10, 10, 10, 10);
+      auto *chooseHeader = new QHBoxLayout;
+      chooseHeader->addWidget(new QLabel("Compare with layer", chooser), 1);
+      auto *closeChooser = iconButton(ToolGlyph::Close, "Stop comparing", chooser);
+      chooseHeader->addWidget(closeChooser);
+      chooseLayout->addLayout(chooseHeader);
+      auto *search = new QLineEdit(chooser);
+      comparisonSearch = search;
+      search->setObjectName("DiffusionComparisonSearch");
+      search->setPlaceholderText("Search layers…");
+      search->setClearButtonEnabled(true);
+      chooseLayout->addWidget(search);
+      auto *list = new QListWidget(chooser);
+      comparisonList = list;
+      list->setObjectName("DiffusionComparisonLayers");
+      list->setIconSize(QSize(36, 36));
+      list->setItemDelegate(new SubtleItemDelegate(list));
+      list->setSelectionMode(QAbstractItemView::SingleSelection);
+      list->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+      list->setTextElideMode(Qt::ElideRight);
+      list->setSpacing(2);
+      chooseLayout->addWidget(list, 1);
+      comparisonEmpty = new QLabel("No matching layers", chooser);
+      comparisonEmpty->setAlignment(Qt::AlignCenter);
+      chooseLayout->addWidget(comparisonEmpty);
+      populateComparisonLayers();
+      QObject::connect(search, &QLineEdit::textChanged, dialog,
+                       [this] { filterComparisonLayers(); });
+      QObject::connect(list, &QListWidget::currentItemChanged, dialog,
+                       [this](QListWidgetItem *item) {
+                         comparisonLayerId = item ? item->data(Qt::UserRole).toString() : QString{};
+                         q.setComparisonReference({}, {}, {});
+                         if (item && q.onCompareRequest) q.onCompareRequest();
+                       });
+      QObject::connect(closeChooser, &QToolButton::clicked, compare,
+                       [compare] { compare->setChecked(false); });
+      const auto previewSize = dialog->size();
+      QObject::connect(compare, &QPushButton::toggled, dialog,
+                       [this, dialog, chooser, search, previewSize](bool on) {
+                         chooser->setVisible(on);
+                         // Center the preview and its attached chooser as one
+                         // owned card, independent of the editor's dock layout.
+                         const auto size = previewSize + QSize(on ? chooser->width() : 0, 0);
+                         dialog->setProperty("workspacePreferredSize", size);
+                         if (dialog->isWindow()) dialog->resize(size);
+                         if (on) {
+                           if (!comparisonLayerId.isEmpty() && q.onCompareRequest) q.onCompareRequest();
+                           search->setFocus();
+                         }
+                         updateActions();
                        });
       QObject::connect(alignment, &QComboBox::currentIndexChanged, preview,
                        [preview](int index) {
@@ -1295,10 +1593,25 @@ struct DiffusionPanel::Impl {
       }
     }
     root->addLayout(bottom);
+    if (resultPreview) {
+      hint->setObjectName("DiffusionPreviewHint");
+      hint->setText("Mouse wheel zooms · Middle mouse pans · ← / → browse previews");
+      hint->setAlignment(Qt::AlignCenter);
+      auto font = hint->font();
+      font.setPointSizeF(std::max(7., font.pointSizeF() - 1));
+      hint->setFont(font);
+      hint->setStyleSheet("color: " + themeColor(ThemeColor::SecondaryText).name());
+      root->addWidget(hint);
+    }
     if (resultPreview)
       refreshDisplayedPreview();
-    dialog->show();
-    dialog->raise();
+    if (resultPreview) dialog->routeNavigationKeys();
+    if (resultPreview && q.onPresentPreview)
+      q.onPresentPreview(*dialog);
+    else {
+      dialog->show();
+      dialog->raise();
+    }
     preview->setFocus();
   }
   void editDestination(const QString& inputId, const QString& regionId, bool create) {
@@ -1370,7 +1683,20 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   QVBoxLayout *modelLayout{};
   d->configModels = new ScrollSafe<QComboBox>;
   d->configModels->setObjectName("DiffusionConfigurationModels");
-  configLayout->addWidget(d->configModels);
+  d->configModels->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+  d->configModels->setMinimumContentsLength(6);
+  auto *configurationRow = new QHBoxLayout;
+  configurationRow->addWidget(d->configModels, 1);
+  d->addModel = iconButton(ToolGlyph::Plus, "Add configuration", this);
+  d->addModel->setObjectName("DiffusionAddConfiguration");
+  d->duplicateModel = iconButton(ToolGlyph::Copy, "Duplicate configuration", this);
+  d->duplicateModel->setObjectName("DiffusionDuplicateConfiguration");
+  d->deleteModel = iconButton(ToolGlyph::Trash, "Delete configuration", this);
+  d->deleteModel->setObjectName("DiffusionDeleteConfiguration");
+  configurationRow->addWidget(d->addModel);
+  configurationRow->addWidget(d->duplicateModel);
+  configurationRow->addWidget(d->deleteModel);
+  configLayout->addLayout(configurationRow);
   configLayout->addWidget(
       section("Model files", "DiffusionModel", modelLayout, true));
   auto *modelForm = d->modelForm = form(modelLayout);
@@ -1414,13 +1740,6 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   }
   d->loras = std::make_unique<DiffusionLoras>(this);
   modelForm->addRow(d->loras->configurationSection());
-  auto *saveModel = d->saveModel = new QPushButton("Save configuration…");
-  saveModel->setObjectName("DiffusionSaveConfiguration");
-  auto *deleteModel = d->deleteModel = new QPushButton("Delete");
-  auto *modelButtons = new QHBoxLayout;
-  modelButtons->addWidget(saveModel, 1);
-  modelButtons->addWidget(deleteModel);
-  modelLayout->addLayout(modelButtons);
   d->backend =
       combo({"Auto", "Vulkan", "CUDA"}, {"auto", "vulkan", "cuda"}, this);
   d->backend->setObjectName("DiffusionBackend");
@@ -1938,6 +2257,25 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   };
   connect(weights, &QComboBox::currentIndexChanged, this, updatePlacement);
   updatePlacement();
+  configLayout->addSpacing(10);
+  auto *sessionHeader = new QHBoxLayout;
+  sessionHeader->setContentsMargins(4, 2, 4, 2);
+  sessionHeader->setSpacing(10);
+  auto *sessionHeading = new QLabel("Session");
+  sessionHeading->setStyleSheet("color: " + themeColor(ThemeColor::SecondaryText).name());
+  auto sessionFont = sessionHeading->font();
+  sessionFont.setPointSizeF(std::max(7., sessionFont.pointSizeF() - 1));
+  sessionHeading->setFont(sessionFont);
+  sessionHeader->addWidget(sessionHeading);
+  auto *sessionDivider = new QFrame;
+  sessionDivider->setObjectName("DiffusionSessionDivider");
+  sessionDivider->setFixedHeight(1);
+  const auto border = themeColor(ThemeColor::Border);
+  sessionDivider->setStyleSheet(QString("border: none; background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0, "
+      "stop: 0 rgba(%1, %2, %3, 110), stop: 1 rgba(%1, %2, %3, 0));")
+      .arg(border.red()).arg(border.green()).arg(border.blue()));
+  sessionHeader->addWidget(sessionDivider, 1);
+  configLayout->addLayout(sessionHeader);
   configLayout->addWidget(section("Loaded models", "DiffusionLoadedModels",
                                  d->loadedModelsLayout, true));
   auto *empty = new QLabel("No models loaded");
@@ -1946,6 +2284,18 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   d->generate = new GenerateButton(toolGlyph(ToolGlyph::Effects), "Generate");
   d->generate->setObjectName("DiffusionGenerate");
   layout->addWidget(d->generate);
+  auto *generationThumbnail = new ClickableImage("Generating…");
+  generationThumbnail->setObjectName("DiffusionGenerationThumbnail");
+  generationThumbnail->setAlignment(Qt::AlignCenter);
+  generationThumbnail->setMinimumHeight(96);
+  generationThumbnail->setMaximumHeight(220);
+  generationThumbnail->setMinimumWidth(1);
+  generationThumbnail->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+  generationThumbnail->setCursor(Qt::PointingHandCursor);
+  generationThumbnail->clicked = [this] { showLatestPreview(); };
+  d->generationImage = generationThumbnail;
+  generationThumbnail->hide();
+  layout->addWidget(generationThumbnail);
   d->progress = new QProgressBar;
   d->progress->setObjectName("DiffusionProgress");
   d->progress->setRange(0, 0);
@@ -1955,13 +2305,9 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   d->status->setWordWrap(true);
   d->status->setTextInteractionFlags(Qt::TextSelectableByMouse);
   footerLayout->addWidget(d->status);
-  d->cancel = new QPushButton("Cancel generation");
-  d->cancel->setVisible(false);
-  footerLayout->addWidget(d->cancel);
   auto *resultThumbnail = new ClickableImage("Generated previews appear here");
   resultThumbnail->clicked = [this] { showResultPreview(); };
   resultThumbnail->setCursor(Qt::PointingHandCursor);
-  resultThumbnail->setToolTip("Click to inspect full resolution");
   d->resultImage = resultThumbnail;
   d->resultImage->setAlignment(Qt::AlignCenter);
   d->resultImage->setMinimumHeight(96);
@@ -1985,17 +2331,17 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
       combo({"Add new layer", "Replace selected layer", "Open new document"},
             {"newLayer", "replaceSelected", "newDocument"}, this);
   d->outputDestination->setObjectName("DiffusionOutputDestination");
+  d->outputDestination->setMinimumWidth(200);
   connect(d->outputDestination, &QComboBox::currentIndexChanged, this, [this] {
     if (onDestinationChanged)
       onDestinationChanged();
   });
-  d->apply = new QPushButton("Apply");
+  d->apply = new QPushButton("Apply", this);
   d->apply->setObjectName("DiffusionApply");
-  auto *applyRow = new QHBoxLayout;
-  applyRow->addWidget(d->outputDestination, 1);
-  applyRow->addWidget(d->apply);
-  outputLayout->addLayout(applyRow);
-  d->regenerate = new QPushButton(toolGlyph(ToolGlyph::Refresh), "Regenerate");
+  d->outputDestination->hide();
+  d->apply->hide();
+  d->regenerate = new QPushButton(toolGlyph(ToolGlyph::Refresh), "Generate again");
+  d->regenerate->setObjectName("DiffusionRegenerate");
   d->discard = new QPushButton("Discard");
   d->discard->setObjectName("DiffusionDiscard");
   auto *resultsActions = new QHBoxLayout;
@@ -2004,10 +2350,45 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   resultsActions->addWidget(d->discard);
   resultsActions->addStretch();
   outputLayout->addLayout(resultsActions);
+  QVBoxLayout *detailsLayout;
+  d->resultDetails = section("Image details", "DiffusionResultDetails", detailsLayout, true);
+  outputLayout->addWidget(d->resultDetails);
+  auto *detailsForm = form(detailsLayout);
+  const auto detail = [&](const QString &title, const QString &name) {
+    auto *label = new QLabel;
+    label->setObjectName(name);
+    label->setWordWrap(true);
+    label->setTextFormat(Qt::PlainText);
+    label->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    label->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    detailsForm->addRow(title, label);
+    return label;
+  };
+  d->resultConfig = detail("Configuration", "DiffusionResultConfig");
+  d->resultModel = detail("Model", "DiffusionResultModel");
+  d->resultSize = detail("Resolution", "DiffusionResultSize");
+  auto *resultSeedRow = new QHBoxLayout;
+  d->resultSeed = new QLineEdit;
+  d->resultSeed->setObjectName("DiffusionResultSeed");
+  d->resultSeed->setReadOnly(true);
+  d->copyResultSeed = iconButton(ToolGlyph::Copy, "Copy seed", this);
+  d->copyResultSeed->setObjectName("DiffusionCopyResultSeed");
+  resultSeedRow->addWidget(d->resultSeed);
+  resultSeedRow->addWidget(d->copyResultSeed);
+  detailsForm->addRow("Seed", resultSeedRow);
+  d->resultCreated = detail("Generated", "DiffusionResultCreated");
+  d->resultDetails->hide();
+  connect(d->copyResultSeed, &QToolButton::clicked, this, [this] {
+    QApplication::clipboard()->setText(d->resultSeed->text());
+  });
   layout->addStretch();
   configLayout->addStretch();
   outputLayout->addStretch();
   connect(d->generate, &QPushButton::clicked, this, [this] {
+    if (d->busy) {
+      if (onCancel) onCancel();
+      return;
+    }
     saveSettings();
     if (onGenerate)
       onGenerate();
@@ -2018,16 +2399,13 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
       onGenerate();
   });
   connect(d->apply, &QPushButton::clicked, this, [this] {
+    if (d->lightbox) d->lightbox->accept();
     if (onApply)
       onApply();
   });
   connect(d->discard, &QPushButton::clicked, this, [this] {
     if (onDiscard)
       onDiscard();
-  });
-  connect(d->cancel, &QPushButton::clicked, this, [this] {
-    if (onCancel)
-      onCancel();
   });
   connect(d->resultList, &QListWidget::itemDoubleClicked, this,
           [this] { showResultPreview(); });
@@ -2054,87 +2432,26 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
     d->rebuildVariants();
     profileChanged();
   });
-  connect(d->configModels, &QComboBox::currentIndexChanged, this,
-          [this](int index) { d->models->setCurrentIndex(index); });
+  connect(d->addModel, &QToolButton::clicked, this, [this] { d->createModel(false); });
+  connect(d->configModels, &QComboBox::currentIndexChanged, this, [this](int index) {
+    if (!d->updating && index >= 0) d->loadModel(d->configModels->itemData(index).toString());
+  });
   connect(d->models, &QComboBox::currentIndexChanged, this, [this] {
-    const QSignalBlocker block(d->configModels);
-    d->configModels->setCurrentIndex(d->models->currentIndex());
-    if (d->updating)
-      return;
-    const auto previousProfile = d->profiles->currentData();
-    const auto id = d->models->currentData().toString();
-    if (id.isEmpty()) {
-      d->hasExplicitStrength = false;
-      setConfiguration({{"profile", d->profiles->currentData().toString()},
-                        {"files", QJsonObject{}}});
-    }
-    for (const auto &value : d->modelConfigs) {
-      const auto c = value.toObject();
-      if (c["id"] == id) {
-        setConfiguration(c["configuration"].toObject());
-        putControls(d->sampling, c["generation"].toObject());
-        d->hasExplicitStrength = c["generation"].toObject().contains("strength");
-        d->sigmas->setPlainText(c.value("customSigmas").toString());
-        // Older configurations did not store this preference. Keep the
-        // current Edit-layer choice when loading one of those configurations.
-        if (c.contains("editImageToImage"))
-          d->editImageToImage = c.value("editImageToImage").toBool();
-        break;
-      }
-    }
-    d->updateCapabilities(false);
-    if (previousProfile != d->profiles->currentData() &&
-        d->resolutionMultiple->currentData().toInt() == 0)
-      d->applyResolutionPreset();
-    if (onConfigurationChanged)
-      onConfigurationChanged();
+    if (!d->updating) d->loadModel(d->models->currentData().toString());
   });
-  connect(saveModel, &QPushButton::clicked, this, [this] {
-    bool ok = false;
-    const auto name =
-        promptText(this, "Save model configuration", "Name",
-                   d->models->currentIndex() > 0 ? d->models->currentText()
-                                                 : QString{},
-                   &ok)
-            .trimmed();
-    if (!ok || name.isEmpty())
-      return;
-    d->hasExplicitStrength = true;
-    QJsonObject entry{
-        {"id", QUuid::createUuid().toString(QUuid::WithoutBraces)},
-        {"name", name},
-        {"configuration", configuration()},
-        {"generation", controls(d->sampling)},
-        {"editImageToImage", d->editImageToImage},
-        {"customSigmas", d->sigmas->toPlainText()}};
-    bool replaced = false;
-    for (qsizetype i = 0; i < d->modelConfigs.size(); ++i)
-      if (d->modelConfigs[i].toObject()["name"].toString() == name) {
-        entry["id"] = d->modelConfigs[i].toObject()["id"];
-        d->modelConfigs[i] = entry;
-        replaced = true;
-        break;
-      }
-    if (!replaced)
-      d->modelConfigs.append(entry);
-    d->loras->retainOverridesFor(entry["id"].toString());
-    d->rebuildModels();
-    select(d->models, entry["id"].toString());
+  connect(d->duplicateModel, &QToolButton::clicked, this, [this] { d->createModel(true); });
+  connect(d->deleteModel, &QToolButton::clicked, this, [this] {
+    if (d->busy || d->currentModelId.isEmpty()) return;
+    const auto id = d->currentModelId;
+    if (!confirmConfigurationDelete(this, configurationName())) return;
     saveSettings();
-  });
-  connect(deleteModel, &QPushButton::clicked, this, [this] {
-    const auto id = d->models->currentData();
-    if (id.toString().isEmpty())
-      return;
-    d->loras->forgetConfiguration(id.toString());
+    d->loras->forgetConfiguration(id);
     for (qsizetype i = 0; i < d->modelConfigs.size(); ++i)
-      if (d->modelConfigs[i].toObject()["id"].toString() == id.toString()) {
+      if (d->modelConfigs[i].toObject()["id"] == id) {
         d->modelConfigs.removeAt(i);
         break;
       }
-    d->rebuildModels();
-    setConfiguration({{"profile", d->profiles->currentData().toString()}});
-    saveSettings();
+    d->loadModel(d->modelConfigs.isEmpty() ? QString{} : d->modelConfigs.first().toObject()["id"].toString());
   });
   connect(d->presets, &QComboBox::activated, this, [this](int row) {
     if (row <= 0 || row > d->presetList.size())
@@ -2199,6 +2516,8 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
     else
       d->rebuildPresets();
   });
+  d->defaultResources = controls(d->resource);
+  d->defaultSampling = controls(d->sampling);
   setProfiles(diffusion::modelProfiles());
   QString error;
   if (!d->presetStore.load(&error))
@@ -2244,6 +2563,7 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   d->rebuildInputs();
   d->detectAspectRatio();
   connect(d->backend, &QComboBox::currentIndexChanged, this, [this] {
+    if (d->updating) return;
     // Device IDs belong to a backend, so don't carry a CUDA ID into Vulkan.
     select(qobject_cast<QComboBox *>(d->resource["device"]), QString{});
     saveSettings();
@@ -2251,6 +2571,25 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   for (auto *edit : d->files)
     connect(edit, &QLineEdit::textChanged, this,
             [this] { d->updateActions(); });
+  d->saveTimer = new QTimer(this);
+  d->saveTimer->setSingleShot(true);
+  d->saveTimer->setInterval(200);
+  connect(d->saveTimer, &QTimer::timeout, this, &DiffusionPanel::saveSettings);
+  QSet<QWidget *> observed{d->families, d->profiles, d->backend, d->sigmas, d->imageToImage};
+  for (auto *widget : d->resource) observed.insert(widget);
+  for (auto *widget : d->sampling) observed.insert(widget);
+  for (auto *widget : d->files) observed.insert(widget);
+  for (auto *widget : observed) {
+    const auto changed = [this] { d->queueSave(); };
+    if (auto *value = qobject_cast<QDoubleSpinBox *>(widget)) connect(value, &QDoubleSpinBox::valueChanged, this, changed);
+    else if (auto *value = qobject_cast<QSpinBox *>(widget)) connect(value, &QSpinBox::valueChanged, this, changed);
+    else if (auto *value = qobject_cast<QComboBox *>(widget)) connect(value, &QComboBox::currentIndexChanged, this, changed);
+    else if (auto *value = qobject_cast<QCheckBox *>(widget)) connect(value, &QCheckBox::toggled, this, changed);
+    else if (auto *value = qobject_cast<QLineEdit *>(widget)) connect(value, &QLineEdit::textChanged, this, changed);
+    else if (auto *value = qobject_cast<QPlainTextEdit *>(widget)) connect(value, &QPlainTextEdit::textChanged, this, changed);
+  }
+  d->loras->onDefaultsChanged = [this] { d->queueSave(); };
+  d->initializing = false;
   if (d->files["diffusion"]->text().isEmpty())
     if (auto *header = findChild<QToolButton *>("DiffusionModelSectionHeader"))
       header->setChecked(true);
@@ -2287,6 +2626,10 @@ void DiffusionPanel::setMode(Mode value, bool notify) {
 }
 DiffusionPanel::Destination DiffusionPanel::destination() const {
   return Destination(d->outputDestination->currentIndex());
+}
+QString DiffusionPanel::configurationName() const {
+  return d->models->currentIndex() > 0 ? d->models->currentText()
+                                      : QString("Current configuration");
 }
 void DiffusionPanel::setDestination(Destination value) {
   d->outputDestination->setCurrentIndex(int(value));
@@ -2503,11 +2846,11 @@ void DiffusionPanel::setSamplers(const QJsonArray &samplers,
 }
 void DiffusionPanel::setConfiguration(const QJsonObject &config,
                                       const QString &) {
-  d->updating = true;
+  const QScopedValueRollback guard(d->updating, true);
   const auto previous = d->profiles->currentData();
   d->selectProfile(config["profile"].toString());
   d->updateCapabilities(previous != d->profiles->currentData());
-  auto key = d->models->currentData().toString();
+  auto key = d->currentModelId;
   if (key.isEmpty()) {
     const QJsonObject identity{{"profile", config.value("profile")}, {"files", config.value("files")}};
     key = "draft:" + QString::fromUtf8(QJsonDocument(identity).toJson(QJsonDocument::Compact));
@@ -2529,7 +2872,6 @@ void DiffusionPanel::setConfiguration(const QJsonObject &config,
                  resources["device"].toString());
     select(c, resources["device"].toString());
   }
-  d->updating = false;
   d->updateCapabilities(false);
 }
 void DiffusionPanel::setResolution(QSize size) {
@@ -2725,7 +3067,8 @@ QVector<DiffusionRegion> DiffusionPanel::regions() const { return d->regions; }
 void DiffusionPanel::appendResult(Result result) {
   if (result.image.isNull())
     return;
-  d->resultImage->setToolTip("Click to inspect full resolution");
+  if (!result.metadata.contains("createdAt"))
+    result.metadata["createdAt"] = QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs);
   d->results.append(std::move(result));
   const auto &r = d->results.back();
   auto *item = new QListWidgetItem(
@@ -2745,8 +3088,7 @@ void DiffusionPanel::appendResult(Result result) {
                    .arg(requested.height());
   item->setToolTip(details);
   d->resultList->setCurrentRow(int(d->results.size()) - 1);
-  d->tabs->setCurrentIndex(2);
-  d->updateActions();
+  d->refreshDisplayedPreview();
 }
 void DiffusionPanel::setResultPreview(int index, QImage image) {
   if (index < 0 || index >= d->results.size() || image.isNull())
@@ -2756,6 +3098,8 @@ void DiffusionPanel::setResultPreview(int index, QImage image) {
       QIcon(QPixmap::fromImage(thumbnail(d->results[index].image, {64, 48}))));
   if (index == selectedResultIndex())
     d->refreshDisplayedPreview();
+  else if (index == d->results.size() - 1)
+    d->refreshGenerationPreview();
 }
 const QVector<DiffusionPanel::Result> &DiffusionPanel::results() const {
   return d->results;
@@ -2778,7 +3122,7 @@ void DiffusionPanel::clearResults() {
   d->resultImage->setText("Generated previews appear here");
   if (d->lightbox)
     d->lightbox->close();
-  d->updateActions();
+  d->refreshDisplayedPreview();
 }
 void DiffusionPanel::removeSelectedResult() {
   const int index = selectedResultIndex();
@@ -2798,6 +3142,11 @@ void DiffusionPanel::removeSelectedResult() {
   d->refreshDisplayedPreview();
   if (onResultSelected)
     onResultSelected(selectedResultIndex());
+}
+void DiffusionPanel::showLatestPreview() {
+  if (d->busy && d->pendingItem) d->resultList->setCurrentItem(d->pendingItem);
+  else if (!d->results.isEmpty()) d->resultList->setCurrentRow(int(d->results.size()) - 1);
+  showResultPreview();
 }
 void DiffusionPanel::showResultPreview() {
   if (const auto *result = selectedResult())
@@ -2844,6 +3193,7 @@ void DiffusionPanel::setProgressPreview(QImage image) {
       QIcon(QPixmap::fromImage(thumbnail(d->draftPreview, {64, 48}))));
   d->pendingItem->setToolTip("Live draft — approximate. Final detail appears "
                              "after generation finishes.");
+  d->refreshGenerationPreview();
   if (d->pendingSelected())
     d->refreshDisplayedPreview();
   else
@@ -2853,17 +3203,22 @@ void DiffusionPanel::setTargetCompatible(bool selected) {
   d->canReplaceSelected = selected;
   d->updateActions();
 }
-void DiffusionPanel::setComparisonAvailable(bool available) {
-  d->canCompare = available;
-  if (d->compareToggle) {
-    d->compareToggle->setEnabled(available && selectedResult());
-    if (!available)
-      d->compareToggle->setChecked(false);
+void DiffusionPanel::setComparisonLayers(QVector<ComparisonLayer> layers) {
+  if (d->comparisonLayers == layers) return;
+  d->comparisonLayers = std::move(layers);
+  if (std::none_of(d->comparisonLayers.begin(), d->comparisonLayers.end(),
+                   [this](const auto &layer) { return layer.id == d->comparisonLayerId; })) {
+    d->comparisonLayerId.clear();
+    setComparisonReference({}, {}, {});
   }
+  d->populateComparisonLayers();
+  if (d->comparisonLayers.isEmpty() && d->compareToggle) d->compareToggle->setChecked(false);
+  d->updateActions();
 }
+QString DiffusionPanel::comparisonLayerId() const { return d->comparisonLayerId; }
 bool DiffusionPanel::comparisonActive() const {
   return d->previewShowsResult && selectedResult() && d->lightbox && d->lightbox->isVisible() &&
-         d->compareToggle && d->compareToggle->isChecked();
+         d->compareToggle && d->compareToggle->isChecked() && !d->comparisonLayerId.isEmpty();
 }
 void DiffusionPanel::setComparisonReference(QImage image, QTransform toDocument,
                                             const QString &label) {
@@ -2875,15 +3230,26 @@ void DiffusionPanel::setComparisonReference(QImage image, QTransform toDocument,
                                       result ? result->toDocument
                                              : QTransform{});
     if (d->compareToggle)
-      d->compareToggle->setToolTip(
+      d->compareToggle->setToolTip(d->comparisonReference.isNull() ? QString{} :
           "Left: " + label + " · Right: Result. Drag the divider to compare.");
   }
+  d->updateActions();
 }
 void DiffusionPanel::saveSettings() {
+  if (d->initializing || d->updating) return;
+  if (d->saveTimer) d->saveTimer->stop();
+  for (qsizetype i = 0; i < d->modelConfigs.size(); ++i) {
+    auto entry = d->modelConfigs[i].toObject();
+    if (entry["id"] != d->currentModelId) continue;
+    const auto values = d->modelEntry();
+    for (auto it = values.begin(); it != values.end(); ++it) entry[it.key()] = it.value();
+    d->modelConfigs[i] = entry;
+    break;
+  }
   QSettings s;
   s.setValue("diffusion/maxInputSize", d->maxInputSize->value());
   s.setValue("diffusion/fluxCropGuidance", d->cropGuidance->isChecked());
-  s.setValue("diffusion/modelId", d->models->currentData().toString());
+  s.setValue("diffusion/modelId", d->currentModelId);
   s.setValue("diffusion/modelConfigurations",
              QJsonDocument(d->modelConfigs).toJson(QJsonDocument::Compact));
   s.setValue("diffusion/currentConfiguration",

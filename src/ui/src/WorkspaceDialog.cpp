@@ -9,6 +9,7 @@
 #include <QCompleter>
 #include <QDialog>
 #include <QDropEvent>
+#include <QDynamicPropertyChangeEvent>
 #include <QEventLoop>
 #include <QKeyEvent>
 #include <QLayout>
@@ -189,6 +190,9 @@ bool WorkspaceDialog::eventFilter(QObject* watched, QEvent* event)
         && watched == &host_ && event->type() == QEvent::Close) reject();
     // A nested card owns input until it finishes, then restores this presenter.
     if (workspace_.modalOverlay() != this) return false;
+    if (running_ && watched == dialog_ && event->type() == QEvent::DynamicPropertyChange
+        && static_cast<QDynamicPropertyChangeEvent*>(event)->propertyName() == "workspacePreferredSize")
+        centerCard();
     if (!running_ || !isEditorInput(event->type())) return false;
     if (event->type() == QEvent::KeyPress)
         qCDebug(workspaceDialogLog) << "Key recipient" << watched << "focus" << QApplication::focusWidget()
@@ -271,13 +275,23 @@ bool WorkspaceDialog::eventFilter(QObject* watched, QEvent* event)
     return true;
 }
 
+void WorkspaceDialog::setCenterWidget(QWidget* widget)
+{
+    centerWidget_ = widget;
+    centerCard();
+}
 void WorkspaceDialog::centerCard()
 {
     if (!dialog_) return;
+    QRect area = rect();
+    if (centerWidget_ && centerWidget_->isVisible())
+        area = QRect(mapFromGlobal(centerWidget_->mapToGlobal(QPoint{})), centerWidget_->size()).intersected(rect());
     const auto preferred = dialog_->property("workspacePreferredSize").toSize();
-    if (preferred.isValid()) dialog_->setFixedSize(preferred.boundedTo(size() - QSize(24, 24)));
+    if (preferred.isValid()) dialog_->setFixedSize(preferred.boundedTo(area.size() - QSize(24, 24)));
+    else if (centerWidget_) dialog_->setMaximumSize(area.size() - QSize(24, 24));
     dialog_->adjustSize();
-    dialog_->move((width() - dialog_->width()) / 2, (height() - dialog_->height()) / 2);
+    dialog_->move(area.x() + (area.width() - dialog_->width()) / 2,
+                  area.y() + (area.height() - dialog_->height()) / 2);
 }
 void WorkspaceDialog::resizeEvent(QResizeEvent* event)
 {

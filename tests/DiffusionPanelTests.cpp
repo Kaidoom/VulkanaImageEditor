@@ -5,6 +5,7 @@
 #include "imageeditor/ui/Theme.hpp"
 #include <QApplication>
 #include <QCheckBox>
+#include <QClipboard>
 #include <QComboBox>
 #include <QDialog>
 #include <QDoubleSpinBox>
@@ -255,7 +256,11 @@ private slots:
     models->setCurrentIndex(models->findData("B"));
     QCOMPARE(panel.request()["loras"].toArray()[0].toObject()["strength"].toDouble(), 1.4);
     panel.saveSettings();
-    QCOMPARE(QJsonDocument::fromJson(QSettings().value("diffusion/modelConfigurations").toByteArray()).array(), configurations);
+    const auto saved = QJsonDocument::fromJson(QSettings().value("diffusion/modelConfigurations").toByteArray()).array();
+    QCOMPARE(saved.size(), 2);
+    QCOMPARE(saved[0].toObject()["configuration"].toObject()["loras"].toArray(), defaultsA);
+    QCOMPARE(saved[1].toObject()["configuration"].toObject()["loras"].toArray(), defaultsB);
+    QVERIFY(!saved[1].toObject()["generation"].toObject().contains("loras"));
     DiffusionPanel restored;
     QCOMPARE(restored.configuration()["loras"].toArray(), defaultsB);
     QCOMPARE(restored.request()["loras"].toArray()[0].toObject()["strength"].toDouble(), .3);
@@ -1220,7 +1225,7 @@ private slots:
     QVERIFY(!panel.selectedResult());
     QCOMPARE(panel.selectedResultIndex(), -1);
     QVERIFY(!panel.findChild<QPushButton *>("DiffusionApply")->isEnabled());
-    QVERIFY(!dialog->findChild<QPushButton *>("DiffusionCompareSelected")
+    QVERIFY(!dialog->findChild<QPushButton *>("DiffusionCompareLayer")
                  ->isEnabled());
     draft.fill(Qt::yellow);
     panel.setProgressPreview(draft);
@@ -1251,6 +1256,67 @@ private slots:
     QCOMPARE(panel.results().size(), 3);
     QCOMPARE(preview->image(), final);
     dialog->close();
+  }
+  void generationThumbnailAndFrozenResultDetails() {
+    QWidget host;
+    host.resize(1100, 900);
+    DiffusionPanel panel(&host);
+    panel.resize(600, 820);
+    host.show();
+    panel.showGeneration();
+    auto *tabs = panel.findChild<QTabWidget *>("DiffusionTabs");
+    QImage first(100, 60, QImage::Format_RGBA8888);
+    first.fill(Qt::red);
+    panel.appendResult({first, {}, "First", {
+      {"configurationName", "My model"},
+      {"configuration", QJsonObject{{"files", QJsonObject{{"diffusion", "/models/original.gguf"}}}}},
+      {"request", QJsonObject{{"seed", 42}}},
+      {"image", QJsonObject{{"generationInfo", QJsonObject{{"seed", "43"}}}}},
+      {"createdAt", "2026-11-08T10:20:30.000Z"}}});
+    QCOMPARE(tabs->currentIndex(), 1);
+    auto *live = panel.findChild<QLabel *>("DiffusionGenerationThumbnail");
+    QVERIFY(live && !live->isHidden() && !live->pixmap().isNull());
+    QVERIFY(live->toolTip().isEmpty());
+    QVERIFY(panel.findChild<QLabel *>("DiffusionResultThumbnail")->toolTip().isEmpty());
+    QCOMPARE(live->pixmap().toImage().pixelColor(0, 0), QColor(Qt::red));
+    QCOMPARE(panel.findChild<QLabel *>("DiffusionResultConfig")->text(), QString("My model"));
+    QCOMPARE(panel.findChild<QLabel *>("DiffusionResultModel")->text(), QString("original.gguf"));
+    QCOMPARE(panel.findChild<QLineEdit *>("DiffusionResultSeed")->text(), QString("43"));
+    QVERIFY(!panel.findChild<QLabel *>("DiffusionResultCreated")->text().isEmpty());
+    panel.findChild<QToolButton *>("DiffusionCopyResultSeed")->click();
+    QCOMPARE(QApplication::clipboard()->text(), QString("43"));
+    auto *apply = panel.findChild<QPushButton *>("DiffusionApply");
+    QVERIFY(apply->isHidden());
+    panel.setBusy(true);
+    QImage draft(16, 16, QImage::Format_RGBA8888);
+    draft.fill(Qt::green);
+    panel.setProgressPreview(draft);
+    QCOMPARE(panel.selectedResultIndex(), 0); // Browsing history needn't follow the live image.
+    QCOMPARE(live->pixmap().toImage().pixelColor(0, 0), QColor(Qt::green));
+    QTest::mouseClick(live, Qt::LeftButton);
+    auto *dialog = host.findChild<QDialog *>("DiffusionPreviewDialog");
+    QVERIFY(dialog && dialog->isVisible());
+    QCOMPARE(panel.selectedResultIndex(), -1);
+    QVERIFY(!apply->isEnabled());
+    panel.setBusy(false);
+    QImage final(80, 90, QImage::Format_RGBA8888);
+    final.fill(Qt::blue);
+    panel.appendResult({final, {}, "Second", {}});
+    QCOMPARE(tabs->currentIndex(), 1);
+    QCOMPARE(live->pixmap().toImage().pixelColor(0, 0), QColor(Qt::blue));
+    QVERIFY(dialog->isAncestorOf(apply));
+    QVERIFY(apply->isEnabled());
+    auto *preview = dialog->findChild<QWidget *>("DiffusionPreview");
+    QTest::keyClick(preview, Qt::Key_Left);
+    QCOMPARE(panel.selectedResultIndex(), 0);
+    QCOMPARE(panel.findChild<QLineEdit *>("DiffusionResultSeed")->text(), QString("43"));
+    QTest::keyClick(preview, Qt::Key_Right);
+    QCOMPARE(panel.selectedResultIndex(), 1);
+    int applied = 0;
+    panel.onApply = [&] { ++applied; QVERIFY(!dialog->isVisible()); };
+    apply->click();
+    QCOMPARE(applied, 1);
+    QVERIFY(apply->isHidden() && apply->parentWidget() == &panel);
   }
   void inputAndResultIndependence() {
     DiffusionPanel panel;
@@ -1375,6 +1441,59 @@ private slots:
     preview->removeSelectedRegion();
     QVERIFY(preview->regions().isEmpty());
     dialog->close();
+  }
+  void configurationsAutosaveWithoutMixingTheirSettings() {
+    const QJsonObject config{{"profile", "flux3-image-klein-distilled"},
+                             {"files", QJsonObject{{"diffusion", "/models/first.gguf"}}}};
+    const QJsonArray configs{
+        QJsonObject{{"id", "A"}, {"name", "First"}, {"configuration", config}, {"backend", "auto"}},
+        QJsonObject{{"id", "B"}, {"name", "Second"}, {"configuration", config}, {"backend", "vulkan"}}};
+    QSettings().setValue("diffusion/modelConfigurations", QJsonDocument(configs).toJson());
+    QSettings().setValue("diffusion/modelId", "A");
+    const auto stored = [](const QString &id) {
+      const auto array = QJsonDocument::fromJson(QSettings().value("diffusion/modelConfigurations").toByteArray()).array();
+      for (const auto &entry : array) if (entry.toObject()["id"] == id) return entry.toObject();
+      return QJsonObject{};
+    };
+    DiffusionPanel panel;
+    QVERIFY(!panel.findChild<QPushButton *>("DiffusionSaveConfiguration"));
+    auto *models = panel.findChild<QComboBox *>("DiffusionConfigurationModels");
+    auto *weights = panel.findChild<QLineEdit *>("DiffusionFile_diffusion");
+    weights->setText("/models/updated-a.gguf");
+    // Switching immediately flushes the old configuration before loading the next.
+    models->setCurrentIndex(models->findData("B"));
+    QCOMPARE(stored("A")["configuration"].toObject()["files"].toObject()["diffusion"].toString(), QString("/models/updated-a.gguf"));
+    QCOMPARE(weights->text(), QString("/models/first.gguf"));
+    QCOMPARE(panel.backend(), QString("vulkan"));
+    weights->setText("/models/updated-b.gguf");
+    auto *threads = panel.findChild<QDoubleSpinBox *>("Diffusion_threads");
+    QVERIFY(threads);
+    threads->setValue(6);
+    panel.findChild<QDoubleSpinBox *>("Diffusion_steps")->setValue(23);
+    panel.findChild<QComboBox *>("DiffusionBackend")->setCurrentIndex(2);
+    QTRY_COMPARE(stored("B")["configuration"].toObject()["settings"].toObject()["threads"].toInt(), 6);
+    QTRY_COMPARE(stored("B")["generation"].toObject()["steps"].toInt(), 23);
+    QCOMPARE(stored("B")["backend"].toString(), QString("cuda"));
+    panel.findChild<QToolButton *>("DiffusionLoraAdd")->click();
+    QTRY_VERIFY(panel.findChild<QLineEdit *>("DiffusionLoraPath"));
+    panel.findChild<QLineEdit *>("DiffusionLoraPath")->setText("/models/style.safetensors");
+    QTRY_COMPARE(stored("B")["configuration"].toObject()["loras"].toArray().size(), 1);
+    QTRY_COMPARE(stored("B")["configuration"].toObject()["loras"].toArray()[0].toObject()["path"].toString(), QString("/models/style.safetensors"));
+    models->setCurrentIndex(models->findData("A"));
+    QCOMPARE(weights->text(), QString("/models/updated-a.gguf"));
+    QCOMPARE(panel.backend(), QString("auto"));
+    QVERIFY(panel.configuration()["loras"].toArray().isEmpty());
+    models->setCurrentIndex(models->findData("B"));
+    QCOMPARE(weights->text(), QString("/models/updated-b.gguf"));
+    QCOMPARE(panel.request()["steps"].toInt(), 23);
+    DiffusionPanel restored;
+    QCOMPARE(restored.configurationName(), QString("Second"));
+    QCOMPARE(restored.configuration(), panel.configuration());
+    QCOMPARE(restored.backend(), QString("cuda"));
+    QCOMPARE(restored.request()["steps"].toInt(), 23);
+    auto *families = panel.findChild<QComboBox *>("DiffusionFamily");
+    families->setCurrentIndex(families->findText("Stable Diffusion"));
+    QTRY_COMPARE(stored("B")["configuration"].toObject()["profile"].toString(), QString("stable-diffusion"));
   }
   void persistentModelSettings() {
     {

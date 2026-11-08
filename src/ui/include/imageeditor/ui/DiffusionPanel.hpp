@@ -2,11 +2,14 @@
 
 #include "imageeditor/ui/DiffusionPreview.hpp"
 #include <QImage>
+#include <QIcon>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QWidget>
 #include <functional>
 #include <memory>
+
+class QDialog;
 
 namespace imageeditor::ui {
 class DiffusionPanel final : public QWidget {
@@ -46,6 +49,17 @@ public:
     QTransform toDocument;
   };
 
+  struct ComparisonLayer {
+    QString id; // Document-qualified identity; independent of editor selection.
+    QString name;
+    QString type;
+    QIcon thumbnail;
+    bool operator==(const ComparisonLayer &other) const {
+      return id == other.id && name == other.name && type == other.type &&
+             thumbnail.cacheKey() == other.thumbnail.cacheKey();
+    }
+  };
+
   explicit DiffusionPanel(QWidget *parent = nullptr);
   ~DiffusionPanel() override;
   Mode mode() const;
@@ -66,6 +80,7 @@ public:
   void setWorkerExecutable(const QString &path);
   QJsonObject
   configuration() const; // {profile, files, settings}: worker load parameters.
+  QString configurationName() const;
   QJsonObject generationParameters() const;
   QJsonObject request() const { return generationParameters(); }
   void setProfiles(const QJsonArray &profiles);
@@ -105,13 +120,15 @@ public:
   void clearResults();
   void removeSelectedResult();
   void showResultPreview();
+  void showLatestPreview();
   void setBusy(bool busy);
   bool isBusy() const;
   void setStatus(const QString &text, bool error = false);
   void setProgress(int step, int steps, double elapsedMs = 0);
   void setProgressPreview(QImage image);
   void setTargetCompatible(bool selected);
-  void setComparisonAvailable(bool available);
+  void setComparisonLayers(QVector<ComparisonLayer> layers);
+  QString comparisonLayerId() const;
   bool comparisonActive() const;
   void setComparisonReference(QImage image, QTransform toDocument,
                               const QString &label);
@@ -126,6 +143,7 @@ public:
   std::function<void()> onMatchSelectedSize;
   std::function<void()> onCompareRequest;
   std::function<void()> onClose;
+  std::function<void(QDialog &)> onPresentPreview;
   std::function<void(InputSource)> onAddInput;
   std::function<void()> onInputsChanged;
   std::function<void(Mode)> onModeChanged;
