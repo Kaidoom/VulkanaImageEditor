@@ -75,6 +75,19 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(flux["alignment"], 16)
         qwen = next(p for p in self.hello["profiles"] if p["id"] == "qwen-image-2.1-turbo")
         self.assertEqual(qwen["alignment"], 32)
+        sd = next(p for p in self.hello["profiles"] if p["id"] == "stable-diffusion")
+        self.assertTrue(sd["checkpoint"])
+        self.assertEqual(sd["modes"], ["generate"])
+        self.assertFalse(sd["referenceImages"])
+        self.assertIn("SD 1.x", sd["engineModels"])
+        self.assertIn("SDXL", sd["engineModels"])
+        self.assertIn(sd["sampler"], self.hello["samplers"])
+        self.assertIn(sd["scheduler"], self.hello["schedulers"])
+        variants = [p for p in self.hello["profiles"] if p.get("familyGroup") == "flux-klein"]
+        self.assertEqual(len(variants), 4)
+        for variant in variants:
+            self.assertIn(variant["sampler"], self.hello["samplers"])
+            self.assertIn(variant["scheduler"], self.hello["schedulers"])
         status = self.call("status")["result"]
         self.assertFalse(status["loaded"])
         self.assertEqual(status["loadedModels"], [])
@@ -105,6 +118,18 @@ class ProtocolTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertIn("Git LFS pointer", result["error"]["message"])
         self.assertTrue(pointer.exists())
+        self.assertTrue(self.call("ping")["ok"])
+
+    def test_checkpoint_optional_components_validation(self):
+        checkpoint = Path(self.directory.name) / "checkpoint.safetensors"
+        checkpoint.write_bytes(b"test fixture, not loaded")
+        load = {"profile": "stable-diffusion", "files": {"diffusion": str(checkpoint)},
+                "settings": {"threads": -1}}
+        error = self.call("load", load)["error"]
+        self.assertEqual(error["code"], "invalid_arguments")
+        self.assertIn("threads", error["message"])  # No missing encoder/VAE requirement.
+        load["files"]["vae"] = str(Path(self.directory.name) / "missing-vae.safetensors")
+        self.assertIn("vae must be", self.call("load", load)["error"]["message"])
         self.assertTrue(self.call("ping")["ok"])
 
     def test_malformed_input_stays_on_protocol(self):

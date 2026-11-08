@@ -17,7 +17,7 @@ Generation uses immutable input snapshots and never locks canvas editing. Closin
 
 Select **Auto**, **Vulkan** or **CUDA** in Configuration. Auto prefers an installed CUDA worker, then Vulkan; explicit choices are checked against the worker's reported backend. An unavailable backend produces a clear error rather than running a different backend silently. Linux CUDA is the currently validated worker; Vulkan still requires a separate worker build and validation. Worker paths are discovered from the installation or development overrides and are not an editable UI setting.
 
-Save named model configurations with explicit component paths; multiple configurations may use the same family. Choose a device from the worker's device list. These are inference device IDs, independent of the canvas renderer's Vulkan IDs.
+Choose a **Family**, then a **Variant** where available. Qwen 2.1 Image offers Base and Turbo; Flux Klein offers Flux 2 base/distilled and Flux 3 base/distilled. Families with one choice hide Variant. Save named configurations with explicit model paths; multiple configurations may use the same variant. Existing saved profile IDs remain compatible. Choose a device from the worker's device list. These are inference device IDs, independent of the canvas renderer's Vulkan IDs.
 
 Essential controls include mode, model, prompt, output dimensions and seed. The compact size-reset button matches the first edit input or the active canvas. Output destinations are chosen in Preview. Open Configuration and expand the sampling and resource sections for technical settings. Generate is disabled until the required model paths have been entered. **Random** chooses a seed for every job; **Fixed** reuses the entered seed; **Increment** advances it after each successful job by the batch size (wrapping to zero at the maximum). The last generated seed is recorded with each result. Failed or cancelled jobs do not advance an Increment seed, and scrolling over numeric controls or closed dropdowns scrolls the panel without changing values. Profile defaults are recommended starting points; explicit overrides are retained. **Negative prompt** is a collapsed section immediately below the positive prompt. Its field is disabled unless the model supports it and CFG exceeds 1; collapsing or disabling it preserves the entered text. Unsupported vision or prefix-cache controls are disabled. Approximate inference caches are experimental and can change results.
 
@@ -50,7 +50,7 @@ Generated variations appear in Preview, which opens automatically when a job fin
 
 The worker retains one configuration at a time. Its diffusion model, text encoder, VAE and optional vision component belong to one context and unload together; the current engine cannot unload these components independently. Switching configurations releases the previous context before loading the next one.
 
-**Resolution Selector**, below Size, calculates dimensions from an aspect ratio, an approximate megapixel target (1 MP = 1024 × 1024) and a rounding multiple. Manual size edits select Custom; changing the target or multiple in Custom leaves those dimensions untouched. **Multiple** defaults to **Auto**, using **8** for Krea 2, **16** for FLUX.3, or **32** for Qwen Image 2.1. Explicit multiples remain available. The selected model's requirement is displayed in the selector. Incompatible dimensions are rejected before model loading or generation, with nearby valid sizes suggested. Changing models recalculates a named preset when Auto is selected; Custom dimensions and explicit multiples remain unchanged. Worker discovery and mode switches preserve the chosen dimensions. The explicit size-matching buttons still round up to model alignment when necessary.
+**Resolution Selector**, below Size, calculates dimensions from an aspect ratio, an approximate megapixel target (1 MP = 1024 × 1024) and a rounding multiple. Manual size edits select Custom; changing the target or multiple in Custom leaves those dimensions untouched. **Multiple** defaults to **Auto**, using **8** for Krea 2, **16** for Flux Klein, **32** for Qwen Image 2.1, or **64** for Stable Diffusion. Explicit multiples remain available. The selected model's requirement is displayed in the selector. Incompatible dimensions are rejected before model loading or generation, with nearby valid sizes suggested. Changing models recalculates a named preset when Auto is selected; Custom dimensions and explicit multiples remain unchanged. Worker discovery and mode switches preserve the chosen dimensions. The explicit size-matching buttons still round up to model alignment when necessary.
 
 Preview dimensions are shown in the expanded preview. Reference encoders may internally resample inputs, and the model can recompose details even when input and output dimensions match. **Compare selected layer** captures the current raster, text or shape layer's isolated rendered appearance, including transforms, masks and effects. Groups and adjustment layers are incompatible. The left side shows the selected layer and the right side shows the result. Selection changes update the comparison without editing the document.
 
@@ -80,7 +80,20 @@ For a canvas-cropped Edit input, replacement uses the captured document placemen
 
 **Qwen Image 2.1 Turbo:** diffusion GGUF, Qwen3-VL 8B text encoder, Qwen Image 2.1 VAE, and the matching vision projector for reference editing. Recommended: 8 steps, Euler, CFG 1, exact Turbo sigma schedule. The base Qwen profile is available but has not been independently exercised with base weights.
 
-**FLUX.3 Image Klein (distilled):** FLUX.3 diffusion GGUF, Qwen3-VL 4B text encoder and FLUX.2 VAE. Recommended: 16 steps, Euler, CFG 1, discrete flow schedule with shift 6.93. The pinned engine consumes image references as VAE conditioning and does not require a separate vision projector. It supports up to ten references; Qwen's worker profile currently allows eight.
+**Flux Klein:** choose the matching generation and variant. Flux 2 uses its diffusion weights, a matching Qwen3 text encoder (4B for Klein 4B, 8B for Klein 9B), and the FLUX.2 VAE. Flux 3 uses its diffusion weights, Qwen3-VL 4B and the FLUX.2 VAE. Neither needs a separate vision projector. Both support image references; native structured region guidance is available for Flux 3 only.
+
+| Variant | Steps | CFG | Sampler | Scheduler |
+|---|---:|---:|---|---|
+| Flux 2 base | 20 | 4 | Euler | Flux2 |
+| Flux 2 distilled | 4 | 1 | Euler | Flux2 |
+| Flux 3 base | 20 | 3.5 | Euler | Discrete |
+| Flux 3 distilled | 16 | 1 | Euler | Discrete |
+
+These are starting defaults, not fixed limits. Flux 3's default flow shift is 6.93. Up to ten image references are supported; Qwen's worker profile currently allows eight.
+
+**Stable Diffusion:** select a complete SD 1.5 or SDXL-compatible `.safetensors` checkpoint, including compatible Illustrious derivatives. The engine detects the architecture and uses embedded CLIP/text encoders and VAE. Leave **VAE override (optional)** blank to use the embedded VAE, or supply a compatible external VAE. Encoder-less diffusion files require a complete checkpoint instead. This family supports text-to-image only; image inputs, Edit Layer, Generative Fill and region guidance are unavailable.
+
+Stable Diffusion reuses the prompt, negative prompt, seed, resolution and LoRA controls. In **Advanced generation**, adjust Sampler, Scheduler, Steps and Guidance (CFG); defaults are DPM++ 2M, Karras, 25 steps and CFG 7. The worker advertises sampling options from the pinned engine. Flow shift is disabled because it does not apply to this family. Checkpoint architecture is returned in `effectiveSettings.architecture`.
 
 Choose an image in the **Regions** dropdown, or double-click an input image, to draw, move, resize, label or remove its rectangular regions. New labels are **Region1**, **Region2**, and so on. Regions belong to that input snapshot: reordering images moves their regions with them, and removing an image removes only its regions. Image numbers follow the current input-list order.
 
@@ -207,7 +220,7 @@ The shared profile registry declares supported modes, image references, region g
 
 Krea 2 Turbo's editing, image-input and region controls are disabled. Input files, initial images, masks and spatial requests are rejected by the worker for this profile. Generated results use the usual preview, comparison and undoable Apply workflow. Krea 2 Raw is not included.
 
-The profile registry is `src/diffusion/profiles.json`. Qwen Image 2.1 Turbo has been exercised with local GGUF components. Base Qwen needs independent validation with base weights; the distilled FLUX.3 and Krea 2 Turbo profiles have been exercised with local GGUF components. The engine checks the loaded architecture against the selected family; Turbo/base and distilled/base variants still require the user to choose the matching profile. A GGUF filename alone does not establish compatibility.
+The profile registry is `src/diffusion/profiles.json`. Qwen Image 2.1 Turbo has been exercised with local GGUF components. Base Qwen needs independent validation with base weights. Flux 2 base/distilled (9B), Flux 3 base/distilled and Krea 2 Turbo have been exercised with GGUF components. Stable Diffusion has been tested with a complete SDXL-derived checkpoint; SD 1.5 uses the same engine loading path but has not had separate inference validation. The engine checks the loaded architecture against the selected family; Turbo/base and distilled/base variants still require the user to choose the matching profile. A GGUF filename alone does not establish compatibility.
 
 Example `load` parameters:
 
@@ -230,6 +243,8 @@ Example `load` parameters:
   }
 }
 ```
+
+For `profile:"stable-diffusion"`, `files.diffusion` is the complete checkpoint and is the only required model file. `files.vae` is an optional override; `files.textEncoder` and `files.vision` are omitted. Component-based families continue to require diffusion, text encoder and VAE paths.
 
 Copy `device` from `hello.devices`; it is the inference backend's ID, not a Vulkan renderer index. The panel exposes inference device selection directly; automatic mapping from the renderer preference is not implemented. Paths must be absolute readable files. Git LFS pointers are rejected.
 

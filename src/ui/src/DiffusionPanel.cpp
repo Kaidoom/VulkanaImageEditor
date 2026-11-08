@@ -375,7 +375,8 @@ QImage thumbnail(const QImage &source, QSize size) {
 struct DiffusionPanel::Impl {
   DiffusionPanel &q;
   QComboBox *mode{}, *outputDestination{}, *backend{}, *models{},
-      *configModels{}, *profiles{}, *presets{}, *regionSource{};
+      *configModels{}, *families{}, *profiles{}, *presets{}, *regionSource{};
+  QFormLayout *modelForm{};
   QTabWidget *tabs{};
   QWidget *configurationPage{};
   QLineEdit *seed{};
@@ -507,6 +508,32 @@ struct DiffusionPanel::Impl {
         return p.toObject();
     return {};
   }
+  static QString familyKey(const QJsonObject &profile) {
+    return profile.value("familyGroup").toString(profile.value("family").toString());
+  }
+  void rebuildVariants(const QString &preferred = {}) {
+    const QSignalBlocker block(profiles);
+    profiles->clear();
+    for (const auto &value : profileList) {
+      const auto p = value.toObject();
+      if (familyKey(p) == families->currentData().toString())
+        profiles->addItem(p.value("variant").toString("Standard"), p.value("id").toString());
+    }
+    select(profiles, preferred);
+    modelForm->setRowVisible(profiles, profiles->count() > 1);
+  }
+  void selectProfile(const QString &id) {
+    const QSignalBlocker block(families);
+    for (const auto &value : profileList) {
+      const auto p = value.toObject();
+      if (p.value("id") == id) {
+        select(families, familyKey(p));
+        rebuildVariants(id);
+        return;
+      }
+    }
+    rebuildVariants();
+  }
   void writeResolution(QSize size) {
     QScopedValueRollback<bool> guard(updatingResolution, true);
     width->setValue(size.width());
@@ -551,6 +578,8 @@ struct DiffusionPanel::Impl {
   int maxInputs() const {
     if (!q.supportsImageInputs())
       return 0;
+    if (!q.supportsRegions())
+      return profile().value("maxReferenceImages").toInt(8);
     const bool annotation =
         profile().value("spatialGuidance").toString() == "annotation" &&
         !regions.isEmpty();
@@ -640,8 +669,9 @@ struct DiffusionPanel::Impl {
       rebuildScenes();
     const bool ready = q.selectedResult() != nullptr;
     const bool configured = !files["diffusion"]->text().trimmed().isEmpty() &&
-                            !files["textEncoder"]->text().trimmed().isEmpty() &&
-                            !files["vae"]->text().trimmed().isEmpty();
+                            (profile().value("checkpoint").toBool() ||
+                             (!files["textEncoder"]->text().trimmed().isEmpty() &&
+                              !files["vae"]->text().trimmed().isEmpty()));
     models->setItemText(0, configured ? "Unsaved configuration"
                                       : "<Missing configuration>");
     const bool hasInputs = q.mode() == Mode::Generate || !inputs.isEmpty();
@@ -691,6 +721,7 @@ struct DiffusionPanel::Impl {
     randomSeed->setEnabled(!busy);
     seed->setEnabled(!busy && seedMode->currentData() != "random");
     profiles->setEnabled(!busy);
+    families->setEnabled(!busy);
     mode->setEnabled(!busy);
     updateModeControls();
     inputList->setEnabled(!busy && q.supportsImageInputs());
@@ -838,6 +869,15 @@ struct DiffusionPanel::Impl {
   }
   void updateCapabilities(bool defaults) {
     const auto p = profile();
+    const bool checkpoint = p.value("checkpoint").toBool();
+    for (const auto &key : {QString("textEncoder"), QString("vision")})
+      modelForm->setRowVisible(files[key]->parentWidget(), !checkpoint);
+    for (const auto &key : {QString("diffusion"), QString("vae")}) {
+      const QString label = key == "diffusion" ? (checkpoint ? "Checkpoint" : "Diffusion weights")
+                                               : (checkpoint ? "VAE override (optional)" : "VAE");
+      qobject_cast<QLabel *>(modelForm->labelForField(files[key]->parentWidget()))->setText(label);
+      files[key]->setPlaceholderText(checkpoint && key == "vae" ? "Use checkpoint VAE" : label);
+    }
     if (auto *items = qobject_cast<QStandardItemModel *>(mode->model())) {
       for (const auto value : {Mode::Generate, Mode::Edit, Mode::Fill}) {
         const bool supported = q.supportsMode(value);
@@ -919,8 +959,9 @@ struct DiffusionPanel::Impl {
     sampling["scheduler"]->setEnabled(schedule == "auto");
     sampling["scheduler"]->setToolTip(
         "Controls how noise levels are spaced. Available with the auto sigma schedule.");
-    sampling["flowShift"]->setEnabled(schedule == "auto");
+    sampling["flowShift"]->setEnabled(schedule == "auto" && p.value("flowSchedule").toBool(true));
     sampling["flowShift"]->setToolTip(
+        !p.value("flowSchedule").toBool(true) ? "Flow shift does not apply to this model." :
         QString("Adjusts the flow schedule. Available with the auto sigma schedule. Auto uses the model default (%1).")
             .arg(p.value("flowShift").toDouble()));
     auto *scheduleCombo = qobject_cast<QComboBox *>(sampling["schedule"]);
@@ -1332,10 +1373,13 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   configLayout->addWidget(d->configModels);
   configLayout->addWidget(
       section("Model files", "DiffusionModel", modelLayout, true));
-  auto *modelForm = form(modelLayout);
+  auto *modelForm = d->modelForm = form(modelLayout);
+  d->families = new ScrollSafe<QComboBox>;
+  d->families->setObjectName("DiffusionFamily");
+  modelForm->addRow("Family", d->families);
   d->profiles = new ScrollSafe<QComboBox>;
   d->profiles->setObjectName("DiffusionProfile");
-  modelForm->addRow("Family", d->profiles);
+  modelForm->addRow("Variant", d->profiles);
   auto fileRow = [this, content](const QString &key,
                                  const QString &placeholder) {
     auto *row = new QWidget(content);
@@ -1348,10 +1392,12 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
     h->addWidget(edit, 1);
     auto *browse = iconButton(ToolGlyph::Folder, "Choose file", row);
     h->addWidget(browse);
-    connect(browse, &QToolButton::clicked, this, [this, edit] {
+    connect(browse, &QToolButton::clicked, this, [this, edit, key] {
+      const bool checkpoint = d->profile().value("checkpoint").toBool() && key == "diffusion";
       const auto path =
-          chooseFile(this, "Choose model component", edit->text(),
-                     "Models (*.gguf *.safetensors);;All files (*)");
+          chooseFile(this, checkpoint ? "Choose checkpoint" : "Choose model component", edit->text(),
+                     checkpoint ? "Checkpoints (*.safetensors);;All files (*)" :
+                                  "Models (*.gguf *.safetensors);;All files (*)");
       if (!path.isEmpty())
         edit->setText(path);
     });
@@ -1749,10 +1795,13 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
                            "Guidance (CFG)", 0, 100, 1, 2);
   addChoice(
       samplingForm, d->sampling, "sampler", "Sampler",
-      {"euler", "euler_a", "heun", "dpm2", "dpm++2m", "lcm", "ddim_trailing"},
+      {"euler", "euler_a", "heun", "dpm2", "dpm++2s_a", "dpm++2m", "dpm++2mv2",
+       "ipndm", "ipndm_v", "lcm", "ddim_trailing", "tcd", "res_multistep", "res_2s",
+       "er_sde", "euler_cfg_pp", "euler_a_cfg_pp", "euler_ge", "dpm++2m_sde", "dpm++2m_sde_bt", "lms"},
       "euler");
   addChoice(samplingForm, d->sampling, "scheduler", "Scheduler",
-            {"auto", "discrete", "karras", "exponential", "simple", "flux"},
+            {"auto", "discrete", "karras", "exponential", "ays", "gits", "sgm_uniform", "simple",
+             "smoothstep", "kl_optimal", "lcm", "bong_tangent", "ltx2", "logit_normal", "flux2", "flux", "beta", "llada_image"},
             "auto");
   auto *schedule =
       addChoice(samplingForm, d->sampling, "schedule", "Sigma schedule",
@@ -1993,12 +2042,17 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
     if (onModeChanged)
       onModeChanged(mode());
   });
-  connect(d->profiles, &QComboBox::currentIndexChanged, this, [this] {
+  const auto profileChanged = [this] {
     d->updateCapabilities(true);
     if (!d->updating && d->resolutionMultiple->currentData().toInt() == 0)
       d->applyResolutionPreset();
     if (!d->updating && onConfigurationChanged)
       onConfigurationChanged();
+  };
+  connect(d->profiles, &QComboBox::currentIndexChanged, this, profileChanged);
+  connect(d->families, &QComboBox::currentIndexChanged, this, [this, profileChanged] {
+    d->rebuildVariants();
+    profileChanged();
   });
   connect(d->configModels, &QComboBox::currentIndexChanged, this,
           [this](int index) { d->models->setCurrentIndex(index); });
@@ -2268,6 +2322,8 @@ QJsonObject DiffusionPanel::configuration() const {
     resources.remove("prefixCacheType");
     files.remove("vision");
   }
+  if (d->profile().value("checkpoint").toBool())
+    files.remove("textEncoder");
   QJsonObject result{{"profile", d->profiles->currentData().toString()},
                      {"files", files}, {"settings", resources}};
   if (!d->loras->defaults().isEmpty()) result["loras"] = d->loras->defaults();
@@ -2275,6 +2331,8 @@ QJsonObject DiffusionPanel::configuration() const {
 }
 QJsonObject DiffusionPanel::generationParameters() const {
   auto params = controls(d->sampling);
+  if (!d->profile().value("flowSchedule").toBool(true))
+    params.remove("flowShift");
   const auto loras = d->loras->enabledLoras();
   if (!loras.isEmpty()) params["loras"] = loras;
   if (supportsImageInputs())
@@ -2336,14 +2394,16 @@ void DiffusionPanel::generationAccepted() {
 void DiffusionPanel::setProfiles(const QJsonArray &profiles) {
   const bool initial = d->profileList.isEmpty();
   d->profileList = profiles;
-  const auto current = d->profiles->currentData().toString();
-  const QSignalBlocker b(d->profiles);
-  d->profiles->clear();
+  const auto current = initial ? QString("qwen-image-2.1-turbo") : d->profiles->currentData().toString();
+  const QSignalBlocker b(d->families);
+  d->families->clear();
   for (const auto &value : profiles) {
     const auto p = value.toObject();
-    d->profiles->addItem(p["name"].toString(), p["id"].toString());
+    const auto family = Impl::familyKey(p);
+    if (d->families->findData(family) < 0)
+      d->families->addItem(p.value("familyName").toString(p.value("name").toString()), family);
   }
-  select(d->profiles, current);
+  d->selectProfile(current);
   if (d->resource.contains("prefixCache"))
     d->updateCapabilities(initial);
 }
@@ -2444,7 +2504,9 @@ void DiffusionPanel::setSamplers(const QJsonArray &samplers,
 void DiffusionPanel::setConfiguration(const QJsonObject &config,
                                       const QString &) {
   d->updating = true;
-  select(d->profiles, config["profile"].toString());
+  const auto previous = d->profiles->currentData();
+  d->selectProfile(config["profile"].toString());
+  d->updateCapabilities(previous != d->profiles->currentData());
   auto key = d->models->currentData().toString();
   if (key.isEmpty()) {
     const QJsonObject identity{{"profile", config.value("profile")}, {"files", config.value("files")}};

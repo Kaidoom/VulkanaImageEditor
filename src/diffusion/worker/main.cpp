@@ -514,8 +514,11 @@ Json Worker::load(const Json& params)
     const auto profile = findProfile(str(params, "profile"));
     const auto f = params.value("files", Json::object());
     keys(f, { "diffusion", "textEncoder", "vae", "vision" });
-    const auto diffusion = inputFile(f, "diffusion", true), te = inputFile(f, "textEncoder", true),
-               vae = inputFile(f, "vae", true), vision = inputFile(f, "vision", false);
+    const bool checkpoint = profile.value("checkpoint", false);
+    require(!checkpoint || (str(f, "textEncoder").empty() && str(f, "vision").empty()),
+        "Stable Diffusion uses the checkpoint's embedded text encoders; only a VAE override is supported.");
+    const auto diffusion = inputFile(f, "diffusion", true), te = inputFile(f, "textEncoder", !checkpoint),
+               vae = inputFile(f, "vae", !checkpoint), vision = inputFile(f, "vision", false);
     const auto s = params.value("settings", Json::object());
     keys(s,
         { "device", "maxVramGiB", "threads", "weights", "placements", "textEncoderCompute", "vaeCompute",
@@ -573,10 +576,14 @@ Json Worker::load(const Json& params)
     std::string vram = std::to_string(budget);
     sd_ctx_params_t options;
     sd_ctx_params_init(&options);
-    options.diffusion_model_path = diffusion.c_str();
-    options.llm_path = te.c_str();
-    options.vae_path = vae.c_str();
-    options.llm_vision_path = vision.c_str();
+    if (checkpoint)
+        options.model_path = diffusion.c_str();
+    else {
+        options.diffusion_model_path = diffusion.c_str();
+        options.llm_path = te.c_str();
+        options.llm_vision_path = vision.c_str();
+    }
+    if (!vae.empty()) options.vae_path = vae.c_str();
     options.backend = backend.c_str();
     options.params_backend = storage.empty() ? nullptr : storage.c_str();
     options.auto_fit = weights == "auto";
@@ -614,13 +621,16 @@ Json Worker::load(const Json& params)
             "Could not load the model. " + (memoryError.empty() ? lastError : memoryError));
     }
     const std::string actual = sd_get_model_version_name(fresh);
-    const std::string expected = profile["engineModel"].get<std::string>();
-    if (actual != expected || !sd_ctx_supports_image_generation(fresh)) {
+    const auto accepted = profile.contains("engineModels") ? profile["engineModels"]
+        : Json::array({ profile["engineModel"] });
+    if (std::find(accepted.begin(), accepted.end(), actual) == accepted.end()
+        || !sd_ctx_supports_image_generation(fresh)) {
         free_sd_ctx(fresh);
         throw Failure("profile_mismatch",
-            "Loaded " + actual + " but profile requires " + expected
+            "Loaded " + actual + " but profile requires " + profile["name"].get<std::string>()
                 + "; select the matching profile and reload");
     }
+    effective["architecture"] = actual;
     {
         std::lock_guard lock(stateMutex);
         context = fresh;
@@ -897,6 +907,8 @@ Json Worker::generate(const Json& p)
     params.sample_params.scheduler = sched;
     params.sample_params.sample_steps = steps;
     const auto flowShift = number(p, "flowShift", 0, 0, 100);
+    require(loadedProfile.value("flowSchedule", true) || flowShift == 0,
+        "Flow shift is unavailable for this model.");
     if (flowShift > 0)
         params.sample_params.flow_shift = static_cast<float>(flowShift);
     const auto eta = number(p, "eta", -1, -1, 10);

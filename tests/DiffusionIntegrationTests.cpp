@@ -498,6 +498,41 @@ private slots:
     QCOMPARE(ratio->currentData().toSize(), QSize(1, 1));
     QCOMPARE(session().document()->revision(), revision);
   }
+  void checkpointOnlyGenerationAndNativeFileEntry() {
+    openMode("AIEditLayerAction");
+    panel->setConfiguration({{"profile", "stable-diffusion"}, {"files", QJsonObject{}}});
+    QCOMPARE(panel->mode(), u::DiffusionPanel::Mode::Generate);
+    auto *field = child<QLineEdit>("DiffusionFile_diffusion");
+    auto *tabs = child<QTabWidget>("DiffusionTabs");
+    tabs->setCurrentIndex(0);
+    child<QScrollArea>("DiffusionConfigurationPage")->ensureWidgetVisible(field);
+    QCoreApplication::processEvents();
+    QTest::mouseClick(field, Qt::LeftButton);
+    QTRY_VERIFY(field->hasFocus());
+    QInputMethodEvent entry;
+    entry.setCommitString(modelPath);
+    QCoreApplication::sendEvent(window->windowHandle(), &entry);
+    QCOMPARE(field->text(), modelPath);
+    QVERIFY(child<QPushButton>("DiffusionGenerate")->isEnabled());
+    QCOMPARE(panel->configuration()["files"].toObject().size(), 1);
+    const auto before = session().document()->layers().size();
+    const auto revision = session().document()->revision();
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QCOMPARE(panel->results().size(), 1);
+    const auto request = panel->selectedResult()->metadata["request"].toObject();
+    QVERIFY(!request.contains("referenceImages"));
+    QVERIFY(!request.contains("initialImage"));
+    QVERIFY(!request.contains("mask"));
+    QVERIFY(!request.contains("spatial"));
+    QCOMPARE(request["guidance"].toDouble(), 7.0);
+    QCOMPARE(session().document()->revision(), revision);
+    panel->setDestination(u::DiffusionPanel::Destination::NewLayer);
+    panel->onApply();
+    QCOMPARE(session().document()->layers().size(), before + 1);
+    QVERIFY(session().undo());
+    QCOMPARE(session().document()->layers().size(), before);
+  }
   void incompatibleResolutionFailsBeforeWorkerStartupAndRecovers() {
     openMode("AIGenerateImageAction");
     auto config = panel->configuration();

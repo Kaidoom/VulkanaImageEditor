@@ -112,6 +112,109 @@ private slots:
     QCOMPARE(panel.request()["steps"].toInt(), 8);
     QCOMPARE(panel.request()["schedule"].toString(), QString("turbo"));
   }
+  void familyAndVariantConfigurationRoundTrip() {
+    DiffusionPanel panel;
+    auto *family = panel.findChild<QComboBox *>("DiffusionFamily");
+    auto *variant = panel.findChild<QComboBox *>("DiffusionProfile");
+    QCOMPARE(family->count(), 4);
+    QCOMPARE(family->currentText(), QString("Qwen 2.1 Image"));
+    QCOMPARE(variant->count(), 2);
+    QCOMPARE(variant->currentText(), QString("Turbo"));
+    family->setCurrentIndex(family->findData("flux-klein"));
+    QCOMPARE(variant->count(), 4);
+    QCOMPARE(variant->itemText(0), QString("Flux 2 base"));
+    QCOMPARE(variant->itemText(1), QString("Flux 2 distilled"));
+    QCOMPARE(variant->itemText(2), QString("Flux 3 base"));
+    QCOMPARE(variant->itemText(3), QString("Flux 3 distilled"));
+    variant->setCurrentIndex(variant->findData("flux2-klein-distilled"));
+    QCOMPARE(panel.request()["steps"].toInt(), 4);
+    QCOMPARE(panel.request()["scheduler"].toString(), QString("flux2"));
+    QVERIFY(!panel.supportsRegions());
+    variant->setCurrentIndex(variant->findData("flux3-image-klein-base"));
+    QCOMPARE(panel.request()["guidance"].toDouble(), 3.5);
+    QCOMPARE(panel.request()["steps"].toInt(), 20);
+    QVERIFY(panel.supportsRegions());
+    // Existing profile IDs remain the persisted identity, independent of grouping.
+    for (const auto &value : imageeditor::diffusion::modelProfiles()) {
+      const auto p = value.toObject();
+      panel.setConfiguration({{"profile", p["id"]}});
+      QCOMPARE(panel.configuration()["profile"], p["id"]);
+      QCOMPARE(variant->currentData().toString(), p["id"].toString());
+      const auto familyKey = p.value("familyGroup").toString(p.value("family").toString());
+      QCOMPARE(family->currentData().toString(), familyKey);
+      QCOMPARE(variant->isHidden(), variant->count() == 1);
+      auto *steps = panel.findChild<QDoubleSpinBox *>("Diffusion_steps");
+      steps->setValue(31);
+      panel.setProfiles(imageeditor::diffusion::modelProfiles());
+      QCOMPARE(steps->value(), 31.0); // Worker discovery preserves edited defaults.
+      panel.saveSettings();
+      DiffusionPanel restored;
+      QCOMPARE(restored.configuration()["profile"], p["id"]);
+      QCOMPARE(restored.request()["steps"].toInt(), 31);
+    }
+  }
+  void checkpointConfigurationUsesEmbeddedComponents() {
+    DiffusionPanel panel;
+    QImage input(64, 64, QImage::Format_RGBA8888); input.fill(Qt::red);
+    panel.setInputs({{input, "Reference", "Test"}});
+    panel.setMode(DiffusionPanel::Mode::Fill);
+    const QJsonArray loras{QJsonObject{{"id", "one"}, {"path", "/models/style.safetensors"},
+      {"name", "Style"}, {"strength", .7}, {"enabled", true}},
+      QJsonObject{{"id", "two"}, {"path", "/models/lighting.safetensors"},
+      {"name", "Lighting"}, {"strength", .5}, {"enabled", false}}};
+    panel.setConfiguration({{"profile", "stable-diffusion"},
+      {"files", QJsonObject{{"diffusion", "/models/checkpoint.safetensors"}}}, {"loras", loras}});
+    QVERIFY(panel.findChild<QPushButton *>("DiffusionGenerate")->isEnabled());
+    QCOMPARE(panel.mode(), DiffusionPanel::Mode::Generate);
+    QVERIFY(!panel.supportsMode(DiffusionPanel::Mode::Edit));
+    QVERIFY(!panel.supportsMode(DiffusionPanel::Mode::Fill));
+    QVERIFY(!panel.supportsImageInputs());
+    QVERIFY(!panel.supportsRegions());
+    QVERIFY(panel.findChild<QLineEdit *>("DiffusionFile_textEncoder")->parentWidget()->isHidden());
+    QVERIFY(panel.findChild<QLineEdit *>("DiffusionFile_vision")->parentWidget()->isHidden());
+    QVERIFY(!panel.findChild<QLineEdit *>("DiffusionFile_vae")->parentWidget()->isHidden());
+    QVERIFY(panel.findChild<QComboBox *>("DiffusionProfile")->isHidden());
+    QCOMPARE(panel.configuration()["files"].toObject().size(), 1);
+    panel.findChild<QPlainTextEdit *>("DiffusionPrompt")->setPlainText("A teapot");
+    panel.findChild<QPlainTextEdit *>("DiffusionNegativePrompt")->setPlainText("blurry");
+    const auto request = panel.prepareGeneration();
+    QCOMPARE(request["steps"].toInt(), 25);
+    QCOMPARE(request["guidance"].toDouble(), 7.0);
+    QCOMPARE(request["sampler"].toString(), QString("dpm++2m"));
+    QCOMPARE(request["scheduler"].toString(), QString("karras"));
+    QCOMPARE(request["negativePrompt"].toString(), QString("blurry"));
+    QVERIFY(!request.contains("strength"));
+    QVERIFY(!request.contains("flowShift"));
+    QVERIFY(!request.contains("referenceMaxSize"));
+    QVERIFY(panel.spatialParameters().isEmpty());
+    QCOMPARE(request["loras"].toArray().size(), 1);
+    QCOMPARE(panel.configuration()["loras"].toArray(), loras);
+    panel.findChild<QLineEdit *>("DiffusionFile_vae")->setText("/models/vae.safetensors");
+    panel.saveSettings();
+    DiffusionPanel restored;
+    QCOMPARE(restored.configuration(), panel.configuration());
+    QCOMPARE(restored.request()["negativePrompt"].toString(), QString("blurry"));
+    if (const auto capture = qEnvironmentVariable("VULKANA_DIFFUSION_PANEL_CAPTURE"); !capture.isEmpty()) {
+      panel.resize(520, 900); panel.show(); QCoreApplication::processEvents();
+      QVERIFY(panel.grab().save(capture + "-checkpoint.png"));
+    }
+  }
+  void flux2IgnoresStoredRegionGuides() {
+    DiffusionPanel panel;
+    panel.setConfiguration({{"profile", "flux3-image-klein-distilled"}});
+    QImage image(64, 64, QImage::Format_RGBA8888); image.fill(Qt::blue);
+    panel.setInputs({{image, "Source", "Test"}});
+    QVector<imageeditor::ui::DiffusionRegion> regions;
+    for (int i = 0; i < 10; ++i)
+      regions.append({QRectF(.1, .1, .2, .2), QString("Region%1").arg(i + 1)});
+    QVERIFY(panel.setInputRegions(panel.inputs().front().id, regions));
+    panel.setConfiguration({{"profile", "flux2-klein-distilled"}});
+    QVERIFY(panel.addInput({image, "Reference", "Test"}));
+    QVERIFY(panel.spatialParameters().isEmpty());
+    QCOMPARE(panel.inputs().front().regions.size(), 10);
+    panel.findChild<QPlainTextEdit *>("DiffusionPrompt")->setPlainText("A test image");
+    panel.prepareGeneration();
+  }
   void loraDefaultsAndConfigurationScopedOverrides() {
     const QJsonArray defaultsA{
         QJsonObject{{"id", "first"}, {"path", "/models/a.safetensors"}, {"name", "Mythic"}, {"strength", .8}, {"enabled", true}},
@@ -586,6 +689,7 @@ private slots:
     DiffusionPanel panel;
     auto *models = panel.findChild<QComboBox *>("DiffusionModels");
     auto *profiles = panel.findChild<QComboBox *>("DiffusionProfile");
+    auto *families = panel.findChild<QComboBox *>("DiffusionFamily");
     auto *multiple = panel.findChild<QComboBox *>("DiffusionResolutionMultiple");
     auto *ratio = panel.findChild<QComboBox *>("DiffusionAspectRatio");
     auto *width = panel.findChild<QSpinBox *>("DiffusionWidth");
@@ -615,11 +719,12 @@ private slots:
     models->setCurrentIndex(models->findData("krea-2-turbo"));
     QCOMPARE(size(), QSize(841, 1248));
     QCOMPARE(ratio->currentText(), QString("Custom"));
+    families->setCurrentIndex(families->findData("qwen-image-2.1"));
     profiles->setCurrentIndex(profiles->findData("qwen-image-2.1-turbo"));
     QCOMPARE(size(), QSize(841, 1248));
     portrait();
     QCOMPARE(size(), QSize(832, 1248));
-    profiles->setCurrentIndex(profiles->findData("krea-2-turbo"));
+    families->setCurrentIndex(families->findData("krea2"));
     QCOMPARE(size(), QSize(840, 1256));
     panel.setResolution({512, 768});
     panel.setProfiles(imageeditor::diffusion::modelProfiles());
@@ -687,7 +792,8 @@ private slots:
       multiple->setCurrentIndex(multiple->findData(profile["alignment"].toInt()));
       ratio->setCurrentIndex(ratio->findData(QSize(2, 3)));
       ratio->activated(ratio->currentIndex());
-      const QSize expected = profile["family"] == "krea2" ? QSize(840, 1256) : QSize(832, 1248);
+      const QSize expected = profile["family"] == "krea2" ? QSize(840, 1256)
+          : profile["family"] == "stable-diffusion" ? QSize(832, 1280) : QSize(832, 1248);
       QCOMPARE(QSize(width->value(), height->value()), expected);
       const auto request = panel.prepareGeneration();
       QCOMPARE(request["width"].toInt(), expected.width());

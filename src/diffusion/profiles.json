@@ -1,30 +1,5 @@
 [
   {
-    "id": "qwen-image-2.1-turbo",
-    "name": "Qwen Image 2.1 Turbo",
-    "family": "qwen-image-2.1",
-    "tested": true,
-    "alignment": 32,
-    "steps": 8,
-    "guidance": 1,
-    "sampler": "euler",
-    "schedule": "turbo",
-    "referenceImages": true,
-    "visionRequiredForReferences": true,
-    "nativeInpainting": false,
-    "rgba": true,
-    "engineModel": "Qwen Image 2.1",
-    "maxReferenceImages": 8,
-    "spatialGuidance": "annotation",
-    "negativePrompt": true,
-    "flowShift": 0,
-    "modes": [
-      "generate",
-      "edit",
-      "fill"
-    ]
-  },
-  {
     "id": "qwen-image-2.1",
     "name": "Qwen Image 2.1",
     "family": "qwen-image-2.1",
@@ -47,7 +22,123 @@
       "generate",
       "edit",
       "fill"
-    ]
+    ],
+    "familyName": "Qwen 2.1 Image",
+    "variant": "Base"
+  },
+  {
+    "id": "qwen-image-2.1-turbo",
+    "name": "Qwen Image 2.1 Turbo",
+    "family": "qwen-image-2.1",
+    "tested": true,
+    "alignment": 32,
+    "steps": 8,
+    "guidance": 1,
+    "sampler": "euler",
+    "schedule": "turbo",
+    "referenceImages": true,
+    "visionRequiredForReferences": true,
+    "nativeInpainting": false,
+    "rgba": true,
+    "engineModel": "Qwen Image 2.1",
+    "maxReferenceImages": 8,
+    "spatialGuidance": "annotation",
+    "negativePrompt": true,
+    "flowShift": 0,
+    "modes": [
+      "generate",
+      "edit",
+      "fill"
+    ],
+    "familyName": "Qwen 2.1 Image",
+    "variant": "Turbo"
+  },
+  {
+    "id": "flux2-klein-base",
+    "name": "FLUX.2 Klein (base)",
+    "family": "flux2",
+    "engineModel": "Flux.2 klein",
+    "tested": true,
+    "alignment": 16,
+    "steps": 20,
+    "guidance": 4,
+    "sampler": "euler",
+    "scheduler": "flux2",
+    "schedule": "auto",
+    "flowShift": 1,
+    "referenceImages": true,
+    "maxReferenceImages": 10,
+    "visionRequiredForReferences": false,
+    "nativeInpainting": false,
+    "rgba": false,
+    "spatialGuidance": "none",
+    "negativePrompt": true,
+    "modes": [
+      "generate",
+      "edit",
+      "fill"
+    ],
+    "familyGroup": "flux-klein",
+    "familyName": "Flux Klein",
+    "variant": "Flux 2 base"
+  },
+  {
+    "id": "flux2-klein-distilled",
+    "name": "FLUX.2 Klein (distilled)",
+    "family": "flux2",
+    "engineModel": "Flux.2 klein",
+    "tested": true,
+    "alignment": 16,
+    "steps": 4,
+    "guidance": 1,
+    "sampler": "euler",
+    "scheduler": "flux2",
+    "schedule": "auto",
+    "flowShift": 1,
+    "referenceImages": true,
+    "maxReferenceImages": 10,
+    "visionRequiredForReferences": false,
+    "nativeInpainting": false,
+    "rgba": false,
+    "spatialGuidance": "none",
+    "negativePrompt": true,
+    "modes": [
+      "generate",
+      "edit",
+      "fill"
+    ],
+    "familyGroup": "flux-klein",
+    "familyName": "Flux Klein",
+    "variant": "Flux 2 distilled"
+  },
+  {
+    "id": "flux3-image-klein-base",
+    "name": "FLUX.3 Image Klein (base)",
+    "family": "flux3",
+    "engineModel": "Flux.3 Image Klein",
+    "tested": true,
+    "alignment": 16,
+    "steps": 20,
+    "guidance": 3.5,
+    "sampler": "euler",
+    "scheduler": "discrete",
+    "schedule": "auto",
+    "flowShift": 6.93,
+    "referenceImages": true,
+    "maxReferenceImages": 10,
+    "visionRequiredForReferences": false,
+    "nativeInpainting": false,
+    "rgba": false,
+    "spatialGuidance": "structured-caption",
+    "negativePrompt": true,
+    "modes": [
+      "generate",
+      "edit",
+      "fill"
+    ],
+    "familyGroup": "flux-klein",
+    "familyName": "Flux Klein",
+    "variant": "Flux 3 base"
   },
   {
     "id": "flux3-image-klein-distilled",
@@ -73,7 +164,10 @@
       "generate",
       "edit",
       "fill"
-    ]
+    ],
+    "familyGroup": "flux-klein",
+    "familyName": "Flux Klein",
+    "variant": "Flux 3 distilled"
   },
   {
     "id": "krea-2-turbo",
@@ -88,6 +182,38 @@
     "scheduler": "simple",
     "schedule": "auto",
     "flowShift": 1.15,
+    "modes": [
+      "generate"
+    ],
+    "referenceImages": false,
+    "maxReferenceImages": 0,
+    "visionRequiredForReferences": false,
+    "nativeInpainting": false,
+    "rgba": false,
+    "spatialGuidance": "none",
+    "negativePrompt": true
+  },
+  {
+    "id": "stable-diffusion",
+    "name": "Stable Diffusion",
+    "family": "stable-diffusion",
+    "familyName": "Stable Diffusion",
+    "checkpoint": true,
+    "engineModels": [
+      "SD 1.x",
+      "SD 1.x Tiny UNet",
+      "SDXL",
+      "SDXL (Vega)",
+      "SDXL (SSD1B)"
+    ],
+    "tested": true,
+    "alignment": 64,
+    "steps": 25,
+    "guidance": 7,
+    "sampler": "dpm++2m",
+    "scheduler": "karras",
+    "schedule": "auto",
+    "flowSchedule": false,
     "modes": [
       "generate"
     ],
