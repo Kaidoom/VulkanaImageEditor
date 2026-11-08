@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 import queue
+import struct
 import subprocess
 import sys
 import tempfile
@@ -43,6 +44,7 @@ class ProtocolTests(unittest.TestCase):
                 self.process.wait()
                 self.fail("Worker failed to shut down after EOF")
         self.reader.join(timeout=2)
+        self.process.stdin.close()
         self.process.stdout.close()
         self.log.close()
         self.directory.cleanup()
@@ -137,6 +139,59 @@ class ProtocolTests(unittest.TestCase):
         self.process.stdin.flush()
         result = self.messages.get(timeout=10)
         self.assertEqual(result["error"]["code"], "invalid_json")
+        self.assertTrue(self.call("ping")["ok"])
+
+    def test_unrecognized_architecture_names_diffusion_file(self):
+        path = Path(self.directory.name) / "unknown-layout.safetensors"
+        header = json.dumps({"unknown.weight": {"dtype": "F32", "shape": [1],
+                                                "data_offsets": [0, 4]}}).encode()
+        path.write_bytes(struct.pack("<Q", len(header)) + header + struct.pack("<f", 1))
+        for profile, files in (("stable-diffusion", {"diffusion": str(path)}),
+                               ("flux3-image-klein-distilled", {key: str(path) for key in
+                                   ("diffusion", "textEncoder", "vae")})):
+            with self.subTest(profile=profile):
+                result = self.call("load", {"profile": profile, "files": files})
+                self.assertFalse(result["ok"])
+                self.assertEqual(result["error"]["code"], "unsupported_model_format")
+                self.assertIn("Unrecognized model architecture", result["error"]["message"])
+                self.assertIn(path.name, result["error"]["message"])
+                self.assertNotIn("---", result["error"]["message"])
+                self.assertNotIn("''", result["error"]["message"])
+                self.assertTrue(self.call("ping")["ok"])
+                self.assertFalse(self.call("status")["result"]["loaded"])
+
+    def test_unsupported_convrot_is_recoverable(self):
+        # Tiny, structurally valid weights; reject the quantization during header
+        # loading, before trying to identify or allocate a complete model.
+        for group, width in ((16384, 16384), (0, 256), (1024, 256)):
+            with self.subTest(group=group, width=width):
+                metadata = json.dumps({"format": "int8_tensorwise", "convrot": True,
+                                       "convrot_groupsize": group}).encode()
+                tensors = {"layer.comfy_quant": ("U8", [len(metadata)], metadata),
+                           "layer.weight": ("I8", [4, width], bytes(4 * width)),
+                           "layer.weight_scale": ("F32", [4], struct.pack("<4f", 1, 1, 1, 1))}
+                header, payload = {}, b""
+                for name, (dtype, shape, data) in tensors.items():
+                    header[name] = {"dtype": dtype, "shape": shape,
+                                    "data_offsets": [len(payload), len(payload) + len(data)]}
+                    payload += data
+                encoded = json.dumps(header).encode()
+                path = Path(self.directory.name) / "unsupported-encoder.safetensors"
+                path.write_bytes(struct.pack("<Q", len(encoded)) + encoded + payload)
+                result = self.call("load", {"profile": "stable-diffusion",
+                    "files": {"diffusion": str(path)}})
+                self.assertFalse(result["ok"])
+                self.assertEqual(result["error"]["code"], "unsupported_model_format")
+                self.assertIn(str(group), result["error"]["message"])
+                self.assertIn(path.name, result["error"]["message"])
+                self.assertIn("layer.weight", result["error"]["message"])
+                self.assertIn("GGUF", result["error"]["message"])
+                self.assertTrue(self.call("ping")["ok"])
+                self.assertFalse(self.call("status")["result"]["loaded"])
+        # A new request must not inherit an earlier compatibility error.
+        path.write_bytes(b"broken model")
+        result = self.call("load", {"profile": "stable-diffusion", "files": {"diffusion": str(path)}})
+        self.assertNotIn("ConvRot", result["error"]["message"])
         self.assertTrue(self.call("ping")["ok"])
 
 

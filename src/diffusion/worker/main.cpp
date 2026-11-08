@@ -188,7 +188,7 @@ class Worker {
     std::string jobId, state = "idle", lastError;
     uint64_t generation = 0;
     bool oom = false, memoryLimited = false, exited = false;
-    std::string memoryError;
+    std::string memoryError, modelCompatibilityError;
     Json engineTimings = Json::object();
     vulkana::diffusion::LoraReport loraReport;
     Clock::time_point jobStart, firstStep, lastStep;
@@ -227,6 +227,20 @@ public:
                 if (level >= SD_LOG_WARN) {
                     std::lock_guard lock(w.logMutex);
                     w.lastError = message.substr(0, 4096);
+                    // Keep the actionable loader error when later engine wrappers
+                    // merely report that model construction failed.
+                    for (const auto* marker : { "Unsupported ConvRot group size", "Invalid ConvRot group size",
+                             "Unrecognized model architecture" }) {
+                        const auto pos = message.find(marker);
+                        if (pos != std::string::npos && w.modelCompatibilityError.empty()) {
+                            w.modelCompatibilityError = message.substr(pos, 4096);
+                            const auto source = w.modelCompatibilityError.find(" --- ");
+                            if (source != std::string::npos) w.modelCompatibilityError.resize(source);
+                            while (!w.modelCompatibilityError.empty()
+                                && std::isspace(static_cast<unsigned char>(w.modelCompatibilityError.back())))
+                                w.modelCompatibilityError.pop_back();
+                        }
+                    }
                     std::string lower = message;
                     std::transform(lower.begin(), lower.end(), lower.begin(),
                         [](unsigned char c) { return char(std::tolower(c)); });
@@ -440,6 +454,7 @@ public:
                 std::lock_guard lock(logMutex);
                 lastError.clear();
                 memoryError.clear();
+                modelCompatibilityError.clear();
                 oom = false;
                 memoryLimited = false;
                 engineTimings = Json::object();
@@ -615,6 +630,10 @@ Json Worker::load(const Json& params)
     sd_ctx_t* fresh = new_sd_ctx(&options);
     if (!fresh) {
         std::lock_guard lock(logMutex);
+        if (!modelCompatibilityError.empty())
+            throw Failure("unsupported_model_format", modelCompatibilityError
+                + (modelCompatibilityError.starts_with("Unrecognized model architecture") ? ""
+                    : " Use a supported quantization or a GGUF version of this component."));
         throw Failure(oom       ? "out_of_memory"
                 : memoryLimited ? "memory_limit"
                                 : "model_load_failed",

@@ -1,0 +1,160 @@
+diff --git a/src/core/cpu/int8.cpp b/src/core/cpu/int8.cpp
+index ec4be83..8e8ff08 100644
+--- a/src/core/cpu/int8.cpp
++++ b/src/core/cpu/int8.cpp
+@@ -38,7 +38,8 @@ namespace sd_cpu {
+         for (int64_t row = ith; row < e.rows; row += nth) {
+             const float* src = input + row * k;
+             int8_t* dst      = e.quant + row * k;
+-            float amax       = 0.f, values[256];
++            // Bounded by valid_group(): at most 16 KiB per CPU worker.
++            float amax       = 0.f, values[4096];
+             auto visit       = [&](auto fn) { if (!group) { for (int64_t i = 0; i < k; ++i) fn(i, src[i]); }
+             else for (int64_t base = 0; base < k; base += group) { std::memcpy(values, src + base, group * sizeof(float)); transform(values, group); for (int j = 0; j < group; ++j) fn(base + j, values[j]); } };
+             visit([&](int64_t, float value) { amax = std::max(amax, std::fabs(value)); });
+diff --git a/src/core/cuda/int8.cu b/src/core/cuda/int8.cu
+index 01a6147..beca760 100644
+--- a/src/core/cuda/int8.cu
++++ b/src/core/cuda/int8.cu
+@@ -1,3 +1,4 @@
++#include <type_traits>
+ #include <cstdlib>
+ #include "convrot_kernel.h"
+ #include "core/ggml_extensions.h"
+@@ -386,18 +387,21 @@ namespace SD_CUDA_NAMESPACE {
+             return info.int8_blas &&
+                    ggml_backend_reg_get_proc_address(ggml_backend_dev_backend_reg(device), "ggml_ext_gpu_blas_v1");
+         }
+-        template <bool Quantize>
+-        static __global__ void convrot_h64(const float* src, int8_t* dst, float* partial, const float* scales, int64_t k) {
+-            const int64_t group = blockIdx.x, groups = k / 64, row = group / groups;
++        template <int Group, bool Quantize>
++        static __global__ void convrot_group(const float* src, int8_t* dst, float* partial, const float* scales, int64_t k) {
++            static_assert(Group == 64 || Group == 1024 || Group == 4096);
++            constexpr int Threads = Group / 4;
++            constexpr float Normalization = Group == 64 ? 1.f / 8.f : Group == 1024 ? 1.f / 32.f : 1.f / 64.f;
++            const int64_t group = blockIdx.x, groups = k / Group, row = group / groups;
+             const int tid = threadIdx.x;
+-            __shared__ float values[64];
+-            __shared__ float maxima[16];
++            __shared__ float values[Group];
++            __shared__ float maxima[Threads];
+ #pragma unroll
+             for (int j = 0; j < 4; ++j)
+-                values[tid + j * 16] = src[group * 64 + tid + j * 16] * (1.f / 8.f);
++                values[tid + j * Threads] = src[group * Group + tid + j * Threads] * Normalization;
+             __syncthreads();
+ #pragma unroll
+-            for (int stride = 1; stride < 64; stride *= 4) {
++            for (int stride = 1; stride < Group; stride *= 4) {
+                 const int i   = (tid / stride) * 4 * stride + tid % stride;
+                 const float a = values[i], b = values[i + stride], c = values[i + 2 * stride], d = values[i + 3 * stride];
+                 values[i]              = convrot_h4_cuda(a, b, c, d, 0);
+@@ -410,17 +414,17 @@ namespace SD_CUDA_NAMESPACE {
+                 const float inverse = scales[row] == 0.f ? 0.f : 1.f / scales[row];
+ #pragma unroll
+                 for (int j = 0; j < 4; ++j) {
+-                    const int value                = __float2int_rn(values[tid + j * 16] * inverse);
+-                    dst[group * 64 + tid + j * 16] = int8_t(max(-127, min(127, value)));
++                    const int value                = __float2int_rn(values[tid + j * Threads] * inverse);
++                    dst[group * Group + tid + j * Threads] = int8_t(max(-127, min(127, value)));
+                 }
+             } else {
+                 float amax = 0.f;
+ #pragma unroll
+                 for (int j = 0; j < 4; ++j)
+-                    amax = fmaxf(amax, fabsf(values[tid + j * 16]));
++                    amax = fmaxf(amax, fabsf(values[tid + j * Threads]));
+                 maxima[tid] = amax;
+                 __syncthreads();
+-                for (int stride = 8; stride; stride >>= 1) {
++                for (int stride = Threads / 2; stride; stride >>= 1) {
+                     if (tid < stride)
+                         maxima[tid] = fmaxf(maxima[tid], maxima[tid + stride]);
+                     __syncthreads();
+@@ -431,7 +435,7 @@ namespace SD_CUDA_NAMESPACE {
+         }
+         static bool convrot_supports(ggml_backend_dev_t device, const ggml_tensor* node, void*) {
+             int group;
+-            if (!sd_ggml_convrot_describe(node, &group) || (group != 1 && group != 64 && group != 256) || !aligned(node) || !aligned(node->src[0]))
++            if (!sd_ggml_convrot_describe(node, &group) || (group != 1 && group != 64 && group != 256 && group != 1024 && group != 4096) || !aligned(node) || !aligned(node->src[0]))
+                 return false;
+             const int64_t k = node->ne[0], rows = ggml_nrows(node->src[0]);
+             return k <= INT_MAX && rows <= INT_MAX && (group == 1 || rows <= INT_MAX / (k / group)) && cuda_device_info(device).device >= 0;
+@@ -546,7 +550,7 @@ namespace SD_CUDA_NAMESPACE {
+                 p->accum                = reserve(total, intermediate ? size_t(p->fast_swiglu ? p->n / 2 : p->n) * p->padded * sizeof(float) : 0);
+             }
+             const bool large_rotation = (!mat || (op.input->type == GGML_TYPE_F32 && op.group_size == 256)) && size_t(p->k) * sizeof(float) + 128 > p->device.shared_memory;
+-            p->partial                = reserve(total, p->group == 64 ? size_t(p->rows) * (p->k / 64) * sizeof(float) : large_rotation ? size_t(p->rows) * (p->k / 256) * sizeof(float)
++            p->partial                = reserve(total, (p->group == 64 || p->group == 1024 || p->group == 4096) ? size_t(p->rows) * (p->k / p->group) * sizeof(float) : large_rotation ? size_t(p->rows) * (p->k / 256) * sizeof(float)
+                                                                                                                                        : 0);
+             // Custom/concat outputs and packed GLU cannot reuse their input storage.
+             const bool fresh_output = !dst->data && !dst->buffer && !dst->view_src &&
+@@ -674,11 +678,17 @@ namespace SD_CUDA_NAMESPACE {
+                 quantize_rowwise_i8_cuda<<<unsigned(p.rows), 256, 0, stream>>>(src, dst, scales, p.k, p.rows);
+                 return cuda_last_error();
+             }
+-            if (p.group == 64) {
+-                const auto groups = p.k / 64;
+-                convrot_h64<false><<<unsigned(p.rows * groups), 16, 0, stream>>>(src, dst, partial, scales, p.k);
+-                reduce_convrot_row_amax_i8_cuda<<<unsigned(p.rows), 256, 0, stream>>>(partial, scales, groups, p.rows);
+-                convrot_h64<true><<<unsigned(p.rows * groups), 16, 0, stream>>>(src, dst, partial, scales, p.k);
++            if (p.group == 64 || p.group == 1024 || p.group == 4096) {
++                const auto groups = p.k / p.group;
++                const auto launch = [&](auto group_constant) {
++                    constexpr int Group = decltype(group_constant)::value;
++                    convrot_group<Group, false><<<unsigned(p.rows * groups), Group / 4, 0, stream>>>(src, dst, partial, scales, p.k);
++                    reduce_convrot_row_amax_i8_cuda<<<unsigned(p.rows), 256, 0, stream>>>(partial, scales, groups, p.rows);
++                    convrot_group<Group, true><<<unsigned(p.rows * groups), Group / 4, 0, stream>>>(src, dst, partial, scales, p.k);
++                };
++                if (p.group == 64) launch(std::integral_constant<int, 64>{});
++                else if (p.group == 1024) launch(std::integral_constant<int, 1024>{});
++                else launch(std::integral_constant<int, 4096>{});
+                 return cuda_last_error();
+             }
+             if (shared + 128 <= p.device.shared_memory) {
+diff --git a/src/core/ggml_extensions.cpp b/src/core/ggml_extensions.cpp
+index dfe5bca..f2687f3 100644
+--- a/src/core/ggml_extensions.cpp
++++ b/src/core/ggml_extensions.cpp
+@@ -142,7 +142,7 @@ enum I8Flags { I8_PACKED       = 1,
+                I8_BIAS         = 8 };
+ 
+ static bool valid_group(int group) {
+-    return group == 1 || group == 4 || group == 16 || group == 64 || group == 256;
++    return group == 1 || group == 4 || group == 16 || group == 64 || group == 256 || group == 1024 || group == 4096;
+ }
+ static constexpr int64_t i8_size_limit = int64_t(std::min(uint64_t(INT64_MAX), uint64_t(SIZE_MAX)));
+ static bool packed_height(int64_t k, int64_t rows, int64_t* height) {
+@@ -373,7 +373,7 @@ bool sd_ggml_w4_describe(const ggml_tensor* node, SDW4Operation* op) {
+ }
+ 
+ ggml_tensor* ggml_mul_mat_w4_convrot(ggml_context* ctx, ggml_tensor* w, ggml_tensor* x, ggml_tensor* ws, ggml_tensor* sc, ggml_tensor* sr, ggml_tensor* bias, SDW4Kind kind, int group) {
+-    if (!w || !x || group < 0 || (group && !valid_group(group)))
++    if (!w || !x || group < 0 || group > 256 || (group && !valid_group(group)))
+         return nullptr;
+     const int quant_group = group ? group : 1;
+     if (x->type == GGML_TYPE_F32)
+diff --git a/src/model_io/safetensors_io.cpp b/src/model_io/safetensors_io.cpp
+index 0586062..332bd66 100644
+--- a/src/model_io/safetensors_io.cpp
++++ b/src/model_io/safetensors_io.cpp
+@@ -366,8 +366,16 @@ bool read_safetensors_file(const std::string& file_path,
+                     while (group_size_remainder > 1 && group_size_remainder % 4 == 0) {
+                         group_size_remainder /= 4;
+                     }
+-                    if (group_size_remainder != 1 || config->second.group_size > 256 || input_features % config->second.group_size != 0) {
+-                        set_error(error, "invalid ComfyUI convrot group size for tensor '" + name + "'");
++                    const int max_group = w4_kind ? 256 : 4096;
++                    const auto detail = " in '" + fs::u8path(file_path).filename().string() + "' (tensor '" + name + "'). ";
++                    if (group_size_remainder != 1 || config->second.group_size > max_group) {
++                        set_error(error, "Unsupported ConvRot group size " + std::to_string(config->second.group_size) + detail +
++                                         "Supported groups: 1, 4, 16, 64, 256" + (w4_kind ? std::string(".") : std::string(", 1024, 4096.")));
++                        return false;
++                    }
++                    if (input_features % config->second.group_size != 0) {
++                        set_error(error, "Invalid ConvRot group size " + std::to_string(config->second.group_size) + detail +
++                                         "The input width " + std::to_string(input_features) + " must be divisible by the group size.");
+                         return false;
+                     }
+                 }

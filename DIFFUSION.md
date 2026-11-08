@@ -135,7 +135,9 @@ cmake --build build/diffusion-host
 ctest --test-dir build/diffusion-host --output-on-failure
 ```
 
-The worker is a separate optional build. Use an existing stable-diffusion.cpp checkout at the revision in `src/diffusion/engine-lock.json`, with its recorded GGML and CUTLASS submodules initialized. CMake verifies those revisions and downloads nothing. Downstream patches are allowed; record the patch and its reason alongside the baseline before distributing a changed engine.
+The worker is a separate optional build. Use an existing stable-diffusion.cpp checkout at the revision in `src/diffusion/engine-lock.json`, with its recorded GGML and CUTLASS submodules initialized. Apply the recorded [engine patches](src/diffusion/patches/README.md) before configuring. CMake verifies the revisions, patch checksums and applied patches; it downloads nothing and does not modify the engine checkout.
+
+The current baseline is `fc350be2ceeeb859bcc201ac435591ed7d46821d`. It includes Krea LoRA name-matching fixes, corrected FLUX scheduler token counts and reduced temporary GPU buffers. Scheduling corrections can change FLUX results for an identical seed; saved generation settings remain unchanged.
 
 Example CUDA build (set the paths and CUDA architecture for the development machine):
 
@@ -171,6 +173,10 @@ Load, generate and unload jobs run sequentially. A second job receives `busy`; s
 Cancellation is cooperative at engine stage/step boundaries. The client waits for the original job's terminal response, not merely its cancellation acknowledgement. Its configurable grace timeout terminates only the owned worker if a constructor/kernel does not cooperate. Stop has its own grace timeout. There is no generation timeout just because a job is slow. Restart and reload after forced termination, a crash, or an unexpected engine exception. A successfully cancelled job publishes no final result. A cancellation arriving after completion does not revoke a completed result.
 
 Worker crashes, backend assertions and incomplete engine constructors are isolated from the editor. Recoverable generation failures invalidate the model and request a reload. The worker reports recognized allocation failures as `out_of_memory`, managed-budget failures as `memory_limit`, and other failures separately. Unexpected process exits are not assumed to be OOM.
+
+ComfyUI INT8 ConvRot Safetensors with groups 1024 and 4096 are supported on CPU and CUDA through a recorded engine patch. Weights remain INT8. Unsupported group sizes or widths incompatible with the group are rejected while loading, with `unsupported_model_format` identifying the file and tensor. The worker remains available to load another configuration. This support does not imply compatibility with every quantization format or with arbitrary model architectures; GGUF remains an alternative for supported models.
+
+FLUX.3 base and distilled checkpoints can use fused `qkv` projections or separate Q/K/V projections. The engine detects the layout automatically, including fused ComfyUI INT8 checkpoints, for generation and reference editing. An unrecognized architecture produces a recoverable error naming the diffusion weights file.
 
 ## Protocol 1
 

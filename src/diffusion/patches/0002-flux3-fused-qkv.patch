@@ -1,0 +1,115 @@
+diff --git a/src/model/diffusion/flux3.hpp b/src/model/diffusion/flux3.hpp
+index 105b225..7fce16e 100644
+--- a/src/model/diffusion/flux3.hpp
++++ b/src/model/diffusion/flux3.hpp
+@@ -15,6 +15,7 @@ namespace Flux3 {
+         int depth           = 5;
+         int single_depth    = 28;
+         bool flow_map       = false;
++        bool fused_qkv      = false;
+ 
+         static Flux3Config detect_from_weights(const String2TensorStorage& tensors, const std::string& prefix) {
+             Flux3Config config;
+@@ -35,6 +36,8 @@ namespace Flux3 {
+                     config.mlp_dim = tensor.logical_ne0();
+                 } else if (key == "ref_time_in.in_layer.weight") {
+                     config.flow_map = true;
++                } else if (key == "txt_mode_blocks.0.qkv.weight") {
++                    config.fused_qkv = true;
+                 }
+                 if (starts_with(key, "txt_mode_blocks.")) {
+                     depth = std::max(depth, atoi(key.substr(16).c_str()) + 1);
+@@ -60,14 +63,29 @@ namespace Flux3 {
+         return ggml_view_3d(ctx, x, x->ne[0], length, x->ne[2], x->nb[1], x->nb[2], start * x->nb[1]);
+     }
+ 
++    // Fused checkpoints store Q, K and V consecutively along output channels.
++    // Preserve token and batch strides, as in the existing Flux attention path.
++    static ggml_tensor* qkv_heads(ggml_context* ctx, ggml_tensor* qkv, int heads, int part) {
++        GGML_ASSERT(heads > 0 && part >= 0 && part < 3 && qkv->ne[0] % (3 * heads) == 0);
++        const int64_t dim = qkv->ne[0] / 3;
++        return ggml_view_4d(ctx, qkv, dim / heads, heads, qkv->ne[1], qkv->ne[2],
++                            qkv->nb[0] * (dim / heads), qkv->nb[1], qkv->nb[2], part * dim * qkv->nb[0]);
++    }
++
+     struct Block : public GGMLBlock {
+         int heads;
++        bool fused_qkv;
+ 
+         Block(const Flux3Config& config)
+-            : heads(config.heads) {
+-            for (const auto* name : {"q_proj", "k_proj", "v_proj", "attn_out"}) {
+-                blocks[name] = std::make_shared<Linear>(config.hidden_size, config.hidden_size, false);
++            : heads(config.heads), fused_qkv(config.fused_qkv) {
++            if (fused_qkv) {
++                blocks["qkv"] = std::make_shared<Linear>(config.hidden_size, 3 * config.hidden_size, false);
++            } else {
++                for (const auto* name : {"q_proj", "k_proj", "v_proj"}) {
++                    blocks[name] = std::make_shared<Linear>(config.hidden_size, config.hidden_size, false);
++                }
+             }
++            blocks["attn_out"] = std::make_shared<Linear>(config.hidden_size, config.hidden_size, false);
+             blocks["mlp_in"]  = std::make_shared<Linear>(config.hidden_size, 2 * config.mlp_dim, false);
+             blocks["mlp_out"] = std::make_shared<Linear>(config.mlp_dim, config.hidden_size, false);
+             blocks["norm"]    = std::make_shared<Flux::QKNorm>(config.hidden_size / heads);
+@@ -91,9 +109,19 @@ namespace Flux3 {
+                 return ggml_reshape_4d(gc, v, x->ne[0] / heads, heads, x->ne[1], x->ne[2]);
+             };
+             auto norm        = std::dynamic_pointer_cast<Flux::QKNorm>(blocks["norm"]);
+-            auto q           = norm->query_norm(ctx, split(linear(ctx, "q_proj", x_mod)));
+-            auto k           = norm->key_norm(ctx, split(linear(ctx, "k_proj", x_mod)));
+-            auto v           = split(linear(ctx, "v_proj", x_mod));
++            ggml_tensor *q, *k, *v;
++            if (fused_qkv) {
++                auto qkv = linear(ctx, "qkv", x_mod);
++                q = qkv_heads(gc, qkv, heads, 0);
++                k = qkv_heads(gc, qkv, heads, 1);
++                v = qkv_heads(gc, qkv, heads, 2);
++            } else {
++                q = split(linear(ctx, "q_proj", x_mod));
++                k = split(linear(ctx, "k_proj", x_mod));
++                v = split(linear(ctx, "v_proj", x_mod));
++            }
++            q = norm->query_norm(ctx, q);
++            k = norm->key_norm(ctx, k);
+             auto attn        = Rope::attention(ctx, q, k, v, pe, nullptr);
+             auto mlp         = ggml_ext_silu_act(gc, linear(ctx, "mlp_in", x_mod));
+             auto update      = ggml_add(gc, linear(ctx, "attn_out", attn), linear(ctx, "mlp_out", mlp));
+diff --git a/src/model_loader.cpp b/src/model_loader.cpp
+index 73025a4..49b3e39 100644
+--- a/src/model_loader.cpp
++++ b/src/model_loader.cpp
+@@ -448,7 +448,8 @@ SDVersion ModelLoader::get_sd_version() const {
+     }
+ 
+     if (tensor_storage_map.find("model.diffusion_model.emb_in.image.weight") != tensor_storage_map.end() &&
+-        tensor_storage_map.find("model.diffusion_model.txt_mode_blocks.0.q_proj.weight") != tensor_storage_map.end()) {
++        (tensor_storage_map.count("model.diffusion_model.txt_mode_blocks.0.q_proj.weight") ||
++         tensor_storage_map.count("model.diffusion_model.txt_mode_blocks.0.qkv.weight"))) {
+         return VERSION_FLUX3;
+     }
+ 
+diff --git a/src/pipeline/diffusion_engine.cpp b/src/pipeline/diffusion_engine.cpp
+index 1ec292c..658feda 100644
+--- a/src/pipeline/diffusion_engine.cpp
++++ b/src/pipeline/diffusion_engine.cpp
+@@ -4,6 +4,7 @@
+ #include <cinttypes>
+ #include <cmath>
+ #include <cstdlib>
++#include <filesystem>
+ #include <list>
+ #include <mutex>
+ #include <set>
+@@ -969,7 +970,10 @@ bool StableDiffusionGGML::init(const sd_ctx_params_t* sd_ctx_params) {
+ 
+     version = model_loader.get_sd_version();
+     if (version == VERSION_COUNT) {
+-        LOG_ERROR("get sd version from file failed: '%s'", SAFE_STR(sd_ctx_params->model_path));
++        const char* path = strlen(SAFE_STR(sd_ctx_params->model_path)) > 0
++                               ? sd_ctx_params->model_path : SAFE_STR(sd_ctx_params->diffusion_model_path);
++        const auto filename = std::filesystem::u8path(path).filename().string();
++        LOG_ERROR("Unrecognized model architecture in '%s'. Check the diffusion weights file and use a supported checkpoint layout.", filename.c_str());
+         return false;
+     } else {
+         LOG_INFO("Version: %s ", sd_version_name(version));

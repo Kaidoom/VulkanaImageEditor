@@ -1,9 +1,23 @@
 {
-  "engine": {"url": "https://github.com/leejet/stable-diffusion.cpp.git", "revision": "c6dfa9def12fd0cb36ac7149ba30a75792bedbf0"},
-  "dependencies": {
-    "ggml": "c57b71a3448809d07d49360273201bb5a5e7cafb",
-    "ggml/src/ggml-cuda/vendors/cutlass": "ad7b2f5e84fcfa124cb02b91d5bd26d238c0459e"
+  "engine": {
+    "url": "https://github.com/leejet/stable-diffusion.cpp.git",
+    "revision": "fc350be2ceeeb859bcc201ac435591ed7d46821d"
   },
-  "patches": [],
+  "dependencies": {
+    "ggml": "d803c238f67915fb825a9aa4df27b99356d51597",
+    "thirdparty/cutlass": "ad7b2f5e84fcfa124cb02b91d5bd26d238c0459e"
+  },
+  "patches": [
+    {
+      "path": "patches/0001-int8-large-convrot.patch",
+      "sha256": "56b62fb38f112ec14621116ab59926d48d39951fcb67f02bee828af28de8f452",
+      "reason": "CPU/CUDA INT8 ConvRot groups 1024 and 4096, with actionable loader validation."
+    },
+    {
+      "path": "patches/0002-flux3-fused-qkv.patch",
+      "sha256": "7404a3d14330a99a3b5b2b8ec7a0f668b6a920834671cdcfa6ab79fc20e7d093",
+      "reason": "Recognize and execute FLUX.3 checkpoints with fused QKV projections; identify unrecognized model files."
+    }
+  ],
   "policy": "Pinned baseline; review upgrades and record downstream patches. No automatic source or model downloads."
 }
