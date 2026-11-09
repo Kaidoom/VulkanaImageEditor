@@ -1,4 +1,5 @@
 #include "imageeditor/core/LayerCommands.hpp"
+#include "imageeditor/core/DocumentCommands.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/DiffusionPanel.hpp"
 #include "imageeditor/ui/DiffusionPreview.hpp"
@@ -243,18 +244,24 @@ private slots:
     field->undo();
     QVERIFY(field->toPlainText() != snippet); // preset changes are undoable too
   }
-  void inputLimitAcceptsNativeKeyboard() {
+  void inputLimitPresetAcceptsNativeKeyboard() {
     openMode("AIEditLayerAction");
-    auto *limit = panel->findChild<QSpinBox *>("DiffusionMaxInputSize");
-    QVERIFY(limit);
-    panel->findChild<QScrollArea *>("DiffusionGenerationPage")->ensureWidgetVisible(limit);
+    auto *limit = panel->findChild<QComboBox *>("DiffusionMaxInputSize");
+    QVERIFY(limit && !limit->isEditable());
+    auto *area = panel->findChild<QScrollArea *>("DiffusionGenerationPage");
+    area->ensureWidgetVisible(limit);
     QCoreApplication::processEvents();
-    QTest::mouseClick(limit, Qt::LeftButton, {}, QPoint(50, limit->height() / 2));
-    QTRY_VERIFY(limit->hasFocus());
-    limit->selectAll();
-    for (const auto ch : QString("2048")) {
-      QKeyEvent key(QEvent::KeyPress, ch.unicode(), Qt::NoModifier, QString(ch));
-      QCoreApplication::sendEvent(window->windowHandle(), &key);
+    if (const auto capture = qEnvironmentVariable("VULKANA_DIFFUSION_INTEGRATION_CAPTURE"); !capture.isEmpty())
+      QVERIFY(panel->grab().save(capture + "-max-input.png"));
+    const auto *list = panel->findChild<QListWidget *>("DiffusionInputsList");
+    QVERIFY(list);
+    QCOMPARE(limit->geometry().center().x(), list->geometry().center().x());
+    QTest::mouseClick(limit, Qt::LeftButton);
+    QKeyEvent home(QEvent::KeyPress, Qt::Key_Home, Qt::NoModifier);
+    QCoreApplication::sendEvent(window->windowHandle(), &home);
+    for (int i = 0; i < limit->findData(2048); ++i) {
+      QKeyEvent down(QEvent::KeyPress, Qt::Key_Down, Qt::NoModifier);
+      QCoreApplication::sendEvent(window->windowHandle(), &down);
     }
     QKeyEvent enter(QEvent::KeyPress, Qt::Key_Return, Qt::NoModifier);
     QCoreApplication::sendEvent(window->windowHandle(), &enter);
@@ -1604,6 +1611,67 @@ private slots:
     panel->onResultSelected(panel->selectedResultIndex());
     QVERIFY(items->item(int(u::DiffusionPanel::Destination::ReplaceSelected))
                 ->isEnabled());
+  }
+  void alignedEditCanBeAppliedFittedOrAtGeneratedSize() {
+    auto path = qEnvironmentVariable("VULKANA_DIFFUSION_SIZE_IMAGE");
+    if (path.isEmpty()) {
+      path = temporary.filePath("unaligned-portrait.png");
+      QImage source(782, 1395, QImage::Format_RGBA8888); source.fill(Qt::blue);
+      QVERIFY(source.save(path));
+    }
+    QVERIFY(window->openImageFromPath(path));
+    panel->setMaxInputSize(1440);
+    openMode("AIEditLayerAction");
+    child<QToolButton>("DiffusionResetSize")->click();
+    QCOMPARE(panel->request()["width"].toInt(), 800);
+    QCOMPARE(panel->request()["height"].toInt(), 1408);
+    child<QToolButton>("DiffusionMatchSelectedSize")->click();
+    QCOMPARE(panel->request()["width"].toInt(), 800);
+    QCOMPARE(panel->request()["height"].toInt(), 1408);
+    generate("identity");
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 15000);
+    QCOMPARE(panel->selectedResult()->image.size(), QSize(800, 1408));
+    auto canvas = session().document()->canvas(); canvas.extent = {1600, 2000};
+    QVERIFY(session().execute(std::make_unique<c::ChangeCanvasSpecCommand>(canvas)));
+    panel->showResultPreview();
+    auto *fit = child<QCheckBox>("DiffusionFitOutput");
+    QVERIFY(fit && fit->isChecked() && fit->isEnabled());
+    QCOMPARE(panel->resultPlacement().mapRect(QRectF(0, 0, 800, 1408)).size(), QSizeF(782, 1395));
+    child<QPushButton>("DiffusionApply")->click();
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    QCOMPARE(native().size(), QSize(800, 1408));
+    auto transform = session().document()->layer(*session().activeLayer())->localToDocument;
+    QVERIFY(std::abs(transform.m00 * 800 - 782) < 1e-6);
+    QVERIFY(std::abs(transform.m11 * 1408 - 1395) < 1e-6);
+    QVERIFY(session().undo());
+    panel->showResultPreview();
+    fit = child<QCheckBox>("DiffusionFitOutput");
+    fit->click();
+    QCOMPARE(panel->resultPlacement(), QTransform{});
+    child<QPushButton>("DiffusionCompareLayer")->click();
+    child<QListWidget>("DiffusionComparisonLayers")->setCurrentRow(0);
+    auto *preview = dynamic_cast<u::DiffusionPreview *>(child<QWidget>("DiffusionPreview"));
+    QVERIFY(preview);
+    preview->actualSize();
+    QCOMPARE(preview->imageRect().size(), QSizeF(800, 1408));
+    QCOMPARE(preview->referenceRect().size(), QSizeF(782, 1395));
+    fit->click();
+    preview->actualSize();
+    QCOMPARE(preview->imageRect().size(), QSizeF(782, 1395));
+    fit->click();
+    if (const auto capture = qEnvironmentVariable("VULKANA_DIFFUSION_INTEGRATION_CAPTURE"); !capture.isEmpty())
+      QVERIFY(child<QDialog>("DiffusionPreviewDialog")->grab().save(capture + "-true-size.png"));
+    child<QPushButton>("DiffusionApply")->click();
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    const auto id = *session().activeLayer();
+    QCOMPARE(native().size(), QSize(800, 1408));
+    QCOMPARE(session().document()->layer(id)->localToDocument, c::AffineTransform{});
+    QVERIFY(session().undo());
+    QVERIFY(!session().document()->layer(id));
+    QVERIFY(session().redo());
+    QCOMPARE(session().document()->layer(id)->localToDocument, c::AffineTransform{});
+    panel->showResultPreview();
+    QVERIFY(!child<QCheckBox>("DiffusionFitOutput")->isChecked());
   }
   void portraitInputAndOutputKeepDimensions() {
     const auto path = temporary.filePath("portrait.png");

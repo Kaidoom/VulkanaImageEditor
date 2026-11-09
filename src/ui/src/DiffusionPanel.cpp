@@ -463,7 +463,10 @@ struct DiffusionPanel::Impl {
   QVector<QPushButton *> unloadButtons;
   bool canUnloadModels{};
   QPlainTextEdit *prompt{}, *negative{}, *sigmas{};
-  QSpinBox *width{}, *height{}, *maxInputSize{};
+  QSpinBox *width{}, *height{};
+  QComboBox *maxInputSize{};
+  QCheckBox *fitOutput{};
+  QSize outputCanvasSize;
   QComboBox *aspectRatio{}, *megapixels{}, *resolutionMultiple{};
   QLabel *resolutionRequirement{};
   bool updatingResolution{};
@@ -641,7 +644,7 @@ struct DiffusionPanel::Impl {
       input.image = input.fullImage; input.toDocument = input.fullToDocument;
     }
     input.outputSize = input.image.size();
-    const int limit = maxInputSize->value();
+    const int limit = maxInputSize->currentData().toInt();
     if (!input.image.isNull() && std::max(input.image.width(), input.image.height()) > limit) {
       const auto oldSize = input.image.size();
       input.image = input.image.scaled(QSize(limit, limit), Qt::KeepAspectRatio, Qt::SmoothTransformation);
@@ -850,6 +853,29 @@ struct DiffusionPanel::Impl {
     if (regionSource->currentIndex() < 0)
       regionSource->setCurrentIndex(0);
   }
+  void updateOutputControls() {
+    const bool ready = q.selectedResult() != nullptr;
+    outputDestination->setVisible(lightbox && previewShowsResult && ready);
+    fitOutput->setVisible(lightbox && previewShowsResult && ready);
+    if (const auto *result = q.selectedResult()) {
+      const bool fill = result->mode == Mode::Fill;
+      const bool replace = q.destination() == Destination::ReplaceSelected;
+      const bool newLayer = q.destination() == Destination::NewLayer;
+      const bool edit = result->mode == Mode::Edit;
+      const QSignalBlocker guard(fitOutput);
+      fitOutput->setText(fill ? "Fit to canvas" : replace ? "Fit to selected layer"
+                                            : edit ? "Fit to original bounds" : "Fit to canvas");
+      fitOutput->setChecked(fill || replace || (newLayer && result->fitToBounds.value_or(edit)));
+      fitOutput->setEnabled(!busy && newLayer && !fill && (edit || outputCanvasSize.isValid()));
+      fitOutput->setToolTip(fill ? "Generative Fill stays aligned to its captured canvas and soft selection."
+          : replace ? "Replacement fits the selected layer. Use Add new layer for a result at its generated size."
+          : !newLayer ? "New documents use the generated pixel dimensions."
+          : edit ? "Fit the result to the original input bounds. Uncheck for 1:1 pixels, keeping position and orientation."
+                 : "Scale the result to the current canvas. Uncheck to keep its generated size.");
+    }
+    if (previewShowsResult && lightboxPreview && !comparisonReference.isNull())
+      lightboxPreview->setComparison(comparisonReference, comparisonTransform, q.resultPlacement());
+  }
   void updateActions() {
     if (inputs.size() == 1 && inputIndex(outputSceneId) < 0 && !hasTransfers())
       rebuildScenes();
@@ -882,7 +908,7 @@ struct DiffusionPanel::Impl {
     tabs->setTabText(2, results.isEmpty()
                             ? "Preview"
                             : QString("Preview · %1").arg(results.size()));
-    outputDestination->setVisible(lightbox && previewShowsResult && ready);
+    updateOutputControls();
     resultList->setVisible(resultList->count() > 0);
     if (previousPreview)
       previousPreview->setEnabled(resultList->count() > 1);
@@ -1303,8 +1329,10 @@ struct DiffusionPanel::Impl {
       if (lightbox != dialog) return;
       // These controls retain the destination choice between previews.
       outputDestination->setParent(&q);
+      fitOutput->setParent(&q);
       apply->setParent(&q);
       outputDestination->hide();
+      fitOutput->hide();
       apply->hide();
       lightbox.clear();
       lightboxPreview.clear();
@@ -1404,8 +1432,14 @@ struct DiffusionPanel::Impl {
     hint->setWordWrap(true);
     if (!resultPreview) bottom->addWidget(hint, 1);
     if (resultPreview) {
-      bottom->addWidget(outputDestination);
-      bottom->addWidget(apply);
+      auto *outputColumn = new QVBoxLayout;
+      outputColumn->setSpacing(5);
+      auto *outputRow = new QHBoxLayout;
+      outputRow->addWidget(outputDestination);
+      outputRow->addWidget(apply);
+      outputColumn->addLayout(outputRow);
+      outputColumn->addWidget(fitOutput);
+      bottom->addLayout(outputColumn);
       bottom->addStretch();
       auto *compare = new QPushButton("Compare with layer");
       compare->setObjectName("DiffusionCompareLayer");
@@ -1908,18 +1942,16 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   auto *inputDelegate = new InputDelegate(d->inputList);
   d->inputList->setItemDelegate(inputDelegate);
   inputsLayout->addWidget(d->inputList);
-  d->maxInputSize = new ScrollSafe<QSpinBox>;
+  d->maxInputSize = new ScrollSafe<QComboBox>;
   d->maxInputSize->setObjectName("DiffusionMaxInputSize");
-  d->maxInputSize->setRange(64, 8192);
-  d->maxInputSize->setSingleStep(128);
-  d->maxInputSize->setPrefix("Max input: ");
-  d->maxInputSize->setSuffix(" px");
-  d->maxInputSize->setKeyboardTracking(false);
+  for (const int size : {256, 512, 768, 1024, 1280, 1440, 1536, 2048, 2560, 3072, 4096, 6144, 8192})
+    d->maxInputSize->addItem(QString("Max input: %1 px").arg(size), size);
   d->maxInputSize->setMaximumWidth(220);
-  d->maxInputSize->setValue(QSettings().value("diffusion/maxInputSize", 1024).toInt());
+  d->maxInputSize->setMaxVisibleItems(12);
+  setMaxInputSize(QSettings().value("diffusion/maxInputSize", 1024).toInt());
   d->maxInputSize->setToolTip("Limit the longest side of input images after canvas cropping, keeping their proportions. Output size is separate.");
-  inputsLayout->addWidget(d->maxInputSize);
-  connect(d->maxInputSize, &QSpinBox::valueChanged, this, [this, previous = d->maxInputSize->value()]() mutable {
+  inputsLayout->addWidget(d->maxInputSize, 0, Qt::AlignHCenter);
+  connect(d->maxInputSize, &QComboBox::currentIndexChanged, this, [this, previous = maxInputSize()]() mutable {
     if (d->lightbox && !d->regionEditorInput.isEmpty()) d->lightbox->close();
     try {
       auto inputs = d->inputs;
@@ -1928,10 +1960,10 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
         d->prepareInput(input);
       }
       d->inputs = std::move(inputs);
-      previous = d->maxInputSize->value();
+      previous = d->maxInputSize->currentData().toInt();
     } catch (const std::exception &error) {
       const QSignalBlocker blocker(d->maxInputSize);
-      d->maxInputSize->setValue(previous);
+      d->maxInputSize->setCurrentIndex(d->maxInputSize->findData(previous));
       setStatus(QString::fromUtf8(error.what()), true);
       return;
     }
@@ -2332,7 +2364,17 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
             {"newLayer", "replaceSelected", "newDocument"}, this);
   d->outputDestination->setObjectName("DiffusionOutputDestination");
   d->outputDestination->setMinimumWidth(200);
+  d->fitOutput = new QCheckBox("Fit to original bounds", this);
+  d->fitOutput->setObjectName("DiffusionFitOutput");
+  d->fitOutput->hide();
+  connect(d->fitOutput, &QCheckBox::toggled, this, [this](bool checked) {
+    const auto index = selectedResultIndex();
+    if (index < 0 || destination() != Destination::NewLayer || d->results[index].mode == Mode::Fill) return;
+    d->results[index].fitToBounds = checked;
+    d->updateOutputControls();
+  });
   connect(d->outputDestination, &QComboBox::currentIndexChanged, this, [this] {
+    d->updateOutputControls();
     if (onDestinationChanged)
       onDestinationChanged();
   });
@@ -2634,6 +2676,28 @@ QString DiffusionPanel::configurationName() const {
 void DiffusionPanel::setDestination(Destination value) {
   d->outputDestination->setCurrentIndex(int(value));
 }
+void DiffusionPanel::setOutputCanvasSize(QSize size) {
+  if (d->outputCanvasSize == size) return;
+  d->outputCanvasSize = size;
+  d->updateOutputControls();
+}
+QTransform DiffusionPanel::resultPlacement() const {
+  const auto *result = selectedResult();
+  if (!result || destination() == Destination::NewDocument) return {};
+  if (result->mode == Mode::Fill || destination() == Destination::ReplaceSelected)
+    return result->toDocument;
+  if (result->fitToBounds.value_or(result->mode == Mode::Edit)) {
+    if (result->mode == Mode::Edit) return result->toDocument;
+    if (d->outputCanvasSize.isValid() && !result->image.isNull())
+      return QTransform::fromScale(double(d->outputCanvasSize.width()) / result->image.width(),
+                                   double(d->outputCanvasSize.height()) / result->image.height());
+  }
+  // Remove only scale: keep the captured pixel origin, rotation and reflection.
+  const auto &t = result->toDocument;
+  const double x = std::hypot(t.m11(), t.m12()), y = std::hypot(t.m21(), t.m22());
+  if (x <= 0 || y <= 0) return QTransform::fromTranslate(t.dx(), t.dy());
+  return QTransform(t.m11() / x, t.m12() / x, t.m21() / y, t.m22() / y, t.dx(), t.dy());
+}
 bool DiffusionPanel::imageToImageEnabled() const {
   return (supportsMode(Mode::Fill) && mode() == Mode::Fill) ||
          (supportsMode(Mode::Edit) && mode() == Mode::Edit && d->editImageToImage);
@@ -2679,7 +2743,7 @@ QJsonObject DiffusionPanel::generationParameters() const {
   const auto loras = d->loras->enabledLoras();
   if (!loras.isEmpty()) params["loras"] = loras;
   if (supportsImageInputs())
-    params["referenceMaxSize"] = d->maxInputSize->value();
+    params["referenceMaxSize"] = d->maxInputSize->currentData().toInt();
   if (!d->sampling["eta"]->isEnabled())
     params.remove("eta");
   if (!imageToImageEnabled())
@@ -2924,8 +2988,18 @@ const DiffusionPanel::Input *DiffusionPanel::selectedInput() const {
   const int row = d->inputList->currentRow();
   return row >= 0 && row < d->inputs.size() ? &d->inputs[row] : nullptr;
 }
-int DiffusionPanel::maxInputSize() const { return d->maxInputSize->value(); }
-void DiffusionPanel::setMaxInputSize(int size) { d->maxInputSize->setValue(size); }
+int DiffusionPanel::maxInputSize() const { return d->maxInputSize->currentData().toInt(); }
+void DiffusionPanel::setMaxInputSize(int size) {
+  size = std::clamp(size, 64, 8192);
+  int index = d->maxInputSize->findData(size);
+  if (index < 0) {
+    // Preserve a previously saved/custom limit without rounding it to a preset.
+    index = 0;
+    while (index < d->maxInputSize->count() && d->maxInputSize->itemData(index).toInt() < size) ++index;
+    d->maxInputSize->insertItem(index, QString("Max input: %1 px").arg(size), size);
+  }
+  d->maxInputSize->setCurrentIndex(index);
+}
 bool DiffusionPanel::setInputCropToCanvas(const QString &id, bool cropped) {
   const int index = d->inputIndex(id);
   if (d->busy || index < 0 || d->inputs[index].sourceCanvas.isEmpty()) return false;
@@ -3225,10 +3299,7 @@ void DiffusionPanel::setComparisonReference(QImage image, QTransform toDocument,
   d->comparisonReference = std::move(image);
   d->comparisonTransform = toDocument;
   if (d->previewShowsResult && d->lightboxPreview) {
-    const auto *result = selectedResult();
-    d->lightboxPreview->setComparison(d->comparisonReference, toDocument,
-                                      result ? result->toDocument
-                                             : QTransform{});
+    d->lightboxPreview->setComparison(d->comparisonReference, toDocument, resultPlacement());
     if (d->compareToggle)
       d->compareToggle->setToolTip(d->comparisonReference.isNull() ? QString{} :
           "Left: " + label + " · Right: Result. Drag the divider to compare.");
@@ -3247,7 +3318,7 @@ void DiffusionPanel::saveSettings() {
     break;
   }
   QSettings s;
-  s.setValue("diffusion/maxInputSize", d->maxInputSize->value());
+  s.setValue("diffusion/maxInputSize", d->maxInputSize->currentData().toInt());
   s.setValue("diffusion/fluxCropGuidance", d->cropGuidance->isChecked());
   s.setValue("diffusion/modelId", d->currentModelId);
   s.setValue("diffusion/modelConfigurations",

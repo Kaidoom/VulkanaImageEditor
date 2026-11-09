@@ -843,7 +843,7 @@ private slots:
     auto *section = panel.findChild<QWidget *>("DiffusionInputsSection");
     auto *header =
         panel.findChild<QToolButton *>("DiffusionInputsSectionHeader");
-    auto *limit = panel.findChild<QSpinBox *>("DiffusionMaxInputSize");
+    auto *limit = panel.findChild<QComboBox *>("DiffusionMaxInputSize");
     QVERIFY(limit);
     QImage input(1024, 1536, QImage::Format_RGBA8888);
     input.fill(Qt::red);
@@ -1125,6 +1125,14 @@ private slots:
     panel.saveSettings();
     DiffusionPanel restored;
     QCOMPARE(restored.maxInputSize(), 2048);
+    panel.setMaxInputSize(1500); // Existing non-preset values are kept exactly.
+    panel.saveSettings();
+    DiffusionPanel custom;
+    QCOMPARE(custom.maxInputSize(), 1500);
+    auto *limit = custom.findChild<QComboBox *>("DiffusionMaxInputSize");
+    QVERIFY(limit && !limit->isEditable());
+    QVERIFY(limit->findData(1440) >= 0);
+    QCOMPARE(limit->currentData().toInt(), 1500);
   }
   void comparisonAlignmentAndDivider() {
     DiffusionPreview preview;
@@ -1340,6 +1348,42 @@ private slots:
     QCOMPARE(panel.selectedResult()->image.size(), QSize(30, 20));
     panel.clearResults();
     QVERIFY(panel.selectedResult() == nullptr);
+  }
+  void outputFittingUsesCapturedResultModeAndKeepsChoices() {
+    DiffusionPanel panel;
+    panel.setOutputCanvasSize({600, 400});
+    QImage image(800, 1408, QImage::Format_RGBA8888); image.fill(Qt::blue);
+    QTransform placement; placement.translate(20, 40); placement.rotate(30); placement.scale(.5, .8);
+    panel.appendResult({image, {}, "Edit", {}, placement, DiffusionPanel::Mode::Edit});
+    panel.showResultPreview();
+    auto *fit = panel.findChild<QCheckBox *>("DiffusionFitOutput");
+    QVERIFY(fit && fit->isChecked() && fit->isEnabled());
+    QCOMPARE(panel.resultPlacement(), placement);
+    fit->click();
+    auto native = panel.resultPlacement();
+    QVERIFY(std::abs(std::hypot(native.m11(), native.m12()) - 1.) < 1e-8);
+    QVERIFY(std::abs(std::hypot(native.m21(), native.m22()) - 1.) < 1e-8);
+    QCOMPARE(native.map(QPointF{}), placement.map(QPointF{}));
+    QVERIFY(std::abs(std::atan2(native.m12(), native.m11()) - std::atan2(placement.m12(), placement.m11())) < 1e-8);
+    panel.setTargetCompatible(true);
+    panel.setDestination(DiffusionPanel::Destination::ReplaceSelected);
+    QVERIFY(fit->isChecked() && !fit->isEnabled());
+    panel.setDestination(DiffusionPanel::Destination::NewLayer);
+    QVERIFY(!fit->isChecked() && fit->isEnabled());
+    QCOMPARE(panel.resultPlacement(), native);
+    panel.appendResult({image, {}, "Generate", {}, {}, DiffusionPanel::Mode::Generate});
+    QVERIFY(!fit->isChecked() && fit->isEnabled());
+    fit->click();
+    QCOMPARE(panel.resultPlacement().mapRect(QRectF(QPointF{}, image.size())).size(), QSizeF(600, 400));
+    panel.setDestination(DiffusionPanel::Destination::NewDocument);
+    QVERIFY(!fit->isChecked() && !fit->isEnabled());
+    QCOMPARE(panel.resultPlacement(), QTransform{});
+    panel.setDestination(DiffusionPanel::Destination::NewLayer);
+    panel.appendResult({image, {}, "Fill", {}, {}, DiffusionPanel::Mode::Fill});
+    QVERIFY(fit->isChecked() && !fit->isEnabled());
+    panel.findChild<QListWidget *>("DiffusionResultsList")->setCurrentRow(0);
+    QVERIFY(!fit->isChecked() && fit->isEnabled());
+    QCOMPARE(panel.resultPlacement(), native);
   }
   void referenceBudgetAndDestinationPreview() {
     DiffusionPanel panel;

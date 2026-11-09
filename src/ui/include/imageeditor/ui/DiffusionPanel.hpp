@@ -8,6 +8,7 @@
 #include <QWidget>
 #include <functional>
 #include <memory>
+#include <optional>
 
 class QDialog;
 
@@ -47,6 +48,8 @@ public:
     QString label;
     QJsonObject metadata;
     QTransform toDocument;
+    Mode mode{Mode::Generate};
+    std::optional<bool> fitToBounds;
   };
 
   struct ComparisonLayer {
@@ -73,6 +76,8 @@ public:
   void setMode(Mode mode, bool notify = false);
   Destination destination() const;
   void setDestination(Destination destination);
+  void setOutputCanvasSize(QSize size);
+  QTransform resultPlacement() const;
   QString workerExecutable()
       const; // Test/development override; not exposed or persisted.
   QString backend() const;

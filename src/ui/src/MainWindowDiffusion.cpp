@@ -429,7 +429,7 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
                              double(s.jobContext.inputSize.height()) /
                                  image.height()) *
                              s.jobContext.inputToDocument
-                       : QTransform{}});
+                       : QTransform{}, s.jobContext.mode});
             }
             if (s.panel->results().size() == priorCount)
               throw std::runtime_error(
@@ -928,7 +928,7 @@ void MainWindow::applyDiffusion() {
         if (layer) {
           if (!selection)
             layer->localToDocument =
-                coreTransform(s.panel->selectedResult()->toDocument);
+                coreTransform(s.panel->resultPlacement());
           newLayer = layer->id;
           command = std::make_unique<core::AddLayerCommand>(
               std::move(*layer), session().document()->layers().size(),
@@ -1009,6 +1009,7 @@ void MainWindow::refreshDiffusion() {
     return;
   auto &s = *diffusion_;
   const auto *doc = session().document();
+  s.panel->setOutputCanvasSize(doc ? QSize(int(doc->canvas().extent.width), int(doc->canvas().extent.height)) : QSize{});
   const auto *layer = doc && session().activeLayer()
                           ? doc->layer(*session().activeLayer())
                           : nullptr;
