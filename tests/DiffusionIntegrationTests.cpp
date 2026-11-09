@@ -486,6 +486,90 @@ private slots:
     QCOMPARE(edit["referenceImages"].toArray().size(), 1);
     QVERIFY(edit.contains("spatial"));
   }
+  void generationOverridesUseNativeInputAndReachWorker() {
+    openMode("AIGenerateImageAction");
+    auto config = panel->configuration();
+    config["profile"] = "flux3-image-klein-distilled";
+    panel->setConfiguration(config);
+    auto *tabs = child<QTabWidget>("DiffusionTabs");
+    tabs->setCurrentIndex(0);
+    child<QToolButton>("DiffusionGenerationSectionHeader")->click();
+    auto *expose = child<QToolButton>("DiffusionExpose_steps");
+    auto *configArea = child<QScrollArea>("DiffusionConfigurationPage");
+    configArea->ensureWidgetVisible(expose);
+    QCoreApplication::processEvents();
+    QTest::mouseClick(expose, Qt::LeftButton);
+    QVERIFY(expose->isChecked());
+    child<QToolButton>("DiffusionExpose_guidance")->click();
+    child<QToolButton>("DiffusionExpose_sampler")->click();
+    if (const auto capture = qEnvironmentVariable("VULKANA_DIFFUSION_INTEGRATION_CAPTURE"); !capture.isEmpty())
+      QVERIFY(panel->grab().save(capture + "-override-config.png"));
+    tabs->setCurrentIndex(1);
+    child<QToolButton>("DiffusionOverridesSectionHeader")->click();
+    auto *steps = child<QDoubleSpinBox>("DiffusionOverride_steps");
+    child<QScrollArea>("DiffusionGenerationPage")->ensureWidgetVisible(steps);
+    QCoreApplication::processEvents();
+    QTest::mouseClick(steps, Qt::LeftButton, {}, QPoint(20, steps->height() / 2));
+    QTRY_VERIFY(steps->hasFocus());
+    steps->selectAll();
+    QKeyEvent typed(QEvent::KeyPress, Qt::Key_1, Qt::NoModifier, "12");
+    QCoreApplication::sendEvent(window->windowHandle(), &typed);
+    QKeyEvent enter(QEvent::KeyPress, Qt::Key_Return, Qt::NoModifier);
+    QCoreApplication::sendEvent(window->windowHandle(), &enter);
+    QCOMPARE(steps->value(), 12.);
+    QCOMPARE(child<QDoubleSpinBox>("Diffusion_steps")->value(), 16.);
+    const QPointF at(steps->rect().center());
+    QWheelEvent wheel(at, steps->mapToGlobal(at.toPoint()), {}, {0,120}, Qt::NoButton,
+                      Qt::NoModifier, Qt::NoScrollPhase, false);
+    QCoreApplication::sendEvent(steps, &wheel);
+    QCOMPARE(steps->value(), 12.);
+    if (const auto capture = qEnvironmentVariable("VULKANA_DIFFUSION_INTEGRATION_CAPTURE"); !capture.isEmpty())
+      QVERIFY(panel->grab().save(capture + "-override-generate.png"));
+    const auto revision = session().document()->revision();
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QCOMPARE(panel->results().size(), 1);
+    QCOMPARE(panel->selectedResult()->metadata["request"].toObject()["steps"].toInt(), 12);
+    QCOMPARE(session().document()->revision(), revision);
+    const auto context = panel->selectedResult()->metadata["contextGeneration"];
+    child<QToolButton>("DiffusionOverrideReset_steps")->click();
+    QCOMPARE(steps->value(), 16.);
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QCOMPARE(panel->selectedResult()->metadata["request"].toObject()["steps"].toInt(), 16);
+    QCOMPARE(panel->selectedResult()->metadata["contextGeneration"], context);
+    QCOMPARE(QJsonDocument::fromJson(QSettings().value("diffusion/generation").toByteArray())
+                 .object()["steps"].toInt(), 16);
+    steps->setValue(14);
+    QTimer::singleShot(0, window.get(), [this] {
+      auto *dialog = child<QInputDialog>("DiffusionConfigurationNamePrompt");
+      QVERIFY(dialog);
+      dialog->setTextValue("Overrides test");
+      dialog->accept();
+    });
+    child<QToolButton>("DiffusionDuplicateConfiguration")->click();
+    QCOMPARE(steps->value(), 16.);
+    QVERIFY(expose->isChecked());
+    QCOMPARE(panel->request()["steps"].toInt(), 16);
+    child<QToolButton>("DiffusionExpose_schedule")->click();
+    child<QToolButton>("DiffusionExpose_sigmas")->click();
+    auto *schedule = child<QComboBox>("DiffusionOverride_schedule");
+    schedule->setCurrentIndex(schedule->findData("custom"));
+    auto *sigmas = child<QPlainTextEdit>("DiffusionOverride_sigmas");
+    child<QScrollArea>("DiffusionGenerationPage")->ensureWidgetVisible(sigmas);
+    QCoreApplication::processEvents();
+    QTest::mouseClick(sigmas->viewport(), Qt::LeftButton);
+    QTRY_VERIFY(sigmas->hasFocus());
+    QKeyEvent first(QEvent::KeyPress, Qt::Key_1, Qt::NoModifier, "1");
+    QCoreApplication::sendEvent(window->windowHandle(), &first);
+    QInputMethodEvent ime;
+    ime.setCommitString(".0,\n0.5,\n0.0");
+    QCoreApplication::sendEvent(window->windowHandle(), &ime);
+    QCOMPARE(panel->request()["sigmas"].toArray(), QJsonArray({1., .5, 0.}));
+    QVERIFY(child<QPlainTextEdit>("DiffusionSigmas")->toPlainText().isEmpty());
+    child<QToolButton>("DiffusionOverrideReset_schedule")->click();
+    QVERIFY(!panel->request().contains("sigmas"));
+  }
   void loraControlsUseNativeInputAndWarmGeneration() {
     openMode("AIGenerateImageAction");
     auto config = panel->configuration();

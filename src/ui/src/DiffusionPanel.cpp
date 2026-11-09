@@ -387,6 +387,8 @@ QJsonValue controlValue(QWidget *w) {
     return c->value();
   if (auto *c = qobject_cast<QLineEdit *>(w))
     return c->text();
+  if (auto *c = qobject_cast<QPlainTextEdit *>(w))
+    return c->toPlainText();
   return {};
 }
 void setControl(QWidget *w, const QJsonValue &value) {
@@ -403,6 +405,8 @@ void setControl(QWidget *w, const QJsonValue &value) {
     c->setValue(value.toDouble());
   else if (auto *c = qobject_cast<QLineEdit *>(w))
     c->setText(value.toString());
+  else if (auto *c = qobject_cast<QPlainTextEdit *>(w))
+    c->setPlainText(value.toString());
 }
 QJsonObject controls(const QMap<QString, QWidget *> &controls) {
   QJsonObject object;
@@ -489,6 +493,12 @@ struct DiffusionPanel::Impl {
   QProgressBar *progress{};
   QToolButton *clearRegions{};
   QMap<QString, QWidget *> resource, sampling;
+  QWidget *overridesSection{};
+  QFormLayout *overridesForm{};
+  QMap<QString, QWidget *> overrideControls, overrideRows;
+  QMap<QString, QToolButton *> exposeButtons, overrideResetButtons;
+  QMap<QString, QJsonObject> generationOverrides;
+  bool syncingOverrides{};
   QMap<QString, QLineEdit *> files;
   QJsonArray modelConfigs, profileList;
   QString currentModelId;
@@ -496,12 +506,153 @@ struct DiffusionPanel::Impl {
   QTimer *saveTimer{};
   bool initializing{true};
   void queueSave() { if (!initializing && !updating && saveTimer) saveTimer->start(); }
+  QString overrideKey() const {
+    if (!currentModelId.isEmpty()) return currentModelId;
+    return "draft:" + QString::fromUtf8(QJsonDocument(QJsonObject{
+        {"profile", profiles->currentData().toString()},
+        {"files", q.configuration().value("files")}}).toJson(QJsonDocument::Compact));
+  }
+  QWidget *samplingDefault(const QString &key) const {
+    return key == "sigmas" ? static_cast<QWidget *>(sigmas) : sampling.value(key);
+  }
+  QJsonArray exposedGeneration() const {
+    QJsonArray exposed;
+    for (auto it = exposeButtons.begin(); it != exposeButtons.end(); ++it)
+      if (it.value()->isChecked()) exposed.append(it.key());
+    return exposed;
+  }
+  void setExposedGeneration(const QJsonArray &exposed) {
+    for (auto it = exposeButtons.begin(); it != exposeButtons.end(); ++it) {
+      const QSignalBlocker block(it.value());
+      it.value()->setChecked(exposed.contains(it.key()));
+    }
+  }
+  QJsonObject effectiveSampling() const {
+    auto values = controls(sampling);
+    values["sigmas"] = sigmas->toPlainText();
+    const auto overrides = generationOverrides.value(overrideKey());
+    for (auto it = overrides.begin(); it != overrides.end(); ++it)
+      if (exposeButtons.contains(it.key()) && exposeButtons[it.key()]->isChecked())
+        values[it.key()] = it.value();
+    return values;
+  }
+  void syncOverrides() {
+    if (!overridesSection || overrideControls.isEmpty()) return;
+    const QScopedValueRollback guard(syncingOverrides, true);
+    const auto values = effectiveSampling();
+    bool any = false;
+    for (auto it = overrideControls.begin(); it != overrideControls.end(); ++it) {
+      auto *source = samplingDefault(it.key());
+      auto *target = it.value();
+      if (auto *from = qobject_cast<QComboBox *>(source)) {
+        auto *to = qobject_cast<QComboBox *>(target);
+        const QSignalBlocker block(to);
+        bool same = from->count() == to->count();
+        for (int i = 0; same && i < from->count(); ++i)
+          same = from->itemData(i) == to->itemData(i) && from->itemText(i) == to->itemText(i);
+        if (!same) {
+          to->clear();
+          for (int i = 0; i < from->count(); ++i) to->addItem(from->itemText(i), from->itemData(i));
+        }
+      }
+      if (controlValue(target) != values[it.key()]) setControl(target, values[it.key()]);
+      target->setToolTip(source->toolTip());
+      const bool shown = exposeButtons[it.key()]->isChecked();
+      overridesForm->setRowVisible(overrideRows[it.key()], shown);
+      any |= shown;
+      const auto baseline = controlValue(source);
+      overrideResetButtons[it.key()]->setEnabled(values[it.key()] != baseline);
+      overrideResetButtons[it.key()]->setToolTip(
+          "Reset to configuration default: " + baseline.toVariant().toString());
+    }
+    overridesSection->setVisible(any);
+    overridesSection->setEnabled(!busy);
+  }
+  void createOverrideControls(QFormLayout *defaults) {
+    for (int row = 0; row < defaults->rowCount(); ++row) {
+      auto *source = defaults->itemAt(row, QFormLayout::FieldRole)->widget();
+      const auto key = source == sigmas ? QString("sigmas") : sampling.key(source);
+      const auto label = qobject_cast<QLabel *>(defaults->itemAt(row, QFormLayout::LabelRole)->widget())->text();
+      auto *wrapper = new QWidget;
+      auto *defaultRow = new QHBoxLayout(wrapper);
+      defaultRow->setContentsMargins(0, 0, 0, 0);
+      defaultRow->setSpacing(4);
+      defaults->removeWidget(source);
+      defaultRow->addWidget(source, 1);
+      auto *expose = iconButton(ToolGlyph::Panels, "Show " + label + " in Generate", wrapper);
+      expose->setObjectName("DiffusionExpose_" + key);
+      expose->setCheckable(true);
+      expose->setFixedSize(24, 24);
+      expose->setIconSize({14, 14});
+      defaultRow->addWidget(expose, 0, Qt::AlignTop);
+      defaults->setWidget(row, QFormLayout::FieldRole, wrapper);
+      exposeButtons[key] = expose;
+
+      auto *overrideRow = new QWidget;
+      auto *layout = new QHBoxLayout(overrideRow);
+      layout->setContentsMargins(0, 0, 0, 0);
+      layout->setSpacing(4);
+      QWidget *control = nullptr;
+      if (auto *spin = qobject_cast<QDoubleSpinBox *>(source)) {
+        auto *copy = new ScrollSafe<QDoubleSpinBox>;
+        copy->setDecimals(spin->decimals());
+        copy->setRange(spin->minimum(), spin->maximum());
+        copy->setSingleStep(spin->singleStep());
+        copy->setSpecialValueText(spin->specialValueText());
+        copy->setKeyboardTracking(false);
+        control = copy;
+      } else if (qobject_cast<QComboBox *>(source)) {
+        control = combo({}, {}, overrideRow);
+      } else if (qobject_cast<QCheckBox *>(source)) {
+        control = new QCheckBox;
+      } else if (auto *text = qobject_cast<QPlainTextEdit *>(source)) {
+        auto *copy = new QPlainTextEdit;
+        copy->setMaximumHeight(text->maximumHeight());
+        copy->setPlaceholderText(text->placeholderText());
+        control = copy;
+      }
+      Q_ASSERT(control);
+      control->setObjectName("DiffusionOverride_" + key);
+      control->setAccessibleName(label + " override");
+      layout->addWidget(control, 1);
+      auto *reset = iconButton(ToolGlyph::Refresh, "Reset " + label + " to configuration default", overrideRow);
+      reset->setObjectName("DiffusionOverrideReset_" + key);
+      reset->setFixedSize(24, 24);
+      layout->addWidget(reset, 0, Qt::AlignTop);
+      overridesForm->addRow(label, overrideRow);
+      overrideControls[key] = control;
+      overrideRows[key] = overrideRow;
+      overrideResetButtons[key] = reset;
+      const auto changed = [this, key, control] {
+        if (syncingOverrides || updating || initializing) return;
+        auto &values = generationOverrides[overrideKey()];
+        const auto value = controlValue(control);
+        if (value == controlValue(samplingDefault(key))) values.remove(key);
+        else values[key] = value;
+        updateCapabilities(false);
+      };
+      if (auto *spin = qobject_cast<QDoubleSpinBox *>(control)) QObject::connect(spin, &QDoubleSpinBox::valueChanged, &q, changed);
+      else if (auto *combo = qobject_cast<QComboBox *>(control)) QObject::connect(combo, &QComboBox::currentIndexChanged, &q, changed);
+      else if (auto *check = qobject_cast<QCheckBox *>(control)) QObject::connect(check, &QCheckBox::toggled, &q, changed);
+      else if (auto *text = qobject_cast<QPlainTextEdit *>(control)) QObject::connect(text, &QPlainTextEdit::textChanged, &q, changed);
+      QObject::connect(reset, &QToolButton::clicked, &q, [this, key] {
+        generationOverrides[overrideKey()].remove(key);
+        updateCapabilities(false);
+      });
+      QObject::connect(expose, &QToolButton::toggled, &q, [this, key](bool shown) {
+        if (updating || initializing) return;
+        if (!shown) generationOverrides[overrideKey()].remove(key);
+        updateCapabilities(false);
+        queueSave();
+      });
+    }
+  }
   QJsonObject modelEntry() const {
     auto generation = controls(sampling);
     if (!hasExplicitStrength) generation.remove("strength");
     return {{"configuration", q.configuration()}, {"generation", generation},
             {"editImageToImage", editImageToImage}, {"customSigmas", sigmas->toPlainText()},
-            {"backend", q.backend()}};
+            {"backend", q.backend()}, {"exposedGeneration", exposedGeneration()}};
   }
   void loadModel(const QString &id) {
     q.saveSettings();
@@ -511,6 +662,7 @@ struct DiffusionPanel::Impl {
       currentModelId = id;
       rebuildModels();
       if (id.isEmpty()) {
+        setExposedGeneration({});
         hasExplicitStrength = false;
         putControls(resource, defaultResources);
         putControls(sampling, defaultSampling);
@@ -519,6 +671,7 @@ struct DiffusionPanel::Impl {
       } else for (const auto &value : modelConfigs) {
         const auto entry = value.toObject();
         if (entry["id"] != id) continue;
+        setExposedGeneration(entry["exposedGeneration"].toArray());
         putControls(resource, defaultResources);
         putControls(sampling, defaultSampling);
         q.setConfiguration(entry["configuration"].toObject());
@@ -553,6 +706,7 @@ struct DiffusionPanel::Impl {
       const QScopedValueRollback guard(updating, true);
       currentModelId = QUuid::createUuid().toString(QUuid::WithoutBraces);
       if (!duplicate) {
+        setExposedGeneration({});
         hasExplicitStrength = false;
         editImageToImage = false;
         putControls(resource, defaultResources);
@@ -567,7 +721,7 @@ struct DiffusionPanel::Impl {
       modelConfigs.append(entry);
       loras->setConfiguration(currentModelId, loras->defaults());
       rebuildModels();
-      updateActions();
+      updateCapabilities(false);
     }
     q.saveSettings();
     if (q.onConfigurationChanged) q.onConfigurationChanged();
@@ -932,6 +1086,7 @@ struct DiffusionPanel::Impl {
     discard->setVisible(ready);
     inputList->setVisible(true);
     configurationPage->setEnabled(!busy);
+    overridesSection->setEnabled(!busy);
     loras->setBusy(busy);
     models->setEnabled(!busy && !modelConfigs.isEmpty());
     seedMode->setEnabled(!busy);
@@ -1117,6 +1272,50 @@ struct DiffusionPanel::Impl {
             : "Available in Generative Fill, or Edit layer with image-to-image "
               "denoising enabled.");
   }
+  void updateSamplingAvailability(const QMap<QString, QWidget *> &widgets,
+                                  QWidget *customSigmas, const QJsonObject &values) {
+    const auto p = profile();
+    const auto schedule = values["schedule"].toString();
+    widgets["steps"]->setToolTip(schedule == "turbo"
+        ? "The fixed Turbo sigma schedule uses 8 steps. Choose Auto sigma schedule to try other step counts."
+        : "Number of denoising steps.");
+    customSigmas->setEnabled(schedule == "custom");
+    customSigmas->setToolTip("Enter steps + 1 descending values ending in zero. "
+                       "Available with a custom sigma schedule.");
+    widgets["scheduler"]->setEnabled(schedule == "auto");
+    widgets["scheduler"]->setToolTip(
+        "Controls how noise levels are spaced. Available with the auto sigma schedule.");
+    widgets["flowShift"]->setEnabled(schedule == "auto" && p.value("flowSchedule").toBool(true));
+    widgets["flowShift"]->setToolTip(
+        !p.value("flowSchedule").toBool(true) ? "Flow shift does not apply to this model." :
+        QString("Adjusts the flow schedule. Available with the auto sigma schedule. Auto uses the model default (%1).")
+            .arg(p.value("flowShift").toDouble()));
+    auto *scheduleCombo = qobject_cast<QComboBox *>(widgets["schedule"]);
+    if (auto *items =
+            qobject_cast<QStandardItemModel *>(scheduleCombo->model()))
+      items->item(scheduleCombo->findData("turbo"))
+          ->setEnabled(p.value("id") == "qwen-image-2.1-turbo");
+    const auto sampler = values["sampler"].toString();
+    const bool stochastic =
+        sampler.contains("_a") || sampler.contains("sde") ||
+        QStringList{"ddim_trailing", "tcd", "res_multistep", "res_2s"}.contains(
+            sampler);
+    widgets["eta"]->setEnabled(stochastic);
+    widgets["eta"]->setToolTip(
+        "Controls added sampler noise. Available for samplers that use eta.");
+    const bool caching = values["cacheMode"].toString() != "disabled";
+    for (const auto &key : {QString("cacheReuseThreshold"),
+                            QString("cacheStart"), QString("cacheEnd")}) {
+      widgets[key]->setEnabled(caching);
+      widgets[key]->setToolTip("Available when Approximate cache is enabled.");
+    }
+    for (const auto &key : {QString("vaeTileSize"), QString("vaeTileOverlap")}) {
+      widgets[key]->setEnabled(values["vaeTiling"].toBool());
+      widgets[key]->setToolTip("Available when VAE tiling is enabled.");
+    }
+    widgets["previewInterval"]->setEnabled(values["preview"].toBool());
+    widgets["previewInterval"]->setToolTip("Available when progress previews are enabled.");
+  }
   void updateCapabilities(bool defaults) {
     const auto p = profile();
     const bool checkpoint = p.value("checkpoint").toBool();
@@ -1189,54 +1388,18 @@ struct DiffusionPanel::Impl {
                    {"cacheEnd", .95}});
       sigmas->clear();
     }
-    const double cfg =
-        qobject_cast<QDoubleSpinBox *>(sampling["guidance"])->value();
+    const double cfg = effectiveSampling()["guidance"].toDouble();
     const bool supportsNegative = p.value("negativePrompt").toBool();
     negative->setEnabled(supportsNegative && cfg > 1);
     negative->setToolTip(
         !supportsNegative ? "This model does not support a negative prompt."
-        : cfg <= 1 ? "Describe what to avoid. Requires Guidance (CFG) above 1 "
-                     "in Configuration."
+        : cfg <= 1 ? "Describe what to avoid. Requires Guidance (CFG) above 1."
                    : "Describe what to avoid in the generated image.");
     if (auto *header = q.findChild<QToolButton *>("DiffusionNegativeSectionHeader"))
       header->setToolTip(negative->toolTip());
-    const auto schedule = qobject_cast<QComboBox *>(sampling["schedule"])
-                              ->currentData()
-                              .toString();
-    sigmas->setEnabled(schedule == "custom");
-    sigmas->setToolTip("Enter steps + 1 descending values ending in zero. "
-                       "Available with a custom sigma schedule.");
-    sampling["scheduler"]->setEnabled(schedule == "auto");
-    sampling["scheduler"]->setToolTip(
-        "Controls how noise levels are spaced. Available with the auto sigma schedule.");
-    sampling["flowShift"]->setEnabled(schedule == "auto" && p.value("flowSchedule").toBool(true));
-    sampling["flowShift"]->setToolTip(
-        !p.value("flowSchedule").toBool(true) ? "Flow shift does not apply to this model." :
-        QString("Adjusts the flow schedule. Available with the auto sigma schedule. Auto uses the model default (%1).")
-            .arg(p.value("flowShift").toDouble()));
-    auto *scheduleCombo = qobject_cast<QComboBox *>(sampling["schedule"]);
-    if (auto *items =
-            qobject_cast<QStandardItemModel *>(scheduleCombo->model()))
-      items->item(scheduleCombo->findData("turbo"))
-          ->setEnabled(p.value("id") == "qwen-image-2.1-turbo");
-    const auto sampler = qobject_cast<QComboBox *>(sampling["sampler"])
-                             ->currentData()
-                             .toString();
-    const bool stochastic =
-        sampler.contains("_a") || sampler.contains("sde") ||
-        QStringList{"ddim_trailing", "tcd", "res_multistep", "res_2s"}.contains(
-            sampler);
-    sampling["eta"]->setEnabled(stochastic);
-    sampling["eta"]->setToolTip(
-        "Controls added sampler noise. Available for samplers that use eta.");
-    const bool caching = qobject_cast<QComboBox *>(sampling["cacheMode"])
-                             ->currentData()
-                             .toString() != "disabled";
-    for (const auto &key : {QString("cacheReuseThreshold"),
-                            QString("cacheStart"), QString("cacheEnd")}) {
-      sampling[key]->setEnabled(caching);
-      sampling[key]->setToolTip("Available when Approximate cache is enabled.");
-    }
+    updateSamplingAvailability(sampling, sigmas, controls(sampling));
+    syncOverrides();
+    updateSamplingAvailability(overrideControls, overrideControls["sigmas"], effectiveSampling());
     updateActions();
   }
   void rebuildModels() {
@@ -1890,6 +2053,11 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
       const QSignalBlocker block(d->aspectRatio);
       d->aspectRatio->setCurrentIndex(d->aspectRatio->count() - 1);
     });
+  QVBoxLayout *overridesLayout{};
+  d->overridesSection = section("Overrides", "DiffusionOverrides", overridesLayout);
+  d->overridesForm = form(overridesLayout);
+  d->overridesSection->hide();
+  essentials->addWidget(d->overridesSection);
   auto *seedRow = new QHBoxLayout;
   seedRow->addWidget(new QLabel("Seed"));
   d->seed = new QLineEdit("0");
@@ -2225,6 +2393,7 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
           [this] { d->updateCapabilities(false); });
   connect(schedule, &QComboBox::currentIndexChanged, this,
           [this] { d->updateCapabilities(false); });
+  d->createOverrideControls(samplingForm);
   QVBoxLayout *resources{};
   configLayout->addWidget(
       section("Memory and performance", "DiffusionResources", resources));
@@ -2488,6 +2657,7 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
     if (!confirmConfigurationDelete(this, configurationName())) return;
     saveSettings();
     d->loras->forgetConfiguration(id);
+    d->generationOverrides.remove(id);
     for (qsizetype i = 0; i < d->modelConfigs.size(); ++i)
       if (d->modelConfigs[i].toObject()["id"] == id) {
         d->modelConfigs.removeAt(i);
@@ -2598,6 +2768,9 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   }
   d->seed->setEnabled(d->seedMode->currentData() != "random");
   d->sigmas->setPlainText(settings.value("diffusion/sigmas").toString());
+  if (settings.contains("diffusion/exposedGeneration"))
+    d->setExposedGeneration(QJsonDocument::fromJson(
+        settings.value("diffusion/exposedGeneration").toByteArray()).array());
   d->width->setValue(settings.value("diffusion/width", 1024).toInt());
   d->height->setValue(settings.value("diffusion/height", 1024).toInt());
   setMode(Mode(std::clamp(settings.value("diffusion/mode", 0).toInt(), 0, 2)));
@@ -2622,7 +2795,11 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   for (auto *widget : d->sampling) observed.insert(widget);
   for (auto *widget : d->files) observed.insert(widget);
   for (auto *widget : observed) {
-    const auto changed = [this] { d->queueSave(); };
+    const bool samplingControl = d->sampling.values().contains(widget) || widget == d->sigmas;
+    const auto changed = [this, samplingControl] {
+      if (samplingControl && !d->updating && !d->initializing) d->updateCapabilities(false);
+      d->queueSave();
+    };
     if (auto *value = qobject_cast<QDoubleSpinBox *>(widget)) connect(value, &QDoubleSpinBox::valueChanged, this, changed);
     else if (auto *value = qobject_cast<QSpinBox *>(widget)) connect(value, &QSpinBox::valueChanged, this, changed);
     else if (auto *value = qobject_cast<QComboBox *>(widget)) connect(value, &QComboBox::currentIndexChanged, this, changed);
@@ -2737,14 +2914,17 @@ QJsonObject DiffusionPanel::configuration() const {
   return result;
 }
 QJsonObject DiffusionPanel::generationParameters() const {
-  auto params = controls(d->sampling);
+  auto params = d->effectiveSampling();
+  const auto customSigmas = params.take("sigmas").toString();
   if (!d->profile().value("flowSchedule").toBool(true))
     params.remove("flowShift");
   const auto loras = d->loras->enabledLoras();
   if (!loras.isEmpty()) params["loras"] = loras;
   if (supportsImageInputs())
     params["referenceMaxSize"] = d->maxInputSize->currentData().toInt();
-  if (!d->sampling["eta"]->isEnabled())
+  const auto sampler = params["sampler"].toString();
+  if (!(sampler.contains("_a") || sampler.contains("sde") ||
+        QStringList{"ddim_trailing", "tcd", "res_multistep", "res_2s"}.contains(sampler)))
     params.remove("eta");
   if (!imageToImageEnabled())
     params.remove("strength");
@@ -2758,12 +2938,12 @@ QJsonObject DiffusionPanel::generationParameters() const {
   const auto seed = d->seed->text().toLongLong(&valid);
   params["seed"] = valid ? QJsonValue(seed) : QJsonValue(d->seed->text());
   if (params["schedule"] == "custom") {
-    QString text = d->sigmas->toPlainText().trimmed();
+    QString text = customSigmas.trimmed();
     if (!text.startsWith('['))
       text = '[' + text + ']';
     const auto doc = QJsonDocument::fromJson(text.toUtf8());
     params["sigmas"] = doc.isArray() ? QJsonValue(doc.array())
-                                     : QJsonValue(d->sigmas->toPlainText());
+                                     : QJsonValue(customSigmas);
   }
   return params;
 }
@@ -2907,6 +3087,7 @@ void DiffusionPanel::setSamplers(const QJsonArray &samplers,
       c->addItem(current + " (unavailable)", current);
     select(c, current);
   }
+  d->updateCapabilities(false);
 }
 void DiffusionPanel::setConfiguration(const QJsonObject &config,
                                       const QString &) {
@@ -3335,6 +3516,8 @@ void DiffusionPanel::saveSettings() {
   s.setValue("diffusion/seed", d->seed->text());
   s.setValue("diffusion/seedMode", d->seedMode->currentData());
   s.setValue("diffusion/sigmas", d->sigmas->toPlainText());
+  s.setValue("diffusion/exposedGeneration",
+             QJsonDocument(d->exposedGeneration()).toJson(QJsonDocument::Compact));
   s.setValue("diffusion/width", d->width->value());
   s.setValue("diffusion/height", d->height->value());
   s.setValue("diffusion/mode", int(mode()));

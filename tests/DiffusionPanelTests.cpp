@@ -288,6 +288,124 @@ private slots:
     QTest::newRow("flux3") << QString("flux3-image-klein-distilled");
     QTest::newRow("qwen") << QString("qwen-image-2.1-turbo");
   }
+  void generationOverridesStaySeparateAndFollowConfiguration() {
+    const QJsonArray exposed{"steps", "guidance", "schedule", "batch"};
+    QSettings().setValue("diffusion/modelConfigurations", QJsonDocument(QJsonArray{
+      QJsonObject{{"id", "A"}, {"name", "Flux"},
+        {"configuration", QJsonObject{{"profile", "flux3-image-klein-distilled"}}},
+        {"generation", QJsonObject{{"steps", 16}}}, {"exposedGeneration", exposed}},
+      QJsonObject{{"id", "B"}, {"name", "Qwen"},
+        {"configuration", QJsonObject{{"profile", "qwen-image-2.1-turbo"}}},
+        {"generation", QJsonObject{{"steps", 8}}}, {"exposedGeneration", exposed}}
+    }).toJson());
+    QSettings().setValue("diffusion/modelId", "A");
+    DiffusionPanel panel;
+    auto *models = panel.findChild<QComboBox *>("DiffusionModels");
+    auto *steps = panel.findChild<QDoubleSpinBox *>("DiffusionOverride_steps");
+    auto *baseline = panel.findChild<QDoubleSpinBox *>("Diffusion_steps");
+    auto *reset = panel.findChild<QToolButton *>("DiffusionOverrideReset_steps");
+    auto *expose = panel.findChild<QToolButton *>("DiffusionExpose_steps");
+    QVERIFY(!panel.findChild<QToolButton *>("DiffusionOverridesSectionHeader")->isChecked());
+    QVERIFY(expose->isChecked());
+    QCOMPARE(steps->value(), 16.);
+    QVERIFY(!reset->isEnabled());
+    steps->setValue(9);
+    QCOMPARE(panel.request()["steps"].toInt(), 9);
+    QCOMPARE(baseline->value(), 16.);
+    QVERIFY(reset->isEnabled());
+    for (auto mode : {DiffusionPanel::Mode::Edit, DiffusionPanel::Mode::Fill, DiffusionPanel::Mode::Generate}) {
+      panel.setMode(mode);
+      QCOMPARE(panel.request()["steps"].toInt(), 9);
+    }
+    models->setCurrentIndex(models->findData("B"));
+    QCOMPARE(steps->value(), 8.);
+    steps->setValue(12);
+    auto *schedule = panel.findChild<QComboBox *>("DiffusionOverride_schedule");
+    schedule->setCurrentIndex(schedule->findData("auto"));
+    QCOMPARE(panel.request()["schedule"].toString(), QString("auto"));
+    QCOMPARE(panel.findChild<QComboBox *>("Diffusion_schedule")->currentData().toString(), QString("turbo"));
+    models->setCurrentIndex(models->findData("A"));
+    QCOMPARE(steps->value(), 9.);
+    baseline->setValue(20);
+    QCOMPARE(steps->value(), 9.);
+    reset->click();
+    QCOMPARE(steps->value(), 20.);
+    QVERIFY(!reset->isEnabled());
+    steps->setValue(10);
+    panel.saveSettings();
+    const auto entries = QJsonDocument::fromJson(QSettings().value("diffusion/modelConfigurations").toByteArray()).array();
+    QCOMPARE(entries[0].toObject()["generation"].toObject()["steps"].toInt(), 20);
+    QCOMPARE(entries[1].toObject()["generation"].toObject()["steps"].toInt(), 8);
+    QCOMPARE(entries[1].toObject()["generation"].toObject()["schedule"].toString(), QString("turbo"));
+    QVERIFY(entries[0].toObject()["exposedGeneration"].toArray().contains("steps"));
+    {
+      DiffusionPanel restored;
+      QCOMPARE(restored.request()["steps"].toInt(), 20); // Session overrides are not saved defaults.
+      QVERIFY(restored.findChild<QToolButton *>("DiffusionExpose_steps")->isChecked());
+    }
+    models->setCurrentIndex(models->findData("B"));
+    QCOMPARE(steps->value(), 12.);
+    QCOMPARE(panel.request()["schedule"].toString(), QString("auto"));
+    models->setCurrentIndex(models->findData("A"));
+    QCOMPARE(steps->value(), 10.);
+    expose->setChecked(false);
+    QCOMPARE(panel.request()["steps"].toInt(), 20);
+    expose->setChecked(true);
+    QCOMPARE(steps->value(), 20.);
+  }
+  void generationOverridesRespectDependenciesAndResetIndividually() {
+    DiffusionPanel panel;
+    panel.setConfiguration({{"profile", "flux3-image-klein-distilled"}});
+    auto *section = panel.findChild<QWidget *>("DiffusionOverridesSection");
+    QVERIFY(section->isHidden());
+    for (const auto *key : {"steps", "guidance", "sampler", "eta", "schedule", "scheduler", "sigmas",
+                           "flowShift", "cacheMode", "cacheReuseThreshold", "vaeTiling", "vaeTileSize", "preview", "previewInterval"})
+      panel.findChild<QToolButton *>(QString("DiffusionExpose_") + key)->setChecked(true);
+    QVERIFY(!section->isHidden());
+    auto *cfg = panel.findChild<QDoubleSpinBox *>("DiffusionOverride_guidance");
+    auto *negative = panel.findChild<QPlainTextEdit *>("DiffusionNegativePrompt");
+    QVERIFY(negative);
+    QVERIFY(!negative->isEnabled());
+    cfg->setValue(4);
+    QVERIFY(negative->isEnabled());
+    negative->setPlainText("blur");
+    QCOMPARE(panel.request()["negativePrompt"].toString(), QString("blur"));
+    QCOMPARE(panel.findChild<QDoubleSpinBox *>("Diffusion_guidance")->value(), 1.);
+    auto *sampler = panel.findChild<QComboBox *>("DiffusionOverride_sampler");
+    sampler->setCurrentIndex(sampler->findData("euler_a"));
+    QVERIFY(panel.findChild<QDoubleSpinBox *>("DiffusionOverride_eta")->isEnabled());
+    QVERIFY(!panel.findChild<QDoubleSpinBox *>("Diffusion_eta")->isEnabled());
+    panel.findChild<QDoubleSpinBox *>("DiffusionOverride_eta")->setValue(.5);
+    QCOMPARE(panel.request()["eta"].toDouble(), .5);
+    panel.setSamplers({"euler", "euler_a"}, {"discrete", "karras"});
+    QCOMPARE(sampler->currentData().toString(), QString("euler_a"));
+    auto *schedule = panel.findChild<QComboBox *>("DiffusionOverride_schedule");
+    schedule->setCurrentIndex(schedule->findData("custom"));
+    auto *sigmas = panel.findChild<QPlainTextEdit *>("DiffusionOverride_sigmas");
+    QVERIFY(sigmas->isEnabled());
+    QVERIFY(!panel.findChild<QPlainTextEdit *>("DiffusionSigmas")->isEnabled());
+    sigmas->setPlainText("1.0, 0.5, 0.0");
+    QCOMPARE(panel.request()["sigmas"].toArray(), QJsonArray({1., .5, 0.}));
+    QVERIFY(!panel.findChild<QComboBox *>("DiffusionOverride_scheduler")->isEnabled());
+    auto *cache = panel.findChild<QComboBox *>("DiffusionOverride_cacheMode");
+    cache->setCurrentIndex(cache->findData("easycache"));
+    QVERIFY(panel.findChild<QDoubleSpinBox *>("DiffusionOverride_cacheReuseThreshold")->isEnabled());
+    QVERIFY(!panel.findChild<QDoubleSpinBox *>("Diffusion_cacheReuseThreshold")->isEnabled());
+    panel.findChild<QCheckBox *>("DiffusionOverride_vaeTiling")->setChecked(true);
+    QVERIFY(panel.findChild<QDoubleSpinBox *>("DiffusionOverride_vaeTileSize")->isEnabled());
+    panel.findChild<QCheckBox *>("DiffusionOverride_preview")->setChecked(false);
+    QVERIFY(!panel.findChild<QDoubleSpinBox *>("DiffusionOverride_previewInterval")->isEnabled());
+    panel.findChild<QToolButton *>("DiffusionOverrideReset_guidance")->click();
+    QVERIFY(!negative->isEnabled());
+    QVERIFY(!panel.request().contains("negativePrompt"));
+    QCOMPARE(panel.request()["eta"].toDouble(), .5);
+    panel.setBusy(true);
+    QVERIFY(!section->isEnabled());
+    panel.setBusy(false);
+    QVERIFY(section->isEnabled());
+    panel.setConfiguration({{"profile", "stable-diffusion"}});
+    QVERIFY(!panel.findChild<QDoubleSpinBox *>("DiffusionOverride_flowShift")->isEnabled());
+  }
   void generationOnlyCapabilitiesKeepExistingInputs() {
     DiffusionPanel panel;
     panel.setConfiguration({{"profile", "flux3-image-klein-distilled"}});
