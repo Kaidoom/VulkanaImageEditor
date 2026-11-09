@@ -363,6 +363,8 @@ void MainWindow::refreshDocumentTabs()
         if (auto* action = findChild<QAction*>(name)) action->setEnabled(!documents_.empty());
     for (const auto* name : {"SaveDocumentAction", "SaveDocumentAsAction", "ExportImageAction", "CopyCanvasToClipboardAction", "ImportImageAction", "ChangeCanvasSizeAction", "QuickCanvasResizeAction"})
         if (auto* action = findChild<QAction*>(name)) action->setEnabled(bool(activeDocument_));
+    if (!activeDocument_)
+        if (auto* action = findChild<QAction*>("CanvasSizeToLayerAction")) action->setEnabled(false);
     if (auto* action = findChild<QAction*>("ExportAgainAction")) action->setEnabled(activeDocument_ && activeDocument_->exportSettings.has_value());
     workspace_->setWelcomeOverlay(welcome_, !activeDocument_&&!graphicsStartupPending_
         &&!startupNewDocumentPending_&&!startupDocumentDialog_);

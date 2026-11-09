@@ -10766,6 +10766,14 @@ Escape · 전체 자르기 세션 취소
   </context>
   <context>
     <name>CanvasResize</name>
+    <message id="canvas.resize.to.layer">
+      <source>Canvas size to selected layer</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="canvas.resize.to.layer.hint">
+      <source>Fit the canvas to the selected layer's bounds without resampling its pixels.</source>
+      <translation type="unfinished" />
+    </message>
     <message id="canvas.resize.action"><source>Quick canvas resize</source><translation>캔버스 크기 빠르게 조절</translation></message>
     <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translation>가장자리나 모서리를 드래그해 캔버스 크기를 조절하고, 안쪽을 드래그해 위치를 옮깁니다. 레이어 픽셀은 유지됩니다. 적용: {{FinishOperationAction}} · 취소: Escape.</translation></message>
     <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translation>캔버스 가로세로 비율을 유지합니다. Shift를 누르는 동안 제한이 전환됩니다.</translation></message>

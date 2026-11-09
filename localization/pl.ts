@@ -10768,6 +10768,14 @@ Escape · Anuluj sesję
   </context>
   <context>
     <name>CanvasResize</name>
+    <message id="canvas.resize.to.layer">
+      <source>Canvas size to selected layer</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="canvas.resize.to.layer.hint">
+      <source>Fit the canvas to the selected layer's bounds without resampling its pixels.</source>
+      <translation type="unfinished" />
+    </message>
     <message id="canvas.resize.action"><source>Quick canvas resize</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Szybka zmiana rozmiaru płótna</translation></message>
     <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Przeciągnij krawędź lub narożnik, aby zmienić rozmiar płótna, albo jego wnętrze, aby je przesunąć. Piksele warstw pozostają bez zmian. Zastosuj: {{FinishOperationAction}} · Anuluj: Escape.</translation></message>
     <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Zachowaj proporcje płótna; Shift tymczasowo przełącza ograniczenie.</translation></message>

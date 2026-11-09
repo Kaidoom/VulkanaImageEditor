@@ -8,6 +8,7 @@
 #include "imageeditor/ui/ToolOptionsBar.hpp"
 #include <QStatusBar>
 #include <QVBoxLayout>
+#include <cmath>
 namespace imageeditor::ui {
 void MainWindow::createCanvasResizeControls()
 {
@@ -39,6 +40,49 @@ void MainWindow::createCanvasResizeControls()
     };
     canvasResizeOptionsPage_->onApply = [this] { finishQuickCanvasResize(true); };
     canvasResizeOptionsPage_->onCancel = [this] { finishQuickCanvasResize(false); };
+}
+std::optional<core::RectI> MainWindow::selectedLayerCanvasFrame() const
+{
+    const auto* doc = session().document();
+    const auto* layer = doc && session().activeLayer() ? doc->layer(*session().activeLayer()) : nullptr;
+    if (!layer || std::holds_alternative<core::AdjustmentLayer>(layer->payload)) return {};
+    const auto bounds = core::layerDocumentBounds(*layer);
+    if (!bounds) return {};
+    // Enclose transformed geometry in whole pixels, ignoring tiny floating-point
+    // drift at integral edges. Masks and effects do not change the layer frame.
+    const double left = std::floor(bounds->minimum.x + 1e-7);
+    const double top = std::floor(bounds->minimum.y + 1e-7);
+    const double right = std::ceil(bounds->maximum.x - 1e-7);
+    const double bottom = std::ceil(bounds->maximum.y - 1e-7);
+    const double width = right - left, height = bottom - top;
+    constexpr double coordinateLimit = 1e9;
+    if (!std::isfinite(width) || !std::isfinite(height) || width < 1 || height < 1
+        || width > kMaximumRasterDimension || height > kMaximumRasterDimension
+        || left < -coordinateLimit || top < -coordinateLimit
+        || right > coordinateLimit || bottom > coordinateLimit
+        || !rasterExtentWithinLimits(std::uint32_t(width), std::uint32_t(height))) return {};
+    return core::RectI{int(left), int(top), int(width), int(height)};
+}
+void MainWindow::matchCanvasToSelectedLayer()
+try
+{
+    if (fileBusy_ || workspaceDialog_ || refinement_ || !session().document()
+        || !shortcutGestureIdle(true) || !settleForFileOperation()) return;
+    const auto frame = selectedLayerCanvasFrame();
+    if (!frame) return;
+    const auto before = session().document()->canvas();
+    if (!frame->x && !frame->y && frame->width == int(before.extent.width)
+        && frame->height == int(before.extent.height)) {
+        statusBar()->showMessage(i18n::text("main.window.canvas.size.unchanged"), 2500);
+        return;
+    }
+    if (!session().execute(std::make_unique<core::ReframeCanvasCommand>(*frame))) return;
+    fileState().untouched = false;
+    adjustViewAfterCanvasResize(before);
+    synchronizeUi(false, false);
+    statusBar()->showMessage(i18n::text("canvas.resize.done").arg(frame->width).arg(frame->height), 3500);
+} catch (const std::exception& error) {
+    reportFileError(QString::fromUtf8(error.what()));
 }
 void MainWindow::beginQuickCanvasResize()
 try

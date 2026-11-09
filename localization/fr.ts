@@ -10878,6 +10878,14 @@ Chanfrein : tirer les coins vers l'intérieur ; Alt change aussi le coin opposé
   </context>
   <context>
     <name>CanvasResize</name>
+    <message id="canvas.resize.to.layer">
+      <source>Canvas size to selected layer</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="canvas.resize.to.layer.hint">
+      <source>Fit the canvas to the selected layer's bounds without resampling its pixels.</source>
+      <translation type="unfinished" />
+    </message>
     <message id="canvas.resize.action"><source>Quick canvas resize</source><translation>Redimensionnement rapide du canevas</translation></message>
     <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translation>Faites glisser un bord ou un coin pour redimensionner le canevas, ou l’intérieur pour le déplacer. Les pixels des calques sont conservés. Appliquer : {{FinishOperationAction}} · Annuler : Échap.</translation></message>
     <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translation>Conserver les proportions du canevas ; Maj inverse temporairement cette contrainte.</translation></message>

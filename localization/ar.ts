@@ -10882,6 +10882,14 @@ Escape لإلغاء جلسة الاقتصاص كاملةً
   </context>
   <context>
     <name>CanvasResize</name>
+    <message id="canvas.resize.to.layer">
+      <source>Canvas size to selected layer</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="canvas.resize.to.layer.hint">
+      <source>Fit the canvas to the selected layer's bounds without resampling its pixels.</source>
+      <translation type="unfinished" />
+    </message>
     <message id="canvas.resize.action"><source>Quick canvas resize</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>تغيير سريع لحجم مساحة الرسم</translation></message>
     <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>اسحب حافة أو زاوية لتغيير حجم مساحة الرسم، أو اسحب داخلها لتغيير موضعها. تبقى بكسلات الطبقات كما هي. تطبيق: {{FinishOperationAction}} · إلغاء: Escape.</translation></message>
     <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>الحفاظ على نسبة أبعاد مساحة الرسم؛ يبدّل Shift هذا القيد مؤقتًا.</translation></message>

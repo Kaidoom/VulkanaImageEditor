@@ -10766,6 +10766,14 @@ Escape 取消整次裁切
   </context>
   <context>
     <name>CanvasResize</name>
+    <message id="canvas.resize.to.layer">
+      <source>Canvas size to selected layer</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="canvas.resize.to.layer.hint">
+      <source>Fit the canvas to the selected layer's bounds without resampling its pixels.</source>
+      <translation type="unfinished" />
+    </message>
     <message id="canvas.resize.action"><source>Quick canvas resize</source><translation>快速调整画布</translation></message>
     <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translation>拖动边缘或角点调整画布大小，或在内部拖动以移动画布。图层像素保持不变。应用：{{FinishOperationAction}} · 取消：Escape。</translation></message>
     <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translation>保持画布宽高比；按住 Shift 临时切换约束。</translation></message>

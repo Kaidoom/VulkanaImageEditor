@@ -10764,6 +10764,14 @@ Smusso: tira gli angoli all'interno; Alt cambia anche l'opposto. I lati ridimens
   </context>
   <context>
     <name>CanvasResize</name>
+    <message id="canvas.resize.to.layer">
+      <source>Canvas size to selected layer</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="canvas.resize.to.layer.hint">
+      <source>Fit the canvas to the selected layer's bounds without resampling its pixels.</source>
+      <translation type="unfinished" />
+    </message>
     <message id="canvas.resize.action"><source>Quick canvas resize</source><translation>Ridimensionamento rapido della tela</translation></message>
     <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translation>Trascina un bordo o un angolo per ridimensionare la tela, oppure l’interno per spostarla. I pixel dei livelli vengono conservati. Applica: {{FinishOperationAction}} · Annulla: Esc.</translation></message>
     <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translation>Mantiene le proporzioni della tela; Shift attiva o disattiva temporaneamente il vincolo.</translation></message>

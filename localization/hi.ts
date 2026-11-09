@@ -10767,6 +10767,14 @@ Escape · पूरा क्रॉप सत्र रद्द
   </context>
   <context>
     <name>CanvasResize</name>
+    <message id="canvas.resize.to.layer">
+      <source>Canvas size to selected layer</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="canvas.resize.to.layer.hint">
+      <source>Fit the canvas to the selected layer's bounds without resampling its pixels.</source>
+      <translation type="unfinished" />
+    </message>
     <message id="canvas.resize.action"><source>Quick canvas resize</source><translation>कैनवास का आकार तुरंत बदलें</translation></message>
     <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translation>कैनवास का आकार बदलने के लिए किनारा या कोना खींचें, या स्थान बदलने के लिए अंदर खींचें। परत के पिक्सेल सुरक्षित रहते हैं। लागू करें: {{FinishOperationAction}} · रद्द करें: Escape।</translation></message>
     <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translation>कैनवास का अनुपात बनाए रखें; Shift से यह बाध्यता अस्थायी रूप से बदलती है।</translation></message>

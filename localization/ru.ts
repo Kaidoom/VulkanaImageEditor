@@ -10768,6 +10768,14 @@ Escape · Отменить сеанс
   </context>
   <context>
     <name>CanvasResize</name>
+    <message id="canvas.resize.to.layer">
+      <source>Canvas size to selected layer</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="canvas.resize.to.layer.hint">
+      <source>Fit the canvas to the selected layer's bounds without resampling its pixels.</source>
+      <translation type="unfinished" />
+    </message>
     <message id="canvas.resize.action"><source>Quick canvas resize</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Быстро изменить размер холста</translation></message>
     <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Перетащите край или угол, чтобы изменить размер холста, или его внутреннюю область, чтобы сдвинуть его. Пиксели слоёв сохраняются. Применить: {{FinishOperationAction}} · Отмена: Escape.</translation></message>
     <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment><translation>Сохранять пропорции холста; Shift временно переключает ограничение.</translation></message>

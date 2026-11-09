@@ -10767,6 +10767,14 @@ Abschrägen: Ecken nach innen ziehen; Alt ändert auch die gegenüberliegende Ec
   </context>
   <context>
     <name>CanvasResize</name>
+    <message id="canvas.resize.to.layer">
+      <source>Canvas size to selected layer</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="canvas.resize.to.layer.hint">
+      <source>Fit the canvas to the selected layer's bounds without resampling its pixels.</source>
+      <translation type="unfinished" />
+    </message>
     <message id="canvas.resize.action"><source>Quick canvas resize</source><translation>Leinwand schnell anpassen</translation></message>
     <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translation>Eine Kante oder Ecke ziehen, um die Leinwandgröße zu ändern. Zum Verschieben innen ziehen. Die Ebenenpixel bleiben erhalten. Anwenden: {{FinishOperationAction}} · Abbrechen: Esc.</translation></message>
     <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translation>Seitenverhältnis der Leinwand beibehalten; Shift schaltet die Einschränkung kurzzeitig um.</translation></message>

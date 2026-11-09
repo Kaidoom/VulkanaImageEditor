@@ -2237,6 +2237,12 @@ void MainWindow::createMenus()
     auto* quickCanvas = i18n::addAction(imageMenu, toolGlyph(ToolGlyph::Crop), i18n::text("canvas.resize.action"), this, &MainWindow::beginQuickCanvasResize);
     quickCanvas->setObjectName(QStringLiteral("QuickCanvasResizeAction"));
     quickCanvas->setShortcut(QKeySequence(QStringLiteral("Ctrl+Alt+R")));
+    auto* layerCanvas = i18n::addAction(imageMenu, toolGlyph(ToolGlyph::Crop),
+        i18n::text("canvas.resize.to.layer"), this, &MainWindow::matchCanvasToSelectedLayer);
+    layerCanvas->setObjectName(QStringLiteral("CanvasSizeToLayerAction"));
+    layerCanvas->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+R")));
+    i18n::setToolTip(layerCanvas, i18n::text("canvas.resize.to.layer.hint"));
+    layerCanvas->setEnabled(false);
 
     auto* viewMenu = i18n::addMenu(menuBar(), i18n::text("main.window.view"));
     snappingAction_ = i18n::addAction(viewMenu, toolGlyph(ToolGlyph::Snapping), i18n::text("main.window.snapping"));
@@ -4770,6 +4776,8 @@ void MainWindow::updateActionState()
     redoAction_->setEnabled(history.canRedo());
     const auto* layer = session().document() && session().activeLayer()
         ? session().document()->layer(*session().activeLayer()) : nullptr;
+    if (auto* action = findChild<QAction*>("CanvasSizeToLayerAction"))
+        action->setEnabled(!fileBusy_ && !workspaceDialog_ && selectedLayerCanvasFrame().has_value());
     transformAction_->setEnabled(layer && !core::layerGeometryExtent(*layer).empty()
         && layer->localToDocument.inverted().has_value());
     if(session().document()) {

@@ -411,6 +411,8 @@ private:
     void createNewDocument();
     bool createDocumentFromClipboard();
     void changeCanvasSize();
+    void matchCanvasToSelectedLayer();
+    [[nodiscard]] std::optional<core::RectI> selectedLayerCanvasFrame() const;
     void createCanvasResizeControls();
     void beginQuickCanvasResize();
     void refreshQuickCanvasResize();

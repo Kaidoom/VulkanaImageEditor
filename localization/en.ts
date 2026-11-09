@@ -7173,6 +7173,8 @@ Chamfer: pull corners inward; Alt also changes the opposite corner. Side handles
   <context>
     <name>CanvasResize</name>
     <message id="canvas.resize.action"><source>Quick canvas resize</source></message>
+    <message id="canvas.resize.to.layer"><source>Canvas size to selected layer</source></message>
+    <message id="canvas.resize.to.layer.hint"><source>Fit the canvas to the selected layer's bounds without resampling its pixels.</source></message>
     <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source></message>
     <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source></message>
     <message id="canvas.resize.reset"><source>Reset to the original canvas bounds</source></message>

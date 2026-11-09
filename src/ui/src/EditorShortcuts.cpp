@@ -92,6 +92,7 @@ const QList<ShortcutDefinition>& shortcutDefinitions()
         add("ResetColorsAction", i18n::text("color.selector.reset.black.white"), i18n::text("editor.shortcuts.tools"), "D");
         add("ChangeCanvasSizeAction", i18n::text("editor.shortcuts.change.canvas.size"), i18n::text("editor.shortcuts.view.canvas"), "Ctrl+Alt+C");
         add("QuickCanvasResizeAction", i18n::text("canvas.resize.action"), i18n::text("editor.shortcuts.view.canvas"), "Ctrl+Alt+R");
+        add("CanvasSizeToLayerAction", i18n::text("canvas.resize.to.layer"), i18n::text("editor.shortcuts.view.canvas"), "Ctrl+Shift+R");
         add("FitCanvasAction", i18n::text("editor.shortcuts.fit.canvas"), i18n::text("editor.shortcuts.view.canvas"), "Ctrl+0");
         add("ActualSizeAction", i18n::text("editor.shortcuts.100.zoom"), i18n::text("editor.shortcuts.view.canvas"), "Ctrl+1");
         add("PanCanvasAction", i18n::text("editor.shortcuts.pan.canvas.hold"), i18n::text("editor.shortcuts.view.canvas"), "Space", CanvasKeys | TransformKeys | ConstructionKeys | StrokeKeys, false, true);

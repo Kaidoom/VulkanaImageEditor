@@ -312,6 +312,97 @@ struct Fixture {
     }
 };
 
+void matchSelectedLayer()
+{
+    Fixture f;
+    auto* action = f.action("CanvasSizeToLayerAction");
+    CHECK(action->isEnabled());
+    CHECK(action->text() == QString("Canvas size to selected layer"));
+    CHECK(action->shortcut() == QKeySequence("Ctrl+Shift+R"));
+    CHECK(!action->icon().isNull());
+    CHECK(action->icon().pixmap(16,16).toImage()
+        == f.action("ChangeCanvasSizeAction")->icon().pixmap(16,16).toImage());
+    bool ordered = false;
+    for (auto* menu : f.window.findChildren<QMenu*>()) {
+        const auto entries = menu->actions();
+        const auto index = entries.indexOf(f.action("QuickCanvasResizeAction"));
+        if (index >= 0 && index + 1 < entries.size()) ordered = entries[index + 1] == action;
+    }
+    CHECK(ordered);
+    // No-op resizing must leave the redo branch untouched.
+    const auto originalCanvas = f.doc().canvas();
+    auto bigger = originalCanvas; bigger.extent = {200,150};
+    CHECK(f.session().execute(std::make_unique<c::ChangeCanvasSpecCommand>(bigger)));
+    f.action("ToolAction_move")->trigger();
+    f.history(false);
+    const auto revision = f.doc().revision();
+    CHECK(f.session().history().canRedo());
+    action->trigger();
+    CHECK(f.doc().revision() == revision && f.session().history().canRedo());
+    auto* source = f.doc().layer(f.id);
+    const auto pixels = std::get<c::RasterLayer>(source->payload).surface;
+    const c::AffineTransform originalTransform{.5,0,20,0,.5,-10};
+    CHECK(f.doc().setLayerTransform(f.id, originalTransform));
+    auto other = c::Layer::raster("Other", pixels);
+    const auto otherId = other.id;
+    other.localToDocument = {1,0,-8,0,1,17};
+    CHECK(f.doc().insertLayer(0, std::move(other)));
+    const auto selection = c::SelectionMask::rectangle(originalCanvas.extent, {25,5,10,10});
+    f.doc().setSelection(selection);
+    f.session().setActiveLayer(f.id);
+    f.action("ToolAction_move")->trigger();
+    const auto depth = f.session().history().undoDepth();
+    action->trigger(); settle();
+    CHECK(f.doc().canvas().extent == c::Extent2u(80,60));
+    CHECK(f.doc().canvas().dotsPerInch == originalCanvas.dotsPerInch);
+    CHECK(f.doc().canvas().compositingSpace == originalCanvas.compositingSpace);
+    CHECK(f.session().history().undoDepth() == depth + 1);
+    CHECK(f.doc().layer(f.id)->localToDocument == c::AffineTransform(.5,0,0,0,.5,0));
+    CHECK(f.doc().layer(otherId)->localToDocument == c::AffineTransform(1,0,-28,0,1,27));
+    CHECK(std::get<c::RasterLayer>(f.doc().layer(f.id)->payload).surface == pixels);
+    CHECK(f.doc().selection()->bounds() == c::RectI(5,15,10,10));
+    const auto exported = u::flattenDocument(f.doc());
+    CHECK(exported && exported.image.size() == QSize(80,60));
+    action->trigger();
+    CHECK(f.session().history().undoDepth() == depth + 1);
+    f.history(false);
+    CHECK(f.doc().canvas() == originalCanvas);
+    CHECK(f.doc().layer(f.id)->localToDocument == originalTransform);
+    CHECK(f.doc().selection() == selection);
+    f.history(true);
+    CHECK(f.doc().canvas().extent == c::Extent2u(80,60));
+    // Rotation and fractional positions use an enclosing pixel boundary.
+    CHECK(f.doc().setLayerTransform(f.id, {0,-1,30,1,0,10}));
+    action->trigger();
+    CHECK(f.doc().canvas().extent == c::Extent2u(120,160));
+    CHECK(f.doc().layer(f.id)->localToDocument == c::AffineTransform(0,-1,120,1,0,0));
+    CHECK(f.doc().setLayerTransform(f.id, {.5,0,20.25,0,.5,10.5}));
+    action->trigger();
+    CHECK(f.doc().canvas().extent == c::Extent2u(81,61));
+    CHECK(f.doc().layer(f.id)->localToDocument == c::AffineTransform(.5,0,.25,0,.5,.5));
+    CHECK(std::get<c::RasterLayer>(f.doc().layer(f.id)->payload).surface == pixels);
+    c::ShapeLayer shape; shape.size = {40,30}; shape.strokeEnabled = true; shape.strokeWidth = 12;
+    auto vector = c::Layer::shape("Shape", shape); const auto shapeId = vector.id;
+    CHECK(f.doc().insertLayer(f.doc().layers().size(), std::move(vector)));
+    f.session().setActiveLayer(shapeId);
+    f.action("ToolAction_move")->trigger();
+    CHECK(action->isEnabled()); action->trigger();
+    CHECK(f.doc().canvas().extent == c::Extent2u(40,30));
+    CHECK(f.doc().setLayerTransform(shapeId, {1000,0,0,0,1,0}));
+    f.action("ToolAction_move")->trigger();
+    CHECK(!action->isEnabled());
+    auto adjustment = c::Layer::adjustment("Adjustment"); const auto adjustmentId = adjustment.id;
+    CHECK(f.doc().insertLayer(f.doc().layers().size(), std::move(adjustment)));
+    f.session().setActiveLayer(adjustmentId);
+    f.action("ToolAction_move")->trigger();
+    CHECK(!action->isEnabled());
+    f.session().setActiveLayer({});
+    f.action("ToolAction_move")->trigger();
+    CHECK(!action->isEnabled());
+    CHECK(f.window.closeDocument(f.window.activeDocumentId()));
+    CHECK(!action->isEnabled());
+}
+
 void workflow(QVulkanInstance* instance = nullptr)
 {
     Fixture f(instance);
@@ -445,8 +536,10 @@ int main(int argc, char** argv)
         CHECK(instance.create());
         if (instance.isValid())
             workflow(&instance);
-    } else
+    } else {
         workflow();
+        matchSelectedLayer();
+    }
     std::cout << (failures ? "Quick canvas resize FAILED\n" : "Quick canvas resize passed\n");
     return failures ? 1 : 0;
 }

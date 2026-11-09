@@ -10764,6 +10764,14 @@ Chaflán: tira de esquinas hacia dentro; Alt cambia también la opuesta. Los lad
   </context>
   <context>
     <name>CanvasResize</name>
+    <message id="canvas.resize.to.layer">
+      <source>Canvas size to selected layer</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="canvas.resize.to.layer.hint">
+      <source>Fit the canvas to the selected layer's bounds without resampling its pixels.</source>
+      <translation type="unfinished" />
+    </message>
     <message id="canvas.resize.action"><source>Quick canvas resize</source><translation>Redimensionar lienzo rápidamente</translation></message>
     <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translation>Arrastra un borde o una esquina para redimensionar el lienzo, o su interior para moverlo. Se conservan los píxeles de las capas. Aplicar: {{FinishOperationAction}} · Cancelar: Escape.</translation></message>
     <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translation>Conserva las proporciones del lienzo; Shift alterna la restricción temporalmente.</translation></message>
