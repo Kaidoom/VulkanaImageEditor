@@ -1,6 +1,6 @@
 # Vulkana Diffusion
 
-Vulkana Diffusion is a local AI image editor powered by an isolated native worker. This integration currently targets Linux CUDA. Models are supplied by the user; Vulkana does not download or bundle weights.
+Vulkana Diffusion is a local AI image editor powered by an isolated native worker, with CUDA builds for Linux and Windows. Models are supplied by the user; Vulkana does not download or bundle weights.
 
 ## AI Image Editor
 
@@ -15,7 +15,7 @@ The AI panel temporarily occupies the right dock’s content area and shares its
 
 Generation uses immutable input snapshots and never locks canvas editing. Closing the panel leaves the job running. The Generate button changes to Cancel while a job runs; progress and status remain in the panel footer. When the panel is closed, a dismissible progress or completion card offers a magnifier that opens the latest expanded preview directly, without changing tabs. Progress and completion notifications stay hidden while the AI panel is open. Closing a source document asks for confirmation; the job can continue without it. Quitting Vulkana asks before cancelling an active job. Results never modify a document before Apply.
 
-Select **Auto**, **Vulkan** or **CUDA** in Configuration. Auto prefers an installed CUDA worker, then Vulkan; explicit choices are checked against the worker's reported backend. An unavailable backend produces a clear error rather than running a different backend silently. Linux CUDA is the currently validated worker; Vulkan still requires a separate worker build and validation. Worker paths are discovered from the installation or development overrides and are not an editable UI setting.
+Select **Auto**, **Vulkan** or **CUDA** in Configuration. Auto prefers an installed CUDA worker, then Vulkan; explicit choices are checked against the worker's reported backend. An unavailable backend produces a clear error rather than running a different backend silently. CUDA workers are validated on Linux and Windows; Vulkan still requires a separate worker build and validation. Worker paths are discovered from the installation or development overrides and are not an editable UI setting.
 
 Choose a **Family**, then a **Variant** where available. Qwen 2.1 Image offers Base and Turbo; Flux Klein offers Flux 2 base/distilled and Flux 3 base/distilled. Families with one choice hide Variant. Click the **+** button beside the configuration dropdown and enter a unique name, then select the model files. The dropdown is disabled until a configuration exists. Edits to files, sampling, backend, performance settings and LoRA defaults save automatically. Multiple configurations may use the same variant. The compact buttons beside the configuration dropdown duplicate the setup under a new name or delete it after confirmation. Name and confirmation cards are centered over the AI panel and block interaction until dismissed. The separate **Session → Loaded models** section shows the worker’s resident models; unloading them does not delete a configuration. Existing saved profile IDs remain compatible. Choose a device from the worker's device list. These are inference device IDs, independent of the canvas renderer's Vulkan IDs.
 
@@ -152,6 +152,10 @@ ctest --test-dir build/diffusion-worker --output-on-failure
 ```
 
 Choose a host compiler supported by the installed CUDA toolkit. The example targets RTX 40-series development hardware; it is not a multi-generation release binary. Tests use Python's standard library, but neither the worker nor the host client requires Python at runtime. Set `BUILD_TESTING=OFF` to omit worker tests and their Python dependency.
+
+On Windows, use an x64 Visual Studio developer shell with a compatible CUDA Toolkit and the same CMake options. Set `CMAKE_CUDA_ARCHITECTURES` for the intended GPU; `86-real` targets RTX 30-series hardware. Place the resulting executable beside `imageeditor.exe` as `vulkana-diffusion-worker-cuda.exe`, together with its required CUDA and MSVC runtime DLLs. An ordinary editor build does not build or deploy the worker. Run Windows UI tests from an interactive desktop session so native focus and pointer handling are available.
+
+For a small GPU, start at 512 × 512, put text-encoder and VAE computation on CPU, and retain automatic weight placement. A 2.75 GiB managed VRAM budget has been validated for FLUX.3 Klein Q3 generation and reference editing on a 4 GiB GPU with sufficient system RAM. Larger images and additional references need separate capacity testing. The budget does not include every driver or desktop allocation.
 
 The real-inference smoke executable accepts an absolute worker path, a dedicated private work directory, a load-parameters JSON file, and a generate-parameters JSON file:
 
@@ -319,4 +323,4 @@ Run the deterministic host and UI tests with `ctest --test-dir build/release -R 
 
 Document transactions stay in the editor; the worker receives immutable files and returns independent images. Input capture and Apply compositing use the editor thread, so unusually large images can pause briefly during those steps. Inference and model loading remain asynchronous.
 
-Linux CUDA is the supported inference target. Windows inference, Vulkan runtime operation and packaged worker distribution require further validation. Building the editor does not build or bundle an inference worker. A worker distribution must include the applicable engine, GGML and linked dependency notices and comply with the selected backend runtime's redistribution requirements. Model weights are supplied separately by the user.
+Linux CUDA and Windows CUDA inference have been validated. Windows model testing currently covers FLUX.3 Klein GGUF generation and reference editing; other families, Vulkan runtime operation and packaged worker distribution require further validation. Building the editor does not build or bundle an inference worker. A worker distribution must include the applicable engine, GGML and linked dependency notices and comply with the selected backend runtime's redistribution requirements. Model weights are supplied separately by the user.

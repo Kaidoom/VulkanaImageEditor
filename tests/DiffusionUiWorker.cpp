@@ -11,7 +11,11 @@
 #include <QTextStream>
 #include <QTimer>
 #include <cstdio>
+#ifdef Q_OS_WIN
+#include <windows.h>
+#else
 #include <unistd.h>
+#endif
 int main(int argc, char** argv)
 {
     QCoreApplication app(argc, argv);
@@ -42,7 +46,14 @@ int main(int argc, char** argv)
         { "devices", QJsonArray { QJsonObject { { "id", "CPU" }, { "name", "Test CPU" } } } },
         { "samplers", QJsonArray { "euler" } }, { "schedulers", QJsonArray { "discrete" } } });
     QByteArray input;
+#ifdef Q_OS_WIN
+    // Windows anonymous pipes cannot be monitored by QSocketNotifier.
+    QTimer notifier;
+    notifier.setInterval(5);
+    notifier.start();
+#else
     QSocketNotifier notifier(STDIN_FILENO, QSocketNotifier::Read);
+#endif
     QTimer job;
     job.setSingleShot(true);
     QString active;
@@ -93,9 +104,24 @@ int main(int argc, char** argv)
                 { "timings", QJsonObject { { "totalMs", 180 } } } });
         stateEvent();
     });
+#ifdef Q_OS_WIN
+    QObject::connect(&notifier, &QTimer::timeout, &app, [&] {
+#else
     QObject::connect(&notifier, &QSocketNotifier::activated, &app, [&] {
+#endif
         char bytes[65536];
+#ifdef Q_OS_WIN
+        const auto pipe = GetStdHandle(STD_INPUT_HANDLE);
+        DWORD available = 0, count = 0;
+        if (!PeekNamedPipe(pipe, nullptr, 0, nullptr, &available, nullptr)) {
+            app.quit();
+            return;
+        }
+        if (!available) return;
+        const auto size = ReadFile(pipe, bytes, sizeof(bytes), &count, nullptr) ? int(count) : -1;
+#else
         const auto size = ::read(STDIN_FILENO, bytes, sizeof(bytes));
+#endif
         if (size <= 0) {
             app.quit();
             return;

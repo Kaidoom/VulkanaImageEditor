@@ -79,11 +79,16 @@ core::AffineTransform coreTransform(const QTransform &m) {
 }
 QString discoverWorker(const QString &backend) {
   const auto find = [](const QString &name) {
+#ifdef Q_OS_WIN
+    const auto executableName = name + QStringLiteral(".exe");
+#else
+    const auto &executableName = name;
+#endif
     const auto adjacent =
-        QDir(QCoreApplication::applicationDirPath()).filePath(name);
+        QDir(QCoreApplication::applicationDirPath()).filePath(executableName);
     return QFileInfo(adjacent).isExecutable()
                ? adjacent
-               : QStandardPaths::findExecutable(name);
+               : QStandardPaths::findExecutable(executableName);
   };
   const auto genericOverride = qEnvironmentVariable("VULKANA_DIFFUSION_WORKER");
   if (!genericOverride.isEmpty())

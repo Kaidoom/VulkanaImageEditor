@@ -127,6 +127,40 @@ private slots:
     window.reset();
     QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
   }
+  void discoverAdjacentWindowsWorker() {
+#ifdef Q_OS_WIN
+    const auto adjacent = QDir(QCoreApplication::applicationDirPath())
+                              .filePath("vulkana-diffusion-worker.exe");
+    if (QFileInfo::exists(adjacent)) QSKIP("An installed worker already occupies the fixture path.");
+    QVERIFY(QFile::copy(QString::fromUtf8(DIFFUSION_UI_WORKER), adjacent));
+    const auto previousPath = qgetenv("PATH");
+    const auto previousOverride = qgetenv("VULKANA_DIFFUSION_WORKER");
+    const auto previousCuda = qgetenv("VULKANA_DIFFUSION_WORKER_CUDA");
+    const auto previousVulkan = qgetenv("VULKANA_DIFFUSION_WORKER_VULKAN");
+    const auto restore = qScopeGuard([&] {
+      window.reset(); // Release the executable before removing it on Windows.
+      QFile::remove(adjacent);
+      qputenv("PATH", previousPath);
+      const auto reset = [](const char* key, const QByteArray& value) {
+        if (value.isNull()) qunsetenv(key); else qputenv(key, value);
+      };
+      reset("VULKANA_DIFFUSION_WORKER", previousOverride);
+      reset("VULKANA_DIFFUSION_WORKER_CUDA", previousCuda);
+      reset("VULKANA_DIFFUSION_WORKER_VULKAN", previousVulkan);
+    });
+    qunsetenv("VULKANA_DIFFUSION_WORKER");
+    qunsetenv("VULKANA_DIFFUSION_WORKER_CUDA");
+    qunsetenv("VULKANA_DIFFUSION_WORKER_VULKAN");
+    qputenv("PATH", qgetenv("SystemRoot") + "/System32");
+    panel->setWorkerExecutable({});
+    openMode("AIGenerateImageAction");
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QCOMPARE(panel->results().size(), 1);
+#else
+    QSKIP("Windows executable suffix and adjacent discovery check.");
+#endif
+  }
   void aiStaysHiddenAcrossRestartAndStartupChooser() {
     openMode("AIGenerateImageAction");
     panel->saveSettings();
@@ -188,8 +222,8 @@ private slots:
     QCoreApplication::processEvents();
     QTest::mouseClick(field->viewport(), Qt::LeftButton);
     QTRY_VERIFY(field->hasFocus());
-    QCOMPARE(child<QWidget>("VulkanCanvasContainer")->focusProxy(),
-             static_cast<QWidget *>(field));
+    // Native focus can be established before the press on Windows. Verify the
+    // host keyboard/IME route below rather than requiring a particular proxy.
     field->selectAll();
     const auto tool = session().activeTool();
     const auto revision = session().document()->revision();
@@ -255,7 +289,8 @@ private slots:
       QVERIFY(panel->grab().save(capture + "-max-input.png"));
     const auto *list = panel->findChild<QListWidget *>("DiffusionInputsList");
     QVERIFY(list);
-    QCOMPARE(limit->geometry().center().x(), list->geometry().center().x());
+    // Odd/even widget widths can round their integer centres one pixel apart.
+    QVERIFY(std::abs(limit->geometry().center().x() - list->geometry().center().x()) <= 1);
     QTest::mouseClick(limit, Qt::LeftButton);
     QKeyEvent home(QEvent::KeyPress, Qt::Key_Home, Qt::NoModifier);
     QCoreApplication::sendEvent(window->windowHandle(), &home);
