@@ -172,11 +172,29 @@ void scalarHealingContext()
     CHECK(identity.begin(point())); CHECK(identity.end(point(), history) == RasterEditCommitResult::NoChanges);
     CHECK(bytes(*target) == before); CHECK(history.redoDepth() == 1);
 }
+void renderedColourRetouchRespectsChannelPacking()
+{
+    Document doc({.extent={8,8}}); History history;
+    auto packed=Layer::raster("Packed",std::make_shared<ContiguousRasterSurface>(Extent2u{8,8},Rgba8{20,100,220,255}));
+    const auto group=packed.id; CHECK(doc.insertLayer(0,packed));
+    CHECK(history.execute(doc,convertToChannelGroup(doc,{{group},group,group})));
+    auto target=Layer::raster("Colour retouch",std::make_shared<ContiguousRasterSurface>(Extent2u{8,8}));
+    const auto id=target.id; CHECK(doc.insertLayer(doc.layers().size(),target));
+    for(bool deferred:{false,true}) {
+        std::string diagnostic;
+        auto reference=CloneReference::capture(doc,id,id,CloneSampleSource::AllVisible,diagnostic,
+            CloneReference::defaultSnapshotLimit,true,{}, {},deferred);
+        CHECK(reference); if(!reference)continue;
+        auto ready=reference->prepared();
+        CHECK(encodeColor(ready.sample({4.5,4.5}))==(Rgba8{20,100,220,255}));
+        CHECK(encodeColor(ready.sampleDestination({4.5,4.5}))==(Rgba8{20,100,220,255}));
+    }
+}
 }
 
 int main()
 {
-    try { samplingAndFrozenStorage(); rejectionAndMemoryBudget(); stampAndHealingCoverage(); scalarHealingContext(); }
+    try { samplingAndFrozenStorage(); rejectionAndMemoryBudget(); stampAndHealingCoverage(); scalarHealingContext(); renderedColourRetouchRespectsChannelPacking(); }
     catch (const std::exception& e) { CHECK(false); std::cerr << e.what() << '\n'; }
     return failures ? EXIT_FAILURE : EXIT_SUCCESS;
 }

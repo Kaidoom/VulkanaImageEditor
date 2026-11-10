@@ -1,4 +1,5 @@
 #include "imageeditor/core/ChannelGroups.hpp"
+#include "imageeditor/core/SpatialFilterCache.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -28,6 +29,15 @@ const LayerContainer* channelGroupForLayer(const Document& document, LayerId id)
     const auto* parent = placement ? document.tree().container(placement->parent) : nullptr;
     return parent && parent->kind == ContainerKind::ChannelGroup ? parent : nullptr;
 }
+bool numericLayerPropertiesSupported(const Layer& layer, RasterDataKind kind) noexcept
+{
+    if (kind == RasterDataKind::Color) return true;
+    if (kind == RasterDataKind::PackedData) return neutralDataProperties(layer);
+    return kind == RasterDataKind::Scalar && layer.opacity == 1 && layer.fillOpacity == 1
+        && layer.blendMode == BlendMode::Normal && !layer.mask && !layer.crop
+        && !hasActiveLayerEffects(layer.effects) && scalarAdjustmentsSupported(layer.adjustments)
+        && scalarFiltersSupported(layer.filters);
+}
 bool validChannelStructure(const LayerTree& tree, std::span<const Layer> layers) noexcept
 {
     const auto find = [&](LayerId id) -> const Layer* {
@@ -35,7 +45,8 @@ bool validChannelStructure(const LayerTree& tree, std::span<const Layer> layers)
         return it == layers.end() ? nullptr : &*it;
     };
     for (const auto& layer : layers)
-        if (isScalarLayer(layer) && !neutralDataProperties(layer)) return false;
+        if (const auto* surface = pixels(layer); surface && !numericLayerPropertiesSupported(layer, surface->dataKind()))
+            return false;
     for (const auto& group : tree.containers) if (group.kind == ContainerKind::ChannelGroup) {
         const auto* first = find(group.channelRoles[0]);
         if (!first || !isScalarLayer(*first) || !first->visible) return false;
@@ -117,8 +128,9 @@ std::shared_ptr<ContiguousRasterSurface> packChannelGroup(const Document& docume
     std::vector<std::byte> rgba(std::size_t(extent.width) * extent.height * 4);
     std::vector<std::byte> row(extent.width);
     for (std::size_t role = 0; role < 4; ++role) {
+        const auto source=group->channelRoles[role]?prepareScalarLayerPixels(*document.layer(group->channelRoles[role])):nullptr;
         for (std::uint32_t y = 0; y < extent.height; ++y) {
-            if (group->channelRoles[role]) pixels(*document.layer(group->channelRoles[role]))->copyNative(
+            if (source) source->copyNative(
                 {0, int(y), int(extent.width), 1}, row, row.size());
             else std::fill(row.begin(), row.end(), std::byte{255});
             for (std::uint32_t x = 0; x < extent.width; ++x)

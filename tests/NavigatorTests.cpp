@@ -5,6 +5,7 @@
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include <QApplication>
 #include <QElapsedTimer>
 #include <QMouseEvent>
@@ -75,6 +76,43 @@ void previewEvaluation()
     if(output)CHECK(output->extent()==c::Extent2u{64,32});
     preview.setEnabled(false);const auto hidden=preview.completedRenders();preview.request(doc.snapshot());
     QTest::qWait(100);CHECK(preview.completedRenders()==hidden && !output);
+}
+
+void channelPreviewCapture()
+{
+    c::Document doc({{32,24},96}); auto layer = raster({32,24},{20,100,220,128}); const auto id=layer.id;
+    CHECK(doc.insertLayer(0,std::move(layer)));
+    const auto render = [&](u::PixelPreview::Purpose purpose, const char* label) {
+        u::PixelPreview preview(nullptr,purpose); std::shared_ptr<const c::RasterSurface> output; QString error;
+        preview.onReady=[&](auto pixels,QString message){output=std::move(pixels);error=std::move(message);};
+        preview.setDocumentInstance(99); preview.setEnabled(true); preview.request(doc.snapshot());
+        CHECK(wait([&]{return !preview.busy();}));
+        std::cout<<label<<" 32x24: "<<(output?"rendered":error.toStdString())<<'\n';
+        CHECK(output && error.isEmpty());
+        if(output)CHECK(output->extent()==c::Extent2u{32,24});
+        return output;
+    };
+    const auto ordinaryNavigator=render(u::PixelPreview::Purpose::Navigator,"ordinary navigator");
+    const auto ordinaryPixels=render(u::PixelPreview::Purpose::NativePixels,"ordinary native pixels");
+    CHECK(c::convertToChannelGroup(doc,{{id},id,id})->apply(doc));
+    const auto channelNavigator=render(u::PixelPreview::Purpose::Navigator,"channel navigator");
+    const auto channelPixels=render(u::PixelPreview::Purpose::NativePixels,"channel native pixels");
+    const auto equal=[&](const auto& a,const auto& b){
+        if(!a||!b)return;
+        std::vector<std::byte> av(32*24*4),bv(av.size());
+        a->copyRgba8({0,0,32,24},av,32*4);b->copyRgba8({0,0,32,24},bv,32*4);CHECK(av==bv);
+    };
+    equal(ordinaryNavigator,channelNavigator);equal(ordinaryPixels,channelPixels);
+    // Timeline captures use this same native compositor directly. Their frozen
+    // result must stay independent when a canonical channel changes later.
+    const auto timeline=u::flattenDocument(doc);CHECK(timeline);
+    const auto red=doc.tree().container(id)->channelRoles[0];
+    const std::byte replacement{77};const c::RasterPatch patch{{4,4,1,1},{&replacement,1},1};
+    (void)std::get<c::RasterLayer>(doc.layer(red)->payload).surface->replaceNativeBatch(std::span(&patch,1));
+    if(timeline)CHECK(timeline.image.pixelColor(4,4)==QColor(20,100,220,128));
+    equal(ordinaryNavigator,channelNavigator);equal(ordinaryPixels,channelPixels);
+    const c::ItemVisibilityUpdate hidden{id,true,false};CHECK(doc.setItemVisibilities(std::span(&hidden,1)));
+    (void)render(u::PixelPreview::Purpose::Navigator,"hidden channel navigator");
 }
 void widgetMapping()
 {
@@ -264,6 +302,7 @@ int main(int argc,char** argv)
     QSettings::setPath(QSettings::IniFormat,QSettings::UserScope,config.path());
     app.setOrganizationName("NavigatorTest");app.setApplicationName("NavigatorTest");QStandardPaths::setTestModeEnabled(true);
     u::i18n::Localization::instance().initialize();u::applyEditorTheme(app);
+    if(app.arguments().contains("--channel-preview")){channelPreviewCapture();return failures?1:0;}
     QVulkanInstance vk;QVulkanInstance* instance=nullptr;
     if(app.arguments().contains("--native")){
         vk.setApiVersion(QVersionNumber(1,3));vk.setLayers({"VK_LAYER_KHRONOS_validation"});
@@ -271,7 +310,7 @@ int main(int argc,char** argv)
         vk.installDebugOutputFilter([](VkDebugReportFlagsEXT flags,VkDebugReportObjectTypeEXT,uint64_t,size_t,int32_t,const char*,const char* text){
             if(flags&(VK_DEBUG_REPORT_ERROR_BIT_EXT|VK_DEBUG_REPORT_WARNING_BIT_EXT)){++validationMessages;std::cerr<<text<<'\n';}return false;});
     }
-    previewEvaluation();widgetMapping();editorIntegration(instance,qEnvironmentVariable("VULKANA_NAVIGATOR_SCREENSHOT"));
+    previewEvaluation();channelPreviewCapture();widgetMapping();editorIntegration(instance,qEnvironmentVariable("VULKANA_NAVIGATOR_SCREENSHOT"));
     if(app.arguments().contains("--benchmark"))benchmark();
     CHECK(validationMessages==0);
     std::cout<<"Navigator failures "<<failures<<" validation messages "<<validationMessages<<'\n';return failures?1:0;

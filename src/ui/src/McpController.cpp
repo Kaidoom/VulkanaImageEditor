@@ -47,7 +47,7 @@ void validateChannelOperation(const core::Document& doc, const QString& name, co
         "vulkana_layers_repeat", "vulkana_layer_set_visibility"}.contains(name);
     const bool scalarStyle = QStringList {"vulkana_layer_mask", "vulkana_layer_set_opacity",
         "vulkana_layer_set_fill_opacity", "vulkana_layer_set_blend_mode", "vulkana_layers_style"}.contains(name)
-        || name.startsWith("vulkana_effect_") || name.startsWith("vulkana_adjustment_") || name.startsWith("vulkana_filter_");
+        || name.startsWith("vulkana_effect_");
     for (const auto target : targets) {
         const auto* container = doc.tree().container(target);
         if (container && container->kind == core::ContainerKind::ChannelGroup) {
@@ -66,9 +66,27 @@ void validateChannelOperation(const core::Document& doc, const QString& name, co
             require(!core::channelGroupForLayer(doc, target),
                 "Channel identities and their pixel grid stay together. Target the complete Channel Group for this operation.");
         const auto* layer = doc.layer(target);
+        if (layer && core::isPackedDataLayer(*layer)) {
+            const bool editsPixelsOrStyle = scalarStyle || name.startsWith("vulkana_adjustment_")
+                || name.startsWith("vulkana_filter_") || name == "vulkana_brush_stroke"
+                || name == "vulkana_brush_strokes" || name == "vulkana_fill";
+            require(!editsPixelsOrStyle,
+                "Convert this packed-data raster to a Channel Group in the editor before editing numeric channel values.");
+        }
         if (!layer || !core::isScalarLayer(*layer)) continue;
         require(!scalarStyle,
             "This operation is unavailable on numeric channel layers. Paint scalar values or use a compatible numeric operation instead.");
+        if (name.startsWith("vulkana_adjustment_"))
+            require((name == "vulkana_adjustment_set" || name == "vulkana_adjustment_remove")
+                    && QStringList {"levels", "curves", "invert"}.contains(args["type"].toString()),
+                "Numeric channels support Levels and Curves on the master/value channel, plus Invert. Colour adjustments are unavailable.");
+        if (name.startsWith("vulkana_filter_")) {
+            require((name == "vulkana_filter_set" || name == "vulkana_filter_remove")
+                    && args["type"] == "gaussian-blur",
+                "Numeric channels currently support gaussian-blur only.");
+            require(!args.contains("preserveAlpha") || args["preserveAlpha"].toBool(),
+                "Numeric channels do not have pixel transparency. Omit preserveAlpha; the channel values themselves are filtered.");
+        }
         require(name != "vulkana_brush_strokes",
             "Batched strokes are not available on numeric channels yet. Use vulkana_brush_stroke for individual undoable scalar strokes.");
         require(name != "vulkana_selection_from_alpha",

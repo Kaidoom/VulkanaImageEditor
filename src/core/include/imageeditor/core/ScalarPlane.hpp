@@ -5,6 +5,7 @@
 
 #include <memory>
 #include <optional>
+#include <unordered_set>
 
 namespace imageeditor::core {
 
@@ -29,6 +30,8 @@ public:
     [[nodiscard]] std::optional<std::uint8_t> constantValue(RectI) const;
     [[nodiscard]] std::size_t allocatedPixelBytes() const noexcept;
     [[nodiscard]] std::size_t memoryCost() const noexcept;
+    // Account shared immutable allocations once across a set of live planes.
+    [[nodiscard]] std::size_t memoryCost(std::unordered_set<const void*>& allocations) const;
     [[nodiscard]] std::size_t sharedPixelBytes(const ScalarPlane&) const noexcept;
 
 private:

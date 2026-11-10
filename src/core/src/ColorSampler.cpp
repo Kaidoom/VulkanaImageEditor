@@ -25,6 +25,14 @@ LinearColor displayScalar(LinearColor value)
     const auto gray=numericDisplay(value[0]/value[3])*value[3];
     return {gray,gray,gray,value[3]};
 }
+LinearColor adjustSample(const CompiledAdjustmentStack& stack,LinearColor value,Vec2d local,
+    bool scalar,std::size_t stopBefore=adjustmentCount)
+{
+    if(!scalar)return evaluateAdjustments(stack,value,local,stopBefore);
+    if(value[3]<=0)return {};
+    const auto adjusted=evaluateScalarAdjustments(stack,value[0]/value[3],local,stopBefore)*value[3];
+    return {adjusted,adjusted,adjusted,value[3]};
+}
 LinearColor packedChannels(const std::array<LinearColor,4>& values,bool alpha)
 {
     float coverage=1;
@@ -100,11 +108,11 @@ LinearColor sampleRaster(const AffineTransform& inverse, const RasterSurface& su
 }
 
 LinearColor sampleLayer(const Layer& layer, const RasterSurface& surface,
-    Vec2d point, std::size_t& texelsRead)
+    Vec2d point, std::size_t& texelsRead,bool numericScalar=false)
 {
     const auto inverse = renderTransform(layer).inverted();
     const bool spatial=layer.blendMode==BlendMode::Dissolve || hasDissolveLayerEffects(layer.effects);
-    return inverse ? sampleRaster(*inverse, surface, point, texelsRead,SampleFiltering::AlphaAware,spatial) : LinearColor {};
+    return inverse ? sampleRaster(*inverse, surface, point, texelsRead,SampleFiltering::AlphaAware,spatial,numericScalar) : LinearColor {};
 }
 
 Rgba8 encode(LinearColor color)
@@ -144,8 +152,10 @@ PremultipliedColor PreparedLayerSampler::sample(Vec2d point, std::size_t stopBef
         throw std::runtime_error("Layer pixels changed during prepared sampling");
     std::size_t reads = 0;
     const bool spatial=effects_&&(*effects_)[20]!=0;
-    auto color = sampleRaster(inverse_, *surface_, point, reads,SampleFiltering::AlphaAware,spatial,numericScalar_);
-    if(adjustments_)color=evaluateAdjustments(*adjustments_,color,documentToLocal_.map(point),stopBefore);
+    const bool scalar=surface_->dataKind()==RasterDataKind::Scalar;
+    auto color = sampleRaster(inverse_, *surface_, point, reads,SampleFiltering::AlphaAware,spatial,scalar);
+    if(adjustments_)color=adjustSample(*adjustments_,color,documentToLocal_.map(point),scalar,stopBefore);
+    if(scalar&&!numericScalar_)color=displayScalar(color);
     const float coverage=layerMaskCoverage(mask_,documentToLocal_.map(point));
     if(effects_) {
         const float crop=applyLayerCrop({1,1,1,1},crop_,documentToLocal_,point)[3];
@@ -361,8 +371,10 @@ PremultipliedColor PinnedDocumentSampler::sampleComposition(Vec2d point, std::sp
         if(!samples.empty())return samples[it->second];
         const auto& s=sources_[it->second];std::size_t reads=0;
         if(s.adjustment)return {};
-        auto c=sampleRaster(s.inverse,*s.surface,point,reads,filtering_,s.spatialBlend());
-        if(s.adjustments)c=evaluateAdjustments(*s.adjustments,c,s.documentToLocal.map(point));
+        const bool scalar=s.surface->dataKind()==RasterDataKind::Scalar;
+        auto c=sampleRaster(s.inverse,*s.surface,point,reads,filtering_,s.spatialBlend(),scalar);
+        if(s.adjustments)c=adjustSample(*s.adjustments,c,s.documentToLocal.map(point),scalar);
+        if(scalar)c=displayScalar(c);
         return c;
     };
     const auto leaf=[&](LayerId id,PremultipliedColor backdrop,bool contentOnly,const PremultipliedColor* replacement) {
@@ -392,6 +404,7 @@ PremultipliedColor PinnedDocumentSampler::sampleComposition(Vec2d point, std::sp
             if(found==sourceById_.end())return backdrop;
             const auto& s=sources_[found->second];std::size_t reads=0;
             channels[i]=sampleRaster(s.inverse,*s.surface,point,reads,filtering_,false,true);
+            if(s.adjustments)channels[i]=adjustSample(*s.adjustments,channels[i],s.documentToLocal.map(point),true);
         }
         return compositeLayer(backdrop,packedChannels(channels,node.channelRoles[3]!=0),1,BlendMode::Normal,
             {},defaultBlendSeed,false,snapshot_.canvas.compositingSpace);
@@ -484,7 +497,7 @@ void PinnedDocumentSampler::sampleRow(std::int32_t x, std::int32_t y, std::span<
                     const auto value=float(std::to_integer<std::uint8_t>(v[0]))/255;
                     c=scalar?LinearColor{value,value,value,1}:decodeColor({std::to_integer<std::uint8_t>(v[0]),std::to_integer<std::uint8_t>(v[1]),std::to_integer<std::uint8_t>(v[2]),std::to_integer<std::uint8_t>(v[3])});}
                 else {std::size_t reads=0;c=sampleRaster(s.inverse,*s.surface,p,reads,filtering_,s.spatialBlend(),scalar);}
-                if(s.adjustments)c=evaluateAdjustments(*s.adjustments,c,s.documentToLocal.map(p));
+                if(s.adjustments)c=adjustSample(*s.adjustments,c,s.documentToLocal.map(p),scalar);
                 rows[si*output.size()+std::size_t(i)]=c;
             }
         }
@@ -569,6 +582,7 @@ void PinnedDocumentSampler::sampleRow(std::int32_t x, std::int32_t y, std::span<
     if(scratch.size()<output.size()*4) {owned.resize(output.size()*4);scratch=owned;}
     for (const auto& s : sources_) {
         const auto e=s.surface->extent();
+        const bool scalar=s.surface->dataKind()==RasterDataKind::Scalar;
         const auto r=s.effects&&s.effectCache?s.effectCache->visualBounds:RectD{0,0,double(e.width),double(e.height)};
         const auto& admission=s.effects?s.documentToLocal:s.inverse;
         const auto [begin,end]=rowRange(admission,r);
@@ -590,10 +604,12 @@ void PinnedDocumentSampler::sampleRow(std::int32_t x, std::int32_t y, std::span<
             PremultipliedColor c;
             if (aligned) {
                 const auto* v=scratch.data()+std::size_t(i-b)*4;
-                c=decodeColor({std::to_integer<std::uint8_t>(v[0]),std::to_integer<std::uint8_t>(v[1]),
+                const auto value=float(std::to_integer<std::uint8_t>(v[0]))/255;
+                c=scalar?LinearColor{value,value,value,1}:decodeColor({std::to_integer<std::uint8_t>(v[0]),std::to_integer<std::uint8_t>(v[1]),
                     std::to_integer<std::uint8_t>(v[2]),std::to_integer<std::uint8_t>(v[3])});
-            } else { std::size_t reads=0; c=sampleRaster(s.inverse,*s.surface,p,reads,filtering_,s.spatialBlend()); }
-            if (s.adjustments) c=evaluateAdjustments(*s.adjustments,c,s.documentToLocal.map(p));
+            } else { std::size_t reads=0; c=sampleRaster(s.inverse,*s.surface,p,reads,filtering_,s.spatialBlend(),scalar); }
+            if (s.adjustments) c=adjustSample(*s.adjustments,c,s.documentToLocal.map(p),scalar);
+            if(scalar)c=displayScalar(c);
             if(s.effects){
                 const float crop=applyLayerCrop({1,1,1,1},s.crop,s.documentToLocal,p)[3];
                 const float mask=layerMaskCoverage(s.mask,s.documentToLocal.map(p));
@@ -623,8 +639,10 @@ PremultipliedColor PinnedDocumentSampler::sampleLinear(Vec2d point) const
     if(composition_)return sampleComposition(point);
     LinearColor merged{}; std::size_t reads=0;
     for (const auto& s:sources_) {
-        auto c=sampleRaster(s.inverse,*s.surface,point,reads,filtering_,s.spatialBlend());
-        if (s.adjustments) c=evaluateAdjustments(*s.adjustments,c,s.documentToLocal.map(point));
+        const bool scalar=s.surface->dataKind()==RasterDataKind::Scalar;
+        auto c=sampleRaster(s.inverse,*s.surface,point,reads,filtering_,s.spatialBlend(),scalar);
+        if (s.adjustments) c=adjustSample(*s.adjustments,c,s.documentToLocal.map(point),scalar);
+        if(scalar)c=displayScalar(c);
         if(s.effects){
             const float crop=applyLayerCrop({1,1,1,1},s.crop,s.documentToLocal,point)[3];
             const float mask=layerMaskCoverage(s.mask,s.documentToLocal.map(point));
@@ -755,11 +773,13 @@ ColorSample sampleDocumentColor(const Document& document,
             result.status = ColorSampleStatus::UnsupportedLayer;
             return result;
         }
-        auto color = sampleLayer(layer, *surface, point, result.texelsRead);
+        const bool scalar=surface->dataKind()==RasterDataKind::Scalar;
+        auto color = sampleLayer(layer, *surface, point, result.texelsRead,scalar);
         if (const auto compiled=layerSpatialFilterCacheValid(layer)?nullptr:preparedAdjustments(layer.adjustments)) {
             if (const auto local=layer.localToDocument.inverted())
-                color=evaluateAdjustments(*compiled,color,local->map(point));
+                color=adjustSample(*compiled,color,local->map(point),scalar);
         }
+        if(scalar)color=displayScalar(color);
         const auto inverse=layer.localToDocument.inverted();
         const auto sourceInverse=renderTransform(layer).inverted();
         if(!inverse||!sourceInverse)continue;

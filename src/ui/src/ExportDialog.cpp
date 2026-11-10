@@ -835,11 +835,11 @@ ExportDialog::ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* pa
     d.updateDimensions();
     d.updatePath();
     if (d.draft.preserveData) {
-        title->setText(QStringLiteral("Export channel data"));
+        i18n::setText(title, i18n::text("channels.export.title"));
         d.format->setEnabled(false);
         d.width->setEnabled(false); d.height->setEnabled(false); d.scale->setEnabled(false); d.aspect->setEnabled(false);
         d.pngFlatten->setEnabled(false); d.pngColor->setEnabled(false);
-        d.dimensionsHint->setText(QStringLiteral("Native pixel values · PNG · no colour conversion"));
+        i18n::setText(d.dimensionsHint, i18n::text("channels.export.hint"));
     }
 }
 

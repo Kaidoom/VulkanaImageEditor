@@ -8,6 +8,7 @@ namespace imageeditor::core {
 [[nodiscard]] bool isScalarLayer(const Layer&) noexcept;
 [[nodiscard]] bool isPackedDataLayer(const Layer&) noexcept;
 [[nodiscard]] const LayerContainer* channelGroupForLayer(const Document&, LayerId) noexcept;
+[[nodiscard]] bool numericLayerPropertiesSupported(const Layer&, RasterDataKind) noexcept;
 [[nodiscard]] bool validChannelStructure(const LayerTree&, std::span<const Layer>) noexcept;
 [[nodiscard]] bool channelTransformsCompatible(const Document&, std::span<const LayerTransformUpdate>) noexcept;
 [[nodiscard]] bool canConvertToChannelGroup(const Document&, LayerId, std::string* reason = nullptr);

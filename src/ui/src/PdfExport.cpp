@@ -1,4 +1,6 @@
 #include "imageeditor/ui/PdfExport.hpp"
+#include "imageeditor/core/ScalarRasterSurface.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/core/RichText.hpp"
 #include "imageeditor/ui/QtTextLayoutService.hpp"
@@ -26,6 +28,7 @@
 #include <qpdf/QPDFWriter.hh>
 #include <set>
 #include <stdexcept>
+#include <unordered_set>
 
 namespace imageeditor::ui {
 namespace {
@@ -132,6 +135,7 @@ core::Document pageDocument(const PdfExportSnapshot &snapshot,
   // Retain structural clipping, including hidden bases (as hidden leaves).
   // A filtered-out base must never promote one of its upper members.
   auto tree=snapshot.document->tree();
+  std::set<core::LayerId> hiddenChannelGroups;
   for(const auto& source:snapshot.document->layers())if(!contains(ids,source.id)) {
     bool requiredBase=false;
     for(const auto& c:tree.containers)if(c.kind==core::ContainerKind::ClippingMaskGroup && !c.children.empty()
@@ -139,10 +143,24 @@ core::Document pageDocument(const PdfExportSnapshot &snapshot,
       for(auto id:ids)if(tree.isAncestor(c.id,id))requiredBase=true;
     const auto* adjustment=std::get_if<core::AdjustmentLayer>(&source.payload);
     const bool scopeBoundary=adjustment && adjustment->scope==core::AdjustmentScope::ThisGroup;
-    if(requiredBase || scopeBoundary) {auto hidden=source;hidden.visible=false;require(result.insertLayer(result.layers().size(),std::move(hidden)),"Invalid hidden composition member");}
+    if(requiredBase || scopeBoundary) {
+      auto hidden=source;
+      if(const auto* group=core::channelGroupForLayer(*snapshot.document,source.id)) {
+        // Channel visibility belongs to the packed container, never its slots.
+        hidden.visible=true;hiddenChannelGroups.insert(group->id);
+      } else hidden.visible=false;
+      require(result.insertLayer(result.layers().size(),std::move(hidden)),"Invalid hidden composition member");
+    }
     else if(auto p=tree.placement(source.id))std::erase(*tree.children(p->parent),source.id);
   }
-  for(auto& c:tree.containers)c.visible=true;
+  std::vector<core::LayerId> unusedChannels;
+  for(const auto& c:tree.containers)
+    if(c.kind==core::ContainerKind::ChannelGroup && c.children.empty())unusedChannels.push_back(c.id);
+  for(const auto id:unusedChannels) {
+    if(const auto p=tree.placement(id))std::erase(*tree.children(p->parent),id);
+    std::erase_if(tree.containers,[&](const auto& c){return c.id==id;});
+  }
+  for(auto& c:tree.containers)c.visible=!hiddenChannelGroups.contains(c.id);
   if(result.tree()!=tree)require(result.replaceStructure(result.tree(),std::move(tree)),"Invalid PDF clipping hierarchy");
   return result;
 }
@@ -486,6 +504,7 @@ PdfExportSnapshot capturePdfExport(const core::Document &document,
   require(document.layers().size() <= 1024,
           "PDF export exceeds the 1024-layer limit");
   std::map<core::SurfaceId, std::shared_ptr<core::RasterSurface>> frozen;
+  std::unordered_set<const void*> scalarAllocations;
   std::uint64_t metadata = 0;
   for (const auto &layer : document.layers()) {
     metadata += sizeof(layer) + layer.name.size();
@@ -496,8 +515,12 @@ PdfExportSnapshot capturePdfExport(const core::Document &document,
     if (const auto *raster = std::get_if<core::RasterLayer>(&layer.payload)) {
       require(bool(raster->surface), "PDF source has missing raster data");
       if (frozen.emplace(raster->surface->id(), nullptr).second) {
-        const auto size = raster->surface->extent();
-        result.sourceBytes += std::uint64_t(size.width) * size.height * 4;
+        if(const auto* scalar=dynamic_cast<const core::ScalarRasterSurface*>(raster->surface.get()))
+          result.sourceBytes += scalar->memoryCost(scalarAllocations);
+        else {
+          const auto size = raster->surface->extent();
+          result.sourceBytes += std::uint64_t(size.width) * size.height * 4;
+        }
       }
     }
   }
@@ -520,13 +543,16 @@ PdfExportSnapshot capturePdfExport(const core::Document &document,
     if (auto *raster = std::get_if<core::RasterLayer>(&layer->payload)) {
       auto &pixels = frozen.at(raster->surface->id());
       if (!pixels) {
-        const auto extent = raster->surface->extent();
-        const auto stride = std::size_t(extent.width) * 4;
-        std::vector<std::byte> bytes(stride * extent.height);
-        raster->surface->copyRgba8(
-            {0, 0, int(extent.width), int(extent.height)}, bytes, stride);
-        pixels = std::make_shared<core::ContiguousRasterSurface>(
-            extent, std::move(bytes));
+        if(const auto* scalar=dynamic_cast<const core::ScalarRasterSurface*>(raster->surface.get()))pixels=scalar->clone();
+        else {
+          const auto extent = raster->surface->extent();
+          const auto stride = std::size_t(extent.width) * 4;
+          std::vector<std::byte> bytes(stride * extent.height);
+          raster->surface->copyRgba8(
+              {0, 0, int(extent.width), int(extent.height)}, bytes, stride);
+          pixels = std::make_shared<core::ContiguousRasterSurface>(
+              extent, std::move(bytes), raster->surface->dataKind());
+        }
       }
       raster->surface = pixels;
     }

@@ -6,6 +6,7 @@
 #include "imageeditor/core/SpatialFilterCache.hpp"
 #include "imageeditor/core/ColorMath.hpp"
 #include "imageeditor/core/ScalarRasterSurface.hpp"
+#include "imageeditor/core/CompositionPlan.hpp"
 
 #include <limits>
 #include <stdexcept>
@@ -93,7 +94,7 @@ public:
             }
             if (source->revision() != revision)
                 throw std::runtime_error("Clone reference changed during capture. Start the stroke again.");
-            entry->second = std::make_shared<ContiguousRasterSurface>(extent, std::move(pixels));
+            entry->second = std::make_shared<ContiguousRasterSurface>(extent, std::move(pixels), source->dataKind());
             bytes_ += byteCount;
             }
         }
@@ -158,6 +159,7 @@ struct CloneReference::Impl {
     std::shared_ptr<const RasterSurface> rawSurface;
     AffineTransform rawToDocument;
     std::vector<Layer> pendingRenderedLayers;
+    std::optional<LayerTree> channelTree;
     std::size_t pendingBelowCount {0};
     bool pendingSource {false}, pendingDestination {false};
     bool numericValues {false};
@@ -186,6 +188,9 @@ std::optional<CloneReference> CloneReference::capture(const Document& document, 
             || !validGeometry(*target))
             throw std::invalid_argument("Cloning requires a raster destination with a valid transform.");
         const auto* source = mode == CloneSampleSource::SourceLayer ? document.layer(sourceId) : nullptr;
+        if (intrinsicSurface(*target)->dataKind() == RasterDataKind::PackedData
+            || (source && intrinsicSurface(*source) && intrinsicSurface(*source)->dataKind() == RasterDataKind::PackedData))
+            throw std::invalid_argument("Convert the packed raster to a Channel Group to retouch numeric values.");
         const bool scalarTarget = targetSurface->dataKind() == RasterDataKind::Scalar;
         const bool scalarSource = source && intrinsicSurface(*source)
             && intrinsicSurface(*source)->dataKind() == RasterDataKind::Scalar;
@@ -201,6 +206,7 @@ std::optional<CloneReference> CloneReference::capture(const Document& document, 
         result->canvas = document.canvas().extent;
         result->compositingSpace = document.canvas().compositingSpace;
         result->numericValues = scalarTarget;
+        if (hasChannelGroups(document.tree())) result->channelTree = document.tree();
         FrozenLayers frozen(limitBytes, std::move(cancelled), prepared);
         const bool rawContext = mode == CloneSampleSource::SourceLayer && sourceId == targetId;
         if (source) {
@@ -286,14 +292,15 @@ std::optional<CloneReference> CloneReference::capture(const Document& document, 
                 result->renderedSource.emplace(mode == CloneSampleSource::CurrentAndBelow
                         ? below
                         : std::span<const Layer* const>(pointers),
-                    extent,AffineTransform{},Vec2d{},nullptr,std::span<const LayerId>{},result->compositingSpace);
+                    extent,AffineTransform{},Vec2d{},result->channelTree ? &*result->channelTree : nullptr,std::span<const LayerId>{},result->compositingSpace);
                 result->sourceCount = result->renderedSource->sourceCount();
             }
             if (needRenderedContext)
-                result->renderedDestination.emplace(below, extent,AffineTransform{},Vec2d{},nullptr,std::span<const LayerId>{},result->compositingSpace);
+                result->renderedDestination.emplace(below, extent,AffineTransform{},Vec2d{},result->channelTree ? &*result->channelTree : nullptr,std::span<const LayerId>{},result->compositingSpace);
             }
         }
-        result->bytes = frozen.bytes();
+        result->bytes = frozen.bytes() + (result->channelTree ? result->channelTree->memoryCost() : 0);
+        if (result->bytes > limitBytes) throw std::length_error("Clone reference exceeds its snapshot memory limit.");
         if (document.revision() != documentRevision
             || std::any_of(revisions.begin(), revisions.end(),
                 [](const auto& entry) { return entry.first->revision() != entry.second; }))
@@ -334,8 +341,7 @@ CloneReference CloneReference::prepared(const std::function<bool()>& cancelled, 
             result->bytes+=retained;
         }
         if (layer.filterCache && layer.filterCache->surface) {
-            const auto e = layer.filterCache->surface->extent();
-            const auto retained = std::size_t(e.width) * std::size_t(e.height) * 4;
+            const auto retained = layer.filterCache->surface->allocatedPixelBytes();
             if (retained > byteBudget - result->bytes) throw std::length_error("Spot Heal rendered reference exceeds the processing budget.");
             result->bytes += retained;
         }
@@ -345,8 +351,8 @@ CloneReference CloneReference::prepared(const std::function<bool()>& cancelled, 
     const auto below = std::span<const Layer* const>(pointers.data(), result->pendingBelowCount);
     if (result->pendingSource)
         result->renderedSource.emplace(result->mode == CloneSampleSource::CurrentAndBelow
-            ? below : std::span<const Layer* const>(pointers), result->canvas,AffineTransform{},Vec2d{},nullptr,std::span<const LayerId>{},result->compositingSpace);
-    if (result->pendingDestination) result->renderedDestination.emplace(below, result->canvas,AffineTransform{},Vec2d{},nullptr,std::span<const LayerId>{},result->compositingSpace);
+            ? below : std::span<const Layer* const>(pointers), result->canvas,AffineTransform{},Vec2d{},result->channelTree ? &*result->channelTree : nullptr,std::span<const LayerId>{},result->compositingSpace);
+    if (result->pendingDestination) result->renderedDestination.emplace(below, result->canvas,AffineTransform{},Vec2d{},result->channelTree ? &*result->channelTree : nullptr,std::span<const LayerId>{},result->compositingSpace);
     result->pendingSource = result->pendingDestination = false;
     result->pendingRenderedLayers.clear();
     return CloneReference(std::move(result));

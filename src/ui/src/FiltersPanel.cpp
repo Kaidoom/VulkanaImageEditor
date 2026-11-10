@@ -1,6 +1,7 @@
 #include "imageeditor/ui/LocalizedNames.hpp"
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/FiltersPanel.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include <algorithm>
 #include "imageeditor/ui/CompactValueControl.hpp"
 #include <QApplication>
@@ -17,6 +18,7 @@
 #include <QSignalBlocker>
 #include <QShowEvent>
 #include <QStackedWidget>
+#include <QStandardItemModel>
 #include <QVBoxLayout>
 
 namespace imageeditor::ui {
@@ -176,7 +178,7 @@ void FiltersPanel::number(Page& page,const char* name,const i18n::Message& label
 }
 core::LayerSpatialFilter& FiltersPanel::item(Type type){return working_.items[slot(type)];}
 Type FiltersPanel::currentType() const{return Type(navigation_->currentData().toUInt());}
-void FiltersPanel::selectType(Type type){navigation_->setCurrentIndex(int(type));}
+void FiltersPanel::selectType(Type type){if(!scalarValues_ || type==Type::Gaussian)navigation_->setCurrentIndex(int(type));}
 void FiltersPanel::setEmbedded()
 {
     // The owning Adjustments workspace supplies one shared target/action header.
@@ -192,6 +194,7 @@ void FiltersPanel::resetAll()
 }
 bool FiltersPanel::begin(Type type)
 {
+    if (scalarValues_ && type != Type::Gaussian) return false;
     if(updating_||finishing_||!target_)return false;
     if(editing_&&editingType_==type)return true;
     if(editing_)finishEditing();
@@ -225,19 +228,32 @@ void FiltersPanel::finishEditing(bool commit)
 }
 void FiltersPanel::setTarget(const core::Layer* layer,bool hasSelection)
 {
+    if (layer && core::isPackedDataLayer(*layer)) layer = nullptr;
+    const bool scalar = layer && core::isScalarLayer(*layer);
+    const bool leavingScalar = scalarValues_ && !scalar;
+    if (scalar && !scalarValues_) savedType_ = navigation_->currentIndex();
     const auto next=layer?std::optional(layer->id):std::nullopt;
     if(next!=target_){finishEditing(false);if(onComparison)onComparison(false);}
     target_=next;hasSelection_=hasSelection;
+    scalarValues_ = scalar;
     working_=layer&&layer->filters?*layer->filters:core::SpatialFilterStack{};
     i18n::setText(targetLabel_, layer?i18n::text("filters.panel.1.primary.layer").arg(QString::fromStdString(layer->name)):i18n::text("filters.panel.select.a.raster.text.or.shape.layer"));
     navigation_->setEnabled(layer);stack_->setEnabled(layer);compare_->setEnabled(layer);refresh();
+    auto* model = qobject_cast<QStandardItemModel*>(navigation_->model());
+    for (int i = 0; i < navigation_->count(); ++i)
+        if (model && model->item(i)) model->item(i)->setEnabled(!scalar || i == int(Type::Gaussian));
+    if (scalar) navigation_->setCurrentIndex(int(Type::Gaussian));
+    else if (leavingScalar) navigation_->setCurrentIndex(savedType_);
 }
 void FiltersPanel::refresh()
 {
     const QScopedValueRollback guard(updating_,true);
     for(std::size_t i=0;i<pages_.size();++i) {
         auto& page=pages_[i];const auto& filter=working_.items[i];
-        page.enabled->setEnabled(target_.has_value());
+        const bool supported = !scalarValues_ || i == std::size_t(Type::Gaussian);
+        page.enabled->setEnabled(target_.has_value() && supported);
+        page.widget->setEnabled(supported);
+        page.preserveAlpha->setVisible(!scalarValues_);
         page.enabled->setChecked(filter.enabled);page.preserveAlpha->setChecked(filter.preserveAlpha);
         page.scope->setCurrentIndex(filter.mask?1:0);page.capture->setEnabled(target_&&hasSelection_);
         i18n::setText(page.maskStatus, filter.mask?(filter.mask->coverage->bounds().empty()?i18n::text("filters.panel.captured.empty.mask.no.affected.pixels"):i18n::text("filters.panel.captured.mask.follows.this.layer")):QString{});

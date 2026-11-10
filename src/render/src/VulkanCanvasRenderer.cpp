@@ -850,7 +850,7 @@ void VulkanCanvasRenderer::synchronizeTextures(VkCommandBuffer commandBuffer, co
     for (const auto &layer : scene.document.layersBottomToTop) {
         if(scene.channelInspectionId && layer.id!=*scene.channelInspectionId
             && !scene.document.tree.isAncestor(*scene.channelInspectionId,layer.id))continue;
-        if (!layer.visible) {
+        if (!layer.visible && !scene.channelInspectionId) {
             continue;
         }
         const core::RasterLayerSnapshot raster{scene.filterBypassLayer == layer.id ||

@@ -67,6 +67,8 @@ private:
     core::SpatialFilterType editingType_ {core::SpatialFilterType::Gaussian};
     bool updating_ {}, editing_ {}, finishing_ {}, autoEnabled_ {}, hasSelection_ {};
     bool linked_ {true}, showCaptured_ {true}; // UI state, not layer content.
+    bool scalarValues_ {false};
+    int savedType_ {0};
     QLabel* targetLabel_ {};
     QComboBox* navigation_ {};
     QStackedWidget* stack_ {};

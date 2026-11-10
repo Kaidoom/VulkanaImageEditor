@@ -1,4 +1,5 @@
 #include "imageeditor/ui/ColorPanel.hpp"
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/ColorPicker.hpp"
 #include "imageeditor/ui/ColorSelector.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
@@ -39,8 +40,8 @@ ColorPanel::ColorPanel(QWidget* parent) : QWidget(parent)
     scalarValue_ = new CompactValueControl(scalarControls_);
     scalarValue_->setObjectName(QStringLiteral("ScalarChannelValue"));
     scalarValue_->setDecimals(0); scalarValue_->setRange(0, 255);
-    scalarValue_->setPrefix(QStringLiteral("Value: "));
-    scalarValue_->setToolTip(QStringLiteral("Stored channel value. Black is 0; white is 255."));
+    i18n::setPrefix(scalarValue_, i18n::text("channels.value.prefix"));
+    i18n::setToolTip(scalarValue_, i18n::text("channels.value.hint"));
     scalarLayout->addWidget(scalarValue_);
     content->addWidget(scalarControls_);
     scalarControls_->hide();

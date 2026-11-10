@@ -62,6 +62,8 @@ bool LocalBlurStroke::capture()
     const auto* layer = document_.layer(target_);
     const auto surface = std::get<RasterLayer>(layer->payload).surface;
     const auto extent = surface->extent();
+    if (surface->dataKind() == RasterDataKind::PackedData)
+        throw std::invalid_argument("Convert the packed raster to a Channel Group to blur numeric values.");
     if (surface->dataKind() == RasterDataKind::Scalar) {
         const auto scalar = std::dynamic_pointer_cast<ScalarRasterSurface>(surface);
         if (!scalar || scalar->memoryCost() > snapshotLimit)

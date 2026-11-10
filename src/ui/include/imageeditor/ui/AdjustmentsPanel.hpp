@@ -115,6 +115,9 @@ private:
     std::optional<core::LayerId> target_;
     std::array<Page, core::adjustmentCount> pages_;
     bool updating_ {false}, editing_ {false}, hasSelection_ {false}, finishing_ {false};
+    bool scalarValues_ {false};
+    int savedLevelsChannel_ {0}, savedCurvesChannel_ {0}, savedCategory_ {0};
+    std::array<int,3> savedNavigation_ {};
     core::AdjustmentType editingType_ {core::AdjustmentType::Exposure};
     QLabel* targetLabel_ {nullptr};
     QPushButton* resetAll_ {nullptr};
@@ -137,6 +140,8 @@ private:
     AdjustmentCurveEditor* curve_ {nullptr};
     AdjustmentCurveEditor* levelsHistogram_ {nullptr};
     std::array<QLabel*,2> histogramLabels_ {};
+    QLabel* levelsExplanation_ {};
+    QLabel* invertExplanation_ {};
     std::array<std::optional<HistogramCache>,2> histogramCaches_;
     std::optional<HistogramJob> histogramJob_;
     QTimer* histogramTimer_ {nullptr};

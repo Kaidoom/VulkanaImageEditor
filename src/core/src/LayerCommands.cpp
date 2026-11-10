@@ -31,12 +31,7 @@ std::size_t retainedLayerCost(const Layer& layer) noexcept
             if (!payload.surface) {
                 return;
             }
-            const auto extent = payload.surface->extent();
-            const auto pixels = static_cast<std::size_t>(extent.width)
-                * static_cast<std::size_t>(extent.height);
-            const auto maximum = std::numeric_limits<std::size_t>::max();
-            const auto bytes = pixels > maximum / 4U ? maximum : pixels * 4U;
-            result = saturatingAdd(result, bytes);
+            result = saturatingAdd(result, payload.surface->memoryCost());
         } else if constexpr (std::is_same_v<Payload, TextLayer>) {
             result = saturatingAdd(result, textMemoryCost(payload));
         } else if constexpr (std::is_same_v<Payload, ShapeLayer>) {

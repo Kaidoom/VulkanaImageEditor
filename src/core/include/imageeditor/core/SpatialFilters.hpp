@@ -50,6 +50,7 @@ using SpatialFilterState = std::shared_ptr<const SpatialFilterStack>;
 [[nodiscard]] std::optional<SpatialFilterType> spatialFilterFromIdentifier(std::string_view) noexcept;
 [[nodiscard]] LayerSpatialFilter defaultSpatialFilter(SpatialFilterType);
 [[nodiscard]] bool validSpatialFilters(const SpatialFilterStack&, std::string* reason = nullptr);
+[[nodiscard]] bool scalarFiltersSupported(const SpatialFilterState&) noexcept;
 [[nodiscard]] bool equivalentSpatialFilters(const SpatialFilterState&, const SpatialFilterState&) noexcept;
 [[nodiscard]] bool spatialFilterIsNeutral(const LayerSpatialFilter&) noexcept;
 [[nodiscard]] bool hasActiveSpatialFilters(const SpatialFilterState&) noexcept;

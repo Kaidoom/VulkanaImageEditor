@@ -20,6 +20,7 @@
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/core/LayerStructureCommands.hpp"
 #include "imageeditor/core/SpatialFilterCache.hpp"
+#include "imageeditor/core/ScalarRasterSurface.hpp"
 #include <QAction>
 #include <QApplication>
 #include <QFileInfo>
@@ -558,7 +559,13 @@ MainWindow::DocumentMemory MainWindow::documentMemory() const
     std::unordered_set<core::SurfaceId> sources, derived;
     std::unordered_set<const core::SelectionMask*> masks;
     std::unordered_set<const core::SnapshotImage*> snapshots;
-    const auto bytes=[](const auto& s){return s ? std::uint64_t(s->extent().width)*s->extent().height*4 : 0;};
+    std::unordered_set<const void*> scalarAllocations;
+    const auto bytes=[&](const auto& s) -> std::uint64_t {
+        if (!s) return 0;
+        if (const auto* scalar = dynamic_cast<const core::ScalarRasterSurface*>(s.get()))
+            return scalar->memoryCost(scalarAllocations);
+        return s->memoryCost();
+    };
     for(const auto& context:documents_) {
         result.historyBytes+=context->session.history().memoryUsed();
         for (const auto& frame : context->session.document()->snapshotTimeline().frames)

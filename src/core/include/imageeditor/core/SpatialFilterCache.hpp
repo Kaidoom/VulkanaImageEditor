@@ -56,4 +56,9 @@ bool publishLayerSpatialFilters(Document&, LayerId, std::shared_ptr<const LayerS
 // valid published cache already exists, this is just a shallow metadata copy.
 [[nodiscard]] Layer prepareSpatialFilterLayer(const Layer&, const FilterPreparationOptions& = {});
 [[nodiscard]] LayerSnapshot prepareSpatialFilterLayer(const LayerSnapshot&, const FilterPreparationOptions& = {});
+// Immutable evaluated numeric pixels on the original scalar grid. Applies
+// supported adjustments then Gaussian, quantizing only the final R8 output.
+// Unchanged inputs share frozen tiles; valid derived filter caches are reused.
+[[nodiscard]] std::shared_ptr<const RasterSurface> prepareScalarLayerPixels(
+    const Layer&, const FilterPreparationOptions& = {});
 } // namespace imageeditor::core

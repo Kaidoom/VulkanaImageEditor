@@ -21,6 +21,8 @@ FillOperation::FillOperation(Document& document, LayerId layer, FillOptions opti
         const auto inverse = mapping_.inverted();
         if (!surface_ || !inverse || !std::isfinite(options.opacity))
             throw std::invalid_argument("Fill target has invalid geometry or opacity");
+        if (surface_->dataKind() == RasterDataKind::PackedData)
+            throw std::invalid_argument("Convert the packed raster to a Channel Group to edit numeric values.");
         // Opaque grayscale adapter samples make seed-relative RegionFinder
         // matching the exact numeric byte distance, including zero values.
         if (surface_->dataKind() == RasterDataKind::Scalar) options_.coverageValues = true;

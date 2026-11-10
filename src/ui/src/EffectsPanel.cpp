@@ -391,6 +391,8 @@ void EffectsPanel::setProcessing(bool busy, double progress,
   footer_->setCurrentIndex(busy || !message.isEmpty() ? 1 : 0);
 }
 void EffectsPanel::setTarget(const core::Layer *l) {
+  if (l) if (const auto* raster = std::get_if<core::RasterLayer>(&l->payload);
+      raster && raster->surface && raster->surface->dataKind() != core::RasterDataKind::Color) l = nullptr;
   const auto next = l ? std::optional(l->id) : std::nullopt;
   if (next != target_) {
     finishEditing(false);

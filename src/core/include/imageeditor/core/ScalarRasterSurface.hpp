@@ -17,6 +17,7 @@ public:
     [[nodiscard]] std::size_t nativeBytesPerPixel() const noexcept override { return 1; }
     [[nodiscard]] std::size_t allocatedPixelBytes() const noexcept override { return state_->allocatedPixelBytes(); }
     [[nodiscard]] std::size_t memoryCost() const noexcept override;
+    [[nodiscard]] std::size_t memoryCost(std::unordered_set<const void*>& allocations) const;
     [[nodiscard]] ScalarPlaneState snapshot() const noexcept { return state_; }
     [[nodiscard]] std::shared_ptr<ScalarRasterSurface> clone() const;
     [[nodiscard]] DirtySet dirtySince(Revision uploadedRevision) const override;

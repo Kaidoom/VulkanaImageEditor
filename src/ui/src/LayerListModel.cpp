@@ -301,9 +301,9 @@ QVariant LayerListModel::data(const QModelIndex& index, int role) const
     }
     case Qt::ToolTipRole:
         if (c && c->kind == core::ContainerKind::ChannelGroup)
-            return QStringLiteral("Packed channel data. Select a channel to inspect and edit its numeric values.");
+            return i18n::text("channels.group.hint");
         if (l && core::isScalarLayer(*l))
-            return QStringLiteral("Numeric channel: 0–255. Rename the label without changing its channel identity.");
+            return i18n::text("channels.layer.hint");
         if(c&&c->kind==core::ContainerKind::ClippingMaskGroup)return i18n::text("layer.list.model.clipping.mask.group.bottommost.child.is.the.base.reorder");
         if(l&&l->mask)return i18n::text("layer.list.model.content.thumbnail.edit.layer.mask.thumbnail.edit.coverage.white");
         if (c)

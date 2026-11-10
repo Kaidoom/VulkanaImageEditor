@@ -92,7 +92,7 @@ BasicPixelBrushStroke::BasicPixelBrushStroke(Document& document, LayerId layerId
         return;
     }
     auto& raster = std::get<RasterLayer>(layer->payload);
-    if (!raster.surface) {
+    if (!raster.surface || raster.surface->dataKind() == RasterDataKind::PackedData) {
         return;
     }
     surface_ = raster.surface;

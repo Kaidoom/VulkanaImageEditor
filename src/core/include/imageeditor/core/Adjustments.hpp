@@ -103,6 +103,9 @@ struct AdjustmentStack {
 using AdjustmentState = std::shared_ptr<const AdjustmentStack>;
 [[nodiscard]] Adjustment defaultAdjustment(AdjustmentType);
 [[nodiscard]] bool validAdjustments(const AdjustmentStack&, std::string* reason = nullptr);
+// Numeric planes admit only Value/Master Levels, Curves and Invert. Individual
+// colour channels and colour-only stages must not silently affect scalar data.
+[[nodiscard]] bool scalarAdjustmentsSupported(const AdjustmentState&) noexcept;
 [[nodiscard]] bool equivalentAdjustments(const AdjustmentState&, const AdjustmentState&) noexcept;
 [[nodiscard]] bool adjustmentIsNeutral(const Adjustment&) noexcept;
 [[nodiscard]] std::size_t adjustmentMemoryCost(const AdjustmentState&) noexcept;
@@ -126,6 +129,8 @@ struct CompiledAdjustmentStack {
 // stopBefore is the stable stage index for Levels/Curves input histograms.
 [[nodiscard]] PremultipliedColor evaluateAdjustments(const CompiledAdjustmentStack&,
     PremultipliedColor, Vec2d localPoint, std::size_t stopBefore = adjustmentCount) noexcept;
+[[nodiscard]] float evaluateScalarAdjustments(const CompiledAdjustmentStack&, float value,
+    Vec2d localPoint, std::size_t stopBefore = adjustmentCount) noexcept;
 [[nodiscard]] float evaluateCurve(const CurveChannel&, float input);
 
 } // namespace imageeditor::core

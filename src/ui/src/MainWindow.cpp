@@ -718,6 +718,9 @@ MainWindow::MainWindow(
         cancelActiveBrushStroke();
     };
     canvasWindow_->onColorSampleRequested = [this](core::Vec2d position) {
+        if (session().document() && session().activeLayer())
+            if (const auto* layer = session().document()->layer(*session().activeLayer()); layer && core::isScalarLayer(*layer))
+                return core::ColorSample {.status = core::ColorSampleStatus::UnsupportedLayer};
         return session().document()
             ? core::sampleDocumentColor(*session().document(), session().activeLayer(),
                 position, session().colorSampleSource()) : core::ColorSample {};
@@ -4738,7 +4741,7 @@ void MainWindow::updateLayerControls()
     if (session().document() && session().activeLayer()) {
         active = session().document()->layer(*session().activeLayer());
     }
-    const bool scalar = active && core::isScalarLayer(*active);
+    const bool scalar = active && (core::isScalarLayer(*active) || core::isPackedDataLayer(*active));
     opacitySlider_->setEnabled(active != nullptr && !scalar);
     if (!publishingOpacity_ || !opacitySlider_->isManualEntryActive())
         opacitySlider_->setValue(active ? static_cast<int>(std::lround((pixelOpacityMode_?active->fillOpacity:active->opacity) * 100.0F)) : 100);

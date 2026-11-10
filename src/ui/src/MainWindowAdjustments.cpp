@@ -6,6 +6,7 @@
 #include "imageeditor/ui/TextController.hpp"
 #include "imageeditor/ui/PixelPreview.hpp"
 #include "imageeditor/core/LayerStructureCommands.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include <QScopedValueRollback>
 #include <QStatusBar>
@@ -71,9 +72,14 @@ void MainWindow::createAdjustmentsPanel()
                 ? adjustmentsPanel_->target() : std::nullopt, adjustmentsPanel_->currentType());
     };
 }
-bool MainWindow::beginAdjustmentEdit(core::AdjustmentType)
+bool MainWindow::beginAdjustmentEdit(core::AdjustmentType type)
 {
     if(fileBusy_||!session().document()||!session().activeLayer())return false;
+    if (const auto* target = session().document()->layer(*session().activeLayer())) {
+        if (core::isPackedDataLayer(*target)) return false;
+        if (core::isScalarLayer(*target) && type != core::AdjustmentType::Levels
+            && type != core::AdjustmentType::Curves && type != core::AdjustmentType::Invert) return false;
+    }
     if(adjustmentEdit_)return adjustmentEdit_->active()&&adjustmentEdit_->target()==*session().activeLayer();
     // Never mutate history beneath an explicit transform/text/stroke session.
     // Completed transforms are applied using their normal command boundary;

@@ -1,3 +1,4 @@
+#include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/ui/PsdExport.hpp"
 #include "PsdNativeRecords.hpp"
 #include "PsdTextEngine.hpp"
@@ -344,6 +345,9 @@ void addMask(Record &r, const core::Layer &l, QIODevice &spool,
 } // namespace
 PsdExportSnapshot capturePsdExport(const core::Document &d, std::uint64_t id,
                                    PsdExportLimits limits) {
+  require(std::ranges::none_of(d.layers(), [](const auto& layer) {
+            return core::isScalarLayer(layer) || core::isPackedDataLayer(layer);
+          }), "PSD cannot preserve Channel Groups or numeric raster data. Save a Vulkana project or export channel data as PNG.");
   PsdExportSnapshot s;
   s.instanceId = id;
   s.revision = d.revision();

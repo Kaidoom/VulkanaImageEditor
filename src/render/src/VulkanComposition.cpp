@@ -161,7 +161,7 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
     };
     for (const auto& layer : layers) {
         if(!inspected(layer.id))continue;
-        if (!layer.visible || !std::isfinite(layer.opacity) || layer.opacity <= 0) continue;
+        if ((!layer.visible&&!scene.channelInspectionId) || !std::isfinite(layer.opacity) || layer.opacity <= 0) continue;
         if(std::holds_alternative<core::AdjustmentLayer>(layer.payload)) {
             const auto adjustmentOffset=appendAdjustmentParameters(layer,scene.adjustmentBypassLayer==layer.id,adjustmentParameters);
             if(adjustmentOffset<0 || clip.empty())continue;

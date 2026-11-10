@@ -5,6 +5,7 @@
 #include "imageeditor/ui/CompactValueControl.hpp"
 #include "imageeditor/ui/FiltersPanel.hpp"
 #include "imageeditor/ui/Theme.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include <QApplication>
 #include <QCheckBox>
 #include "imageeditor/ui/ColorDialog.hpp"
@@ -20,6 +21,7 @@
 #include <QSignalBlocker>
 #include <QShowEvent>
 #include <QStackedWidget>
+#include <QStandardItemModel>
 #include <QTabWidget>
 #include <QTabBar>
 #include <QTimer>
@@ -32,6 +34,7 @@ namespace imageeditor::ui {
 namespace {
 using Type = core::AdjustmentType;
 constexpr std::size_t index(Type type) { return static_cast<std::size_t>(type); }
+bool scalarType(Type type) { return type == Type::Levels || type == Type::Curves || type == Type::Invert; }
 i18n::Message displayName(Type type) { return i18n::adjustmentName(type); }
 QLabel* explanation(QVBoxLayout* layout, const i18n::Message& text)
 {
@@ -151,7 +154,7 @@ AdjustmentsPanel::AdjustmentsPanel(QWidget* parent) : QWidget(parent)
     levelNumber("AdjustmentLevelsInputWhite", i18n::text("adjustments.panel.input.white"), &core::LevelsChannel::inputWhite);
     levelNumber("AdjustmentLevelsOutputBlack", i18n::text("adjustments.panel.output.black"), &core::LevelsChannel::outputBlack);
     levelNumber("AdjustmentLevelsOutputWhite", i18n::text("adjustments.panel.output.white"), &core::LevelsChannel::outputWhite);
-    explanation(levels.layout, i18n::text("adjustments.panel.composite.is.evaluated.first.then.r.g.b.input"));
+    levelsExplanation_ = explanation(levels.layout, i18n::text("adjustments.panel.composite.is.evaluated.first.then.r.g.b.input"));
 
     auto& curves=pages_[index(Type::Curves)];
     curvesChannel_=choices(curves,"AdjustmentCurvesChannel",channels,[this](int){refresh();updateHistogramDisplay();});
@@ -234,7 +237,7 @@ AdjustmentsPanel::AdjustmentsPanel(QWidget* parent) : QWidget(parent)
     connect(tint_,&QPushButton::clicked,this,&AdjustmentsPanel::chooseTint);
     number(mono, "AdjustmentMonoTintStrength", i18n::text("adjustments.panel.tint.strength"), 0, 100, 0, [this]{return std::get<core::BlackWhiteParameters>(item(Type::BlackWhite).parameters).tintStrength*100;}, [this](double v){std::get<core::BlackWhiteParameters>(item(Type::BlackWhite).parameters).tintStrength=v/100;}, QStringLiteral("%"));
     explanation(mono.layout, i18n::text("adjustments.panel.hue.weighted.luminance.offsets.preserve.neutral.gray.stability.tint"));
-    explanation(pages_[index(Type::Invert)].layout, i18n::text("adjustments.panel.invert.unassociated.srgb.color.channels.while.keeping.alpha.unchanged"));
+    invertExplanation_ = explanation(pages_[index(Type::Invert)].layout, i18n::text("adjustments.panel.invert.unassociated.srgb.color.channels.while.keeping.alpha.unchanged"));
 
     for(auto& page:pages_)page.layout->addStretch(1);
     filtersPanel_=new FiltersPanel;
@@ -345,6 +348,7 @@ QComboBox* AdjustmentsPanel::choices(Page& page,const char* name,const QList<i18
 }
 bool AdjustmentsPanel::begin(Type type)
 {
+    if (scalarValues_ && !scalarType(type)) return false;
     if(updating_||finishing_||!target_)return false;
     if(editing_&&editingType_==type)return true;
     if(editing_)finishEditing();
@@ -383,10 +387,20 @@ void AdjustmentsPanel::finishEditing(bool commit)
 }
 void AdjustmentsPanel::setTarget(const core::Layer* layer,bool hasSelection,const core::Document* document,std::uint64_t instance)
 {
+    const bool scalar = layer && core::isScalarLayer(*layer);
+    const bool packed = layer && core::isPackedDataLayer(*layer);
+    const int previousCategory = tabs_->currentIndex();
+    const bool leavingScalar = scalarValues_ && !scalar;
+    if (scalar && !scalarValues_) {
+        savedLevelsChannel_ = levelsChannel_->currentIndex(); savedCurvesChannel_ = curvesChannel_->currentIndex();
+        savedCategory_ = tabs_->currentIndex();
+        for (std::size_t i = 0; i < navigation_.size(); ++i) savedNavigation_[i] = navigation_[i]->currentIndex();
+    }
     const auto next=layer?std::optional(layer->id):std::nullopt;
     if(target_!=next || document_!=document || documentInstance_!=instance){finishEditing(false);if(onComparison)onComparison(false);histogramJob_.reset();histogramTimer_->stop();histogramCaches_={};}
     document_=document;documentInstance_=instance;
     target_=next;hasSelection_=hasSelection;
+    scalarValues_ = scalar;
     working_=layer&&layer->adjustments?*layer->adjustments:core::AdjustmentStack{};
     i18n::setText(targetLabel_, layer?i18n::text("adjustments.panel.1.primary.layer").arg(QString::fromStdString(layer->name)):i18n::text("adjustments.panel.select.a.raster.text.or.shape.layer"));
     targetLabel_->setToolTip(layer?QString::fromStdString(layer->name):QString());
@@ -396,17 +410,50 @@ void AdjustmentsPanel::setTarget(const core::Layer* layer,bool hasSelection,cons
     if(adjustment)i18n::setText(scopeLabel_, adjustment->scope==core::AdjustmentScope::ThisGroup&&placement&&placement->parent
         ?i18n::text("adjustments.panel.this.group.lower.content.including.nested.groups.this.group")
         :i18n::text("adjustments.panel.all.below.accumulated.content.in.the.current.compositing.domain"));
-    filtersPanel_->setTarget(adjustment?nullptr:layer,hasSelection);
-    effectsPanel_->setTarget(adjustment?nullptr:layer);
-    tabs_->setTabEnabled(3,!adjustment);tabs_->setTabEnabled(4,!adjustment);
+    filtersPanel_->setTarget(adjustment || packed ? nullptr : layer,hasSelection);
+    effectsPanel_->setTarget(adjustment || scalar || packed ? nullptr : layer);
+    tabs_->setTabEnabled(1, !scalar); tabs_->setTabEnabled(3,!adjustment && !packed);tabs_->setTabEnabled(4,!adjustment && !scalar && !packed);
+    for (auto* box : navigation_) {
+        auto* model = qobject_cast<QStandardItemModel*>(box->model());
+        for (int i = 0; i < box->count(); ++i)
+            if (model && model->item(i)) model->item(i)->setEnabled(!scalar || scalarType(Type(box->itemData(i).toInt())));
+    }
+    for (auto* box : {levelsChannel_, curvesChannel_}) {
+        const QSignalBlocker guard(box);
+        box->setItemText(0, i18n::text(scalar ? "channels.value" : "adjustments.panel.composite.rgb"));
+        auto* model = qobject_cast<QStandardItemModel*>(box->model());
+        for (int i = 1; i < box->count(); ++i) if (model && model->item(i)) model->item(i)->setEnabled(!scalar);
+        if (scalar) box->setCurrentIndex(0);
+        else if (leavingScalar) box->setCurrentIndex(box == levelsChannel_ ? savedLevelsChannel_ : savedCurvesChannel_);
+    }
+    if (scalar) {
+        if (!scalarType(Type(navigation_[0]->currentData().toInt()))) navigation_[0]->setCurrentIndex(2);
+        if (!scalarType(Type(navigation_[2]->currentData().toInt()))) navigation_[2]->setCurrentIndex(1);
+        if (previousCategory == 1 || previousCategory == 4) tabs_->setCurrentIndex(0);
+    } else if (leavingScalar) {
+        for (std::size_t i = 0; i < navigation_.size(); ++i) navigation_[i]->setCurrentIndex(savedNavigation_[i]);
+        if (tabs_->isTabEnabled(savedCategory_)) tabs_->setCurrentIndex(savedCategory_);
+    }
+    i18n::setText(levelsExplanation_, scalar ? i18n::text("channels.levels.hint")
+        : i18n::text("adjustments.panel.composite.is.evaluated.first.then.r.g.b.input"));
+    i18n::setText(invertExplanation_, scalar ? i18n::text("channels.invert.hint")
+        : i18n::text("adjustments.panel.invert.unassociated.srgb.color.channels.while.keeping.alpha.unchanged"));
     if(adjustment && tabs_->currentIndex()>2)tabs_->setCurrentIndex(0);
-    tabs_->setEnabled(layer);resetAll_->setEnabled(layer);compare_->setEnabled(layer);refreshCategoryHints();refresh();
+    tabs_->setEnabled(layer && !packed);resetAll_->setEnabled(layer && !packed);compare_->setEnabled(layer && !packed);
+    if (packed) i18n::setText(targetLabel_, i18n::text("channels.convert.to.edit"));
+    refreshCategoryHints();refresh();
 }
 void AdjustmentsPanel::refreshCategoryHints()
 {
     const auto hint = !tabs_->isEnabled() ? i18n::text("adjustments.panel.select.a.raster.text.or.shape.layer")
         : !tabs_->isTabEnabled(3) ? i18n::text("adjustments.panel.operator.no.filters.effects") : i18n::Message{};
-    for (int tab : {3, 4}) tabs_->setTabToolTip(tab, hint);
+    for (int tab : {3, 4}) tabs_->setTabToolTip(tab,
+        scalarValues_ && tab == 4 ? i18n::text("channels.effects.unavailable") : hint);
+    tabs_->setTabToolTip(1, scalarValues_ ? i18n::text("channels.color.adjustments.unavailable") : i18n::Message{});
+    for (auto* box : {levelsChannel_, curvesChannel_}) if (box) {
+        const QSignalBlocker block(box);
+        box->setItemText(0, i18n::text(scalarValues_ ? "channels.value" : "adjustments.panel.composite.rgb"));
+    }
 }
 Type AdjustmentsPanel::currentType() const
 {
@@ -418,6 +465,8 @@ void AdjustmentsPanel::refresh()
     const QScopedValueRollback guard(updating_,true);
     for(std::size_t i=0;i<pages_.size();++i){
         auto& page=pages_[i];const auto& adjustment=working_.items[i];
+        const bool supported = !scalarValues_ || scalarType(Type(i));
+        page.widget->setEnabled(supported); page.enabled->setEnabled(target_.has_value() && supported);
         page.enabled->setChecked(adjustment.enabled);page.scope->setCurrentIndex(adjustment.mask?1:0);
         page.capture->setEnabled(target_&&hasSelection_);
         i18n::setText(page.maskStatus, adjustment.mask

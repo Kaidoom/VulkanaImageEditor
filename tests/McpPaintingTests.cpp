@@ -1,6 +1,7 @@
 #include "imageeditor/ui/McpController.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/FlattenedDocument.hpp"
+#include "imageeditor/ui/ImageExport.hpp"
 #include "imageeditor/core/ColorSampler.hpp"
 #include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/core/LayerMask.hpp"
@@ -145,6 +146,46 @@ void scalarChannelSafety()
         CHECK(output.constScanLine(4)[4 * 4 + 3] == 0);
     }
     unchanged("vulkana_export_image", {{"path", f.files.filePath("invalid.jpg")}, {"format", "jpeg"}});
+    CHECK(f.session().history().execute(f.document(), c::convertChannelGroupToRaster(f.document(), {{group},group,group})));
+    f.target = group;
+    f.call("vulkana_layer_select", {{"layerIds", QJsonArray{QString::number(group)}}});
+    const auto packedBefore = f.controller->state(false);
+    const auto packedError = f.call("vulkana_brush_stroke", f.stroke({point(20,20)}, "#ffffff"), false)["error"].toObject();
+    CHECK(packedError["details"].toObject()["noChanges"] == true);
+    CHECK(packedError["message"].toString().contains("Channel Group"));
+    CHECK(f.controller->state(false) == packedBefore);
+}
+
+void scalarNumericAdjustments()
+{
+    Fixture f; const auto group = f.target;
+    CHECK(f.session().history().execute(f.document(), c::convertToChannelGroup(f.document(), {{group},group,group})));
+    f.target = f.document().tree().container(group)->channelRoles[0];
+    auto fill = f.targetArgs(); fill["color"] = "#404040"; f.call("vulkana_fill", fill);
+    f.call("vulkana_adjustment_set", {{"layerId", QString::number(f.target)}, {"type", "invert"}, {"parameters", QJsonObject{}}});
+    f.call("vulkana_filter_set", {{"layerId", QString::number(f.target)}, {"type", "gaussian-blur"},
+        {"parameters", QJsonObject{{"radiusX", 2}, {"radiusY", 2}}}});
+    u::ExportSettings settings; settings.preserveData = true; settings.dataLayerId = f.target; settings.size = {96,96};
+    const auto output = u::renderExport(f.document(), settings); CHECK(output);
+    if (output) CHECK(output.image.constScanLine(0)[0] == 191);
+    const auto surface = std::dynamic_pointer_cast<c::ScalarRasterSurface>(std::get<c::RasterLayer>(f.document().layer(f.target)->payload).surface);
+    CHECK(surface && surface->snapshot()->at(0,0) == 64);
+    const auto before = f.controller->state(false);
+    const auto reject = [&](const char* tool, QJsonObject args) {
+        const auto error = f.call(tool, args, false)["error"].toObject();
+        CHECK(error["details"].toObject()["noChanges"] == true);
+        CHECK(f.controller->state(false) == before);
+    };
+    reject("vulkana_adjustment_set", {{"layerId", QString::number(f.target)}, {"type", "exposure"}, {"parameters", QJsonObject{{"stops",1}}}});
+    reject("vulkana_filter_set", {{"layerId", QString::number(f.target)}, {"type", "motion-blur"}, {"parameters", QJsonObject{{"distance",2}}}});
+    const QJsonObject identity {{"inputBlack",0}, {"gamma",1}, {"inputWhite",1}, {"outputBlack",0}, {"outputWhite",1}};
+    auto nonValue = identity; nonValue["gamma"] = 2;
+    reject("vulkana_adjustment_set", {{"layerId", QString::number(f.target)}, {"type", "levels"},
+        {"parameters", QJsonObject{{"channels",QJsonArray{identity,nonValue,identity,identity}}}}});
+    const QJsonArray identityCurve {QJsonArray{0,0},QJsonArray{1,1}};
+    const QJsonArray nonValueCurve {QJsonArray{0,1},QJsonArray{1,0}};
+    reject("vulkana_adjustment_set", {{"layerId", QString::number(f.target)}, {"type", "curves"},
+        {"parameters", QJsonObject{{"channels",QJsonArray{identityCurve,identityCurve,nonValueCurve,identityCurve}}}}});
 }
 
 void brushIsUndoableAndValidatesFirst()
@@ -488,6 +529,7 @@ int main(int argc, char** argv)
     fillAndSelections();
     emptyAlphaColorsAndSampling();
     scalarChannelSafety();
+    scalarNumericAdjustments();
     std::cout << "MCP painting/selection failures: " << failures << '\n';
     return failures ? 1 : 0;
 }

@@ -116,6 +116,21 @@ vec4 adjustSource(vec4 source,vec2 sourceLocal)
     }
     return changed?vec4(color*source.a,source.a):source;
 }
+float adjustScalar(float value,vec2 sourceLocal)
+{
+    if(pc.adjustmentOffset<0)return value;
+    vec2 local=vec2(dot(vec3(A_PARAM(2560),A_PARAM(2561),A_PARAM(2562)),vec3(sourceLocal,1)),
+        dot(vec3(A_PARAM(2564),A_PARAM(2565),A_PARAM(2566)),vec3(sourceLocal,1)))
+        /dot(vec3(A_PARAM(2568),A_PARAM(2569),A_PARAM(2570)),vec3(sourceLocal,1));
+    for(int stage=0;stage<10;++stage) {
+        if(A_PARAM(stage*256)==0.0)continue;
+        float coverage=stageCoverage(stage,local);
+        if(coverage<=0.0)continue;
+        float adjusted=aEvaluateScalarStage(value,stage);
+        value=coverage==1.0?adjusted:value+(adjusted-value)*coverage;
+    }
+    return clamp(value,0,1);
+}
 
 vec4 premultipliedTexel(ivec2 p)
 {
@@ -254,7 +269,7 @@ void main()
     if(operation>=8 && operation<=11) {
         precise float value=mix(mix(numericTexel(lo).r,numericTexel(ivec2(hi.x,lo.y)).r,f.x),
             mix(numericTexel(ivec2(lo.x,hi.y)).r,numericTexel(hi).r,f.x),f.y);
-        vec4 packed=loadTarget(0,pixel);packed[operation-8]=value;
+        vec4 packed=loadTarget(0,pixel);packed[operation-8]=adjustScalar(value,local);
         storeTarget(pixel,packed);return;
     }
     if(operation==12) {
@@ -272,6 +287,7 @@ void main()
         // decoding happens afterwards and never changes canonical pixels.
         precise vec4 value=mix(mix(numericTexel(lo),numericTexel(ivec2(hi.x,lo.y)),f.x),
             mix(numericTexel(ivec2(lo.x,hi.y)),numericTexel(hi),f.x),f.y);
+        if(pc.adjustmentOffset>=0)value.rgb=vec3(adjustScalar(value.r,local));
         source=vec4(bDecode(value.r),bDecode(value.g),bDecode(value.b),1)*value.a;
     }
     else if(cropMode==3) {
@@ -295,7 +311,7 @@ void main()
         mix(premultipliedTexel(ivec2(lo.x,hi.y)),premultipliedTexel(hi),f.x),f.y);
     if(operation!=2)source*=edgeCoverage;
     if (source.a <= 0.0&&effectOffset<0&&operation!=1&&operation!=2) return;
-    if(operation!=2)source=adjustSource(source,local);
+    if(operation!=2 && (pc.mode&int(0x80000000u))==0)source=adjustSource(source,local);
     if(operation==2)source.rgb=loadTarget(1,pixel).rgb*source.a;
     float cropCoverage=1;
     if(cropMode==1 || cropMode==2){

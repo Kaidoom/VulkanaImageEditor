@@ -33,8 +33,8 @@ const QList<ShortcutDefinition>& shortcutDefinitions()
         add("RedoAction", i18n::text("editor.shortcuts.redo"), i18n::text("editor.shortcuts.edit"), "Ctrl+Shift+Z", EditorKeys | TextKeys);
         out.last().defaults.append(QKeySequence("Ctrl+Y"));
         add("PasteImageAsLayerAction", i18n::text("editor.shortcuts.paste.image.as.layer"), i18n::text("editor.shortcuts.edit"), "Ctrl+V");
-        add("CopyScalarChannelAction", "Copy channel pixels", i18n::text("editor.shortcuts.edit"), "Ctrl+C");
-        add("CutScalarChannelAction", "Cut channel pixels", i18n::text("editor.shortcuts.edit"), "Ctrl+X");
+        add("CopyScalarChannelAction", i18n::text("channels.action.copy"), i18n::text("editor.shortcuts.edit"), "Ctrl+C");
+        add("CutScalarChannelAction", i18n::text("channels.action.cut"), i18n::text("editor.shortcuts.edit"), "Ctrl+X");
         add("PreferencesAction", i18n::text("editor.shortcuts.preferences"), i18n::text("editor.shortcuts.edit"));
         add("LayerTransformAction", i18n::text("editor.shortcuts.transform.layers.selection"), i18n::text("editor.shortcuts.edit"), "Ctrl+T", EditorKeys | TextKeys);
         add("TransformSelectionAction", i18n::text("editor.shortcuts.transform.selection"), i18n::text("editor.shortcuts.select"), "", EditorKeys);

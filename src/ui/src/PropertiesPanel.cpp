@@ -2,6 +2,7 @@
 #include "imageeditor/ui/PropertiesPanel.hpp"
 
 #include "imageeditor/core/Layer.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/ui/BrushAssetLibrary.hpp"
 #include "imageeditor/ui/BrushComponentPicker.hpp"
 #include "imageeditor/ui/BrushPresetGrid.hpp"
@@ -169,6 +170,7 @@ void PropertiesPanel::setSelectedLayer(const core::Layer* layer,const core::Laye
     std::optional<core::DocumentBounds> bounds)
 {
     layerInfo_->setLayer(layer,container,bounds);
+    shortcutHints_->setScalarTarget(layer && core::isScalarLayer(*layer));
 }
 void PropertiesPanel::setShortcutBindings(const ShortcutBindings& bindings)
 {

@@ -24,7 +24,7 @@ bool Document::setAdjustmentScope(LayerId id, AdjustmentScope scope)
 bool Document::setLayerMask(LayerId id,LayerMaskState state)
 {
     auto* target=layer(id);
-    if (target && isScalarLayer(*target)) return false;
+    if (target && (isScalarLayer(*target) || isPackedDataLayer(*target))) return false;
     if (!target || !validLayerMask(state) || target->mask==state) return false;
     target->mask=std::move(state);
     // A shape mask is part of the effects' immutable geometry input. Release
@@ -179,6 +179,15 @@ bool Document::replaceStructure(const LayerTree& expected, LayerTree replacement
     for (const auto& l : layers_)
         if (std::ranges::find(removed, l.id) == removed.end()) ids.push_back(l.id);
     for (const auto& l : added) {
+        // Retaining a numeric layer identity must not silently replace its
+        // storage interpretation through a generic structural command.
+        if (const auto* old = layer(l.id)) {
+            const auto* before = std::get_if<RasterLayer>(&old->payload);
+            const auto* after = std::get_if<RasterLayer>(&l.payload);
+            if (before && before->surface && before->surface->dataKind() != RasterDataKind::Color
+                && (!after || !after->surface || after->surface->dataKind() != before->surface->dataKind()))
+                return false;
+        }
         if (l.colorLabel > std::uint8_t(ColorLabel::Purple) || !isValidBlendMode(l.blendMode)
             || !std::isfinite(l.fillOpacity) || l.fillOpacity < 0 || l.fillOpacity > 1
             || !validLayerMask(l.mask)
@@ -291,7 +300,7 @@ bool Document::setLayerVisibility(LayerId id, bool visible)
 bool Document::setLayerOpacity(LayerId id, float opacity)
 {
     auto* target = layer(id);
-    if (target && isScalarLayer(*target)) return false;
+    if (target && (isScalarLayer(*target) || isPackedDataLayer(*target))) return false;
     opacity = std::clamp(opacity, 0.0F, 1.0F);
     if (!target || target->opacity == opacity) {
         return false;
@@ -304,7 +313,7 @@ bool Document::setLayerOpacity(LayerId id, float opacity)
 bool Document::setLayerBlendMode(LayerId id, BlendMode mode)
 {
     auto* target = layer(id);
-    if (target && isScalarLayer(*target)) return false;
+    if (target && (isScalarLayer(*target) || isPackedDataLayer(*target))) return false;
     if (!target || !isValidBlendMode(mode) || target->blendMode == mode) return false;
     target->blendMode = mode;
     touch();
@@ -315,7 +324,7 @@ bool Document::setLayerFillOpacity(LayerId id, float opacity)
 {
     auto* target = layer(id);
     if (!target || !std::isfinite(opacity)) return false;
-    if (target && isScalarLayer(*target)) return false;
+    if (target && (isScalarLayer(*target) || isPackedDataLayer(*target))) return false;
     opacity = std::clamp(opacity, 0.0F, 1.0F);
     if (target->fillOpacity == opacity) return false;
     target->fillOpacity = opacity;
@@ -326,7 +335,7 @@ bool Document::setLayerFillOpacity(LayerId id, float opacity)
 bool Document::setLayerAdjustments(LayerId id, AdjustmentState state)
 {
     auto* target = layer(id);
-    if (target && isScalarLayer(*target)) return false;
+    if (target && (isPackedDataLayer(*target) || (isScalarLayer(*target) && !scalarAdjustmentsSupported(state)))) return false;
     if (!target || (state && !validAdjustments(*state))
         || equivalentAdjustments(target->adjustments, state)) return false;
     target->adjustments = std::move(state);
@@ -339,7 +348,7 @@ bool Document::setLayerFilters(LayerId id, SpatialFilterState state)
 {
     auto* target = layer(id);
     if(target && std::holds_alternative<AdjustmentLayer>(target->payload))return false;
-    if (target && isScalarLayer(*target)) return false;
+    if (target && (isPackedDataLayer(*target) || (isScalarLayer(*target) && !scalarFiltersSupported(state)))) return false;
     if (!target || (state && !validSpatialFilters(*state))
         || equivalentSpatialFilters(target->filters, state)) return false;
     target->filters = std::move(state);
@@ -359,7 +368,7 @@ bool Document::setLayerCrop(LayerId id, std::optional<LayerCrop> crop)
 {
     auto* target=layer(id);
     if(target && std::holds_alternative<AdjustmentLayer>(target->payload))return false;
-    if(target && isScalarLayer(*target))return false;
+    if(target && (isScalarLayer(*target) || isPackedDataLayer(*target)))return false;
     if(!target || target->crop==crop || (crop && !validLayerCrop(*crop)))return false;
     target->crop=crop;touch();return true;
 }

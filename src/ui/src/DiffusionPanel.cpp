@@ -1,4 +1,5 @@
 #include "imageeditor/ui/DiffusionPanel.hpp"
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/DiffusionLoras.hpp"
 #include "imageeditor/ui/DiffusionSpatial.hpp"
 #include "imageeditor/diffusion/ModelProfiles.h"
@@ -562,8 +563,7 @@ struct DiffusionPanel::Impl {
       any |= shown;
       const auto baseline = controlValue(source);
       overrideResetButtons[it.key()]->setEnabled(values[it.key()] != baseline);
-      overrideResetButtons[it.key()]->setToolTip(
-          "Reset to configuration default: " + baseline.toVariant().toString());
+      i18n::setToolTip(overrideResetButtons[it.key()], i18n::text("diffusion.override.reset.hint").arg(baseline.toVariant().toString()));
     }
     overridesSection->setVisible(any);
     overridesSection->setEnabled(!busy);
@@ -1311,10 +1311,10 @@ struct DiffusionPanel::Impl {
     }
     for (const auto &key : {QString("vaeTileSize"), QString("vaeTileOverlap")}) {
       widgets[key]->setEnabled(values["vaeTiling"].toBool());
-      widgets[key]->setToolTip("Available when VAE tiling is enabled.");
+      i18n::setToolTip(widgets[key], i18n::text("diffusion.vae.tiling.required"));
     }
     widgets["previewInterval"]->setEnabled(values["preview"].toBool());
-    widgets["previewInterval"]->setToolTip("Available when progress previews are enabled.");
+    i18n::setToolTip(widgets["previewInterval"], i18n::text("diffusion.progress.preview.required"));
   }
   void updateCapabilities(bool defaults) {
     const auto p = profile();

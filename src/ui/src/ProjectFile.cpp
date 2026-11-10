@@ -908,6 +908,8 @@ namespace {
                 const auto entry = files.find(p.path);
                 require(entry != files.end() && entry->second.bytes == size && used.insert(p.path).second,
                     "Missing, duplicate or incorrectly sized raster payload");
+                require(core::numericLayerPropertiesSupported(p.layer, p.dataKind),
+                    "Numeric raster contains unsupported colour, mask or blending properties");
                 // Compact uniform placeholders admit structural validation
                 // before decoding image payloads, without RGBA allocations.
                 if (p.dataKind == core::RasterDataKind::Scalar)

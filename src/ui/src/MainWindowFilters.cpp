@@ -7,6 +7,7 @@
 #include "imageeditor/ui/FlattenedDocument.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/core/SpatialFilterCache.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include <QListView>
 #include <QScopedValueRollback>
@@ -107,9 +108,13 @@ void MainWindow::createFiltersPanel()
     canvasWindow_->onFilterPreparationRequested=[this]{scheduleFilterPreparation();};
 }
 
-bool MainWindow::beginFilterEdit(core::SpatialFilterType)
+bool MainWindow::beginFilterEdit(core::SpatialFilterType type)
 {
     if(fileBusy_||!session().document()||!session().activeLayer())return false;
+    if (const auto* target = session().document()->layer(*session().activeLayer())) {
+        if (core::isPackedDataLayer(*target)) return false;
+        if (core::isScalarLayer(*target) && type != core::SpatialFilterType::Gaussian) return false;
+    }
     if(const auto* l=session().document()->layer(*session().activeLayer());l&&std::holds_alternative<core::AdjustmentLayer>(l->payload))return false;
     if(filterEdit_)return filterEdit_->active()&&filterEdit_->target()==*session().activeLayer();
     if(canvasWindow_->pointerGestureActive()||activeBrushStroke_||activeCloneStroke_||cloneProcessing_

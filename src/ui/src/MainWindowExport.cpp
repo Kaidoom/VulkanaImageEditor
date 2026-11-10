@@ -8,6 +8,8 @@
 #include "imageeditor/ui/PopupOwnership.hpp"
 #include "imageeditor/platform/AvailableMemory.hpp"
 #include <QApplication>
+#include <QComboBox>
+#include <QStandardItemModel>
 #include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
@@ -695,6 +697,13 @@ void MainWindow::exportImage(bool again)
         // Redo all use the current canvas, including Export Again.
         initial.size = canvas;
     }
+    const bool containsNumeric = std::ranges::any_of(document.layers(), [](const auto& layer) {
+        return core::isScalarLayer(layer) || core::isPackedDataLayer(layer);
+    });
+    if (containsNumeric && initial.format == ExportFormat::Psd) {
+        initial.format = ExportFormat::Png;
+        initial.destination = exportPathForFormat(initial.destination, ExportFormat::Png);
+    }
     initial.preserveData = dataId != 0;
     initial.dataLayerId = dataId;
     if (dataId) {
@@ -706,6 +715,15 @@ void MainWindow::exportImage(bool again)
     const QScopedValueRollback busy(fileBusy_, true);
     WorkspaceDialog presenter(*workspace_, *this);
     ExportDialog dialog(initial, canvas, &presenter);
+    if (containsNumeric) {
+        if (auto* formats = dialog.findChild<QComboBox*>(QStringLiteral("ExportFormat")))
+            if (auto* model = qobject_cast<QStandardItemModel*>(formats->model()))
+                for (int i = 0; i < formats->count(); ++i)
+                    if (i == int(ExportFormat::Psd)) {
+                        model->item(i)->setEnabled(false);
+                        model->item(i)->setToolTip(i18n::text("channels.psd.unsupported"));
+                    }
+    }
     PdfExportLimits pdfLimits;
     const auto memory=documentMemory();
     pdfLimits.existingBytes=memory.sourceBytes+memory.derivedBytes+memory.historyBytes;

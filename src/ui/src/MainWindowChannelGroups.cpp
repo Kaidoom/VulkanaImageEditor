@@ -25,28 +25,28 @@
 namespace imageeditor::ui {
 void MainWindow::createChannelGroupActions()
 {
-    const auto action = [this](const char* name, const char* label, ToolGlyph glyph, const auto& callback) {
-        auto* value = new QAction(toolGlyph(glyph), QString::fromUtf8(label), this);
+    const auto action = [this](const char* name, i18n::Message label, ToolGlyph glyph, const auto& callback) {
+        auto* value = i18n::make<QAction>(toolGlyph(glyph), std::move(label), this);
         value->setObjectName(QString::fromLatin1(name));
         connect(value, &QAction::triggered, this, callback);
         registerEditorWindowAction(value);
         return value;
     };
-    convertChannelGroupAction_ = action("ConvertChannelGroupAction", "Convert to Channel Group", ToolGlyph::Group,
+    convertChannelGroupAction_ = action("ConvertChannelGroupAction", i18n::text("channels.action.convert"), ToolGlyph::Group,
         [this] { convertSelectedChannelGroup(false); });
-    recombineChannelGroupAction_ = action("RecombineChannelGroupAction", "Convert Channel Group to Raster", ToolGlyph::LayerRaster,
+    recombineChannelGroupAction_ = action("RecombineChannelGroupAction", i18n::text("channels.action.recombine"), ToolGlyph::LayerRaster,
         [this] { convertSelectedChannelGroup(true); });
-    inspectChannelAlphaAction_ = action("InspectChannelAlphaAction", "Show alpha as transparency", ToolGlyph::LayerMask,
+    inspectChannelAlphaAction_ = action("InspectChannelAlphaAction", i18n::text("channels.action.inspect.alpha"), ToolGlyph::LayerMask,
         [this] { refreshChannelGroupControls(); });
     inspectChannelAlphaAction_->setCheckable(true);
-    copyScalarChannelAction_ = action("CopyScalarChannelAction", "Copy channel pixels", ToolGlyph::Copy,
+    copyScalarChannelAction_ = action("CopyScalarChannelAction", i18n::text("channels.action.copy"), ToolGlyph::Copy,
         [this] { copyScalarChannel(false); });
-    cutScalarChannelAction_ = action("CutScalarChannelAction", "Cut channel pixels", ToolGlyph::Subtract,
+    cutScalarChannelAction_ = action("CutScalarChannelAction", i18n::text("channels.action.cut"), ToolGlyph::Subtract,
         [this] { copyScalarChannel(true); });
     copyScalarChannelAction_->setShortcut(QKeySequence::Copy);
     cutScalarChannelAction_->setShortcut(QKeySequence::Cut);
-    action("OpenDataTextureAction", "Open data texture…", ToolGlyph::Import, [this] { openDataTexture(); });
-    exportChannelDataAction_ = action("ExportChannelDataAction", "Export channel data…", ToolGlyph::Export,
+    action("OpenDataTextureAction", i18n::text("channels.action.open"), ToolGlyph::Import, [this] { openDataTexture(); });
+    exportChannelDataAction_ = action("ExportChannelDataAction", i18n::text("channels.action.export"), ToolGlyph::Export,
         [this] { exportChannelData(); });
 }
 
@@ -58,6 +58,7 @@ void MainWindow::refreshChannelGroupControls()
     const auto* layer = doc && id ? doc->layer(*id) : nullptr;
     const auto* container = doc && id ? doc->tree().container(*id) : nullptr;
     const bool scalar = layer && core::isScalarLayer(*layer);
+    const bool packed = layer && core::isPackedDataLayer(*layer);
     const bool group = container && container->kind == core::ContainerKind::ChannelGroup;
     const bool data = scalar || group || (layer && core::isPackedDataLayer(*layer));
     const bool available = doc && id && session().selectedLayers().size() == 1
@@ -87,29 +88,32 @@ void MainWindow::refreshChannelGroupControls()
     // Actions remain visible with their normal layout, but unsupported numeric
     // operations cannot enter a colour-processing pipeline accidentally.
     for (auto [tool, action] : toolActionMap_) {
-        const bool allowed = tool == core::ToolId::Move || tool == core::ToolId::Marquee
-            || tool == core::ToolId::Lasso || tool == core::ToolId::Brush
+        const bool navigation = tool == core::ToolId::Move || tool == core::ToolId::Marquee
+            || tool == core::ToolId::Lasso || tool == core::ToolId::Measure;
+        const bool allowed = navigation || (!packed && (tool == core::ToolId::Brush
             || tool == core::ToolId::Eraser || tool == core::ToolId::Fill || tool == core::ToolId::Measure
-            || tool == core::ToolId::Cloning || tool == core::ToolId::LocalBlur;
-        if (scalar && !allowed) {
+            || tool == core::ToolId::Cloning || tool == core::ToolId::LocalBlur));
+        if ((scalar || packed) && !allowed) {
             if (!action->property("channelDisabled").toBool()) {
                 action->setProperty("channelWasEnabled", action->isEnabled());
                 action->setProperty("channelToolTip", action->toolTip());
-                action->setToolTip(action->toolTip() + QStringLiteral("\nUnavailable for numeric channels."));
             }
+            i18n::setToolTip(action, action->property("channelToolTip").toString() + QStringLiteral("\n")
+                + i18n::text(packed ? "channels.convert.to.edit" : "channels.operation.unavailable"));
             action->setProperty("channelDisabled", true); action->setEnabled(false);
         } else if (action->property("channelDisabled").toBool()) {
             action->setProperty("channelDisabled", false);
-            action->setToolTip(action->property("channelToolTip").toString());
+            i18n::setToolTip(action, i18n::Message(action->property("channelToolTip").toString()));
             action->setEnabled(action->property("channelWasEnabled").toBool()
                 && !fileBusy_ && !workspaceDialog_ && !refinement_ && !backgroundRemoval_);
         }
     }
     if (scalar) {
-        for (auto* action : {transformAction_, transformPixelsAction_, duplicateLayersAction_, deleteLayerAction_,
+        for (auto* action : {transformPixelsAction_, duplicateLayersAction_, deleteLayerAction_,
                  groupLayersAction_, clippingGroupAction_, mergeLayersAction_, rasterizeLayersAction_,
                  newFolderAction_, newAdjustmentLayerAction_, selectionActions_[3]})
             if (action) action->setEnabled(false);
+        if (!core::isSelectionTool(session().activeTool())) transformAction_->setEnabled(false);
         for (auto* action : layerVisibilityActions_) if (action) action->setEnabled(false);
         for (auto* action : maskActions_) if (action) action->setEnabled(false);
         if (deleteLayerButton_) deleteLayerButton_->setEnabled(false);
@@ -122,11 +126,23 @@ void MainWindow::refreshChannelGroupControls()
         for (auto* action : {ungroupLayersAction_, clippingGroupAction_, mergeLayersAction_, rasterizeLayersAction_})
             if (action) action->setEnabled(false);
     }
-    if (adjustmentsPanel_) adjustmentsPanel_->setEnabled(!scalar);
-    if (scalar) {
+    if (scalar || packed) {
+        for (auto* action : {refineSelectionAction_, refineMaskAction_}) if (action) action->setEnabled(false);
+    }
+    if (packed) {
+        for (auto* action : fillActions_) if (action) action->setEnabled(false);
+        for (auto* action : maskActions_) if (action) action->setEnabled(false);
+        if (swatchesPanel_) swatchesPanel_->setGradientEnabled(false);
+    }
+    if (auto* action = findChild<QAction*>("ErasePixelsAction"))
+        action->setEnabled(!packed && doc && !fileBusy_ && !workspaceDialog_);
+    for (auto type : core::allSpatialFilterTypes) if (auto* action = findChild<QAction*>(QStringLiteral("FilterAction_%1").arg(int(type))))
+        action->setEnabled(available && !packed && (!scalar || type == core::SpatialFilterType::Gaussian));
+    if (adjustmentsPanel_) adjustmentsPanel_->setEnabled(!packed);
+    if (scalar || packed) {
         const auto active = toolActionMap_.find(session().activeTool());
         if (active != toolActionMap_.end() && active->second->property("channelDisabled").toBool())
-            setActiveTool(core::ToolId::Brush);
+            setActiveTool(packed ? core::ToolId::Move : core::ToolId::Brush);
     }
 }
 
@@ -177,7 +193,7 @@ void MainWindow::copyScalarChannel(bool cut)
         if (cut && activeDocument_ == owner && !owner->closed && session().activeLayer() == target
             && session().document()->revision() == revision && session().document()->selection() == selection)
             startFill(false, true, {}, true);
-        else statusBar()->showMessage(QStringLiteral("Channel pixels copied."), 3000);
+        else statusBar()->showMessage(i18n::text("channels.clipboard.copied"), 3000);
     } catch (const std::exception& error) { statusBar()->showMessage(QString::fromUtf8(error.what()), 6000); }
 }
 
@@ -218,20 +234,20 @@ bool MainWindow::pasteScalarChannel()
             }
         }
         if (!fragment) {
-            statusBar()->showMessage(QStringLiteral("Copy channel pixels or an 8-bit straight grayscale image to paste into a channel."), 6000);
+            statusBar()->showMessage(i18n::text("channels.clipboard.required"), 6000);
             return true;
         }
         if (!settleForFileOperation()) return true;
         if (activeDocument_ != owner || owner->closed || session().activeLayer() != target
             || session().document()->revision() != revision) {
-            statusBar()->showMessage(QStringLiteral("The paste target changed. Try pasting again."), 4000);
+            statusBar()->showMessage(i18n::text("channels.clipboard.target.changed"), 4000);
             return true;
         }
         const auto result = core::pasteScalarFragment(*session().document(), target, *fragment, session().history());
         if (result == core::RasterEditCommitResult::Committed) {
             fileState().untouched = false; synchronizeUi(false, false);
         } else if (result != core::RasterEditCommitResult::NoChanges)
-            statusBar()->showMessage(QStringLiteral("Could not paste into the channel. No pixels were changed."), 6000);
+            statusBar()->showMessage(i18n::text("channels.clipboard.failed"), 6000);
     } catch (const std::exception& error) { statusBar()->showMessage(QString::fromUtf8(error.what()), 6000); }
     return true;
 }
@@ -239,8 +255,8 @@ bool MainWindow::pasteScalarChannel()
 void MainWindow::openDataTexture()
 {
     if (fileBusy_ || workspaceDialog_ || !settleForFileOperation()) return;
-    const auto path = QFileDialog::getOpenFileName(this, QStringLiteral("Open data texture"), openDocumentDirectory(),
-        QStringLiteral("Lossless images (*.png *.tif *.tiff *.bmp *.tga);;All files (*)"));
+    const auto path = QFileDialog::getOpenFileName(this, i18n::text("channels.open.title"), openDocumentDirectory(),
+        i18n::text("channels.open.filter"));
     if (path.isEmpty()) return;
     auto loaded = loadRasterDocument(path, RasterImportMode::Data);
     if (!loaded) { reportFileError(loaded.error); return; }

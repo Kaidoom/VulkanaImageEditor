@@ -9,11 +9,13 @@ public:
     explicit ToolShortcutHints(QWidget* parent = nullptr);
     void setTool(core::ToolId);
     void setBindings(const ShortcutBindings&);
+    void setScalarTarget(bool);
 
 private:
     void rebuild();
     QGridLayout* grid_;
     core::ToolId tool_ { core::ToolId::Move };
+    bool scalarTarget_ {false};
     ShortcutBindings bindings_ = defaultShortcutBindings();
 };
 }

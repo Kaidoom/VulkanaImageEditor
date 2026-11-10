@@ -53,6 +53,14 @@ std::size_t ScalarRasterSurface::memoryCost() const noexcept
     return result;
 }
 
+std::size_t ScalarRasterSurface::memoryCost(std::unordered_set<const void*>& allocations) const
+{
+    if (!allocations.insert(this).second) return 0;
+    std::size_t result = sizeof(*this) + state_->memoryCost(allocations);
+    for (const auto& r : dirtyJournal_) result += sizeof(r) + r.regions.capacity() * sizeof(RectI);
+    return result;
+}
+
 DirtySet ScalarRasterSurface::dirtySince(Revision uploaded) const
 {
     DirtySet result {.revision = revision_, .fullRefresh = false, .regions = {}};

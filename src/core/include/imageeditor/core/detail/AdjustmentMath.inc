@@ -77,6 +77,15 @@ A_INLINE float aCurve(float c,int p)
     }
     return c;
 }
+A_INLINE float aEvaluateScalarStage(float value,int stage)
+{
+    int base=stage*256,p=base+8,type=int(A_PARAM(base+1));
+    if(A_PARAM(base)==0.0f)return value;
+    if(type==2)return aLevels(value,p);
+    if(type==3)return aCurve(value,p);
+    if(type==9)return 1.0f-value;
+    return value; // Admission rejects unsupported active stages.
+}
 A_INLINE BVec3 aEvaluateStage(BVec3 linear,int stage)
 {
     int base=stage*256,p=base+8,type=int(A_PARAM(base+1));

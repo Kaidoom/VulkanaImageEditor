@@ -2,6 +2,7 @@
 #include "imageeditor/ui/NativeRasterBake.hpp"
 #include "imageeditor/core/RichText.hpp"
 #include "imageeditor/core/SpatialFilterCache.hpp"
+#include "imageeditor/core/ScalarRasterSurface.hpp"
 #include <QTimer>
 #include <atomic>
 #include <cmath>
@@ -9,6 +10,7 @@
 #include <map>
 #include <set>
 #include <stdexcept>
+#include <unordered_set>
 
 namespace imageeditor::ui {
 namespace {
@@ -180,8 +182,12 @@ void PixelPreview::advance()
         const auto started=std::chrono::steady_clock::now();
         const auto& input=*state_->pending;
         std::uint64_t bytes=0;std::set<core::SurfaceId> live;
+        std::unordered_set<const void*> scalarAllocations;
         for(const auto& l:input.snapshot.layersBottomToTop)if(const auto* r=std::get_if<core::RasterLayerSnapshot>(&l.payload);r && l.visible && l.opacity>0) {
-            if(live.insert(r->surface->id()).second){const auto e=r->surface->extent();bytes+=std::uint64_t(e.width)*e.height*4;}
+            if(live.insert(r->surface->id()).second){
+                if(const auto* scalar=dynamic_cast<const core::ScalarRasterSurface*>(r->surface.get()))bytes+=scalar->memoryCost(scalarAllocations);
+                else {const auto e=r->surface->extent();bytes+=std::uint64_t(e.width)*e.height*4;}
+            }
         }
         if(bytes>inputBudget)throw std::runtime_error("Pixel Preview exceeds the frozen-source budget (256 MiB)");
         std::erase_if(state_->sources,[&](const auto& entry){return !live.contains(entry.first);});
@@ -192,6 +198,11 @@ void PixelPreview::advance()
             const auto& s=input.snapshot.layersBottomToTop[i];
             core::Layer layer;layer.id=s.id;layer.name="Pixel Preview source";
             layer.visible=s.visible;layer.opacity=s.opacity;layer.blendMode=s.blendMode;layer.blendSeed=s.blendSeed;
+            const auto placement=input.snapshot.tree.placement(s.id);
+            const auto* parent=placement?input.snapshot.tree.container(placement->parent):nullptr;
+            // Snapshots expose effective visibility. Channel slots themselves
+            // are always visible; their original container owns the hide gate.
+            if(parent && parent->kind==core::ContainerKind::ChannelGroup)layer.visible=true;
             layer.fillOpacity=s.fillOpacity;
             layer.localToDocument=s.localToDocument;layer.crop=s.crop;layer.mask=s.mask;
             layer.rasterOrigin=s.rasterOrigin;layer.rasterEffectFrame=s.rasterEffectFrame;
@@ -200,17 +211,27 @@ void PixelPreview::advance()
                 if(!s.visible || s.opacity<=0) {
                     // Retain structural identity (notably hidden clipping bases)
                     // without freezing pixels that this output cannot read.
-                    if(!hiddenPlaceholder)hiddenPlaceholder=std::make_shared<core::ContiguousRasterSurface>(core::Extent2u{1,1},core::Rgba8{});
-                    layer.payload=core::RasterLayer{hiddenPlaceholder};
+                    if(r->surface->dataKind()==core::RasterDataKind::Scalar)
+                        layer.payload=core::RasterLayer{std::make_shared<core::ScalarRasterSurface>(r->surface->extent())};
+                    else if(r->surface->dataKind()==core::RasterDataKind::PackedData)
+                        layer.payload=core::RasterLayer{std::make_shared<core::ContiguousRasterSurface>(core::Extent2u{1,1},core::Rgba8{},core::RasterDataKind::PackedData)};
+                    else {
+                        if(!hiddenPlaceholder)hiddenPlaceholder=std::make_shared<core::ContiguousRasterSurface>(core::Extent2u{1,1},core::Rgba8{});
+                        layer.payload=core::RasterLayer{hiddenPlaceholder};
+                    }
                 } else {
                 const auto stamp=input.stamps[i];
                 if(r->surface->revision()!=stamp.revision)throw std::runtime_error("Pixel Preview source changed before capture");
                 auto it=state_->sources.find(stamp.id);
                 if(it==state_->sources.end() || it->second.revision!=stamp.revision) {
-                    const auto e=r->surface->extent();const auto stride=std::size_t(e.width)*4;
-                    std::vector<std::byte> copy(stride*e.height);
-                    r->surface->copyRgba8({0,0,int(e.width),int(e.height)},copy,stride);
-                    auto frozen=std::make_shared<core::ContiguousRasterSurface>(e,std::move(copy));
+                    std::shared_ptr<core::RasterSurface> frozen;
+                    if(const auto* scalar=dynamic_cast<const core::ScalarRasterSurface*>(r->surface.get()))frozen=scalar->clone();
+                    else {
+                        const auto e=r->surface->extent();const auto stride=std::size_t(e.width)*4;
+                        std::vector<std::byte> copy(stride*e.height);
+                        r->surface->copyRgba8({0,0,int(e.width),int(e.height)},copy,stride);
+                        frozen=std::make_shared<core::ContiguousRasterSurface>(e,std::move(copy),r->surface->dataKind());
+                    }
                     it=state_->sources.insert_or_assign(stamp.id,State::Frozen{stamp.revision,std::move(frozen)}).first;
                 }
                 layer.payload=core::RasterLayer{it->second.surface};

@@ -1,5 +1,6 @@
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/core/LayerMaskEdit.hpp"
 #include "imageeditor/core/LayerStructureCommands.hpp"
 #include "imageeditor/core/SelectionCommands.hpp"
@@ -428,7 +429,8 @@ void MainWindow::refreshRefinementActions() {
   const auto *layer = doc && session().activeLayer()
                           ? doc->layer(*session().activeLayer())
                           : nullptr;
-  const bool ready = doc && !refinement_ && !fileBusy_ && !workspaceDialog_ &&
+  const bool ready = doc && (!layer || (!core::isScalarLayer(*layer) && !core::isPackedDataLayer(*layer)))
+                     && !refinement_ && !fileBusy_ && !workspaceDialog_ &&
                      !layerTransform_ && !selectionTransform_ && !layerCrop_ &&
                      shortcutGestureIdle(true);
   refineSelectionAction_->setEnabled(ready && doc->selection() &&
@@ -442,6 +444,7 @@ void MainWindow::beginRefinement(bool mask) {
   auto *doc = session().document();
   const auto *layer =
       session().activeLayer() ? doc->layer(*session().activeLayer()) : nullptr;
+  if (layer && (core::isScalarLayer(*layer) || core::isPackedDataLayer(*layer))) return;
   if (mask ? (!layer || !layer->mask)
            : (!doc->selection() || doc->selection()->bounds().empty()))
     return;

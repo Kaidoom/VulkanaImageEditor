@@ -1,6 +1,7 @@
 #include "imageeditor/platform/AvailableMemory.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/MemoryStatusLabel.hpp"
+#include "imageeditor/core/ScalarRasterSurface.hpp"
 #include <QApplication>
 #include <QHBoxLayout>
 #include <QStatusBar>
@@ -79,6 +80,25 @@ int main(int argc, char** argv) {
     CHECK(status && status->isVisible());
     CHECK(!document || document->revision() == revision);
     CHECK(window.editorSession().history().undoDepth() == undo);
+    auto* editable = const_cast<imageeditor::core::Document*>(document);
+    if (editable) {
+        namespace c = imageeditor::core;
+        const auto before = window.documentMemory().sourceBytes;
+        auto uniform = std::make_shared<c::ScalarRasterSurface>(c::Extent2u {1024,1024}, 0);
+        CHECK(editable->insertLayer(editable->layers().size(), c::Layer::raster("Uniform channel", uniform)));
+        const auto withUniform = window.documentMemory().sourceBytes;
+        CHECK(withUniform > before && withUniform - before < 65536);
+        std::vector<std::byte> pixels(256 * 256);
+        for (std::size_t i = 0; i < pixels.size(); ++i) pixels[i] = std::byte(i % 256);
+        auto scalar = std::make_shared<c::ScalarRasterSurface>(c::Extent2u {256,256}, pixels, 256);
+        CHECK(editable->insertLayer(editable->layers().size(), c::Layer::raster("Numeric pixels", scalar)));
+        const auto withPixels = window.documentMemory().sourceBytes;
+        CHECK(withPixels - withUniform >= pixels.size());
+        CHECK(withPixels - withUniform < pixels.size() + 8192);
+        CHECK(editable->insertLayer(editable->layers().size(), c::Layer::raster("Shared pixels", scalar->clone())));
+        const auto withClone = window.documentMemory().sourceBytes;
+        CHECK(withClone > withPixels && withClone - withPixels < 4096);
+    }
     std::cout << "Memory status failures: " << failures << '\n';
     return failures ? 1 : 0;
 }

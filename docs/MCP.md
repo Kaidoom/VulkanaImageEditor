@@ -452,6 +452,18 @@ work across strokes and are not counts of unique final pixels.
 
 Alpha selection matches thumbnail Ctrl-click semantics: it respects transform/crop, but excludes layer opacity, fill opacity, masks, effects and clipping-group contributions. Empty alpha never clears an unrelated selection.
 
+### Numeric channel layers
+
+State and layer inspection identify `channel_group` containers, their fixed `channelRoles`, and raster `dataKind` (`scalar`, `packed_data`, or `color`). Scalar storage reports `pixelFormat: "r8"`; channel children also report their role and parent group. Names and row order do not determine channel roles.
+
+Convert rasters to Channel Groups in the editor, then use the existing single-stroke and fill commands on individual channel IDs. Use opaque grayscale colours, such as `#808080` for value 128. Brush opacity and alpha control editing strength; the A channel's numerical value is edited like any other channel. Existing document IDs, revision checks and undo rules still apply.
+
+Levels and Curves support their master/Value channel, Invert is available, and Gaussian is the supported scalar filter. RGB-specific settings, colour effects, masks, independent channel geometry, multi-stroke batches and alpha-selection requests are rejected before mutation. Duplicate, transform or delete the complete Channel Group. Packed-data rasters must be converted to a Channel Group before pixel edits.
+
+`vulkana_export_image` exports a document containing one numeric raster or Channel Group as native-size PNG data, preserving RGB under zero alpha. Matte replacement, resizing and lossy formats are rejected. For mixed documents, select the required data item and use **Export channel data** in the editor.
+
+See [Channel Groups](CHANNEL_GROUPS.md) for editing behaviour, data fidelity and remaining limits.
+
 ### Blocking UI
 
 `vulkana_get_state` remains available while a dialog, text edit, preview, graphics initialization, processing task, rename or pointer/numeric gesture blocks editing. It reports machine-readable blocker codes, user-facing titles/messages and a suggested resolution. Ordinary editing calls return `isError:true` with `error.code:blocked`; they do not dismiss UI automatically.

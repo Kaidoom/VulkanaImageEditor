@@ -1,5 +1,6 @@
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/AdjustmentsPanel.hpp"
+#include "imageeditor/core/LayerGeometry.hpp"
 #include <QElapsedTimer>
 #include <QLabel>
 #include <QComboBox>
@@ -17,7 +18,10 @@ void AdjustmentsPanel::requestHistogram(const core::Layer* layer)
     }
     std::shared_ptr<const core::RasterSurface> surface;
     core::AffineTransform pixelsToLocal;
-    if(const auto* raster=std::get_if<core::RasterLayer>(&layer->payload))surface=raster->surface;
+    if(const auto* raster=std::get_if<core::RasterLayer>(&layer->payload)) {
+        surface=raster->surface;
+        if (surface && surface->dataKind() == core::RasterDataKind::Scalar) pixelsToLocal=core::intrinsicPixelsToLocal(*layer);
+    }
     else if(layer->renderCache){surface=layer->renderCache->surface;pixelsToLocal=layer->renderCache->pixelsToLocal;}
     const auto cacheIndex=type==core::AdjustmentType::Levels?0U:1U;
     const bool composite=std::holds_alternative<core::AdjustmentLayer>(layer->payload)&&document_;
@@ -83,6 +87,17 @@ void AdjustmentsPanel::advanceHistogram()
         if((job.cursor&63)==0&&elapsed.nsecsElapsed()>4'000'000)break;
         const auto x=std::min<std::size_t>((job.cursor%job.columns)*job.step+job.step/2,extent.width-1);
         const auto y=std::min<std::size_t>((job.cursor/job.columns)*job.step+job.step/2,extent.height-1);
+        if (!job.composite && job.result.surface->dataKind() == core::RasterDataKind::Scalar) {
+            std::byte byte;
+            job.result.surface->copyNative({int(x), int(y), 1, 1}, {&byte, 1}, 1);
+            const auto value = core::evaluateScalarAdjustments(job.program,
+                float(std::to_integer<std::uint8_t>(byte)) / 255,
+                job.result.pixelsToLocal.map({double(x) + .5, double(y) + .5}), job.stage);
+            const auto bin = std::size_t(std::clamp(std::lround(double(value) * 255), 0L, 255L));
+            for (auto& channel : job.result.bins) channel[bin] += 1;
+            ++job.result.sampled;
+            continue;
+        }
         core::PremultipliedColor color;
         if(job.composite)color=job.composite->sampleAdjustmentInput({double(x)+.5,double(y)+.5},job.result.target,job.stage);
         else {
@@ -114,7 +129,9 @@ void AdjustmentsPanel::updateHistogramDisplay()
         plot->setHistogram(cache.bins,i==0?levelsChannel_->currentIndex():curvesChannel_->currentIndex());
         const auto extent=cache.extent;
         const bool sampled=cache.sampled<std::uint64_t(extent.width)*extent.height;
-        i18n::setText(histogramLabels_[i], i18n::text("adjustment.histograms.1.input.2.texels.alpha.weighted.srgb")
+        if (cache.surface && cache.surface->dataKind() == core::RasterDataKind::Scalar)
+            i18n::setText(histogramLabels_[i], i18n::text(sampled ? "channels.histogram.sampled" : "channels.histogram.source").arg(cache.sampled));
+        else i18n::setText(histogramLabels_[i], i18n::text("adjustment.histograms.1.input.2.texels.alpha.weighted.srgb")
             .arg(sampled?QStringLiteral("Sampled"):QStringLiteral("Source")).arg(cache.sampled));
     }
 }

@@ -221,9 +221,12 @@ void CloningOptionsPage::setScalarTarget(bool scalar)
     for (const auto source : {core::CloneSampleSource::CurrentAndBelow, core::CloneSampleSource::AllVisible})
         if (auto* button = sourceGroup_->button(int(source))) {
             if (scalar) {
-                button->setProperty("numericPreviousToolTip", button->toolTip());
-                button->setToolTip(QStringLiteral("Numeric channels sample an explicit channel layer. Rendered colour sources are unavailable."));
-            } else button->setToolTip(button->property("numericPreviousToolTip").toString());
+                i18n::setToolTip(button, i18n::text("channels.clone.source.hint"));
+            } else i18n::setToolTip(button,
+                i18n::text(source == core::CloneSampleSource::CurrentAndBelow
+                    ? "cloning.options.page.current.below.the.destination.layer.and.visible.content.beneath"
+                    : "cloning.options.page.all.visible.rendered.visible.document.content")
+                    + i18n::text("cloning.options.page.rendered.sampling.captures.appearance.including.adjustments.opacity.blending.and"));
             button->setEnabled(!scalar);
         }
     setCloneSettings(cloneSettings_);

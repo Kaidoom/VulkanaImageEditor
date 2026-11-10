@@ -56,3 +56,36 @@ foreach(suite Clone SpotHeal Blur)
     add_test(NAME imageeditor_scalar_${suite_lower}_tests COMMAND imageeditor_scalar_${suite_lower}_tests)
     set_tests_properties(imageeditor_scalar_${suite_lower}_tests PROPERTIES TIMEOUT 120 LABELS "core;scalar;retouching;history")
 endforeach()
+
+foreach(suite Adjustment Capability)
+    string(TOLOWER "${suite}" suite_lower)
+    add_executable(imageeditor_scalar_${suite_lower}_tests Scalar${suite}Tests.cpp)
+    target_link_libraries(imageeditor_scalar_${suite_lower}_tests PRIVATE imageeditor_core)
+    imageeditor_enable_warnings(imageeditor_scalar_${suite_lower}_tests)
+    add_test(NAME imageeditor_scalar_${suite_lower}_tests COMMAND imageeditor_scalar_${suite_lower}_tests)
+    set_tests_properties(imageeditor_scalar_${suite_lower}_tests PROPERTIES TIMEOUT 120 LABELS "core;scalar;adjustments;history")
+endforeach()
+if(NOT WIN32 AND NOT "$ENV{DISPLAY}" STREQUAL "")
+    add_test(NAME imageeditor_channel_native_ui COMMAND imageeditor_channel_ui_tests --native)
+    set_tests_properties(imageeditor_channel_native_ui PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=xcb"
+        RUN_SERIAL TRUE SKIP_RETURN_CODE 77 TIMEOUT 120 LABELS "scalar;widgets;input;native;vulkan")
+endif()
+
+if(WIN32)
+    set_tests_properties(imageeditor_channel_ui_tests imageeditor_channel_persistence_tests PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=windows;QT_FORCE_STDERR_LOGGING=1" RUN_SERIAL TRUE)
+    add_dependencies(imageeditor_channel_ui_tests imageeditor_windows_test_assets)
+    target_sources(imageeditor_channel_ui_tests PRIVATE "${PROJECT_SOURCE_DIR}/res/windows/Vulkana.manifest")
+    target_sources(imageeditor_channel_persistence_tests PRIVATE "${PROJECT_SOURCE_DIR}/res/windows/Vulkana.manifest")
+endif()
+
+if(NOT WIN32)
+    add_test(NAME imageeditor_channel_navigator_tests COMMAND imageeditor_navigator_tests --channel-preview)
+    set_tests_properties(imageeditor_channel_navigator_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        TIMEOUT 90 LABELS "scalar;preview;navigation")
+endif()
+if(NOT WIN32 AND NOT "$ENV{WAYLAND_DISPLAY}" STREQUAL "")
+    add_test(NAME imageeditor_channel_wayland_input COMMAND imageeditor_channel_ui_tests --native --keyboard-only)
+    set_tests_properties(imageeditor_channel_wayland_input PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=wayland"
+        RUN_SERIAL TRUE TIMEOUT 120 LABELS "scalar;widgets;input;native;wayland;vulkan")
+endif()

@@ -179,6 +179,30 @@ bool equivalentAdjustments(const AdjustmentState& a,const AdjustmentState& b) no
     for(std::size_t i=0;i<adjustmentCount;++i)if(!sameItem(a->items[i],b->items[i]))return false;
     return true;
 }
+bool scalarAdjustmentsSupported(const AdjustmentState& state) noexcept
+{
+    if(!state)return true;
+    if(state->algorithmVersion!=adjustmentAlgorithmVersion)return false;
+    for(const auto& a:state->items) {
+        if(!a.enabled)continue;
+        if(a.type==AdjustmentType::Invert) {
+            if(!std::holds_alternative<InvertParameters>(a.parameters))return false;
+        } else if(a.type==AdjustmentType::Levels) {
+            const auto* p=std::get_if<LevelsParameters>(&a.parameters);
+            if(!p)return false;
+            for(std::size_t i=1;i<4;++i)if(p->channels[i]!=LevelsChannel{})return false;
+        } else if(a.type==AdjustmentType::Curves) {
+            const auto* p=std::get_if<CurvesParameters>(&a.parameters);
+            if(!p)return false;
+            for(std::size_t i=1;i<4;++i) {
+                const auto& points=p->channels[i].points;
+                if(points.empty()||points.front().input!=0||points.back().input!=1)return false;
+                for(const auto& point:points)if(point.input!=point.output)return false;
+            }
+        } else return false;
+    }
+    return true;
+}
 bool adjustmentIsNeutral(const Adjustment& a) noexcept
 {
     if(!a.enabled)return true;
@@ -305,6 +329,22 @@ PremultipliedColor evaluateAdjustments(const CompiledAdjustmentStack& stack,Prem
     }
     return changed?PremultipliedColor{c.x*alpha,c.y*alpha,c.z*alpha,alpha}:color;
 }
+float evaluateScalarAdjustments(const CompiledAdjustmentStack& stack,float value,Vec2d local,
+    std::size_t stopBefore) noexcept
+{
+    value=std::isfinite(value)?std::clamp(value,0.F,1.F):0.F;
+    if(!stack.active||stopBefore==0)return value;
+    Evaluator evaluator{stack.parameters.data()};
+    for(std::size_t i=0;i<std::min(stopBefore,adjustmentCount);++i) {
+        if(stack.parameters[i*adjustmentParameterStride]==0)continue;
+        const float mask=stack.masks[i]?adjustmentMaskCoverage(*stack.masks[i],local):1.F;
+        if(mask<=0)continue;
+        const float next=evaluator.aEvaluateScalarStage(value,int(i));
+        value=mask==1?next:value+(next-value)*mask;
+    }
+    return std::clamp(value,0.F,1.F);
+}
+
 float evaluateCurve(const CurveChannel& curve,float input)
 {
     if(!validCurve(curve)||!std::isfinite(input))throw std::invalid_argument("Invalid curve");

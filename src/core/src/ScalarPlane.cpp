@@ -161,6 +161,16 @@ std::size_t ScalarPlane::allocatedPixelBytes() const noexcept
 std::size_t ScalarPlane::memoryCost() const noexcept
 { return sizeof(*this) + tiles_.capacity() * sizeof(detail::ScalarTile) + allocatedPixelBytes(); }
 
+std::size_t ScalarPlane::memoryCost(std::unordered_set<const void*>& allocations) const
+{
+    if (!allocations.insert(this).second) return 0;
+    std::size_t result = sizeof(*this) + tiles_.capacity() * sizeof(detail::ScalarTile);
+    for (const auto& tile : tiles_)
+        if (tile.pixels && allocations.insert(tile.pixels.get()).second)
+            result += sizeof(detail::ScalarTilePixels);
+    return result;
+}
+
 std::size_t ScalarPlane::sharedPixelBytes(const ScalarPlane& other) const noexcept
 {
     if (extent_ != other.extent_) return 0;

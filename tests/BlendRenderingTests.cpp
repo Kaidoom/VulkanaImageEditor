@@ -1486,6 +1486,11 @@ void channelRendering(OffscreenCanvas& gpu)
         std::make_shared<c::ContiguousRasterSurface>(size,std::move(rgb),c::RasterDataKind::PackedData)));
     scene.channelInspectionId=group;
     verify(opaque,scene,gpu.render(scene),"packed RGB inspection preserves RGB below alpha zero");
+    const std::array<c::ItemVisibilityUpdate,1> hide{{{group,true,false}}};
+    check(doc.setItemVisibilities(hide),"hide channel group");scene.document=doc.snapshot();
+    verify(opaque,scene,gpu.render(scene),"hidden parent does not hide numeric inspection");
+    const std::array<c::ItemVisibilityUpdate,1> show{{{group,false,true}}};
+    check(doc.setItemVisibilities(show),"reveal channel group");scene.document=doc.snapshot();
     scene.channelInspectionAlpha=true;
     verify(doc,scene,gpu.render(scene),"alpha-aware group inspection");
     scene.channelInspectionAlpha=false;scene.channelInspectionId=roles[3];
@@ -1505,6 +1510,35 @@ void channelRendering(OffscreenCanvas& gpu)
     auto tree=doc.tree();std::reverse(tree.container(group)->children.begin(),tree.container(group)->children.end());
     check(doc.replaceStructure(doc.tree(),tree),"reorder channel display rows");
     scene.document=doc.snapshot();verify(doc,scene,gpu.render(scene),"channel identity independent of order",false);
+
+    auto levels=std::make_shared<c::AdjustmentStack>();levels->items[2].enabled=true;
+    std::get<c::LevelsParameters>(levels->items[2].parameters).channels[0]={.1,1.8,.85,.05,.9};
+    levels->items[2].mask=c::captureAdjustmentMask(c::SelectionMask::rectangle(size,{12,9,56,60},128),{});
+    check(doc.setLayerAdjustments(roles[0],levels),"set numeric masked Levels");
+    auto curves=std::make_shared<c::AdjustmentStack>();curves->items[3].enabled=true;
+    std::get<c::CurvesParameters>(curves->items[3].parameters).channels[0].points={{0,.1},{.4,.7},{1,.9}};
+    check(doc.setLayerAdjustments(roles[1],curves),"set numeric Value curve");
+    auto invert=std::make_shared<c::AdjustmentStack>();invert->items[9].enabled=true;
+    check(doc.setLayerAdjustments(roles[2],invert),"set numeric Invert");
+    scene.document=doc.snapshot();verify(doc,scene,gpu.render(scene),"numeric adjustments on packed channels",false);
+    scene.channelInspectionId=roles[0];
+    c::Document inspectedValue({size,96});inspectedValue.insertLayer(0,*doc.layer(roles[0]));
+    verify(inspectedValue,scene,gpu.render(scene),"masked Value adjustment inspection",false);
+    scene.channelInspectionId.reset();
+    auto filters=std::make_shared<c::SpatialFilterStack>();filters->items[0].enabled=true;
+    filters->items[0].parameters=c::GaussianBlurParameters{3,4};
+    filters->items[0].mask=c::captureAdjustmentMask(c::SelectionMask::rectangle(size,{4,5,82,60},180),{});
+    check(doc.setLayerFilters(roles[0],filters),"set numeric masked Gaussian");
+    auto cache=c::prepareLayerSpatialFilters(*doc.layer(roles[0]));
+    check(c::publishLayerSpatialFilters(doc,roles[0],cache),"publish numeric Gaussian cache");
+    check(cache->surface->nativeBytesPerPixel()==1,"numeric Gaussian remains R8");
+    scene.document=doc.snapshot();verify(doc,scene,gpu.render(scene),"masked scalar Gaussian after numeric adjustments",false);
+    const std::array<std::byte,1> changed{std::byte{189}};
+    const c::RasterPatch edit{{45,25,1,1},changed,1};(void)red.replaceNativeBatch(std::span(&edit,1));
+    check(!c::layerSpatialFilterCacheValid(*doc.layer(roles[0])),"channel edit invalidates numeric filter cache");
+    cache=c::prepareLayerSpatialFilters(*doc.layer(roles[0]));
+    check(c::publishLayerSpatialFilters(doc,roles[0],cache),"publish refreshed numeric Gaussian");
+    scene.document=doc.snapshot();verify(doc,scene,gpu.render(scene),"numeric Gaussian refresh after painting",false);
 }
 
 int main(int argc, char** argv)

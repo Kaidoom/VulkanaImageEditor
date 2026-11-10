@@ -3,6 +3,7 @@
 #include "imageeditor/core/RasterEditTransaction.hpp"
 #include "imageeditor/core/ScalarRasterSurface.hpp"
 #include "imageeditor/core/SelectionMask.hpp"
+#include "imageeditor/core/LayerCommands.hpp"
 
 #include <algorithm>
 #include <array>
@@ -131,6 +132,31 @@ void packedDataRetainsHiddenRgbAndColorDefaults()
     CHECK(colour.dataKind() == RasterDataKind::Color);
     CHECK(nativePixels(colour) == source);
     CHECK(rejects([&] { ContiguousRasterSurface invalid({2, 2}, Rgba8 {}, RasterDataKind::Scalar); }));
+}
+
+void memoryAccountingTracksUniformAndSharedTiles()
+{
+    auto uniform = std::make_shared<ScalarRasterSurface>(Extent2u {2048, 2048}, 0);
+    CHECK(uniform->allocatedPixelBytes() == 0);
+    CHECK(uniform->memoryCost() < 65536);
+    AddLayerCommand add(Layer::raster("Uniform numeric data", uniform), 0);
+    CHECK(add.memoryCost() < 65536);
+    std::vector<std::byte> data(256 * 256);
+    for (std::size_t i = 0; i < data.size(); ++i) data[i] = std::byte(i % 256);
+    auto original = std::make_shared<ScalarRasterSurface>(Extent2u {256,256}, data, 256);
+    auto clone = original->clone();
+    std::unordered_set<const void*> allocations;
+    const auto first = original->memoryCost(allocations);
+    const auto second = clone->memoryCost(allocations);
+    CHECK(first == original->memoryCost());
+    CHECK(second < 4096);
+    CHECK(original->memoryCost(allocations) == 0);
+    const std::byte replacement {77};
+    (void)writeNative(*clone, {1,1,1,1}, {&replacement,1}, 1);
+    allocations.clear();
+    const auto total = original->memoryCost(allocations) + clone->memoryCost(allocations);
+    CHECK(total == original->memoryCost() + clone->memoryCost()
+        - original->snapshot()->sharedPixelBytes(*clone->snapshot()));
 }
 
 void dirtyUpdatesAndNativeSwapStayRegional()
@@ -350,6 +376,7 @@ int main()
     try {
         everyByteSurvivesNativeAndRgbaAccess();
         packedDataRetainsHiddenRgbAndColorDefaults();
+        memoryAccountingTracksUniformAndSharedTiles();
         dirtyUpdatesAndNativeSwapStayRegional();
         snapshotsShareUntouchedTilesWithoutSharingEdits();
         invalidBatchesCannotPartiallyChangeData();

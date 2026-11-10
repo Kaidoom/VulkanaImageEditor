@@ -28,6 +28,11 @@ void ToolShortcutHints::setBindings(const ShortcutBindings& bindings)
     bindings_ = bindings;
     rebuild();
 }
+void ToolShortcutHints::setScalarTarget(bool value)
+{
+    if (scalarTarget_ == value) return;
+    scalarTarget_ = value; rebuild();
+}
 void ToolShortcutHints::rebuild()
 {
     while (auto* item = grid_->takeAt(0)) {
@@ -54,6 +59,9 @@ void ToolShortcutHints::rebuild()
         grid_->addWidget(description, row++, 1);
     };
     const auto command = [&](const char* id) {
+        if (scalarTarget_ && (QString::fromLatin1(id) == "DuplicateLayersAction"
+            || (tool_ == core::ToolId::Move && (QString::fromLatin1(id) == "LayerTransformAction"
+                || QString::fromLatin1(id).startsWith("Nudge"))))) return;
         if (const auto* d = shortcutDefinition(id))
             add(shortcutLabel(bindings_, id), d->label, id);
     };
@@ -66,7 +74,7 @@ void ToolShortcutHints::rebuild()
             command("ToolAction_eraser");
             command("SwapColorsAction");
             command("ResetColorsAction");
-            add("Alt", i18n::text("properties.shortcuts.sample"));
+            if (!scalarTarget_) add("Alt", i18n::text("properties.shortcuts.sample"));
         }
         if (tool_ == T::Cloning)
             add("Alt + click", i18n::text("properties.shortcuts.source"));
@@ -110,6 +118,9 @@ void ToolShortcutHints::rebuild()
     } else if (tool_ == T::Measure) {
         command("TemporaryMeasureAction");
         add("Shift", i18n::text("properties.shortcuts.constrain"));
+    }
+    if (scalarTarget_) {
+        command("CopyScalarChannelAction"); command("CutScalarChannelAction"); command("PasteImageAsLayerAction");
     }
     add("Esc", i18n::text("properties.shortcuts.cancel"));
     command("PanCanvasAction");

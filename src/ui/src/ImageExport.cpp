@@ -1,6 +1,7 @@
 #include "imageeditor/ui/ImageExport.hpp"
 #include "imageeditor/ui/FileDialogLocations.hpp"
 #include "imageeditor/core/ChannelGroups.hpp"
+#include "imageeditor/core/SpatialFilterCache.hpp"
 #include <QBuffer>
 #include <QColorSpace>
 #include <QDir>
@@ -11,6 +12,7 @@
 #include <QSettings>
 #include <QStandardPaths>
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
 #include <memory>
@@ -211,35 +213,89 @@ FlattenedDocumentResult renderExport(
     const core::Document& document, const ExportSettings& settings, FlattenedDocumentProgress progress)
 {
     if (settings.preserveData) {
+        bool cancelled = false;
         try {
-            std::shared_ptr<const core::RasterSurface> surface;
+            std::array<std::optional<core::Layer>, 4> channels;
+            std::shared_ptr<const core::RasterSurface> packed;
+            bool grayscale = false;
+            core::Extent2u e;
             if (const auto* group = document.tree().container(settings.dataLayerId);
-                group && group->kind == core::ContainerKind::ChannelGroup)
-                surface = core::packChannelGroup(document, group->id);
-            else if (const auto* layer = document.layer(settings.dataLayerId))
-                if (const auto* raster = std::get_if<core::RasterLayer>(&layer->payload);
-                    raster && raster->surface && raster->surface->dataKind() != core::RasterDataKind::Color)
-                    surface = raster->surface;
-            require(bool(surface), "Choose a Channel Group or numeric raster to export channel data");
-            const auto e = surface->extent();
+                group && group->kind == core::ContainerKind::ChannelGroup) {
+                require(core::validChannelStructure(document.tree(), document.layers()), "Invalid Channel Group");
+                for (std::size_t i = 0; i < channels.size(); ++i)
+                    if (group->channelRoles[i]) channels[i] = *document.layer(group->channelRoles[i]);
+                e = std::get<core::RasterLayer>(channels[0]->payload).surface->extent();
+            } else if (const auto* layer = document.layer(settings.dataLayerId)) {
+                if (core::isScalarLayer(*layer)) {
+                    channels[0] = *layer; grayscale = true;
+                    e = std::get<core::RasterLayer>(layer->payload).surface->extent();
+                } else if (core::isPackedDataLayer(*layer)) {
+                    packed = std::get<core::RasterLayer>(layer->payload).surface; e = packed->extent();
+                }
+            }
+            require(!e.empty(), "Choose a Channel Group or numeric raster to export channel data");
             const QSize nativeSize(int(e.width), int(e.height));
             if (const auto error = validateExport(settings, nativeSize); !error.isEmpty())
                 return {{}, error, false, {}};
+            const auto revision = document.revision();
+            std::vector<std::pair<std::shared_ptr<const core::RasterSurface>, core::Revision>> sources;
+            if (packed) sources.emplace_back(packed, packed->revision());
+            for (const auto& channel : channels) if (channel) {
+                const auto surface = std::get<core::RasterLayer>(channel->payload).surface;
+                sources.emplace_back(surface, surface->revision());
+            }
+            const auto unchanged = [&] {
+                return document.revision() == revision && std::ranges::all_of(sources,
+                    [](const auto& source) { return source.first->revision() == source.second; });
+            };
+            const auto tick = [&](std::uint64_t done) {
+                require(unchanged(), "Channel data changed during export");
+                if (progress && !progress(done, std::uint64_t(e.height) * 2)) cancelled = true;
+                require(unchanged(), "Channel data changed during export");
+                if (cancelled) throw Cancelled {};
+            };
+            tick(0);
+            std::array<std::shared_ptr<const core::RasterSurface>, 4> planes;
+            const auto count = std::size_t(std::count_if(channels.begin(), channels.end(), [](const auto& channel) { return bool(channel); }));
+            std::size_t prepared = 0;
+            for (std::size_t i = 0; i < channels.size(); ++i) if (channels[i]) {
+                core::FilterPreparationOptions options;
+                options.cancelled = [&] { return cancelled || !unchanged(); };
+                options.progress = [&](double fraction) {
+                    tick(std::uint64_t((double(prepared) + std::clamp(fraction, 0.0, 1.0)) * e.height / double(count)));
+                };
+                planes[i] = core::prepareScalarLayerPixels(*channels[i], options);
+                require(planes[i] && planes[i]->dataKind() == core::RasterDataKind::Scalar && planes[i]->extent() == e,
+                    "Numeric processing changed the channel grid");
+                ++prepared;
+            }
+            tick(e.height);
             QImage image(nativeSize, QImage::Format_RGBA8888);
             require(!image.isNull(), "Not enough memory for channel data export");
-            const auto revision = document.revision(), sourceRevision = surface->revision();
+            std::vector<std::byte> row(e.width);
             for (std::uint32_t y = 0; y < e.height; ++y) {
-                if (progress && y % 64 == 0) {
-                    if (!progress(y, e.height)) return {{}, {}, true, {}};
-                    require(document.revision() == revision && surface->revision() == sourceRevision,
-                        "Channel data changed during export");
+                if (y % 64 == 0) tick(std::uint64_t(e.height) + y);
+                auto* output = image.scanLine(int(y));
+                if (packed) {
+                    packed->copyRgba8({0, int(y), int(e.width), 1},
+                        {reinterpret_cast<std::byte*>(output), std::size_t(image.bytesPerLine())},
+                        std::size_t(image.bytesPerLine()));
+                    continue;
                 }
-                surface->copyRgba8({0, int(y), int(e.width), 1},
-                    {reinterpret_cast<std::byte*>(image.scanLine(int(y))), std::size_t(image.bytesPerLine())},
-                    std::size_t(image.bytesPerLine()));
+                for (std::size_t role = 0; role < 4; ++role) {
+                    const auto plane = grayscale && role < 3 ? planes[0] : planes[role];
+                    if (plane) plane->copyNative({0, int(y), int(e.width), 1}, row, e.width);
+                    else std::fill(row.begin(), row.end(), std::byte {255});
+                    for (std::uint32_t x = 0; x < e.width; ++x)
+                        output[std::size_t(x) * 4 + role] = std::to_integer<uchar>(row[x]);
+                }
             }
+            tick(std::uint64_t(e.height) * 2);
             return {std::move(image), {}, false, {}};
+        } catch (const Cancelled&) {
+            return {{}, {}, true, {}};
         } catch (const std::exception& e) {
+            if (cancelled) return {{}, {}, true, {}};
             return {{}, QString::fromUtf8(e.what()), false, {}};
         }
     }

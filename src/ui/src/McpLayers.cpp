@@ -1019,6 +1019,10 @@ void McpController::registerLayerTools()
             for (qsizetype i = 0; i < entries.size(); ++i) { auto entry = entries[i].toObject(); entry.remove("mask"); if (i == int(type)) { auto parameters = entry["parameters"].toObject(); for (auto it = patch.begin(); it != patch.end(); ++it) parameters[it.key()] = it.value(); entry["parameters"] = parameters; entry["enabled"] = args["enabled"].toBool(true); } entries[i] = entry; }
             encoded["items"] = entries; auto next = detail::decodeAdjustments(encoded, item.id).stack;
             for (std::size_t i = 0; i < c::adjustmentCount; ++i) next->items[i].mask = before.items[i].mask;
+            validateBeforeMutation([&] {
+                require(!c::isScalarLayer(item) || c::scalarAdjustmentsSupported(next),
+                    "Numeric Levels/Curves use channels[0] (master/value). Keep channels[1..3] at their identity defaults; colour-channel changes are unavailable.");
+            });
             return result(execute(std::make_unique<c::SetLayerAdjustmentsCommand>(item.id, item.adjustments, next))); });
     add("vulkana_adjustment_remove", "Disable one adjustment, retaining its parameters and captured mask.", {{"layerId", identifier()}, {"type", choice(adjustmentTypes)}}, {"layerId", "type"}, Access::Document,
         [this](const QJsonObject& args) { const auto& item = layer(args); auto next = std::make_shared<c::AdjustmentStack>(item.adjustments ? *item.adjustments : c::AdjustmentStack{}); next->items[std::size_t(*c::adjustmentFromIdentifier(args["type"].toString().toStdString()))].enabled = false; return result(execute(std::make_unique<c::SetLayerAdjustmentsCommand>(item.id, item.adjustments, next))); });
@@ -1034,6 +1038,10 @@ void McpController::registerLayerTools()
             const auto before = item.filters ? *item.filters : c::SpatialFilterStack{}; auto encoded = detail::encodeSpatialFilters(before, item.id); auto entries = encoded["items"].toArray();
             for (qsizetype i = 0; i < entries.size(); ++i) { auto entry = entries[i].toObject(); entry.remove("mask"); if (i == int(type)) { auto parameters = entry["parameters"].toObject(); for (auto it = patch.begin(); it != patch.end(); ++it) parameters[it.key()] = it.value(); entry["parameters"] = parameters; entry["enabled"] = args["enabled"].toBool(true); if (args.contains("preserveAlpha")) entry["preserveAlpha"] = args["preserveAlpha"]; } entries[i] = entry; }
             encoded["items"] = entries; auto next = detail::decodeSpatialFilters(encoded, item.id).stack; for (std::size_t i = 0; i < c::spatialFilterCount; ++i) next->items[i].mask = before.items[i].mask;
+            validateBeforeMutation([&] {
+                require(!c::isScalarLayer(item) || c::scalarFiltersSupported(next),
+                    "Numeric channel filtering supports Gaussian blur without colour/alpha operations.");
+            });
             if (c::equivalentSpatialFilters(item.filters, next)) return result(false);
             const bool applied = execute(std::make_unique<c::SetLayerFiltersCommand>(item.id, item.filters, next));
             require(applied, "Filters are not valid over this layer's transformed geometry"); return result(applied); });

@@ -131,7 +131,7 @@ void MainWindow::refreshLayerMaskActions() {
       session().document() && session().activeLayer()
           ? session().document()->layer(*session().activeLayer())
           : nullptr;
-  const bool available = layer && !core::isScalarLayer(*layer) && !fileBusy_ && !refinement_ && !workspaceDialog_ && !activeFill_ &&
+  const bool available = layer && !core::isScalarLayer(*layer) && !core::isPackedDataLayer(*layer) && !fileBusy_ && !refinement_ && !workspaceDialog_ && !activeFill_ &&
                          !activeBrushStroke_ && !layerTransform_ &&
                          !selectionTransform_ && !layerCrop_;
   maskActions_[0]->setEnabled(available && !layer->mask);

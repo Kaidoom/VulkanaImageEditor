@@ -11278,4 +11278,162 @@ Hazırlık %3 · Tamamlama %4 · Toplam %5</translation>
     <message id="mcp.status.enabled"><source>MCP enabled</source><translation>MCP etkin</translation></message>
     <message id="mcp.status.endpoint.hint"><source>Local document automation. Endpoint: %1</source><translation>Yerel belge otomasyonu. Uç nokta: %1</translation></message>
   </context>
+  <context>
+    <name>ChannelGroups</name>
+    <message id="channels.action.convert">
+      <source>Convert to Channel Group</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.action.recombine">
+      <source>Convert Channel Group to Raster</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.action.inspect.alpha">
+      <source>Show alpha as transparency</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.action.copy">
+      <source>Copy channel pixels</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.action.cut">
+      <source>Cut channel pixels</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.action.open">
+      <source>Open data texture…</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.action.export">
+      <source>Export channel data…</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.convert.to.edit">
+      <source>Convert to a Channel Group to edit numeric data.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.operation.unavailable">
+      <source>Unavailable for numeric channels.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.clipboard.copied">
+      <source>Channel pixels copied.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.clipboard.required">
+      <source>Copy channel pixels or an 8-bit straight grayscale image to paste into a channel.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.clipboard.target.changed">
+      <source>The paste target changed. Try pasting again.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.clipboard.failed">
+      <source>Could not paste into the channel. No pixels were changed.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.open.title">
+      <source>Open data texture</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.open.filter">
+      <source>Lossless images (*.png *.tif *.tiff *.bmp *.tga);;All files (*)</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.value">
+      <source>Value</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.value.prefix">
+      <source>Value: </source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.value.hint">
+      <source>Stored channel value. Black is 0; white is 255.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.group.hint">
+      <source>Packed channel data. Select a channel to inspect and edit its numeric values.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.layer.hint">
+      <source>Numeric channel: 0–255. Rename the label without changing its channel identity.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.type.group">
+      <source>Channel Group</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.type.scalar">
+      <source>Numeric channel · R8</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.type.packed">
+      <source>Packed data · RGBA8</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.levels.hint">
+      <source>Adjust stored channel values without colour conversion.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.invert.hint">
+      <source>Invert channel values: 0 becomes 255, and 255 becomes 0.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.effects.unavailable">
+      <source>Colour effects are unavailable for numeric channels.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.color.adjustments.unavailable">
+      <source>Colour adjustments are unavailable for numeric channels.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.histogram.sampled">
+      <source>Sampled input · %1 numeric samples</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.histogram.source">
+      <source>Source input · %1 numeric samples</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.export.title">
+      <source>Export channel data</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.export.hint">
+      <source>Native pixel values · PNG · no colour conversion</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.clone.source.hint">
+      <source>Numeric channels sample an explicit channel layer. Rendered colour sources are unavailable.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="channels.psd.unsupported">
+      <source>Save a Vulkana project or export channel data as PNG to preserve numeric channels.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="history.channels.recombine">
+      <source>Convert Channel Group to raster</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="history.channels.paste">
+      <source>Paste channel pixels</source>
+      <translation type="unfinished" />
+    </message>
+  </context>
+  <context>
+    <name>DiffusionPanel</name>
+    <message id="diffusion.override.reset.hint">
+      <source>Reset to configuration default: %1</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.vae.tiling.required">
+      <source>Available when VAE tiling is enabled.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.preview.required">
+      <source>Available when progress previews are enabled.</source>
+      <translation type="unfinished" />
+    </message>
+  </context>
 </TS>

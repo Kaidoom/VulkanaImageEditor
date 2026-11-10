@@ -1,5 +1,6 @@
 #include "imageeditor/ui/LayerInfoPanel.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/core/LayerTransform.hpp"
 #include "imageeditor/ui/FontFamilyPicker.hpp"
 #include "imageeditor/ui/Localization.hpp"
@@ -125,8 +126,8 @@ void LayerInfoPanel::setLayer(const core::Layer* layer, const core::LayerContain
     if (!layer) {
         if (container) {
             i18n::setText(name_, i18n::Message("%1 (%2)").arg(QString::fromStdString(container->name),
-                i18n::text(container->kind == core::ContainerKind::Folder ? "properties.info.folder"
-                                                                          : "properties.info.group")));
+                container->kind == core::ContainerKind::ChannelGroup ? i18n::text("channels.type.group")
+                    : i18n::text(container->kind == core::ContainerKind::Folder ? "properties.info.folder" : "properties.info.group")));
         } else {
             i18n::setText(name_, i18n::text("properties.panel.no.layer.selected"));
         }
@@ -149,7 +150,9 @@ void LayerInfoPanel::setLayer(const core::Layer* layer, const core::LayerContain
     angle_->setText(QString("%1°").arg(std::atan2(b.y - a.y, b.x - a.x) * 180 / std::numbers::pi, 0, 'f', 1));
     position_->setText(QString("%1, %2 px").arg(a.x, 0, 'f', 1).arg(a.y, 0, 'f', 1));
     i18n::setText(name_, i18n::Message("%1 (%2)").arg(QString::fromStdString(layer->name),
-        i18n::text(std::holds_alternative<core::RasterLayer>(layer->payload) ? "properties.panel.raster.layer"
+        core::isScalarLayer(*layer) ? i18n::text("channels.type.scalar")
+        : core::isPackedDataLayer(*layer) ? i18n::text("channels.type.packed")
+        : i18n::text(std::holds_alternative<core::RasterLayer>(layer->payload) ? "properties.panel.raster.layer"
                 : std::holds_alternative<core::TextLayer>(layer->payload)
                 ? "properties.panel.editable.text.layer"
                 : std::holds_alternative<core::ShapeLayer>(layer->payload)
