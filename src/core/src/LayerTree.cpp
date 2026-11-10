@@ -60,8 +60,17 @@ std::vector<LayerId> LayerTree::orderedLeaves(std::span<const LayerId> leaves) c
         require(id && known.insert(id).second);
     for (const auto& c : containers) {
         require(c.id && !c.name.empty() && c.name.size() <= 4096 && known.insert(c.id).second);
-        require(c.kind == ContainerKind::Folder || c.kind == ContainerKind::Group || c.kind == ContainerKind::ClippingMaskGroup);
+        require(c.kind == ContainerKind::Folder || c.kind == ContainerKind::Group || c.kind == ContainerKind::ClippingMaskGroup || c.kind == ContainerKind::ChannelGroup);
         require(c.colorLabel <= ColorLabel::Purple);
+        if (c.kind == ContainerKind::ChannelGroup) {
+            require(c.channelRoles[0] && c.channelRoles[1] && c.channelRoles[2]);
+            require(c.children.size() == (c.channelRoles[3] ? 4U : 3U));
+            std::unordered_set<LayerId> roles;
+            for (const auto role : c.channelRoles) if (role) {
+                require(roles.insert(role).second && !container(role));
+                require(std::ranges::find(c.children, role) != c.children.end());
+            }
+        } else require(std::ranges::all_of(c.channelRoles, [](auto id) { return id == 0; }));
     }
     std::vector<LayerId> order;
     order.reserve(leaves.size());
@@ -131,9 +140,15 @@ bool LayerTree::reparent(std::span<const LayerId> input, ItemPlacement destinati
     const auto* siblings = children(destination.parent);
     if (ids.empty() || !siblings || destination.index > siblings->size())
         return false;
-    for (auto id : ids)
-        if (id == destination.parent || isAncestor(id, destination.parent))
+    for (auto id : ids) {
+        if (id == destination.parent || isAncestor(id, destination.parent)) return false;
+        const auto source = placement(id);
+        const auto* from = source ? container(source->parent) : nullptr;
+        const auto* to = container(destination.parent);
+        if ((from && from->kind == ContainerKind::ChannelGroup && source->parent != destination.parent)
+            || (to && to->kind == ContainerKind::ChannelGroup && (!source || source->parent != destination.parent)))
             return false;
+    }
     auto next = *this;
     auto index = destination.index;
     for (auto id : ids) {
@@ -153,7 +168,7 @@ bool LayerTree::dissolve(LayerId id)
 {
     const auto* c = container(id);
     const auto p = placement(id);
-    if (!c || !p)
+    if (!c || !p || c->kind == ContainerKind::ChannelGroup)
         return false;
     auto next = *this;
     auto& siblings = *next.children(p->parent);
@@ -166,7 +181,11 @@ bool LayerTree::dissolve(LayerId id)
 ItemPlacement LayerTree::insertionAbove(LayerId id) const noexcept
 {
     if(const auto* c=container(id);c&&c->kind==ContainerKind::ClippingMaskGroup)return {id,c->children.size()};
-    if(auto p=placement(id)){++p->index;return *p;}
+    if(auto p=placement(id)){
+        if(const auto* parent=container(p->parent);parent && parent->kind==ContainerKind::ChannelGroup)
+            return insertionAbove(parent->id);
+        ++p->index;return *p;
+    }
     return {0,roots.size()};
 }
 bool LayerTree::consolidate(std::span<const LayerId> input, LayerId replacement)

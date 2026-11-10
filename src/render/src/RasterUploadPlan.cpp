@@ -6,8 +6,10 @@
 namespace imageeditor::render {
 
 RasterUploadPlan makeRasterUploadPlan(
-    std::span<const core::RectI> regions, std::uint64_t offsetAlignment)
+    std::span<const core::RectI> regions, std::uint64_t offsetAlignment, std::size_t bytesPerPixel)
 {
+    if(bytesPerPixel!=1 && bytesPerPixel!=4)
+        throw std::invalid_argument("Raster upload requires R8 or RGBA8 pixels");
     if (offsetAlignment == 0) {
         throw std::invalid_argument("Raster upload alignment must be non-zero");
     }
@@ -20,7 +22,7 @@ RasterUploadPlan makeRasterUploadPlan(
         }
         const auto remainder = plan.stagingBytes % offsetAlignment;
         const auto padding = remainder == 0 ? 0 : offsetAlignment - remainder;
-        const auto rowBytes = static_cast<std::uint64_t>(region.width) * 4U;
+        const auto rowBytes = static_cast<std::uint64_t>(region.width) * bytesPerPixel;
         const auto byteCount = rowBytes * static_cast<std::uint64_t>(region.height);
         if (plan.stagingBytes > std::numeric_limits<std::uint64_t>::max() - padding
             || plan.stagingBytes + padding

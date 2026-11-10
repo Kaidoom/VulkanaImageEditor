@@ -49,6 +49,8 @@ add_library(imageeditor_ui STATIC
     src/ColorSelector.cpp
     src/ClipboardImage.cpp
     src/LayerMaskClipboard.cpp
+    src/ScalarClipboard.cpp
+    src/MainWindowChannelGroups.cpp
     src/LayerListModel.cpp
     src/LayerListView.cpp
     src/LayerDrag.cpp

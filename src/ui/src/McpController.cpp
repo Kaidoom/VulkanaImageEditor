@@ -9,6 +9,7 @@
 #include "imageeditor/ui/LayerListModel.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include <QApplication>
 #include <QAbstractSpinBox>
 #include <QLabel>
@@ -17,10 +18,66 @@
 #include <QScopedValueRollback>
 #include <QStatusBar>
 #include <QThread>
+#include <array>
 
 namespace imageeditor::ui {
 using namespace mcpdetail;
 namespace {
+// This admission runs before any handler prepares or publishes a command. Core
+// validation remains authoritative; these messages explain restricted numeric
+// workflows without letting a rejected command look like a successful no-op.
+void validateChannelOperation(const core::Document& doc, const QString& name, const QJsonObject& args)
+{
+    const auto validateParent = [&](const QJsonObject& entry) {
+        if (!entry.contains("parentId")) return;
+        const auto* parent = doc.tree().container(id(entry, "parentId"));
+        require(!parent || parent->kind != core::ContainerKind::ChannelGroup,
+            "Channel Groups have fixed R/G/B/A slots. Add ordinary layers outside the Channel Group.");
+    };
+    validateParent(args);
+    for (const auto entry : args["layers"].toArray()) validateParent(entry.toObject());
+
+    std::vector<core::LayerId> targets;
+    if (args.contains("layerId")) targets.push_back(id(args, "layerId"));
+    for (const auto target : args["layerIds"].toArray()) targets.push_back(id(QJsonObject{{"id", target}}, "id"));
+    for (const auto entry : args["updates"].toArray())
+        if (entry.toObject().contains("layerId")) targets.push_back(id(entry.toObject(), "layerId"));
+    const bool structural = QStringList {"vulkana_layer_delete", "vulkana_layer_duplicate", "vulkana_layer_reparent",
+        "vulkana_layer_group", "vulkana_layer_transform", "vulkana_layers_align", "vulkana_layers_distribute",
+        "vulkana_layers_repeat", "vulkana_layer_set_visibility"}.contains(name);
+    const bool scalarStyle = QStringList {"vulkana_layer_mask", "vulkana_layer_set_opacity",
+        "vulkana_layer_set_fill_opacity", "vulkana_layer_set_blend_mode", "vulkana_layers_style"}.contains(name)
+        || name.startsWith("vulkana_effect_") || name.startsWith("vulkana_adjustment_") || name.startsWith("vulkana_filter_");
+    for (const auto target : targets) {
+        const auto* container = doc.tree().container(target);
+        if (container && container->kind == core::ContainerKind::ChannelGroup) {
+            require(name != "vulkana_layer_ungroup",
+                "Channel Groups cannot be ungrouped. Use Convert to raster in the editor to preserve packed channel values.");
+        }
+        if (name == "vulkana_layers_repeat") {
+            const std::array selected {target};
+            for (const auto leaf : doc.expandedLayers(selected)) {
+                const auto* layer = doc.layer(leaf);
+                require(!layer || !core::isScalarLayer(*layer),
+                    "Repetition of numeric channels is unavailable. Duplicate the complete Channel Group instead.");
+            }
+        }
+        if (structural)
+            require(!core::channelGroupForLayer(doc, target),
+                "Channel identities and their pixel grid stay together. Target the complete Channel Group for this operation.");
+        const auto* layer = doc.layer(target);
+        if (!layer || !core::isScalarLayer(*layer)) continue;
+        require(!scalarStyle,
+            "This operation is unavailable on numeric channel layers. Paint scalar values or use a compatible numeric operation instead.");
+        require(name != "vulkana_brush_strokes",
+            "Batched strokes are not available on numeric channels yet. Use vulkana_brush_stroke for individual undoable scalar strokes.");
+        require(name != "vulkana_selection_from_alpha",
+            "Numeric channels have values, not image transparency. Channel-value selection is not exposed through this MCP command yet.");
+        require(args.value("target").toString() != "mask",
+            "Numeric channel layers cannot have layer masks. Use target:pixels to edit the channel values.");
+    }
+}
+
 template<class Widget>
 class CompactStatusControl final : public Widget {
 public:
@@ -261,18 +318,39 @@ QJsonObject McpController::state(bool includeLayers) const
         for (const auto& container : doc.tree().containers) {
             QJsonArray children;
             for (const auto child : container.children) children.append(id(child));
-            containers.append(QJsonObject{{"layerId", id(container.id)}, {"name", QString::fromStdString(container.name)},
-                {"type", container.kind == core::ContainerKind::Folder ? "folder" : container.kind == core::ContainerKind::Group ? "group" : "clipping_group"},
-                {"visible", container.visible}, {"children", children}});
+            QJsonObject entry {{"layerId", id(container.id)}, {"name", QString::fromStdString(container.name)},
+                {"type", container.kind == core::ContainerKind::Folder ? "folder" : container.kind == core::ContainerKind::Group ? "group"
+                    : container.kind == core::ContainerKind::ChannelGroup ? "channel_group" : "clipping_group"},
+                {"visible", container.visible}, {"children", children}};
+            if (container.kind == core::ContainerKind::ChannelGroup) {
+                QJsonObject roles;
+                const std::array keys {"R", "G", "B", "A"};
+                for (std::size_t i = 0; i < keys.size(); ++i)
+                    roles[keys[i]] = container.channelRoles[i] ? QJsonValue(id(container.channelRoles[i])) : QJsonValue(QJsonValue::Null);
+                entry["channelRoles"] = roles;
+            }
+            containers.append(entry);
         }
         for (const auto& layer : doc.layers()) {
             const auto size = core::layerGeometryExtent(layer);
             const auto& m = layer.localToDocument;
-            layers.append(QJsonObject{{"layerId", id(layer.id)}, {"name", QString::fromStdString(layer.name)},
+            QJsonObject entry {{"layerId", id(layer.id)}, {"name", QString::fromStdString(layer.name)},
                 {"type", std::holds_alternative<core::RasterLayer>(layer.payload) ? "raster" : std::holds_alternative<core::TextLayer>(layer.payload) ? "text" : std::holds_alternative<core::ShapeLayer>(layer.payload) ? "shape" : "adjustment"},
                 {"visible", layer.visible}, {"effectivelyVisible", doc.isEffectivelyVisible(layer.id)},
                 {"opacity", layer.opacity}, {"fillOpacity", layer.fillOpacity}, {"width", double(size.width)}, {"height", double(size.height)},
-                {"transform", QJsonArray{m.m00, m.m01, m.m02, m.m10, m.m11, m.m12, m.m20, m.m21, m.m22}}, {"hasMask", bool(layer.mask)}});
+                {"transform", QJsonArray{m.m00, m.m01, m.m02, m.m10, m.m11, m.m12, m.m20, m.m21, m.m22}}, {"hasMask", bool(layer.mask)}};
+            if (const auto* raster = std::get_if<core::RasterLayer>(&layer.payload); raster && raster->surface) {
+                const auto kind = raster->surface->dataKind();
+                entry["dataKind"] = kind == core::RasterDataKind::Scalar ? "scalar" : kind == core::RasterDataKind::PackedData ? "packed_data" : "color";
+                entry["pixelFormat"] = kind == core::RasterDataKind::Scalar ? "r8" : "rgba8";
+            }
+            if (const auto* group = core::channelGroupForLayer(doc, layer.id)) {
+                entry["channelGroupId"] = id(group->id);
+                const std::array keys {"R", "G", "B", "A"};
+                for (std::size_t i = 0; i < keys.size(); ++i)
+                    if (group->channelRoles[i] == layer.id) entry["channelRole"] = keys[i];
+            }
+            layers.append(entry);
         }
         active["layers"] = layers; active["containers"] = containers; active["rootsBottomToTop"] = roots;
     }
@@ -340,6 +418,8 @@ void McpController::add(QString name, QString description, QJsonObject propertie
                 return mcp::toolFailure("operation_failed", QString::fromUtf8(error.what()), details);
             };
             try {
+                if (session().document())
+                    validateBeforeMutation([&] { validateChannelOperation(document(), name, args); });
                 auto data = handler(args);
                 const auto image = data.take("_mcpImage").toString();
                 auto response = mcp::toolSuccess(data);

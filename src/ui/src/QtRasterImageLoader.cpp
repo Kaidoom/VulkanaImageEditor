@@ -20,9 +20,9 @@
 
 namespace imageeditor::ui {
 namespace {
-RasterLayerLoadResult readLayer(QImageReader& reader, const QString& name)
+RasterLayerLoadResult readLayer(QImageReader& reader, const QString& name, RasterImportMode mode)
 {
-    reader.setAutoTransform(true);
+    reader.setAutoTransform(mode == RasterImportMode::Color);
     if (!reader.canRead()) {
         return {.layer = std::nullopt, .extent = {}, .error = reader.errorString()};
     }
@@ -39,26 +39,26 @@ RasterLayerLoadResult readLayer(QImageReader& reader, const QString& name)
     if (image.isNull()) {
         return {.layer = std::nullopt, .extent = {}, .error = reader.errorString()};
     }
-    return rasterLayerFromImage(std::move(image), name);
+    return rasterLayerFromImage(std::move(image), name, mode);
 }
 }
 
-RasterLayerLoadResult loadRasterLayer(const QString& filePath)
+RasterLayerLoadResult loadRasterLayer(const QString& filePath, RasterImportMode mode)
 {
     QImageReader reader(filePath);
-    return readLayer(reader, QFileInfo(filePath).completeBaseName());
+    return readLayer(reader, QFileInfo(filePath).completeBaseName(), mode);
 }
 
-RasterLayerLoadResult loadRasterLayerFromData(const QByteArray& bytes, const QString& name)
+RasterLayerLoadResult loadRasterLayerFromData(const QByteArray& bytes, const QString& name, RasterImportMode mode)
 {
     QBuffer buffer;
     buffer.setData(bytes); // implicitly shared; no second encoded-image copy
     buffer.open(QIODevice::ReadOnly);
     QImageReader reader(&buffer);
-    return readLayer(reader, name);
+    return readLayer(reader, name, mode);
 }
 
-RasterLayerLoadResult rasterLayerFromImage(QImage image, const QString& name)
+RasterLayerLoadResult rasterLayerFromImage(QImage image, const QString& name, RasterImportMode mode)
 {
     if (image.isNull()) return {.layer = {}, .extent = {}, .error = QStringLiteral("The image is empty.")};
     if (!rasterExtentWithinLimits(static_cast<std::uint32_t>(image.width()),
@@ -68,7 +68,17 @@ RasterLayerLoadResult rasterLayerFromImage(QImage image, const QString& name)
                 .arg(kMaximumRasterDimension)};
     }
     try {
-        if (image.colorSpace().isValid() && image.colorSpace() != QColorSpace::SRgb) {
+        if (mode == RasterImportMode::Data) {
+            const auto format = image.pixelFormat();
+            if (format.redSize() > 8 || format.greenSize() > 8 || format.blueSize() > 8
+                || format.alphaSize() > 8 || format.typeInterpretation() == QPixelFormat::FloatingPoint)
+                return {.layer = {}, .extent = {}, .error = QStringLiteral("Data textures currently support 8-bit channels. Higher-precision pixels were not converted.")};
+            if (format.premultiplied() == QPixelFormat::Premultiplied)
+                return {.layer = {}, .extent = {}, .error = QStringLiteral("This image contains premultiplied pixels. Open a straight-alpha image to preserve all channel values.")};
+            if (format.colorModel() == QPixelFormat::CMYK)
+                return {.layer = {}, .extent = {}, .error = QStringLiteral("CMYK images cannot be imported as RGB channel data without colour conversion.")};
+        }
+        if (mode == RasterImportMode::Color && image.colorSpace().isValid() && image.colorSpace() != QColorSpace::SRgb) {
             image = image.convertedToColorSpace(QColorSpace::SRgb);
         }
         image = image.convertToFormat(QImage::Format_RGBA8888);
@@ -84,7 +94,8 @@ RasterLayerLoadResult rasterLayerFromImage(QImage image, const QString& name)
         }
 
         auto surface = std::make_shared<core::ContiguousRasterSurface>(
-            core::Extent2u {width, height}, std::move(pixels));
+            core::Extent2u {width, height}, std::move(pixels),
+            mode == RasterImportMode::Data ? core::RasterDataKind::PackedData : core::RasterDataKind::Color);
         const auto layerName = name.toUtf8().toStdString();
         return {
             .layer = core::Layer::raster(layerName, std::move(surface)),
@@ -100,9 +111,9 @@ RasterLayerLoadResult rasterLayerFromImage(QImage image, const QString& name)
     }
 }
 
-ImageLoadResult loadRasterDocument(const QString& filePath)
+ImageLoadResult loadRasterDocument(const QString& filePath, RasterImportMode mode)
 {
-    auto loaded = loadRasterLayer(filePath);
+    auto loaded = loadRasterLayer(filePath, mode);
     if (!loaded) {
         return {.document = nullptr, .error = std::move(loaded.error)};
     }

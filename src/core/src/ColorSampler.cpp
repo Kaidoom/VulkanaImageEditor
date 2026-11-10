@@ -14,6 +14,28 @@ namespace {
 
 using LinearColor = PremultipliedColor;
 
+float numericDisplay(float value)
+{
+    value=std::clamp(value,0.F,1.F);
+    return value<=.04045F ? value/12.92F : std::pow((value+.055F)/1.055F,2.4F);
+}
+LinearColor displayScalar(LinearColor value)
+{
+    if(value[3]<=0)return {};
+    const auto gray=numericDisplay(value[0]/value[3])*value[3];
+    return {gray,gray,gray,value[3]};
+}
+LinearColor packedChannels(const std::array<LinearColor,4>& values,bool alpha)
+{
+    float coverage=1;
+    for(std::size_t i=0;i<(alpha?4U:3U);++i)coverage=std::min(coverage,values[i][3]);
+    if(coverage<=0)return {};
+    const float opacity=(alpha?values[3][0]/values[3][3]:1.F)*coverage;
+    return {numericDisplay(values[0][0]/values[0][3])*opacity,
+        numericDisplay(values[1][0]/values[1][3])*opacity,
+        numericDisplay(values[2][0]/values[2][3])*opacity,opacity};
+}
+
 std::shared_ptr<const CompiledAdjustmentStack> preparedAdjustments(const AdjustmentState& state)
 {
     if (!state) return {};
@@ -22,7 +44,8 @@ std::shared_ptr<const CompiledAdjustmentStack> preparedAdjustments(const Adjustm
 }
 
 LinearColor sampleRaster(const AffineTransform& inverse, const RasterSurface& surface,
-    Vec2d point, std::size_t& texelsRead, SampleFiltering = SampleFiltering::AlphaAware, bool coherent = false)
+    Vec2d point, std::size_t& texelsRead, SampleFiltering = SampleFiltering::AlphaAware,
+    bool coherent = false, bool numericScalar = false)
 {
     const auto extent = surface.extent();
     if (extent.empty()) {
@@ -48,20 +71,30 @@ LinearColor sampleRaster(const AffineTransform& inverse, const RasterSurface& su
     const auto y1 = static_cast<std::int32_t>(std::ceil(y));
     const RectI region {x0, y0, x1 - x0 + 1, y1 - y0 + 1};
     std::array<std::byte, 16> bytes {};
-    const auto stride = static_cast<std::size_t>(region.width) * 4;
-    surface.copyRgba8(region, bytes, stride);
+    const bool scalar=surface.dataKind()==RasterDataKind::Scalar;
+    const auto pixelBytes=scalar?1U:4U;
+    const auto stride = static_cast<std::size_t>(region.width) * pixelBytes;
+    surface.copyNative(region, bytes, stride);
     texelsRead += static_cast<std::size_t>(region.width * region.height);
     std::array<double,4> result {};
     for (int row = 0; row < region.height; ++row) {
         const auto wy = region.height == 1 ? 1.0 : row == 0 ? 1.0 - (y - y0) : y - y0;
         for (int col = 0; col < region.width; ++col) {
             const auto wx = region.width == 1 ? 1.0 : col == 0 ? 1.0 - (x - x0) : x - x0;
-            const auto offset = static_cast<std::size_t>(row) * stride + std::size_t(col) * 4;
-            const auto decoded=decodeColor({std::to_integer<std::uint8_t>(bytes[offset]),std::to_integer<std::uint8_t>(bytes[offset+1]),
-                std::to_integer<std::uint8_t>(bytes[offset+2]),std::to_integer<std::uint8_t>(bytes[offset+3])});
+            const auto offset = static_cast<std::size_t>(row) * stride + std::size_t(col) * pixelBytes;
+            const auto value=std::to_integer<std::uint8_t>(bytes[offset]);
+            const auto rgba=scalar?Rgba8{value,value,value,255}:Rgba8{value,std::to_integer<std::uint8_t>(bytes[offset+1]),
+                std::to_integer<std::uint8_t>(bytes[offset+2]),std::to_integer<std::uint8_t>(bytes[offset+3])};
+            const auto decoded=surface.dataKind()==RasterDataKind::Color ? decodeColor(rgba)
+                : LinearColor{float(rgba.red)/255,float(rgba.green)/255,float(rgba.blue)/255,float(rgba.alpha)/255};
             for (std::size_t channel = 0; channel < 4; ++channel)
                 result[channel] += wx * wy * double(decoded[channel]);
         }
+    }
+    if(surface.dataKind()!=RasterDataKind::Color && !numericScalar) {
+        const float alpha=float(result[3])*edgeCoverage;
+        return {numericDisplay(float(result[0]))*alpha,numericDisplay(float(result[1]))*alpha,
+            numericDisplay(float(result[2]))*alpha,alpha};
     }
     return {float(result[0])*edgeCoverage,float(result[1])*edgeCoverage,float(result[2])*edgeCoverage,float(result[3])*edgeCoverage};
 }
@@ -172,7 +205,7 @@ PinnedDocumentSampler::PinnedDocumentSampler(const Document& document,
             ids.push_back(l.id);
             if(const auto* a=std::get_if<AdjustmentLayer>(&l.payload))adjustments.emplace_back(l.id,a->scope);
         }
-        if(hasClippingGroups(document.tree()) || !adjustments.empty())
+        if(hasClippingGroups(document.tree()) || hasChannelGroups(document.tree()) || !adjustments.empty())
             composition_=compositionPlan(document.tree(),ids,{},adjustments);
         for(std::size_t i=0;i<sources_.size();++i)sourceById_[sources_[i].id]=i;
     }
@@ -243,6 +276,7 @@ std::vector<std::uint64_t> adjustmentInputKey(const Document& document,LayerId t
     const auto matrix=[&](const AffineTransform& m){for(auto x:{m.m00,m.m01,m.m02,m.m10,m.m11,m.m12,m.m20,m.m21,m.m22})number(x);};
     const auto walk=[&](const auto& self,const CompositionNode& node)->bool {
         key.insert(key.end(),{node.id,node.leaf,node.clipping,node.isolated,node.adjustment});
+        key.insert(key.end(),node.channelRoles.begin(),node.channelRoles.end());
         if(node.leaf) {
             const auto* l=document.layer(node.id);if(!l)return false;
             matrix(l->localToDocument);
@@ -309,7 +343,7 @@ PinnedDocumentSampler::PinnedDocumentSampler(std::span<const Layer* const> layer
             if(const auto* a=std::get_if<AdjustmentLayer>(&layer->payload))adjustments.emplace_back(layer->id,a->scope);
         }
         LayerTree flat;flat.roots=ids;
-        if((tree && hasClippingGroups(*tree)) || !adjustments.empty())
+        if((tree && (hasClippingGroups(*tree)||hasChannelGroups(*tree))) || !adjustments.empty())
             composition_=compositionPlan(tree?*tree:flat,ids,selectedItems,adjustments);
         for(std::size_t i=0;i<sources_.size();++i)sourceById_[sources_[i].id]=i;
     }
@@ -347,7 +381,20 @@ PremultipliedColor PinnedDocumentSampler::sampleComposition(Vec2d point, std::sp
         for(auto& channel:c)channel*=crop*mask;
         return compositeLayer(backdrop,c,float(s.opacity),s.blendMode,s.blendPoint(point),s.blendSeed,replacement!=nullptr,snapshot_.canvas.compositingSpace,s.fillOpacity);
     };
-    const auto result=evaluateComposition(*composition_,{},leaf,raw,false,false,snapshot_.canvas.compositingSpace);
+    const auto pack=[&](const CompositionNode& node,PremultipliedColor backdrop) {
+        if(reachedProbe)return backdrop;
+        std::array<LinearColor,4> channels {};
+        for(std::size_t i=0;i<4;++i) {
+            if(!node.channelRoles[i])continue;
+            const auto found=sourceById_.find(node.channelRoles[i]);
+            if(found==sourceById_.end())return backdrop;
+            const auto& s=sources_[found->second];std::size_t reads=0;
+            channels[i]=sampleRaster(s.inverse,*s.surface,point,reads,filtering_,false,true);
+        }
+        return compositeLayer(backdrop,packedChannels(channels,node.channelRoles[3]!=0),1,BlendMode::Normal,
+            {},defaultBlendSeed,false,snapshot_.canvas.compositingSpace);
+    };
+    const auto result=evaluateComposition(*composition_,{},leaf,raw,pack,false,false,snapshot_.canvas.compositingSpace);
     return probe?captured:result;
 }
 PremultipliedColor PinnedDocumentSampler::sampleAdjustmentInput(Vec2d point,LayerId id,std::size_t stopBefore) const
@@ -408,6 +455,7 @@ void PinnedDocumentSampler::sampleRow(std::int32_t x, std::int32_t y, std::span<
         for(std::size_t si=0;si<sources_.size();++si) {
             if(sources_[si].adjustment){ranges[si]={first,last};continue;}
             const auto& s=sources_[si];const auto e=s.surface->extent();
+            const bool scalar=s.surface->dataKind()==RasterDataKind::Scalar;
             if(s.effects)ranges[si]=s.effectCache && !s.spatialBlend() ? rowRange(s.documentToLocal,s.effectCache->visualBounds)
                                                 : std::pair{first,last};
             const bool aligned=s.inverse.isAffine() && s.inverse.m00==1 && s.inverse.m11==1 && s.inverse.m01==0 && s.inverse.m10==0
@@ -424,14 +472,16 @@ void PinnedDocumentSampler::sampleRow(std::int32_t x, std::int32_t y, std::span<
                 begin=std::max(begin,std::int64_t(-s.inverse.m02-documentX));
                 end=std::min(end,std::int64_t(e.width-s.inverse.m02-documentX));
                 if(end<=begin)continue;
-                const auto span=std::span(bytes).first(std::size_t(end-begin)*4);
-                s.surface->copyRgba8({int(documentX+double(begin)+s.inverse.m02),int(sy),int(end-begin),1},span,span.size());
+                const auto span=std::span(bytes).first(std::size_t(end-begin)*(scalar?1:4));
+                s.surface->copyNative({int(documentX+double(begin)+s.inverse.m02),int(sy),int(end-begin),1},span,span.size());
             }
             if(!s.effects)ranges[si]={begin,end};
             for(auto i=begin;i<end;++i) {
                 const Vec2d p{documentX+double(i)+.5,documentY};PremultipliedColor c;
-                if(aligned) {const auto* v=bytes.data()+std::size_t(i-begin)*4;c=decodeColor({std::to_integer<std::uint8_t>(v[0]),std::to_integer<std::uint8_t>(v[1]),std::to_integer<std::uint8_t>(v[2]),std::to_integer<std::uint8_t>(v[3])});}
-                else {std::size_t reads=0;c=sampleRaster(s.inverse,*s.surface,p,reads,filtering_,s.spatialBlend());}
+                if(aligned) {const auto* v=bytes.data()+std::size_t(i-begin)*(scalar?1:4);
+                    const auto value=float(std::to_integer<std::uint8_t>(v[0]))/255;
+                    c=scalar?LinearColor{value,value,value,1}:decodeColor({std::to_integer<std::uint8_t>(v[0]),std::to_integer<std::uint8_t>(v[1]),std::to_integer<std::uint8_t>(v[2]),std::to_integer<std::uint8_t>(v[3])});}
+                else {std::size_t reads=0;c=sampleRaster(s.inverse,*s.surface,p,reads,filtering_,s.spatialBlend(),scalar);}
                 if(s.adjustments)c=evaluateAdjustments(*s.adjustments,c,s.documentToLocal.map(p));
                 rows[si*output.size()+std::size_t(i)]=c;
             }
@@ -449,6 +499,7 @@ void PinnedDocumentSampler::sampleRow(std::int32_t x, std::int32_t y, std::span<
                     continue;
                 }
                 auto c=rows[si*output.size()+index];
+                if(s.surface->dataKind()==RasterDataKind::Scalar)c=displayScalar(c);
                 // Transparent content has no contribution, but exterior styles
                 // can still contribute there and must retain their own support.
                 if(c[3]<=0 && (!s.effects || contentOnly))continue;
@@ -463,6 +514,25 @@ void PinnedDocumentSampler::sampleRow(std::int32_t x, std::int32_t y, std::span<
         const auto renderRow=[&](const auto& self,const CompositionNode& node,std::span<PremultipliedColor> dst,
             bool contentOnly,std::int64_t start,std::int64_t finish,bool inDomain=false)->void {
             if(node.leaf){applyLeaf(node.id,dst,contentOnly,{},start,finish);return;}
+            if(node.channelRoles[0]) {
+                std::array<std::size_t,4> slots {};
+                for(std::size_t role=0;role<4;++role) {
+                    if(!node.channelRoles[role])continue;
+                    const auto found=sourceById_.find(node.channelRoles[role]);
+                    if(found==sourceById_.end())return;
+                    slots[role]=found->second;
+                    start=std::max(start,ranges[slots[role]].first);
+                    finish=std::min(finish,ranges[slots[role]].second);
+                }
+                for(auto i=start;i<finish;++i) {
+                    std::array<LinearColor,4> values {};
+                    for(std::size_t role=0;role<4;++role)
+                        if(node.channelRoles[role])values[role]=rows[slots[role]*output.size()+std::size_t(i)];
+                    dst[std::size_t(i)]=compositeLayer(dst[std::size_t(i)],packedChannels(values,node.channelRoles[3]!=0),
+                        1,BlendMode::Normal,{},defaultBlendSeed,false,snapshot_.canvas.compositingSpace);
+                }
+                return;
+            }
             if(node.isolated && !inDomain) {
                 std::vector<PremultipliedColor> local(output.size());
                 self(self,node,local,contentOnly,start,finish,true);
@@ -653,7 +723,8 @@ ColorSample sampleDocumentColor(const Document& document,
         result.color = inverse?encode(sampleRaster(*inverse,*surface,point,result.texelsRead)):Rgba8{};
         return result;
     }
-    if(hasClippingGroups(document.tree()) || std::ranges::any_of(document.layers(),[](const auto& l){return std::holds_alternative<AdjustmentLayer>(l.payload);})) {
+    if(hasClippingGroups(document.tree()) || hasChannelGroups(document.tree())
+        || std::ranges::any_of(document.layers(),[](const auto& l){return std::holds_alternative<AdjustmentLayer>(l.payload);})) {
         for(const auto& layer:document.layers())if(document.isEffectivelyVisible(layer.id)&&layer.opacity>0&&!std::holds_alternative<AdjustmentLayer>(layer.payload))
             if(!renderedSurface(layer) || (hasActiveSpatialFilters(layer.filters)&&!layerSpatialFilterCacheValid(layer)) || !layerEffectCacheValid(layer)) {
                 result.status=ColorSampleStatus::UnsupportedLayer;return result;

@@ -15,6 +15,7 @@ struct CompositionNode {
     LayerId id{};
     bool leaf{false}, clipping{false}, included{false}, isolated{false}, adjustment{false};
     std::vector<CompositionNode> children;
+    std::array<LayerId,4> channelRoles {}; // Fixed R/G/B/A identities, never child order.
 };
 inline CompositionNode compositionPlan(const LayerTree& tree, std::span<const LayerId> included,
     std::span<const LayerId> selection={},
@@ -40,6 +41,10 @@ inline CompositionNode compositionPlan(const LayerTree& tree, std::span<const La
                 n.included=true;
             }
             n.clipping=c->kind==ContainerKind::ClippingMaskGroup && basePresent && n.children.size()>1;
+            if(c->kind==ContainerKind::ChannelGroup
+                && std::ranges::all_of(std::span(c->channelRoles).first(3),[&](auto role){
+                    return std::ranges::find(included,role)!=included.end();
+                })) n.channelRoles=c->channelRoles;
         } else {
             n.included=n.leaf=std::ranges::find(included,id)!=included.end();
             n.adjustment=std::ranges::any_of(adjustments,[&](const auto& a){return a.first==id;});
@@ -56,6 +61,10 @@ inline CompositionNode compositionPlan(const LayerTree& tree, std::span<const La
 inline bool hasClippingGroups(const LayerTree& tree)
 {
     return std::ranges::any_of(tree.containers,[](const auto& c){return c.kind==ContainerKind::ClippingMaskGroup;});
+}
+inline bool hasChannelGroups(const LayerTree& tree)
+{
+    return std::ranges::any_of(tree.containers,[](const auto& c){return c.kind==ContainerKind::ChannelGroup;});
 }
 inline PremultipliedColor clippingOpaque(PremultipliedColor c)
 {
@@ -74,26 +83,27 @@ inline PremultipliedColor clippingContainerResult(PremultipliedColor styled,
 // leaf(id, backdrop, contentOnly, replacement) evaluates an ordinary leaf.
 // raw(id) returns its pre-style content before crop/mask/final opacity.
 // Replacing RGB never replaces alpha: fractional base coverage is applied once.
-template<class Leaf, class Raw>
+template<class Leaf, class Raw, class Pack>
 PremultipliedColor evaluateComposition(const CompositionNode& node, PremultipliedColor backdrop,
-    const Leaf& leaf, const Raw& raw, bool contentOnly=false, bool inDomain=false,
+    const Leaf& leaf, const Raw& raw, const Pack& pack, bool contentOnly=false, bool inDomain=false,
     CompositingSpace space = CompositingSpace::LinearSRgb)
 {
     if(node.leaf)return leaf(node.id,backdrop,contentOnly,nullptr);
+    if(node.channelRoles[0])return pack(node,backdrop);
     if(node.isolated && !inDomain) {
-        return compositeLayer(backdrop,evaluateComposition(node,{},leaf,raw,contentOnly,true,space),1,BlendMode::Normal,{},defaultBlendSeed,false,space);
+        return compositeLayer(backdrop,evaluateComposition(node,{},leaf,raw,pack,contentOnly,true,space),1,BlendMode::Normal,{},defaultBlendSeed,false,space);
     }
     if(!node.clipping) {
-        for(const auto& child:node.children)backdrop=evaluateComposition(child,backdrop,leaf,raw,contentOnly,false,space);
+        for(const auto& child:node.children)backdrop=evaluateComposition(child,backdrop,leaf,raw,pack,contentOnly,false,space);
         return backdrop;
     }
     const auto& base=node.children.front();
     if(base.adjustment)return backdrop; // An operator supplies no clipping silhouette.
-    const auto styled=base.leaf?raw(base.id):evaluateComposition(base,{},leaf,raw,contentOnly,false,space);
-    const auto content=base.leaf||contentOnly?styled:evaluateComposition(base,{},leaf,raw,true,false,space);
+    const auto styled=base.leaf?raw(base.id):evaluateComposition(base,{},leaf,raw,pack,contentOnly,false,space);
+    const auto content=base.leaf||contentOnly?styled:evaluateComposition(base,{},leaf,raw,pack,true,false,space);
     auto working=clippingOpaque(styled);
     for(std::size_t i=1;i<node.children.size();++i)
-        working=evaluateComposition(node.children[i],working,leaf,raw,contentOnly,false,space);
+        working=evaluateComposition(node.children[i],working,leaf,raw,pack,contentOnly,false,space);
     if(base.leaf)return leaf(base.id,backdrop,contentOnly,&working);
     return compositeLayer(backdrop,clippingContainerResult(styled,content,working,space),1,BlendMode::Normal,{},defaultBlendSeed,false,space);
 }

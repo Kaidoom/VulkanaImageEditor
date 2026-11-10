@@ -47,6 +47,12 @@ public:
     bool graphicsInitializing() const;
 
     void setDocument(core::DocumentSnapshot document, bool fitToView);
+    void setChannelInspection(std::optional<core::LayerId> id, bool useAlpha = false)
+    {
+        if (scene_.channelInspectionId == id && scene_.channelInspectionAlpha == useAlpha) return;
+        scene_.channelInspectionId = id; scene_.channelInspectionAlpha = useAlpha;
+        scheduleFrame();
+    }
     std::function<void(const core::DocumentSnapshot&)> onDocumentPresentationChanged;
     void setPixelPreview(bool enabled,std::shared_ptr<const core::RasterSurface> pixels = {})
     {scene_.pixelPreviewEnabled=enabled;scene_.pixelPreview=std::move(pixels);scheduleFrame();}

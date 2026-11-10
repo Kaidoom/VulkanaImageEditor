@@ -54,6 +54,10 @@ struct CanvasScene {
     // targeting, coordinates and overlays. Never serialized/exported.
     bool pixelPreviewEnabled {false};
     std::shared_ptr<const core::RasterSurface> pixelPreview;
+    // Numeric-channel inspection is view state only. Packing/export always
+    // retains the document's actual alpha and is independent of this choice.
+    std::optional<core::LayerId> channelInspectionId;
+    bool channelInspectionAlpha {false};
     // Momentary panel comparison is presentation state only: never part of a
     // document snapshot, sampling/export, persistence or document history.
     std::optional<core::LayerId> adjustmentBypassLayer;

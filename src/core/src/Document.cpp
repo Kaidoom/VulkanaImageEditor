@@ -1,4 +1,5 @@
 #include "imageeditor/core/Document.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/core/LayerCrop.hpp"
 #include <atomic>
 #include "imageeditor/core/RichText.hpp"
@@ -23,6 +24,7 @@ bool Document::setAdjustmentScope(LayerId id, AdjustmentScope scope)
 bool Document::setLayerMask(LayerId id,LayerMaskState state)
 {
     auto* target=layer(id);
+    if (target && isScalarLayer(*target)) return false;
     if (!target || !validLayerMask(state) || target->mask==state) return false;
     target->mask=std::move(state);
     // A shape mask is part of the effects' immutable geometry input. Release
@@ -140,6 +142,7 @@ bool Document::setItemVisibilities(std::span<const ItemVisibilityUpdate> updates
     bool changed = false;
     for (std::size_t i = 0; i < updates.size(); ++i) {
         const auto& update = updates[i];
+        if (channelGroupForLayer(*this, update.id) && !update.after) return false;
         if (itemVisibility(update.id) != std::optional(update.before)) return false;
         for (std::size_t previous = 0; previous < i; ++previous)
             if (updates[previous].id == update.id) return false;
@@ -200,6 +203,7 @@ bool Document::replaceStructure(const LayerTree& expected, LayerTree replacement
         for (const auto& update : retainedLeafVisibility)
             if (update.id == id) prepared.back().visible = update.after;
     }
+    if (!validChannelStructure(replacement, prepared)) return false;
     // All validation, allocations, and authoritative text copies precede
     // publication. Pixels/caches are shared; no renderer sees a half-edit.
     layers_.swap(prepared);
@@ -239,6 +243,7 @@ bool Document::insertLayer(std::size_t index, Layer insertedLayer)
 
 std::optional<RemovedLayer> Document::takeLayer(LayerId id)
 {
+    if (channelGroupForLayer(*this, id)) return {};
     const auto found = std::find_if(layers_.begin(), layers_.end(),
         [id](const Layer& candidate) { return candidate.id == id; });
     if (found == layers_.end()) {
@@ -286,6 +291,7 @@ bool Document::setLayerVisibility(LayerId id, bool visible)
 bool Document::setLayerOpacity(LayerId id, float opacity)
 {
     auto* target = layer(id);
+    if (target && isScalarLayer(*target)) return false;
     opacity = std::clamp(opacity, 0.0F, 1.0F);
     if (!target || target->opacity == opacity) {
         return false;
@@ -298,6 +304,7 @@ bool Document::setLayerOpacity(LayerId id, float opacity)
 bool Document::setLayerBlendMode(LayerId id, BlendMode mode)
 {
     auto* target = layer(id);
+    if (target && isScalarLayer(*target)) return false;
     if (!target || !isValidBlendMode(mode) || target->blendMode == mode) return false;
     target->blendMode = mode;
     touch();
@@ -308,6 +315,7 @@ bool Document::setLayerFillOpacity(LayerId id, float opacity)
 {
     auto* target = layer(id);
     if (!target || !std::isfinite(opacity)) return false;
+    if (target && isScalarLayer(*target)) return false;
     opacity = std::clamp(opacity, 0.0F, 1.0F);
     if (target->fillOpacity == opacity) return false;
     target->fillOpacity = opacity;
@@ -318,6 +326,7 @@ bool Document::setLayerFillOpacity(LayerId id, float opacity)
 bool Document::setLayerAdjustments(LayerId id, AdjustmentState state)
 {
     auto* target = layer(id);
+    if (target && isScalarLayer(*target)) return false;
     if (!target || (state && !validAdjustments(*state))
         || equivalentAdjustments(target->adjustments, state)) return false;
     target->adjustments = std::move(state);
@@ -330,6 +339,7 @@ bool Document::setLayerFilters(LayerId id, SpatialFilterState state)
 {
     auto* target = layer(id);
     if(target && std::holds_alternative<AdjustmentLayer>(target->payload))return false;
+    if (target && isScalarLayer(*target)) return false;
     if (!target || (state && !validSpatialFilters(*state))
         || equivalentSpatialFilters(target->filters, state)) return false;
     target->filters = std::move(state);
@@ -349,6 +359,7 @@ bool Document::setLayerCrop(LayerId id, std::optional<LayerCrop> crop)
 {
     auto* target=layer(id);
     if(target && std::holds_alternative<AdjustmentLayer>(target->payload))return false;
+    if(target && isScalarLayer(*target))return false;
     if(!target || target->crop==crop || (crop && !validLayerCrop(*crop)))return false;
     target->crop=crop;touch();return true;
 }
@@ -392,6 +403,7 @@ bool Document::setCanvasFrame(CanvasSpec expected, CanvasSpec after,
         if (layers_[i].id != update.id || layers_[i].localToDocument != update.before
             || !update.after.inverted()) return false;
     }
+    if (!channelTransformsCompatible(*this, updates)) return false;
     // A same-sized frame may rebase an empty document's origin. The command
     // rejects actual no-ops before calling this atomic publication operation.
     // All validation/allocation precedes publication. Undo uses the same path.
@@ -435,6 +447,7 @@ bool Document::setSelection(SelectionState selection, SelectionEvidenceState evi
 bool Document::setLayerTransform(LayerId id, const AffineTransform& transform)
 {
     auto* target = layer(id);
+    if (channelGroupForLayer(*this, id)) return false;
     if (!target || target->localToDocument == transform || !transform.inverted()) return false;
     target->localToDocument = transform;
     touch();
@@ -446,6 +459,11 @@ bool Document::setLayerRasterStorage(LayerId id,std::shared_ptr<RasterSurface> s
     auto* target=layer(id);
     if(!target||!std::holds_alternative<RasterLayer>(target->payload)||!surface||surface->extent().empty()
         ||!std::isfinite(origin.x)||!std::isfinite(origin.y)||std::floor(origin.x)!=origin.x||std::floor(origin.y)!=origin.y)return false;
+    const auto& previous = std::get<RasterLayer>(target->payload).surface;
+    if (previous && previous->dataKind() != surface->dataKind()) return false;
+    if (previous && previous->dataKind() == RasterDataKind::Scalar
+        && (previous->extent() != surface->extent() || target->rasterOrigin != origin
+            || target->rasterEffectFrame != frame)) return false;
     target->payload=RasterLayer{std::move(surface)};target->rasterOrigin=origin;target->rasterEffectFrame=frame;touch();return true;
 }
 
@@ -461,7 +479,7 @@ bool Document::setLayerTransforms(std::span<const LayerTransformUpdate> updates)
             if (updates[j].id == update.id) return false;
         changed |= update.before != update.after;
     }
-    if (!changed) return false;
+    if (!changed || !channelTransformsCompatible(*this, updates)) return false;
     // No allocations, callbacks or fallible work after the all-target guard.
     for (const auto& update : updates) layer(update.id)->localToDocument = update.after;
     touch();

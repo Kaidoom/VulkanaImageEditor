@@ -2,6 +2,7 @@
 
 #include "imageeditor/core/Layer.hpp"
 
+#include <array>
 #include <optional>
 #include <span>
 #include <vector>
@@ -12,7 +13,7 @@ namespace imageeditor::core {
 // opacity. Clipping groups evaluate their structural stack explicitly.
 // Every child retains its absolute document-space matrix. Orders are bottom first.
 enum class ContainerKind { Folder,
-    Group, ClippingMaskGroup };
+    Group, ClippingMaskGroup, ChannelGroup };
 [[nodiscard]] constexpr bool isGroup(ContainerKind kind) { return kind != ContainerKind::Folder; }
 [[nodiscard]] constexpr bool isExpandable(ContainerKind kind) { return kind != ContainerKind::Group; }
 enum class ColorLabel : std::uint8_t { None,
@@ -29,6 +30,9 @@ struct LayerContainer {
     ColorLabel colorLabel { ColorLabel::None };
     std::vector<LayerId> children;
     bool visible { true };
+    // Stable R/G/B/A slots, independent of labels and presentation order.
+    // Alpha may be absent (zero ID), meaning an implicit constant 255.
+    std::array<LayerId, 4> channelRoles {};
     friend bool operator==(const LayerContainer&, const LayerContainer&) = default;
 };
 struct ItemPlacement {

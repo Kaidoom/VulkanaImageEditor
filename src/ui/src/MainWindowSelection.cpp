@@ -1,6 +1,7 @@
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/SelectionCommands.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/CrossWindowPointerRouter.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
@@ -31,6 +32,8 @@ struct MainWindow::LayerAlphaSelectionContext {
     core::Extent2u extent;
     core::RectI region;
     std::unique_ptr<core::PinnedDocumentSampler> sampler;
+    core::LayerMaskState scalarValues;
+    core::AffineTransform documentToScalar;
     std::vector<core::PremultipliedColor> row;
     std::vector<std::byte> scratch;
     std::vector<std::uint8_t> coverage;
@@ -90,7 +93,16 @@ void MainWindow::loadLayerAlphaSelection(int row)
         job->selectionRevision = doc.selectionRevision(); job->before = doc.selection();
         job->extent = extent; job->region = {x0, y0, x1 - x0, y1 - y0};
         const std::array<const core::Layer*, 1> layers{&source};
-        job->sampler = std::make_unique<core::PinnedDocumentSampler>(layers, extent);
+        if (core::isScalarLayer(source)) {
+            std::vector<std::byte> values(std::size_t(size.width) * size.height);
+            surface->copyNative({0, 0, int(size.width), int(size.height)}, values, size.width);
+            auto mask = std::make_shared<core::LayerMask>();
+            mask->coverage = core::SelectionMask::fromR8(size,
+                {reinterpret_cast<const std::uint8_t*>(values.data()), values.size()}, size.width);
+            mask->outside = 0;
+            job->scalarValues = std::move(mask);
+            job->documentToScalar = *mapping.inverted();
+        } else job->sampler = std::make_unique<core::PinnedDocumentSampler>(layers, extent);
         job->row.resize(std::size_t(job->region.width));
         job->scratch.resize(job->row.size() * 4);
         job->coverage.resize(job->row.size() * std::size_t(job->region.height));
@@ -117,9 +129,12 @@ void MainWindow::advanceLayerAlphaSelection()
         std::size_t pixels = 0;
         while (job->nextRow < job->region.height && pixels < 65536 && time.elapsed() < 8) {
             const auto offset = std::size_t(job->nextRow) * job->row.size();
-            job->sampler->sampleRow(job->region.x, job->region.y + job->nextRow, job->row, job->scratch);
+            if (job->sampler) job->sampler->sampleRow(job->region.x, job->region.y + job->nextRow, job->row, job->scratch);
             for (std::size_t x = 0; x < job->row.size(); ++x) {
-                const auto coverage = std::uint8_t(std::clamp(std::lround(job->row[x][3] * 255), 0L, 255L));
+                const auto value = job->scalarValues ? core::layerMaskCoverage(job->scalarValues,
+                    job->documentToScalar.map({double(job->region.x) + double(x) + .5, double(job->region.y + job->nextRow) + .5}))
+                    : job->row[x][3];
+                const auto coverage = std::uint8_t(std::clamp(std::lround(value * 255), 0L, 255L));
                 job->coverage[offset + x] = coverage;
                 job->nonempty |= coverage != 0; // Not the marching-ants threshold.
             }

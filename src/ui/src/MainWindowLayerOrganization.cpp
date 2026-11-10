@@ -1,6 +1,7 @@
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/LayerStructureCommands.hpp"
 #include "imageeditor/core/LayerCommands.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/FlattenedDocument.hpp"
 #include "imageeditor/ui/NativeRasterBake.hpp"
@@ -67,6 +68,7 @@ namespace {
 void MainWindow::createLayerOrganizationActions()
 {
     createLayerMaskActions();
+    createChannelGroupActions();
     const auto action = [&](i18n::Message name, QString object, ToolGlyph glyph, const auto& callback) {
         auto* a = i18n::make<QAction>(toolGlyph(glyph), std::move(name), this);
         a->setObjectName(object);
@@ -357,6 +359,19 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
         return;
     }
     menu.setObjectName(QStringLiteral("LayerContextMenu"));
+    const bool scalar = layer && core::isScalarLayer(*layer);
+    const auto* container = id ? session().document()->tree().container(*id) : nullptr;
+    const bool channelGroup = container && container->kind == core::ContainerKind::ChannelGroup;
+    refreshChannelGroupControls();
+    if (scalar || channelGroup) {
+        if (scalar) { menu.addAction(copyScalarChannelAction_); menu.addAction(cutScalarChannelAction_); }
+        if (channelGroup) { menu.addAction(recombineChannelGroupAction_); menu.addAction(inspectChannelAlphaAction_); }
+        menu.addAction(exportChannelDataAction_);
+        menu.addSeparator();
+    } else if (layer && std::holds_alternative<core::RasterLayer>(layer->payload)) {
+        menu.addAction(convertChannelGroupAction_);
+        menu.addSeparator();
+    }
     menu.addAction(newAdjustmentLayerAction_);
     if(layer && std::holds_alternative<core::AdjustmentLayer>(layer->payload)) {
         auto* scopeMenu=menu.addMenu(i18n::text("main.window.layer.organization.adjustment.scope"));
@@ -377,10 +392,12 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
     auto* newFolder = menu.addAction(toolGlyph(ToolGlyph::Folder), i18n::text("main.window.layer.organization.new.folder"),
         this, [this, id] { createLayerFolder(id); });
     newFolder->setObjectName(QStringLiteral("ContextNewLayerFolderAction"));
+    newFolder->setEnabled(!scalar && !channelGroup);
     if (!session().document()->tree().normalize(session().selectedLayers()).empty()) {
         auto* gather = menu.addAction(toolGlyph(ToolGlyph::Folder), i18n::text("main.window.layer.organization.add.to.new.folder.2"),
             this, [this] { addSelectionToNewFolder(); });
         gather->setObjectName(QStringLiteral("AddToNewLayerFolderAction"));
+        gather->setEnabled(!scalar && !channelGroup);
     }
     if (id) {
         menu.addAction(toolGlyph(ToolGlyph::Rename), i18n::text("main.window.layer.organization.rename"), this, [this, id] { renameLayerItem(*id); });
@@ -403,7 +420,7 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
                     session().setLayerSelection(ids, ids.empty() ? std::nullopt : std::optional(ids.back()));
                     synchronizeUi(false, false);
                 });
-            menu.addAction(toolGlyph(ToolGlyph::Group), core::isGroup(c->kind) ? i18n::text("main.window.layer.organization.ungroup") : c->children.empty() ? i18n::text("main.window.layer.organization.remove.empty.folder")
+            if (c->kind != core::ContainerKind::ChannelGroup) menu.addAction(toolGlyph(ToolGlyph::Group), core::isGroup(c->kind) ? i18n::text("main.window.layer.organization.ungroup") : c->children.empty() ? i18n::text("main.window.layer.organization.remove.empty.folder")
                                                                                                        : i18n::text("main.window.layer.organization.remove.folder.keep.contents"),
                 this, [this, id] { dissolveLayerItem(*id); });
         }

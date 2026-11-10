@@ -32,6 +32,8 @@ add_library(imageeditor_core STATIC
     src/SelectionGraphCut.cpp
     src/ObjectSelectionBoundary.cpp
     src/MagicWandSelection.cpp
+    src/ChannelGroups.cpp
+    src/ScalarClipboard.cpp
     src/Document.cpp
     src/DocumentCommands.cpp
     src/SnapshotTimeline.cpp

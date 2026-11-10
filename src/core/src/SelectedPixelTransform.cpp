@@ -145,6 +145,8 @@ SelectedPixelTransformSession::SelectedPixelTransformSession(Document &document,
     if (!raster || !raster->surface)
         throw std::invalid_argument("Transform Selected Pixels requires a raster layer. Use Rasterize "
                                     "Layer for text or shapes.");
+    if (raster->surface->dataKind() != RasterDataKind::Color)
+        throw std::invalid_argument("Transform Selected Pixels is unavailable for channel data; transform the Channel Group instead.");
     selection_ = document.selection();
     originalLastSelection_ = document.lastSelection();
     expectedSelection_ = selection_;

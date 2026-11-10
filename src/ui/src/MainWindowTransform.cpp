@@ -1,6 +1,7 @@
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/ColorSampler.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/core/SelectionCommands.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/CrossWindowPointerRouter.hpp"
@@ -17,6 +18,8 @@ void MainWindow::nudgeTarget(core::Vec2d delta)
 {
     auto* document = session().document();
     if (!document) return;
+    if (!core::isSelectionTool(session().activeTool()) && session().activeLayer())
+        if (const auto* target = document->layer(*session().activeLayer()); target && core::isScalarLayer(*target)) return;
     (void)runTransformAction([&] {
         if (canvasResize_) {
             const auto r = canvasResize_->frame();

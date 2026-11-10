@@ -10,6 +10,8 @@
 #include "imageeditor/core/RichText.hpp"
 #include "imageeditor/core/LayerCrop.hpp"
 #include "imageeditor/core/Shape.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
+#include "imageeditor/core/ScalarRasterSurface.hpp"
 #include "imageeditor/ui/TextClipboard.hpp"
 #include <QDir>
 #include <QBuffer>
@@ -73,6 +75,11 @@ namespace {
                 && QString::number(id) == v.toString(),
             "Invalid layer ID");
         return id;
+    }
+    QString rasterPath(core::LayerId id, core::RasterDataKind kind)
+    {
+        return QStringLiteral("rasters/%1.%2").arg(id)
+            .arg(kind == core::RasterDataKind::Scalar ? QStringLiteral("r8") : QStringLiteral("rgba"));
     }
     core::SnapshotFrameId snapshotId(const QJsonValue& value)
     {
@@ -262,6 +269,8 @@ namespace {
         bool containsRasterFrame = false;
         bool containsLayerCrop = false;
         bool containsChamfer = false;
+        bool containsScalars = false;
+        bool containsPackedData = false;
         std::map<core::LayerId, QJsonObject> oldLayers;
         for (const auto& value : metadata["layers"].toArray()) {
             bool ok = false;
@@ -296,9 +305,15 @@ namespace {
             if (const auto* raster = std::get_if<core::RasterLayer>(&layer.payload)) {
                 require(bool(raster->surface), "Raster layer has no surface");
                 const auto e = raster->surface->extent();
+                const auto kind = raster->surface->dataKind();
+                containsScalars |= kind == core::RasterDataKind::Scalar;
+                containsPackedData |= kind == core::RasterDataKind::PackedData;
                 o["type"] = "raster";
                 o["raster"] = QJsonObject { { "width", int(e.width) }, { "height", int(e.height) },
-                    { "path", QStringLiteral("rasters/%1.rgba").arg(layer.id) } };
+                    { "path", rasterPath(layer.id, kind) },
+                    { "format", kind == core::RasterDataKind::Scalar ? "r8" : "rgba8" },
+                    { "interpretation", kind == core::RasterDataKind::Scalar ? "scalar"
+                        : kind == core::RasterDataKind::PackedData ? "packed-data" : "color" } };
             } else if (const auto* text = std::get_if<core::TextLayer>(&layer.payload)) {
                 o["type"] = "text";
                 o["text"] = QJsonDocument::fromJson(encodeTextClipboard(*text)).object();
@@ -397,6 +412,12 @@ namespace {
             layers.append(saved);
         }
         auto result = overlayJson(metadata, QJsonObject { { "format", "org.vulkana.project" }, { "version", 1 }, { "required", QJsonArray { "rgba8", "rich-text-v1" } }, { "canvas", QJsonObject { { "width", int(doc.canvas().extent.width) }, { "height", int(doc.canvas().extent.height) }, { "ppi", doc.canvas().dotsPerInch }, { "colorSpace", "srgb" }, { "pixelFormat", "rgba8-straight" } } } }).toObject();
+        if (containsScalars || containsPackedData) {
+            auto required = result["required"].toArray();
+            if (containsScalars) required.append("scalar-raster-v1");
+            if (containsPackedData) required.append("packed-data-v1");
+            result["required"] = required;
+        }
         auto canvas = result["canvas"].toObject();
         canvas["compositingSpace"] = doc.canvas().compositingSpace == core::CompositingSpace::EncodedSRgb
             ? "encoded-srgb" : "linear-srgb";
@@ -490,6 +511,8 @@ namespace {
             required.append("hierarchy-v1");
             if (std::ranges::any_of(doc.tree().containers, [](const auto& c) { return c.kind==core::ContainerKind::ClippingMaskGroup; }))
                 required.append("clipping-mask-group-v1");
+            if (std::ranges::any_of(doc.tree().containers, [](const auto& c) { return c.kind==core::ContainerKind::ChannelGroup; }))
+                required.append("channel-group-v1");
             if (std::any_of(doc.tree().containers.begin(), doc.tree().containers.end(),
                     [](const auto& container) { return !container.visible; }))
                 required.append("container-visibility-v1");
@@ -513,7 +536,16 @@ namespace {
                 auto saved = oldContainers[container.id];
                 saved["id"] = QString::number(container.id);
                 saved["name"] = QString::fromStdString(container.name);
-                saved["kind"] = container.kind == core::ContainerKind::Folder ? "folder" : container.kind == core::ContainerKind::ClippingMaskGroup ? "clipping-mask-group" : "group";
+                saved["kind"] = container.kind == core::ContainerKind::Folder ? "folder"
+                    : container.kind == core::ContainerKind::ClippingMaskGroup ? "clipping-mask-group"
+                    : container.kind == core::ContainerKind::ChannelGroup ? "channel-group" : "group";
+                saved.remove("channelRoles");
+                if (container.kind == core::ContainerKind::ChannelGroup) {
+                    QJsonArray roles;
+                    for (const auto id : container.channelRoles)
+                        roles.append(id ? QJsonValue(QString::number(id)) : QJsonValue(QJsonValue::Null));
+                    saved["channelRoles"] = roles;
+                }
                 saved["colorLabel"] = int(container.colorLabel);
                 saved["children"] = encodeIds(container.children);
                 saved["visible"] = container.visible;
@@ -530,6 +562,7 @@ namespace {
         core::Layer layer;
         core::Extent2u extent;
         QString path;
+        core::RasterDataKind dataKind {core::RasterDataKind::Color};
         QString maskPath;
         detail::AdjustmentPlan adjustments;
         detail::SpatialFilterPlan filters;
@@ -585,8 +618,20 @@ namespace {
                     && item["name"].toString().toUtf8().size() <= 4096,
                 "Invalid container name");
             container.name = item["name"].toString().toStdString();
-            require(item["kind"] == "folder" || item["kind"] == "group" || item["kind"] == "clipping-mask-group", "Unsupported container kind");
-            container.kind = item["kind"] == "folder" ? core::ContainerKind::Folder : item["kind"] == "clipping-mask-group" ? core::ContainerKind::ClippingMaskGroup : core::ContainerKind::Group;
+            require(item["kind"] == "folder" || item["kind"] == "group" || item["kind"] == "clipping-mask-group"
+                    || item["kind"] == "channel-group", "Unsupported container kind");
+            container.kind = item["kind"] == "folder" ? core::ContainerKind::Folder
+                : item["kind"] == "clipping-mask-group" ? core::ContainerKind::ClippingMaskGroup
+                : item["kind"] == "channel-group" ? core::ContainerKind::ChannelGroup : core::ContainerKind::Group;
+            if (container.kind == core::ContainerKind::ChannelGroup) {
+                require(item["channelRoles"].isArray() && item["channelRoles"].toArray().size() == 4,
+                    "Channel Group requires four fixed channel role slots");
+                const auto roles = item["channelRoles"].toArray();
+                for (int i = 0; i < 4; ++i) {
+                    require(i == 3 || !roles[i].isNull(), "Channel Group is missing an RGB channel");
+                    container.channelRoles[std::size_t(i)] = roles[i].isNull() ? 0 : layerId(roles[i]);
+                }
+            } else require(!item.contains("channelRoles"), "Channel roles belong to Channel Groups only");
             container.colorLabel = core::ColorLabel(integer(item.contains("colorLabel") ? item["colorLabel"] : QJsonValue(0),
                 0, int(core::ColorLabel::Purple), "Invalid container color label"));
             require(!item.contains("visible") || item["visible"].isBool(), "Invalid container visibility");
@@ -616,7 +661,8 @@ namespace {
                     || capability == "selection-recall-v1" || capability == "layer-effects-v1" || capability == "bevel-emboss-v1" || capability == "projective-transform-v1" || capability == "raster-local-frame-v1" || capability == "layer-mask-v1"
                     || capability == "encoded-srgb-compositing-v1" || capability == "layer-fill-opacity-v1"
                     || capability == "layer-effects-advanced-blending-v1" || capability == "multi-stop-gradient-v1"
-                    || capability == "snapshot-timeline-v1",
+                    || capability == "snapshot-timeline-v1" || capability == "scalar-raster-v1"
+                    || capability == "packed-data-v1" || capability == "channel-group-v1",
                 "Project requires unsupported capabilities");
         require(o["canvas"].isObject() && o["layers"].isArray(), "Missing canvas or layers");
         const auto canvas = o["canvas"].toObject();
@@ -826,6 +872,22 @@ namespace {
                 require(l["raster"].isObject(), "Missing raster descriptor");
                 const auto r = l["raster"].toObject();
                 p.extent = extent(r);
+                require((!r.contains("format") || r["format"].isString())
+                        && (!r.contains("interpretation") || r["interpretation"].isString()),
+                    "Invalid raster format or data interpretation");
+                const auto format = r.value("format").toString("rgba8");
+                const auto interpretation = r.value("interpretation").toString("color");
+                require(format == "r8" || format == "rgba8", "Unsupported raster pixel format");
+                require(interpretation == "color" || interpretation == "scalar" || interpretation == "packed-data",
+                    "Unsupported raster data interpretation");
+                require((format == "r8") == (interpretation == "scalar"),
+                    "Scalar raster format and interpretation disagree");
+                p.dataKind = interpretation == "scalar" ? core::RasterDataKind::Scalar
+                    : interpretation == "packed-data" ? core::RasterDataKind::PackedData : core::RasterDataKind::Color;
+                require(p.dataKind != core::RasterDataKind::Scalar || required.contains("scalar-raster-v1"),
+                    "Scalar pixels require declared scalar-raster-v1 capability");
+                require(p.dataKind != core::RasterDataKind::PackedData || required.contains("packed-data-v1"),
+                    "Packed data requires declared packed-data-v1 capability");
                 if(l.contains("rasterLocalFrame")) {
                     require(required.contains("raster-local-frame-v1")&&l["rasterLocalFrame"].isObject(),"Invalid or undeclared raster local frame");
                     const auto frame=l["rasterLocalFrame"].toObject();const auto origin=frame["origin"].toArray();
@@ -839,12 +901,17 @@ namespace {
                 }
                 require(p.layer.localToDocument.validOver({p.layer.rasterOrigin.x,p.layer.rasterOrigin.y,double(p.extent.width),double(p.extent.height)}),"Projective horizon crosses raster content");
                 p.path = r["path"].toString();
-                require(p.path == QStringLiteral("rasters/%1.rgba").arg(p.layer.id), "Invalid raster payload path");
-                const quint64 size = quint64(p.extent.width) * p.extent.height * 4;
+                require(p.path == rasterPath(p.layer.id, p.dataKind), "Invalid raster payload path");
+                const quint64 size = quint64(p.extent.width) * p.extent.height
+                    * (p.dataKind == core::RasterDataKind::Scalar ? 1 : 4);
                 result.bytes = checkedBytes(result.bytes, size);
                 const auto entry = files.find(p.path);
                 require(entry != files.end() && entry->second.bytes == size && used.insert(p.path).second,
                     "Missing, duplicate or incorrectly sized raster payload");
+                // Compact uniform placeholders admit structural validation
+                // before decoding image payloads, without RGBA allocations.
+                if (p.dataKind == core::RasterDataKind::Scalar)
+                    p.layer.payload = core::RasterLayer {std::make_shared<core::ScalarRasterSurface>(p.extent)};
             } else if (l["type"] == "adjustment") {
                 const auto a=l["adjustmentLayer"].toObject();
                 require(required.contains("adjustment-layer-v1") && a["version"]==1
@@ -879,6 +946,9 @@ namespace {
             for(const auto& c:result.tree.containers)
                 require(c.kind!=core::ContainerKind::ClippingMaskGroup || required.contains("clipping-mask-group-v1"),
                     "Clipping groups require declared clipping-mask-group-v1 capability");
+            for (const auto& c : result.tree.containers)
+                require(c.kind != core::ContainerKind::ChannelGroup || required.contains("channel-group-v1"),
+                    "Channel Groups require declared channel-group-v1 capability");
             for (const auto& container : result.tree.containers)
                 require(container.visible || required.contains("container-visibility-v1"),
                     "Hidden containers require declared container-visibility-v1 capability");
@@ -886,6 +956,10 @@ namespace {
             // Original version-one files are exactly the root-level leaf order.
             result.tree.roots = std::move(leafOrder);
         }
+        std::vector<core::Layer> validationLayers;
+        validationLayers.reserve(result.layers.size());
+        for (const auto& layer : result.layers) validationLayers.push_back(layer.layer);
+        require(core::validChannelStructure(result.tree, validationLayers), "Invalid Channel Group structure or channel properties");
         require(used.size() == files.size(), "Unrecognized project payload; required data cannot be discarded");
         return result;
     }
@@ -983,11 +1057,14 @@ ProjectLoadResult loadProject(const QString& path, ProjectProgress callback, Pro
                 p.layer.adjustments = std::move(p.adjustments.stack);
             }
             if (!p.path.isEmpty()) {
-                std::vector<std::byte> pixels(size_t(quint64(p.extent.width) * p.extent.height * 4));
+                const auto bpp = p.dataKind == core::RasterDataKind::Scalar ? 1 : 4;
+                std::vector<std::byte> pixels(size_t(quint64(p.extent.width) * p.extent.height * quint64(bpp)));
                 size_t offset = 0;
                 readEntry(zip, files.at(p.path), [&](const char* b, int n) {
                     std::memcpy(pixels.data()+offset,b,size_t(n)); offset += size_t(n); }, progress);
-                p.layer.payload = core::RasterLayer { std::make_shared<core::ContiguousRasterSurface>(p.extent, std::move(pixels)) };
+                if (p.dataKind == core::RasterDataKind::Scalar)
+                    p.layer.payload = core::RasterLayer {std::make_shared<core::ScalarRasterSurface>(p.extent, pixels, p.extent.width)};
+                else p.layer.payload = core::RasterLayer {std::make_shared<core::ContiguousRasterSurface>(p.extent, std::move(pixels), p.dataKind)};
             } else if (const auto* text = std::get_if<core::TextLayer>(&p.layer.payload)) {
                 auto checkFont = [&](const core::TextStyle& style) {
                     const auto family = QString::fromStdString(style.font.family);
@@ -1077,8 +1154,8 @@ ProjectIoResult saveProject(const QString& path, const core::Document& doc, cons
         for (const auto& layer : doc.layers())
             if (const auto* r = std::get_if<core::RasterLayer>(&layer.payload)) {
                 const auto e = r->surface->extent();
-                const auto n = quint64(e.width) * e.height * 4;
-                expected.emplace(QStringLiteral("rasters/%1.rgba").arg(layer.id), Entry { 0, n, 0 });
+                const auto n = quint64(e.width) * e.height * r->surface->nativeBytesPerPixel();
+                expected.emplace(rasterPath(layer.id, r->surface->dataKind()), Entry { 0, n, 0 });
                 bytes += n;
             }
         for (const auto& layer : doc.layers()) {
@@ -1174,13 +1251,13 @@ ProjectIoResult saveProject(const QString& path, const core::Document& doc, cons
             for (const auto& layer : doc.layers())
                 if (const auto* r = std::get_if<core::RasterLayer>(&layer.payload)) {
                     const auto e = r->surface->extent();
-                    const size_t stride = size_t(e.width) * 4;
+                    const size_t stride = size_t(e.width) * r->surface->nativeBytesPerPixel();
                     const auto rows = std::max<size_t>(1, chunkSize / stride);
                     std::vector<std::byte> buffer(rows * stride);
-                    writeEntry(zip, QStringLiteral("rasters/%1.rgba").arg(layer.id), quint64(e.width) * e.height * 4, [&](const auto& write) {
+                    writeEntry(zip, rasterPath(layer.id, r->surface->dataKind()), quint64(e.height) * stride, [&](const auto& write) {
                     for (uint32_t y = 0; y < e.height;) {
                         const auto h = uint32_t(std::min<size_t>(rows,e.height-y));
-                        r->surface->copyRgba8({0,int32_t(y),int32_t(e.width),int32_t(h)},buffer,stride);
+                        r->surface->copyNative({0,int32_t(y),int32_t(e.width),int32_t(h)},buffer,stride);
                         write(reinterpret_cast<const char*>(buffer.data()),int(h*stride)); y += h;
                     } }, progress);
                 }

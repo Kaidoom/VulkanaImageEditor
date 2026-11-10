@@ -9,6 +9,7 @@
 #include "imageeditor/ui/ToolOptionsBar.hpp"
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/LayerMaskEdit.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include <QAbstractItemView>
 #include <QAction>
@@ -112,7 +113,8 @@ void MainWindow::refreshBackgroundRemovalAction()
     const auto* doc = session().document();
     const auto* layer = doc && session().activeLayer() ? doc->layer(*session().activeLayer()) : nullptr;
     const auto* raster = layer ? std::get_if<core::RasterLayer>(&layer->payload) : nullptr;
-    const bool compatible = raster && raster->surface && (!layer->mask || layer->mask->enabled);
+    const bool compatible = raster && raster->surface && !core::isScalarLayer(*layer) && !core::isPackedDataLayer(*layer)
+        && (!layer->mask || layer->mask->enabled);
     removeBackgroundAction_->setEnabled(compatible && session().selectedLayers().size() == 1
         && !fileBusy_ && !workspaceDialog_ && !refinement_ && !backgroundRemoval_
         && retiredBackgroundRemoval_.empty() && !canvasResize_ && !layerTransform_ && !selectionTransform_

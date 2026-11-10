@@ -124,6 +124,8 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
     std::vector<std::uint64_t> key;
     key.push_back(scene.documentInstance);
     key.push_back(std::uint64_t(scene.document.canvas.compositingSpace));
+    key.push_back(scene.channelInspectionId.value_or(0));
+    key.push_back(scene.channelInspectionAlpha);
     key.reserve(8+scene.document.layersBottomToTop.size()*12);
     key.push_back(frame.extent.width); key.push_back(frame.extent.height);
     for (double v : rect) key.push_back(std::bit_cast<std::uint64_t>(v));
@@ -134,7 +136,7 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
     for(const auto& l:scene.document.layersBottomToTop)
         if(const auto* a=std::get_if<core::AdjustmentLayer>(&l.payload))adjustmentLayers.emplace_back(l.id,a->scope);
     const bool structuralClipping=!scene.pixelPreviewEnabled
-        && (core::hasClippingGroups(scene.document.tree)||!adjustmentLayers.empty());
+        && (core::hasClippingGroups(scene.document.tree)||core::hasChannelGroups(scene.document.tree)||!adjustmentLayers.empty());
     std::unordered_map<core::LayerId,std::vector<std::uint64_t>> leafKeys,cacheKeys;
     std::vector<core::LayerId> adjustmentInputCaches;
     struct Clear {std::size_t offset,bytes;core::LayerId cache;};
@@ -153,7 +155,12 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
         ? std::span<const core::LayerSnapshot>(&native,scene.pixelPreview && !unavailable?1:0)
         : std::span<const core::LayerSnapshot>(scene.document.layersBottomToTop);
     key.push_back(scene.pixelPreviewEnabled);
+    const auto inspected=[&](core::LayerId id) {
+        return scene.pixelPreviewEnabled || !scene.channelInspectionId || id==*scene.channelInspectionId
+            || scene.document.tree.isAncestor(*scene.channelInspectionId,id);
+    };
     for (const auto& layer : layers) {
+        if(!inspected(layer.id))continue;
         if (!layer.visible || !std::isfinite(layer.opacity) || layer.opacity <= 0) continue;
         if(std::holds_alternative<core::AdjustmentLayer>(layer.payload)) {
             const auto adjustmentOffset=appendAdjustmentParameters(layer,scene.adjustmentBypassLayer==layer.id,adjustmentParameters);
@@ -284,6 +291,7 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
             {std::int32_t(left),std::int32_t(top),std::int32_t(right-left),std::int32_t(bottom-top)},
             layer.opacity,static_cast<std::int32_t>(layer.blendMode),
             appendAdjustmentParameters(layer,filtered||scene.adjustmentBypassLayer==layer.id,adjustmentParameters),layer.crop?(scene.cropPreviewLayer==layer.id?2:1):0,{},{},{}};
+        if(surface->dataKind()!=core::RasterDataKind::Color)push.mode|=int(0x80000000U);
         if(styled) {
             const auto offset=appendEffectParameters(layer,adjustmentParameters)+1;
             if(offset>=0x400000)throw std::runtime_error("Effect program exceeds the GPU composition parameter limit");
@@ -336,9 +344,10 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
         for(const auto& c:scene.document.tree.containers) {
             key.push_back(c.id);key.push_back(std::uint64_t(c.kind));key.push_back(c.children.size());
             key.insert(key.end(),c.children.begin(),c.children.end());
+            key.insert(key.end(),c.channelRoles.begin(),c.channelRoles.end());
         }
         key.insert(key.end(),scene.document.tree.roots.begin(),scene.document.tree.roots.end());
-        std::vector<core::LayerId> ids;for(const auto& l:layers)ids.push_back(l.id);
+        std::vector<core::LayerId> ids;for(const auto& l:layers)if(inspected(l.id))ids.push_back(l.id);
         for(const auto& [id,scope]:adjustmentLayers){key.push_back(id);key.push_back(std::uint64_t(scope));}
         auto plan=core::compositionPlan(scene.document.tree,ids,{},adjustmentLayers);
         // Pass-through organizational nesting is not a render boundary. Expose
@@ -346,10 +355,10 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
         // Keep direct clipping members intact: a container base is a subtree.
         const auto normalize=[&](const auto& self,core::CompositionNode& node)->void {
             for(auto& child:node.children)self(self,child);
-            if(node.clipping)return;
+            if(node.clipping||node.channelRoles[0])return;
             std::vector<core::CompositionNode> children;
             for(auto& child:node.children) {
-                if(!child.leaf&&!child.isolated&&!child.clipping)
+                if(!child.leaf&&!child.isolated&&!child.clipping&&!child.channelRoles[0])
                     for(auto& grandchild:child.children)children.push_back(std::move(grandchild));
                 else children.push_back(std::move(child));
             }
@@ -401,13 +410,27 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
                 adjustmentParameters.insert(adjustmentParameters.end(),{std::bit_cast<float>(target.offset),float(target.rect.x),float(target.rect.y),float(target.scalar?-target.rect.width:target.rect.width),float(target.rect.height)});
             }
             p.cropMode=(p.cropMode&3)|(int(offset+1)<<2);
-            if(contentOnly)p.mode&=255;
+            if(contentOnly)p.mode&=int(0x800000ffU);
             p.mode|=0x40000000;
             work.push_back(entry);
         };
         const auto draw=[&](const auto& self,const core::CompositionNode& n,Target dst,bool contentOnly,bool inDomain=false)->void {
             if(n.leaf) {
                 const auto it=leafWork.find(n.id);if(it!=leafWork.end())appendWork(it->second,n.adjustment?5:0,dst,main,main,main,contentOnly);
+                return;
+            }
+            if(n.channelRoles[0]) {
+                const auto first=leafWork.find(n.channelRoles[0]);
+                if(first==leafWork.end())return;
+                for(const auto role:n.channelRoles)
+                    if(role&&!leafWork.contains(role))return;
+                const auto& p=first->second.push.region;
+                const auto packed=allocate({p[0],p[1],p[2],p[3]});
+                for(std::size_t role=0;role<4;++role)
+                    if(n.channelRoles[role])appendWork(leafWork.at(n.channelRoles[role]),8+int(role),packed,main,main,main,true);
+                auto entry=first->second;
+                entry.push.opacity=n.channelRoles[3] && !(scene.channelInspectionId==n.id&&!scene.channelInspectionAlpha)?1.F:0.F;
+                appendWork(entry,12,dst,packed,main,main,true);
                 return;
             }
             if(n.isolated && !inDomain) {
@@ -439,6 +462,7 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
                         k={scene.documentInstance,n.id,std::uint64_t(contentOnly),std::uint64_t(input.offset),std::uint64_t(r.x),std::uint64_t(r.y),std::uint64_t(r.width),std::uint64_t(r.height)};
                         const auto appendKey=[&](const auto& visit,const core::CompositionNode& node)->void {
                             k.insert(k.end(),{node.id,node.leaf,node.clipping,node.isolated,node.adjustment,node.children.size()});
+                            k.insert(k.end(),node.channelRoles.begin(),node.channelRoles.end());
                             if(node.leaf) {const auto found=leafKeys.find(node.id);k.push_back(found!=leafKeys.end());if(found!=leafKeys.end())k.insert(k.end(),found->second.begin(),found->second.end());}
                             else for(const auto& child:node.children)visit(visit,child);
                         };
@@ -478,6 +502,7 @@ void VulkanCanvasRenderer::recordComposition(const CanvasScene& scene, const Vul
                     std::uint64_t(r.x),std::uint64_t(r.y),std::uint64_t(r.width),std::uint64_t(r.height)};
                 const auto appendKey=[&](const auto& visit,const core::CompositionNode& node)->void {
                     cacheKey.insert(cacheKey.end(),{node.id,node.leaf,node.clipping,node.isolated,node.adjustment,node.children.size()});
+                    cacheKey.insert(cacheKey.end(),node.channelRoles.begin(),node.channelRoles.end());
                     if(node.leaf) {
                         const auto found=leafKeys.find(node.id);cacheKey.push_back(found!=leafKeys.end());
                         if(found!=leafKeys.end())cacheKey.insert(cacheKey.end(),found->second.begin(),found->second.end());

@@ -1,8 +1,9 @@
 #include "imageeditor/core/EffectCommands.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 namespace imageeditor::core {
 bool Document::setLayerEffects(LayerId id, LayerEffectState state) {
   auto *target = layer(id);
-  if(target && std::holds_alternative<AdjustmentLayer>(target->payload))return false;
+  if(target && (std::holds_alternative<AdjustmentLayer>(target->payload) || isScalarLayer(*target)))return false;
   if (!target || (state && !validLayerEffects(*state)) ||
       equivalentLayerEffects(target->effects, state))
     return false;

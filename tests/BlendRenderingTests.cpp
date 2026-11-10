@@ -1,5 +1,8 @@
 #include "imageeditor/core/BlendCompositing.hpp"
 #include "imageeditor/core/ColorSampler.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
+#include "imageeditor/core/History.hpp"
+#include "imageeditor/core/ScalarRasterSurface.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/core/SpatialFilterCache.hpp"
 #include "imageeditor/core/RichText.hpp"
@@ -1451,14 +1454,68 @@ void transparentStylesPreserveBackdrop(OffscreenCanvas& gpu)
     }
 }
 
+void channelRendering(OffscreenCanvas& gpu)
+{
+    constexpr c::Extent2u size{96,80};
+    c::Document doc({size,96});
+    std::vector<std::byte> bytes(std::size_t(size.width)*size.height*4);
+    for(std::uint32_t y=0;y<size.height;++y)for(std::uint32_t x=0;x<size.width;++x) {
+        const auto i=(std::size_t(y)*size.width+x)*4;
+        bytes[i]=std::byte((x*17)%256);bytes[i+1]=std::byte((y*11)%256);
+        bytes[i+2]=std::byte((x+y)*3%256);bytes[i+3]=std::byte(x<32?0:x<64?128:255);
+    }
+    const auto originalBytes=bytes;
+    auto source=c::Layer::raster("Packed",std::make_shared<c::ContiguousRasterSurface>(size,std::move(bytes)));
+    const auto sourceId=source.id;check(doc.insertLayer(0,std::move(source)),"insert channel fixture");
+    c::History history;
+    auto convert=c::convertToChannelGroup(doc,c::LayerSelectionState{{sourceId},sourceId,sourceId});
+    check(convert&&history.execute(doc,std::move(convert)),"convert channel fixture");
+    const auto group=doc.tree().containers.front().id;
+    const auto roles=doc.tree().container(group)->channelRoles;
+    const auto before=gpu.stats();
+    auto scene=sceneFor(doc);
+    verify(doc,scene,gpu.render(scene),"channel group normal alpha");
+    check(gpu.stats().uploadedBytes-before.uploadedBytes==std::uint64_t(size.width)*size.height*4,
+        "four channel textures upload R8, not four RGBA images");
+    const auto idle=gpu.stats();gpu.render(scene,false);
+    check(gpu.stats().compositionPasses==idle.compositionPasses,"idle channel group reuses composition");
+
+    c::Document opaque({size,96});
+    auto rgb=originalBytes;for(std::size_t i=3;i<rgb.size();i+=4)rgb[i]=std::byte{255};
+    opaque.insertLayer(0,c::Layer::raster("RGB inspection",
+        std::make_shared<c::ContiguousRasterSurface>(size,std::move(rgb),c::RasterDataKind::PackedData)));
+    scene.channelInspectionId=group;
+    verify(opaque,scene,gpu.render(scene),"packed RGB inspection preserves RGB below alpha zero");
+    scene.channelInspectionAlpha=true;
+    verify(doc,scene,gpu.render(scene),"alpha-aware group inspection");
+    scene.channelInspectionAlpha=false;scene.channelInspectionId=roles[3];
+    c::Document alpha({size,96});alpha.insertLayer(0,*doc.layer(roles[3]));
+    verify(alpha,scene,gpu.render(scene),"alpha channel zero remains opaque black data");
+
+    scene.channelInspectionId.reset();scene.viewport.setZoom(1.25);scene.viewport.setPan({.3,-.6});
+    verify(doc,scene,gpu.render(scene),"numeric channel interpolation",false);
+    const auto beforeEdit=gpu.stats();
+    auto& red=*std::get<c::RasterLayer>(doc.layer(roles[0])->payload).surface;
+    const std::array<std::byte,1> value{std::byte{73}};
+    const c::RasterPatch patch{{10,10,1,1},value,1};
+    (void)red.replaceNativeBatch(std::span(&patch,1));
+    scene.document=doc.snapshot();verify(doc,scene,gpu.render(scene),"regional channel edit",false);
+    const auto upload=gpu.stats().uploadedBytes-beforeEdit.uploadedBytes;
+    check(upload>0 && upload<std::uint64_t(size.width)*size.height*4,"channel edit uploads only changed R8 region");
+    auto tree=doc.tree();std::reverse(tree.container(group)->children.begin(),tree.container(group)->children.end());
+    check(doc.replaceStructure(doc.tree(),tree),"reorder channel display rows");
+    scene.document=doc.snapshot();verify(doc,scene,gpu.render(scene),"channel identity independent of order",false);
+}
+
 int main(int argc, char** argv)
 {
     bool validation = false, benchmark = false, adjustments = false, crop = false, filters = false,effects=false,masks=false,clipping=false,adjustmentLayers=false,encoded=false;
     QString psdFixture;
-    bool fillOpacity=false;
+    bool fillOpacity=false,channels=false;
     for (int i = 1; i < argc; ++i) {
         if (std::string_view(argv[i]) == "--validation") validation = true;
         if (std::string_view(argv[i]) == "--fill-opacity") fillOpacity = true;
+        if (std::string_view(argv[i]) == "--channels") channels = true;
         if (std::string_view(argv[i]) == "--encoded-compositing") encoded = true;
         if (std::string_view(argv[i]) == "--compare-psd"&&i+1<argc)psdFixture=QString::fromLocal8Bit(argv[++i]);
         if (std::string_view(argv[i]) == "--linear-target") linearTestTarget = true;
@@ -1486,7 +1543,8 @@ int main(int argc, char** argv)
             Review review(effects?c::layerEffectCount:filters?c::spatialFilterCount:adjustments?c::adjustmentCount+2:c::allBlendModes.size());
             {
                 OffscreenCanvas gpu(validation);
-                if(fillOpacity)fillOpacityRendering(gpu);
+                if(channels)channelRendering(gpu);
+                else if(fillOpacity)fillOpacityRendering(gpu);
                 else if(encoded) {
                     transparentStylesPreserveBackdrop(gpu);
                     allModesAndCacheBehavior(gpu,review,c::CompositingSpace::EncodedSRgb);

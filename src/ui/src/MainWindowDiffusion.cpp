@@ -233,7 +233,8 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
                       : nullptr;
     const auto *raster =
         layer ? std::get_if<core::RasterLayer>(&layer->payload) : nullptr;
-    edit->setEnabled(diffusion_->panel->supportsMode(DiffusionPanel::Mode::Edit) && raster && raster->surface && !fileBusy_ &&
+    edit->setEnabled(diffusion_->panel->supportsMode(DiffusionPanel::Mode::Edit) && raster && raster->surface
+        && raster->surface->dataKind() == core::RasterDataKind::Color && !fileBusy_ &&
                      !workspaceDialog_);
     fill->setEnabled(diffusion_->panel->supportsMode(DiffusionPanel::Mode::Fill) && edit->isEnabled() && doc->selection() &&
                      !doc->selection()->bounds().empty());
@@ -1020,14 +1021,15 @@ void MainWindow::refreshDiffusion() {
                           : nullptr;
   const bool selected =
       layer && std::holds_alternative<core::RasterLayer>(layer->payload) &&
-      std::get<core::RasterLayer>(layer->payload).surface;
+      std::get<core::RasterLayer>(layer->payload).surface &&
+      std::get<core::RasterLayer>(layer->payload).surface->dataKind() == core::RasterDataKind::Color;
   s.panel->setTargetCompatible(selected);
   QVector<DiffusionPanel::ComparisonLayer> choices;
   if (doc) for (auto it = doc->layers().rbegin(); it != doc->layers().rend(); ++it) {
     const auto &candidate = *it;
     QString type;
     if (const auto *raster = std::get_if<core::RasterLayer>(&candidate.payload)) {
-      if (!raster->surface) continue;
+      if (!raster->surface || raster->surface->dataKind() != core::RasterDataKind::Color) continue;
       type = "Raster";
     } else if (std::holds_alternative<core::TextLayer>(candidate.payload)) type = "Text";
     else if (std::holds_alternative<core::ShapeLayer>(candidate.payload)) type = "Shape";

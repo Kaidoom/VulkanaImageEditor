@@ -28,6 +28,7 @@
 #include "imageeditor/ui/AdjustmentsPanel.hpp"
 #include "imageeditor/ui/FiltersPanel.hpp"
 #include "imageeditor/ui/ColorSelector.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/ui/ClipboardImage.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
 #include "imageeditor/ui/BrushOptionsPage.hpp"
@@ -1764,10 +1765,11 @@ void MainWindow::closeEvent(QCloseEvent* event)
         const auto saveColor = [&settings](const QString& key, core::Rgba8 color) {
             settings.setValue(key, QColor(color.red, color.green, color.blue, color.alpha));
         };
-        saveColor(QStringLiteral("editor/colors-v2/primary"), session().colors().primary);
-        saveColor(QStringLiteral("editor/colors-v2/secondary"), session().colors().secondary);
+        const auto savedColors = ordinaryColors_.value_or(session().colors());
+        saveColor(QStringLiteral("editor/colors-v2/primary"), savedColors.primary);
+        saveColor(QStringLiteral("editor/colors-v2/secondary"), savedColors.secondary);
         settings.setValue(QStringLiteral("editor/colors-v2/active"),
-            session().colors().active == core::ColorSlot::Secondary ? 1 : 0);
+            savedColors.active == core::ColorSlot::Secondary ? 1 : 0);
         if (persistPanelLayout_) {
             const auto savePanel = [&settings, this](const QString& id,
                                        WorkspacePanel* panel) {
@@ -2180,6 +2182,8 @@ void MainWindow::createMenus()
     editMenu->addAction(undoAction_);
     editMenu->addAction(redoAction_);
     editMenu->addSeparator();
+    editMenu->addAction(copyScalarChannelAction_);
+    editMenu->addAction(cutScalarChannelAction_);
     auto* paste = i18n::addAction(editMenu, toolGlyph(ToolGlyph::Paste), i18n::text("main.window.paste.image.as.layer"), this, &MainWindow::pasteImageAsLayer);
     paste->setObjectName(QStringLiteral("PasteImageAsLayerAction"));
     paste->setShortcut(QKeySequence::Paste);
@@ -2209,6 +2213,11 @@ void MainWindow::createMenus()
     layerMenu->addSeparator();layerMenu->addAction(groupLayersAction_);layerMenu->addAction(ungroupLayersAction_);
     layerMenu->addSeparator();layerMenu->addAction(mergeLayersAction_);
     layerMenu->addAction(rasterizeLayersAction_);
+    layerMenu->addAction(convertChannelGroupAction_);
+    layerMenu->addAction(recombineChannelGroupAction_);
+    layerMenu->addAction(inspectChannelAlphaAction_);
+    fileMenu->insertAction(quitAction, findChild<QAction*>(QStringLiteral("OpenDataTextureAction")));
+    fileMenu->insertAction(quitAction, exportChannelDataAction_);
     createBackgroundRemovalAction(layerMenu);
     auto* maskMenu=i18n::addMenu(layerMenu,i18n::text("main.window.layer.mask"));
     maskMenu->setIcon(toolGlyph(ToolGlyph::LayerMask));
@@ -3386,6 +3395,7 @@ void MainWindow::pasteImageAsLayer()
 {
     if (fileBusy_ || workspaceDialog_ || !session().document() || QApplication::activeModalWidget()
         || editorTextInputActive() || (textController_ && textController_->active())) return;
+    if (pasteScalarChannel()) return;
     const auto* mime = QApplication::clipboard()->mimeData(QClipboard::Clipboard);
     if (!mime) return;
     auto loaded = loadClipboardImage(*mime);
@@ -4554,6 +4564,8 @@ void MainWindow::addRasterLayer()
 void MainWindow::setActiveTool(core::ToolId tool)
 {
     if (refinement_) return;
+    if (const auto found = toolActionMap_.find(tool); found != toolActionMap_.end()
+        && found->second->property("channelDisabled").toBool()) return;
     if(tool==core::ToolId::Crop && !layerCrop_ && !startingCrop_){
         beginLayerCrop();
         if(!layerCrop_){
@@ -4726,10 +4738,11 @@ void MainWindow::updateLayerControls()
     if (session().document() && session().activeLayer()) {
         active = session().document()->layer(*session().activeLayer());
     }
-    opacitySlider_->setEnabled(active != nullptr);
+    const bool scalar = active && core::isScalarLayer(*active);
+    opacitySlider_->setEnabled(active != nullptr && !scalar);
     if (!publishingOpacity_ || !opacitySlider_->isManualEntryActive())
         opacitySlider_->setValue(active ? static_cast<int>(std::lround((pixelOpacityMode_?active->fillOpacity:active->opacity) * 100.0F)) : 100);
-    opacityModeButton_->setEnabled(active != nullptr && !fileBusy_);
+    opacityModeButton_->setEnabled(active != nullptr && !scalar && !fileBusy_);
     opacityModeButton_->setChecked(pixelOpacityMode_);
     i18n::setToolTip(opacityModeButton_,i18n::text(pixelOpacityMode_?"layer.opacity.switch.layer":"layer.opacity.switch.pixel"));
     i18n::setAccessibleName(opacityModeButton_,i18n::text("layer.opacity.switch"));
@@ -4741,7 +4754,7 @@ void MainWindow::updateLayerControls()
         i18n::addItem(blendModeCombo_, i18n::text("main.window.pass.through"));
     else if (!container && blendModeCombo_->count() > int(core::allBlendModes.size()))
         blendModeCombo_->removeItem(int(core::allBlendModes.size()));
-    blendModeCombo_->setEnabled(active != nullptr && !fileBusy_);
+    blendModeCombo_->setEnabled(active != nullptr && !scalar && !fileBusy_);
     i18n::setPrefix(opacitySlider_,i18n::text(pixelOpacityMode_?"layer.opacity.pixel.prefix":"layer.opacity.layer.prefix"));
     i18n::setAccessibleName(opacitySlider_,i18n::text(pixelOpacityMode_?"layer.opacity.pixel":"main.window.layer.opacity"));
     i18n::setToolTip(opacitySlider_,i18n::text(pixelOpacityMode_?"layer.opacity.pixel.help":"layer.opacity.layer.help"));
@@ -4863,6 +4876,7 @@ void MainWindow::updateActionState()
                 ? i18n::text("main.window.delete.selected.layers.1").arg(shortcutLabel(shortcuts_, "DeleteSelectedLayersAction"))
                 : i18n::text("main.window.a.document.must.keep.at.least.one.layer"));
     }
+    refreshChannelGroupControls();
 }
 
 void MainWindow::updateStatusText()
@@ -5132,6 +5146,11 @@ void MainWindow::setForegroundColor(core::Rgba8 color)
 
 void MainWindow::setColors(core::EditorColors colors)
 {
+    if (scalarColorMode_) {
+        const auto gray = [](core::Rgba8 color) { const auto v = core::maskGray(color); return core::Rgba8 {v, v, v, 255}; };
+        colors.primary = gray(colors.primary); colors.secondary = gray(colors.secondary);
+        scalarColors_ = colors;
+    }
     if (colorsSynchronized_ && colors == session().colors()) {
         return;
     }

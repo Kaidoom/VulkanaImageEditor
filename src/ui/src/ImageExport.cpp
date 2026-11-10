@@ -1,5 +1,6 @@
 #include "imageeditor/ui/ImageExport.hpp"
 #include "imageeditor/ui/FileDialogLocations.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include <QBuffer>
 #include <QColorSpace>
 #include <QDir>
@@ -147,6 +148,10 @@ QString exportPathForFormat(const QString& path, ExportFormat format)
 }
 QString validateExport(const ExportSettings& s, QSize canvas)
 {
+    if (s.preserveData && (s.format != ExportFormat::Png || s.pngMatte))
+        return QStringLiteral("Channel data export requires PNG without a background colour.");
+    if (s.preserveData && s.size != canvas)
+        return QStringLiteral("Channel data export keeps the original pixel dimensions.");
     if(s.format==ExportFormat::Pdf)return {}; // Geometry/selection validated by the immutable PDF page plan.
     if(s.format==ExportFormat::Psd)return {}; // Validated by the layered export plan.
     const auto invalidSize = [](QSize size) {
@@ -205,6 +210,39 @@ QString validateExportDestination(const QString& path, const QString& projectPat
 FlattenedDocumentResult renderExport(
     const core::Document& document, const ExportSettings& settings, FlattenedDocumentProgress progress)
 {
+    if (settings.preserveData) {
+        try {
+            std::shared_ptr<const core::RasterSurface> surface;
+            if (const auto* group = document.tree().container(settings.dataLayerId);
+                group && group->kind == core::ContainerKind::ChannelGroup)
+                surface = core::packChannelGroup(document, group->id);
+            else if (const auto* layer = document.layer(settings.dataLayerId))
+                if (const auto* raster = std::get_if<core::RasterLayer>(&layer->payload);
+                    raster && raster->surface && raster->surface->dataKind() != core::RasterDataKind::Color)
+                    surface = raster->surface;
+            require(bool(surface), "Choose a Channel Group or numeric raster to export channel data");
+            const auto e = surface->extent();
+            const QSize nativeSize(int(e.width), int(e.height));
+            if (const auto error = validateExport(settings, nativeSize); !error.isEmpty())
+                return {{}, error, false, {}};
+            QImage image(nativeSize, QImage::Format_RGBA8888);
+            require(!image.isNull(), "Not enough memory for channel data export");
+            const auto revision = document.revision(), sourceRevision = surface->revision();
+            for (std::uint32_t y = 0; y < e.height; ++y) {
+                if (progress && y % 64 == 0) {
+                    if (!progress(y, e.height)) return {{}, {}, true, {}};
+                    require(document.revision() == revision && surface->revision() == sourceRevision,
+                        "Channel data changed during export");
+                }
+                surface->copyRgba8({0, int(y), int(e.width), 1},
+                    {reinterpret_cast<std::byte*>(image.scanLine(int(y))), std::size_t(image.bytesPerLine())},
+                    std::size_t(image.bytesPerLine()));
+            }
+            return {std::move(image), {}, false, {}};
+        } catch (const std::exception& e) {
+            return {{}, QString::fromUtf8(e.what()), false, {}};
+        }
+    }
     if(settings.format==ExportFormat::Pdf)return {{},QStringLiteral("PDF export requires a page plan"),false,{}};
     if(settings.format==ExportFormat::Psd)return {{},QStringLiteral("PSD export requires a layered plan"),false,{}};
     const auto extent = document.canvas().extent;
@@ -237,6 +275,11 @@ EncodedExport encodeExport(
             return { { }, { }, error, false };
         require(!source.isNull() && source.size() == settings.size,
             "Export buffer dimensions differ from the selected output size");
+        if (settings.preserveData)
+            require(source.pixelFormat().premultiplied() != QPixelFormat::Premultiplied
+                    && source.pixelFormat().redSize() <= 8 && source.pixelFormat().greenSize() <= 8
+                    && source.pixelFormat().blueSize() <= 8 && source.pixelFormat().alphaSize() <= 8,
+                "Channel data encoding requires straight 8-bit pixels");
         // Allocate fresh metadata, not source.copy(): even callers outside the
         // dialog cannot propagate camera EXIF, orientation, text or file paths.
         const auto rgba = source.convertToFormat(QImage::Format_RGBA8888);
@@ -247,11 +290,11 @@ EncodedExport encodeExport(
                 checkCancel(cancel);
             std::memcpy(clean.scanLine(y), rgba.constScanLine(y), std::size_t(clean.width()) * 4);
             auto* row = clean.scanLine(y);
-            for (int x = 0; x < clean.width(); ++x)
+            for (int x = 0; !settings.preserveData && x < clean.width(); ++x)
                 if (row[x * 4 + 3] == 0)
                     row[x * 4] = row[x * 4 + 1] = row[x * 4 + 2] = 0;
         }
-        clean.setColorSpace(QColorSpace::SRgb);
+        if (!settings.preserveData) clean.setColorSpace(QColorSpace::SRgb);
         clean.setDotsPerMeterX(source.dotsPerMeterX());
         clean.setDotsPerMeterY(source.dotsPerMeterY());
         QByteArray bytes;
@@ -287,7 +330,7 @@ EncodedExport encodeExport(
         checkCancel(cancel);
         require(
             !decoded.isNull() && decoded.size() == settings.size, "Cannot decode the encoded export preview");
-        decoded.setColorSpace(QColorSpace::SRgb);
+        if (!settings.preserveData) decoded.setColorSpace(QColorSpace::SRgb);
         return { std::move(bytes), std::move(decoded), { }, false };
     } catch (const Cancelled&) {
         return { { }, { }, { }, true };

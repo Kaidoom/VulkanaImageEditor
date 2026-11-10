@@ -124,6 +124,12 @@ vec4 premultipliedTexel(ivec2 p)
     float alpha=bEncodeByte(int(c.a*255+.5));
     return vec4(vec3(bDecodeByte(int(c.r*255+.5)),bDecodeByte(int(c.g*255+.5)),bDecodeByte(int(c.b*255+.5)))*alpha,alpha);
 }
+vec4 numericTexel(ivec2 p)
+{
+    vec4 c=texelFetch(layerTexture,p,0);
+    return vec4(bEncodeByte(int(c.r*255+.5)),bEncodeByte(int(c.g*255+.5)),
+        bEncodeByte(int(c.b*255+.5)),bEncodeByte(int(c.a*255+.5)));
+}
 int effectOffset;
 int compositingSpace;
 float effectCoverage[10];
@@ -245,10 +251,29 @@ void main()
     vec2 q = clamp(local-vec2(0.5),vec2(0),vec2(size-1));
     ivec2 lo = ivec2(floor(q)), hi = min(lo+ivec2(1),size-1);
     vec2 f = fract(q);
+    if(operation>=8 && operation<=11) {
+        precise float value=mix(mix(numericTexel(lo).r,numericTexel(ivec2(hi.x,lo.y)).r,f.x),
+            mix(numericTexel(ivec2(lo.x,hi.y)).r,numericTexel(hi).r,f.x),f.y);
+        vec4 packed=loadTarget(0,pixel);packed[operation-8]=value;
+        storeTarget(pixel,packed);return;
+    }
+    if(operation==12) {
+        vec4 packed=loadTarget(1,pixel);
+        float alpha=(pc.opacity==0?1:packed.a)*edgeCoverage;
+        vec4 source=vec4(bDecode(packed.r),bDecode(packed.g),bDecode(packed.b),1)*alpha;
+        storeTarget(pixel,bCompositeSpace(loadTarget(0,pixel),source,1,0,compositingSpace));return;
+    }
     // Premultiply each texel BEFORE interpolation. Hidden RGB at alpha zero
     // cannot contaminate AA edges. Same texel-center/clamp rule as CPU sampling.
     precise vec4 source;
     if(operation==2)source=loadTarget(2,pixel);
+    else if((pc.mode&int(0x80000000u))!=0) {
+        // Scalar and packed data interpolate numerical values first. Display
+        // decoding happens afterwards and never changes canonical pixels.
+        precise vec4 value=mix(mix(numericTexel(lo),numericTexel(ivec2(hi.x,lo.y)),f.x),
+            mix(numericTexel(ivec2(lo.x,hi.y)),numericTexel(hi),f.x),f.y);
+        source=vec4(bDecode(value.r),bDecode(value.g),bDecode(value.b),1)*value.a;
+    }
     else if(cropMode==3) {
         // Pixel Preview is axis-aligned in document space. Magnification keeps
         // native pixel cells sharp; reduction integrates their premultiplied

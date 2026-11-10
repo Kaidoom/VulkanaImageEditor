@@ -131,6 +131,24 @@ void uploadPlanRejectsInvalidAndOverflowingInputs()
     CHECK(rejectedOverflow);
 }
 
+void scalarUploadPlanUsesOneByteAndRetainsAlignment()
+{
+    const std::vector<RectI> regions {{2,3,3,2},{17,19,1,1},{40,50,2,3}};
+    const auto plan=makeRasterUploadPlan(regions,256,1);
+    CHECK(plan.copies.size()==3);
+    CHECK(plan.copies[0].rowBytes==3);
+    CHECK(plan.copies[0].byteCount==6);
+    CHECK(plan.copies[1].bufferOffset==256);
+    CHECK(plan.copies[1].byteCount==1);
+    CHECK(plan.copies[2].bufferOffset==512);
+    CHECK(plan.stagingBytes==518);
+    CHECK(plan.pixelBytes==13);
+    bool rejectedFormat=false;
+    try {(void)makeRasterUploadPlan(regions,256,3);}
+    catch(const std::invalid_argument&){rejectedFormat=true;}
+    CHECK(rejectedFormat);
+}
+
 } // namespace
 
 int main()
@@ -140,6 +158,7 @@ int main()
     emptyAndInvalidInputsAreControlled();
     uploadPlanPacksAlignedRgbaCopies();
     uploadPlanRejectsInvalidAndOverflowingInputs();
+    scalarUploadPlanUsesOneByteAndRetainsAlignment();
     if (failures != 0) {
         std::cerr << failures << " dirty-region coalescer assertion(s) failed\n";
         return EXIT_FAILURE;

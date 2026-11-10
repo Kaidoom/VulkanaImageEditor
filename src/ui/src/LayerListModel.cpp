@@ -3,6 +3,7 @@
 #include "imageeditor/ui/LayerTransferMimeData.hpp"
 #include "imageeditor/core/ColorSampler.hpp"
 #include "imageeditor/core/ColorMath.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/ui/ToolIcons.hpp"
 #include "imageeditor/ui/Theme.hpp"
@@ -275,9 +276,17 @@ QVariant LayerListModel::data(const QModelIndex& index, int role) const
         return { };
     switch (role) {
     case Qt::DisplayRole:
+        if (l) if (const auto* channels = core::channelGroupForLayer(*session_->document(), l->id)) {
+            const auto found = std::find(channels->channelRoles.begin(), channels->channelRoles.end(), l->id);
+            if (found != channels->channelRoles.end())
+                return QStringLiteral("%1 · %2").arg(QStringLiteral("RGBA").at(int(found - channels->channelRoles.begin())))
+                    .arg(QString::fromStdString(l->name));
+        }
+        return QString::fromStdString(l ? l->name : c->name);
     case Qt::EditRole:
         return QString::fromStdString(l ? l->name : c->name);
     case Qt::CheckStateRole:
+        if (l && core::isScalarLayer(*l)) return {};
         return (l ? l->visible : c->visible) ? Qt::Checked : Qt::Unchecked;
     case Qt::DecorationRole: {
         const auto ink = thumbnailInk(c ? c->colorLabel : core::ColorLabel(l->colorLabel));
@@ -291,6 +300,10 @@ QVariant LayerListModel::data(const QModelIndex& index, int role) const
         return layerThumbnail(*l);
     }
     case Qt::ToolTipRole:
+        if (c && c->kind == core::ContainerKind::ChannelGroup)
+            return QStringLiteral("Packed channel data. Select a channel to inspect and edit its numeric values.");
+        if (l && core::isScalarLayer(*l))
+            return QStringLiteral("Numeric channel: 0–255. Rename the label without changing its channel identity.");
         if(c&&c->kind==core::ContainerKind::ClippingMaskGroup)return i18n::text("layer.list.model.clipping.mask.group.bottommost.child.is.the.base.reorder");
         if(l&&l->mask)return i18n::text("layer.list.model.content.thumbnail.edit.layer.mask.thumbnail.edit.coverage.white");
         if (c)
@@ -341,8 +354,13 @@ Qt::ItemFlags LayerListModel::flags(const QModelIndex& index) const
     if (!index.isValid())
         return Qt::ItemIsDropEnabled;
     auto flags = Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsDragEnabled | Qt::ItemIsEditable;
+    const auto* layer = layerAt(index.row());
+    if (layer && core::isScalarLayer(*layer))
+        return Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsEditable;
     flags |= Qt::ItemIsUserCheckable;
-    if (index.data(Qt::UserRole + 3).toBool())
+    const auto id = layerIdAt(index.row());
+    const auto* container = id ? session_->document()->tree().container(*id) : nullptr;
+    if (index.data(Qt::UserRole + 3).toBool() && (!container || container->kind != core::ContainerKind::ChannelGroup))
         flags |= Qt::ItemIsDropEnabled;
     return flags;
 }
@@ -355,6 +373,7 @@ bool LayerListModel::setData(const QModelIndex& index, const QVariant& value, in
         return renameItem(*id, value.toString());
     if (role != Qt::CheckStateRole || !onVisibilityChanged)
         return false;
+    if (const auto* layer = layerAt(index.row()); layer && core::isScalarLayer(*layer)) return false;
     if (!onVisibilityChanged(*id, value.toInt() == Qt::Checked))
         return false;
     if (rowCount())
@@ -395,12 +414,13 @@ std::optional<core::ItemPlacement> LayerListModel::dropPlacement(int row, const 
     const auto& tree = session_->document()->tree();
     if (parent.isValid() && row == -2) {
         const auto id = layerIdAt(parent.row());
+        if (id) if (const auto* layer = session_->document()->layer(*id); layer && core::isScalarLayer(*layer)) return {};
         return id ? tree.placement(*id) : std::nullopt;
     }
     if (parent.isValid() && row < 0) {
         const auto id = layerIdAt(parent.row());
         const auto* c = id ? tree.container(*id) : nullptr;
-        if (c && (intoGroup || core::isExpandable(c->kind)))
+        if (c && c->kind != core::ContainerKind::ChannelGroup && (intoGroup || core::isExpandable(c->kind)))
             return core::ItemPlacement { c->id, c->children.size() };
         return { };
     }
@@ -408,6 +428,7 @@ std::optional<core::ItemPlacement> LayerListModel::dropPlacement(int row, const 
         return core::ItemPlacement { 0, 0 };
     // Above a displayed row = immediately above that item in its own parent.
     auto p = tree.placement(*layerIdAt(row));
+    if (p) if (const auto* c = tree.container(p->parent); c && c->kind == core::ContainerKind::ChannelGroup) return {};
     if (p)
         ++p->index;
     return p;
@@ -432,7 +453,8 @@ bool LayerListModel::canDropMimeData(const QMimeData* data, Qt::DropAction actio
         return false;
     const auto& tree = session_->document()->tree();
     for (auto id : ids)
-        if (!session_->document()->containsItem(id) || id == p->parent || tree.isAncestor(id, p->parent))
+        if (!session_->document()->containsItem(id) || id == p->parent || tree.isAncestor(id, p->parent)
+            || (session_->document()->layer(id) && core::isScalarLayer(*session_->document()->layer(id))))
             return false;
     return true;
 }

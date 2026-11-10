@@ -3,6 +3,7 @@
 #include "imageeditor/ui/QtShapeRenderService.hpp"
 #include "imageeditor/ui/QtTextLayoutService.hpp"
 #include "imageeditor/core/AdjustmentCommands.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/core/EffectCommands.hpp"
 #include "imageeditor/core/FilterCommands.hpp"
 #include "imageeditor/core/LayerCommands.hpp"
@@ -661,9 +662,17 @@ void McpController::registerLayerTools()
             if (const auto* container = document().tree().container(target)) {
                 auto data = result(false);
                 data["layerId"] = id(target); data["name"] = text(container->name);
-                data["type"] = container->kind == c::ContainerKind::Folder ? "folder" : container->kind == c::ContainerKind::Group ? "group" : "clipping_group";
+                data["type"] = container->kind == c::ContainerKind::Folder ? "folder" : container->kind == c::ContainerKind::Group ? "group"
+                    : container->kind == c::ContainerKind::ChannelGroup ? "channel_group" : "clipping_group";
                 data["visible"] = container->visible; data["children"] = ids(container->children);
                 data["geometry"] = itemGeometryData(document(),target);
+                if (container->kind == c::ContainerKind::ChannelGroup) {
+                    QJsonObject roles;
+                    const std::array keys {"R", "G", "B", "A"};
+                    for (std::size_t i = 0; i < keys.size(); ++i)
+                        roles[keys[i]] = container->channelRoles[i] ? QJsonValue(id(container->channelRoles[i])) : QJsonValue(QJsonValue::Null);
+                    data["channelRoles"] = roles;
+                }
                 return data;
             }
             const auto& item = layer(args);
@@ -685,6 +694,17 @@ void McpController::registerLayerTools()
             else if (const auto* value = std::get_if<c::ShapeLayer>(&item.payload)) { data["type"] = "shape"; data["shape"] = shapeData(*value); }
             else if (const auto* value = std::get_if<c::AdjustmentLayer>(&item.payload)) { data["type"] = "adjustment"; data["scope"] = value->scope == c::AdjustmentScope::ThisGroup ? "this_group" : "all_below"; }
             else data["type"] = "raster";
+            if (const auto* raster = std::get_if<c::RasterLayer>(&item.payload); raster && raster->surface) {
+                const auto kind = raster->surface->dataKind();
+                data["dataKind"] = kind == c::RasterDataKind::Scalar ? "scalar" : kind == c::RasterDataKind::PackedData ? "packed_data" : "color";
+                data["pixelFormat"] = kind == c::RasterDataKind::Scalar ? "r8" : "rgba8";
+            }
+            if (const auto* group = c::channelGroupForLayer(document(), item.id)) {
+                data["channelGroupId"] = id(group->id);
+                const std::array keys {"R", "G", "B", "A"};
+                for (std::size_t i = 0; i < keys.size(); ++i)
+                    if (group->channelRoles[i] == item.id) data["channelRole"] = keys[i];
+            }
             data["mask"] = item.mask ? QJsonValue(QJsonObject{{"enabled", item.mask->enabled}, {"outside", item.mask->outside}, {"width", int(item.mask->coverage->extent().width)}, {"height", int(item.mask->coverage->extent().height)}}) : QJsonValue(QJsonValue::Null);
             const c::LayerEffectStack defaults;
             const auto& effects = item.effects ? *item.effects : defaults;

@@ -2,6 +2,7 @@
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/FlattenedDocument.hpp"
 #include "imageeditor/core/ColorSampler.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/core/LayerMask.hpp"
 #include "imageeditor/core/RegionalRasterSurface.hpp"
 #include "NativeGraphicsStartup.hpp"
@@ -95,6 +96,55 @@ void brushCatalogDistinguishesPreparation()
         if (preset["id"] == loadOnUse) ready = preset["available"].toBool() && preset["prepared"].toBool() && preset["status"] == "ready";
     }
     CHECK(ready);
+}
+
+void scalarChannelSafety()
+{
+    Fixture f;
+    const auto group = f.target;
+    auto split = c::convertToChannelGroup(f.document(), {{group}, group, group});
+    CHECK(f.session().history().execute(f.document(), std::move(split)));
+    const auto roles = f.document().tree().container(group)->channelRoles;
+    f.target = roles[0];
+    f.call("vulkana_layer_select", {{"layerIds", QJsonArray{QString::number(f.target)}}});
+    const auto info = f.call("vulkana_layer_get", f.targetArgs());
+    CHECK(info["dataKind"] == "scalar" && info["pixelFormat"] == "r8" && info["channelRole"] == "R");
+    const auto groupInfo = f.call("vulkana_layer_get", {{"layerId", QString::number(group)}});
+    CHECK(groupInfo["type"] == "channel_group");
+    CHECK(groupInfo["channelRoles"].toObject()["G"] == QString::number(roles[1]));
+    f.call("vulkana_brush_stroke", f.stroke({point(48.5,48.5)}, "#808080", 8));
+    auto surface = std::dynamic_pointer_cast<c::ScalarRasterSurface>(std::get<c::RasterLayer>(f.document().layer(f.target)->payload).surface);
+    CHECK(surface && surface->snapshot()->at(48,48) == 128);
+    auto fill = f.targetArgs(); fill["color"] = "#404040";
+    f.call("vulkana_fill", fill);
+    CHECK(surface->snapshot()->at(4,4) == 64);
+    const auto before = f.controller->state(false);
+    const auto unchanged = [&](const char* tool, QJsonObject args) {
+        const auto failure = f.call(tool, args, false)["error"].toObject();
+        CHECK(failure["details"].toObject()["noChanges"] == true);
+        CHECK(failure["details"].toObject()["changed"] == false);
+        CHECK(f.controller->state(false) == before);
+    };
+    auto batch = f.targetArgs(); batch["strokes"] = QJsonArray{QJsonObject{{"points", QJsonArray{point(20,20)}}}};
+    unchanged("vulkana_brush_strokes", batch);
+    unchanged("vulkana_selection_from_alpha", f.targetArgs());
+    auto opacity = f.targetArgs(); opacity["opacity"] = .5;
+    unchanged("vulkana_layer_set_opacity", opacity);
+    unchanged("vulkana_layer_delete", {{"layerIds", QJsonArray{QString::number(f.target)}}});
+    unchanged("vulkana_layer_ungroup", {{"layerId", QString::number(group)}});
+    unchanged("vulkana_layer_create", {{"kind", "raster"}, {"parentId", QString::number(group)}});
+    unchanged("vulkana_effect_set", {{"layerId", QString::number(f.target)}, {"type", "stroke"}, {"parameters", QJsonObject{{"size", 4}}}});
+    unchanged("vulkana_layers_style", {{"layerIds", QJsonArray{QString::number(f.target)}}, {"opacity", .5}});
+
+    const auto path = f.files.filePath("channels.png");
+    f.call("vulkana_export_image", {{"path", path}, {"format", "png"}});
+    const auto output = QImage(path).convertToFormat(QImage::Format_RGBA8888);
+    CHECK(!output.isNull());
+    if (!output.isNull()) {
+        CHECK(output.constScanLine(4)[4 * 4] == 64);
+        CHECK(output.constScanLine(4)[4 * 4 + 3] == 0);
+    }
+    unchanged("vulkana_export_image", {{"path", f.files.filePath("invalid.jpg")}, {"format", "jpeg"}});
 }
 
 void brushIsUndoableAndValidatesFirst()
@@ -437,6 +487,7 @@ int main(int argc, char** argv)
     batchMatchesSequentialStrokesIncludingStorageGrowth();
     fillAndSelections();
     emptyAlphaColorsAndSampling();
+    scalarChannelSafety();
     std::cout << "MCP painting/selection failures: " << failures << '\n';
     return failures ? 1 : 0;
 }

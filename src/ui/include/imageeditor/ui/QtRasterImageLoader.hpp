@@ -12,6 +12,8 @@ class QByteArray;
 
 namespace imageeditor::ui {
 
+enum class RasterImportMode { Color, Data };
+
 struct ImageLoadResult {
     std::unique_ptr<core::Document> document;
     QString error;
@@ -27,9 +29,11 @@ struct RasterLayerLoadResult {
     [[nodiscard]] explicit operator bool() const noexcept { return layer.has_value(); }
 };
 
-[[nodiscard]] RasterLayerLoadResult loadRasterLayer(const QString& filePath);
-[[nodiscard]] RasterLayerLoadResult loadRasterLayerFromData(const QByteArray& bytes, const QString& name);
-[[nodiscard]] RasterLayerLoadResult rasterLayerFromImage(QImage image, const QString& name);
-[[nodiscard]] ImageLoadResult loadRasterDocument(const QString& filePath);
+// Data mode preserves numeric channel values and the stored pixel grid. It
+// bypasses colour conversion and rejects precision/premultiplication loss.
+[[nodiscard]] RasterLayerLoadResult loadRasterLayer(const QString& filePath, RasterImportMode = RasterImportMode::Color);
+[[nodiscard]] RasterLayerLoadResult loadRasterLayerFromData(const QByteArray& bytes, const QString& name, RasterImportMode = RasterImportMode::Color);
+[[nodiscard]] RasterLayerLoadResult rasterLayerFromImage(QImage image, const QString& name, RasterImportMode = RasterImportMode::Color);
+[[nodiscard]] ImageLoadResult loadRasterDocument(const QString& filePath, RasterImportMode = RasterImportMode::Color);
 
 } // namespace imageeditor::ui

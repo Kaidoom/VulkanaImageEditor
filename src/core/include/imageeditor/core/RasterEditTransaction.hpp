@@ -26,6 +26,7 @@ struct RasterEditTransactionOptions {
     bool ignoreCrop {false}; // Explicit whole-source clear, not ordinary painting.
     bool coverageValues {false}; // Numeric R8 mask edits, not sRGB colors.
     bool allowGrowth {false}; // Painting may extend storage, never the canonical local frame.
+    bool ignoreSelection {false}; // Clipboard carries its own immutable coverage.
 };
 
 enum class RasterEditCommitResult {

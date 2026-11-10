@@ -33,8 +33,8 @@ SurfaceId makeSurfaceId() noexcept { return nextSurfaceId.fetch_add(1,std::memor
 
 RectI RasterSurface::contentBounds() const
 {
-    // Zero is valid scalar data, not transparency. No pixel scan is required.
-    if (dataKind() == RasterDataKind::Scalar) {
+    // Data extent is independent of zero values or packed alpha.
+    if (dataKind() != RasterDataKind::Color) {
         const auto e = extent();
         return {0, 0, int(e.width), int(e.height)};
     }

@@ -234,7 +234,7 @@ RasterEditTransaction::RasterEditTransaction(Document& document, LayerId layerId
     , canvasExtent_(document.canvas().extent)
     , tileSize_(options.journalTileSize)
     , pinnedSelection_(document.selection())
-    , selectionMask_(options.selectionMask ? options.selectionMask : pinnedSelection_.get())
+    , selectionMask_(options.ignoreSelection ? nullptr : options.selectionMask ? options.selectionMask : pinnedSelection_.get())
     , selectionRevision_(selectionMask_ ? selectionMask_->revision() : 0)
     , historyLabelLength_(copyLabel(historyLabel_, historyLabel))
 {

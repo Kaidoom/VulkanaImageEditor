@@ -581,13 +581,14 @@ VulkanCanvasRenderer::TextureResource VulkanCanvasRenderer::createTexture(
     // Content decoding belongs to the shared compositor, not implementation-
     // dependent fixed-function sRGB texture conversion (especially near gray
     // where the nonseparable modes are sensitive to tiny channel differences).
-    return createTexture(surface.extent(), VK_FORMAT_R8G8B8A8_UNORM);
+    return createTexture(surface.extent(), surface.nativeBytesPerPixel()==1
+        ? VK_FORMAT_R8_UNORM : VK_FORMAT_R8G8B8A8_UNORM);
 }
 
 VulkanCanvasRenderer::TextureResource VulkanCanvasRenderer::createTexture(core::Extent2u extent,
     VkFormat format, VkImageUsageFlags extraUsage)
 {
-    TextureResource texture {.extent = extent};
+    TextureResource texture {.extent = extent, .bytesPerPixel = format==VK_FORMAT_R8_UNORM?1U:format==VK_FORMAT_R32G32B32A32_SFLOAT?16U:4U};
     VkImageCreateInfo imageInfo {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     imageInfo.imageType = VK_IMAGE_TYPE_2D;
     imageInfo.format = format;
@@ -614,6 +615,8 @@ VulkanCanvasRenderer::TextureResource VulkanCanvasRenderer::createTexture(core::
     viewInfo.image = texture.image;
     viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
     viewInfo.format = format;
+    if(format==VK_FORMAT_R8_UNORM)
+        viewInfo.components={VK_COMPONENT_SWIZZLE_R,VK_COMPONENT_SWIZZLE_R,VK_COMPONENT_SWIZZLE_R,VK_COMPONENT_SWIZZLE_ONE};
     viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     viewInfo.subresourceRange.levelCount = 1;
     viewInfo.subresourceRange.layerCount = 1;
@@ -665,7 +668,7 @@ void VulkanCanvasRenderer::uploadTextureRegions(VkCommandBuffer commandBuffer,
         return;
     }
 
-    const auto uploadPlan = makeRasterUploadPlan(regions, stagingAlignment_);
+    const auto uploadPlan = makeRasterUploadPlan(regions, stagingAlignment_,surface.nativeBytesPerPixel());
     if (uploadPlan.stagingBytes
         > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max())) {
         qFatal("Raster upload exceeds addressable staging memory");
@@ -675,7 +678,7 @@ void VulkanCanvasRenderer::uploadTextureRegions(VkCommandBuffer commandBuffer,
     std::vector<VkBufferImageCopy> copies;
     copies.reserve(uploadPlan.copies.size());
     for (const auto& planned : uploadPlan.copies) {
-        surface.copyRgba8(planned.region,
+        surface.copyNative(planned.region,
             staging.bytes.subspan(
                 static_cast<std::size_t>(planned.bufferOffset),
                 static_cast<std::size_t>(planned.byteCount)),
@@ -845,6 +848,8 @@ void VulkanCanvasRenderer::synchronizeTextures(VkCommandBuffer commandBuffer, co
         return;
     }
     for (const auto &layer : scene.document.layersBottomToTop) {
+        if(scene.channelInspectionId && layer.id!=*scene.channelInspectionId
+            && !scene.document.tree.isAncestor(*scene.channelInspectionId,layer.id))continue;
         if (!layer.visible) {
             continue;
         }
@@ -893,7 +898,7 @@ void VulkanCanvasRenderer::pruneTextures(const CanvasScene& scene, std::uint32_t
     const auto clearInactive=inactiveCacheClearGeneration_!=scene.inactiveCacheClearGeneration;
     inactiveCacheClearGeneration_=scene.inactiveCacheClearGeneration;
     const std::uint64_t budget=clearInactive?0:scene.textureCacheBudgetBytes;
-    const auto bytes = [](const auto& texture) { return std::uint64_t(texture.extent.width) * texture.extent.height * 4; };
+    const auto bytes = [](const auto& texture) { return std::uint64_t(texture.extent.width) * texture.extent.height * texture.bytesPerPixel; };
     std::uint64_t total = 0;
     for (const auto& [id, texture] : textures_) { (void)id; total += bytes(texture); }
     while (total > budget) {

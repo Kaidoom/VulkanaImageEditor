@@ -21,6 +21,10 @@ struct ExportSettings {
     int pngEffort { 6 }; // zlib effort 0..9, never visual quality
     int jpegQuality { 92 };
     bool webpLossless { false };
+    // Explicit native-grid PNG export of one channel group or numeric raster.
+    // Never feed the ordinary flattened/display image into this path.
+    bool preserveData { false };
+    core::LayerId dataLayerId { 0 };
     int webpQuality { 90 };
     int webpEffort { 4 }; // libwebp method 0..6; alpha always lossless
     PdfExportOptions pdf;

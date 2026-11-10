@@ -1,4 +1,5 @@
 #include "imageeditor/core/SelectionCommands.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/core/ColorSampler.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/core/LayerCrop.hpp"
@@ -48,6 +49,7 @@ bool LayerViaCopyCommand::apply(Document& document)
     if (result_) return placement_ && document.insertLayerAt(*placement_, *result_);
     const auto* source = document.layer(source_);
     const auto* raster = source ? std::get_if<RasterLayer>(&source->payload) : nullptr;
+    if (source && isScalarLayer(*source)) return false;
     if (!raster || !raster->surface) return false;
     const auto extent = raster->surface->extent();
     const auto selection = document.selection();

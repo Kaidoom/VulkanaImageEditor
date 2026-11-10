@@ -1,4 +1,5 @@
 #include "imageeditor/ui/Localization.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/ExportDialog.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
@@ -27,7 +28,7 @@ namespace {
     }
     bool sameRendering(const ExportSettings& a, const ExportSettings& b)
     {
-        return a.size == b.size && usesMatte(a) == usesMatte(b)
+        return a.size == b.size && a.preserveData == b.preserveData && a.dataLayerId == b.dataLayerId && usesMatte(a) == usesMatte(b)
             && (!usesMatte(a) || exportMatteColor(a).rgb() == exportMatteColor(b).rgb());
     }
     bool sameEncoding(const ExportSettings& a, const ExportSettings& b)
@@ -217,6 +218,7 @@ namespace {
     private:
         QSize canvasSize() const
         {
+            if (dialog_.settings().preserveData) return dialog_.settings().size;
             const auto e = document_.canvas().extent;
             return { int(e.width), int(e.height) };
         }
@@ -665,7 +667,23 @@ void MainWindow::exportImage(bool again)
     }
     if (!settleForFileOperation())
         return;
-    const auto extent = session().document()->canvas().extent;
+    const auto& document = *session().document();
+    const auto dataTarget = [&](core::LayerId id) {
+        if (const auto* layer = document.layer(id)) return core::isScalarLayer(*layer) || core::isPackedDataLayer(*layer);
+        const auto* group = document.tree().container(id);
+        return group && group->kind == core::ContainerKind::ChannelGroup;
+    };
+    core::LayerId dataId = 0;
+    if (explicitChannelDataExport_ && session().activeLayer() && dataTarget(*session().activeLayer()))
+        dataId = *session().activeLayer();
+    else if (document.tree().roots.size() == 1 && dataTarget(document.tree().roots.front()))
+        dataId = document.tree().roots.front();
+    auto extent = document.canvas().extent;
+    if (dataId) {
+        const auto* layer = document.layer(dataId);
+        if (!layer) layer = document.layer(document.tree().container(dataId)->channelRoles[0]);
+        extent = std::get<core::RasterLayer>(layer->payload).surface->extent();
+    }
     const QSize canvas(int(extent.width), int(extent.height));
     const auto owner = activeDocument_;
     auto initial = owner->exportSettings.value_or(loadExportPreferences(canvas, fileState().displayName));
@@ -676,6 +694,12 @@ void MainWindow::exportImage(bool again)
         // Reconcile at the presentation boundary so resize, reframe, Undo and
         // Redo all use the current canvas, including Export Again.
         initial.size = canvas;
+    }
+    initial.preserveData = dataId != 0;
+    initial.dataLayerId = dataId;
+    if (dataId) {
+        initial.format = ExportFormat::Png; initial.size = canvas; initial.pngMatte = false;
+        initial.destination = exportPathForFormat(initial.destination, ExportFormat::Png);
     }
     // The workspace shield excludes edits and target switches. PDF work owns a
     // frozen snapshot; image-codec work owns immutable rendered buffers.

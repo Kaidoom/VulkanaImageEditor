@@ -11,6 +11,7 @@
 #include "imageeditor/ui/WorkspaceDialog.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/core/DocumentCommands.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/core/LayerCommands.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include <QApplication>
@@ -225,7 +226,7 @@ void McpController::registerDocumentTools()
             data["documentWidth"] = int(extent.width); data["documentHeight"] = int(extent.height);
             data["_mcpImage"] = png(preview.image); return data;
         });
-    add("vulkana_export_image", "Export the composited canvas to PNG, JPEG or WebP without a dialog. Explicit overwrite required for existing files; does not save or mark the project saved. PSD/PDF/GIF export stays interactive in this version.",
+    add("vulkana_export_image", "Export the composited canvas to PNG, JPEG or WebP without a dialog. A document consisting of one Channel Group or numeric raster exports its native channel values as PNG; resizing, matte and lossy formats are unavailable for data. Mixed data/colour documents require interactive Export channel data. Explicit overwrite required for existing files; does not save or mark the project saved. PSD/PDF/GIF export stays interactive in this version.",
         {{"path", string()}, {"format", choice({"png", "jpeg", "webp"})}, {"overwrite", boolean()},
             {"width", integer(1, kMaximumExportDimension)}, {"height", integer(1, kMaximumExportDimension)},
             {"quality", integer(1, 100)}, {"lossless", boolean("WebP only.")}, {"matte", colorSchema()}}, {"path", "format"}, Access::Document,
@@ -238,7 +239,32 @@ void McpController::registerDocumentTools()
             require(!args.contains("lossless") || format == "webp", "lossless is only valid for WebP");
             require(!args.contains("quality") || format != "png", "PNG is lossless and does not use quality");
             require(args.contains("width") == args.contains("height"), "Specify both width and height or neither");
-            const auto extent = document().canvas().extent;
+            auto extent = document().canvas().extent;
+            validateBeforeMutation([&] {
+                const bool hasData = std::ranges::any_of(document().layers(), [](const auto& layer) {
+                    return core::isScalarLayer(layer) || core::isPackedDataLayer(layer);
+                });
+                if (!hasData) return;
+                require(document().tree().roots.size() == 1,
+                    "This document mixes channel data with other content. Select the numeric layer or Channel Group and use Export channel data in the editor.");
+                const auto root = document().tree().roots.front();
+                const core::RasterSurface* surface = nullptr;
+                if (const auto* group = document().tree().container(root);
+                    group && group->kind == core::ContainerKind::ChannelGroup)
+                    surface = std::get<core::RasterLayer>(document().layer(group->channelRoles[0])->payload).surface.get();
+                else if (const auto* layer = document().layer(root);
+                    layer && (core::isScalarLayer(*layer) || core::isPackedDataLayer(*layer)))
+                    surface = std::get<core::RasterLayer>(layer->payload).surface.get();
+                require(surface,
+                    "Export this Channel Group or numeric layer directly with Export channel data in the editor.");
+                require(format == "png" && !args.contains("matte"),
+                    "Numeric channel data requires PNG without a matte colour. Use format:png and omit matte.");
+                extent = surface->extent();
+                require(!args.contains("width") || (args["width"].toInt() == int(extent.width)
+                        && args["height"].toInt() == int(extent.height)),
+                    QStringLiteral("Numeric channel data keeps its native size, %1 × %2. Omit width/height or use those values.").arg(extent.width).arg(extent.height));
+                settings.preserveData = true; settings.dataLayerId = root;
+            });
             settings.size = args.contains("width") ? QSize(args["width"].toInt(), args["height"].toInt()) : QSize(int(extent.width), int(extent.height));
             settings.jpegQuality = args.value("quality").toInt(92); settings.webpQuality = args.value("quality").toInt(90);
             settings.webpLossless = args.value("lossless").toBool();

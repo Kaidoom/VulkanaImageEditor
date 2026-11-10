@@ -22,9 +22,10 @@ struct RasterUploadPlan {
     std::uint64_t pixelBytes {0};
 };
 
-// Packs tightly stored RGBA8 rectangles into one aligned staging allocation.
+// Packs tightly stored native R8/RGBA8 rectangles into one staging allocation.
 // The returned offsets are deterministic and suitable for VkBufferImageCopy.
 [[nodiscard]] RasterUploadPlan makeRasterUploadPlan(
-    std::span<const core::RectI> regions, std::uint64_t offsetAlignment);
+    std::span<const core::RectI> regions, std::uint64_t offsetAlignment,
+    std::size_t bytesPerPixel = 4);
 
 } // namespace imageeditor::render

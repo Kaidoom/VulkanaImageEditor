@@ -1,5 +1,6 @@
 #include "imageeditor/core/LayerStructureCommands.hpp"
 #include "imageeditor/core/RichText.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include <stdexcept>
 #include <functional>
 
@@ -18,7 +19,10 @@ LayerTransfer captureLayerTransfer(const Document& source, std::span<const Layer
         if (const auto* folder = source.tree().container(id)) {
             auto copy = *folder; copy.id = next;
             if (root) copy.visible = source.isEffectivelyVisible(id);
-            for (auto& child : copy.children) child = clone(child, false);
+            for (auto& child : copy.children) {
+                const auto old = child; child = clone(child, false);
+                for (auto& role : copy.channelRoles) if (role == old) role = child;
+            }
             result.tree.containers.push_back(std::move(copy));
         } else {
             auto copy = *source.layer(id); copy.id = next;
@@ -26,10 +30,14 @@ LayerTransfer captureLayerTransfer(const Document& source, std::span<const Layer
             copy.renderCache.reset(); copy.filterCache.reset(); copy.effectCache.reset();
             if (auto* raster = std::get_if<RasterLayer>(&copy.payload)) {
                 if (!raster->surface) throw std::invalid_argument("Layer transfer has no source pixels");
+                if (const auto scalar = std::dynamic_pointer_cast<ScalarRasterSurface>(raster->surface)) {
+                    raster->surface = scalar->clone();
+                } else {
                 const auto e = raster->surface->extent();
                 std::vector<std::byte> pixels(std::size_t(e.width)*e.height*4);
                 raster->surface->copyRgba8({0,0,int(e.width),int(e.height)}, pixels, std::size_t(e.width)*4);
-                raster->surface = std::make_shared<ContiguousRasterSurface>(e, std::move(pixels));
+                raster->surface = std::make_shared<ContiguousRasterSurface>(e, std::move(pixels), raster->surface->dataKind());
+                }
             }
             result.layers.push_back(std::move(copy));
         }
@@ -59,6 +67,9 @@ std::unique_ptr<LayerStructureCommand> insertLayerTransfer(const Document& desti
 std::unique_ptr<LayerStructureCommand> consolidateLayerItems(
     const Document& doc, const LayerSelectionState& state, Layer raster)
 {
+    for (auto id : doc.expandedLayers(state.ids))
+        if (isScalarLayer(*doc.layer(id)) || isPackedDataLayer(*doc.layer(id)))
+            throw std::invalid_argument("Use Channel Group conversion to preserve numeric data instead of merging.");
     auto tree = doc.tree();
     if (!std::holds_alternative<RasterLayer>(raster.payload) || !tree.consolidate(state.ids, raster.id))
         throw std::invalid_argument("Merge targets changed; no layers were changed");
@@ -70,6 +81,8 @@ std::unique_ptr<LayerStructureCommand> consolidateLayerItems(
 std::unique_ptr<LayerStructureCommand> duplicateLayerItems(const Document& doc, const LayerSelectionState& state)
 {
     const auto ids = doc.tree().normalize(state.ids);
+    for (auto id : ids) if (channelGroupForLayer(doc, id))
+        throw std::invalid_argument("Duplicate the Channel Group to preserve channel roles.");
     if (ids.empty()) return {};
     const auto leaves = doc.expandedLayers(ids);
     std::size_t bytes = 0;
@@ -86,7 +99,10 @@ std::unique_ptr<LayerStructureCommand> duplicateLayerItems(const Document& doc, 
             auto copy = *source;
             copy.id = newId;
             if (root) copy.name += " copy";
-            for (auto& child : copy.children) child = clone(child, false);
+            for (auto& child : copy.children) {
+                const auto old = child; child = clone(child, false);
+                for (auto& role : copy.channelRoles) if (role == old) role = child;
+            }
             tree.containers.push_back(std::move(copy));
         } else {
             auto copy = *doc.layer(id);
@@ -95,10 +111,14 @@ std::unique_ptr<LayerStructureCommand> duplicateLayerItems(const Document& doc, 
             copy.renderCache.reset(); copy.filterCache.reset(); copy.effectCache.reset();
             if (auto* raster = std::get_if<RasterLayer>(&copy.payload)) {
                 if (!raster->surface) throw std::invalid_argument("Raster layer has no pixels");
+                if (const auto scalar = std::dynamic_pointer_cast<ScalarRasterSurface>(raster->surface)) {
+                    raster->surface = scalar->clone();
+                } else {
                 const auto e = raster->surface->extent();
                 std::vector<std::byte> pixels(std::size_t(e.width) * e.height * 4);
                 raster->surface->copyRgba8({0,0,int(e.width),int(e.height)}, pixels, std::size_t(e.width)*4);
-                raster->surface = std::make_shared<ContiguousRasterSurface>(e, std::move(pixels));
+                raster->surface = std::make_shared<ContiguousRasterSurface>(e, std::move(pixels), raster->surface->dataKind());
+                }
             }
             added.push_back(std::move(copy));
         }
@@ -131,7 +151,7 @@ std::size_t retainedLayerMemory(const Layer& l) noexcept
     result += layerEffectMemoryCost(l.effects);
     if(l.mask)result += sizeof(LayerMask)+l.mask->coverage->memoryCost();
     if (const auto* r = std::get_if<RasterLayer>(&l.payload); r && r->surface)
-        result += std::size_t(r->surface->extent().width) * r->surface->extent().height * 4;
+        result += r->surface->memoryCost();
     if (const auto* t = std::get_if<TextLayer>(&l.payload))
         result += textMemoryCost(*t);
     if (const auto* s = std::get_if<ShapeLayer>(&l.payload))

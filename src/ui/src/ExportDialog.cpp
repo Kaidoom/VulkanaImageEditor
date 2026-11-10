@@ -374,6 +374,8 @@ struct ExportDialog::Impl {
         ExportSettings defaults;
         defaults.format = draft.format;
         defaults.destination = draft.destination;
+        defaults.preserveData = draft.preserveData;
+        defaults.dataLayerId = draft.dataLayerId;
         defaults.size = canvas;
         draft = defaults;
         pendingSizeEdit = false;
@@ -832,6 +834,13 @@ ExportDialog::ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* pa
     });
     d.updateDimensions();
     d.updatePath();
+    if (d.draft.preserveData) {
+        title->setText(QStringLiteral("Export channel data"));
+        d.format->setEnabled(false);
+        d.width->setEnabled(false); d.height->setEnabled(false); d.scale->setEnabled(false); d.aspect->setEnabled(false);
+        d.pngFlatten->setEnabled(false); d.pngColor->setEnabled(false);
+        d.dimensionsHint->setText(QStringLiteral("Native pixel values · PNG · no colour conversion"));
+    }
 }
 
 ExportDialog::~ExportDialog() = default;

@@ -1,6 +1,11 @@
 #include "imageeditor/ui/ColorPanel.hpp"
 #include "imageeditor/ui/ColorPicker.hpp"
 #include "imageeditor/ui/ColorSelector.hpp"
+#include "imageeditor/ui/CompactValueControl.hpp"
+#include "imageeditor/core/LayerMask.hpp"
+#include <QFrame>
+#include <QSignalBlocker>
+#include <cmath>
 #include <QScrollArea>
 #include <QVBoxLayout>
 
@@ -23,6 +28,29 @@ ColorPanel::ColorPanel(QWidget* parent) : QWidget(parent)
     picker_->setManualInputsVisible(false);
     content->addWidget(selector_);
     content->addWidget(picker_, 1);
+    scalarControls_ = new QWidget(body);
+    scalarControls_->setObjectName(QStringLiteral("ScalarColorControls"));
+    auto* scalarLayout = new QVBoxLayout(scalarControls_);
+    scalarLayout->setContentsMargins(0, 0, 0, 0);
+    auto* ramp = new QFrame(scalarControls_);
+    ramp->setFixedHeight(20);
+    ramp->setStyleSheet(QStringLiteral("background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 black,stop:1 white);border:1px solid palette(mid);"));
+    scalarLayout->addWidget(ramp);
+    scalarValue_ = new CompactValueControl(scalarControls_);
+    scalarValue_->setObjectName(QStringLiteral("ScalarChannelValue"));
+    scalarValue_->setDecimals(0); scalarValue_->setRange(0, 255);
+    scalarValue_->setPrefix(QStringLiteral("Value: "));
+    scalarValue_->setToolTip(QStringLiteral("Stored channel value. Black is 0; white is 255."));
+    scalarLayout->addWidget(scalarValue_);
+    content->addWidget(scalarControls_);
+    scalarControls_->hide();
+    connect(scalarValue_, &QDoubleSpinBox::valueChanged, this, [this](double number) {
+        if (!scalarMode_) return;
+        const auto value = std::uint8_t(std::lround(number));
+        colors_.setColor(colors_.active, {value, value, value, 255});
+        selector_->setColors(colors_);
+        if (onColorsChanged) onColorsChanged(colors_);
+    });
     scroll->setWidget(body); layout->addWidget(scroll);
     selector_->onColorsChanged = [this](core::EditorColors colors) {
         setColors(colors);
@@ -44,6 +72,17 @@ void ColorPanel::setColors(core::EditorColors colors)
     selector_->setColors(colors_);
     const auto c = colors_.foreground();
     picker_->setColor(QColor(c.red, c.green, c.blue, c.alpha));
+    const QSignalBlocker guard(scalarValue_);
+    scalarValue_->setValue(core::maskGray(c));
+}
+void ColorPanel::setScalarMode(bool enabled)
+{
+    if (scalarMode_ == enabled) return;
+    scalarMode_ = enabled;
+    picker_->setVisible(!enabled);
+    scalarControls_->setVisible(enabled);
+    selector_->setVisible(!enabled);
+    setColors(colors_);
 }
 void ColorPanel::setForegroundColor(core::Rgba8 color)
 {

@@ -85,6 +85,7 @@ private:
         VkImageView view {VK_NULL_HANDLE};
         VkDescriptorSet descriptorSet {VK_NULL_HANDLE};
         core::Extent2u extent;
+        std::uint32_t bytesPerPixel {4};
         core::Revision uploadedRevision {0};
         std::uint64_t lastUsedFrame {0};
     };
