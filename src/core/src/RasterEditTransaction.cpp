@@ -25,17 +25,17 @@ namespace {
 
 constexpr std::size_t kBytesPerPixel = 4;
 
-std::size_t checkedPixelBytes(RectI region)
+std::size_t checkedPixelBytes(RectI region, std::size_t bytesPerPixel = kBytesPerPixel)
 {
     if (region.empty()) {
         return 0;
     }
     const auto width = static_cast<std::size_t>(region.width);
     const auto height = static_cast<std::size_t>(region.height);
-    if (width > std::numeric_limits<std::size_t>::max() / height / kBytesPerPixel) {
+    if (width > std::numeric_limits<std::size_t>::max() / height / bytesPerPixel) {
         throw std::overflow_error("Raster journal tile is too large");
     }
-    return width * height * kBytesPerPixel;
+    return width * height * bytesPerPixel;
 }
 
 template <std::size_t Capacity>
@@ -71,10 +71,10 @@ RasterSurface* rasterSurfaceForLayer(Document& document,
 }
 
 bool samePixel(std::span<const std::byte> left, std::span<const std::byte> right,
-    std::size_t leftOffset, std::size_t rightOffset) noexcept
+    std::size_t leftOffset, std::size_t rightOffset, std::size_t bytesPerPixel = kBytesPerPixel) noexcept
 {
     return std::memcmp(left.data() + leftOffset, right.data() + rightOffset,
-               kBytesPerPixel)
+               bytesPerPixel)
         == 0;
 }
 
@@ -128,9 +128,11 @@ private:
 } // namespace
 
 RasterEditCommand::RasterEditCommand(LayerId layerId, SurfaceId surfaceId,
-    Extent2u surfaceExtent, std::string_view label, std::vector<TileSnapshot> tiles)
+    Extent2u surfaceExtent, std::string_view label, std::vector<TileSnapshot> tiles,
+    std::size_t nativeBytes)
     : layerId_(layerId)
     , surfaceId_(surfaceId)
+    , nativeBytes_(nativeBytes)
     , surfaceExtent_(surfaceExtent)
     , labelLength_(copyLabel(label_, label))
     , tiles_(std::move(tiles))
@@ -183,12 +185,14 @@ bool RasterEditCommand::canAdoptApplied(const Document& document) const noexcept
 
 RasterSurface* RasterEditCommand::resolve(Document& document) const noexcept
 {
-    return rasterSurfaceForLayer(document, layerId_, surfaceId_, surfaceExtent_);
+    auto* surface = rasterSurfaceForLayer(document, layerId_, surfaceId_, surfaceExtent_);
+    return surface && surface->nativeBytesPerPixel() == nativeBytes_ ? surface : nullptr;
 }
 
 const RasterSurface* RasterEditCommand::resolve(const Document& document) const noexcept
 {
-    return rasterSurfaceForLayer(document, layerId_, surfaceId_, surfaceExtent_);
+    auto* surface = rasterSurfaceForLayer(document, layerId_, surfaceId_, surfaceExtent_);
+    return surface && surface->nativeBytesPerPixel() == nativeBytes_ ? surface : nullptr;
 }
 
 bool RasterEditCommand::swapWithSurface(Document& document)
@@ -210,16 +214,16 @@ bool RasterEditCommand::swapWithSurface(RasterSurface& surface)
     patches.reserve(patchCount);
     for (auto& tile : tiles_) {
         const auto tileStride = static_cast<std::size_t>(tile.tileRegion.width)
-            * kBytesPerPixel;
+            * nativeBytes_;
         for (const auto region : tile.changedRegions) {
             const auto x = static_cast<std::size_t>(region.x - tile.tileRegion.x);
             const auto y = static_cast<std::size_t>(region.y - tile.tileRegion.y);
-            const auto offset = y * tileStride + x * kBytesPerPixel;
+            const auto offset = y * tileStride + x * nativeBytes_;
             patches.push_back({region,
                 std::span<std::byte>(tile.pixels).subspan(offset), tileStride});
         }
     }
-    const auto dirty = surface.swapRgba8Batch(patches);
+    const auto dirty = surface.swapNativeBatch(patches);
     return !dirty.empty();
 }
 
@@ -247,14 +251,15 @@ RasterEditTransaction::RasterEditTransaction(Document& document, LayerId layerId
     }
     liveSurface_ = raster.surface;
     surfaceId_ = liveSurface_->id();
+    nativeBytes_ = liveSurface_->nativeBytesPerPixel();
     surfaceExtent_ = liveSurface_->extent();
     localToDocument_ = intrinsicTransform(*layer);
     layerCrop_=layer->crop;
     crop_=layerCrop_;
     if(crop_){crop_->x-=layer->rasterOrigin.x;crop_->y-=layer->rasterOrigin.y;}
     ignoreCrop_=options.ignoreCrop;
-    coverageValues_=options.coverageValues;
-    allowGrowth_=options.allowGrowth && !coverageValues_;
+    coverageValues_=options.coverageValues || liveSurface_->dataKind() == RasterDataKind::Scalar;
+    allowGrowth_=options.allowGrowth && !coverageValues_ && liveSurface_->dataKind() == RasterDataKind::Color;
     originalSurface_=liveSurface_;
     originalOrigin_=layer->rasterOrigin;
     externalTransform_=layer->localToDocument;
@@ -322,9 +327,9 @@ bool RasterEditTransaction::capture(RectI localRegion)
                 .region = gridTile.clippedTo(surfaceBounds()),
                 .before = {},
             };
-            tile.before.resize(checkedPixelBytes(tile.region));
-            liveSurface_->copyRgba8(tile.region, tile.before,
-                static_cast<std::size_t>(tile.region.width) * kBytesPerPixel);
+            tile.before.resize(checkedPixelBytes(tile.region, nativeBytes_));
+            liveSurface_->copyNative(tile.region, tile.before,
+                static_cast<std::size_t>(tile.region.width) * nativeBytes_);
             journal_.emplace(key, std::move(tile));
         }
     }
@@ -364,18 +369,27 @@ void RasterEditTransaction::copyOriginalRgba8(RectI localRegion,
         if (intersection.empty()) {
             continue;
         }
-        const auto tileStride = static_cast<std::size_t>(tile.region.width) * kBytesPerPixel;
+        const auto tileStride = static_cast<std::size_t>(tile.region.width) * nativeBytes_;
         const auto copyBytes = static_cast<std::size_t>(intersection.width) * kBytesPerPixel;
         for (std::int32_t row = 0; row < intersection.height; ++row) {
             const auto sourceOffset = static_cast<std::size_t>(intersection.y - tile.region.y + row)
                     * tileStride
-                + static_cast<std::size_t>(intersection.x - tile.region.x) * kBytesPerPixel;
+                + static_cast<std::size_t>(intersection.x - tile.region.x) * nativeBytes_;
             const auto destinationOffset = static_cast<std::size_t>(
                     intersection.y - localRegion.y + row)
                     * destinationStride
                 + static_cast<std::size_t>(intersection.x - localRegion.x) * kBytesPerPixel;
-            std::memcpy(destination.data() + destinationOffset,
-                tile.before.data() + sourceOffset, copyBytes);
+            if (nativeBytes_ == 1) {
+                auto* out = destination.data() + destinationOffset;
+                for (int x = 0; x < intersection.width; ++x) {
+                    const auto value = tile.before[sourceOffset + std::size_t(x)];
+                    out[x * 4] = out[x * 4 + 1] = out[x * 4 + 2] = value;
+                    out[x * 4 + 3] = std::byte{255};
+                }
+            } else {
+                std::memcpy(destination.data() + destinationOffset,
+                    tile.before.data() + sourceOffset, copyBytes);
+            }
         }
     }
 }
@@ -419,6 +433,26 @@ DirtySet RasterEditTransaction::writeRgba8BatchImpl(std::span<const RasterPatch>
             .fullRefresh = false,
             .regions = {},
         };
+    }
+    // Reject colour/alpha payloads before any scalar interpolation or capture.
+    // Otherwise a partially selected edit could silently reduce invalid RGBA
+    // input to its first component before the surface adapter sees it.
+    if (liveSurface_->dataKind() == RasterDataKind::Scalar) {
+        for (const auto& patch : patches) {
+            if (patch.region.empty()) continue;
+            const auto rowBytes = std::size_t(patch.region.width) * 4;
+            if (patch.stride < rowBytes || patch.rgbaBytes.size() < rowBytes
+                || (patch.region.height > 1 && patch.stride >
+                    (patch.rgbaBytes.size() - rowBytes) / std::size_t(patch.region.height - 1)))
+                throw std::invalid_argument("Invalid scalar edit buffer");
+            for (int y = 0; y < patch.region.height; ++y) {
+                const auto* row = patch.rgbaBytes.data() + std::size_t(y) * patch.stride;
+                for (int x = 0; x < patch.region.width; ++x)
+                    if (row[x * 4] != row[x * 4 + 1] || row[x * 4] != row[x * 4 + 2]
+                        || row[x * 4 + 3] != std::byte{255})
+                        throw std::invalid_argument("Scalar edits require opaque grayscale values");
+            }
+        }
     }
     for (const auto& patch : patches) {
         if (!capture(patch.region)) {
@@ -466,7 +500,7 @@ RasterEditCommitResult RasterEditTransaction::commit(History& history)
 
     auto rasterCommand = std::unique_ptr<RasterEditCommand>(new RasterEditCommand(
         layerId_, surfaceId_, surfaceExtent_,
-        std::string_view(historyLabel_.data(), historyLabelLength_), std::move(tiles)));
+        std::string_view(historyLabel_.data(), historyLabelLength_), std::move(tiles), nativeBytes_));
     // All metadata/object allocation has succeeded. Only now transfer original
     // bytes; allocation failure above can still cancel from the intact journal.
     for (auto& tile : rasterCommand->tiles_)
@@ -542,8 +576,8 @@ std::vector<RasterEditCommand::TileSnapshot> RasterEditTransaction::finalizeTile
     for (auto& [key, tile] : journal_) {
         (void)key;
         std::vector<std::byte> current(tile.before.size());
-        liveSurface_->copyRgba8(tile.region, current,
-            static_cast<std::size_t>(tile.region.width) * kBytesPerPixel);
+        liveSurface_->copyNative(tile.region, current,
+            static_cast<std::size_t>(tile.region.width) * nativeBytes_);
         auto regions = changedRegions(tile, current);
         if (regions.empty()) {
             continue;
@@ -557,7 +591,7 @@ std::vector<RectI> RasterEditTransaction::changedRegions(
     const JournalTile& tile, std::span<const std::byte> current) const
 {
     std::vector<RectI> result;
-    const auto stride = static_cast<std::size_t>(tile.region.width) * kBytesPerPixel;
+    const auto stride = static_cast<std::size_t>(tile.region.width) * nativeBytes_;
     // The previous row's run -> output rectangle. Identical runs extend down;
     // otherwise a new one-row rectangle starts. This produces a disjoint exact
     // cover of pixels whose RGBA value actually changed.
@@ -567,8 +601,8 @@ std::vector<RectI> RasterEditTransaction::changedRegions(
         std::int32_t column = 0;
         while (column < tile.region.width) {
             const auto offset = static_cast<std::size_t>(row) * stride
-                + static_cast<std::size_t>(column) * kBytesPerPixel;
-            if (samePixel(tile.before, current, offset, offset)) {
+                + static_cast<std::size_t>(column) * nativeBytes_;
+            if (samePixel(tile.before, current, offset, offset, nativeBytes_)) {
                 ++column;
                 continue;
             }
@@ -579,8 +613,8 @@ std::vector<RectI> RasterEditTransaction::changedRegions(
                     break;
                 }
                 const auto nextOffset = static_cast<std::size_t>(row) * stride
-                    + static_cast<std::size_t>(column) * kBytesPerPixel;
-                if (samePixel(tile.before, current, nextOffset, nextOffset)) {
+                    + static_cast<std::size_t>(column) * nativeBytes_;
+                if (samePixel(tile.before, current, nextOffset, nextOffset, nativeBytes_)) {
                     break;
                 }
             } while (true);
@@ -798,8 +832,8 @@ void RasterEditTransaction::restoreOriginalPixels()
     for (auto& [key, tile] : journal_) {
         (void)key;
         std::vector<std::byte> current(tile.before.size());
-        liveSurface_->copyRgba8(tile.region, current,
-            static_cast<std::size_t>(tile.region.width) * kBytesPerPixel);
+        liveSurface_->copyNative(tile.region, current,
+            static_cast<std::size_t>(tile.region.width) * nativeBytes_);
         auto regions = changedRegions(tile, current);
         if (!regions.empty()) {
             changed.push_back({tile.region, std::move(tile.before), std::move(regions)});
@@ -808,16 +842,16 @@ void RasterEditTransaction::restoreOriginalPixels()
 
     std::vector<MutableRasterPatch> patches;
     for (auto& tile : changed) {
-        const auto stride = static_cast<std::size_t>(tile.tileRegion.width) * kBytesPerPixel;
+        const auto stride = static_cast<std::size_t>(tile.tileRegion.width) * nativeBytes_;
         for (const auto region : tile.changedRegions) {
             const auto offset = static_cast<std::size_t>(region.y - tile.tileRegion.y) * stride
-                + static_cast<std::size_t>(region.x - tile.tileRegion.x) * kBytesPerPixel;
+                + static_cast<std::size_t>(region.x - tile.tileRegion.x) * nativeBytes_;
             patches.push_back({region,
                 std::span<std::byte>(tile.pixels).subspan(offset), stride});
         }
     }
     if (!patches.empty()) {
-        (void)liveSurface_->swapRgba8Batch(patches);
+        (void)liveSurface_->swapNativeBatch(patches);
     }
 }
 

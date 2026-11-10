@@ -100,24 +100,7 @@ RectI SelectionMask::tileRect(std::size_t index) const noexcept
 }
 SelectionMask::Tile SelectionMask::compress(std::shared_ptr<Pixels> pixels, Extent2u extent)
 {
-    Tile tile;
-    tile.uniform = (*pixels)[0];
-    bool allUniform = true;
-    for (std::uint32_t y = 0; y < extent.height && allUniform; ++y) {
-        const auto* row = pixels->data() + std::size_t(y) * tileSize;
-        allUniform = std::all_of(row, row + extent.width, [&](auto value) { return value == tile.uniform; });
-    }
-    if (allUniform) {
-        if (tile.uniform) tile.bounds = {0, 0, int(extent.width), int(extent.height)};
-        return tile;
-    }
-    for (std::uint32_t y = 0; y < extent.height; ++y)
-        for (std::uint32_t x = 0; x < extent.width; ++x) {
-            const auto value = (*pixels)[y * tileSize + x];
-            if (value) tile.bounds = tile.bounds.united({int(x), int(y), 1, 1});
-        }
-    tile.pixels = std::move(pixels);
-    return tile;
+    return detail::compressScalarTile(std::move(pixels), extent);
 }
 void SelectionMask::updateBounds()
 {

@@ -61,7 +61,7 @@ private:
     friend class RasterEditTransaction;
 
     RasterEditCommand(LayerId layerId, SurfaceId surfaceId, Extent2u surfaceExtent,
-        std::string_view label, std::vector<TileSnapshot> tiles);
+        std::string_view label, std::vector<TileSnapshot> tiles, std::size_t nativeBytes);
     [[nodiscard]] RasterSurface* resolve(Document& document) const noexcept;
     [[nodiscard]] const RasterSurface* resolve(const Document& document) const noexcept;
     bool swapWithSurface(Document& document);
@@ -69,6 +69,7 @@ private:
 
     LayerId layerId_ {0};
     SurfaceId surfaceId_ {0};
+    std::size_t nativeBytes_ {4};
     Extent2u surfaceExtent_;
     std::array<char, 48> label_ {};
     std::uint8_t labelLength_ {0};
@@ -153,6 +154,7 @@ private:
     Document* document_ {nullptr};
     LayerId layerId_ {0};
     SurfaceId surfaceId_ {0};
+    std::size_t nativeBytes_ {4};
     Extent2u surfaceExtent_;
     Extent2u canvasExtent_;
     AffineTransform localToDocument_;

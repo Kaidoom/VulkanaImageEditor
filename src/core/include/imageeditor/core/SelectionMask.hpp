@@ -1,6 +1,7 @@
 #pragma once
 
 #include "imageeditor/core/RasterSurface.hpp"
+#include "imageeditor/core/detail/ScalarTile.hpp"
 #include <array>
 #include <atomic>
 #include <memory>
@@ -36,7 +37,7 @@ struct CoveragePatch { RectI region; std::span<const std::uint8_t> bytes; std::s
 // unchanged tiles are shared across history, snapshots and pinned raster edits.
 class SelectionMask final : public SelectionMaskInput {
 public:
-    static constexpr std::uint32_t tileSize = 128;
+    static constexpr std::uint32_t tileSize = detail::scalarTileSize;
     [[nodiscard]] static SelectionState filled(Extent2u, std::uint8_t);
     [[nodiscard]] static SelectionState rectangle(Extent2u, RectI, std::uint8_t = 255);
     [[nodiscard]] static SelectionState fromR8(Extent2u, std::span<const std::uint8_t>, std::size_t stride);
@@ -79,14 +80,8 @@ public:
     [[nodiscard]] const std::vector<SelectionEdge>& nonzeroBoundaryEdges() const;
 
 private:
-    using Pixels = std::array<std::uint8_t, tileSize * tileSize>;
-    struct Tile {
-        std::uint8_t uniform {0};
-        std::shared_ptr<const Pixels> pixels;
-        RectI bounds; // tile-local nonzero coverage, clipped to the document
-        [[nodiscard]] std::uint8_t at(std::uint32_t x, std::uint32_t y) const noexcept
-        { return pixels ? (*pixels)[y * tileSize + x] : uniform; }
-    };
+    using Pixels = detail::ScalarTilePixels;
+    using Tile = detail::ScalarTile;
     explicit SelectionMask(Extent2u);
     [[nodiscard]] RectI tileRect(std::size_t) const noexcept;
     static Tile compress(std::shared_ptr<Pixels>, Extent2u);

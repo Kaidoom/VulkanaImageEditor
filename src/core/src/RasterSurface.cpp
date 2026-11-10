@@ -33,6 +33,11 @@ SurfaceId makeSurfaceId() noexcept { return nextSurfaceId.fetch_add(1,std::memor
 
 RectI RasterSurface::contentBounds() const
 {
+    // Zero is valid scalar data, not transparency. No pixel scan is required.
+    if (dataKind() == RasterDataKind::Scalar) {
+        const auto e = extent();
+        return {0, 0, int(e.width), int(e.height)};
+    }
     std::lock_guard lock(boundsMutex_);
     const auto e = extent();
     if (boundsRevision_ == revision() && boundsExtent_ == e) return contentBounds_;
@@ -73,11 +78,14 @@ RectI RasterSurface::contentBounds() const
     return result;
 }
 
-ContiguousRasterSurface::ContiguousRasterSurface(Extent2u extent, Rgba8 fill)
+ContiguousRasterSurface::ContiguousRasterSurface(Extent2u extent, Rgba8 fill, RasterDataKind kind)
     : id_(makeSurfaceId())
+    , kind_(kind)
     , extent_(extent)
     , pixels_(checkedByteCount(extent))
 {
+    if (kind == RasterDataKind::Scalar)
+        throw std::invalid_argument("Scalar data requires a scalar raster surface");
     for (std::size_t offset = 0; offset < pixels_.size(); offset += kBytesPerPixel) {
         pixels_[offset] = static_cast<std::byte>(fill.red);
         pixels_[offset + 1] = static_cast<std::byte>(fill.green);
@@ -86,11 +94,14 @@ ContiguousRasterSurface::ContiguousRasterSurface(Extent2u extent, Rgba8 fill)
     }
 }
 
-ContiguousRasterSurface::ContiguousRasterSurface(Extent2u extent, std::vector<std::byte> rgbaBytes)
+ContiguousRasterSurface::ContiguousRasterSurface(Extent2u extent, std::vector<std::byte> rgbaBytes, RasterDataKind kind)
     : id_(makeSurfaceId())
+    , kind_(kind)
     , extent_(extent)
     , pixels_(std::move(rgbaBytes))
 {
+    if (kind == RasterDataKind::Scalar)
+        throw std::invalid_argument("Scalar data requires a scalar raster surface");
     if (pixels_.size() != checkedByteCount(extent_)) {
         throw std::invalid_argument("RGBA byte count does not match raster extent");
     }

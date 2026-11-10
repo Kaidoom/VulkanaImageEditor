@@ -176,6 +176,9 @@ private:
     AffineTransform documentToLocal_;
     Extent2u surfaceExtent_;
     bool allowGrowth_ {false};
+    // Numeric scalar targets retain an opaque grayscale adapter. The sampled
+    // callback supplies normalized numeric values, never sRGB-decoded colour.
+    bool scalarValues_ {false};
     Extent2u canvasExtent_;
     std::uint32_t tileSize_ {64};
     std::map<TileKey, StrokeTile> tiles_;

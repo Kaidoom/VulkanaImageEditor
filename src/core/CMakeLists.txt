@@ -57,6 +57,8 @@ add_library(imageeditor_core STATIC
     src/BoundsSnapping.cpp
     src/RulerTicks.cpp
     src/RasterSurface.cpp
+    src/ScalarPlane.cpp
+    src/ScalarRasterSurface.cpp
     src/RegionalRasterSurface.cpp
     src/SelectedPixelTransform.cpp
     src/CoverageResampler.cpp

@@ -96,6 +96,8 @@ BasicPixelBrushStroke::BasicPixelBrushStroke(Document& document, LayerId layerId
         return;
     }
     surface_ = raster.surface;
+    scalarValues_ = surface_->dataKind() == RasterDataKind::Scalar;
+    if (scalarValues_) transactionOptions.coverageValues = true;
     const auto inverse = intrinsicTransform(*layer).inverted();
     if (!inverse) {
         return;
@@ -458,7 +460,29 @@ void BasicPixelBrushStroke::resolvePixel(StrokeTile& tile,
         const auto point = localToDocument_.map({double(localX) + .5, double(localY) + .5});
         accumulated *= double(transaction_->selectionCoverageAtDocumentPoint(point)) / 255.0;
     }
-    if (compositeMode_ == BrushCompositeMode::MaskCoverage) {
+    if (scalarValues_) {
+        const double before = std::to_integer<std::uint8_t>(tile.original[offset]);
+        double value = before;
+        double coverage = std::clamp(dab.strokeOpacity * accumulated, 0.0, 1.0);
+        if (compositeMode_ == BrushCompositeMode::Erase) {
+            value = 0;
+        } else if (sampledColor_) {
+            const auto sampled = sampledColor_(localToDocument_.map({double(localX) + .5, double(localY) + .5}));
+            // Alpha represents sample validity, not the stored channel value.
+            // Valid zero-valued pixels therefore remain useful paint/donors.
+            if (std::isfinite(sampled[0]) && std::isfinite(sampled[3]) && sampled[3] > 0) {
+                value = std::clamp(double(sampled[0]) / double(sampled[3]), 0.0, 1.0) * 255;
+                coverage *= std::clamp(double(sampled[3]), 0.0, 1.0);
+            } else {
+                coverage = 0;
+            }
+        } else {
+            value = maskGray(dab.color);
+            coverage *= double(dab.color.alpha) / 255;
+        }
+        const auto encoded = std::byte(std::uint8_t(std::lround(before + (value - before) * coverage)));
+        output = {encoded, encoded, encoded, std::byte{255}};
+    } else if (compositeMode_ == BrushCompositeMode::MaskCoverage) {
         const double coverage=std::clamp(dab.strokeOpacity*accumulated*double(dab.color.alpha)/255,0.0,1.0);
         const double before=std::to_integer<std::uint8_t>(tile.original[offset]);
         const auto value=std::byte(std::uint8_t(std::lround(before+(double(maskGray(dab.color))-before)*coverage)));

@@ -1,0 +1,8 @@
+foreach(suite Storage Brush)
+    string(TOLOWER "${suite}" suite_lower)
+    add_executable(imageeditor_scalar_${suite_lower}_tests Scalar${suite}Tests.cpp)
+    target_link_libraries(imageeditor_scalar_${suite_lower}_tests PRIVATE imageeditor_core)
+    imageeditor_enable_warnings(imageeditor_scalar_${suite_lower}_tests)
+    add_test(NAME imageeditor_scalar_${suite_lower}_tests COMMAND imageeditor_scalar_${suite_lower}_tests)
+    set_tests_properties(imageeditor_scalar_${suite_lower}_tests PROPERTIES TIMEOUT 90 LABELS "core;scalar;history")
+endforeach()
