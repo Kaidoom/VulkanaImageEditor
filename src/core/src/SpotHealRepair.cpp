@@ -109,7 +109,9 @@ public:
         started_ = tick();
         check();
         if (patch_.width <= 0 || patch_.height <= 0 || !std::isfinite(options_.adaptation)
-            || patch_.width > 32768 || patch_.height > 32768) {
+            || patch_.width > 32768 || patch_.height > 32768
+            || (patch_.sampleDomain!=SpotHealSampleDomain::LinearColor
+                && patch_.sampleDomain!=SpotHealSampleDomain::NumericR8)) {
             result_.diagnostics.message = "Spot Heal needs finite settings and valid image dimensions.";
             return std::move(result_);
         }
@@ -139,6 +141,11 @@ public:
             // values (including NaNs/alpha) are not even inspected.
             if (!base.unknown[i] && (patch_.valid.empty() || patch_.valid[i])
                 && usable(patch_.pixels[i])) {
+                if(patch_.sampleDomain==SpotHealSampleDomain::NumericR8
+                    && (patch_.pixels[i][0]!=patch_.pixels[i][1] || patch_.pixels[i][0]!=patch_.pixels[i][2])) {
+                    result_.diagnostics.message="Scalar Spot Heal requires numeric grayscale samples.";
+                    return std::move(result_);
+                }
                 base.original[i] = patch_.pixels[i];
                 base.known[i] = 1;
             }
@@ -1165,21 +1172,23 @@ private:
                             residual += weight * error * error;
                             variation += weight * centered * centered;
                             maximumError = std::max(maximumError, std::abs(error));
-                            const auto code = linearToSrgb(values[c]);
-                            // Only exact decoded RGBA8 levels receive a noise
+                            const bool numeric=patch_.sampleDomain==SpotHealSampleDomain::NumericR8;
+                            const auto code = numeric?alphaToByte(values[c]):linearToSrgb(values[c]);
+                            const double decoded=numeric?double(code)/255:srgbToLinear(code);
+                            // Only exact decoded source levels receive a noise
                             // allowance; arbitrary float appearance is not
                             // silently assumed to have quantization noise.
-                            if (std::abs(values[c] - srgbToLinear(code)) < 1.0e-6) {
+                            if (std::abs(values[c] - decoded) < 1.0e-6) {
                                 const auto low = static_cast<std::uint8_t>(std::max(0, int(code) - 1));
                                 const auto high = static_cast<std::uint8_t>(std::min(255, int(code) + 1));
-                                const double step = (srgbToLinear(high) - srgbToLinear(low))
+                                const double step = numeric?1.0/255:(srgbToLinear(high) - srgbToLinear(low))
                                     / double(int(high) - int(low));
                                 quantizationVariance += weight * step * step / 12;
                             }
                         }
                     });
             }
-            // Account for the measured sRGB8 code-bin variance (step²/12)
+            // Account for the source domain's code-bin variance (step²/12)
             // before testing explained spatial variation. Otherwise even a
             // truly linear lighting ramp fails on quantized authoritative
             // pixels. The finite-sample margin does not absorb genuine grain:

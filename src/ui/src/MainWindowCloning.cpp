@@ -1,6 +1,7 @@
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/LayerCrop.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/CloningOptionsPage.hpp"
 #include "imageeditor/ui/FlattenedDocument.hpp"
@@ -52,6 +53,9 @@ void MainWindow::refreshCloningControls()
     if (!cloningOptionsPage_)
         return;
     const auto* document = session().document();
+    const auto active = session().activeLayer();
+    const auto* target = document && active ? document->layer(*active) : nullptr;
+    const bool scalar = target && core::isScalarLayer(*target);
     const auto* source = document && cloneAnchor_ ? document->layer(cloneAnchor_->layer) : nullptr;
     if (cloneAnchor_
         && (!source || !document->isEffectivelyVisible(source->id)
@@ -59,9 +63,10 @@ void MainWindow::refreshCloningControls()
         cloneAnchor_.reset();
         source = nullptr;
     }
+    cloningOptionsPage_->setScalarTarget(scalar);
     cloningOptionsPage_->setCloneSettings(cloneSettings_);
     cloningOptionsPage_->setSourceLayerLabel(
-        source ? QString::fromStdString(source->name) : QString { }, source != nullptr);
+        source ? QString::fromStdString(source->name) : QString { }, source && (!scalar || core::isScalarLayer(*source)));
     updateToolContextStatus();
     const bool spot = cloneSettings_.mode == core::CloneMode::SpotHeal;
     canvasWindow_->setSpotHealActive(spot);
@@ -89,7 +94,7 @@ void MainWindow::pickCloneSource(core::Vec2d point)
     prepareShapeCaches();
     if (textController_)
         textController_->prepareCaches();
-    if (cloneSettings_.source == core::CloneSampleSource::SourceLayer) {
+    if (core::isScalarLayer(*layer) || cloneSettings_.source == core::CloneSampleSource::SourceLayer) {
         const auto surface = core::intrinsicSurface(*layer);
         const auto inverse = core::composeAffine(layer->localToDocument,core::intrinsicPixelsToLocal(*layer)).inverted();
         const auto local = inverse ? inverse->map(point) : core::Vec2d { -1, -1 };
@@ -126,6 +131,16 @@ bool MainWindow::beginCloneStroke(const core::NormalizedPointerSample& sample)
             i18n::text("main.window.cloning.cloning.writes.to.raster.layers.select.or.create.a"), 5000);
         return false;
     }
+    const bool scalar = core::isScalarLayer(*layer);
+    auto effectiveSettings = cloneSettings_;
+    if (scalar) {
+        effectiveSettings.source = core::CloneSampleSource::SourceLayer;
+        const auto* source = doc->layer(cloneAnchor_->layer);
+        if (!source || !core::isScalarLayer(*source)) {
+            statusBar()->showMessage(QStringLiteral("Choose a numeric source: select a channel and Alt-click its pixels, then select the destination channel."), 5500);
+            return false;
+        }
+    }
     const auto unavailable = brushAssets_->unavailableMessage(brushSettings_);
     if (!unavailable.isEmpty()) {
         statusBar()->showMessage(unavailable, 4500);
@@ -161,10 +176,10 @@ bool MainWindow::beginCloneStroke(const core::NormalizedPointerSample& sample)
             const bool needsContext = cloneSettings_.mode == core::CloneMode::Heal;
             bool below = true;
             for (const auto& source : doc->layers()) {
-                const bool raw = cloneSettings_.source == core::CloneSampleSource::SourceLayer;
+                const bool raw = effectiveSettings.source == core::CloneSampleSource::SourceLayer;
                 const bool included = (raw && source.id == cloneAnchor_->layer)
-                    || ((!raw || needsContext)
-                        && (below || cloneSettings_.source == core::CloneSampleSource::AllVisible));
+                    || (!scalar && (!raw || needsContext)
+                        && (below || effectiveSettings.source == core::CloneSampleSource::AllVisible));
                 if (included && doc->isEffectivelyVisible(source.id)
                     && !std::holds_alternative<core::RasterLayer>(source.payload)) {
                     auto cache = prepareDocumentSampleCache(source, pixelBudget - preparedPixels);
@@ -183,7 +198,7 @@ bool MainWindow::beginCloneStroke(const core::NormalizedPointerSample& sample)
             }
             if (!cloneCancelRequested_)
                 reference
-                    = core::CloneReference::capture(*doc, *target, cloneAnchor_->layer, cloneSettings_.source,
+                    = core::CloneReference::capture(*doc, *target, cloneAnchor_->layer, effectiveSettings.source,
                         error, core::CloneReference::defaultSnapshotLimit, needsContext, cancelled, prepared);
         } catch (const std::exception& exception) {
             error = exception.what();
@@ -196,7 +211,7 @@ bool MainWindow::beginCloneStroke(const core::NormalizedPointerSample& sample)
     }
     const auto offset = cloneAnchor_->offsetFor(sample.documentPosition, cloneSettings_.aligned);
     activeCloneStroke_ = std::make_unique<core::CloneStroke>(
-        *doc, *target, brushSettings_, cloneSettings_, std::move(*reference), offset, brushAssets_.get());
+        *doc, *target, brushSettings_, effectiveSettings, std::move(*reference), offset, brushAssets_.get());
     if (!activeCloneStroke_->begin(sample)) {
         const auto detail = QString::fromStdString(activeCloneStroke_->diagnostic());
         activeCloneStroke_.reset();
@@ -208,7 +223,7 @@ bool MainWindow::beginCloneStroke(const core::NormalizedPointerSample& sample)
     if (const auto angle = activeCloneStroke_->brush().lastResolvedTipAngleDegrees())
         canvasWindow_->setResolvedBrushCursorAngle(*angle);
     canvasWindow_->setConstrainedBrushPosition(activeCloneStroke_->brush().constrainedPosition());
-    const bool rendered = cloneSettings_.source != core::CloneSampleSource::SourceLayer;
+    const bool rendered = effectiveSettings.source != core::CloneSampleSource::SourceLayer;
     const bool effects = layer->blendMode != core::BlendMode::Normal || layer->opacity != 1.0F || layer->fillOpacity != 1.0F
         || core::hasActiveSpatialFilters(layer->filters)
         || core::hasActiveLayerEffects(layer->effects)

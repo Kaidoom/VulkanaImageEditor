@@ -1,5 +1,6 @@
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/ui/CloningOptionsPage.hpp"
 #include "imageeditor/ui/CrossWindowPointerRouter.hpp"
 #include "imageeditor/ui/FlattenedDocument.hpp"
@@ -61,7 +62,9 @@ bool MainWindow::beginSpotHealStroke(const core::NormalizedPointerSample& sample
         statusBar()->showMessage(i18n::text("main.window.spot.heal.spot.heal.needs.a.raster.layer.text.and.shapes"), 5000);
         return false;
     }
-    if (const auto diagnostic = core::spotHealTargetDiagnostic(*document, *target, cloneSettings_.source);
+    auto effectiveSettings = cloneSettings_;
+    if (core::isScalarLayer(*layer)) effectiveSettings.source = core::CloneSampleSource::SourceLayer;
+    if (const auto diagnostic = core::spotHealTargetDiagnostic(*document, *target, effectiveSettings.source);
         !diagnostic.empty()) {
         statusBar()->showMessage(QString::fromStdString(diagnostic), 6000);
         return false;
@@ -95,10 +98,10 @@ bool MainWindow::beginSpotHealStroke(const core::NormalizedPointerSample& sample
             std::vector<core::SampleCacheOverride> prepared;
             std::size_t pixels = 0;
             constexpr auto budget = core::CloneReference::defaultSnapshotLimit / 4;
-            if (cloneSettings_.source != core::CloneSampleSource::SourceLayer) {
+            if (effectiveSettings.source != core::CloneSampleSource::SourceLayer) {
                 bool below = true;
                 for (const auto& source : document->layers()) {
-                    if ((below || cloneSettings_.source == core::CloneSampleSource::AllVisible)
+                    if ((below || effectiveSettings.source == core::CloneSampleSource::AllVisible)
                         && document->isEffectivelyVisible(source.id)
                         && !std::holds_alternative<core::RasterLayer>(source.payload)) {
                         auto cache = prepareDocumentSampleCache(source, budget - pixels);
@@ -114,7 +117,7 @@ bool MainWindow::beginSpotHealStroke(const core::NormalizedPointerSample& sample
                 }
             }
             if (!cancelled())
-                reference = core::CloneReference::capture(*document, *target, *target, cloneSettings_.source,
+                reference = core::CloneReference::capture(*document, *target, *target, effectiveSettings.source,
                     error, core::CloneReference::defaultSnapshotLimit, false, cancelled, prepared, true);
         } catch (const std::exception& exception) { error = exception.what(); }
     }
@@ -127,7 +130,7 @@ bool MainWindow::beginSpotHealStroke(const core::NormalizedPointerSample& sample
     }
     try {
         activeSpotHealStroke_ = std::make_unique<core::SpotHealStroke>(*document, *target,
-            brushSettings_, cloneSettings_, std::move(*reference), brushAssets_.get());
+            brushSettings_, effectiveSettings, std::move(*reference), brushAssets_.get());
         if (!activeSpotHealStroke_->begin(sample)) {
             const auto detail = QString::fromStdString(activeSpotHealStroke_->diagnostic());
             activeSpotHealStroke_.reset();

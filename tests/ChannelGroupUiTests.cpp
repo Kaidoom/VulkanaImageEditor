@@ -1,6 +1,7 @@
 #include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/ColorPanel.hpp"
+#include "imageeditor/ui/CloningOptionsPage.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
 #include "imageeditor/ui/ExportDialog.hpp"
 #include "imageeditor/ui/LayerListModel.hpp"
@@ -10,6 +11,7 @@
 #include "imageeditor/ui/ScalarClipboard.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include <QAction>
+#include <QAbstractButton>
 #include <QApplication>
 #include <QClipboard>
 #include <QComboBox>
@@ -87,6 +89,16 @@ void workflow()
     auto* model = dynamic_cast<u::LayerListModel*>(view->model()); CHECK(model); if (!model) return;
     const auto choose = [&](c::LayerId id) { view->onRowSelectionRequested(model->rowForLayer(id), Qt::NoModifier); };
     choose(sourceId); CHECK(convert && convert->isEnabled()); if (!convert) return;
+    auto* cloneTool = find("ToolAction_cloning");
+    auto* blurTool = find("ToolAction_local_blur");
+    auto* cloning = dynamic_cast<u::CloningOptionsPage*>(window.findChild<QWidget*>("CloningOptionsPage")); CHECK(cloning);
+    auto* rawSource = window.findChild<QAbstractButton*>("CloneSourceLayer");
+    auto* belowSource = window.findChild<QAbstractButton*>("CloneSourceCurrentBelow");
+    auto* allSource = window.findChild<QAbstractButton*>("CloneSourceAllVisible");
+    CHECK(rawSource && belowSource && allSource);
+    if (cloneTool) cloneTool->trigger();
+    if (allSource) allSource->click();
+    CHECK(cloning && cloning->cloneSettings().source == c::CloneSampleSource::AllVisible);
     const auto originalColors = session.colors();
     convert->trigger();
     const auto* group = doc->tree().container(sourceId); CHECK(group); if (!group) return;
@@ -100,6 +112,20 @@ void workflow()
     CHECK(recombine->isEnabled()); CHECK(alpha->isEnabled()); CHECK(!alpha->isChecked());
     if (canvas) CHECK(canvas->scene().channelInspectionId == sourceId);
     choose(roles[0]);
+    CHECK(cloneTool && cloneTool->isEnabled() && blurTool && blurTool->isEnabled());
+    CHECK(rawSource && rawSource->isEnabled() && rawSource->isChecked());
+    CHECK(belowSource && !belowSource->isEnabled() && allSource && !allSource->isEnabled());
+    if (rawSource) rawSource->click();
+    CHECK(cloning && cloning->cloneSettings().source == c::CloneSampleSource::AllVisible);
+    if (canvas && canvas->onCloneSourcePicked) canvas->onCloneSourcePicked({4.5,4.5});
+    choose(roles[1]);
+    CHECK(rawSource && rawSource->isChecked());
+    CHECK(rawSource && rawSource->accessibleDescription().contains(QStringLiteral("Red")));
+    choose(sourceId);
+    CHECK(allSource && allSource->isEnabled() && allSource->isChecked());
+    CHECK(belowSource && belowSource->isEnabled());
+    choose(roles[0]);
+    CHECK(rawSource && rawSource->isChecked() && allSource && !allSource->isEnabled());
     auto* panel = dynamic_cast<u::ColorPanel*>(window.findChild<QWidget*>("ColorPanelContent")); CHECK(panel && panel->scalarMode());
     auto* value = window.findChild<QDoubleSpinBox*>("ScalarChannelValue"); CHECK(value);
     if (value) value->setValue(77);

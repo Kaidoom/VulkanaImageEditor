@@ -30,6 +30,9 @@ public:
         return brushSettings_;
     }
     void setCloneSettings(const core::CloneSettings& settings);
+    // Restrict presentation without replacing the user's colour-layer source
+    // preference. Numeric strokes always resolve an explicit scalar source.
+    void setScalarTarget(bool);
     [[nodiscard]] const core::CloneSettings& cloneSettings() const noexcept
     {
         return cloneSettings_;
@@ -71,6 +74,7 @@ private:
     core::BrushSettings brushSettings_;
     core::CloneSettings cloneSettings_;
     bool updating_ {false};
+    bool scalarTarget_ {false};
 };
 
 } // namespace imageeditor::ui

@@ -89,7 +89,8 @@ void MainWindow::refreshChannelGroupControls()
     for (auto [tool, action] : toolActionMap_) {
         const bool allowed = tool == core::ToolId::Move || tool == core::ToolId::Marquee
             || tool == core::ToolId::Lasso || tool == core::ToolId::Brush
-            || tool == core::ToolId::Eraser || tool == core::ToolId::Fill || tool == core::ToolId::Measure;
+            || tool == core::ToolId::Eraser || tool == core::ToolId::Fill || tool == core::ToolId::Measure
+            || tool == core::ToolId::Cloning || tool == core::ToolId::LocalBlur;
         if (scalar && !allowed) {
             if (!action->property("channelDisabled").toBool()) {
                 action->setProperty("channelWasEnabled", action->isEnabled());

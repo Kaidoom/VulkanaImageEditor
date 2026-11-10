@@ -114,8 +114,8 @@ Rgba8 encode(LinearColor color)
 
 } // namespace
 
-PreparedLayerSampler::PreparedLayerSampler(const Layer& original, bool adjusted, CompositingSpace space)
-    : compositingSpace_(space)
+PreparedLayerSampler::PreparedLayerSampler(const Layer& original, bool adjusted, CompositingSpace space, bool numericScalar)
+    : compositingSpace_(space), numericScalar_(numericScalar)
 {
     auto layer=original;
     if(adjusted)layer=prepareSpatialFilterLayer(original);
@@ -125,6 +125,8 @@ PreparedLayerSampler::PreparedLayerSampler(const Layer& original, bool adjusted,
     if (!inverse || !local) return;
     surface_ = renderedSurface(layer);
     if (!surface_) return;
+    if (numericScalar_ && surface_->dataKind() != RasterDataKind::Scalar)
+        throw std::invalid_argument("Numeric scalar sampling requires an R8 scalar surface.");
     revision_ = surface_->revision(); inverse_ = *inverse; documentToLocal_ = *local;
     pixelsToLocal_=renderPixelsToLocal(layer);
     crop_=layer.crop;
@@ -142,7 +144,7 @@ PremultipliedColor PreparedLayerSampler::sample(Vec2d point, std::size_t stopBef
         throw std::runtime_error("Layer pixels changed during prepared sampling");
     std::size_t reads = 0;
     const bool spatial=effects_&&(*effects_)[20]!=0;
-    auto color = sampleRaster(inverse_, *surface_, point, reads,SampleFiltering::AlphaAware,spatial);
+    auto color = sampleRaster(inverse_, *surface_, point, reads,SampleFiltering::AlphaAware,spatial,numericScalar_);
     if(adjustments_)color=evaluateAdjustments(*adjustments_,color,documentToLocal_.map(point),stopBefore);
     const float coverage=layerMaskCoverage(mask_,documentToLocal_.map(point));
     if(effects_) {

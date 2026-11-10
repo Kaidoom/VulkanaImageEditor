@@ -1,5 +1,6 @@
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
+#include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/ui/LocalBlurOptionsPage.hpp"
 #include "imageeditor/ui/ToolOptionsBar.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
@@ -89,7 +90,9 @@ bool MainWindow::beginLocalBlurStroke(const core::NormalizedPointerSample& sampl
     }
     canvasWindow_->setResolvedBrushCursorAngle(activeLocalBlurStroke_->brush().lastResolvedTipAngleDegrees().value_or(0));
     canvasWindow_->setConstrainedBrushPosition(activeLocalBlurStroke_->brush().constrainedPosition());
-    statusBar()->showMessage(i18n::text("main.window.blur.local.blur.source.colors.alpha.preserved.escape.cancels"));
+    statusBar()->showMessage(core::isScalarLayer(*layer)
+        ? QStringLiteral("Local Blur · numeric channel values · Escape cancels")
+        : i18n::text("main.window.blur.local.blur.source.colors.alpha.preserved.escape.cancels"));
     canvasWindow_->scheduleFrame();
     return true;
 }

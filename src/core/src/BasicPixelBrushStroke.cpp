@@ -97,6 +97,7 @@ BasicPixelBrushStroke::BasicPixelBrushStroke(Document& document, LayerId layerId
     }
     surface_ = raster.surface;
     scalarValues_ = surface_->dataKind() == RasterDataKind::Scalar;
+    sampledSelectionResolved_ = scalarValues_ && bool(sampledColor_);
     if (scalarValues_) transactionOptions.coverageValues = true;
     const auto inverse = intrinsicTransform(*layer).inverted();
     if (!inverse) {

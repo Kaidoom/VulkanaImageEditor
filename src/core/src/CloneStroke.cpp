@@ -20,6 +20,8 @@ CloneStroke::CloneStroke(Document& document, LayerId target, BrushSettings brush
     const auto* layer = document.layer(target);
     const auto* raster = layer ? std::get_if<RasterLayer>(&layer->payload) : nullptr;
     if (raster && raster->surface && layer->localToDocument.inverted()) {
+        sampleDomainMatches_ = (raster->surface->dataKind() == RasterDataKind::Scalar) == reference_.numericValues();
+        if (!sampleDomainMatches_) diagnostic_ = "Clone source and destination use different numeric interpretations.";
         localToDocument_ = intrinsicTransform(*layer);
         documentToLocal_ = *localToDocument_.inverted();
         extent_ = raster->surface->extent();
@@ -38,7 +40,7 @@ bool CloneStroke::targetMatches() const noexcept
 {
     const auto* layer = document_.layer(target_);
     const auto* raster = layer ? std::get_if<RasterLayer>(&layer->payload) : nullptr;
-    return document_.revision() == revision_ && raster && raster->surface && raster->surface->id() == surface_
+    return sampleDomainMatches_ && document_.revision() == revision_ && raster && raster->surface && raster->surface->id() == surface_
         && raster->surface->revision() == surfaceRevision_ && intrinsicTransform(*layer) == localToDocument_;
 }
 bool CloneStroke::begin(const NormalizedPointerSample& sample)
@@ -130,16 +132,17 @@ RasterEditCommitResult CloneStroke::end(
                     cancel();
                     return RasterEditCommitResult::TargetUnavailable;
                 }
-                if (!brush_.reapplySampledColor(
-                        [this, bounds](Vec2d p) {
+                const auto repaired = [this, bounds](Vec2d p) {
                             const auto q = documentToLocal_.map(p);
                             const auto x = int(std::floor(q.x)) - bounds.x,
                                        y = int(std::floor(q.y)) - bounds.y;
                             return x >= 0 && y >= 0 && x < bounds.width && y < bounds.height
                                 ? healing_.pixels[std::size_t(y) * std::size_t(bounds.width) + std::size_t(x)]
                                 : reference_.sample(p + offset_);
-                        },
-                        interrupted))
+                        };
+                if (!(reference_.numericValues()
+                        ? brush_.reapplySampledColorSelectionResolved(repaired, interrupted)
+                        : brush_.reapplySampledColor(repaired, interrupted)))
                     throw std::runtime_error("Heal cancelled or target changed; stroke cancelled.");
                 checkpoint();
                 if (healing_.status == HealingStatus::StampFallback

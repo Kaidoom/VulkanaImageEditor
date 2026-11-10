@@ -107,6 +107,8 @@ std::string spotHealTargetDiagnostic(const Document& document, LayerId target, C
     const auto* layer = document.layer(target);
     const auto* raster = layer ? std::get_if<RasterLayer>(&layer->payload) : nullptr;
     if (!raster || !raster->surface) return "Spot Heal needs a raster destination; text and shapes remain editable.";
+    if(raster->surface->dataKind()==RasterDataKind::Scalar && source!=CloneSampleSource::SourceLayer)
+        return "Channel repair uses Source Layer; visible colour composites are not scalar data.";
     if (!document.isEffectivelyVisible(target)) return "Reveal the destination layer before using Spot Heal.";
     const auto inverse = intrinsicTransform(*layer).inverted();
     if (!inverse || !std::isfinite(inverse->m00) || !std::isfinite(inverse->m01)
@@ -144,6 +146,8 @@ SpotHealStroke::SpotHealStroke(Document& document, LayerId target, BrushSettings
     diagnostic_ = spotHealTargetDiagnostic(document, target, settings.source);
     const auto* layer = document.layer(target);
     if (layer) if (const auto* raster = std::get_if<RasterLayer>(&layer->payload); raster && raster->surface) {
+        if((raster->surface->dataKind()==RasterDataKind::Scalar)!=reference_.numericValues())
+            diagnostic_="Spot Heal source and destination must use the same numeric or colour representation.";
         surface_ = raster->surface->id(); surfaceRevision_ = raster->surface->revision(); extent_ = raster->surface->extent();
         localToDocument_ = intrinsicTransform(*layer);
         if (const auto inverse = localToDocument_.inverted()) documentToLocal_ = *inverse;
@@ -243,6 +247,8 @@ SpotHealSolved SpotHealStroke::solve(std::shared_ptr<const SpotHealWork> work, c
     try {
         if (stopped(options)) { solved.repair.status = SpotHealStatus::Cancelled; return finish(); }
         const auto reference = work->reference.prepared(options.cancelled, options.maxWorkingBytes);
+        if(reference.snapshotBytes()>options.maxWorkingBytes)
+            throw std::length_error("Spot Heal reference exceeds its working memory budget.");
         const auto remainingBytes = options.maxWorkingBytes - reference.snapshotBytes();
         auto marked = work->unknown->bounds();
         if (marked.empty()) { solved.repair.status = SpotHealStatus::NoUnknownPixels; return finish(); }
@@ -301,7 +307,8 @@ SpotHealSolved SpotHealStroke::solve(std::shared_ptr<const SpotHealWork> work, c
             solved.preparedBytes = reference.snapshotBytes() + inputBytes;
             effective.maxWorkingBytes = remainingBytes - inputBytes;
             const auto solveStarted = options.captureProfile ? Clock::now() : Clock::time_point{};
-            solved.repair = repairSpotHeal({bounds.width, bounds.height, colors, unknown, valid}, effective);
+            solved.repair = repairSpotHeal({bounds.width, bounds.height, colors, unknown, valid,
+                reference.numericValues()?SpotHealSampleDomain::NumericR8:SpotHealSampleDomain::LinearColor}, effective);
             if (options.captureProfile)
                 solved.solveMilliseconds += std::chrono::duration<double, std::milli>(Clock::now() - solveStarted).count();
             if (solved.repair.status != SpotHealStatus::InsufficientContext) return finish();

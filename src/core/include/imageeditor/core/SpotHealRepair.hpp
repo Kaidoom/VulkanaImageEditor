@@ -11,9 +11,13 @@
 
 namespace imageeditor::core {
 
+enum class SpotHealSampleDomain { LinearColor, NumericR8 };
+
 // Immutable row-major evaluation grid. Direct raw repair uses raster-local
 // texels; a rendered-reference consumer may choose a document-pixel grid.
-// Colors are premultiplied LINEAR RGBA, not stored sRGB bytes. Unknown pixels
+// LinearColor uses premultiplied linear RGBA. NumericR8 uses repeated numeric
+// values [v,v,v,1], with v=byte/255; zero is valid data, not transparency.
+// Invalid samples have zero validity/alpha. Unknown pixels
 // are never read as appearance evidence, at any resolution. Nonzero means
 // unknown/valid respectively. A missing valid span means all grid pixels are
 // geometrically valid; zero-alpha samples still supply no color evidence.
@@ -27,6 +31,7 @@ struct SpotHealPatch {
     std::span<const PremultipliedColor> pixels;
     std::span<const std::uint8_t> unknown;
     std::span<const std::uint8_t> valid;
+    SpotHealSampleDomain sampleDomain {SpotHealSampleDomain::LinearColor};
 };
 
 struct SpotHealOptions {

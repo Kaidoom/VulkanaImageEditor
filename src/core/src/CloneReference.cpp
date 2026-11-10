@@ -5,6 +5,7 @@
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/core/SpatialFilterCache.hpp"
 #include "imageeditor/core/ColorMath.hpp"
+#include "imageeditor/core/ScalarRasterSurface.hpp"
 
 #include <limits>
 #include <stdexcept>
@@ -54,6 +55,30 @@ public:
                 || extent.height > std::uint32_t(std::numeric_limits<std::int32_t>::max()))
                 throw std::invalid_argument("A clone reference image has an unsupported extent.");
             const auto width = std::size_t(extent.width), height = std::size_t(extent.height);
+            if (const auto* scalar = dynamic_cast<const ScalarRasterSurface*>(source.get())) {
+                const auto retained = scalar->memoryCost();
+                if (retained > limit_ - bytes_)
+                    throw std::length_error("Scalar clone reference exceeds its snapshot memory limit.");
+                if (cancelled_ && cancelled_()) throw std::runtime_error("Clone reference capture cancelled.");
+                // The snapshot owns immutable tiles. Later edits replace only
+                // affected tiles; no complete RGBA reference is materialized.
+                entry->second = scalar->clone();
+                bytes_ += retained;
+            } else if (source->dataKind() == RasterDataKind::Scalar) {
+                if (width > (limit_ - bytes_) / height)
+                    throw std::length_error("Scalar clone reference exceeds its snapshot memory limit.");
+                std::vector<std::byte> values(width * height);
+                const auto revision = source->revision();
+                for (int y = 0; y < int(extent.height); y += 64) {
+                    if (cancelled_ && cancelled_()) throw std::runtime_error("Clone reference capture cancelled.");
+                    source->copyNative({0, y, int(extent.width), std::min(64, int(extent.height) - y)},
+                        std::span(values).subspan(std::size_t(y) * width), width);
+                }
+                if (source->revision() != revision)
+                    throw std::runtime_error("Clone reference changed during capture. Start the stroke again.");
+                entry->second = std::make_shared<ScalarRasterSurface>(extent, values, width);
+                bytes_ += values.size();
+            } else {
             if (width > (limit_ - bytes_) / 4 / height)
                 throw std::length_error("Clone reference exceeds its snapshot memory limit. Use Source Layer "
                                         "or a smaller reference stack.");
@@ -70,6 +95,7 @@ public:
                 throw std::runtime_error("Clone reference changed during capture. Start the stroke again.");
             entry->second = std::make_shared<ContiguousRasterSurface>(extent, std::move(pixels));
             bytes_ += byteCount;
+            }
         }
 
         Layer frozen;
@@ -111,7 +137,7 @@ private:
     std::size_t limit_, bytes_ { 0 };
     std::function<bool()> cancelled_;
     std::span<const SampleCacheOverride> prepared_;
-    std::unordered_map<const RasterSurface*, std::shared_ptr<ContiguousRasterSurface>> surfaces_;
+    std::unordered_map<const RasterSurface*, std::shared_ptr<RasterSurface>> surfaces_;
 };
 
 bool validGeometry(const Layer& layer)
@@ -134,6 +160,7 @@ struct CloneReference::Impl {
     std::vector<Layer> pendingRenderedLayers;
     std::size_t pendingBelowCount {0};
     bool pendingSource {false}, pendingDestination {false};
+    bool numericValues {false};
     CloneSampleSource mode {CloneSampleSource::SourceLayer};
     Vec2d support;
 };
@@ -154,10 +181,17 @@ std::optional<CloneReference> CloneReference::capture(const Document& document, 
             if (replacement.cache && replacement.cache->surface)
                 revisions.emplace_back(replacement.cache->surface, replacement.cache->surface->revision());
         const auto* target = document.layer(targetId);
-        if (!target || !std::holds_alternative<RasterLayer>(target->payload) || !renderedSurface(*target)
+        const auto targetSurface = target ? intrinsicSurface(*target) : nullptr;
+        if (!target || !std::holds_alternative<RasterLayer>(target->payload) || !targetSurface
             || !validGeometry(*target))
             throw std::invalid_argument("Cloning requires a raster destination with a valid transform.");
         const auto* source = mode == CloneSampleSource::SourceLayer ? document.layer(sourceId) : nullptr;
+        const bool scalarTarget = targetSurface->dataKind() == RasterDataKind::Scalar;
+        const bool scalarSource = source && intrinsicSurface(*source)
+            && intrinsicSurface(*source)->dataKind() == RasterDataKind::Scalar;
+        if ((scalarTarget || scalarSource) &&
+            (mode != CloneSampleSource::SourceLayer || !scalarTarget || !scalarSource))
+            throw std::invalid_argument("Numeric channel cloning requires Source Layer and a scalar source and destination.");
         if (mode == CloneSampleSource::SourceLayer
             && (!source || !document.isEffectivelyVisible(sourceId) || !validGeometry(*source)))
             throw std::invalid_argument("The identified clone source is missing, hidden, or has an invalid "
@@ -166,12 +200,13 @@ std::optional<CloneReference> CloneReference::capture(const Document& document, 
         auto result = std::make_shared<Impl>();
         result->canvas = document.canvas().extent;
         result->compositingSpace = document.canvas().compositingSpace;
+        result->numericValues = scalarTarget;
         FrozenLayers frozen(limitBytes, std::move(cancelled), prepared);
         const bool rawContext = mode == CloneSampleSource::SourceLayer && sourceId == targetId;
         if (source) {
             auto layer = frozen.freeze(*source, true);
             layer.mask.reset(); // Intrinsic cloning edits source pixels, not rendered visibility.
-            result->rawSource.emplace(layer, false);
+            result->rawSource.emplace(layer, false, result->compositingSpace, scalarTarget);
             result->rawExtent = renderedSurface(layer)->extent();
             result->rawInverse = *renderTransform(layer).inverted();
             result->rawDocumentToLocal = *intrinsicTransform(layer).inverted();
@@ -181,11 +216,16 @@ std::optional<CloneReference> CloneReference::capture(const Document& document, 
             result->rawToDocument = intrinsicTransform(layer);
             result->sourceCount = 1;
             if (includeDestinationContext && rawContext)
-                result->rawDestination.emplace(layer, false);
+                result->rawDestination.emplace(layer, false, result->compositingSpace, scalarTarget);
+        }
+        if (scalarTarget && includeDestinationContext && !rawContext) {
+            auto context = frozen.freeze(*target, true);
+            context.mask.reset();
+            result->rawDestination.emplace(context, false, result->compositingSpace, true);
         }
 
         const bool needRenderedSource = mode != CloneSampleSource::SourceLayer;
-        const bool needRenderedContext = includeDestinationContext && !rawContext;
+        const bool needRenderedContext = includeDestinationContext && !rawContext && !scalarTarget;
         if (needRenderedSource || needRenderedContext) {
             std::vector<Layer> layers;
             layers.reserve(document.layers().size());
@@ -318,6 +358,17 @@ PremultipliedColor CloneReference::rawTexel(int x, int y) const
         || y >= int(impl_->rawExtent.height)) return {};
     const auto point = impl_->rawToDocument.map({x + .5, y + .5});
     if (!validSample(point)) return {};
+    if (impl_->numericValues) {
+        std::byte byte;
+        impl_->rawSurface->copyNative({x, y, 1, 1}, {&byte, 1}, 1);
+        float validity = 1;
+        if (impl_->rawCrop) {
+            const auto derivatives = impl_->rawDocumentToLocal.derivatives(point);
+            validity = layerCropCoverage(*impl_->rawCrop, {x + .5, y + .5}, derivatives[0], derivatives[1]);
+        }
+        const float value = float(std::to_integer<std::uint8_t>(byte)) / 255 * validity;
+        return {value, value, value, validity};
+    }
     std::array<std::byte, 4> bytes;
     impl_->rawSurface->copyRgba8({x, y, 1, 1}, bytes, 4);
     float alpha = float(std::to_integer<unsigned char>(bytes[3])) / 255.0F;
@@ -372,5 +423,6 @@ bool CloneReference::validSample(Vec2d point) const noexcept
 
 std::size_t CloneReference::snapshotBytes() const noexcept { return impl_->bytes; }
 std::size_t CloneReference::sourceCount() const noexcept { return impl_->sourceCount; }
+bool CloneReference::numericValues() const noexcept { return impl_->numericValues; }
 
 } // namespace imageeditor::core

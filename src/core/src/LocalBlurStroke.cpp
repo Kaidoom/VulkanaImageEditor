@@ -1,5 +1,6 @@
 #include "imageeditor/core/LocalBlurStroke.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
+#include "imageeditor/core/ScalarRasterSurface.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -61,25 +62,41 @@ bool LocalBlurStroke::capture()
     const auto* layer = document_.layer(target_);
     const auto surface = std::get<RasterLayer>(layer->payload).surface;
     const auto extent = surface->extent();
-    if (extent.empty() || extent.width > std::uint32_t(std::numeric_limits<int>::max())
-        || extent.height > std::uint32_t(std::numeric_limits<int>::max())
-        || std::size_t(extent.width) > snapshotLimit / 4 / std::size_t(extent.height))
-        throw std::length_error("Local Blur source exceeds the 256 MiB snapshot budget.");
-    std::vector<std::byte> pixels(std::size_t(extent.width) * extent.height * 4);
-    for (int y = 0; y < int(extent.height); y += 64) {
+    if (surface->dataKind() == RasterDataKind::Scalar) {
+        const auto scalar = std::dynamic_pointer_cast<ScalarRasterSurface>(surface);
+        if (!scalar || scalar->memoryCost() > snapshotLimit)
+            throw std::length_error("Numeric blur source exceeds the snapshot budget or has unsupported storage.");
         if (interrupted()) throw Cancelled{};
-        surface->copyRgba8({0, y, int(extent.width), std::min(64, int(extent.height) - y)},
-            std::span<std::byte>(pixels).subspan(std::size_t(y) * extent.width * 4), std::size_t(extent.width) * 4);
+        Layer frozen;
+        frozen.payload = RasterLayer {scalar->clone()};
+        frozen.localToDocument = layer->localToDocument;
+        frozen.rasterOrigin = layer->rasterOrigin; frozen.rasterEffectFrame = layer->rasterEffectFrame;
+        frozen.crop = layer->crop;
+        // Keep the intrinsic layer halo even outside canvas bounds. Only the
+        // destination brush/selection controls where numeric values are written.
+        source_.emplace(frozen, false, CompositingSpace::LinearSRgb, true);
+        stats_.snapshotBytes = scalar->memoryCost();
+    } else {
+        if (extent.empty() || extent.width > std::uint32_t(std::numeric_limits<int>::max())
+            || extent.height > std::uint32_t(std::numeric_limits<int>::max())
+            || std::size_t(extent.width) > snapshotLimit / 4 / std::size_t(extent.height))
+            throw std::length_error("Local Blur source exceeds the 256 MiB snapshot budget.");
+        std::vector<std::byte> pixels(std::size_t(extent.width) * extent.height * 4);
+        for (int y = 0; y < int(extent.height); y += 64) {
+            if (interrupted()) throw Cancelled{};
+            surface->copyRgba8({0, y, int(extent.width), std::min(64, int(extent.height) - y)},
+                std::span<std::byte>(pixels).subspan(std::size_t(y) * extent.width * 4), std::size_t(extent.width) * 4);
+        }
+        if (interrupted()) throw Cancelled{};
+        stats_.snapshotBytes = pixels.size();
+        Layer frozen;
+        frozen.payload = RasterLayer{std::make_shared<ContiguousRasterSurface>(extent, std::move(pixels))};
+        frozen.localToDocument = layer->localToDocument;
+        frozen.rasterOrigin=layer->rasterOrigin;frozen.rasterEffectFrame=layer->rasterEffectFrame;
+        frozen.crop = layer->crop;
+        // Deliberately do not copy adjustments, filters, blend mode, or opacity.
+        source_.emplace(frozen, false);
     }
-    if (interrupted()) throw Cancelled{};
-    stats_.snapshotBytes = pixels.size();
-    Layer frozen;
-    frozen.payload = RasterLayer{std::make_shared<ContiguousRasterSurface>(extent, std::move(pixels))};
-    frozen.localToDocument = layer->localToDocument;
-    frozen.rasterOrigin=layer->rasterOrigin;frozen.rasterEffectFrame=layer->rasterEffectFrame;
-    frozen.crop = layer->crop;
-    // Deliberately do not copy adjustments, filters, blend mode, or opacity.
-    source_.emplace(frozen, false);
     auto filter = defaultSpatialFilter(SpatialFilterType::Gaussian);
     filter.enabled = true;
     filter.parameters = GaussianBlurParameters{settings_.radius, settings_.radius};

@@ -27,7 +27,10 @@ private:
 // intrinsic pixels, not this rendered-appearance sampler.
 class PreparedLayerSampler {
 public:
-    explicit PreparedLayerSampler(const Layer&, bool adjusted = true, CompositingSpace = CompositingSpace::LinearSRgb);
+    // Numeric sampling keeps scalar values in their stored 0..1 domain. Alpha
+    // then represents geometric validity only, including valid zero values.
+    explicit PreparedLayerSampler(const Layer&, bool adjusted = true,
+        CompositingSpace = CompositingSpace::LinearSRgb, bool numericScalar = false);
     [[nodiscard]] PremultipliedColor sample(Vec2d documentPoint,
         std::size_t stopBefore = adjustmentCount) const;
 private:
@@ -41,6 +44,7 @@ private:
     std::shared_ptr<const LayerEffectCache> effectCache_;
     CompositingSpace compositingSpace_ {CompositingSpace::LinearSRgb};
     float fillOpacity_ {1};
+    bool numericScalar_ {false};
 };
 
 enum class ColorSampleSource { MergedVisible, ActiveLayer };

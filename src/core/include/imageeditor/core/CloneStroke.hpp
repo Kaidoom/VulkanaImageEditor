@@ -50,6 +50,7 @@ private:
     Extent2u extent_;
     SurfaceId surface_ { 0 };
     Revision revision_ { 0 }, surfaceRevision_ { 0 };
+    bool sampleDomainMatches_ {false};
     BasicPixelBrushStroke brush_;
     HealingResult healing_;
     std::string diagnostic_;

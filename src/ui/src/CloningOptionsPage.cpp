@@ -152,7 +152,7 @@ CloningOptionsPage::CloningOptionsPage(QWidget* parent)
         if (onModeChanged) onModeChanged(mode);
     });
     connect(sourceGroup_, &QButtonGroup::idClicked, this, [this](int id) {
-        if (updating_) return;
+        if (updating_ || scalarTarget_) return;
         const auto source = static_cast<core::CloneSampleSource>(id);
         if (cloneSettings_.source == source) return;
         setSource(source);
@@ -202,7 +202,7 @@ void CloningOptionsPage::setCloneSettings(const core::CloneSettings& settings)
         const QSignalBlocker buttonBlocker(button);
         button->setChecked(true);
     }
-    if (auto* button = sourceGroup_->button(static_cast<int>(settings.source))) {
+    if (auto* button = sourceGroup_->button(static_cast<int>(scalarTarget_ ? core::CloneSampleSource::SourceLayer : settings.source))) {
         const QSignalBlocker buttonBlocker(button);
         button->setChecked(true);
     }
@@ -212,6 +212,21 @@ void CloningOptionsPage::setCloneSettings(const core::CloneSettings& settings)
     // Keep the slot visible so switching modes never shifts the other controls.
     adaptationControl_->setEnabled(settings.mode != core::CloneMode::Stamp);
     alignedButton_->setEnabled(settings.mode != core::CloneMode::SpotHeal);
+}
+
+void CloningOptionsPage::setScalarTarget(bool scalar)
+{
+    if (scalarTarget_ == scalar) return;
+    scalarTarget_ = scalar;
+    for (const auto source : {core::CloneSampleSource::CurrentAndBelow, core::CloneSampleSource::AllVisible})
+        if (auto* button = sourceGroup_->button(int(source))) {
+            if (scalar) {
+                button->setProperty("numericPreviousToolTip", button->toolTip());
+                button->setToolTip(QStringLiteral("Numeric channels sample an explicit channel layer. Rendered colour sources are unavailable."));
+            } else button->setToolTip(button->property("numericPreviousToolTip").toString());
+            button->setEnabled(!scalar);
+        }
+    setCloneSettings(cloneSettings_);
 }
 
 void CloningOptionsPage::setMode(core::CloneMode mode)

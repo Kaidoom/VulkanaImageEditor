@@ -11,9 +11,12 @@
 
 namespace imageeditor::core {
 
-// Immutable, continuous, premultiplied linear-light reference for one stroke.
-// Every contributing raster and typed render cache is copied before the first
-// destination mutation, deduplicated across source and healing context. No
+// Immutable continuous reference for one stroke. Colour references are
+// premultiplied linear-light; scalar references use normalized numeric values
+// with independent geometric validity in the fourth component.
+// Colour rasters and typed render caches are copied before the first mutation;
+// scalar surfaces retain immutable COW tile snapshots. Both are deduplicated
+// across source and healing context. No
 // live document, layer, or mutable original surface is retained. Capture again
 // between strokes. The caller owns target/revision/cancellation validation.
 class CloneReference {
@@ -55,6 +58,7 @@ public:
     [[nodiscard]] bool validSample(Vec2d) const noexcept;
     [[nodiscard]] std::size_t snapshotBytes() const noexcept;
     [[nodiscard]] std::size_t sourceCount() const noexcept;
+    [[nodiscard]] bool numericValues() const noexcept;
 
 private:
     struct Impl;
