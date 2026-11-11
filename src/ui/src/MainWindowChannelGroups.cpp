@@ -39,6 +39,7 @@ void MainWindow::createChannelGroupActions()
     inspectChannelAlphaAction_ = action("InspectChannelAlphaAction", i18n::text("channels.action.inspect.alpha"), ToolGlyph::LayerMask,
         [this] { refreshChannelGroupControls(); });
     inspectChannelAlphaAction_->setCheckable(true);
+    inspectChannelAlphaAction_->setChecked(true);
     copyScalarChannelAction_ = action("CopyScalarChannelAction", i18n::text("channels.action.copy"), ToolGlyph::Copy,
         [this] { copyScalarChannel(false); });
     cutScalarChannelAction_ = action("CutScalarChannelAction", i18n::text("channels.action.cut"), ToolGlyph::Subtract,
@@ -82,6 +83,14 @@ void MainWindow::refreshChannelGroupControls()
         }
     }
     if (colorPanel_) colorPanel_->setScalarMode(scalar);
+    // Numeric picking always reads the selected channel. Preserve the ordinary
+    // colour-layer source preference, including when temporarily picking with Alt.
+    if (auto* merged = findChild<QAbstractButton*>("SampleMergedVisible")) {
+        merged->setEnabled(!scalar);
+        merged->setChecked(!scalar && session().colorSampleSource() == core::ColorSampleSource::MergedVisible);
+    }
+    if (auto* active = findChild<QAbstractButton*>("SampleActiveLayer"))
+        active->setChecked(scalar || session().colorSampleSource() == core::ColorSampleSource::ActiveLayer);
     canvasWindow_->setChannelInspection((scalar || group) ? id : std::nullopt,
         group && inspectChannelAlphaAction_->isChecked());
 
@@ -92,7 +101,7 @@ void MainWindow::refreshChannelGroupControls()
             || tool == core::ToolId::Lasso || tool == core::ToolId::Measure;
         const bool allowed = navigation || (!packed && (tool == core::ToolId::Brush
             || tool == core::ToolId::Eraser || tool == core::ToolId::Fill || tool == core::ToolId::Measure
-            || tool == core::ToolId::Cloning || tool == core::ToolId::LocalBlur));
+            || tool == core::ToolId::Cloning || tool == core::ToolId::LocalBlur || tool == core::ToolId::Eyedropper));
         if ((scalar || packed) && !allowed) {
             if (!action->property("channelDisabled").toBool()) {
                 action->setProperty("channelWasEnabled", action->isEnabled());

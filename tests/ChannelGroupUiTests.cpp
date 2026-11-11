@@ -147,8 +147,14 @@ void workflow()
         if (candidate->objectName() == QStringLiteral("VulkanCanvasWindow"))
             canvas = dynamic_cast<imageeditor::render::CanvasWindow*>(candidate);
     CHECK(canvas);
-    CHECK(recombine->isEnabled()); CHECK(alpha->isEnabled()); CHECK(!alpha->isChecked());
-    if (canvas) CHECK(canvas->scene().channelInspectionId == sourceId);
+    CHECK(recombine->isEnabled()); CHECK(alpha->isEnabled()); CHECK(alpha->isChecked());
+    if (canvas) CHECK(canvas->scene().channelInspectionId == sourceId && canvas->scene().channelInspectionAlpha);
+    const auto inspectionState = doc->contentState();
+    alpha->trigger();
+    if (canvas) CHECK(!canvas->scene().channelInspectionAlpha);
+    alpha->trigger();
+    if (canvas) CHECK(canvas->scene().channelInspectionAlpha);
+    CHECK(doc->contentState() == inspectionState);
     choose(roles[0]);
     if (!keyboardOnly) {
         CHECK(cloneTool && cloneTool->isEnabled() && blurTool && blurTool->isEnabled());
@@ -189,6 +195,41 @@ void workflow()
     // focused host-window keyboard/IME check does not use the clipboard or
     // synthesize retouch operations, and can run independently on Wayland.
     if (keyboardOnly) { window.close(); return; }
+    auto* eyedropper = find("ToolAction_eyedropper");
+    auto* sampleActive = window.findChild<QAbstractButton*>("SampleActiveLayer");
+    auto* sampleMerged = window.findChild<QAbstractButton*>("SampleMergedVisible");
+    CHECK(eyedropper && eyedropper->isEnabled());
+    CHECK(sampleActive && sampleMerged);
+    CHECK(session.colorSampleSource() == c::ColorSampleSource::MergedVisible);
+    const auto pickState = doc->contentState();
+    const auto pickDepth = session.history().undoDepth();
+    if (eyedropper && canvas && sampleActive && sampleMerged) {
+        eyedropper->trigger();
+        for (std::size_t i = 0; i < roles.size(); ++i) {
+            choose(roles[i]);
+            CHECK(sampleActive->isChecked() && !sampleMerged->isEnabled());
+            sampleActive->click();
+            CHECK(session.colorSampleSource() == c::ColorSampleSource::MergedVisible);
+            const auto p = canvas->scene().viewport.documentToViewport({16, 12},
+                {32, 24}, canvas->scene().logicalViewport);
+            QTest::mouseClick(canvas, Qt::LeftButton, {}, QPoint(int(p.x), int(p.y)));
+            const auto gray = std::array<std::uint8_t, 4>{20, 100, 220, 128}[i];
+            CHECK(session.foregroundColor() == (c::Rgba8{gray, gray, gray, 255}));
+            CHECK(value && value->value() == gray);
+        }
+        // Brush's temporary Alt picker uses the same scalar path, without painting.
+        choose(roles[0]); find("ToolAction_brush")->trigger();
+        const auto p = canvas->scene().viewport.documentToViewport({16, 12},
+            {32, 24}, canvas->scene().logicalViewport);
+        QTest::mouseClick(canvas, Qt::LeftButton, Qt::AltModifier, QPoint(int(p.x), int(p.y)));
+        CHECK(session.foregroundColor() == (c::Rgba8{20, 20, 20, 255}));
+        canvas->setTemporaryEyedropper(false);
+        choose(sourceId);
+        CHECK(sampleMerged->isEnabled() && sampleMerged->isChecked());
+        CHECK(session.colorSampleSource() == c::ColorSampleSource::MergedVisible);
+        choose(roles[0]);
+    }
+    CHECK(doc->contentState() == pickState && session.history().undoDepth() == pickDepth);
     const auto row = model->index(model->rowForLayer(roles[0]));
     CHECK(row.data(Qt::DisplayRole).toString().startsWith("R · "));
     CHECK(row.data(Qt::EditRole).toString() == "Red");

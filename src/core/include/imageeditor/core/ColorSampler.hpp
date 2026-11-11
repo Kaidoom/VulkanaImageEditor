@@ -149,6 +149,8 @@ struct ColorSample {
 // Active Layer explicitly reads intrinsic uncropped/unadjusted source color,
 // ignoring visibility and layer opacity. Merged Visible matches
 // alpha-aware linear filtering and the shared layer blend/composite contract.
+// Scalar Active Layer samples interpolate numeric values and return opaque
+// grayscale; locations outside the source extent are unavailable.
 [[nodiscard]] ColorSample sampleDocumentColor(const Document& document,
     std::optional<LayerId> activeLayer, Vec2d documentPosition,
     ColorSampleSource source);

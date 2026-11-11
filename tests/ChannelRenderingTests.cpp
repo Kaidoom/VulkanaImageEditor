@@ -49,6 +49,15 @@ void packingUsesRolesAndRetainsAllByteValues()
         CHECK(sampler.sample({x+.5,.5})==Rgba8{});
     }
     const auto roles=doc.tree().container(group)->channelRoles;
+    for (std::size_t channel = 0; channel < roles.size(); ++channel) {
+        for (int y = 0; y < 2; ++y) for (int x = 0; x < 256; ++x) {
+            const auto value = std::to_integer<std::uint8_t>(source[std::size_t(y * 256 + x) * 4 + channel]);
+            const auto pick = sampleDocumentColor(doc, roles[channel], {x + .5, y + .5}, ColorSampleSource::ActiveLayer);
+            CHECK(pick.available());
+            CHECK(pick.color == (Rgba8{value, value, value, 255}));
+            CHECK(pick.layersVisited == 1 && pick.texelsRead <= 4);
+        }
+    }
     CHECK(doc.renameLayer(roles[0],"Roughness"));
     auto tree=doc.tree();std::reverse(tree.container(group)->children.begin(),tree.container(group)->children.end());
     CHECK(doc.replaceStructure(doc.tree(),tree));
@@ -66,6 +75,16 @@ void dataInterpolationIsNumericBeforeDisplay()
     auto layer=Layer::raster("Scalar",std::make_shared<ScalarRasterSurface>(Extent2u{2,1},values,2));
     PreparedLayerSampler scalar(layer,false);
     CHECK(encodeColor(scalar.sample({1,.5}))==(Rgba8{128,128,128,255}));
+    // A half-pixel placement forces eyedropper interpolation between black and
+    // white. Numeric data must produce 128, rather than a colour-space blend.
+    Document doc({{4, 2}, 96});
+    layer.localToDocument = {1, 0, .5, 0, 1, 0};
+    const auto id = layer.id;
+    CHECK(doc.insertLayer(0, std::move(layer)));
+    const auto pick = sampleDocumentColor(doc, id, {1.5, .5}, ColorSampleSource::ActiveLayer);
+    CHECK(pick.available() && pick.color == (Rgba8{128,128,128,255}));
+    CHECK(!sampleDocumentColor(doc, id, {2.5, .5}, ColorSampleSource::ActiveLayer).available());
+    CHECK(!sampleDocumentColor(doc, id, {1.5, 1.5}, ColorSampleSource::ActiveLayer).available());
 
     const std::vector<std::byte> hidden{std::byte{255},std::byte{255},std::byte{255},std::byte{0},
         std::byte{0},std::byte{0},std::byte{0},std::byte{255}};

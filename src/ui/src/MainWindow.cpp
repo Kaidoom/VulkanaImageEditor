@@ -718,12 +718,13 @@ MainWindow::MainWindow(
         cancelActiveBrushStroke();
     };
     canvasWindow_->onColorSampleRequested = [this](core::Vec2d position) {
+        auto source = session().colorSampleSource();
         if (session().document() && session().activeLayer())
             if (const auto* layer = session().document()->layer(*session().activeLayer()); layer && core::isScalarLayer(*layer))
-                return core::ColorSample {.status = core::ColorSampleStatus::UnsupportedLayer};
+                source = core::ColorSampleSource::ActiveLayer;
         return session().document()
             ? core::sampleDocumentColor(*session().document(), session().activeLayer(),
-                position, session().colorSampleSource()) : core::ColorSample {};
+                position, source) : core::ColorSample {};
     };
     canvasWindow_->onColorPicked = [this](core::Rgba8 color) { setForegroundColor(color); };
     propertiesPanel_->onBrushSettingsChanged = [this](const core::BrushSettings& settings) {

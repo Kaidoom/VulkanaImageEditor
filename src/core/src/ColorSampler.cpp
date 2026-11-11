@@ -740,6 +740,19 @@ ColorSample sampleDocumentColor(const Document& document,
         }
         result.layersVisited = 1;
         const auto inverse=composeAffine(layer->localToDocument,intrinsicPixelsToLocal(*layer)).inverted();
+        if (surface->dataKind() == RasterDataKind::Scalar) {
+            const auto numeric = inverse ? sampleRaster(*inverse, *surface, point, result.texelsRead,
+                SampleFiltering::AlphaAware, false, true) : LinearColor{};
+            if (numeric[3] <= 0) {
+                result.status = ColorSampleStatus::OutsideCanvas;
+                return result;
+            }
+            // Sampling validity is separate from the channel value, including
+            // zero in an alpha plane. Pick an opaque gray with no transfer curve.
+            const auto value = alphaToByte(numeric[0] / numeric[3]);
+            result.color = {value, value, value, 255};
+            return result;
+        }
         result.color = inverse?encode(sampleRaster(*inverse,*surface,point,result.texelsRead)):Rgba8{};
         return result;
     }

@@ -14,13 +14,14 @@ The group contains R, G, B and A layers. Their roles are fixed independently of 
 
 ## Inspect and edit
 
-Selecting a channel shows its opaque grayscale values. Selecting the group shows packed RGB without alpha hiding its RGB data. **Show alpha as transparency** enables alpha-aware inspection. These views do not change document pixels or export content.
+Selecting a channel shows its opaque grayscale values. Selecting the group shows the packed result with alpha as transparency. Turn off **Show alpha as transparency** to inspect RGB values without alpha hiding them. These views do not change document pixels or export content.
 
 The Color panel provides a grayscale ramp and a **Value** control from 0 to 255. Ordinary primary and secondary colours are restored when leaving channel editing.
 
 Supported editing includes:
 
 - Brushes, eraser and fill, with pressure, brush strength and soft selections.
+- Eyedropper and Alt-picking from Brush, Eraser or Fill sample the selected channel's raw numeric value as opaque grayscale. Merged Visible sampling is disabled in channel editing; its ordinary colour-layer preference is restored afterward.
 - Rectangle/ellipse and freehand selections.
 - Ctrl-click a channel thumbnail to load its values as selection coverage. An all-zero result leaves the current selection unchanged.
 - Channel cut/copy/paste and undo/redo.
@@ -51,7 +52,7 @@ Mixed-document visual exports are composited images; use Export channel data for
 
 ## Limits and implementation
 
-Channels currently use unsigned 8-bit values. Existing image-size limits remain unchanged. Channels cannot be independently resized, cropped, hidden, reparented or assigned blend modes, opacity, masks or decorative effects. Transform or duplicate the whole group. AI, colour-specific adjustments, eyedropper sampling, colour-based selection/refinement and unrelated processing are disabled for numeric targets. Use the Value control or clone from an explicit channel.
+Channels currently use unsigned 8-bit values. Existing image-size limits remain unchanged. Channels cannot be independently resized, cropped, hidden, reparented or assigned blend modes, opacity, masks or decorative effects. Transform or duplicate the whole group. AI, colour-specific adjustments, colour-based selection/refinement and unrelated processing are disabled for numeric targets.
 
 Canonical storage uses immutable copy-on-write R8 tiles, shared with the storage primitives used by selection masks. Pixel values, sampling validity and edit coverage remain separate. History retains native R8 patches; Vulkan uploads dirty R8 regions. Native save data does not contain redundant RGBA copies of channel planes.
 

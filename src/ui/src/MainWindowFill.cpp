@@ -120,6 +120,7 @@ void MainWindow::createEyedropperControls()
         row->addWidget(b);
     }
     connect(group, &QButtonGroup::idClicked, this, [this](int id) {
+        if (scalarColorMode_) return;
         session().setColorSampleSource(
             id ? core::ColorSampleSource::ActiveLayer : core::ColorSampleSource::MergedVisible);
         canvasWindow_->refreshColorSample();
