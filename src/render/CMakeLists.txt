@@ -52,6 +52,7 @@ add_library(imageeditor_render STATIC
     src/VulkanCanvasBackend.cpp
     src/VulkanCanvasRenderer.cpp
     src/VulkanComposition.cpp
+    src/CompositorPipelineCache.cpp
     src/VulkanAdjustments.cpp
     src/VulkanSelection.cpp
 )

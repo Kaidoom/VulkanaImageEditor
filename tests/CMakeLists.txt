@@ -27,6 +27,17 @@ include(DiffusionTests.cmake)
 include(BackgroundRemovalTests.cmake)
 include(SnapshotTimelineTests.cmake)
 
+add_executable(imageeditor_pipeline_cache_tests CompositorPipelineCacheTests.cpp)
+target_link_libraries(imageeditor_pipeline_cache_tests PRIVATE imageeditor_render)
+imageeditor_enable_warnings(imageeditor_pipeline_cache_tests)
+add_test(NAME imageeditor_pipeline_cache_tests COMMAND imageeditor_pipeline_cache_tests)
+set_tests_properties(imageeditor_pipeline_cache_tests PROPERTIES TIMEOUT 30 LABELS "vulkan;cache;startup")
+if(NOT WIN32)
+    add_test(NAME imageeditor_pipeline_cache_roundtrip COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/PipelineCacheRoundtripTests.py" "$<TARGET_FILE:imageeditor_blend_rendering_tests>")
+    set_tests_properties(imageeditor_pipeline_cache_roundtrip PROPERTIES TIMEOUT 240 RUN_SERIAL TRUE LABELS "vulkan;cache;startup")
+endif()
+
 if(WIN32)
     include(WindowsTests.cmake)
     return()

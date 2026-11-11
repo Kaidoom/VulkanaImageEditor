@@ -2,12 +2,19 @@
 #include "imageeditor/render/CanvasCoordinateMapping.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/core/CompositionPlan.hpp"
+#include "imageeditor/platform/ApplicationPaths.hpp"
+#include "imageeditor/render/detail/CompositorPipelineCache.hpp"
 #include <algorithm>
 #include <bit>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
 #include <chrono>
+#include <QLoggingCategory>
+#include <QDir>
+#include <QFile>
+
+Q_DECLARE_LOGGING_CATEGORY(logVulkanCanvas)
 
 namespace imageeditor::render {
 namespace {
@@ -50,15 +57,63 @@ void VulkanCanvasRenderer::initializeComposition(bool asynchronous)
     layout.pushConstantRangeCount = 1; layout.pPushConstantRanges = &push;
     checkVk(vkCreatePipelineLayout(device_,&layout,nullptr,&compositionLayout_),"create compositor pipeline layout");
     const auto shader = loadShader("composite.comp.spv");
-    const auto build=[device=device_,layoutHandle=compositionLayout_,shader] {
-        // No QObject, window, renderer state or shared pipeline cache is
-        // accessed by the worker. Publish the handle through the future only.
+    VkPhysicalDeviceProperties deviceProperties{};
+    vkGetPhysicalDeviceProperties(physicalDevice_, &deviceProperties);
+    const auto mesaDisabled = qgetenv("MESA_SHADER_CACHE_DISABLE").toLower();
+    const bool cacheEnabled = qgetenv("__GL_SHADER_DISK_CACHE") != "0"
+        && mesaDisabled != "true" && mesaDisabled != "1";
+    const auto cachePath = QDir(platform::userCacheDirectory()).filePath(
+        QStringLiteral("vulkan/compositor-%1-%2.bin").arg(deviceProperties.vendorID, 0, 16).arg(deviceProperties.deviceID, 0, 16));
+    QFile shaderFile(platform::shaderPath(QStringLiteral("composite.comp.spv")));
+    const auto key = cacheEnabled && shaderFile.open(QIODevice::ReadOnly)
+        ? detail::compositorPipelineKey(deviceProperties, shaderFile.readAll()) : QByteArray{};
+    const auto build=[device=device_,layoutHandle=compositionLayout_,shader,deviceProperties,cachePath,key] {
+        // The cache belongs exclusively to this worker, including disk I/O.
+        // No GUI state or cache handle is shared with graphics-pipeline creation.
+        const auto started = std::chrono::steady_clock::now();
+        const auto saved = key.isEmpty() ? QByteArray{} : detail::readPipelineCache(cachePath, key, deviceProperties);
+        VkPipelineCache cache = VK_NULL_HANDLE;
+        struct CacheCleanup {
+            VkDevice device; VkPipelineCache& cache;
+            ~CacheCleanup() { if (cache) vkDestroyPipelineCache(device, cache, nullptr); }
+        } cleanup{device, cache};
+        bool reused = false;
+        if (!key.isEmpty()) {
+            VkPipelineCacheCreateInfo info{VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO};
+            info.initialDataSize = std::size_t(saved.size());
+            info.pInitialData = saved.isEmpty() ? nullptr : saved.constData();
+            auto status = vkCreatePipelineCache(device, &info, nullptr, &cache);
+            reused = status == VK_SUCCESS && !saved.isEmpty();
+            if (status != VK_SUCCESS && !saved.isEmpty()) {
+                info.initialDataSize = 0; info.pInitialData = nullptr;
+                status = vkCreatePipelineCache(device, &info, nullptr, &cache);
+            }
+            if (status != VK_SUCCESS) {
+                cache = VK_NULL_HANDLE;
+                qCWarning(logVulkanCanvas) << "Compositor pipeline cache unavailable; compiling without it:" << status;
+            }
+        }
         VkComputePipelineCreateInfo pipeline {VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
         pipeline.stage={VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,nullptr,0,VK_SHADER_STAGE_COMPUTE_BIT,shader,"main",nullptr};
         pipeline.layout=layoutHandle;
         PipelineBuild result{VK_SUCCESS,VK_NULL_HANDLE};
-        result.result=vkCreateComputePipelines(device,VK_NULL_HANDLE,1,&pipeline,nullptr,&result.pipeline);
+        result.result=vkCreateComputePipelines(device,cache,1,&pipeline,nullptr,&result.pipeline);
+        qCInfo(logVulkanCanvas) << "Compositor pipeline initialization:"
+            << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count()
+            << "ms, cache" << (key.isEmpty() ? "bypassed" : reused ? "loaded" : "new") << "result" << result.result;
         vkDestroyShaderModule(device,shader,nullptr);
+        if (result.result == VK_SUCCESS && cache) {
+            std::size_t size = 0;
+            if (vkGetPipelineCacheData(device, cache, &size, nullptr) == VK_SUCCESS
+                && size >= 32 && size <= std::size_t(detail::maximumPipelineCacheBytes)) {
+                QByteArray data(qsizetype(size), Qt::Uninitialized);
+                if (vkGetPipelineCacheData(device, cache, &size, data.data()) == VK_SUCCESS) {
+                    data.resize(qsizetype(size));
+                    if (data != saved && !detail::writePipelineCache(cachePath, key, data))
+                        qCWarning(logVulkanCanvas) << "Could not save compositor pipeline cache; rendering is unaffected";
+                }
+            }
+        }
         return result;
     };
     if(asynchronous) {

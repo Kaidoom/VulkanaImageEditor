@@ -134,6 +134,15 @@ children. This bypasses NVIDIA/Mesa shader disk caches for that process tree;
 it does not delete caches, clear document data or save a preference. A normal
 launch uses the normal cache policy. Shader compilation can make this diagnostic
 launch noticeably slower.
+The compositor also saves its Vulkan pipeline cache in the per-user cache
+directory. Reuse requires matching shader bytes, device/driver identity, cache
+UUID and compositor layout policy. Size bounds, header validation and a checksum
+reject stale or damaged data; atomic replacement prevents partial cache writes.
+Loading, compilation and saving stay on the graphics-initialization worker, with
+no cache handle shared across threads. A missing or unwritable cache does not
+prevent rendering. `--cold-cache` bypasses this application cache as well as the
+driver caches, without removing the warm cache. Initialization logs include the
+pipeline preparation time and whether cache data was loaded, new or bypassed.
 Performance usage polling runs only while the page is visible, uses existing
 renderer counters and document accounting, and never requests a canvas frame.
 The displayed cache totals are not additive with whole-process resident RAM.
