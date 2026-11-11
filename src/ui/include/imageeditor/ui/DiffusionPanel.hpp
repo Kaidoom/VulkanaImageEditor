@@ -50,6 +50,7 @@ public:
     QTransform toDocument;
     Mode mode{Mode::Generate};
     std::optional<bool> fitToBounds;
+    QString layerName() const; // Frozen model identity and the output's actual seed.
   };
 
   struct ComparisonLayer {

@@ -856,6 +856,7 @@ void MainWindow::applyDiffusion() {
     return;
   auto &s = *diffusion_;
   QImage image = s.panel->selectedResult()->image;
+  const auto layerName = s.panel->selectedResult()->layerName();
   const auto rawPath = s.panel->selectedResult()
                            ->metadata.value("image")
                            .toObject()
@@ -888,7 +889,7 @@ void MainWindow::applyDiffusion() {
                          Qt::SmoothTransformation),
             coverage);
       }
-      auto loaded = rasterLayerFromImage(documentImage, "AI result");
+      auto loaded = rasterLayerFromImage(documentImage, layerName);
       if (!loaded)
         throw std::runtime_error(loaded.error.toStdString());
       auto document = std::make_unique<core::Document>(
@@ -930,7 +931,7 @@ void MainWindow::applyDiffusion() {
       } else {
         auto layer =
             diffusionResultLayer(target ? &*target : nullptr, image,
-                                 documentSpace, selection, "AI result", &error);
+                                 documentSpace, selection, layerName, &error);
         if (layer) {
           if (!selection)
             layer->localToDocument =

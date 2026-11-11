@@ -39,6 +39,8 @@
 #include <QSlider>
 #include <QSplitter>
 #include <QStandardItemModel>
+#include <QStyleOptionSpinBox>
+#include <QStyle>
 #include <QStandardPaths>
 #include <QTabWidget>
 #include <QTemporaryDir>
@@ -437,12 +439,18 @@ private slots:
     QCOMPARE(session().document()->revision(), during);
     QCOMPARE(panel->results().size(), 2);
     QCOMPARE(panel->results().front().image, previous);
+    const auto resultName = "Qwen_" + panel->selectedResult()->metadata["request"].toObject()["seed"].toVariant().toString();
+    auto otherConfig = panel->configuration(); otherConfig["profile"] = "flux3-image-klein-distilled";
+    panel->setConfiguration(otherConfig); // Applying history must not use current model or seed controls.
+    child<QDoubleSpinBox>("DiffusionSeed")->setValue(77);
     panel->setDestination(u::DiffusionPanel::Destination::NewLayer);
     panel->onApply();
     QCOMPARE(session().document()->layers().size(), count + 1);
+    QCOMPARE(QString::fromStdString(session().document()->layers().back().name), resultName);
     QVERIFY(session().undo());
     QCOMPARE(session().document()->layers().size(), count);
     QVERIFY(session().redo());
+    QCOMPARE(QString::fromStdString(session().document()->layers().back().name), resultName);
     openMode("AIGenerateImageAction");
     generate();
     QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
@@ -451,6 +459,36 @@ private slots:
     panel->onApply();
     QCOMPARE(window->documentCount(), docs + 1);
     QCOMPARE(session().document()->canvas().extent.width, 64u);
+    QCOMPARE(QString::fromStdString(session().document()->layers().front().name), panel->selectedResult()->layerName());
+  }
+  void seedStepperAcceptsNativeKeyboardAndButtons() {
+    openMode("AIGenerateImageAction");
+    auto* seed = child<QDoubleSpinBox>("DiffusionSeed");
+    auto* policy = child<QComboBox>("DiffusionSeedMode");
+    policy->setCurrentIndex(policy->findData("fixed"));
+    panel->findChild<QScrollArea*>("DiffusionGenerationPage")->ensureWidgetVisible(seed);
+    QCoreApplication::processEvents();
+    const auto revision = session().document()->revision();
+    QTest::mouseClick(seed, Qt::LeftButton, {}, QPoint(25, seed->height() / 2));
+    QTRY_VERIFY(seed->hasFocus());
+    seed->selectAll();
+    QInputMethodEvent ime; ime.setCommitString("4294967295");
+    QCoreApplication::sendEvent(window->windowHandle(), &ime);
+    QKeyEvent enter(QEvent::KeyPress, Qt::Key_Return, Qt::NoModifier);
+    QCoreApplication::sendEvent(window->windowHandle(), &enter);
+    QCOMPARE(seed->value(), 4294967295.0);
+    QStyleOptionSpinBox option; option.initFrom(seed); option.frame = true;
+    option.buttonSymbols = seed->buttonSymbols();
+    option.stepEnabled = QAbstractSpinBox::StepUpEnabled | QAbstractSpinBox::StepDownEnabled;
+    const auto up = seed->style()->subControlRect(QStyle::CC_SpinBox, &option, QStyle::SC_SpinBoxUp, seed);
+    const auto down = seed->style()->subControlRect(QStyle::CC_SpinBox, &option, QStyle::SC_SpinBoxDown, seed);
+    QTest::mouseClick(seed, Qt::LeftButton, {}, up.center());
+    QCOMPARE(seed->value(), 4294967296.0);
+    QTest::mouseClick(seed, Qt::LeftButton, {}, down.center());
+    QCOMPARE(seed->value(), 4294967295.0);
+    QCOMPARE(session().document()->revision(), revision);
+    generate(); QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QCOMPARE(panel->selectedResult()->metadata["request"].toObject()["seed"].toVariant().toLongLong(), 4294967295LL);
   }
   void generationOnlyModelOmitsRetainedEditingInputs() {
     openMode("AIEditLayerAction");

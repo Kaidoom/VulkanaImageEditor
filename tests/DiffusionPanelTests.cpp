@@ -647,7 +647,7 @@ private slots:
     QCOMPARE(output->currentIndex(), destination);
     QTest::keyClick(width, Qt::Key_Up);
     QCOMPARE(width->value(), original + 32);
-    auto *seed = panel.findChild<QLineEdit *>("DiffusionSeed");
+    auto *seed = panel.findChild<QDoubleSpinBox *>("DiffusionSeed");
     auto *policy = panel.findChild<QComboBox *>("DiffusionSeedMode");
     QVERIFY(policy);
     policy->setCurrentIndex(policy->findData("random"));
@@ -656,7 +656,7 @@ private slots:
     QVERIFY(randomA != randomB);
     QVERIFY(!seed->isEnabled());
     policy->setCurrentIndex(policy->findData("fixed"));
-    seed->setText("42");
+    seed->setValue(42);
     QCOMPARE(panel.prepareGeneration()["seed"].toInt(), 42);
     panel.generationAccepted();
     QCOMPARE(panel.prepareGeneration()["seed"].toInt(), 42);
@@ -666,11 +666,30 @@ private slots:
     QVERIFY(seed->text() != "42");
     QCOMPARE(policy->currentData().toString(), QString("fixed"));
     QCOMPARE(panel.prepareGeneration()["seed"].toDouble(), seed->text().toDouble());
-    seed->setText("42");
+    seed->setValue(42);
     policy->setCurrentIndex(policy->findData("increment"));
     panel.findChild<QDoubleSpinBox *>("Diffusion_batch")->setValue(2);
     panel.generationAccepted();
     QCOMPARE(panel.prepareGeneration()["seed"].toInt(), 44);
+    policy->setCurrentIndex(policy->findData("fixed"));
+    seed->setValue(4294967295.0);
+    QTest::keyClick(seed, Qt::Key_Up);
+    QCOMPARE(panel.prepareGeneration()["seed"].toVariant().toLongLong(), 4294967296LL);
+    wheel(seed);
+    QCOMPARE(seed->value(), 4294967296.0); // Scrolling the panel never edits the seed.
+    seed->setValue(9007199254740990.0);
+    QTest::keyClick(seed, Qt::Key_Up);
+    QCOMPARE(seed->text(), QString("9007199254740991"));
+    QTest::keyClick(seed, Qt::Key_Up);
+    QCOMPARE(panel.prepareGeneration()["seed"].toVariant().toLongLong(), 9007199254740991LL);
+    panel.saveSettings();
+    {
+      DiffusionPanel restored;
+      QCOMPARE(restored.generationParameters()["seed"].toVariant().toLongLong(), 9007199254740991LL);
+    }
+    policy->setCurrentIndex(policy->findData("increment"));
+    panel.generationAccepted(); // Batch of two wraps within the supported range.
+    QCOMPARE(seed->value(), 1.0);
     auto *inputs = panel.findChild<QListWidget *>("DiffusionInputsList");
     QCOMPARE(inputs->count(), 1); // Add row is always accessible.
     bool requestedInput = false;
@@ -871,7 +890,7 @@ private slots:
       auto *height = panel.findChild<QSpinBox *>("DiffusionHeight");
       auto *ratio = panel.findChild<QComboBox *>("DiffusionAspectRatio");
       auto *multiple = panel.findChild<QComboBox *>("DiffusionResolutionMultiple");
-      auto *seed = panel.findChild<QLineEdit *>("DiffusionSeed");
+      auto *seed = panel.findChild<QDoubleSpinBox *>("DiffusionSeed");
       multiple->setCurrentIndex(multiple->findData(8));
       ratio->setCurrentIndex(ratio->findData(QSize(2, 3)));
       ratio->activated(ratio->currentIndex());
@@ -1382,6 +1401,22 @@ private slots:
     QCOMPARE(panel.results().size(), 3);
     QCOMPARE(preview->image(), final);
     dialog->close();
+  }
+  void generatedLayerNamesUseFrozenModelAndActualSeed() {
+    DiffusionPanel::Result result;
+    result.metadata = {{"configuration", QJsonObject{{"profile", "qwen-image-2.1-turbo"}}},
+        {"request", QJsonObject{{"seed", 42}}},
+        {"image", QJsonObject{{"generationInfo", QJsonObject{{"seed", "43"}}}}}};
+    QCOMPARE(result.layerName(), QString("Qwen_43"));
+    result.metadata["profile"] = "flux3-image-klein-distilled";
+    QCOMPARE(result.layerName(), QString("Flux3_43"));
+    result.metadata["profile"] = QJsonObject{{"id", "krea-2-turbo"}};
+    QCOMPARE(result.layerName(), QString("Krea2_43"));
+    result.metadata.remove("image");
+    QCOMPARE(result.layerName(), QString("Krea2_42"));
+    result.metadata["profile"] = "stable-diffusion";
+    result.metadata["configuration"] = QJsonObject{{"files", QJsonObject{{"diffusion", "/models/Illustrious-v1.safetensors"}}}};
+    QCOMPARE(result.layerName(), QString("Illustrious-v1_42"));
   }
   void generationThumbnailAndFrozenResultDetails() {
     QWidget host;

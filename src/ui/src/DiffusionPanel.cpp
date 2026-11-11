@@ -449,6 +449,23 @@ QImage thumbnail(const QImage &source, QSize size) {
 }
 } // namespace
 
+QString DiffusionPanel::Result::layerName() const {
+  const auto configuration = metadata["configuration"].toObject();
+  const auto recordedProfile = metadata["profile"];
+  const auto profileId = recordedProfile.isString() ? recordedProfile.toString()
+      : recordedProfile.toObject()["id"].toString(configuration["profile"].toString());
+  const auto profile = diffusion::modelProfile(profileId);
+  auto name = profile["resultName"].toString();
+  if (name.isEmpty())
+    name = QFileInfo(configuration["files"].toObject()["diffusion"].toString()).completeBaseName();
+  if (name.isEmpty()) name = recordedProfile.toObject()["name"].toString(profile["name"].toString("AI"));
+  name = name.simplified().replace(' ', '_');
+  const auto info = metadata["image"].toObject()["generationInfo"].toObject();
+  const auto seed = (info.contains("seed") ? info["seed"] : metadata["request"].toObject()["seed"])
+                        .toVariant().toString();
+  return seed.isEmpty() || seed == "-1" ? name : name + '_' + seed;
+}
+
 struct DiffusionPanel::Impl {
   DiffusionPanel &q;
   QComboBox *mode{}, *outputDestination{}, *backend{}, *models{},
@@ -456,7 +473,7 @@ struct DiffusionPanel::Impl {
   QFormLayout *modelForm{};
   QTabWidget *tabs{};
   QWidget *configurationPage{};
-  QLineEdit *seed{};
+  QDoubleSpinBox *seed{};
   QString workerOverride;
   QComboBox *seedMode{};
   QComboBox *outputScene{};
@@ -2060,7 +2077,15 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   essentials->addWidget(d->overridesSection);
   auto *seedRow = new QHBoxLayout;
   seedRow->addWidget(new QLabel("Seed"));
-  d->seed = new QLineEdit("0");
+  d->seed = new ScrollSafe<QDoubleSpinBox>;
+  // JSON seeds are exact integers up to 2^53-1; QSpinBox would truncate them
+  // to 32 bits. Zero decimals keep the familiar integer stepper presentation.
+  d->seed->setDecimals(0);
+  d->seed->setRange(0, 9007199254740991.0);
+  d->seed->setSingleStep(1);
+  d->seed->setLocale(QLocale::c());
+  d->seed->setGroupSeparatorShown(false);
+  d->seed->setKeyboardTracking(false);
   d->seed->setObjectName("DiffusionSeed");
   d->seed->setToolTip("Use the same seed to reproduce a result.");
   seedRow->addWidget(d->seed, 1);
@@ -2070,11 +2095,11 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
       "Generate a random seed. Random mode also chooses a new seed for each generation.");
   seedRow->addWidget(d->randomSeed);
   connect(d->randomSeed, &QToolButton::clicked, this, [this] {
-    QString seed;
+    quint32 seed;
     do {
-      seed = QString::number(QRandomGenerator::global()->generate());
-    } while (seed == d->seed->text());
-    d->seed->setText(seed);
+      seed = QRandomGenerator::global()->generate();
+    } while (seed == d->seed->value());
+    d->seed->setValue(seed);
     saveSettings();
   });
   d->seedMode = combo({"Random", "Fixed", "Increment"},
@@ -2760,7 +2785,7 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   d->negative->setPlainText(
       settings.value("diffusion/negativePrompt").toString());
   const auto savedSeed = settings.value("diffusion/seed", "0").toString();
-  d->seed->setText(savedSeed == "-1" ? "0" : savedSeed);
+  d->seed->setValue(savedSeed.toDouble());
   {
     QSignalBlocker block(d->seedMode);
     select(d->seedMode,
@@ -2790,7 +2815,7 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   d->saveTimer->setSingleShot(true);
   d->saveTimer->setInterval(200);
   connect(d->saveTimer, &QTimer::timeout, this, &DiffusionPanel::saveSettings);
-  QSet<QWidget *> observed{d->families, d->profiles, d->backend, d->sigmas, d->imageToImage};
+  QSet<QWidget *> observed{d->families, d->profiles, d->backend, d->sigmas, d->imageToImage, d->seed};
   for (auto *widget : d->resource) observed.insert(widget);
   for (auto *widget : d->sampling) observed.insert(widget);
   for (auto *widget : d->files) observed.insert(widget);
@@ -2934,9 +2959,7 @@ QJsonObject DiffusionPanel::generationParameters() const {
     params["negativePrompt"] = d->negative->toPlainText();
   params["width"] = d->width->value();
   params["height"] = d->height->value();
-  bool valid = false;
-  const auto seed = d->seed->text().toLongLong(&valid);
-  params["seed"] = valid ? QJsonValue(seed) : QJsonValue(d->seed->text());
+  params["seed"] = qint64(d->seed->value());
   if (params["schedule"] == "custom") {
     QString text = customSigmas.trimmed();
     if (!text.startsWith('['))
@@ -2961,20 +2984,16 @@ QJsonObject DiffusionPanel::prepareGeneration() {
   if (!d->referencesFit())
     throw std::invalid_argument("Images and region guides exceed the model's reference limit. Remove an image or region.");
   if (d->seedMode->currentData() == "random")
-    d->seed->setText(QString::number(QRandomGenerator::global()->generate()));
-  bool valid = false;
-  const auto seed = d->seed->text().toULongLong(&valid);
-  if (!valid || seed > 9007199254740991ULL)
-    throw std::invalid_argument("Enter a seed from 0 to 9007199254740991.");
+    d->seed->setValue(QRandomGenerator::global()->generate());
+  else
+    d->seed->interpretText();
   return generationParameters();
 }
 void DiffusionPanel::generationAccepted() {
   if (d->seedMode->currentData() == "increment") {
-    bool valid = false;
-    const auto seed = d->seed->text().toULongLong(&valid);
+    const auto seed = quint64(d->seed->value());
     const auto count = quint64(generationParameters()["batch"].toInt(1));
-    if (valid)
-      d->seed->setText(QString::number((seed + count) % 9007199254740992ULL));
+    d->seed->setValue(double((seed + count) % 9007199254740992ULL));
   }
   saveSettings();
 }
@@ -3513,7 +3532,7 @@ void DiffusionPanel::saveSettings() {
   s.remove("diffusion/workerExecutable");
   s.setValue("diffusion/prompt", d->prompt->toPlainText());
   s.setValue("diffusion/negativePrompt", d->negative->toPlainText());
-  s.setValue("diffusion/seed", d->seed->text());
+  s.setValue("diffusion/seed", QString::number(quint64(d->seed->value())));
   s.setValue("diffusion/seedMode", d->seedMode->currentData());
   s.setValue("diffusion/sigmas", d->sigmas->toPlainText());
   s.setValue("diffusion/exposedGeneration",

@@ -2,6 +2,7 @@
   {
     "id": "qwen-image-2.1",
     "name": "Qwen Image 2.1",
+    "resultName": "Qwen",
     "family": "qwen-image-2.1",
     "tested": false,
     "alignment": 32,
@@ -29,6 +30,7 @@
   {
     "id": "qwen-image-2.1-turbo",
     "name": "Qwen Image 2.1 Turbo",
+    "resultName": "Qwen",
     "family": "qwen-image-2.1",
     "tested": true,
     "alignment": 32,
@@ -56,6 +58,7 @@
   {
     "id": "flux2-klein-base",
     "name": "FLUX.2 Klein (base)",
+    "resultName": "Flux2",
     "family": "flux2",
     "engineModel": "Flux.2 klein",
     "tested": true,
@@ -85,6 +88,7 @@
   {
     "id": "flux2-klein-distilled",
     "name": "FLUX.2 Klein (distilled)",
+    "resultName": "Flux2",
     "family": "flux2",
     "engineModel": "Flux.2 klein",
     "tested": true,
@@ -114,6 +118,7 @@
   {
     "id": "flux3-image-klein-base",
     "name": "FLUX.3 Image Klein (base)",
+    "resultName": "Flux3",
     "family": "flux3",
     "engineModel": "Flux.3 Image Klein",
     "tested": true,
@@ -143,6 +148,7 @@
   {
     "id": "flux3-image-klein-distilled",
     "name": "FLUX.3 Image Klein (distilled)",
+    "resultName": "Flux3",
     "family": "flux3",
     "engineModel": "Flux.3 Image Klein",
     "tested": true,
@@ -172,6 +178,7 @@
   {
     "id": "krea-2-turbo",
     "name": "Krea 2 Turbo",
+    "resultName": "Krea2",
     "family": "krea2",
     "engineModel": "Krea2",
     "tested": true,
