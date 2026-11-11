@@ -1093,10 +1093,12 @@ PsdInspection inspectPsd(const QString &path,
       info.visible = rec.visible;
       info.container = rec.section == 1 || rec.section == 2;
       info.kind = info.container ? PsdContentKind::Group
+          : rec.smartObject ? PsdContentKind::SmartObject
           : isAdjustment(rec) ? PsdContentKind::Adjustment
           : rec.tags.contains("TySh") ? PsdContentKind::Text
           : isShape(rec) ? PsdContentKind::Shape : PsdContentKind::Raster;
       info.type = info.container              ? "Group"
+                  : rec.smartObject           ? "Smart Object"
                   : isAdjustment(rec)         ? "Adjustment"
                   : rec.tags.contains("TySh") ? "Text"
                   : isShape(rec)              ? "Shape"
@@ -1132,7 +1134,7 @@ PsdInspection inspectPsd(const QString &path,
       const auto external = restrictions(rec,localGroup);
       info.raster = info.basePixels && external.empty() && effectsOk;
       info.editable =
-          typedOk && effectsOk && external.empty() &&
+          !rec.smartObject && typedOk && effectsOk && external.empty() &&
           (info.container || model.text || model.shape || model.adjustment ||
            info.basePixels || emptyPixelLayer(rec));
       for (auto it = model.replacements.begin(); it != model.replacements.end();
@@ -1141,9 +1143,26 @@ PsdInspection inspectPsd(const QString &path,
         info.proposedFonts[it.key()] = it.value().toString();
       }
       info.issues += model.substitutions;
+      if (rec.smartObject)
+        info.issues << "Smart Object imported from its saved pixels; embedded source editing is not retained";
       info.issues.removeDuplicates();
+      // Brief UI reasons are typed independently of the English technical report.
+      if (!external.empty()) {
+        info.reason = info.container ? PsdImportReason::Group
+            : rec.blendIf || rec.knockout || !blend(rec.blend) ? PsdImportReason::Blending
+            : rec.mask.present && (rec.mask.density != 255 || rec.mask.feather != 0
+                || (rec.mask.flags & 12) || rec.mask.real || isShape(rec)) ? PsdImportReason::Mask
+            : PsdImportReason::Unsupported;
+      } else if (!effectsOk) info.reason = PsdImportReason::Effects;
+      else if (!typedOk) info.reason = info.kind == PsdContentKind::Text ? PsdImportReason::TextLayout
+          : info.kind == PsdContentKind::Shape ? PsdImportReason::ShapeGeometry
+          : info.kind == PsdContentKind::Adjustment ? PsdImportReason::Adjustment : PsdImportReason::Unsupported;
+      else if (!info.fonts.empty()) info.reason = PsdImportReason::MissingFont;
+      else if (rec.smartObject) info.reason = PsdImportReason::SmartObject;
+      else if (!info.issues.empty()) info.reason = PsdImportReason::Appearance;
       info.suggested = info.editable ? PsdRoute::Editable
                        : info.raster ? PsdRoute::Raster
+                       : info.basePixels ? PsdRoute::BasePixels
                                      : PsdRoute::Skip;
       info.status = info.editable
                         ? (info.issues.empty() ? "Editable"
@@ -1182,10 +1201,12 @@ PsdInspection inspectPsd(const QString &path,
         layer.details += QStringLiteral("\nNative clipping group; base record %1. Base opacity/blend governs the stack; upper styles stay clipped.").arg(base);
         if(s->records[size_t(base)].tags.contains("lfx2") || rec.tags.contains("lfx2")) {
           layer.issues << "Native clipping style order: base styles follow stack colors; upper styles are clipped to base content coverage";
+          if (layer.reason == PsdImportReason::None) layer.reason = PsdImportReason::Clipping;
           layer.details += '\n'+layer.issues.back();
         }
       } else {
-        layer.editable=layer.raster=false;layer.suggested=PsdRoute::Skip;layer.status="Review required";
+        layer.editable=layer.raster=false;layer.suggested=layer.basePixels?PsdRoute::BasePixels:PsdRoute::Skip;layer.status="Review required";
+        layer.reason=PsdImportReason::Clipping;
         layer.issues << (base<0 ? "Clipping chain has no base in this group" : operatorBase ? "An adjustment as clipping base has no native drawable coverage; use the saved composite or review the omission." : "Blend Clipped Layers As Group is disabled; use saved composite or explicitly import base pixels only");
       }
     }
@@ -1199,7 +1220,8 @@ PsdInspection inspectPsd(const QString &path,
             [parent](const auto &l) { return l.sourceIndex == parent; });
         if (p != result.layers.end() && !p->editable) {
           layer.editable = layer.raster = false;
-          layer.suggested = PsdRoute::Skip;
+          layer.suggested = layer.basePixels ? PsdRoute::BasePixels : PsdRoute::Skip;
+          layer.reason = PsdImportReason::Group;
           layer.issues << "Ancestor group composition is unsupported; saved "
                           "composite preserves the complete scene";
           layer.status = "Review required";

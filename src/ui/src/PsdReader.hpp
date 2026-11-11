@@ -59,7 +59,7 @@ struct Record {
   QString name;
   QByteArray blend;
   int opacity{255}, fill{255}, section{}, parent{-1};
-  bool visible{true}, clipping{}, blendIf{}, knockout{};
+  bool visible{true}, clipping{}, blendIf{}, knockout{}, smartObject{};
   Mask mask;
   std::vector<Channel> channels;
   QMap<QByteArray, QByteArray> tags;

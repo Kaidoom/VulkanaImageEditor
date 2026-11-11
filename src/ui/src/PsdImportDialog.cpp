@@ -85,9 +85,9 @@ struct PsdImportDialog::State {
   QString replacementFace;
   QPlainTextEdit *details;
   QProgressBar *progress;
-  QPushButton *import;
+  QPushButton *import, *applySimilar;
   std::vector<QTreeWidgetItem *> rows;
-  std::vector<int> choices; // -1 is an unresolved choice, separate from Skip.
+  std::vector<int> choices;
   QMap<int, size_t> sourceIndexes;
   QPointer<QWidget> confirmation;
   QList<QPointer<QWidget>> confirmationDisabled;
@@ -99,8 +99,8 @@ struct PsdImportDialog::State {
     owner.setObjectName("PsdImportDialog");
         i18n::setWindowTitle(&owner, i18n::text("psd.import.dialog.import.psd"));
     owner.setWindowFlags(Qt::SubWindow);
-    owner.resize(880, 660);
-    owner.setProperty("workspacePreferredSize", QSize(880, 660));
+    owner.resize(960, 660);
+    owner.setProperty("workspacePreferredSize", QSize(960, 660));
     auto *layout = new QVBoxLayout(&owner);
     layout->setContentsMargins(18, 18, 18, 18);
     layout->setSpacing(8);
@@ -133,30 +133,41 @@ struct PsdImportDialog::State {
     list->setContentsMargins(0, 0, 0, 0);
     tree = new QTreeWidget(conversions);
     tree->setObjectName("PsdLayers");
-    tree->setHeaderLabels({i18n::text("psd.import.dialog.layer.detected.type"), i18n::text("psd.import.dialog.conversion")});
+    tree->setHeaderLabels({i18n::text("psd.import.dialog.layer.detected.type"), i18n::text("psd.import.dialog.conversion"), i18n::text("psd.import.dialog.reason")});
     QObject::connect(&i18n::Localization::instance(), &i18n::Localization::languageChanged, &owner, [this] {
-    tree->setHeaderLabels({i18n::text("psd.import.dialog.layer.detected.type"), i18n::text("psd.import.dialog.conversion")});
+    tree->setHeaderLabels({i18n::text("psd.import.dialog.layer.detected.type"), i18n::text("psd.import.dialog.conversion"), i18n::text("psd.import.dialog.reason")});
       for (size_t i = 0; i < rows.size(); ++i) {
         if (auto* row = rows[i]) {
           row->setText(0, inspection.layers[i].name + " · " + i18n::psdContentName(inspection.layers[i].kind));
           row->setText(1, excluded(i)
             ? i18n::text("psd.import.dialog.ancestor.excluded") : missingClippingBase(i)
             ? i18n::text("psd.import.dialog.clipping.base.omitted") : statusFor(i));
+          row->setText(2, reasonFor(i));
         }
       }
       selectionChanged();
     });
     tree->setRootIsDecorated(true);
-    tree->setMinimumWidth(475);
+    tree->setMinimumWidth(560);
     tree->header()->setSectionResizeMode(0, QHeaderView::Stretch);
-    tree->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
-    tree->header()->setStretchLastSection(true);
+    tree->header()->setSectionResizeMode(1, QHeaderView::Interactive);
+    tree->header()->setSectionResizeMode(2, QHeaderView::Interactive);
+    tree->header()->setStretchLastSection(false);
+    tree->setColumnWidth(1, 130);
+    tree->setColumnWidth(2, 170);
     tree->setMinimumHeight(120);
     list->addWidget(tree, 1);
     action = new QComboBox(conversions);
     action->setObjectName("PsdImportAction");
     action->setItemDelegate(new QStyledItemDelegate(action));
-    list->addWidget(action);
+    auto *actionRow = new QHBoxLayout;
+    actionRow->addWidget(action, 1);
+    applySimilar = i18n::make<QPushButton>(i18n::text("psd.import.dialog.apply.similar").arg(0), conversions);
+    applySimilar->setObjectName("PsdApplySimilar");
+    applySimilar->setAutoDefault(false);
+    i18n::setToolTip(applySimilar, i18n::text("psd.import.dialog.apply.similar.hint"));
+    actionRow->addWidget(applySimilar);
+    list->addLayout(actionRow);
     description = new QLabel(conversions);
     description->setObjectName("PsdImportActionDescription");
     description->setWordWrap(true);
@@ -217,6 +228,7 @@ struct PsdImportDialog::State {
     QObject::connect(detailButton, &QPushButton::toggled, details,
                      &QWidget::setVisible);
     status = i18n::make<QLabel>(i18n::text("psd.import.dialog.reading.metadata.and.checking.saved.raster.availability"), &owner);
+    status->setObjectName("PsdImportStatus");
     status->setTextFormat(Qt::PlainText);
     status->setWordWrap(true);
     layout->addWidget(status);
@@ -283,8 +295,17 @@ struct PsdImportDialog::State {
       if (refreshing || i < 0 || n < 0)
         return;
       choices[size_t(i)] = action->currentData().toInt();
-      options.layers[size_t(i)].route = choices[size_t(i)] < 0
-          ? PsdRoute::Skip : PsdRoute(choices[size_t(i)]);
+      options.layers[size_t(i)].route = PsdRoute(choices[size_t(i)]);
+      changed();
+    });
+    QObject::connect(applySimilar, &QPushButton::clicked, &owner, [this] {
+      const auto targets = similarTargets();
+      if (targets.empty()) return;
+      const auto route = options.layers[size_t(selected())].route;
+      for (const auto i : targets) {
+        choices[i] = int(route);
+        options.layers[i].route = route;
+      }
       changed();
     });
     QObject::connect(fontRequest, &QComboBox::currentIndexChanged, &owner,
@@ -366,10 +387,37 @@ struct PsdImportDialog::State {
     }
     return false;
   }
+  std::vector<size_t> similarTargets(bool changesOnly = true) const {
+    const auto selectedIndex = selected();
+    if (selectedIndex < 0 || options.composite || excluded(size_t(selectedIndex))) return {};
+    const auto source = size_t(selectedIndex);
+    const auto &a = inspection.layers[source];
+    if (a.issues.empty()) return {};
+    const auto route = options.layers[source].route;
+    std::vector<size_t> matches;
+    for (size_t i = 0; i < inspection.layers.size(); ++i) {
+      const auto &b = inspection.layers[i];
+      // Match actual diagnostics and capabilities, not the short translated
+      // reason. Never change excluded rows or copy a font replacement implicitly.
+      if (i != source && !excluded(i) && available(i, route)
+          && (!changesOnly || options.layers[i].route != route) && a.kind == b.kind && a.reason == b.reason
+          && a.issues == b.issues && a.fonts == b.fonts
+          && a.editable == b.editable && a.raster == b.raster && a.basePixels == b.basePixels
+          && (a.clippingBase >= 0) == (b.clippingBase >= 0)
+          && (route == PsdRoute::Skip || route == PsdRoute::BasePixels || !missingClippingBase(i))) matches.push_back(i);
+    }
+    return matches;
+  }
+  i18n::Message reasonFor(size_t i) const {
+    if (excluded(i)) return i18n::text("psd.import.dialog.reason.excluded");
+    if (missingClippingBase(i)) return i18n::psdImportReason(PsdImportReason::Clipping);
+    return i18n::psdImportReason(inspection.layers[i].reason);
+  }
   void selectionChanged() {
     QScopedValueRollback guard(refreshing, true);
     action->clear();
     action->hide();
+    applySimilar->hide();
     description->clear();
     description->hide();
     fonts();
@@ -380,8 +428,6 @@ struct PsdImportDialog::State {
     const auto &info = inspection.layers[i];
     if (info.container && info.editable)
       return;
-    if (info.suggested == PsdRoute::Skip && info.visible)
-      i18n::addItem(action, i18n::text("psd.import.dialog.choose.action"), -1);
     if (available(i, PsdRoute::Editable))
       i18n::addItem(action, i18n::text("psd.import.dialog.import.editable"), int(PsdRoute::Editable));
     if (available(i, PsdRoute::Raster))
@@ -392,11 +438,13 @@ struct PsdImportDialog::State {
     action->setCurrentIndex(action->findData(choices[i]));
     action->setEnabled(!excluded(i));
     action->show();
+    const auto matches = similarTargets(false);
+    i18n::setText(applySimilar, i18n::text("psd.import.dialog.apply.similar").arg(matches.size()));
+    applySimilar->setEnabled(!similarTargets().empty());
+    applySimilar->show();
     i18n::Message text;
     if (excluded(i))
       text = i18n::text("psd.import.dialog.this.layer.is.excluded.with.its.group");
-    else if (choices[i] < 0)
-      text = i18n::text("psd.import.dialog.choose.how.to.bring.this.content.into.vulkana");
     else switch (PsdRoute(choices[i])) {
     case PsdRoute::Editable:
       text = i18n::text("psd.import.dialog.keep.this.layer.editable.in.vulkana");
@@ -404,7 +452,9 @@ struct PsdImportDialog::State {
         text += i18n::text("psd.import.dialog.its.appearance.may.differ.from.the.original");
       break;
     case PsdRoute::Raster:
-      text = i18n::text("psd.import.dialog.import.the.saved.layer.image.as.pixels.instead.of");
+      text = i18n::text(info.kind == PsdContentKind::SmartObject
+          ? "psd.import.dialog.smart.object.raster.hint"
+          : "psd.import.dialog.import.the.saved.layer.image.as.pixels.instead.of");
       break;
     case PsdRoute::BasePixels:
       text = i18n::text("psd.import.dialog.import.only.the.original.pixels.without.unsupported.effects.or");
@@ -443,10 +493,13 @@ struct PsdImportDialog::State {
       row->setData(0, Qt::UserRole, int(i));
       row->setData(0, Qt::UserRole + 1, choices[i]);
       row->setData(0, Qt::UserRole + 2,
-          !info.issues.empty() || choices[i] < 0 || missingClippingBase(i));
+          !info.issues.empty() || missingClippingBase(i));
       row->setText(0, info.name + " · " + i18n::psdContentName(info.kind));
+      row->setToolTip(0, info.name);
       row->setText(1, excluded(i) ? i18n::text("psd.import.dialog.ancestor.excluded") : missingClippingBase(i)
           ? i18n::text("psd.import.dialog.clipping.base.omitted") : statusFor(i));
+      row->setText(2, reasonFor(i));
+      row->setToolTip(2, info.issues.join('\n'));
       if (info.container)
         for (int column = 0; column < tree->columnCount(); ++column)
           row->setForeground(column, themeColor(ThemeColor::SecondaryText));
@@ -484,8 +537,8 @@ struct PsdImportDialog::State {
     preview->message(previewEnabled->isChecked()
         ? i18n::text("psd.import.dialog.choose.settings.then.validate.to.preview.the.import") : i18n::text("psd.import.dialog.preview.disabled"));
     details->setPlainText(inspection.report);
-    i18n::setText(status, reviewed() ? i18n::text("psd.import.dialog.ready.to.validate.your.import.settings")
-                              : i18n::text("psd.import.dialog.choose.an.action.for.each.unsupported.layer.or.group"));
+    i18n::setText(status, (reviewed() ? i18n::text("psd.import.dialog.ready.to.validate.your.import.settings")
+                              : i18n::text("psd.import.dialog.choose.an.action.for.each.unsupported.layer.or.group")) + fallbackSummary());
     updateValidationButton();
   }
   void updateValidationButton() {
@@ -530,12 +583,22 @@ struct PsdImportDialog::State {
     updateValidationButton();
     timer.start(60);
   }
+  i18n::Message fallbackSummary() const {
+    if (options.composite) return {};
+    int omitted = 0, base = 0;
+    for (size_t i = 0; i < options.layers.size(); ++i) {
+      if (excluded(i) || options.layers[i].route == PsdRoute::Skip) ++omitted;
+      else if (options.layers[i].route == PsdRoute::BasePixels) ++base;
+    }
+    if (!omitted && !base) return {};
+    return "\n" + i18n::text("psd.import.dialog.fallback.summary").arg(omitted).arg(base);
+  }
   i18n::Message preparedStatus() const {
     return i18n::text("psd.import.dialog.1.layers.ready.2.mib.layer.mask.pixels.3")
         .arg(result.document->layers().size())
         .arg(double(result.rasterBytes) / 1048576, 0, 'f', 1)
         .arg(double(result.estimatedWorkingBytes) / 1048576, 0, 'f', 0)
-        + (options.composite ? i18n::text("psd.import.dialog.one.saved.image.layer.choices.are.ignored") : "");
+        + (options.composite ? i18n::text("psd.import.dialog.one.saved.image.layer.choices.are.ignored") : fallbackSummary());
   }
   void prepared() {
     if (previewEnabled->isChecked() && !result.preview.isNull())
@@ -637,7 +700,7 @@ struct PsdImportDialog::State {
     if (options.composite)
       return true;
     for (size_t i = 0; i < choices.size(); ++i)
-      if (!excluded(i) && (choices[i] < 0 || missingClippingBase(i)))
+      if (!excluded(i) && missingClippingBase(i))
         return false;
     return true;
   }
@@ -648,8 +711,6 @@ struct PsdImportDialog::State {
   }
   i18n::Message statusFor(size_t i) const {
     const auto &info = inspection.layers[i];
-    if (choices[i] < 0)
-      return i18n::text("psd.import.dialog.choose.action.2");
     if (options.layers[i].route == PsdRoute::Skip)
       return i18n::text("psd.import.dialog.don.t.import");
     if (options.layers[i].route == PsdRoute::BasePixels)
@@ -669,8 +730,7 @@ struct PsdImportDialog::State {
     for (size_t i = 0; i < inspection.layers.size(); ++i) {
       const auto &info = inspection.layers[i];
       sourceIndexes[info.sourceIndex] = i;
-      choices[i] = info.suggested == PsdRoute::Skip && info.visible
-          ? -1 : int(info.suggested);
+      choices[i] = int(info.suggested);
     }
     if (inspection.savedComposite)
       i18n::addItem(mode, i18n::text("psd.import.dialog.saved.composite.as.one.image"), true);

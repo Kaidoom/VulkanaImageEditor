@@ -289,10 +289,13 @@ void readTags(Reader &r, Record &rec) {
         throw Error("Duplicate layer block");
       rec.tags[key] = data.toByteArray();
     }
+    // Saved channel pixels are the placed object's rendered appearance. Keep
+    // its identity for raster fallback without retaining embedded source files.
+    if (key == "SoLd" || key == "SoLE" || key == "PlLd") rec.smartObject = true;
     static const QList<QByteArray> unsupported{
         "levl", "curv", "brit", "blnc", "hue2", "hue ", "selc", "mixr",
         "grdm", "phfl", "vibA", "blwh", "thrs", "post",
-        "CgEd", "GdFl", "PtFl", "SoLd", "SoLE", "PlLd"};
+        "CgEd", "GdFl", "PtFl"};
     if (unsupported.contains(key))
       rec.issues << QStringLiteral("Unsupported layer feature: %1")
                         .arg(QString::fromLatin1(key));

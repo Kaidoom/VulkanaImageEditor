@@ -9,11 +9,18 @@ The destination canvas/PPI is unchanged. Source-image imports are not deduplicat
 
 ## Review and fallback choices
 
-The list shows detected types and conversion status. Select a layer to choose
+The list shows detected types, conversion status and a brief reason for review. Select a layer to choose
 its conversion beneath the list, with a short description of that option.
 Attention needed only and Hide groups start enabled. Hidden group rows do not
 hide their layers or change membership; shown groups use subdued text.
-Editable conversion is the default where supported. Missing fonts show the
+The recommended conversion is preselected: editable content first, then saved
+raster, base-pixel recovery, or omission when no supported representation exists.
+Review the reason and preview before confirming, especially for base-pixel recovery
+and omitted groups. **Apply to similar** applies the selected action to other
+included layers with matching issues and compatible options. Its count shows
+matching other layers; the button is disabled if they already use that conversion.
+Font replacements are not copied.
+Missing fonts show the
 original request and an installed replacement; changing that replacement only
 affects runs requesting that face. “Import all text as raster” sets a starting
 policy; individual choices can override it.
@@ -38,8 +45,8 @@ bounded scanline buffers without reducing imported pixel quality.
   Supported mask, layer opacity, blending and modern styles remain separate.
 - **Base pixels only:** explicit recovery without unsupported composition,
   masks or effects. This is not a claim to preserve the original appearance.
-- **Don't import:** excludes the item and, for containers, its subtree. Visible
-  unsupported items require a deliberate action before Validate Import is enabled.
+- **Don't import:** excludes the item and, for containers, its subtree. Omitted
+  content remains listed for review before confirming the import.
 - **Saved composite as one image:** when validated full-resolution compatibility
   pixels exist, an alternative to layered conversion. It cannot honor layer
   exclusions or recover editing structure. No hidden duplicate is added.
@@ -65,6 +72,7 @@ and transformation metadata is not applied again.
 | Feature | Native conversion |
 | --- | --- |
 | Raster content/brush artwork | Straight RGBA8 pixels at the stored extent and offset |
+| Smart Objects | Saved rendered layer pixels at their stored position; supported outer masks, blending, opacity and styles are retained. Embedded source editing, links and the original object transform are not editable |
 | Point text | Unicode, paragraph returns and Shift+Enter line breaks, per-run face/size/RGB/alpha, faux bold/italic, left/center/right paragraphs, affine text matrix and baseline |
 | Solid vector shapes | One closed polygon/rectangle or recognized four-cubic ellipse; filled or hollow; centered solid stroke; miter/round/bevel joins and butt/round/square caps |
 | Layer styles | Modern solid Stroke, Color Overlay, and Smooth Inner/Outer/Emboss; independent settings. Stroke widths retain their stored document-pixel size regardless of print resolution or global style-scale metadata. Bevel surface/gloss contours remain distinct; shared light resolves per effect. See [Bevel & Emboss](BEVEL_EMBOSS.md) for review limits |

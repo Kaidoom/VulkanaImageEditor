@@ -65,7 +65,7 @@ bool open(u::MainWindow &window, const QString &path, bool current = false,
     if (!validating && button->isEnabled()) {
       CHECK(button->text() == "Validate Import");
       auto *tree = card->findChild<QTreeWidget *>("PsdLayers");
-      CHECK(tree->columnCount() == 2 && tree->findChildren<QComboBox *>().empty());
+      CHECK(tree->columnCount() == 3 && tree->findChildren<QComboBox *>().empty());
       auto *hideGroups = card->findChild<QCheckBox *>("PsdHideGroups");
       auto *attention = card->findChild<QCheckBox *>("PsdAttention");
       CHECK(attention->isChecked());

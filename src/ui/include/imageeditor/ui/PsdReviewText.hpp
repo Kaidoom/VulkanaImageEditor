@@ -12,6 +12,25 @@ inline Message psdContentName(PsdContentKind kind, bool exporting = false) {
     case PsdContentKind::Adjustment: return text("psd.review.type.adjustment");
     case PsdContentKind::Group: return text(exporting ? "psd.review.type.folder" : "psd.review.type.group");
     case PsdContentKind::ClippingGroup: return text("psd.review.type.clipping");
+    case PsdContentKind::SmartObject: return text("psd.review.type.smart.object");
+    }
+    return {};
+}
+inline Message psdImportReason(PsdImportReason reason) {
+    switch (reason) {
+    case PsdImportReason::None: return {};
+    case PsdImportReason::SmartObject: return text("psd.review.reason.smart.object");
+    case PsdImportReason::MissingFont: return text("psd.review.reason.font");
+    case PsdImportReason::TextLayout: return text("psd.review.reason.text");
+    case PsdImportReason::ShapeGeometry: return text("psd.review.reason.shape");
+    case PsdImportReason::Effects: return text("psd.review.reason.effects");
+    case PsdImportReason::Mask: return text("psd.review.reason.mask");
+    case PsdImportReason::Blending: return text("psd.review.reason.blending");
+    case PsdImportReason::Group: return text("psd.review.reason.group");
+    case PsdImportReason::Clipping: return text("psd.review.reason.clipping");
+    case PsdImportReason::Adjustment: return text("psd.review.reason.adjustment");
+    case PsdImportReason::Unsupported: return text("psd.review.reason.unsupported");
+    case PsdImportReason::Appearance: return text("psd.review.reason.appearance");
     }
     return {};
 }

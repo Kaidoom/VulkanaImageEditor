@@ -24,6 +24,7 @@ struct PsdLayerInfo {
   int clippingBase{-1};
   QString name, type, status, details;
   PsdContentKind kind{PsdContentKind::Raster};
+  PsdImportReason reason{PsdImportReason::None};
   QStringList issues, fonts;
   QMap<QString, QString> proposedFonts;
   PsdRasterScope savedRaster;

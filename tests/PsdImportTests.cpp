@@ -582,9 +582,10 @@ void semanticFixtures() {
   auto *tree = dialog.findChild<QTreeWidget *>("PsdLayers");
   while (!tree->topLevelItemCount() && timer.elapsed() < 10000)
     QTest::qWait(20);
-  CHECK(!submit->isEnabled());
+  CHECK(submit->isEnabled());
   auto *undecided = dialog.findChild<QComboBox *>("PsdImportAction");
-  CHECK(undecided && undecided->currentData().toInt() == -1);
+  CHECK(undecided && undecided->currentData().toInt() == int(u::PsdRoute::Skip));
+  CHECK(undecided && undecided->findData(-1) < 0);
   if (undecided)
     undecided->setCurrentIndex(undecided->findData(int(u::PsdRoute::Skip)));
   timer.restart();
@@ -595,7 +596,7 @@ void semanticFixtures() {
   QTest::qWait(200);
   CHECK(!dialog.takeResult().document); // Choices alone never construct a document.
   CHECK(tree && tree->topLevelItemCount() == 2);
-  CHECK(tree->columnCount() == 2 && tree->findChildren<QComboBox *>().empty());
+  CHECK(tree->columnCount() == 3 && tree->findChildren<QComboBox *>().empty());
   CHECK(dialog.findChild<QCheckBox *>("PsdAttention")->isChecked());
   CHECK(dialog.findChild<QCheckBox *>("PsdHideGroups")->isChecked());
   dialog.findChild<QCheckBox *>("PsdAttention")->setChecked(true);
@@ -1620,6 +1621,97 @@ void compositingRoundTrip(const QString& fixture={}) {
   const auto psdOutput=u::convertPsd(psdInput,u::defaultPsdOptions(psdInput),job,{},false);
   CHECK(psdOutput.document);if(psdOutput.document)CHECK(u::flattenDocument(*psdOutput.document).image==flat.image);
 }
+void smartObjectReview() {
+  namespace f = psdfixture;
+  QTemporaryDir dir;
+  const auto path = dir.filePath("smart-objects.psd");
+  auto job = std::make_shared<u::PsdJob>();
+  const auto inspect = [&](const std::vector<f::Layer>& layers) {
+    QFile file(path); CHECK(file.open(QIODevice::WriteOnly));
+    file.write(f::file(layers)); file.close();
+    auto in = u::inspectPsd(path, job); CHECK(in.error.isEmpty()); return in;
+  };
+  f::Layer smart; smart.name = "Smart A"; smart.rect = {8, 5, 3, 2};
+  smart.tags["SoLd"] = QByteArray("placed-source");
+  smart.tags["PlLd"] = QByteArray("legacy-source");
+  smart.opacity = 137;
+  smart.maskRect = {8, 5, 3, 2}; smart.mask = QByteArray::fromHex("00ff8040c0ff");
+  auto in = inspect({smart});
+  CHECK(in.layers.size() == 1);
+  const auto& info = in.layers[0];
+  CHECK(info.kind == u::PsdContentKind::SmartObject && info.reason == u::PsdImportReason::SmartObject);
+  CHECK(!info.editable && info.raster && info.suggested == u::PsdRoute::Raster);
+  CHECK(info.issues.size() == 1); // Two metadata versions describe one limitation.
+  auto imported = u::convertPsd(in, u::defaultPsdOptions(in), job, {}, false);
+  CHECK(imported.document && imported.document->layers().size() == 1);
+  if (imported.document) {
+    const auto& layer = imported.document->layers()[0];
+    CHECK(std::holds_alternative<c::RasterLayer>(layer.payload));
+    CHECK(layer.name == "Smart A" && layer.opacity == float(137) / 255 && layer.mask);
+    auto plain = smart; plain.tags.clear();
+    const auto ordinary = inspect({plain});
+    auto comparison = u::convertPsd(ordinary, u::defaultPsdOptions(ordinary), job, {}, false);
+    CHECK(comparison.document);
+    if (comparison.document)
+      CHECK(u::flattenDocument(*imported.document).image == u::flattenDocument(*comparison.document).image);
+  }
+  auto missing = smart; missing.pixels = false;
+  in = inspect({missing});
+  CHECK(!in.layers[0].raster && in.layers[0].suggested == u::PsdRoute::Skip);
+  auto limited = smart; limited.name = "Unsupported blend"; limited.blend = "xxxx";
+  in = inspect({limited});
+  CHECK(!in.layers[0].raster && in.layers[0].suggested == u::PsdRoute::BasePixels);
+  CHECK(in.layers[0].reason == u::PsdImportReason::Blending);
+  auto second = smart; second.name = "Smart B";
+  auto hidden = smart; hidden.name = "Hidden smart"; hidden.hidden = true;
+  auto text = smart; text.name = "Text"; text.mask.clear(); text.tags.clear();
+  text.tags["TySh"] = f::textTag("Text\r", "Missing-test-font");
+  f::Layer plain; plain.name = "Ordinary";
+  f::Layer folder; folder.name = "Unsupported group"; folder.pixels = false;
+  folder.tags["lsct"] = f::group(1, "norm");
+  auto end = folder; end.tags["lsct"] = f::group(3);
+  auto child = smart; child.name = "Excluded child";
+  in = inspect({plain, smart, second, hidden, limited, text, end, child, folder});
+  u::PsdImportDialog dialog(path, false, false, {});
+  dialog.show();
+  auto* tree = dialog.findChild<QTreeWidget*>("PsdLayers");
+  auto* submit = dialog.findChild<QPushButton*>("PsdImport");
+  auto* action = dialog.findChild<QComboBox*>("PsdImportAction");
+  auto* similar = dialog.findChild<QPushButton*>("PsdApplySimilar");
+  QElapsedTimer timer; timer.start();
+  while (!submit->isEnabled() && timer.elapsed() < 10000) QTest::qWait(20);
+  CHECK(submit->isEnabled() && tree->columnCount() == 3);
+  const auto row = [&](const QString& name) -> QTreeWidgetItem* {
+    for (QTreeWidgetItemIterator item(tree); *item; ++item)
+      if ((*item)->text(0).startsWith(name + " · ")) return *item;
+    return nullptr;
+  };
+  const auto choose = [&](const QString& name) {
+    auto* item = row(name); CHECK(item); if (item) tree->setCurrentItem(item);
+  };
+  choose("Smart A");
+  CHECK(action->currentData().toInt() == int(u::PsdRoute::Raster) && action->findData(-1) < 0);
+  CHECK(tree->currentItem()->text(2) == "Smart object");
+  CHECK(!similar->isEnabled() && similar->text() == "Apply to similar (2)");
+  action->setCurrentIndex(action->findData(int(u::PsdRoute::Skip)));
+  CHECK(similar->isEnabled() && similar->text() == "Apply to similar (2)");
+  similar->click();
+  CHECK(!similar->isEnabled());
+  CHECK(dialog.findChild<QLabel*>("PsdImportStatus")->text().contains("Omitted items: 5"));
+  for (const auto* name : {"Smart A", "Smart B", "Hidden smart"})
+    CHECK(row(name) && row(name)->data(0, Qt::UserRole + 1).toInt() == int(u::PsdRoute::Skip));
+  CHECK(row("Unsupported blend") && row("Unsupported blend")->data(0, Qt::UserRole + 1).toInt() == int(u::PsdRoute::BasePixels));
+  CHECK(row("Ordinary") && row("Ordinary")->data(0, Qt::UserRole + 1).toInt() == int(u::PsdRoute::Editable));
+  CHECK(row("Text") && row("Text")->data(0, Qt::UserRole + 1).toInt() == int(u::PsdRoute::Editable));
+  CHECK(row("Excluded child") && row("Excluded child")->text(2) == "Group omitted");
+  choose("Smart A"); action->setCurrentIndex(action->findData(int(u::PsdRoute::Raster)));
+  CHECK(similar->text() == "Apply to similar (2)"); similar->click();
+  for (const auto* name : {"Smart A", "Smart B", "Hidden smart"})
+    CHECK(row(name) && row(name)->data(0, Qt::UserRole + 1).toInt() == int(u::PsdRoute::Raster));
+  CHECK(submit->isEnabled() && !dialog.takeResult().document); // Batch edits do not import or render.
+  dialog.reject();
+}
+
 int main(int argc, char **argv) {
   QApplication app(argc, argv);
   if (argc >= 2 && QString::fromLocal8Bit(argv[1]) == "--gradient-stops") {
@@ -1761,6 +1853,7 @@ int main(int argc, char **argv) {
   softTextBreaks();
   replacementFontSearch();
   emptyPixelLayers();
+  smartObjectReview();
   maskCoordinates();
   compactBounds();
   if (argc >= 4 && QString::fromLocal8Bit(argv[1]) == "--sample")

@@ -11540,4 +11540,83 @@ Préparation %3 · Finition %4 · Total %5</translation>
       <translation type="unfinished" />
     </message>
   </context>
+  <context>
+    <name>PsdImportReview</name>
+    <message id="psd.review.type.smart.object">
+      <source>Smart Object</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="psd.review.reason.smart.object">
+      <source>Smart object</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="psd.review.reason.font">
+      <source>Missing font</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="psd.review.reason.text">
+      <source>Text layout</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="psd.review.reason.shape">
+      <source>Shape geometry</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="psd.review.reason.effects">
+      <source>Layer effects</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="psd.review.reason.mask">
+      <source>Layer mask</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="psd.review.reason.blending">
+      <source>Blending</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="psd.review.reason.group">
+      <source>Group blending</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="psd.review.reason.clipping">
+      <source>Clipping</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="psd.review.reason.adjustment">
+      <source>Adjustment</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="psd.review.reason.unsupported">
+      <source>Unsupported feature</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="psd.review.reason.appearance">
+      <source>Appearance</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="psd.import.dialog.fallback.summary">
+      <source>Omitted items: %1 · Base pixels only: %2</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="psd.import.dialog.reason">
+      <source>Reason</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="psd.import.dialog.reason.excluded">
+      <source>Group omitted</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="psd.import.dialog.apply.similar">
+      <source>Apply to similar (%1)</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="psd.import.dialog.apply.similar.hint">
+      <source>Apply this conversion to matching layers. Font choices stay unchanged.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="psd.import.dialog.smart.object.raster.hint">
+      <source>Import the saved Smart Object appearance as editable pixels. Embedded source editing is not retained.</source>
+      <translation type="unfinished" />
+    </message>
+  </context>
 </TS>

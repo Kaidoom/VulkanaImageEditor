@@ -7656,4 +7656,64 @@ Prepare %3 · Finish %4 · Total %5</source>
       <source>Available when progress previews are enabled.</source>
     </message>
   </context>
+  <context>
+    <name>PsdImportReview</name>
+    <message id="psd.review.type.smart.object">
+      <source>Smart Object</source>
+    </message>
+    <message id="psd.review.reason.smart.object">
+      <source>Smart object</source>
+    </message>
+    <message id="psd.review.reason.font">
+      <source>Missing font</source>
+    </message>
+    <message id="psd.review.reason.text">
+      <source>Text layout</source>
+    </message>
+    <message id="psd.review.reason.shape">
+      <source>Shape geometry</source>
+    </message>
+    <message id="psd.review.reason.effects">
+      <source>Layer effects</source>
+    </message>
+    <message id="psd.review.reason.mask">
+      <source>Layer mask</source>
+    </message>
+    <message id="psd.review.reason.blending">
+      <source>Blending</source>
+    </message>
+    <message id="psd.review.reason.group">
+      <source>Group blending</source>
+    </message>
+    <message id="psd.review.reason.clipping">
+      <source>Clipping</source>
+    </message>
+    <message id="psd.review.reason.adjustment">
+      <source>Adjustment</source>
+    </message>
+    <message id="psd.review.reason.unsupported">
+      <source>Unsupported feature</source>
+    </message>
+    <message id="psd.review.reason.appearance">
+      <source>Appearance</source>
+    </message>
+    <message id="psd.import.dialog.fallback.summary">
+      <source>Omitted items: %1 · Base pixels only: %2</source>
+    </message>
+    <message id="psd.import.dialog.reason">
+      <source>Reason</source>
+    </message>
+    <message id="psd.import.dialog.reason.excluded">
+      <source>Group omitted</source>
+    </message>
+    <message id="psd.import.dialog.apply.similar">
+      <source>Apply to similar (%1)</source>
+    </message>
+    <message id="psd.import.dialog.apply.similar.hint">
+      <source>Apply this conversion to matching layers. Font choices stay unchanged.</source>
+    </message>
+    <message id="psd.import.dialog.smart.object.raster.hint">
+      <source>Import the saved Smart Object appearance as editable pixels. Embedded source editing is not retained.</source>
+    </message>
+  </context>
 </TS>
