@@ -161,15 +161,18 @@ namespace {
                 dialog_.setError(error);
                 return;
             }
-            // Refuse project destinations before extension reconciliation too.
-            if (const auto destinationError = validateExportDestination(s.destination, projectPath_);
+            // Validate the resolved filename while protecting explicit project paths.
+            if (const auto destinationError = validateExportDestination(s, projectPath_);
                 !destinationError.isEmpty()) {
                 dialog_.setError(destinationError);
                 return;
             }
             const auto proposed = exportPathForFormat(s.destination, s.format);
             if (proposed != s.destination) {
-                if (QMessageBox::question(popupTopLevelOwner(&dialog_), i18n::text("main.window.export.match.image.extension"),
+                // A missing suffix simply uses the selected format. Replacing
+                // an explicitly different suffix still needs reconciliation.
+                if (!QFileInfo(s.destination).suffix().isEmpty()
+                    && QMessageBox::question(popupTopLevelOwner(&dialog_), i18n::text("main.window.export.match.image.extension"),
                         i18n::text("main.window.export.the.selected.encoding.is.1.use.the.matching.filename")
                             .arg(QString::fromLatin1(exportFormatName(s.format)).toUpper(),
                                 QFileInfo(proposed).fileName()),

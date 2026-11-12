@@ -26,6 +26,21 @@ namespace {
     constexpr quint64 maximumPixels = 32ULL * 1024 * 1024;
     constexpr quint64 maximumWork = 128ULL * 1024 * 1024;
     constexpr qsizetype maximumEncodedBytes = 256 * 1024 * 1024;
+    QString validateProjectExportPath(const QString& path, const QString& projectPath)
+    {
+        const QFileInfo file(path);
+        if (file.suffix().compare("vulkana", Qt::CaseInsensitive) == 0)
+            return QStringLiteral("Export cannot overwrite a .vulkana project. Choose "
+                                  "an image filename.");
+        if (!projectPath.isEmpty()) {
+            const QFileInfo project(projectPath);
+            if (file.absoluteFilePath() == project.absoluteFilePath()
+                || (!file.canonicalFilePath().isEmpty()
+                    && file.canonicalFilePath() == project.canonicalFilePath()))
+                return QStringLiteral("Export cannot overwrite the active project.");
+        }
+        return {};
+    }
     void require(bool condition, const char* reason)
     {
         if (!condition)
@@ -138,15 +153,19 @@ QColor exportMatteColor(const ExportSettings& settings)
 }
 QString exportPathForFormat(const QString& path, ExportFormat format)
 {
-    if (path.isEmpty())
+    if (path.trimmed().isEmpty())
         return { };
-    const auto suffix = QFileInfo(path).suffix().toLower();
+    const QFileInfo file(path);
+    if (file.fileName().isEmpty() || file.fileName() == "." || file.fileName() == "..")
+        return path; // A folder-only path cannot supply an export filename.
+    const auto suffix = file.suffix().toLower();
     if ((format == ExportFormat::Png && suffix == "png") || (format == ExportFormat::WebP && suffix == "webp")
         || (format == ExportFormat::Jpeg && (suffix == "jpg" || suffix == "jpeg")))
         return path;
     const auto extension = format == ExportFormat::Jpeg ? QStringLiteral("jpg")
                                                         : QString::fromLatin1(exportFormatName(format));
-    return (suffix.isEmpty() ? path : path.left(path.size() - suffix.size() - 1)) + '.' + extension;
+    const auto base = suffix.isEmpty() ? path : path.left(path.size() - suffix.size() - 1);
+    return base + (base.endsWith('.') ? QString{} : QStringLiteral(".")) + extension;
 }
 QString validateExport(const ExportSettings& s, QSize canvas)
 {
@@ -193,21 +212,21 @@ QString validateExportDestination(const QString& path, const QString& projectPat
     if (path.trimmed().isEmpty())
         return QStringLiteral("Choose an export destination.");
     const QFileInfo file(path);
-    if (file.suffix().compare("vulkana", Qt::CaseInsensitive) == 0)
-        return QStringLiteral("Export cannot overwrite a .vulkana project. Choose "
-                              "an image filename.");
-    if (!projectPath.isEmpty()) {
-        const QFileInfo project(projectPath);
-        if (file.absoluteFilePath() == project.absoluteFilePath()
-            || (!file.canonicalFilePath().isEmpty()
-                && file.canonicalFilePath() == project.canonicalFilePath()))
-            return QStringLiteral("Export cannot overwrite the active project.");
-    }
-    if (file.isDir())
+    if (const auto error = validateProjectExportPath(path, projectPath); !error.isEmpty())
+        return error;
+    if (file.isDir() || file.fileName().isEmpty() || file.fileName() == "." || file.fileName() == "..")
         return QStringLiteral("The export destination is a directory, not a file.");
     if (!QDir(file.absolutePath()).exists())
         return QStringLiteral("The export folder does not exist.");
     return { };
+}
+QString validateExportDestination(const ExportSettings& settings, const QString& projectPath)
+{
+    // Protect both the user's explicit project path and the resolved output.
+    // Other filesystem checks concern the filename that will actually be written.
+    if (const auto error = validateProjectExportPath(settings.destination, projectPath); !error.isEmpty())
+        return error;
+    return validateExportDestination(exportPathForFormat(settings.destination, settings.format), projectPath);
 }
 FlattenedDocumentResult renderExport(
     const core::Document& document, const ExportSettings& settings, FlattenedDocumentProgress progress)

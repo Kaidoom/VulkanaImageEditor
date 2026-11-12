@@ -248,8 +248,16 @@ void dialogControls()
     dialog.setPreview(preview(nativeSize), 400);
     CHECK(write->isEnabled());
 
-    // Preview availability never overrides destination validation.
-    for (const auto& invalid : { QString(), files.path(), files.filePath("project.vulkana"),
+    // Resolve the filename before checking the filesystem, including in previews.
+    const auto sharedName = files.filePath("NewDoc");
+    CHECK(QDir().mkpath(sharedName));
+    dialog.setDestination(sharedName);
+    dialog.setPreview(preview(nativeSize), 400);
+    CHECK(write->isEnabled());
+    CHECK(dialog.findChild<QLabel*>("ExportResolvedPath")->text().contains(
+        u::exportPathForFormat(sharedName, dialog.settings().format)));
+    // A folder-only path still cannot supply a filename.
+    for (const auto& invalid : { QString(), files.path() + '/', files.filePath("project.vulkana"),
              files.filePath("missing/output.webp") }) {
         dialog.setDestination(invalid);
         CHECK(!write->isEnabled());

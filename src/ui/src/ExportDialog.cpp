@@ -892,7 +892,7 @@ void ExportDialog::setPreview(const QImage& decoded, qint64 actualBytes)
         setError(error);
         return;
     }
-    if (const auto error = validateExportDestination(impl_->draft.destination); !error.isEmpty()) {
+    if (const auto error = validateExportDestination(impl_->draft); !error.isEmpty()) {
         setError(error);
         return;
     }
@@ -925,7 +925,7 @@ void ExportDialog::setPsdPlan(const PsdExportPlan& plan,const QImage& image)
     impl_->psd->setPlan(plan);
     impl_->preview->setImage(psdPreviewEnabled() ? image : QImage{});
     if(!plan){setError(plan.error);i18n::setText(impl_->status, i18n::psdExportProblem(plan));return;}
-    const auto error=validateExportDestination(impl_->draft.destination);
+    const auto error=validateExportDestination(impl_->draft);
     if(!error.isEmpty()){setError(error);return;}
     impl_->setBusy(false,!psdPreviewEnabled() || !image.isNull());
     impl_->status->setForegroundRole(QPalette::Text);
@@ -939,7 +939,7 @@ void ExportDialog::setPdfThumbnail(core::LayerId id,const QImage& image){impl_->
 void ExportDialog::setPdfPreview(const PdfExportPlan& plan,int page,const QImage& image)
 {
     if(!plan||page<0||std::size_t(page)>=plan.pages.size()||image.isNull())return;
-    const auto error=validateExportDestination(impl_->draft.destination);
+    const auto error=validateExportDestination(impl_->draft);
     if(!error.isEmpty()){setError(error);return;}
     const auto& p=plan.pages[std::size_t(page)];
     impl_->setBusy(false,pdfInputError().isEmpty());impl_->preview->setImage(image);

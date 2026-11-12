@@ -565,6 +565,36 @@ void pathsAtomicWritesAndCancellation()
         == 0);
     CHECK(
         QFileInfo(u::exportPathForFormat("image", u::ExportFormat::WebP)).suffix() == QStringLiteral("webp"));
+    CHECK(u::exportPathForFormat("NewDoc", u::ExportFormat::Psd) == "NewDoc.psd");
+    CHECK(u::exportPathForFormat("NewDoc", u::ExportFormat::Pdf) == "NewDoc.pdf");
+    CHECK(u::exportPathForFormat("NewDoc.", u::ExportFormat::Psd) == "NewDoc.psd");
+    const auto folderName = dir.filePath("NewDoc");
+    CHECK(QDir().mkpath(folderName));
+    CHECK(!u::validateExportDestination(folderName).isEmpty());
+    u::ExportSettings inferred;
+    inferred.destination = folderName;
+    for (auto format : {u::ExportFormat::Png, u::ExportFormat::Jpeg, u::ExportFormat::WebP,
+                       u::ExportFormat::Pdf, u::ExportFormat::Psd}) {
+        inferred.format = format;
+        CHECK(u::validateExportDestination(inferred, project).isEmpty());
+    }
+    inferred.destination = folderName + '/';
+    CHECK(!u::validateExportDestination(inferred, project).isEmpty());
+    inferred.destination = " ";
+    CHECK(!u::validateExportDestination(inferred, project).isEmpty());
+    inferred.destination = project;
+    CHECK(!u::validateExportDestination(inferred, project).isEmpty());
+    const auto bareAlias = folderName + "/project-alias";
+    CHECK(QFile::link(project, bareAlias));
+    inferred.destination = bareAlias;
+    CHECK(!u::validateExportDestination(inferred, project).isEmpty());
+    const auto resolvedAlias = folderName + "/resolved-alias.psd";
+    CHECK(QFile::link(project, resolvedAlias));
+    inferred.destination = folderName + "/resolved-alias";
+    CHECK(!u::validateExportDestination(inferred, project).isEmpty());
+    inferred.destination = dir.filePath("directory.psd");
+    CHECK(QDir().mkpath(inferred.destination));
+    CHECK(!u::validateExportDestination(inferred, project).isEmpty());
     CHECK(u::validateExportDestination(png, project).isEmpty());
     CHECK(!u::validateExportDestination(dir.path(), project).isEmpty());
     CHECK(!u::validateExportDestination(QStringLiteral(""), project).isEmpty());

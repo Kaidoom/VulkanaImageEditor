@@ -45,10 +45,12 @@ struct ExportWriteResult {
 };
 [[nodiscard]] QByteArray exportFormatName(ExportFormat);
 [[nodiscard]] QColor exportMatteColor(const ExportSettings&);
-// Returns an explicit destination proposal; the UI must show/confirm changes.
+// Missing extensions are inferred; replacing an explicit suffix is a UI proposal.
 [[nodiscard]] QString exportPathForFormat(const QString&, ExportFormat);
 [[nodiscard]] QString validateExport(const ExportSettings&, QSize canvasSize);
 [[nodiscard]] QString validateExportDestination(const QString&, const QString& projectPath = { });
+// Preview and export share resolution of the selected format's filename.
+[[nodiscard]] QString validateExportDestination(const ExportSettings&, const QString& projectPath = { });
 // Owner thread only, under editor mutation exclusion. The result is detached
 // from mutable document pixels and safe to pass to a codec worker.
 [[nodiscard]] FlattenedDocumentResult renderExport(

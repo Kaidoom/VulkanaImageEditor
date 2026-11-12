@@ -70,6 +70,10 @@ void run(QVulkanInstance *vulkan, const QString &output) {
     }
     CHECK(rendered);
   }
+  // A directory sharing the typed base name must not block a sibling .psd file.
+  CHECK(QDir().mkpath(output + "/dialog"));
+  const auto sentinelPath = output + "/dialog/keep.txt";
+  { QFile sentinel(sentinelPath); CHECK(sentinel.open(QIODevice::WriteOnly)); sentinel.write("keep-directory"); }
   int stage = 0, ticks = 0;
   QTimer driver;
   driver.setInterval(20);
@@ -78,6 +82,7 @@ void run(QVulkanInstance *vulkan, const QString &output) {
     for (auto *w : QApplication::topLevelWidgets())
       if (auto *question = qobject_cast<QMessageBox *>(w);
           question && question->isVisible()) {
+        CHECK(question->windowTitle() != "Match image extension?");
         if (auto *yes = question->button(QMessageBox::Yes))
           yes->click();
       }
@@ -142,7 +147,8 @@ void run(QVulkanInstance *vulkan, const QString &output) {
       CHECK(card->isVisible());
       CHECK(!QFileInfo::exists(output + "/cancelled.psd"));
       CHECK(!window.documentContext(owner)->exportSettings);
-      card->setDestination(output + "/dialog.psd");
+      // The selected PSD format supplies the missing suffix without a prompt.
+      card->setDestination(output + "/dialog");
     } else if (stage == 4 && write->isEnabled()) {
       ++stage;
       write->click();
@@ -164,6 +170,9 @@ void run(QVulkanInstance *vulkan, const QString &output) {
   CHECK(window.editorSession().selectedLayers() == selected);
   CHECK(window.projectPath() == QFileInfo(project).absoluteFilePath());
   if (stage == 6) {
+    CHECK(QFileInfo(output + "/dialog").isDir());
+    QFile sentinel(sentinelPath); CHECK(sentinel.open(QIODevice::ReadOnly));
+    CHECK(sentinel.readAll() == "keep-directory");
     CHECK(window.documentContext(owner)->exportSettings->format ==
           u::ExportFormat::Psd);
     CHECK(!window.documentContext(other)->exportSettings);
