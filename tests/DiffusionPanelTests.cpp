@@ -96,6 +96,8 @@ private slots:
       QCOMPARE(overrideSteps->value(), 23.0);
       QCOMPARE(seed->text(), QString("123456789"));
       QCOMPARE(width->text(), QString("832"));
+      auto *page = panel.findChild<QScrollArea *>("DiffusionGenerationPage");
+      QCOMPARE(page->horizontalScrollBar()->maximum(), 0);
       QCOMPARE(QSettings().value("diffusion/modelConfigurations"), stored);
       if (const auto capture = qEnvironmentVariable("VULKANA_DIFFUSION_PANEL_CAPTURE"); !capture.isEmpty())
         QVERIFY(panel.grab().save(capture + "-" + language + ".png"));

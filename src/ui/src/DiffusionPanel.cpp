@@ -2120,6 +2120,9 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   d->seedMode = combo({i18n::text("diffusion.ui.random"), i18n::text("diffusion.ui.fixed"), i18n::text("diffusion.ui.increment")},
                       {"random", "fixed", "increment"}, content);
   d->seedMode->setObjectName("DiffusionSeedMode");
+  // Elide the selector label before pushing the seed row beyond a narrow panel.
+  // The popup still shows each complete label; the numeric field keeps its width.
+  d->seedMode->setMinimumWidth(80);
   i18n::setToolTip(d->seedMode,
       i18n::text("diffusion.ui.random.new.seed.per.job.fixed.reuse"));
   seedRow->addWidget(d->seedMode);
