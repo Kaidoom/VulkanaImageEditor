@@ -157,7 +157,51 @@ ctest --test-dir build/diffusion-worker --output-on-failure
 
 Choose a host compiler supported by the installed CUDA toolkit. The example targets RTX 40-series development hardware; it is not a multi-generation release binary. Tests use Python's standard library, but neither the worker nor the host client requires Python at runtime. Set `BUILD_TESTING=OFF` to omit worker tests and their Python dependency.
 
-On Windows, use an x64 Visual Studio developer shell with a compatible CUDA Toolkit and the same CMake options. Set `CMAKE_CUDA_ARCHITECTURES` for the intended GPU; `86-real` targets RTX 30-series hardware. Place the resulting executable beside `imageeditor.exe` as `vulkana-diffusion-worker-cuda.exe`, together with its required CUDA and MSVC runtime DLLs. An ordinary editor build does not build or deploy the worker. Run Windows UI tests from an interactive desktop session so native focus and pointer handling are available.
+On Windows, use an x64 Visual Studio developer shell with a compatible CUDA Toolkit and the same CMake options. Set `CMAKE_CUDA_ARCHITECTURES` for the intended GPU; `86-real` targets RTX 30-series hardware. For a development installation, place the executable beside `imageeditor.exe` as `vulkana-diffusion-worker-cuda.exe`, with its required CUDA, MSVC and OpenMP runtime DLLs. Run Windows UI tests from an interactive desktop session so native focus and pointer handling are available.
+
+### Distributable CUDA workers
+
+The release worker helpers build the pinned source and assemble a separate, verified worker directory. They download no source or models. Use CUDA 13.3, a supported C++ compiler, CMake, Ninja, Git and Python for these build steps. Python and the CUDA Toolkit are not runtime dependencies.
+
+Linux x86-64:
+
+```sh
+tools/diffusion/build-cuda.sh \
+  --engine /path/to/stable-diffusion.cpp --cuda /path/to/cuda \
+  --build /path/to/worker-build --destination /path/to/worker-bundle \
+  --jobs 4 --tests
+```
+
+Build in an environment with glibc 2.39 or older and a CUDA-supported compiler. The helper rejects a worker requiring newer glibc symbols. It copies the SDK's CUDA runtime, cuBLAS and cuBLASLt files unchanged into a private library directory. The NVIDIA driver, glibc and ordinary C++/OpenMP system runtimes remain host dependencies; an AppImage may supply reviewed C++ runtimes through its existing dependency inventory.
+
+Windows x64, from a Visual Studio developer PowerShell session:
+
+```powershell
+.\tools\windows\BuildDiffusionWorker.ps1 `
+  -EngineDirectory C:\path\to\stable-diffusion.cpp -CudaRoot C:\path\to\cuda `
+  -BuildDirectory C:\path\to\worker-build -Destination C:\path\to\worker-bundle `
+  -Jobs 4 -Tests
+```
+
+The Windows helper includes the required CUDA, MSVC C++ and OpenMP DLLs from their SDK redistribution directories. For a CUDA installation assembled from NVIDIA component archives, pass the matching redistribution JSON using `-CudaManifest`. The destination must be new. Omit `--tests` or `-Tests` to build without running the worker tests; real generation tests still require separately supplied models.
+
+The release CPU baseline is AVX2, FMA, F16C and BMI2. Native CUDA images cover RTX 30, 40 and 50 series (`sm_86`, `sm_89`, `sm_120a`); generic `compute_90` PTX provides a forward-JIT path. The payload audit checks the actual embedded CUDA images, not only the CMake setting. A current NVIDIA driver supporting CUDA 13.3 is recommended. R580 is the CUDA 13 minor-compatibility floor for native code; newer toolkit features and PTX JIT can require a newer driver. [NVIDIA driver compatibility](https://docs.nvidia.com/cuda/archive/13.3.1/cuda-toolkit-release-notes/#cuda-driver).
+
+To include a prepared worker in an editor installation, configure the editor with:
+
+```sh
+cmake -S . -B build/release -DVULKANA_DIFFUSION_BUNDLE=/path/to/worker-bundle
+```
+
+Normal build and install commands then include that payload. Windows portable assembly accepts `-DiffusionBundle C:\path\to\worker-bundle`. The editor remains buildable without this optional input. CUDA inference requires a supported NVIDIA GPU; the editor's Vulkan renderer remains independent. A Vulkan inference worker is not included in this release configuration.
+
+Each worker bundle contains `share/vulkana-editor/diffusion/cuda/manifest.json`, third-party notices and license texts. The manifest records the engine and patch revisions, GPU images, CPU baseline, CUDA versions and file hashes. Installation verifies the inventory again; the worker notices are merged into the editor's About/license inventory. Distributors can check an existing payload with:
+
+```sh
+python3 tools/diffusion/prepare_bundle.py --verify /path/to/worker-bundle
+```
+
+The integrity inventory is not a cryptographic signature. CUDA runtime files retain NVIDIA's distribution terms and must remain unmodified; the helpers compare them with the selected SDK originals. No driver libraries, compiler tools or model weights are bundled. [CUDA redistribution terms](https://docs.nvidia.com/cuda/archive/13.3.1/eula/index.html#distribution-requirements), [redistributable components](https://docs.nvidia.com/cuda/archive/13.3.1/eula/index.html#attachment-a).
 
 For a small GPU, start at 512 × 512, put text-encoder and VAE computation on CPU, and retain automatic weight placement. A 2.75 GiB managed VRAM budget has been validated for FLUX.3 Klein Q3 generation and reference editing on a 4 GiB GPU with sufficient system RAM. Larger images and additional references need separate capacity testing. The budget does not include every driver or desktop allocation.
 
@@ -327,4 +371,4 @@ Run the deterministic host and UI tests with `ctest --test-dir build/release -R 
 
 Document transactions stay in the editor; the worker receives immutable files and returns independent images. Input capture and Apply compositing use the editor thread, so unusually large images can pause briefly during those steps. Inference and model loading remain asynchronous.
 
-Linux CUDA and Windows CUDA inference have been validated. Windows model testing currently covers FLUX.3 Klein GGUF generation and reference editing; other families, Vulkan runtime operation and packaged worker distribution require further validation. Building the editor does not build or bundle an inference worker. A worker distribution must include the applicable engine, GGML and linked dependency notices and comply with the selected backend runtime's redistribution requirements. Model weights are supplied separately by the user.
+Linux CUDA and Windows CUDA inference have been validated. Windows model testing currently covers FLUX.3 Klein GGUF generation and reference editing; other families and Vulkan inference require further validation. Worker bundle validation covers runtime payload integrity, source and patch provenance, CPU/GPU build targets, and license inventory preservation. A build containing RTX 50 code does not establish hardware testing on RTX 50. Release validation should exercise staged workers with a clean runtime search path, then verify their discovery and operation from the final application packages. Model weights are supplied separately by the user.

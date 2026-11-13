@@ -207,7 +207,15 @@ private:
         vkCheck(vkEnumeratePhysicalDevices(instance_, &count, nullptr), "enumerate Vulkan devices");
         std::vector<VkPhysicalDevice> devices(count);
         vkCheck(vkEnumeratePhysicalDevices(instance_, &count, devices.data()), "read Vulkan devices");
+        // Driver enumeration order can differ between interactive and headless
+        // sessions. An exact name makes cross-device regression runs explicit.
+        const auto requestedDevice = qEnvironmentVariable("IMAGEEDITOR_TEST_VULKAN_DEVICE");
         for (auto candidate : devices) {
+            VkPhysicalDeviceProperties candidateProperties {};
+            vkGetPhysicalDeviceProperties(candidate, &candidateProperties);
+            if (!requestedDevice.isEmpty()
+                && QString::fromUtf8(candidateProperties.deviceName) != requestedDevice)
+                continue;
             std::uint32_t families = 0;
             vkGetPhysicalDeviceQueueFamilyProperties(candidate, &families, nullptr);
             std::vector<VkQueueFamilyProperties> properties(families);
@@ -221,7 +229,9 @@ private:
                 }
             if (physical_) break;
         }
-        if (!physical_) throw std::runtime_error("No Vulkan graphics+compute queue available");
+        if (!physical_) throw std::runtime_error(requestedDevice.isEmpty()
+            ? "No Vulkan graphics+compute queue available"
+            : "Requested Vulkan test device is unavailable: " + requestedDevice.toStdString());
         VkPhysicalDeviceProperties properties {};
         vkGetPhysicalDeviceProperties(physical_, &properties);timestampPeriod_=properties.limits.timestampPeriod;
         std::cout << "Offscreen Vulkan device: " << properties.deviceName << '\n';
@@ -411,7 +421,7 @@ c::Rgba8 fromQt(QColor color)
 { return {std::uint8_t(color.red()),std::uint8_t(color.green()),std::uint8_t(color.blue()),std::uint8_t(color.alpha())}; }
 
 QImage verify(const c::Document& document, const r::CanvasScene& scene, const QImage& actual,
-    std::string_view name, bool documentPixelCenters = true)
+    std::string_view name)
 {
     const c::Extent2d docSize {double(document.canvas().extent.width),double(document.canvas().extent.height)};
     const r::CanvasCoordinateMapping mapping(docSize,scene.logicalViewport,
@@ -439,9 +449,7 @@ QImage verify(const c::Document& document, const r::CanvasScene& scene, const QI
             + int(std::floor((point.y-rect[1])/12))) & 1) ? scene.checkerDark : scene.checkerLight;
         c::Rgba8 reference = scene.canvasBackground;
         if (inside) {
-            const auto sample = documentPixelCenters
-                ? c::decodeColor(c::sampleDocumentColor(document,{},point,c::ColorSampleSource::MergedVisible).color)
-                : linearTestTarget?sampler.sampleLinear(point):c::decodeColor(sampler.sample(point));
+            const auto sample = sampler.sampleLinear(point);
             reference = c::encodeColor(c::compositeLayer(c::decodeColor(checker),
                 sample,1,c::BlendMode::Normal));
         }
@@ -455,8 +463,9 @@ QImage verify(const c::Document& document, const r::CanvasScene& scene, const QI
         const int error = std::max({std::abs(int(gpu.red)-reference.red),std::abs(int(gpu.green)-reference.green),
             std::abs(int(gpu.blue)-reference.blue),std::abs(int(gpu.alpha)-reference.alpha)});
         if (error > worst) { worst = error; worstPoint = {x,y}; }
-        // Preserve the original RGBA8 public-sampler/display comparison. The
-        // float-attachment run also compares continuous float intermediates.
+        // The renderer retains float composition until presentation. Quantizing
+        // transparent content to RGBA8 before the checkerboard would round its
+        // alpha twice and invent errors near dark, almost-opaque pixels.
         if (error > 2) ++badPixels;
     }
     check(inspected > 5000,"GPU comparison must cover a substantial image, not a few lucky pixels");
@@ -496,8 +505,42 @@ struct Review {
     }
 };
 
+void presentationPrecision(OffscreenCanvas& gpu)
+{
+    // Near-opaque black still reveals several sRGB levels of a white checker.
+    // Quantizing alpha before this final composition incorrectly makes it black.
+    constexpr float opacity = .9983F;
+    auto continuous = c::decodeColor({0,0,0,255});
+    for (auto& component : continuous) component *= opacity;
+    const auto direct = c::encodeColor(c::compositeLayer(
+        c::decodeColor({255,255,255,255}), continuous, 1, c::BlendMode::Normal));
+    const auto rounded = c::encodeColor(continuous);
+    check(rounded.alpha == 255 && direct.red >= 5,
+        "presentation fixture distinguishes float coverage from an RGBA8 intermediate");
+
+    c::Document document({{48,40},96});
+    auto layer = c::Layer::raster("Near-opaque dark content",
+        std::make_shared<c::ContiguousRasterSurface>(c::Extent2u{48,40}, c::Rgba8{0,0,0,255}));
+    layer.opacity = opacity;
+    const auto id = layer.id;
+    check(document.insertLayer(0,std::move(layer)),"insert presentation precision fixture");
+    auto scene = sceneFor(document);
+    scene.checkerLight = {255,255,255,255};
+    scene.checkerDark = {61,89,123,255};
+    verify(document,scene,gpu.render(scene),"near-opaque black over checkerboard");
+    document.setLayerOpacity(id,.973F);
+    scene.document = document.snapshot();
+    scene.viewport.setZoom(1.23);
+    scene.viewport.setPan({5.25,-3.5});
+    verify(document,scene,gpu.render(scene),"checkerboard and background at fractional canvas bounds");
+    document.setLayerVisibility(id,false);
+    scene.document = document.snapshot();
+    verify(document,scene,gpu.render(scene),"transparent canvas retains checkerboard and outside background");
+}
+
 void allModesAndCacheBehavior(OffscreenCanvas& gpu, Review& review,c::CompositingSpace space=c::CompositingSpace::LinearSRgb)
 {
+    presentationPrecision(gpu);
     c::Document document({{96,80},96,space});
     auto base = c::Layer::raster("Alpha backdrop",patterned({96,80},false));
     auto foreground = c::Layer::raster("Transformed alpha edges",patterned({48,48},true));
@@ -554,7 +597,7 @@ void allModesAndCacheBehavior(OffscreenCanvas& gpu, Review& review,c::Compositin
     scene.devicePixelRatio = 1.5;
     scene.viewport.setZoom(.83);
     scene.viewport.setPan({-11.25,8.5});
-    verify(document,scene,gpu.render(scene),"fractional display scale with zoom and pan",false);
+    verify(document,scene,gpu.render(scene),"fractional display scale with zoom and pan");
     check(gpu.stats().uploadedBytes == after.uploadedBytes,"transform/zoom/pan must not reupload raster content");
 }
 
@@ -1104,7 +1147,7 @@ void spatialFilterRendering(OffscreenCanvas& gpu,Review& review)
         check(c::publishLayerSpatialFilters(document,id,cache),"publish GPU filter cache");
         scene.document=document.snapshot();
         const auto actual=gpu.render(scene);
-        const auto expected=verify(document,scene,actual,c::spatialFilterName(type),false);
+        const auto expected=verify(document,scene,actual,c::spatialFilterName(type));
         review.add(std::size_t(type),c::spatialFilterName(type),actual,expected);
         const auto before=gpu.stats();
         scene.cursorInside=true;scene.cursorLogical={35,35};
@@ -1116,7 +1159,7 @@ void spatialFilterRendering(OffscreenCanvas& gpu,Review& review)
         scene.filterBypassLayer.reset();
         document.setLayerCrop(id,c::LayerCrop{2,3,23,17});
         scene.document=document.snapshot();
-        verify(document,scene,gpu.render(scene),"filtered crop",false);
+        verify(document,scene,gpu.render(scene),"filtered crop");
         document.setLayerCrop(id,{});
     }
     check(gpu.stats().fullUploads==originalUploads+3,"each filter result uploads once, original never reuploads");
@@ -1285,9 +1328,9 @@ void clippingRendering(OffscreenCanvas& gpu,c::CompositingSpace space=c::Composi
     auto textTree=textDoc.tree();const auto textGroup=c::makeLayerId();textTree.roots={textGroup};
     textTree.containers.push_back({textGroup,"Text clipping",c::ContainerKind::ClippingMaskGroup,c::ColorLabel::None,{title.id,photo.id,highlight.id}});
     check(textDoc.replaceStructure(textDoc.tree(),textTree),"typed clipping fixture");
-    scene=sceneFor(textDoc);verify(textDoc,scene,gpu.render(scene),"photo and highlights clipped into editable text",false);
+    scene=sceneFor(textDoc);verify(textDoc,scene,gpu.render(scene),"photo and highlights clipped into editable text");
     scene.logicalViewport={76.8,64};scene.viewport.setZoom(1.2);
-    verify(textDoc,scene,gpu.render(scene),"clipping fractional DPI",false);
+    verify(textDoc,scene,gpu.render(scene),"clipping fractional DPI");
 }
 void clippingBenchmarks(bool validation)
 {
@@ -1389,7 +1432,7 @@ void fillOpacityRendering(OffscreenCanvas& gpu)
             const auto before=gpu.stats();const auto cache=doc.layer(id)->effectCache;
             for(auto mode:c::allBlendModes)for(float fill:{0.F,.25F,.7F,1.F}) {
                 doc.setLayerBlendMode(id,mode);doc.setLayerFillOpacity(id,fill);scene.document=doc.snapshot();
-                verify(doc,scene,gpu.render(scene),"Fill / "+std::string(c::blendModeName(mode)),false);
+                verify(doc,scene,gpu.render(scene),"Fill / "+std::string(c::blendModeName(mode)));
                 check(doc.layer(id)->effectCache==cache,"Fill retains effect geometry cache");
             }
             check(gpu.stats().uploadedBytes==before.uploadedBytes,"Fill/mode changes never upload source RGBA");
@@ -1412,14 +1455,14 @@ void fillOpacityRendering(OffscreenCanvas& gpu)
         check(doc.replaceStructure(doc.tree(),tree),"Fill clipping fixture");
         for(float fill:{0.F,.3F,1.F})for(auto mode:{c::BlendMode::Normal,c::BlendMode::ColorDodge,c::BlendMode::HardMix}) {
             doc.setLayerFillOpacity(id,fill);doc.setLayerBlendMode(id,mode);
-            auto scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"Fill clipped/projective/masked",false);
+            auto scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"Fill clipped/projective/masked");
         }
         auto adjustment=c::Layer::adjustment("Fill adjustment");
         auto values=std::make_shared<c::AdjustmentStack>();values->items[0].enabled=true;values->items[0].parameters=c::ExposureParameters{1};
         adjustment.adjustments=values;doc.insertLayer(doc.layers().size(),adjustment);
         for(float fill:{0.F,.25F,1.F})for(auto mode:c::allBlendModes) {
             doc.setLayerFillOpacity(adjustment.id,fill);doc.setLayerBlendMode(adjustment.id,mode);
-            auto scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"Fill adjustment / "+std::string(c::blendModeName(mode)),false);
+            auto scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"Fill adjustment / "+std::string(c::blendModeName(mode)));
         }
     }
 }
@@ -1498,18 +1541,18 @@ void channelRendering(OffscreenCanvas& gpu)
     verify(alpha,scene,gpu.render(scene),"alpha channel zero remains opaque black data");
 
     scene.channelInspectionId.reset();scene.viewport.setZoom(1.25);scene.viewport.setPan({.3,-.6});
-    verify(doc,scene,gpu.render(scene),"numeric channel interpolation",false);
+    verify(doc,scene,gpu.render(scene),"numeric channel interpolation");
     const auto beforeEdit=gpu.stats();
     auto& red=*std::get<c::RasterLayer>(doc.layer(roles[0])->payload).surface;
     const std::array<std::byte,1> value{std::byte{73}};
     const c::RasterPatch patch{{10,10,1,1},value,1};
     (void)red.replaceNativeBatch(std::span(&patch,1));
-    scene.document=doc.snapshot();verify(doc,scene,gpu.render(scene),"regional channel edit",false);
+    scene.document=doc.snapshot();verify(doc,scene,gpu.render(scene),"regional channel edit");
     const auto upload=gpu.stats().uploadedBytes-beforeEdit.uploadedBytes;
     check(upload>0 && upload<std::uint64_t(size.width)*size.height*4,"channel edit uploads only changed R8 region");
     auto tree=doc.tree();std::reverse(tree.container(group)->children.begin(),tree.container(group)->children.end());
     check(doc.replaceStructure(doc.tree(),tree),"reorder channel display rows");
-    scene.document=doc.snapshot();verify(doc,scene,gpu.render(scene),"channel identity independent of order",false);
+    scene.document=doc.snapshot();verify(doc,scene,gpu.render(scene),"channel identity independent of order");
 
     auto levels=std::make_shared<c::AdjustmentStack>();levels->items[2].enabled=true;
     std::get<c::LevelsParameters>(levels->items[2].parameters).channels[0]={.1,1.8,.85,.05,.9};
@@ -1520,10 +1563,10 @@ void channelRendering(OffscreenCanvas& gpu)
     check(doc.setLayerAdjustments(roles[1],curves),"set numeric Value curve");
     auto invert=std::make_shared<c::AdjustmentStack>();invert->items[9].enabled=true;
     check(doc.setLayerAdjustments(roles[2],invert),"set numeric Invert");
-    scene.document=doc.snapshot();verify(doc,scene,gpu.render(scene),"numeric adjustments on packed channels",false);
+    scene.document=doc.snapshot();verify(doc,scene,gpu.render(scene),"numeric adjustments on packed channels");
     scene.channelInspectionId=roles[0];
     c::Document inspectedValue({size,96});inspectedValue.insertLayer(0,*doc.layer(roles[0]));
-    verify(inspectedValue,scene,gpu.render(scene),"masked Value adjustment inspection",false);
+    verify(inspectedValue,scene,gpu.render(scene),"masked Value adjustment inspection");
     scene.channelInspectionId.reset();
     auto filters=std::make_shared<c::SpatialFilterStack>();filters->items[0].enabled=true;
     filters->items[0].parameters=c::GaussianBlurParameters{3,4};
@@ -1532,13 +1575,13 @@ void channelRendering(OffscreenCanvas& gpu)
     auto cache=c::prepareLayerSpatialFilters(*doc.layer(roles[0]));
     check(c::publishLayerSpatialFilters(doc,roles[0],cache),"publish numeric Gaussian cache");
     check(cache->surface->nativeBytesPerPixel()==1,"numeric Gaussian remains R8");
-    scene.document=doc.snapshot();verify(doc,scene,gpu.render(scene),"masked scalar Gaussian after numeric adjustments",false);
+    scene.document=doc.snapshot();verify(doc,scene,gpu.render(scene),"masked scalar Gaussian after numeric adjustments");
     const std::array<std::byte,1> changed{std::byte{189}};
     const c::RasterPatch edit{{45,25,1,1},changed,1};(void)red.replaceNativeBatch(std::span(&edit,1));
     check(!c::layerSpatialFilterCacheValid(*doc.layer(roles[0])),"channel edit invalidates numeric filter cache");
     cache=c::prepareLayerSpatialFilters(*doc.layer(roles[0]));
     check(c::publishLayerSpatialFilters(doc,roles[0],cache),"publish refreshed numeric Gaussian");
-    scene.document=doc.snapshot();verify(doc,scene,gpu.render(scene),"numeric Gaussian refresh after painting",false);
+    scene.document=doc.snapshot();verify(doc,scene,gpu.render(scene),"numeric Gaussian refresh after painting");
 }
 
 int main(int argc, char** argv)

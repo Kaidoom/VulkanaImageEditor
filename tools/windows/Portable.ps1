@@ -9,12 +9,15 @@ param(
     [string]$BuildRoot = 'C:\Dev\Vulkana',
     [string]$BuildDirectory,
     [string]$NoticesDirectory,
+    [string]$DiffusionBundle,
     [ValidateRange(1, 32)][int]$Jobs = 6
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $destinationPath = [IO.Path]::GetFullPath($Destination)
 if (Test-Path -LiteralPath $destinationPath) { throw 'Destination already exists. Choose a new folder; existing builds are never overwritten.' }
+$destinationParent = Split-Path $destinationPath -Parent
+if (!(Test-Path -LiteralPath $destinationParent -PathType Container)) { throw 'Destination parent must already exist.' }
 $source = (Resolve-Path "$PSScriptRoot/../..").Path
 $build = if ($BuildDirectory) { [IO.Path]::GetFullPath($BuildDirectory) } else { Join-Path $BuildRoot 'release' }
 if (!(Test-Path "$build/CMakeCache.txt")) { throw 'Run Build.ps1 first to configure the Release build.' }
@@ -33,6 +36,11 @@ function Get-PortableRelativePath([string]$Root, [string]$Path) {
     }
     return $fullPath.Substring($prefix.Length).Replace('\', '/')
 }
+if ($DiffusionBundle) {
+    $workerBundle = (Resolve-Path -LiteralPath $DiffusionBundle).Path
+    Invoke-PortableCommand python @("$source/tools/diffusion/prepare_bundle.py", '--verify', $workerBundle)
+    Invoke-PortableCommand cmake @('-S', $source, '-B', $build, "-DVULKANA_DIFFUSION_BUNDLE=$workerBundle")
+}
 # Revalidate/compile changed language catalogs as well as the application.
 Invoke-PortableCommand cmake @('--build', $build, '--target', 'imageeditor', 'vulkana-thumbnail-provider', 'vulkana-thumbnail-codec', 'vulkana_language_packs', '--parallel', "$Jobs")
 $cache = Get-Content "$build/CMakeCache.txt" -Raw -Encoding UTF8
@@ -41,7 +49,7 @@ if ($cache -notmatch 'IMAGEEDITOR_RELOCATABLE_BUNDLE:BOOL=ON' -or
     $cache -notmatch 'CMAKE_BUILD_TYPE:STRING=Release') { throw 'Portable assembly requires the relocatable Release configuration from Build.ps1.' }
 
 # Stage separately. Publish only after dependency and content checks pass.
-$scratch = Join-Path $BuildRoot ('portable-' + [guid]::NewGuid().ToString('N'))
+$scratch = Join-Path $destinationParent ('portable-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $scratch | Out-Null
 try {
     Invoke-PortableCommand cmake @('--install', $build, '--prefix', $scratch)
@@ -58,9 +66,22 @@ try {
 
     $crt = Join-Path $env:VCToolsRedistDir 'x64/Microsoft.VC145.CRT'
     $runtimeRoots = @($crt, "$BuildRoot/installed/x64-vulkana-windows/bin", "$QtRoot/bin")
+    $workerDlls = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    $workerManifestPath = "$scratch/share/vulkana-editor/diffusion/cuda/manifest.json"
+    if (Test-Path -LiteralPath $workerManifestPath) {
+        $workerManifest = Get-Content -LiteralPath $workerManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        foreach ($file in $workerManifest.files) {
+            if ($file.kind -eq 'binary' -and $file.path -match '^bin/([^/]+\.dll)$') {
+                [void]$workerDlls.Add($Matches[1])
+            }
+        }
+    }
     # windeployqt may copy Windows' ICU implementation on Windows 11. Only
     # redistribute libraries supplied by the SDKs/REDIST, never OS-owned DLLs.
     foreach ($dll in Get-ChildItem $bin -Filter '*.dll' -File) {
+        # These audited redistributables belong to the worker even when a
+        # matching CRT/OpenMP installation also happens to exist in System32.
+        if ($workerDlls.Contains($dll.Name)) { continue }
         $systemFile = Join-Path "$env:SystemRoot/System32" $dll.Name
         $redistributable = @($runtimeRoots | Where-Object { Test-Path -LiteralPath (Join-Path $_ $dll.Name) })
         if (!$redistributable.Count -and (Test-Path -LiteralPath $systemFile)) {
@@ -143,6 +164,21 @@ try {
         $_.Name -match '^(vc_redist|imageeditor_.*tests)'
     })
     if ($forbidden.Count) { throw "Unexpected development payload: $($forbidden.FullName -join ', ')" }
+    # The worker shares the application's CRT directory. Recheck after all
+    # dependency copying so a replaced DLL cannot invalidate its manifest.
+    # Reviewed application notices may have replaced the install-time merge.
+    if (Test-Path -LiteralPath "$scratch/share/vulkana-editor/diffusion/cuda/manifest.json") {
+        $mergedNotices = Join-Path $BuildRoot ('diffusion-notices-' + [guid]::NewGuid().ToString('N'))
+        try {
+            Invoke-PortableCommand python @("$source/tools/diffusion/prepare_bundle.py", '--verify', $scratch,
+                '--merge-notices', "$scratch/share/vulkana-editor/notices", '--output', $mergedNotices)
+            foreach ($name in @('notices.json', 'THIRD-PARTY-NOTICES.txt')) {
+                Copy-Item -LiteralPath "$mergedNotices/$name" -Destination "$scratch/share/vulkana-editor/notices/$name" -Force
+            }
+        } finally {
+            if (Test-Path -LiteralPath $mergedNotices) { Remove-Item -LiteralPath $mergedNotices -Recurse -Force }
+        }
+    }
     $inventory = @(Get-ChildItem $scratch -Recurse -File | Sort-Object FullName | ForEach-Object {
         [ordered]@{ path = Get-PortableRelativePath $scratch $_.FullName;
             bytes = $_.Length; sha256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
@@ -150,9 +186,7 @@ try {
     $manifest = [ordered]@{ format = 1; purpose = 'Unsigned Windows portable build'; files = $inventory; imports = $imports } |
         ConvertTo-Json -Depth 6
     [IO.File]::WriteAllText("$scratch/portable-manifest.json", $manifest, [Text.UTF8Encoding]::new($false))
-    $parent = Split-Path $destinationPath -Parent
-    if (!(Test-Path -LiteralPath $parent)) { throw 'Destination parent must already exist.' }
-    Move-Item -LiteralPath $scratch -Destination $destinationPath
+    [IO.Directory]::Move($scratch, $destinationPath)
     $files = @(Get-ChildItem $destinationPath -Recurse -File)
     $size = ($files | Measure-Object Length -Sum).Sum
     Write-Output "Portable folder: $destinationPath"

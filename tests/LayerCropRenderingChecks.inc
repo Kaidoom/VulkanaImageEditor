@@ -28,7 +28,7 @@ void layerCropRendering(OffscreenCanvas& gpu)
     const std::array ids {raster.id,shape.id,type.id};
     for(const auto* l:{&backdrop,&raster,&shape,&type})check(doc.insertLayer(doc.layers().size(),*l),"insert crop source");
     auto scene=sceneFor(doc);const auto original=gpu.render(scene);
-    verify(doc,scene,original,"uncropped raster + adjusted shape + text",false);
+    verify(doc,scene,original,"uncropped raster + adjusted shape + text");
     const auto baseline=gpu.stats();
     const auto rasterRevision=std::get<c::RasterLayer>(raster.payload).surface->revision();
     const auto typedPixels=shape.renderCache->surface;
@@ -37,7 +37,7 @@ void layerCropRendering(OffscreenCanvas& gpu)
         rect.corners={double(stage)*1.25,double(stage)*2.5,double(stage)*3.25,double(stage)*.75};
         for(auto id:ids)check(doc.setLayerCrop(id,rect),"crop metadata update");
         scene.document=doc.snapshot();
-        verify(doc,scene,gpu.render(scene),"transformed crop after adjustments before blends",false);
+        verify(doc,scene,gpu.render(scene),"transformed crop after adjustments before blends");
     }
     const auto cropped=gpu.render(scene);
     check(cropped!=original,"cropping changes appearance");
@@ -50,11 +50,11 @@ void layerCropRendering(OffscreenCanvas& gpu)
     check(gpu.render(scene)==cropped,"hiding retained source returns exact cropped appearance");
     for(double zoom:{.35,.7,1.25,2.7}){
         scene.logicalViewport={76.8,64};scene.viewport.setZoom(zoom);
-        verify(doc,scene,gpu.render(scene),"fractional-DPR crop coverage",false);
+        verify(doc,scene,gpu.render(scene),"fractional-DPR crop coverage");
     }
     // Empty crop is not 'no crop', and never erases retained content.
     for(auto id:ids)check(doc.setLayerCrop(id,c::RectD{12,13,0,0}),"empty crop accepted");
-    scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"active empty crops",false);
+    scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"active empty crops");
     for(auto id:ids)check(doc.setLayerCrop(id,{}),"remove crop");
     scene=sceneFor(doc);check(gpu.render(scene)==original,"uncrop restores byte-exact canvas");
     check(gpu.stats().uploadedBytes==baseline.uploadedBytes&&gpu.stats().fullUploads==baseline.fullUploads,
@@ -69,7 +69,7 @@ void layerCropRendering(OffscreenCanvas& gpu)
         {raster.id,shape.id,type.id},true});
     check(doc.replaceStructure(previous,tree),"folder crop fixture");
     check(doc.setLayerCrop(raster.id,c::RectD{3.25,4.5,42,37}),"crop nested layer");
-    scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"pass-through cropped typed hierarchy",false);
+    scene=sceneFor(doc);verify(doc,scene,gpu.render(scene),"pass-through cropped typed hierarchy");
 
     // Exercise the shipping border shader as well as compositing: all eight
     // logical hit targets must receive a visible handle, in either mode.

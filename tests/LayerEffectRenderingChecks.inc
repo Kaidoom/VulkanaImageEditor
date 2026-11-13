@@ -27,7 +27,7 @@ void layerEffectRendering(OffscreenCanvas &gpu, Review &review,c::CompositingSpa
     const auto image = gpu.render(scene);
     const auto reference =
         verify(document, scene, image,
-               c::layerEffectName(c::LayerEffectType(type)), false);
+               c::layerEffectName(c::LayerEffectType(type)));
     review.add(type, c::layerEffectName(c::LayerEffectType(type)), image,
                reference);
     const auto before = gpu.stats();
@@ -39,7 +39,7 @@ void layerEffectRendering(OffscreenCanvas &gpu, Review &review,c::CompositingSpa
       check(c::layerEffectCacheValid(*document.layer(id)),
             "material change reuses effect geometry");
       scene.document = document.snapshot();
-      verify(document, scene, gpu.render(scene), std::string(c::layerEffectName(c::LayerEffectType(type)))+" / "+std::string(c::blendModeName(mode)), false);
+      verify(document, scene, gpu.render(scene), std::string(c::layerEffectName(c::LayerEffectType(type)))+" / "+std::string(c::blendModeName(mode)));
     }
     check(gpu.stats().adjustmentMaskUploads == before.adjustmentMaskUploads,
           "effect material edits do not upload masks");
@@ -51,14 +51,14 @@ void layerEffectRendering(OffscreenCanvas &gpu, Review &review,c::CompositingSpa
           "effect cursor movement does not recompose");
     document.setLayerCrop(id, c::LayerCrop{1.5, 2.25, 23, 19});
     scene.document = document.snapshot();
-    verify(document, scene, gpu.render(scene), "fractional effect crop", false);
+    verify(document, scene, gpu.render(scene), "fractional effect crop");
     document.setLayerCrop(id, {});
     if(type==7)for(auto style:{c::BevelStyle::Inner,c::BevelStyle::Outer,c::BevelStyle::Emboss}) {
       auto changed=std::make_shared<c::LayerEffectStack>(*state);auto& bevel=changed->items[7];
       bevel.bevel.style=style;bevel.bevel.down=true;bevel.bevel.soften=2;
       bevel.bevel.surface=c::effectContourPreset(false,3);bevel.bevel.gloss=c::effectContourPreset(true,2);
       document.setLayerEffects(id,changed);*document.layer(id)=c::prepareSpatialFilterLayer(*document.layer(id));
-      scene.document=document.snapshot();verify(document,scene,gpu.render(scene),"bevel styles and independent contours",false);
+      scene.document=document.snapshot();verify(document,scene,gpu.render(scene),"bevel styles and independent contours");
     }
     if(type==6) {
       const auto beforeStops=gpu.stats();
@@ -70,14 +70,14 @@ void layerEffectRendering(OffscreenCanvas &gpu, Review &review,c::CompositingSpa
         document.setLayerEffects(id,changed);
         check(c::layerEffectCacheValid(*document.layer(id)),"gradient stops keep cached GPU geometry");
         scene.document=document.snapshot();
-        verify(document,scene,gpu.render(scene),"multi-stop gradient with hard transition and transparent stop",false);
+        verify(document,scene,gpu.render(scene),"multi-stop gradient with hard transition and transparent stop");
       }
       auto changed=std::make_shared<c::LayerEffectStack>(*state);auto& gradient=changed->items[6];
       for(std::size_t stop=0;stop<c::maximumGradientStops;++stop)
         gradient.gradientStops.push_back({double(stop)/double(c::maximumGradientStops-1),
             {std::uint8_t(stop),std::uint8_t(255-stop),std::uint8_t(stop/2),255}});
       document.setLayerEffects(id,changed);scene.document=document.snapshot();
-      verify(document,scene,gpu.render(scene),"full 256-stop gradient table",false);
+      verify(document,scene,gpu.render(scene),"full 256-stop gradient table");
       check(gpu.stats().adjustmentMaskUploads==beforeStops.adjustmentMaskUploads,
             "gradient stop edits do not upload masks");
     }
@@ -86,7 +86,7 @@ void layerEffectRendering(OffscreenCanvas &gpu, Review &review,c::CompositingSpa
     const auto bypass = gpu.render(scene);
     const auto saved = document.layer(id)->effects;
     document.layer(id)->effects.reset();
-    verify(document, scene, bypass, "effect-only comparison", false);
+    verify(document, scene, bypass, "effect-only comparison");
     document.layer(id)->effects = saved;
     scene.effectBypassLayer.reset();
     std::vector<std::uint8_t> coverage(28*24,255);
@@ -103,14 +103,14 @@ void layerEffectRendering(OffscreenCanvas &gpu, Review &review,c::CompositingSpa
       *document.layer(id)=c::prepareSpatialFilterLayer(*document.layer(id));
       scene.document=document.snapshot();
       verify(document,scene,gpu.render(scene),std::string(c::layerEffectName(c::LayerEffectType(type)))+
-          " alpha="+std::to_string(alpha)+" after="+std::to_string(after)+" fill="+std::to_string(fill),false);
+          " alpha="+std::to_string(alpha)+" after="+std::to_string(after)+" fill="+std::to_string(fill));
     }
     document.setLayerMask(id,{});document.setLayerFillOpacity(id,1);
     if(type==5) {
       document.layer(id)->rasterEffectFrame=c::RectD{-4,-3,36,30};
       *document.layer(id)=c::prepareSpatialFilterLayer(*document.layer(id));
       scene.document=document.snapshot();
-      verify(document,scene,gpu.render(scene),"alpha-independent overlay after reference-frame change",false);
+      verify(document,scene,gpu.render(scene),"alpha-independent overlay after reference-frame change");
       document.layer(id)->rasterEffectFrame.reset();
     }
   }
@@ -127,7 +127,7 @@ void layerEffectRendering(OffscreenCanvas &gpu, Review &review,c::CompositingSpa
   document.setLayerEffects(id, all);
   *document.layer(id) = c::prepareSpatialFilterLayer(*document.layer(id));
   scene.document = document.snapshot();
-  verify(document, scene, gpu.render(scene), "all effects fixed order", false);
+  verify(document, scene, gpu.render(scene), "all effects fixed order");
   c::ShapeLayer shape;shape.kind=c::ShapeKind::Ellipse;shape.size={29.5,18.25};shape.fillEnabled=false;
   shape.strokeEnabled=true;shape.strokeWidth=2.5;shape.strokeColor={210,100,35,170};
   auto typed=c::Layer::shape("Styled hollow shape",shape);typed.effects=all;typed.localToDocument={-.9,.2,60,.1,.9,9};
@@ -137,9 +137,9 @@ void layerEffectRendering(OffscreenCanvas &gpu, Review &review,c::CompositingSpa
   typed=c::Layer::text("Styled editable text",c::normalizedText(text));typed.effects=all;typed.localToDocument={1,.12,9,-.15,1,25};
   auto filters=std::make_shared<c::SpatialFilterStack>();filters->items[0].enabled=true;filters->items[0].parameters=c::GaussianBlurParameters{1,1};typed.filters=filters;
   typed.renderCache=u::prepareDocumentSampleCache(typed,1024*1024);typed=c::prepareSpatialFilterLayer(typed);document.insertLayer(3,typed);
-  scene.document=document.snapshot();verify(document,scene,gpu.render(scene),"typed style stack plus filter",false);
+  scene.document=document.snapshot();verify(document,scene,gpu.render(scene),"typed style stack plus filter");
   scene.logicalViewport={76.8,64};scene.viewport.setZoom(1.2);
-  verify(document,scene,gpu.render(scene),"styled typed fractional DPI",false);
+  verify(document,scene,gpu.render(scene),"styled typed fractional DPI");
   const auto textId=typed.id;
   auto mask=std::make_shared<c::LayerMask>();mask->coverage=c::SelectionMask::filled({28,24},128);mask->outside=0;
   document.setLayerMask(id,mask);
@@ -150,18 +150,18 @@ void layerEffectRendering(OffscreenCanvas &gpu, Review &review,c::CompositingSpa
   auto correction=c::Layer::adjustment("After relief");auto adjustments=std::make_shared<c::AdjustmentStack>();
   adjustments->items[0].enabled=true;adjustments->items[0].parameters=c::ExposureParameters{.4};correction.adjustments=adjustments;
   document.insertLayer(document.layers().size(),correction);
-  scene.document=document.snapshot();verify(document,scene,gpu.render(scene),"bevel clipping plus downstream adjustment and soft mask",false);
+  scene.document=document.snapshot();verify(document,scene,gpu.render(scene),"bevel clipping plus downstream adjustment and soft mask");
   check(document.layer(id)->effectCache==relief,"output mask and downstream adjustment reuse bevel geometry");
   auto transform=document.layer(id)->localToDocument;transform.m20=.002;transform.m21=-.001;
   document.setLayerTransform(id,transform);scene.document=document.snapshot();
-  verify(document,scene,gpu.render(scene),"projective relief with clipping and operator",false);
+  verify(document,scene,gpu.render(scene),"projective relief with clipping and operator");
   for(bool alpha:{true,false})for(bool after:{true,false}) {
     auto options=std::make_shared<c::LayerEffectStack>(*all);
     options->pixelAlphaShapesEffects=alpha;options->maskEffectsAfterRendering=after;
     document.setLayerEffects(id,options);document.setLayerFillOpacity(id,.4F);
     *document.layer(id)=c::prepareSpatialFilterLayer(*document.layer(id));
     scene.document=document.snapshot();
-    verify(document,scene,gpu.render(scene),"advanced blending with projective clipped base",false);
+    verify(document,scene,gpu.render(scene),"advanced blending with projective clipped base");
   }
 }
 void bevelBenchmarks(bool validation) {

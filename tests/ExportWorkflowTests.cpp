@@ -255,7 +255,7 @@ void dialogControls()
     dialog.setPreview(preview(nativeSize), 400);
     CHECK(write->isEnabled());
     CHECK(dialog.findChild<QLabel*>("ExportResolvedPath")->text().contains(
-        u::exportPathForFormat(sharedName, dialog.settings().format)));
+        QDir::toNativeSeparators(u::exportPathForFormat(sharedName, dialog.settings().format))));
     // A folder-only path still cannot supply a filename.
     for (const auto& invalid : { QString(), files.path() + '/', files.filePath("project.vulkana"),
              files.filePath("missing/output.webp") }) {
@@ -301,7 +301,7 @@ void exportConfirmation()
     QTemporaryDir files;
     u::ExportSettings settings;
     settings.size = QSize(32, 24);
-    settings.destination = files.filePath(QString::fromUtf8("finished <画像>.png"));
+    settings.destination = files.filePath(QString::fromUtf8("finished & 画像.png"));
     QImage image(settings.size, QImage::Format_RGBA8888);
     image.fill(Qt::white);
     CHECK(image.save(settings.destination));

@@ -1,0 +1,10 @@
+file(SHA256 "@_diffusion_manifest@" _worker_manifest_hash)
+if(NOT _worker_manifest_hash STREQUAL "@_diffusion_manifest_sha256@")
+    message(FATAL_ERROR "Diffusion worker manifest changed; reconfigure before installation")
+endif()
+execute_process(COMMAND "@Python3_EXECUTABLE@" "@_diffusion_validator@"
+    --verify "@VULKANA_DIFFUSION_BUNDLE@"
+    RESULT_VARIABLE _worker_check OUTPUT_VARIABLE _worker_output ERROR_VARIABLE _worker_error)
+if(NOT _worker_check EQUAL 0)
+    message(FATAL_ERROR "Diffusion worker bundle changed or is invalid: ${_worker_output}${_worker_error}")
+endif()

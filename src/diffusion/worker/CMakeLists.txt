@@ -2,6 +2,38 @@ cmake_minimum_required(VERSION 3.25)
 project(VulkanaDiffusionWorker LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+option(VULKANA_DIFFUSION_RELEASE "Build a portable CUDA worker for distribution" OFF)
+if(VULKANA_DIFFUSION_RELEASE)
+    if(NOT SD_CUDA OR SD_VULKAN)
+        message(FATAL_ERROR "Release worker bundles currently support the CUDA backend only")
+    endif()
+    if(NOT CMAKE_BUILD_TYPE STREQUAL "Release")
+        message(FATAL_ERROR "Release worker bundles require CMAKE_BUILD_TYPE=Release")
+    endif()
+    # Keep the CPU fallback usable on AVX2 machines, independently of the
+    # build host. GPU kernels include native RTX 30/40/50 targets and generic
+    # Hopper PTX for forward JIT compatibility (120a PTX is architecture-specific).
+    set(GGML_NATIVE OFF CACHE BOOL "" FORCE)
+    foreach(feature AVX AVX2 F16C FMA BMI2)
+        set(GGML_${feature} ON CACHE BOOL "" FORCE)
+    endforeach()
+    foreach(feature CPU_ALL_VARIANTS AVX512 AVX512_VBMI AVX512_VNNI AVX512_BF16 AVX_VNNI AMX_TILE AMX_INT8 AMX_BF16)
+        set(GGML_${feature} OFF CACHE BOOL "" FORCE)
+    endforeach()
+    set(GGML_BACKEND_DL OFF CACHE BOOL "" FORCE)
+    set(GGML_OPENMP_FETCH OFF CACHE BOOL "" FORCE)
+    set(GGML_CPU_KLEIDIAI OFF CACHE BOOL "" FORCE)
+    set(GGML_CUDA_CCCL_VERSION "" CACHE STRING "Use the selected CUDA SDK's CCCL headers" FORCE)
+    set(SD_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    set(SD_BUILD_SHARED_GGML_LIB OFF CACHE BOOL "" FORCE)
+    if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+        set(CMAKE_CUDA_ARCHITECTURES "86-real;89-real;120a-real;90-virtual" CACHE STRING "Release GPU targets")
+    endif()
+    if(NOT CMAKE_CUDA_ARCHITECTURES STREQUAL "86-real;89-real;120a-real;90-virtual"
+       AND NOT CMAKE_CUDA_ARCHITECTURES STREQUAL "86-real;89-real;120-real;90-virtual")
+        message(FATAL_ERROR "Release CUDA workers require native 86/89/120(a) and generic 90-virtual PTX targets")
+    endif()
+endif()
 if(MSVC)
     add_compile_options($<$<COMPILE_LANGUAGE:CXX>:/utf-8>)
 endif()
@@ -50,6 +82,10 @@ if(patch_count GREATER 0)
     endforeach()
 endif()
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/../engine-lock.json")
+if(VULKANA_DIFFUSION_RELEASE)
+    set(SD_CUDA_CUTLASS_PATH "${VULKANA_DIFFUSION_ENGINE_DIR}/thirdparty/cutlass"
+        CACHE PATH "Pinned CUTLASS source" FORCE)
+endif()
 set(SD_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(SD_WEBP OFF CACHE BOOL "" FORCE)
 set(SD_WEBM OFF CACHE BOOL "" FORCE)
@@ -68,6 +104,16 @@ target_include_directories(vulkana-diffusion-worker PRIVATE "${CMAKE_CURRENT_BIN
 target_include_directories(vulkana-diffusion-worker PRIVATE
     "${VULKANA_DIFFUSION_ENGINE_DIR}/include" "${VULKANA_DIFFUSION_ENGINE_DIR}/thirdparty")
 target_link_libraries(vulkana-diffusion-worker PRIVATE stable-diffusion Threads::Threads)
+if(VULKANA_DIFFUSION_RELEASE AND UNIX AND NOT APPLE)
+    # The first directory belongs only to this worker. The second permits an
+    # enclosing portable app to supply its reviewed GCC/OpenMP runtime.
+    # DT_RPATH also resolves cuBLAS's transitive dependencies without rewriting
+    # the redistributable NVIDIA libraries or altering the editor environment.
+    set_target_properties(vulkana-diffusion-worker PROPERTIES
+        BUILD_WITH_INSTALL_RPATH TRUE
+        INSTALL_RPATH "$ORIGIN/../lib/vulkana-diffusion/cuda;$ORIGIN/../lib")
+    target_link_options(vulkana-diffusion-worker PRIVATE "LINKER:--disable-new-dtags")
+endif()
 target_compile_definitions(vulkana-diffusion-worker PRIVATE VULKANA_DIFFUSION_ENGINE_COMMIT="${engine_revision}")
 if(SD_CUDA)
     target_compile_definitions(vulkana-diffusion-worker PRIVATE VULKANA_DIFFUSION_BACKEND="cuda")

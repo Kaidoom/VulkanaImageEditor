@@ -131,7 +131,9 @@ void VulkanCanvasRenderer::initializeSwapchain(const VulkanSwapchainContext& con
     vkDestroyShaderModule(device_, textFragment, nullptr);
 
     backgroundPipeline_ = createPipeline(fullscreenVertex, checkerFragment, false);
-    layerPipeline_ = createPipeline(fullscreenVertex, layerFragment, true);
+    // The display fragment performs the final checkerboard composition in
+    // float precision. Its opaque result needs only attachment conversion.
+    layerPipeline_ = createPipeline(fullscreenVertex, layerFragment, false);
     overlayPipeline_ = createPipeline(fullscreenVertex, overlayFragment, true);
     transformPipeline_ = createPipeline(fullscreenVertex, transformFragment, true);
     measurePipeline_ = createPipeline(fullscreenVertex, measureFragment, true);

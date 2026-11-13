@@ -1,4 +1,12 @@
 set(_diffusion_tests "${CMAKE_CURRENT_LIST_DIR}/diffusion")
+add_test(NAME imageeditor_diffusion_bundle_tests
+    COMMAND "${Python3_EXECUTABLE}" "${_diffusion_tests}/BundleManifestTests.py")
+set_tests_properties(imageeditor_diffusion_bundle_tests PROPERTIES
+    TIMEOUT 60 LABELS "diffusion;packaging;manifest")
+add_test(NAME imageeditor_diffusion_bundle_install_tests
+    COMMAND "${Python3_EXECUTABLE}" "${_diffusion_tests}/BundleInstallTests.py" "${CMAKE_COMMAND}")
+set_tests_properties(imageeditor_diffusion_bundle_install_tests PROPERTIES
+    TIMEOUT 90 LABELS "diffusion;packaging;install")
 if(WIN32)
     # Use the native font database and widget metrics on Windows.
     set(_diffusion_qpa windows)

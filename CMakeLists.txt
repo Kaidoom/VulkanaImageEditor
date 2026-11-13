@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.25)
 # Release identity lives here, not in a persistent configure cache. A previous
 # -D version must not silently survive a checkout/update to a newer release.
 unset(VULKANA_VERSION CACHE)
-set(VULKANA_VERSION "0.3.7")
+set(VULKANA_VERSION "0.3.8")
 set(VULKANA_RELEASE_CHANNEL "Beta")
 project(ImageEditor
     VERSION ${VULKANA_VERSION}
@@ -80,6 +80,9 @@ endfunction()
 
 include(cmake/ObjectSelectionBundle.cmake)
 include(cmake/BackgroundRemovalBundle.cmake)
+include(cmake/DiffusionBundle.cmake)
+include(cmake/Notices.cmake)
+include(cmake/DiffusionNotices.cmake)
 add_subdirectory(src/platform)
 add_subdirectory(src/diffusion)
 add_subdirectory(src/core)
@@ -88,7 +91,6 @@ add_subdirectory(src/mcp)
 add_subdirectory(src/ui)
 add_subdirectory(src/project)
 add_subdirectory(src/app)
-include(cmake/Notices.cmake)
 
 if(IMAGEEDITOR_BUILD_TESTS)
     find_package(Qt6 6.8 REQUIRED COMPONENTS Test)

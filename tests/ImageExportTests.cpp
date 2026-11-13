@@ -21,11 +21,15 @@
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <filesystem>
 #include <iostream>
 #include <limits>
 #include <map>
 #include <memory>
 #include <vector>
+#ifdef Q_OS_WIN
+#include <winerror.h>
+#endif
 
 namespace c = imageeditor::core;
 namespace u = imageeditor::ui;
@@ -545,6 +549,22 @@ void seedFile(const QString& path, const QByteArray& bytes)
     CHECK(file.open(QIODevice::WriteOnly));
     CHECK(file.write(bytes) == bytes.size());
 }
+bool createFileSymlink(const QString& target, const QString& link)
+{
+    // QFile::link creates a shell shortcut on Windows, not a filesystem alias.
+    std::error_code error;
+#ifdef Q_OS_WIN
+    std::filesystem::create_symlink(target.toStdWString(), link.toStdWString(), error);
+    if (error.value() == ERROR_PRIVILEGE_NOT_HELD) {
+        std::cout << "SKIP filesystem alias check: Windows requires symlink privileges\n";
+        return false;
+    }
+#else
+    std::filesystem::create_symlink(target.toStdString(), link.toStdString(), error);
+#endif
+    CHECK(!error);
+    return !error;
+}
 void pathsAtomicWritesAndCancellation()
 {
     QTemporaryDir dir;
@@ -553,8 +573,9 @@ void pathsAtomicWritesAndCancellation()
     seedFile(project, "project-sentinel");
     CHECK(!u::validateExportDestination(project, project).isEmpty());
     const auto alias = dir.filePath(QStringLiteral("project-alias.png"));
-    CHECK(QFile::link(project, alias));
-    CHECK(!u::validateExportDestination(alias, project).isEmpty());
+    const bool hasAlias = createFileSymlink(project, alias);
+    if (hasAlias)
+        CHECK(!u::validateExportDestination(alias, project).isEmpty());
     const auto png = dir.filePath(QStringLiteral("épreuve-画像.PNG"));
     CHECK(u::exportPathForFormat(png, u::ExportFormat::Png) == png);
     const auto jpeg = dir.filePath(QStringLiteral("photo.JPEG"));
@@ -585,13 +606,15 @@ void pathsAtomicWritesAndCancellation()
     inferred.destination = project;
     CHECK(!u::validateExportDestination(inferred, project).isEmpty());
     const auto bareAlias = folderName + "/project-alias";
-    CHECK(QFile::link(project, bareAlias));
-    inferred.destination = bareAlias;
-    CHECK(!u::validateExportDestination(inferred, project).isEmpty());
+    if (createFileSymlink(project, bareAlias)) {
+        inferred.destination = bareAlias;
+        CHECK(!u::validateExportDestination(inferred, project).isEmpty());
+    }
     const auto resolvedAlias = folderName + "/resolved-alias.psd";
-    CHECK(QFile::link(project, resolvedAlias));
-    inferred.destination = folderName + "/resolved-alias";
-    CHECK(!u::validateExportDestination(inferred, project).isEmpty());
+    if (createFileSymlink(project, resolvedAlias)) {
+        inferred.destination = folderName + "/resolved-alias";
+        CHECK(!u::validateExportDestination(inferred, project).isEmpty());
+    }
     inferred.destination = dir.filePath("directory.psd");
     CHECK(QDir().mkpath(inferred.destination));
     CHECK(!u::validateExportDestination(inferred, project).isEmpty());
@@ -618,7 +641,7 @@ void pathsAtomicWritesAndCancellation()
     CHECK(saved);
     CHECK(fileBytes(png) == encoded.bytes && equalPixels(QImage(png), encoded.decoded));
     CHECK(fileBytes(project) == "project-sentinel");
-    CHECK(QDir(dir.path()).entryList(QDir::Files | QDir::Hidden | QDir::NoDotAndDotDot).size() == 3);
+    CHECK(QDir(dir.path()).entryList(QDir::Files | QDir::Hidden | QDir::NoDotAndDotDot).size() == 2 + int(hasAlias));
 }
 
 void preflightAndRenderCancellation()
@@ -660,11 +683,13 @@ void preflightAndRenderCancellation()
 void exportPreferencesAreSeparateAndExplicit(const QString& preferencesPath)
 {
     CHECK(!u::hasExportPreferences());
+    QTemporaryDir files;
+    CHECK(files.isValid());
     QSettings storage;
     storage.setValue(QStringLiteral("recentFiles/version"), 77);
     storage.setValue(QStringLiteral("window/test-sentinel"), QStringLiteral("unchanged"));
     auto options = settings({ 300, 200 }, u::ExportFormat::WebP);
-    options.destination = QStringLiteral("/tmp/export-画像.webp");
+    options.destination = files.filePath(QStringLiteral("export-画像.webp"));
     options.pngEffort = 3;
     options.jpegQuality = 94;
     options.webpLossless = true;
@@ -682,9 +707,8 @@ void exportPreferencesAreSeparateAndExplicit(const QString& preferencesPath)
     CHECK(storage.value(QStringLiteral("recentFiles/version")).toInt() == 77);
     CHECK(storage.value(QStringLiteral("window/test-sentinel")).toString() == QStringLiteral("unchanged"));
     CHECK(restored.destination == options.destination);
-    CHECK(u::lastExportDirectory() == "/tmp");
+    CHECK(u::lastExportDirectory() == files.path());
 
-    QTemporaryDir files;
     CHECK(QDir(files.path()).mkdir("open"));
     CHECK(QDir(files.path()).mkdir("export"));
     CHECK(QDir(files.path()).mkdir("pictures"));
