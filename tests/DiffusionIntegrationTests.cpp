@@ -134,7 +134,12 @@ private slots:
     const auto adjacent = QDir(QCoreApplication::applicationDirPath())
                               .filePath("vulkana-diffusion-worker.exe");
     if (QFileInfo::exists(adjacent)) QSKIP("An installed worker already occupies the fixture path.");
-    QVERIFY(QFile::copy(QString::fromUtf8(DIFFUSION_UI_WORKER), adjacent));
+    // Auto correctly prefers packaged backend variants over the generic worker.
+    // Isolate this adjacent-file fixture even in a build staged with a real worker.
+    QTemporaryDir parked(QDir(QCoreApplication::applicationDirPath())
+                             .filePath(".diffusion-worker-fixture-XXXXXX"));
+    QVERIFY(parked.isValid());
+    QVector<QPair<QString, QString>> variants;
     const auto previousPath = qgetenv("PATH");
     const auto previousOverride = qgetenv("VULKANA_DIFFUSION_WORKER");
     const auto previousCuda = qgetenv("VULKANA_DIFFUSION_WORKER_CUDA");
@@ -142,6 +147,12 @@ private slots:
     const auto restore = qScopeGuard([&] {
       window.reset(); // Release the executable before removing it on Windows.
       QFile::remove(adjacent);
+      for (const auto &[original, backup] : variants) {
+        if (!QFile::rename(backup, original)) {
+          parked.setAutoRemove(false); // Preserve the executable for recovery.
+          QTest::qFail(qPrintable("Cannot restore worker fixture: " + backup), __FILE__, __LINE__);
+        }
+      }
       qputenv("PATH", previousPath);
       const auto reset = [](const char* key, const QByteArray& value) {
         if (value.isNull()) qunsetenv(key); else qputenv(key, value);
@@ -150,6 +161,14 @@ private slots:
       reset("VULKANA_DIFFUSION_WORKER_CUDA", previousCuda);
       reset("VULKANA_DIFFUSION_WORKER_VULKAN", previousVulkan);
     });
+    for (const auto *name : {"vulkana-diffusion-worker-cuda.exe", "vulkana-diffusion-worker-vulkan.exe"}) {
+      const auto original = QDir(QCoreApplication::applicationDirPath()).filePath(name);
+      if (!QFileInfo::exists(original)) continue;
+      const auto backup = parked.filePath(name);
+      QVERIFY2(QFile::rename(original, backup), "Cannot isolate the adjacent worker fixture; close running workers first.");
+      variants.append({original, backup});
+    }
+    QVERIFY(QFile::copy(QString::fromUtf8(DIFFUSION_UI_WORKER), adjacent));
     qunsetenv("VULKANA_DIFFUSION_WORKER");
     qunsetenv("VULKANA_DIFFUSION_WORKER_CUDA");
     qunsetenv("VULKANA_DIFFUSION_WORKER_VULKAN");
