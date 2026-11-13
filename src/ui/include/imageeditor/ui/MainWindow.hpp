@@ -256,7 +256,7 @@ private:
     bool captureDiffusionSession();
     void hideDiffusion();
     bool guardDiffusionClose(std::optional<DocumentInstanceId> id = std::nullopt);
-    void updateDiffusionNotice(const QString&, int step = 0, int total = 0, bool finished = false);
+    void updateDiffusionNotice(const i18n::Message&, int step = 0, int total = 0, bool finished = false);
     void cleanupDiffusionFiles();
     bool diffusionEvent(QObject*, QEvent*);
     std::shared_ptr<DiffusionWorkspace> diffusion_;

@@ -15,6 +15,9 @@ con un espacio de trabajo Qt y un lienzo acelerado por Vulkan.
 - **Edición con capas:** capas ráster, texto y formas editables; máscaras de mapa
   de bits, carpetas, grupos de máscaras de recorte, selección múltiple, modos de
   fusión, duplicación, combinación y rasterización explícita.
+- **Grupos de canales:** edita cada canal como una capa en escala de grises para
+  texturas con datos empaquetados, con conversión sin pérdida, pintura numérica,
+  retoque y ajustes. Consulta la [guía de grupos de canales](../CHANNEL_GROUPS.md).
 - **Pintura y retoque:** pinceles sensibles a la presión, preajustes procedurales
   y con textura, borrado, relleno, desenfoque local, tampón de clonar, corrector
   y corrector puntual automático.
@@ -26,6 +29,10 @@ con un espacio de trabajo Qt y un lienzo acelerado por Vulkan.
   selecciones y las máscaras de mapa de bits con Perfeccionar selección, vistas
   previas en directo y correcciones manuales. La selección de objetos no requiere
   descargar un modelo ni instalar Python.
+- **Edición local con IA:** genera imágenes, edita capas y rellena selecciones con
+  tus propios modelos y el motor CUDA opcional. Previsualiza los resultados antes
+  de aplicarlos como cambios que puedes deshacer. Requiere una GPU NVIDIA compatible;
+  consulta [Vulkana Diffusion](../../DIFFUSION.md).
 - **Transformaciones:** mover, escalar, rotar, voltear y distorsionar desde las
   esquinas; transforma los límites de la selección o los píxeles seleccionados,
   con ajuste automático y guías de alineación.

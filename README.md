@@ -14,6 +14,9 @@ with native Windows builds, a Qt workspace and Vulkan-accelerated canvas.
 - **Layered editing:** raster, editable text and shapes; bitmap masks, folders,
   clipping mask groups, multi-selection, blend modes, duplication, merging and
   explicit rasterization.
+- **Channel Groups:** edit individual channels as grayscale layers for packed
+  textures, with lossless conversion, numeric painting, retouching and adjustments.
+  See the [Channel Groups guide](docs/CHANNEL_GROUPS.md).
 - **Painting and retouching:** pressure-sensitive brushes, procedural and textured
   presets, erasing, fill, local blur, Clone Stamp, Heal and automatic Spot Heal.
 - **Selections:** rectangle, ellipse, freehand/polygon/magnetic lasso, select by
@@ -22,6 +25,10 @@ with native Windows builds, a Qt workspace and Vulkan-accelerated canvas.
   using the bundled offline model; improve selections and bitmap masks with
   Refine Selection, live previews and manual corrections. No model download or
   Python installation is needed to use Object Selection.
+- **Local AI image editing:** generate images, edit layers and fill selections
+  using your own models and the optional CUDA worker. Preview results before
+  applying them as undoable edits. Requires a supported NVIDIA GPU; see
+  [Vulkana Diffusion](DIFFUSION.md).
 - **Transforms:** move, scale, rotate, flip and corner distortion; transform
   selection boundaries or selected pixels, with snapping and alignment guides.
 - **Non-destructive adjustments:** per-layer corrections and masked adjustment

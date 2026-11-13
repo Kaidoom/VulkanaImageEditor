@@ -44,7 +44,69 @@ private slots:
     applyEditorTheme(
         *qobject_cast<QApplication *>(QCoreApplication::instance()));
   }
-  void init() { QSettings().clear(); }
+  void init() { QSettings().clear(); i18n::Localization::instance().setLanguage("en"); }
+  void languageSwitchPreservesEditableGenerationState() {
+    auto &locale = i18n::Localization::instance();
+    DiffusionPanel panel;
+    panel.resize(480, 760);
+    panel.setConfiguration({{"profile", "flux3-image-klein-distilled"},
+        {"files", QJsonObject{{"diffusion", "/models/Custom Name.gguf"}, {"textEncoder", "/models/encoder.gguf"}}},
+        {"settings", QJsonObject{{"weights", "manual"}}},
+        {"loras", QJsonArray{QJsonObject{{"id", "custom-lora"}, {"name", "My LoRA"}, {"path", "/models/custom.safetensors"}, {"strength", .65}, {"enabled", true}}}}});
+    auto *prompt = panel.findChild<QPlainTextEdit *>("DiffusionPrompt");
+    auto *negative = panel.findChild<QPlainTextEdit *>("DiffusionNegativePrompt");
+    QVERIFY(prompt && negative);
+    const QString promptText = "Use <Image1> and <Image1/Region1>. Keep Custom Name unchanged.";
+    prompt->setPlainText(promptText.left(promptText.size() - 1));
+    prompt->moveCursor(QTextCursor::End); prompt->insertPlainText(".");
+    negative->setPlainText("My own negative prompt");
+    auto *seed = panel.findChild<QDoubleSpinBox *>("DiffusionSeed");
+    auto *seedMode = panel.findChild<QComboBox *>("DiffusionSeedMode");
+    seedMode->setCurrentIndex(seedMode->findData("fixed")); seed->setValue(123456789);
+    auto *width = panel.findChild<QSpinBox *>("DiffusionWidth"); width->setValue(832);
+    auto *height = panel.findChild<QSpinBox *>("DiffusionHeight"); height->setValue(1248);
+    auto *steps = panel.findChild<QDoubleSpinBox *>("Diffusion_steps"); steps->setValue(21);
+    panel.findChild<QToolButton *>("DiffusionExpose_steps")->setChecked(true);
+    auto *overrideSteps = panel.findChild<QDoubleSpinBox *>("DiffusionOverride_steps");
+    overrideSteps->setValue(23);
+    QImage image(128, 64, QImage::Format_RGBA8888); image.fill(Qt::blue);
+    panel.setInputs({{image, "My Image1", "User source"}});
+    panel.showGeneration(); panel.show(); QCoreApplication::processEvents();
+    const auto config = panel.configuration();
+    const auto request = panel.request();
+    panel.saveSettings();
+    const auto stored = QSettings().value("diffusion/modelConfigurations");
+    QSignalSpy seedChanges(seed, &QDoubleSpinBox::valueChanged);
+    QSignalSpy dimensionChanges(width, &QSpinBox::valueChanged);
+    QSignalSpy modeChanges(seedMode, &QComboBox::currentIndexChanged);
+    QSignalSpy promptChanges(prompt, &QPlainTextEdit::textChanged);
+    auto *tabs = panel.findChild<QTabWidget *>("DiffusionTabs");
+    auto *generate = panel.findChild<QPushButton *>("DiffusionGenerate");
+    QVERIFY(generate);
+    for (const auto *language : {"qps", "ar", "fr", "en"}) {
+      QVERIFY(locale.setLanguage(language)); QTest::qWait(30);
+      QCOMPARE(tabs->tabText(0), QString(i18n::text("diffusion.ui.configuration")));
+      QCOMPARE(generate->text(), QString(i18n::text("diffusion.ui.generate")));
+      QCOMPARE(prompt->toPlainText(), promptText);
+      QCOMPARE(negative->toPlainText(), QString("My own negative prompt"));
+      QCOMPARE(panel.configuration(), config);
+      QCOMPARE(panel.request(), request);
+      QCOMPARE(panel.inputs().front().label, QString("My Image1"));
+      QCOMPARE(panel.inputs().front().image, image);
+      QCOMPARE(overrideSteps->value(), 23.0);
+      QCOMPARE(seed->text(), QString("123456789"));
+      QCOMPARE(width->text(), QString("832"));
+      QCOMPARE(QSettings().value("diffusion/modelConfigurations"), stored);
+      if (const auto capture = qEnvironmentVariable("VULKANA_DIFFUSION_PANEL_CAPTURE"); !capture.isEmpty())
+        QVERIFY(panel.grab().save(capture + "-" + language + ".png"));
+    }
+    QCOMPARE(seedChanges.count(), 0); QCOMPARE(dimensionChanges.count(), 0);
+    QCOMPARE(modeChanges.count(), 0); QCOMPARE(promptChanges.count(), 0);
+    QVERIFY(prompt->document()->isUndoAvailable());
+    prompt->undo(); QCOMPARE(prompt->toPlainText(), promptText.left(promptText.size() - 1));
+    prompt->redo(); QCOMPARE(prompt->toPlainText(), promptText);
+    panel.hide();
+  }
   void loadedModelsReflectWorkerNotConfiguration() {
     DiffusionPanel panel;
     QVERIFY(panel.findChild<QLabel *>("DiffusionLoadedModelsEmpty"));
@@ -622,7 +684,7 @@ private slots:
     auto *generate = panel.findChild<QPushButton *>("DiffusionGenerate");
     auto *model = panel.findChild<QComboBox *>("DiffusionModels");
     QVERIFY(!generate->isEnabled());
-    QVERIFY(model->currentText().contains("Missing configuration"));
+    QCOMPARE(model->currentText(), QString(i18n::text("diffusion.ui.missing.configuration")));
     auto *width = panel.findChild<QSpinBox *>("DiffusionWidth");
     auto *height = panel.findChild<QSpinBox *>("DiffusionHeight");
     QVERIFY(!panel.findChild<QComboBox *>("DiffusionDestination"));

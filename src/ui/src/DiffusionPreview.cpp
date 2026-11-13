@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/DiffusionPreview.hpp"
 #include <QUuid>
 #include "imageeditor/ui/Theme.hpp"
@@ -253,7 +254,7 @@ void DiffusionPreview::paintEvent(QPaintEvent *) {
     QString title = regions_[i].label.isEmpty()
                               ? QString("Region%1").arg(i + 1)
                               : regions_[i].label;
-    if (regions_[i].targetOnly) title += " · Target";
+    if (regions_[i].targetOnly) title += i18n::text("diffusion.ui.target");
     const auto label =
         p.fontMetrics().boundingRect(title).adjusted(-5, -3, 5, 3);
     QRectF labelBox(box.topLeft(), label.size());

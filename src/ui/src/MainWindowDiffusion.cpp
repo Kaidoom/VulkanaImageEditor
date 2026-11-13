@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/LayerCommands.hpp"
 #include "imageeditor/diffusion/ModelProfiles.h"
 #include "imageeditor/diffusion/WorkerClient.h"
@@ -207,25 +208,25 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
     auto shared = weak.lock();
     return shared && diffusion_ == shared && !shared->shuttingDown;
   };
-  auto *ai = editMenu->addMenu("AI");
+  auto *ai = i18n::addMenu(editMenu, i18n::text("diffusion.ui.ai"));
   ai->setObjectName("AIImageEditorMenu");
   ai->setIcon(toolGlyph(ToolGlyph::LayerRaster));
-  const auto action = [&](const char *name, const char *objectName, int mode) {
-    auto *item = ai->addAction(name);
+  const auto action = [&](const i18n::Message &name, const char *objectName, int mode) {
+    auto *item = i18n::addAction(ai, name);
     item->setObjectName(objectName);
     item->setIcon(toolGlyph(ToolGlyph::LayerRaster));
     connect(item, &QAction::triggered, this,
             [this, mode] { openDiffusion(mode); });
     return item;
   };
-  action("Generate Image…", "AIGenerateImageAction",
+  action(i18n::text("diffusion.ui.generate.image"), "AIGenerateImageAction",
          int(DiffusionPanel::Mode::Generate));
-  auto *edit = action("Edit Current Layer…", "AIEditLayerAction",
+  auto *edit = action(i18n::text("diffusion.ui.edit.current.layer"), "AIEditLayerAction",
                       int(DiffusionPanel::Mode::Edit));
-  auto *fill = action("Generative Fill…", "AIGenerativeFillAction",
+  auto *fill = action(i18n::text("diffusion.ui.generative.fill.2"), "AIGenerativeFillAction",
                       int(DiffusionPanel::Mode::Fill));
   ai->addSeparator();
-  action("AI Image Editor…", "AIImageEditorAction", -1);
+  action(i18n::text("diffusion.ui.ai.image.editor.2"), "AIImageEditorAction", -1);
   connect(ai, &QMenu::aboutToShow, this, [this, edit, fill] {
     auto *doc = session().document();
     auto *layer = doc && session().activeLayer()
@@ -298,7 +299,7 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
       return;
     diffusion_->loadedConfiguration = {};
     diffusion_->unloadingModel = true;
-    diffusion_->panel->setStatus("Unloading model…");
+    diffusion_->panel->setStatus(i18n::text("diffusion.ui.unloading.model"));
     diffusion_->worker->stop();
   };
   state->panel->onResetSize = [this, active] {
@@ -363,7 +364,7 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
             if (job != diffusion_->generateId && job != diffusion_->loadId)
               return;
             if (event.value("event") == "progress") {
-              updateDiffusionNotice("Generating…", event.value("step").toInt(),
+              updateDiffusionNotice(i18n::text("diffusion.ui.generating"), event.value("step").toInt(),
                                     event.value("steps").toInt());
               diffusion_->panel->setProgress(
                   event.value("step").toInt(), event.value("steps").toInt(),
@@ -426,7 +427,7 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
               metadata["configurationName"] = s.pendingConfigurationName;
               s.panel->appendResult(
                   {srgb(image), s.jobContext.before,
-                   QString("Variation %1").arg(++s.variationCounter), metadata,
+                   i18n::text("diffusion.ui.variation.1").arg(++s.variationCounter), metadata,
                    s.jobContext.mode == DiffusionPanel::Mode::Edit &&
                            s.jobContext.inputSize.isValid()
                        ? QTransform::fromScale(
@@ -441,13 +442,13 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
               throw std::runtime_error(
                   "The generated images could not be read.");
             s.panel->generationAccepted();
-            updateDiffusionNotice("Generation done", 0, 0, true);
+            updateDiffusionNotice(i18n::text("diffusion.ui.generation.done"), 0, 0, true);
             const auto seconds =
                 result.value("timings").toObject().value("totalMs").toDouble() /
                 1000.;
             refreshDiffusion();
             s.panel->setStatus(
-                QString("Ready · %1 s — inspect the result before applying.")
+                i18n::text("diffusion.ui.ready.1.s.inspect.the.result.before")
                     .arg(seconds, 0, 'f', 1));
           }
         } catch (const std::exception &error) {
@@ -457,7 +458,7 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
           s.panel->setBusy(false);
           refreshDiffusion();
           s.panel->setStatus(QString::fromUtf8(error.what()), true);
-          updateDiffusionNotice("Generation failed", 0, 0, true);
+          updateDiffusionNotice(i18n::text("diffusion.ui.generation.failed"), 0, 0, true);
         }
       });
   connect(state->worker.get(), &diffusion::WorkerClient::requestFailed, this,
@@ -479,12 +480,11 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
             refreshDiffusion();
             s.panel->setStatus(
                 code == "cancelled"
-                    ? QStringLiteral("Cancelled. Previous successful "
-                                     "variations are still available.")
+                    ? i18n::text("diffusion.ui.cancelled.previous.successful.variations.are.still.available")
                     : message,
                 code != "cancelled");
-            updateDiffusionNotice(code == "cancelled" ? "Generation cancelled"
-                                                      : "Generation failed",
+            updateDiffusionNotice(code == "cancelled" ? i18n::text("diffusion.ui.generation.cancelled")
+                                                      : i18n::text("diffusion.ui.generation.failed"),
                                   0, 0, true);
             cleanupDiffusionFiles();
           });
@@ -498,8 +498,8 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
             s.panel->setBusy(false);
             refreshDiffusion();
             s.panel->setStatus(
-                message + " Generate again to restart the worker.", true);
-            updateDiffusionNotice("Generation failed", 0, 0, true);
+                message + i18n::text("diffusion.ui.generate.again.to.restart.the.worker"), true);
+            updateDiffusionNotice(i18n::text("diffusion.ui.generation.failed"), 0, 0, true);
             cleanupDiffusionFiles();
           });
   connect(state->worker.get(), &diffusion::WorkerClient::stateChanged, this,
@@ -523,7 +523,7 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
                   value == diffusion::WorkerClient::State::Stopped &&
                   !diffusion_->wanted)
                 diffusion_->panel->setStatus(
-                    "Model unloaded. Generate again to load a configuration.");
+                    i18n::text("diffusion.ui.model.unloaded.generate.again.to.load.a"));
               diffusion_->unloadingModel = false;
               cleanupDiffusionFiles();
               QTimer::singleShot(0, this, [this, active] {
@@ -556,7 +556,7 @@ void MainWindow::openDiffusion(int requested) {
   if (requested >= 0 && s.mode != DiffusionPanel::Mode::Generate)
     captureDiffusionSession();
   if (s.mode != mode)
-    s.panel->setStatus("This model generates from text only. Choose an editing model to edit a layer or selection.");
+    s.panel->setStatus(i18n::text("diffusion.ui.this.model.generates.from.text.only.choose.2"));
   refreshDiffusion();
 }
 
@@ -568,13 +568,11 @@ bool MainWindow::captureDiffusionSession() {
     if (!settleForFileOperation())
       return false;
     if (!activeDocument_ || !session().document() || !session().activeLayer())
-      throw std::runtime_error(
-          "Select a raster layer to start an editing session.");
+      throw std::runtime_error(i18n::text("diffusion.ui.select.a.raster.layer.to.start.an").toStdString());
     if (s.mode == DiffusionPanel::Mode::Fill &&
         (!session().document()->selection() ||
          session().document()->selection()->bounds().empty()))
-      throw std::runtime_error(
-          "Make a selection before using Generative Fill.");
+      throw std::runtime_error(i18n::text("diffusion.ui.make.a.selection.before.using.generative.fill").toStdString());
     s.owner = activeDocument_;
     s.target =
         captureDiffusionTarget(*session().document(), *session().activeLayer(),
@@ -592,8 +590,8 @@ bool MainWindow::captureDiffusionSession() {
     inputs.prepend({s.before,
                     QString::fromStdString(layer->name),
                     s.mode == DiffusionPanel::Mode::Fill
-                        ? "Target · visible canvas"
-                        : "Target · raw layer pixels",
+                        ? i18n::text("diffusion.ui.target.visible.canvas")
+                        : i18n::text("diffusion.ui.target.raw.layer.pixels"),
                     true,
                     {{"documentId", QString::number(s.owner->id)},
                      {"layerId", QString::number(s.target->layerId)},
@@ -608,8 +606,7 @@ bool MainWindow::captureDiffusionSession() {
     s.panel->setInputs(std::move(inputs));
     s.panel->setResolution(s.before.size());
     s.panel->setTargetCompatible(true);
-    s.panel->setStatus("Target captured. You can keep editing; changed targets "
-                       "are checked before generation and Apply.");
+    s.panel->setStatus(i18n::text("diffusion.ui.target.captured.you.can.keep.editing.changed"));
     return true;
   } catch (const std::exception &e) {
     refreshDiffusion();
@@ -633,14 +630,13 @@ void MainWindow::generateDiffusion() {
     s.mode = s.panel->mode();
     const auto inputs = s.panel->supportsImageInputs() ? s.panel->inputs() : QVector<DiffusionPanel::Input>{};
     if (s.mode != DiffusionPanel::Mode::Generate && inputs.isEmpty())
-      throw std::runtime_error("Add an input image before generating an edit.");
+      throw std::runtime_error(i18n::text("diffusion.ui.add.an.input.image.before.generating.an").toStdString());
     s.target.reset();
     s.owner.reset();
     s.before = {};
     if (s.mode == DiffusionPanel::Mode::Fill) {
       if (!session().document() || !session().activeLayer())
-        throw std::runtime_error(
-            "Select a raster layer and a selection for Generative Fill.");
+        throw std::runtime_error(i18n::text("diffusion.ui.select.a.raster.layer.and.a.selection").toStdString());
       s.owner = activeDocument_;
       s.target = captureDiffusionTarget(*session().document(),
                                         *session().activeLayer(), true);
@@ -682,7 +678,7 @@ void MainWindow::generateDiffusion() {
     const auto size = QSize(s.pendingGeneration.value("width").toInt(1024),
                             s.pendingGeneration.value("height").toInt(1024));
     if (s.pendingGeneration.value("prompt").toString().trimmed().isEmpty())
-      throw std::runtime_error("Enter a prompt before generating.");
+      throw std::runtime_error(i18n::text("diffusion.ui.enter.a.prompt.before.generating").toStdString());
     if (!s.files.isValid())
       throw std::runtime_error("Cannot create a private directory for "
                                "diffusion inputs and results.");
@@ -746,17 +742,16 @@ void MainWindow::generateDiffusion() {
     s.requestEpoch = ++s.epoch;
     s.wanted = true;
     s.panel->setBusy(true);
-    s.panel->setStatus("Preparing inference…");
+    s.panel->setStatus(i18n::text("diffusion.ui.preparing.inference"));
     s.noticeDismissed = false;
-    updateDiffusionNotice("Preparing generation…");
+    updateDiffusionNotice(i18n::text("diffusion.ui.preparing.generation"));
     s.pendingBackend = s.panel->backend();
     s.pendingExecutable = s.panel->workerExecutable();
     if (s.pendingExecutable.isEmpty())
       s.pendingExecutable = discoverWorker(s.pendingBackend);
     if (s.pendingExecutable.isEmpty())
       throw std::runtime_error(
-          (s.pendingBackend.toUpper() +
-           " inference worker is not installed. Choose an available backend.")
+          i18n::text("diffusion.ui.1.inference.worker.is.not.installed.choose").arg(i18n::ltrToken(s.pendingBackend.toUpper()))
               .toStdString());
     if (s.worker->isRunning() && s.activeExecutable != s.pendingExecutable)
       s.worker->stop();
@@ -767,7 +762,7 @@ void MainWindow::generateDiffusion() {
     s.panel->setBusy(false);
     refreshDiffusion();
     s.panel->setStatus(QString::fromUtf8(e.what()), true);
-    updateDiffusionNotice("Generation failed", 0, 0, true);
+    updateDiffusionNotice(i18n::text("diffusion.ui.generation.failed"), 0, 0, true);
   }
 }
 
@@ -782,7 +777,7 @@ void MainWindow::continueDiffusionJob() {
       s.wanted = false;
       s.panel->setBusy(false);
       s.panel->setStatus(error, true);
-      updateDiffusionNotice("Generation failed", 0, 0, true);
+      updateDiffusionNotice(i18n::text("diffusion.ui.generation.failed"), 0, 0, true);
     }
     return;
   }
@@ -798,24 +793,24 @@ void MainWindow::continueDiffusionJob() {
       !s.worker->hello().value("loraParameters").toBool()) {
     s.wanted = false;
     s.panel->setBusy(false);
-    s.panel->setStatus("Update the inference worker to use LoRAs.", true);
-    updateDiffusionNotice("Generation could not start", 0, 0, true);
+    s.panel->setStatus(i18n::text("diffusion.ui.update.the.inference.worker.to.use.loras"), true);
+    updateDiffusionNotice(i18n::text("diffusion.ui.generation.could.not.start"), 0, 0, true);
     return;
   }
   if (diffusion::modelProfile(s.pendingConfiguration.value("profile").toString()).value("family") == "flux3" &&
       !s.worker->hello().value("flux3NativeRegions").toBool()) {
     s.wanted = false;
     s.panel->setBusy(false);
-    s.panel->setStatus("Update the inference worker to use native FLUX.3 image and region references.", true);
-    updateDiffusionNotice("Generation could not start", 0, 0, true);
+    s.panel->setStatus(i18n::text("diffusion.ui.update.the.inference.worker.to.use.native"), true);
+    updateDiffusionNotice(i18n::text("diffusion.ui.generation.could.not.start"), 0, 0, true);
     return;
   }
   if (s.pendingGeneration.value("referenceMaxSize").toInt() > 0 &&
       !s.worker->hello().value("referenceSizeLimit").toBool()) {
     s.wanted = false;
     s.panel->setBusy(false);
-    s.panel->setStatus("Update the inference worker to use the input-size limit.", true);
-    updateDiffusionNotice("Generation could not start", 0, 0, true);
+    s.panel->setStatus(i18n::text("diffusion.ui.update.the.inference.worker.to.use.the"), true);
+    updateDiffusionNotice(i18n::text("diffusion.ui.generation.could.not.start"), 0, 0, true);
     return;
   }
   const int spatialVersion = s.pendingGeneration.value("spatial").toObject().value("version").toInt();
@@ -823,29 +818,29 @@ void MainWindow::continueDiffusionJob() {
     s.wanted = false;
     s.panel->setBusy(false);
     s.panel->setStatus(spatialVersion == 3
-        ? "Update the inference worker to use region descriptions, output scenes and linked destinations."
-        : "The installed inference worker does not support per-image regions. Update the worker before generating with input regions.", true);
-    updateDiffusionNotice("Generation could not start", 0, 0, true);
+        ? i18n::text("diffusion.ui.update.the.inference.worker.to.use.region")
+        : i18n::text("diffusion.ui.the.installed.inference.worker.does.not.support"), true);
+    updateDiffusionNotice(i18n::text("diffusion.ui.generation.could.not.start"), 0, 0, true);
     return;
   }
   if (s.pendingBackend != "auto" && actualBackend != s.pendingBackend) {
     s.wanted = false;
     s.panel->setBusy(false);
     s.panel->setStatus(
-        QString("%1 is unavailable: the installed worker provides %2.")
+        i18n::text("diffusion.ui.1.is.unavailable.the.installed.worker.provides")
             .arg(s.pendingBackend.toUpper(), actualBackend.toUpper()),
         true);
     s.worker->stop();
-    updateDiffusionNotice("Generation failed", 0, 0, true);
+    updateDiffusionNotice(i18n::text("diffusion.ui.generation.failed"), 0, 0, true);
     return;
   }
   if (s.pendingConfiguration != s.loadedConfiguration) {
-    s.panel->setStatus("Loading the selected model…");
-    updateDiffusionNotice("Loading AI model…");
+    s.panel->setStatus(i18n::text("diffusion.ui.loading.the.selected.model"));
+    updateDiffusionNotice(i18n::text("diffusion.ui.loading.ai.model"));
     s.loadId = s.worker->request("load", s.pendingConfiguration);
   } else {
     s.panel->setStatus(
-        "Generating… You can inspect previous variations while this job runs.");
+        i18n::text("diffusion.ui.generating.you.can.inspect.previous.variations.while"));
     s.generateId = s.worker->request("generate", s.pendingGeneration);
   }
 }
@@ -874,7 +869,7 @@ void MainWindow::applyDiffusion() {
       return;
     QString error;
     if (image.isNull())
-      throw std::runtime_error("The generated image is no longer available.");
+      throw std::runtime_error(i18n::text("diffusion.ui.the.generated.image.is.no.longer.available").toStdString());
     const bool selection = context.mode == DiffusionPanel::Mode::Fill;
     const bool documentSpace = selection;
     const bool available = originalOwner && !originalOwner->closed &&
@@ -898,7 +893,7 @@ void MainWindow::applyDiffusion() {
         throw std::runtime_error("Cannot create the generated document.");
       document->markUnsaved();
       refreshDiffusion();
-      if (!initializeDocument(std::move(document), "AI image"))
+      if (!initializeDocument(std::move(document), i18n::text("diffusion.ui.ai.image")))
         throw std::runtime_error("Cannot activate the generated document.");
     } else {
       auto owner = activeDocument_;
@@ -906,17 +901,15 @@ void MainWindow::applyDiffusion() {
           destination == DiffusionPanel::Destination::NewLayer && available)
         owner = originalOwner;
       if (!owner || owner->closed || !owner->session.document())
-        throw std::runtime_error(
-            "Open a document or choose Create New Document.");
+        throw std::runtime_error(i18n::text("diffusion.ui.open.a.document.or.choose.create.new").toStdString());
       if (owner != activeDocument_ && !activateDocument(owner->id))
-        throw std::runtime_error("Finish the current document interaction "
-                                 "before applying this result.");
+        throw std::runtime_error(i18n::text("diffusion.ui.finish.the.current.document.interaction.before.applying").toStdString());
       std::unique_ptr<core::Command> command;
       std::optional<core::LayerId> newLayer;
       if (destination == DiffusionPanel::Destination::ReplaceSelected) {
         if (destination == DiffusionPanel::Destination::ReplaceSelected) {
           if (!session().activeLayer())
-            throw std::runtime_error("Select a raster layer to replace.");
+            throw std::runtime_error(i18n::text("diffusion.ui.select.a.raster.layer.to.replace").toStdString());
           const auto originalSelection =
               target ? target->selection : core::SelectionState{};
           target = captureDiffusionTarget(*session().document(),
@@ -960,7 +953,7 @@ void MainWindow::applyDiffusion() {
     refreshDiffusion();
     synchronizeUi(true, false);
     updateDocumentTitle();
-    statusBar()->showMessage("AI result applied", 4000);
+    statusBar()->showMessage(i18n::text("diffusion.ui.ai.result.applied"), 4000);
   } catch (const std::exception &e) {
     refreshDiffusion();
     s.panel->setStatus(QString::fromUtf8(e.what()), true);
@@ -977,12 +970,12 @@ void MainWindow::cancelDiffusion() {
   refreshDiffusion();
   if (s.worker->isRunning() && s.worker->pendingRequestCount()) {
     s.worker->cancel();
-    s.panel->setStatus("Cancelling…");
+    s.panel->setStatus(i18n::text("diffusion.ui.cancelling"));
   } else {
     s.panel->setBusy(false);
-    s.panel->setStatus("Generation cancelled.");
+    s.panel->setStatus(i18n::text("diffusion.ui.generation.cancelled.2"));
     if (wasBusy)
-      updateDiffusionNotice("Generation cancelled", 0, 0, true);
+      updateDiffusionNotice(i18n::text("diffusion.ui.generation.cancelled"), 0, 0, true);
   }
 }
 void MainWindow::cleanupDiffusionFiles() {
@@ -1031,9 +1024,9 @@ void MainWindow::refreshDiffusion() {
     QString type;
     if (const auto *raster = std::get_if<core::RasterLayer>(&candidate.payload)) {
       if (!raster->surface || raster->surface->dataKind() != core::RasterDataKind::Color) continue;
-      type = "Raster";
-    } else if (std::holds_alternative<core::TextLayer>(candidate.payload)) type = "Text";
-    else if (std::holds_alternative<core::ShapeLayer>(candidate.payload)) type = "Shape";
+      type = i18n::text("psd.review.type.raster");
+    } else if (std::holds_alternative<core::TextLayer>(candidate.payload)) type = i18n::text("psd.review.type.text");
+    else if (std::holds_alternative<core::ShapeLayer>(candidate.payload)) type = i18n::text("psd.review.type.shape");
     else continue;
     choices.push_back({QString("%1:%2").arg(activeDocumentId()).arg(candidate.id),
                        QString::fromStdString(candidate.name), type, layerModel_->cachedContentThumbnail(candidate.id)});
@@ -1062,13 +1055,13 @@ void MainWindow::matchSelectedDiffusionSize() {
   if (!diffusion_ || diffusion_->panel->isBusy()) return;
   try {
     if (const auto *input = diffusion_->panel->selectedInput()) {
-      if (input->image.isNull()) throw std::runtime_error("This input has no pixels inside its canvas.");
+      if (input->image.isNull()) throw std::runtime_error(i18n::text("diffusion.ui.this.input.has.no.pixels.inside.its").toStdString());
       diffusion_->panel->setResolution(input->outputSize);
       return;
     }
     const auto *doc = session().document();
-    if (!doc || !session().activeLayer()) throw std::runtime_error("Select an input image or a layer first.");
-    if (!doc->layer(*session().activeLayer())) throw std::runtime_error("Select an image layer rather than a container.");
+    if (!doc || !session().activeLayer()) throw std::runtime_error(i18n::text("diffusion.ui.select.an.input.image.or.a.layer").toStdString());
+    if (!doc->layer(*session().activeLayer())) throw std::runtime_error(i18n::text("diffusion.ui.select.an.image.layer.rather.than.a").toStdString());
     for (const auto &input : diffusion_->panel->inputs())
       if (input.cropToCanvas && !input.image.isNull() &&
           input.metadata["documentId"].toString() == QString::number(activeDocumentId()) &&
@@ -1081,7 +1074,7 @@ void MainWindow::matchSelectedDiffusionSize() {
     const std::array ids{*session().activeLayer()};
     const auto bounds = evaluatedLayerItemsBounds(copy, ids);
     if (!bounds.error.isEmpty()) throw std::runtime_error(bounds.error.toStdString());
-    if (bounds.rect.empty()) throw std::runtime_error("The selected layer has no visible bounds.");
+    if (bounds.rect.empty()) throw std::runtime_error(i18n::text("diffusion.ui.the.selected.layer.has.no.visible.bounds").toStdString());
     diffusion_->panel->setResolution(QSize(bounds.rect.width, bounds.rect.height));
   } catch (const std::exception &e) {
     diffusion_->panel->setStatus(QString::fromUtf8(e.what()), true);
@@ -1187,8 +1180,8 @@ void MainWindow::addDiffusionInput(int sourceValue) {
     DiffusionPanel::Input input;
     if (source == DiffusionPanel::InputSource::File) {
       QFileDialog chooser(
-          s.panel, "Add reference image", {},
-          "Images (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff)");
+          s.panel, i18n::text("diffusion.ui.add.reference.image"), {},
+          i18n::text("diffusion.ui.images.png.jpg.jpeg.webp.bmp.tif"));
       chooser.setFileMode(QFileDialog::ExistingFile);
       preparePopupOwnership(&chooser, s.panel);
       if (chooser.exec() != QDialog::Accepted ||
@@ -1199,7 +1192,7 @@ void MainWindow::addDiffusionInput(int sourceValue) {
       reader.setAutoTransform(true);
       input.image = srgb(reader.read());
       input.label = QFileInfo(path).fileName();
-      input.source = "File";
+      input.source = i18n::text("diffusion.ui.file");
     } else {
       auto owner = activeDocument_;
       std::optional<core::LayerId> id =
@@ -1220,8 +1213,8 @@ void MainWindow::addDiffusionInput(int sourceValue) {
         QInputDialog chooser(&presenter,
                              Qt::SubWindow | Qt::FramelessWindowHint);
         chooser.setWindowFlag(Qt::WindowMinMaxButtonsHint, false);
-        chooser.setWindowTitle("Reference layer");
-        chooser.setLabelText("Document / layer");
+        chooser.setWindowTitle(i18n::text("diffusion.ui.reference.layer"));
+        chooser.setLabelText(i18n::text("diffusion.ui.document.layer"));
         chooser.setComboBoxItems(labels);
         chooser.setComboBoxEditable(false);
         if (presenter.exec(chooser) != QDialog::Accepted)
@@ -1233,7 +1226,7 @@ void MainWindow::addDiffusionInput(int sourceValue) {
         id = choices[std::size_t(index)].second;
       }
       if (!owner || owner->closed || !owner->session.document())
-        throw std::runtime_error("Open a document before adding this input.");
+        throw std::runtime_error(i18n::text("diffusion.ui.open.a.document.before.adding.this.input").toStdString());
       auto *doc = owner->session.document();
       if (source == DiffusionPanel::InputSource::VisibleCanvas) {
         const auto rendered = flattenDocument(*doc);
@@ -1241,13 +1234,13 @@ void MainWindow::addDiffusionInput(int sourceValue) {
           throw std::runtime_error(rendered.error.toStdString());
         input.image = srgb(rendered.image);
         input.label = owner->displayName;
-        input.source = "Visible canvas";
+        input.source = i18n::text("diffusion.ui.visible.canvas");
         input.metadata = {{"documentId", QString::number(owner->id)},
                           {"visibleCanvas", true}};
       } else {
         const auto *layer = id ? doc->layer(*id) : nullptr;
         if (!layer)
-          throw std::runtime_error("Select a layer first.");
+          throw std::runtime_error(i18n::text("diffusion.ui.select.a.layer.first").toStdString());
         const bool raw =
             source == DiffusionPanel::InputSource::CurrentLayerPixels ||
             source == DiffusionPanel::InputSource::DocumentLayerPixels;
@@ -1266,7 +1259,7 @@ void MainWindow::addDiffusionInput(int sourceValue) {
         }
         input.label = QString::fromStdString(layer->name);
         input.source =
-            raw ? "Raw pixels" : "Rendered appearance · isolated layer";
+            raw ? i18n::text("diffusion.ui.raw.pixels") : i18n::text("diffusion.ui.rendered.appearance.isolated.layer");
         input.metadata = {{"documentId", QString::number(owner->id)},
                           {"layerId", QString::number(*id)}};
         input.sourceCanvas = QSize(int(doc->canvas().extent.width), int(doc->canvas().extent.height));
@@ -1319,17 +1312,15 @@ bool MainWindow::guardDiffusionClose(std::optional<DocumentInstanceId> id) {
     return false;
   WorkspaceDialog presenter(*workspace_, *this);
   QMessageBox dialog(
-      QMessageBox::Question, id ? "Close document?" : "Quit Vulkana?",
-      id ? "AI generation is using an image captured from this document. "
-           "Generation will continue if you close it. You can still add the "
-           "result to another document or open it as a new document."
-         : "AI generation is still running. Quitting Vulkana will cancel it.",
+      QMessageBox::Question, id ? i18n::text("diffusion.ui.close.document") : i18n::text("diffusion.ui.quit.vulkana"),
+      id ? i18n::text("diffusion.ui.ai.generation.is.using.an.image.captured")
+         : i18n::text("diffusion.ui.ai.generation.is.still.running.quitting.vulkana"),
       QMessageBox::NoButton, &presenter);
   dialog.setObjectName("DiffusionClosePrompt");
   dialog.setWindowFlags(Qt::SubWindow | Qt::FramelessWindowHint);
   dialog.setWindowFlag(Qt::WindowMinMaxButtonsHint, false);
   auto *proceed =
-      dialog.addButton(id ? "Close document" : "Quit", QMessageBox::AcceptRole);
+      dialog.addButton(id ? i18n::text("diffusion.ui.close.document.2") : i18n::text("diffusion.ui.quit"), QMessageBox::AcceptRole);
   auto *cancel = dialog.addButton(QMessageBox::Cancel);
   dialog.setDefaultButton(cancel);
   dialog.setEscapeButton(cancel);
@@ -1337,7 +1328,7 @@ bool MainWindow::guardDiffusionClose(std::optional<DocumentInstanceId> id) {
   presenter.exec(dialog);
   return dialog.clickedButton() == proceed;
 }
-void MainWindow::updateDiffusionNotice(const QString &message, int step,
+void MainWindow::updateDiffusionNotice(const i18n::Message &message, int step,
                                        int total, bool finished) {
   if (!diffusion_ || diffusion_->shuttingDown)
     return;
@@ -1366,14 +1357,14 @@ void MainWindow::updateDiffusionNotice(const QString &message, int step,
     s.noticeOpen = new QToolButton;
     s.noticeOpen->setObjectName("DiffusionNoticeOpen");
     s.noticeOpen->setIcon(toolGlyph(ToolGlyph::ZoomActual));
-    s.noticeOpen->setToolTip("View latest preview");
-    s.noticeOpen->setAccessibleName("View latest preview");
+    i18n::setToolTip(s.noticeOpen, i18n::text("diffusion.ui.view.latest.preview"));
+    i18n::setAccessibleName(s.noticeOpen, i18n::text("diffusion.ui.view.latest.preview"));
     row->addWidget(s.noticeOpen);
     auto *close = new QToolButton;
     close->setObjectName("DiffusionNoticeDismiss");
     close->setIcon(toolGlyph(ToolGlyph::Close));
-    close->setToolTip("Dismiss notification");
-    close->setAccessibleName("Dismiss notification");
+    i18n::setToolTip(close, i18n::text("diffusion.ui.dismiss.notification"));
+    i18n::setAccessibleName(close, i18n::text("diffusion.ui.dismiss.notification"));
     row->addWidget(close);
     layout->addLayout(row);
     s.noticeProgress = new QProgressBar;
@@ -1390,9 +1381,7 @@ void MainWindow::updateDiffusionNotice(const QString &message, int step,
       diffusion_->panel->showLatestPreview();
     });
   }
-  s.noticeLabel->setText(total > 0 ? QString("%1 %2%").arg(message).arg(
-                                         std::clamp(step * 100 / total, 0, 100))
-                                   : message);
+  i18n::setText(s.noticeLabel, total > 0 ? message + " " + QString::number(std::clamp(step * 100 / total, 0, 100)) + "%" : message);
   s.noticeProgress->setVisible(!finished);
   s.noticeProgress->setRange(0, total);
   s.noticeProgress->setValue(step);

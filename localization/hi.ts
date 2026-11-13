@@ -10377,6 +10377,11 @@ Escape · पूरा क्रॉप सत्र रद्द
       <translation>मास्क सुधारें</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
+    <message id="history.layer.pixel.opacity">
+      <source>Layer pixel opacity</source>
+      <extracomment>Core history label: Layer pixel opacity</extracomment>
+      <translation>परत की पिक्सेल अपारदर्शिता</translation>
+    </message>
   </context>
   <context>
     <name>Theme</name>
@@ -10623,72 +10628,259 @@ Escape · पूरा क्रॉप सत्र रद्द
   </context>
   <context>
     <name>Canvas clipboard</name>
-    <message id="clipboard.copy.canvas"><source>Copy canvas to clipboard</source><translation>कैनवास क्लिपबोर्ड में कॉपी करें</translation></message>
-    <message id="clipboard.copy.canvas.hint"><source>Copy the full canvas at its original size, including visible layers and transparency.</source><translation>दिखने वाली परतों और पारदर्शिता सहित, पूरे कैनवास को मूल आकार में कॉपी करें।</translation></message>
-    <message id="clipboard.copy.canvas.preparing"><source>Preparing canvas for clipboard…</source><translation>कैनवास को कॉपी करने की तैयारी…</translation></message>
-    <message id="clipboard.copy.canvas.finish.edit"><source>Finish or cancel the current selection or shape edit before copying the canvas.</source><translation>कैनवास कॉपी करने से पहले चयन या आकृति का मौजूदा संपादन पूरा या रद्द करें।</translation></message>
-    <message id="clipboard.copy.canvas.failed"><source>Could not copy the canvas: %1</source><translation>कैनवास कॉपी नहीं हो सका: %1</translation></message>
-    <message id="clipboard.copy.canvas.done"><source>Canvas copied to clipboard · %1 × %2 px</source><translation>कैनवास क्लिपबोर्ड में कॉपी किया गया · %1 × %2 px</translation></message>
+    <message id="clipboard.copy.canvas">
+      <source>Copy canvas to clipboard</source>
+      <translation>कैनवास क्लिपबोर्ड में कॉपी करें</translation>
+    </message>
+    <message id="clipboard.copy.canvas.hint">
+      <source>Copy the full canvas at its original size, including visible layers and transparency.</source>
+      <translation>दिखने वाली परतों और पारदर्शिता सहित, पूरे कैनवास को मूल आकार में कॉपी करें।</translation>
+    </message>
+    <message id="clipboard.copy.canvas.preparing">
+      <source>Preparing canvas for clipboard…</source>
+      <translation>कैनवास को कॉपी करने की तैयारी…</translation>
+    </message>
+    <message id="clipboard.copy.canvas.finish.edit">
+      <source>Finish or cancel the current selection or shape edit before copying the canvas.</source>
+      <translation>कैनवास कॉपी करने से पहले चयन या आकृति का मौजूदा संपादन पूरा या रद्द करें।</translation>
+    </message>
+    <message id="clipboard.copy.canvas.failed">
+      <source>Could not copy the canvas: %1</source>
+      <translation>कैनवास कॉपी नहीं हो सका: %1</translation>
+    </message>
+    <message id="clipboard.copy.canvas.done">
+      <source>Canvas copied to clipboard · %1 × %2 px</source>
+      <translation>कैनवास क्लिपबोर्ड में कॉपी किया गया · %1 × %2 px</translation>
+    </message>
   </context>
   <context>
     <name>Screenshot capture</name>
-    <message id="screenshot.action"><source>Take Screenshot…</source><translation>स्क्रीनशॉट लें…</translation></message>
-    <message id="screenshot.title"><source>Screenshot</source><translation>स्क्रीनशॉट</translation></message>
-    <message id="screenshot.document"><source>Screenshot</source><translation>स्क्रीनशॉट</translation></message>
-    <message id="screenshot.preview"><source>Screenshot crop preview</source><translation>स्क्रीनशॉट क्रॉप पूर्वावलोकन</translation></message>
-    <message id="screenshot.close"><source>Close screenshot</source><translation>स्क्रीनशॉट बंद करें</translation></message>
-    <message id="screenshot.desktop.chooser"><source>Desktop chooser</source><translation>डेस्कटॉप चयन संवाद</translation></message>
-    <message id="screenshot.entire.desktop"><source>Entire desktop</source><translation>पूरा डेस्कटॉप</translation></message>
-    <message id="screenshot.active.window"><source>Active window</source><translation>सक्रिय विंडो</translation></message>
-    <message id="screenshot.target"><source>Capture source</source><translation>कैप्चर स्रोत</translation></message>
-    <message id="screenshot.delay"><source>Delay: </source><translation>विलंब: </translation></message>
-    <message id="screenshot.capture"><source>Capture</source><translation>कैप्चर करें</translation></message>
-    <message id="screenshot.retake"><source>Retake</source><translation>फिर से लें</translation></message>
-    <message id="screenshot.reset.crop"><source>Reset Crop</source><translation>क्रॉप रीसेट करें</translation></message>
-    <message id="screenshot.reset.zoom"><source>Reset Zoom</source><translation>ज़ूम रीसेट करें</translation></message>
-    <message id="screenshot.add.layer"><source>Add as Layer</source><translation>परत के रूप में जोड़ें</translation></message>
-    <message id="screenshot.add.layer.hint"><source>Add the crop to the current document as an undoable raster layer.</source><translation>क्रॉप को मौजूदा दस्तावेज़ में रास्टर परत के रूप में जोड़ें। इस क्रिया को पूर्ववत किया जा सकता है।</translation></message>
-    <message id="screenshot.stop"><source>Cancel Capture</source><translation>कैप्चर रद्द करें</translation></message>
-    <message id="screenshot.cancel"><source>Cancel</source><translation>रद्द करें</translation></message>
-    <message id="screenshot.open"><source>Open as New Document</source><translation>नए दस्तावेज़ के रूप में खोलें</translation></message>
-    <message id="screenshot.chooser.hint"><source>Vulkana minimizes while you choose what to capture using your desktop's screenshot chooser.</source><translation>डेस्कटॉप के स्क्रीनशॉट संवाद में कैप्चर करने का क्षेत्र चुनते समय Vulkana छोटा हो जाता है।</translation></message>
-    <message id="screenshot.native.hint"><source>Vulkana minimizes during capture. For Active Window, switch to your target during the delay. Restore Vulkana to cancel.</source><translation>कैप्चर के दौरान Vulkana छोटा हो जाता है। सक्रिय विंडो के लिए, उलटी गिनती के दौरान अपनी चुनी हुई विंडो पर जाएँ। रद्द करने के लिए Vulkana वापस खोलें।</translation></message>
-    <message id="screenshot.crop.hint"><source>Scroll to zoom; middle mouse to pan. Drag to crop or adjust its corners. Arrow keys move the crop; Shift moves 10 pixels.</source><oldsource>Drag to crop. Move the crop or drag its corners to adjust it. Arrow keys move it; Shift moves 10 pixels.</oldsource><translation>ज़ूम के लिए स्क्रॉल करें; दृश्य खिसकाने के लिए माउस का बीच वाला बटन दबाएँ। क्रॉप करने या कोने बदलने के लिए खींचें। तीर कुंजियाँ क्रॉप खिसकाती हैं; Shift के साथ 10 पिक्सेल।</translation></message>
-    <message id="screenshot.empty"><source>Capture a screenshot to preview and crop it here.</source><translation>यहाँ पूर्वावलोकन और क्रॉप करने के लिए स्क्रीनशॉट लें।</translation></message>
-    <message id="screenshot.countdown"><source>Capturing in %1 s…</source><translation>%1 सेकंड में कैप्चर…</translation></message>
-    <message id="screenshot.waiting"><source>Waiting for capture…</source><translation>कैप्चर की प्रतीक्षा…</translation></message>
-    <message id="screenshot.cancelled"><source>Capture cancelled.</source><translation>कैप्चर रद्द किया गया।</translation></message>
-    <message id="screenshot.dimensions"><source>%1 × %2 px</source><translation>%1 × %2 px</translation></message>
-    <message id="screenshot.failed"><source>Could not capture or open the screenshot: %1</source><translation>स्क्रीनशॉट लिया या खोला नहीं जा सका: %1</translation></message>
+    <message id="screenshot.action">
+      <source>Take Screenshot…</source>
+      <translation>स्क्रीनशॉट लें…</translation>
+    </message>
+    <message id="screenshot.title">
+      <source>Screenshot</source>
+      <translation>स्क्रीनशॉट</translation>
+    </message>
+    <message id="screenshot.document">
+      <source>Screenshot</source>
+      <translation>स्क्रीनशॉट</translation>
+    </message>
+    <message id="screenshot.preview">
+      <source>Screenshot crop preview</source>
+      <translation>स्क्रीनशॉट क्रॉप पूर्वावलोकन</translation>
+    </message>
+    <message id="screenshot.close">
+      <source>Close screenshot</source>
+      <translation>स्क्रीनशॉट बंद करें</translation>
+    </message>
+    <message id="screenshot.desktop.chooser">
+      <source>Desktop chooser</source>
+      <translation>डेस्कटॉप चयन संवाद</translation>
+    </message>
+    <message id="screenshot.entire.desktop">
+      <source>Entire desktop</source>
+      <translation>पूरा डेस्कटॉप</translation>
+    </message>
+    <message id="screenshot.active.window">
+      <source>Active window</source>
+      <translation>सक्रिय विंडो</translation>
+    </message>
+    <message id="screenshot.target">
+      <source>Capture source</source>
+      <translation>कैप्चर स्रोत</translation>
+    </message>
+    <message id="screenshot.delay">
+      <source>Delay: </source>
+      <translation>विलंब: </translation>
+    </message>
+    <message id="screenshot.capture">
+      <source>Capture</source>
+      <translation>कैप्चर करें</translation>
+    </message>
+    <message id="screenshot.retake">
+      <source>Retake</source>
+      <translation>फिर से लें</translation>
+    </message>
+    <message id="screenshot.reset.crop">
+      <source>Reset Crop</source>
+      <translation>क्रॉप रीसेट करें</translation>
+    </message>
+    <message id="screenshot.reset.zoom">
+      <source>Reset Zoom</source>
+      <translation>ज़ूम रीसेट करें</translation>
+    </message>
+    <message id="screenshot.add.layer">
+      <source>Add as Layer</source>
+      <translation>परत के रूप में जोड़ें</translation>
+    </message>
+    <message id="screenshot.add.layer.hint">
+      <source>Add the crop to the current document as an undoable raster layer.</source>
+      <translation>क्रॉप को मौजूदा दस्तावेज़ में रास्टर परत के रूप में जोड़ें। इस क्रिया को पूर्ववत किया जा सकता है।</translation>
+    </message>
+    <message id="screenshot.stop">
+      <source>Cancel Capture</source>
+      <translation>कैप्चर रद्द करें</translation>
+    </message>
+    <message id="screenshot.cancel">
+      <source>Cancel</source>
+      <translation>रद्द करें</translation>
+    </message>
+    <message id="screenshot.open">
+      <source>Open as New Document</source>
+      <translation>नए दस्तावेज़ के रूप में खोलें</translation>
+    </message>
+    <message id="screenshot.chooser.hint">
+      <source>Vulkana minimizes while you choose what to capture using your desktop's screenshot chooser.</source>
+      <translation>डेस्कटॉप के स्क्रीनशॉट संवाद में कैप्चर करने का क्षेत्र चुनते समय Vulkana छोटा हो जाता है।</translation>
+    </message>
+    <message id="screenshot.native.hint">
+      <source>Vulkana minimizes during capture. For Active Window, switch to your target during the delay. Restore Vulkana to cancel.</source>
+      <translation>कैप्चर के दौरान Vulkana छोटा हो जाता है। सक्रिय विंडो के लिए, उलटी गिनती के दौरान अपनी चुनी हुई विंडो पर जाएँ। रद्द करने के लिए Vulkana वापस खोलें।</translation>
+    </message>
+    <message id="screenshot.crop.hint">
+      <source>Scroll to zoom; middle mouse to pan. Drag to crop or adjust its corners. Arrow keys move the crop; Shift moves 10 pixels.</source>
+      <oldsource>Drag to crop. Move the crop or drag its corners to adjust it. Arrow keys move it; Shift moves 10 pixels.</oldsource>
+      <translation>ज़ूम के लिए स्क्रॉल करें; दृश्य खिसकाने के लिए माउस का बीच वाला बटन दबाएँ। क्रॉप करने या कोने बदलने के लिए खींचें। तीर कुंजियाँ क्रॉप खिसकाती हैं; Shift के साथ 10 पिक्सेल।</translation>
+    </message>
+    <message id="screenshot.empty">
+      <source>Capture a screenshot to preview and crop it here.</source>
+      <translation>यहाँ पूर्वावलोकन और क्रॉप करने के लिए स्क्रीनशॉट लें।</translation>
+    </message>
+    <message id="screenshot.countdown">
+      <source>Capturing in %1 s…</source>
+      <translation>%1 सेकंड में कैप्चर…</translation>
+    </message>
+    <message id="screenshot.waiting">
+      <source>Waiting for capture…</source>
+      <translation>कैप्चर की प्रतीक्षा…</translation>
+    </message>
+    <message id="screenshot.cancelled">
+      <source>Capture cancelled.</source>
+      <translation>कैप्चर रद्द किया गया।</translation>
+    </message>
+    <message id="screenshot.dimensions">
+      <source>%1 × %2 px</source>
+      <translation>%1 × %2 px</translation>
+    </message>
+    <message id="screenshot.failed">
+      <source>Could not capture or open the screenshot: %1</source>
+      <translation>स्क्रीनशॉट लिया या खोला नहीं जा सका: %1</translation>
+    </message>
   </context>
   <context>
     <name>Performance preferences</name>
-    <message id="performance.title"><source>Performance</source><translation>प्रदर्शन</translation></message>
-    <message id="performance.gpu"><source>Graphics device</source><translation>ग्राफ़िक्स डिवाइस</translation></message>
-    <message id="performance.undo"><source>Undo memory per document</source><translation>प्रति दस्तावेज़ पूर्ववत मेमोरी</translation></message>
-    <message id="performance.cpu.cache"><source>Document cache per window</source><translation>प्रति विंडो दस्तावेज़ कैश</translation></message>
-    <message id="performance.gpu.cache"><source>GPU texture cache per window</source><translation>प्रति विंडो GPU टेक्सचर कैश</translation></message>
-    <message id="performance.threads"><source>Image-processing threads</source><translation>छवि प्रोसेसिंग थ्रेड</translation></message>
-    <message id="performance.object.threads"><source>Object Selection threads</source><translation>वस्तु चयन थ्रेड</translation></message>
-    <message id="performance.auto"><source>Auto</source><translation>स्वतः</translation></message>
-    <message id="performance.auto.memory"><source>Auto (%1 MiB)</source><translation>स्वतः (%1 MiB)</translation></message>
-    <message id="performance.auto.threads"><source>Auto (up to %1)</source><translation>स्वतः (अधिकतम %1)</translation></message>
-    <message id="performance.restart.note"><source>GPU and thread changes require a restart. Object Selection runs on the CPU.</source><translation>GPU या थ्रेड बदलने पर ऐप दोबारा शुरू करना होगा। वस्तु चयन CPU पर चलता है।</translation></message>
-    <message id="performance.memory.note"><source>Budgets are retention targets, not total RAM/VRAM limits. Undo trims on later edits.</source><translation>बजट संचित डेटा की लक्षित मात्रा है, कुल RAM/VRAM की सीमा नहीं। पूर्ववत इतिहास अगले संपादनों पर घटता है।</translation></message>
-    <message id="performance.usage"><source>RAM (process): %1&#10;Undo: %2 (current), %3 (all tabs)&#10;Document cache: %4 · GPU texture cache: %5&#10;Rendering GPU: %6</source><translation>RAM (प्रक्रिया): %1&#10;पूर्ववत: %2 (मौजूदा), %3 (सभी टैब)&#10;दस्तावेज़ कैश: %4 · GPU टेक्सचर कैश: %5&#10;रेंडरिंग GPU: %6</translation></message>
-    <message id="performance.clear"><source>Clear Inactive Caches</source><translation>निष्क्रिय कैश साफ़ करें</translation></message>
-    <message id="performance.clear.hint"><source>Release cached previews and textures for inactive tabs in this window. Source pixels and undo history stay intact.</source><translation>इस विंडो के निष्क्रिय टैब के कैश किए गए पूर्वावलोकन और टेक्सचर हटाएँ। मूल पिक्सेल और पूर्ववत इतिहास सुरक्षित रहेंगे।</translation></message>
-    <message id="performance.defaults"><source>Restore Defaults</source><translation>डिफ़ॉल्ट बहाल करें</translation></message>
-    <message id="performance.gpu.changed.title"><source>Graphics device changed</source><translation>ग्राफ़िक्स डिवाइस बदला गया</translation></message>
-    <message id="performance.gpu.changed.message"><source>The selected GPU (%1) could not be used. Falling back to %2.</source><translation>चुने गए GPU (%1) का उपयोग नहीं हो सका। इसके बजाय %2 का उपयोग होगा।</translation></message>
-    <message id="performance.gpu.changed.unknown"><source>The selected GPU could not be used. Falling back to %1.</source><translation>चुने गए GPU का उपयोग नहीं हो सका। इसके बजाय %1 का उपयोग होगा।</translation></message>
-    <message id="performance.gpu.unavailable"><source>Saved device (unavailable)</source><translation>सहेजा गया डिवाइस (अनुपलब्ध)</translation></message>
-    <message id="performance.gpu.check.hint"><source>GPU availability is checked on restart. If a device cannot display the canvas, Vulkana uses another GPU.</source><translation>ऐप दोबारा शुरू होने पर GPU की उपलब्धता जाँची जाती है। यदि डिवाइस कैनवास नहीं दिखा सकता, तो Vulkana दूसरा GPU उपयोग करता है।</translation></message>
-    <message id="performance.gpu.failed.item"><source>%1 — startup check failed</source><translation>%1 — आरंभिक जाँच विफल</translation></message>
-    <message id="performance.gpu.unsupported.item"><source>%1 — unavailable for this display</source><translation>%1 — इस डिस्प्ले के लिए अनुपलब्ध</translation></message>
-    <message id="performance.unknown"><source>Unavailable</source><translation>अनुपलब्ध</translation></message>
-    <message id="performance.undo.warning.title"><source>Reduce Undo Memory?</source><translation>पूर्ववत मेमोरी घटाएँ?</translation></message>
-    <message id="performance.undo.warning"><source>Older undo steps may be discarded as you make new edits. This cannot be reversed by raising the budget later. Continue?</source><translation>नए संपादन करने पर पूर्ववत करने के पुराने चरण हट सकते हैं। बाद में बजट बढ़ाने से वे वापस नहीं आएँगे। जारी रखें?</translation></message>
+    <message id="performance.title">
+      <source>Performance</source>
+      <translation>प्रदर्शन</translation>
+    </message>
+    <message id="performance.gpu">
+      <source>Graphics device</source>
+      <translation>ग्राफ़िक्स डिवाइस</translation>
+    </message>
+    <message id="performance.undo">
+      <source>Undo memory per document</source>
+      <translation>प्रति दस्तावेज़ पूर्ववत मेमोरी</translation>
+    </message>
+    <message id="performance.cpu.cache">
+      <source>Document cache per window</source>
+      <translation>प्रति विंडो दस्तावेज़ कैश</translation>
+    </message>
+    <message id="performance.gpu.cache">
+      <source>GPU texture cache per window</source>
+      <translation>प्रति विंडो GPU टेक्सचर कैश</translation>
+    </message>
+    <message id="performance.threads">
+      <source>Image-processing threads</source>
+      <translation>छवि प्रोसेसिंग थ्रेड</translation>
+    </message>
+    <message id="performance.object.threads">
+      <source>Object Selection threads</source>
+      <translation>वस्तु चयन थ्रेड</translation>
+    </message>
+    <message id="performance.auto">
+      <source>Auto</source>
+      <translation>स्वतः</translation>
+    </message>
+    <message id="performance.auto.memory">
+      <source>Auto (%1 MiB)</source>
+      <translation>स्वतः (%1 MiB)</translation>
+    </message>
+    <message id="performance.auto.threads">
+      <source>Auto (up to %1)</source>
+      <translation>स्वतः (अधिकतम %1)</translation>
+    </message>
+    <message id="performance.restart.note">
+      <source>GPU and thread changes require a restart. Object Selection runs on the CPU.</source>
+      <translation>GPU या थ्रेड बदलने पर ऐप दोबारा शुरू करना होगा। वस्तु चयन CPU पर चलता है।</translation>
+    </message>
+    <message id="performance.memory.note">
+      <source>Budgets are retention targets, not total RAM/VRAM limits. Undo trims on later edits.</source>
+      <translation>बजट संचित डेटा की लक्षित मात्रा है, कुल RAM/VRAM की सीमा नहीं। पूर्ववत इतिहास अगले संपादनों पर घटता है।</translation>
+    </message>
+    <message id="performance.usage">
+      <source>RAM (process): %1
+Undo: %2 (current), %3 (all tabs)
+Document cache: %4 · GPU texture cache: %5
+Rendering GPU: %6</source>
+      <translation>RAM (प्रक्रिया): %1
+पूर्ववत: %2 (मौजूदा), %3 (सभी टैब)
+दस्तावेज़ कैश: %4 · GPU टेक्सचर कैश: %5
+रेंडरिंग GPU: %6</translation>
+    </message>
+    <message id="performance.clear">
+      <source>Clear Inactive Caches</source>
+      <translation>निष्क्रिय कैश साफ़ करें</translation>
+    </message>
+    <message id="performance.clear.hint">
+      <source>Release cached previews and textures for inactive tabs in this window. Source pixels and undo history stay intact.</source>
+      <translation>इस विंडो के निष्क्रिय टैब के कैश किए गए पूर्वावलोकन और टेक्सचर हटाएँ। मूल पिक्सेल और पूर्ववत इतिहास सुरक्षित रहेंगे।</translation>
+    </message>
+    <message id="performance.defaults">
+      <source>Restore Defaults</source>
+      <translation>डिफ़ॉल्ट बहाल करें</translation>
+    </message>
+    <message id="performance.gpu.changed.title">
+      <source>Graphics device changed</source>
+      <translation>ग्राफ़िक्स डिवाइस बदला गया</translation>
+    </message>
+    <message id="performance.gpu.changed.message">
+      <source>The selected GPU (%1) could not be used. Falling back to %2.</source>
+      <translation>चुने गए GPU (%1) का उपयोग नहीं हो सका। इसके बजाय %2 का उपयोग होगा।</translation>
+    </message>
+    <message id="performance.gpu.changed.unknown">
+      <source>The selected GPU could not be used. Falling back to %1.</source>
+      <translation>चुने गए GPU का उपयोग नहीं हो सका। इसके बजाय %1 का उपयोग होगा।</translation>
+    </message>
+    <message id="performance.gpu.unavailable">
+      <source>Saved device (unavailable)</source>
+      <translation>सहेजा गया डिवाइस (अनुपलब्ध)</translation>
+    </message>
+    <message id="performance.gpu.check.hint">
+      <source>GPU availability is checked on restart. If a device cannot display the canvas, Vulkana uses another GPU.</source>
+      <translation>ऐप दोबारा शुरू होने पर GPU की उपलब्धता जाँची जाती है। यदि डिवाइस कैनवास नहीं दिखा सकता, तो Vulkana दूसरा GPU उपयोग करता है।</translation>
+    </message>
+    <message id="performance.gpu.failed.item">
+      <source>%1 — startup check failed</source>
+      <translation>%1 — आरंभिक जाँच विफल</translation>
+    </message>
+    <message id="performance.gpu.unsupported.item">
+      <source>%1 — unavailable for this display</source>
+      <translation>%1 — इस डिस्प्ले के लिए अनुपलब्ध</translation>
+    </message>
+    <message id="performance.unknown">
+      <source>Unavailable</source>
+      <translation>अनुपलब्ध</translation>
+    </message>
+    <message id="performance.undo.warning.title">
+      <source>Reduce Undo Memory?</source>
+      <translation>पूर्ववत मेमोरी घटाएँ?</translation>
+    </message>
+    <message id="performance.undo.warning">
+      <source>Older undo steps may be discarded as you make new edits. This cannot be reversed by raising the budget later. Continue?</source>
+      <translation>नए संपादन करने पर पूर्ववत करने के पुराने चरण हट सकते हैं। बाद में बजट बढ़ाने से वे वापस नहीं आएँगे। जारी रखें?</translation>
+    </message>
   </context>
   <context>
     <name>LayerMaskClipboard</name>
@@ -10747,72 +10939,192 @@ Escape · पूरा क्रॉप सत्र रद्द
       <source>Photoshop Fill: fade the layer content while keeping its effects. Some blend modes respond differently than Layer opacity.</source>
       <translation>Photoshop Fill: प्रभावों को बनाए रखते हुए परत की सामग्री की अपारदर्शिता घटाएँ। कुछ ब्लेंड मोड पर इसका असर परत अपारदर्शिता से अलग होता है।</translation>
     </message>
-    <message id="history.layer.pixel.opacity">
-      <source>Layer pixel opacity</source>
-      <extracomment>Core history label: Layer pixel opacity</extracomment>
-      <translation>परत की पिक्सेल अपारदर्शिता</translation>
-    </message>
   </context>
   <context>
     <name>GraphicsStartup</name>
-    <message id="graphics.startup.aborting"><source>Aborting…</source><translation>बंद किया जा रहा है…</translation></message>
-    <message id="graphics.startup.closing"><source>Waiting for the graphics driver before closing.</source><translation>बंद होने से पहले ग्राफ़िक्स ड्राइवर की प्रतीक्षा हो रही है।</translation></message>
-    <message id="graphics.startup.title"><source>Initializing graphics…</source><translation>ग्राफ़िक्स शुरू हो रहे हैं…</translation></message>
-    <message id="graphics.startup.detail"><source>Preparing shaders. This may take a few seconds.</source><translation>शेडर तैयार हो रहे हैं। इसमें कुछ सेकंड लग सकते हैं।</translation></message>
+    <message id="graphics.startup.aborting">
+      <source>Aborting…</source>
+      <translation>बंद किया जा रहा है…</translation>
+    </message>
+    <message id="graphics.startup.closing">
+      <source>Waiting for the graphics driver before closing.</source>
+      <translation>बंद होने से पहले ग्राफ़िक्स ड्राइवर की प्रतीक्षा हो रही है।</translation>
+    </message>
+    <message id="graphics.startup.title">
+      <source>Initializing graphics…</source>
+      <translation>ग्राफ़िक्स शुरू हो रहे हैं…</translation>
+    </message>
+    <message id="graphics.startup.detail">
+      <source>Preparing shaders. This may take a few seconds.</source>
+      <translation>शेडर तैयार हो रहे हैं। इसमें कुछ सेकंड लग सकते हैं।</translation>
+    </message>
   </context>
   <context>
     <name>LayerInfo</name>
-    <message id="preferences.layer.info"><source>Show layer info</source><translation>परत की जानकारी दिखाएँ</translation></message>
-    <message id="preferences.layer.info.hint"><source>Show non-Normal blend modes and active effect icons on layer rows.</source><translation>परत की पंक्तियों में सामान्य के अलावा अन्य ब्लेंड मोड और सक्रिय प्रभावों के आइकन दिखाएँ।</translation></message>
+    <message id="preferences.layer.info">
+      <source>Show layer info</source>
+      <translation>परत की जानकारी दिखाएँ</translation>
+    </message>
+    <message id="preferences.layer.info.hint">
+      <source>Show non-Normal blend modes and active effect icons on layer rows.</source>
+      <translation>परत की पंक्तियों में सामान्य के अलावा अन्य ब्लेंड मोड और सक्रिय प्रभावों के आइकन दिखाएँ।</translation>
+    </message>
   </context>
   <context>
     <name>CanvasResize</name>
+    <message id="canvas.resize.action">
+      <source>Quick canvas resize</source>
+      <translation>कैनवास का आकार तुरंत बदलें</translation>
+    </message>
     <message id="canvas.resize.to.layer">
       <source>Canvas size to selected layer</source>
-      <translation type="unfinished" />
+      <translation>चयनित परत के अनुसार कैनवास आकार</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="canvas.resize.to.layer.hint">
       <source>Fit the canvas to the selected layer's bounds without resampling its pixels.</source>
-      <translation type="unfinished" />
+      <translation>पिक्सल बदले बिना कैनवास को चयनित परत की सीमाओं से मिलाएँ।</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
-    <message id="canvas.resize.action"><source>Quick canvas resize</source><translation>कैनवास का आकार तुरंत बदलें</translation></message>
-    <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translation>कैनवास का आकार बदलने के लिए किनारा या कोना खींचें, या स्थान बदलने के लिए अंदर खींचें। परत के पिक्सेल सुरक्षित रहते हैं। लागू करें: {{FinishOperationAction}} · रद्द करें: Escape।</translation></message>
-    <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translation>कैनवास का अनुपात बनाए रखें; Shift से यह बाध्यता अस्थायी रूप से बदलती है।</translation></message>
-    <message id="canvas.resize.reset"><source>Reset to the original canvas bounds</source><translation>कैनवास की मूल सीमाएँ बहाल करें</translation></message>
-    <message id="canvas.resize.apply"><source>Apply canvas resize · {{FinishOperationAction}} / right-click</source><translation>कैनवास का नया आकार लागू करें · {{FinishOperationAction}} / दायाँ क्लिक</translation></message>
-    <message id="canvas.resize.cancel"><source>Cancel canvas resize · Escape</source><translation>कैनवास आकार बदलना रद्द करें · Escape</translation></message>
-    <message id="canvas.resize.done"><source>Canvas resized to %1 × %2 px</source><translation>कैनवास का आकार %1 × %2 px किया गया</translation></message>
-    <message id="canvas.resize.undo"><source>Undo canvas resize adjustment</source><translation>कैनवास आकार का बदलाव पूर्ववत करें</translation></message>
-    <message id="canvas.resize.redo"><source>Redo canvas resize adjustment</source><translation>कैनवास आकार का बदलाव फिर करें</translation></message>
+    <message id="canvas.resize.hint">
+      <source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source>
+      <translation>कैनवास का आकार बदलने के लिए किनारा या कोना खींचें, या स्थान बदलने के लिए अंदर खींचें। परत के पिक्सेल सुरक्षित रहते हैं। लागू करें: {{FinishOperationAction}} · रद्द करें: Escape।</translation>
+    </message>
+    <message id="canvas.resize.ratio">
+      <source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source>
+      <translation>कैनवास का अनुपात बनाए रखें; Shift से यह बाध्यता अस्थायी रूप से बदलती है।</translation>
+    </message>
+    <message id="canvas.resize.reset">
+      <source>Reset to the original canvas bounds</source>
+      <translation>कैनवास की मूल सीमाएँ बहाल करें</translation>
+    </message>
+    <message id="canvas.resize.apply">
+      <source>Apply canvas resize · {{FinishOperationAction}} / right-click</source>
+      <translation>कैनवास का नया आकार लागू करें · {{FinishOperationAction}} / दायाँ क्लिक</translation>
+    </message>
+    <message id="canvas.resize.cancel">
+      <source>Cancel canvas resize · Escape</source>
+      <translation>कैनवास आकार बदलना रद्द करें · Escape</translation>
+    </message>
+    <message id="canvas.resize.done">
+      <source>Canvas resized to %1 × %2 px</source>
+      <translation>कैनवास का आकार %1 × %2 px किया गया</translation>
+    </message>
+    <message id="canvas.resize.undo">
+      <source>Undo canvas resize adjustment</source>
+      <translation>कैनवास आकार का बदलाव पूर्ववत करें</translation>
+    </message>
+    <message id="canvas.resize.redo">
+      <source>Redo canvas resize adjustment</source>
+      <translation>कैनवास आकार का बदलाव फिर करें</translation>
+    </message>
   </context>
   <context>
     <name>CompactProperties</name>
-    <message id="properties.info.title"><source>Layer Info</source><translation>परत की जानकारी</translation></message>
-    <message id="properties.info.size"><source>Size</source><translation>आकार</translation></message>
-    <message id="properties.info.angle"><source>Angle</source><translation>कोण</translation></message>
-    <message id="properties.info.position"><source>Position</source><translation>स्थान</translation></message>
-    <message id="properties.info.font"><source>Font</source><translation>फ़ॉन्ट</translation></message>
-    <message id="properties.info.color"><source>Color</source><translation>रंग</translation></message>
-    <message id="properties.info.whole.text"><source>Changes apply to the entire text layer.</source><translation>बदलाव पूरी टेक्स्ट परत पर लागू होते हैं।</translation></message>
-    <message id="properties.info.folder"><source>Folder</source><translation>फ़ोल्डर</translation></message>
-    <message id="properties.info.group"><source>Group</source><translation>समूह</translation></message>
-    <message id="properties.info.adjustment"><source>Adjustment layer</source><translation>समायोजन परत</translation></message>
-    <message id="properties.info.brush.settings"><source>Brush settings</source><translation>ब्रश सेटिंग्स</translation></message>
-    <message id="properties.info.width"><source>Width</source><translation>चौड़ाई</translation></message>
-    <message id="properties.info.height"><source>Height</source><translation>ऊँचाई</translation></message>
-    <message id="properties.info.text.color"><source>Text color</source><translation>टेक्स्ट रंग</translation></message>
-    <message id="properties.info.mixed"><source>Mixed</source><translation>मिश्रित</translation></message>
-    <message id="properties.shortcuts.sample"><source>Sample color (hold)</source><translation>रंग चुनें (दबाए रखें)</translation></message>
-    <message id="properties.shortcuts.source"><source>Set clone/heal source</source><translation>क्लोन/हील का स्रोत तय करें</translation></message>
-    <message id="properties.shortcuts.add"><source>Add to selection</source><translation>चयन में जोड़ें</translation></message>
-    <message id="properties.shortcuts.subtract"><source>Subtract from selection</source><translation>चयन से घटाएँ</translation></message>
-    <message id="properties.shortcuts.intersect"><source>Intersect selection</source><translation>चयन का साझा भाग रखें</translation></message>
-    <message id="properties.shortcuts.constrain"><source>Constrain direction or proportions</source><translation>दिशा या अनुपात सीमित करें</translation></message>
-    <message id="properties.shortcuts.ratio"><source>Toggle aspect constraint</source><translation>अनुपात की बाध्यता बदलें</translation></message>
-    <message id="properties.shortcuts.center"><source>Resize from center</source><translation>केंद्र से आकार बदलें</translation></message>
-    <message id="properties.shortcuts.cancel"><source>Cancel current operation</source><translation>वर्तमान क्रिया रद्द करें</translation></message>
-    <message id="properties.shortcuts.middle"><source>Middle mouse</source><translation>माउस का बीच वाला बटन</translation></message>
-    <message id="properties.shortcuts.pan"><source>Pan canvas</source><translation>कैनवास दृश्य खिसकाएँ</translation></message>
+    <message id="properties.info.title">
+      <source>Layer Info</source>
+      <translation>परत की जानकारी</translation>
+    </message>
+    <message id="properties.info.size">
+      <source>Size</source>
+      <translation>आकार</translation>
+    </message>
+    <message id="properties.info.angle">
+      <source>Angle</source>
+      <translation>कोण</translation>
+    </message>
+    <message id="properties.info.position">
+      <source>Position</source>
+      <translation>स्थान</translation>
+    </message>
+    <message id="properties.info.font">
+      <source>Font</source>
+      <translation>फ़ॉन्ट</translation>
+    </message>
+    <message id="properties.info.color">
+      <source>Color</source>
+      <translation>रंग</translation>
+    </message>
+    <message id="properties.info.whole.text">
+      <source>Changes apply to the entire text layer.</source>
+      <translation>बदलाव पूरी टेक्स्ट परत पर लागू होते हैं।</translation>
+    </message>
+    <message id="properties.info.folder">
+      <source>Folder</source>
+      <translation>फ़ोल्डर</translation>
+    </message>
+    <message id="properties.info.group">
+      <source>Group</source>
+      <translation>समूह</translation>
+    </message>
+    <message id="properties.info.adjustment">
+      <source>Adjustment layer</source>
+      <translation>समायोजन परत</translation>
+    </message>
+    <message id="properties.info.brush.settings">
+      <source>Brush settings</source>
+      <translation>ब्रश सेटिंग्स</translation>
+    </message>
+    <message id="properties.info.width">
+      <source>Width</source>
+      <translation>चौड़ाई</translation>
+    </message>
+    <message id="properties.info.height">
+      <source>Height</source>
+      <translation>ऊँचाई</translation>
+    </message>
+    <message id="properties.info.text.color">
+      <source>Text color</source>
+      <translation>टेक्स्ट रंग</translation>
+    </message>
+    <message id="properties.info.mixed">
+      <source>Mixed</source>
+      <translation>मिश्रित</translation>
+    </message>
+    <message id="properties.shortcuts.sample">
+      <source>Sample color (hold)</source>
+      <translation>रंग चुनें (दबाए रखें)</translation>
+    </message>
+    <message id="properties.shortcuts.source">
+      <source>Set clone/heal source</source>
+      <translation>क्लोन/हील का स्रोत तय करें</translation>
+    </message>
+    <message id="properties.shortcuts.add">
+      <source>Add to selection</source>
+      <translation>चयन में जोड़ें</translation>
+    </message>
+    <message id="properties.shortcuts.subtract">
+      <source>Subtract from selection</source>
+      <translation>चयन से घटाएँ</translation>
+    </message>
+    <message id="properties.shortcuts.intersect">
+      <source>Intersect selection</source>
+      <translation>चयन का साझा भाग रखें</translation>
+    </message>
+    <message id="properties.shortcuts.constrain">
+      <source>Constrain direction or proportions</source>
+      <translation>दिशा या अनुपात सीमित करें</translation>
+    </message>
+    <message id="properties.shortcuts.ratio">
+      <source>Toggle aspect constraint</source>
+      <translation>अनुपात की बाध्यता बदलें</translation>
+    </message>
+    <message id="properties.shortcuts.center">
+      <source>Resize from center</source>
+      <translation>केंद्र से आकार बदलें</translation>
+    </message>
+    <message id="properties.shortcuts.cancel">
+      <source>Cancel current operation</source>
+      <translation>वर्तमान क्रिया रद्द करें</translation>
+    </message>
+    <message id="properties.shortcuts.middle">
+      <source>Middle mouse</source>
+      <translation>माउस का बीच वाला बटन</translation>
+    </message>
+    <message id="properties.shortcuts.pan">
+      <source>Pan canvas</source>
+      <translation>कैनवास दृश्य खिसकाएँ</translation>
+    </message>
   </context>
   <context>
     <name>GradientEditor</name>
@@ -11181,41 +11493,128 @@ Prepare %3 · Finish %4 · Total %5</source>
   </context>
   <context>
     <name>McpPreferences</name>
-    <message id="mcp.preferences.title"><source>MCP</source><translation>MCP</translation></message>
-    <message id="mcp.preferences.start"><source>Start MCP</source><translation>MCP शुरू करें</translation></message>
-    <message id="mcp.preferences.stop"><source>Stop MCP</source><translation>MCP बंद करें</translation></message>
-    <message id="mcp.preferences.stopped"><source>Stopped</source><translation>बंद</translation></message>
-    <message id="mcp.preferences.listening"><source>Listening</source><translation>कनेक्शन की प्रतीक्षा</translation></message>
-    <message id="mcp.preferences.connected"><source>Connected · Clients: %1</source><translation>जुड़ा है · क्लाइंट: %1</translation></message>
-    <message id="mcp.preferences.stopping"><source>Stopping…</source><translation>बंद हो रहा है…</translation></message>
-    <message id="mcp.preferences.error"><source>Error</source><translation>त्रुटि</translation></message>
-    <message id="mcp.preferences.autostart"><source>Start automatically with Vulkana</source><translation>Vulkana के साथ अपने आप शुरू करें</translation></message>
-    <message id="mcp.preferences.security"><source>Only connect clients you trust. MCP clients can modify documents and read or write files with your Vulkana host-user permissions. A client running in a container is not limited to that container's files.</source><translation>केवल भरोसेमंद क्लाइंट जोड़ें। MCP क्लाइंट दस्तावेज़ बदल सकते हैं और Vulkana चलाने वाले उपयोगकर्ता की अनुमतियों से फ़ाइलें पढ़ या लिख सकते हैं। कंटेनर में चलने वाला क्लाइंट केवल उसी कंटेनर की फ़ाइलों तक सीमित नहीं होता।</translation></message>
-    <message id="mcp.preferences.connection"><source>Connection</source><translation>कनेक्शन</translation></message>
-    <message id="mcp.preferences.local"><source>MCP uses local communication, without a network port. Multiple trusted clients can connect; editing commands run one at a time. Copy the configuration into OpenCode V2; Vulkana does not edit its configuration files.</source><translation>MCP नेटवर्क पोर्ट के बिना स्थानीय रूप से संचार करता है। कई भरोसेमंद क्लाइंट जुड़ सकते हैं; संपादन आदेश एक-एक करके चलते हैं। सेटिंग OpenCode V2 में कॉपी करें; Vulkana उसकी सेटिंग फ़ाइलें नहीं बदलता।</translation></message>
-    <message id="mcp.preferences.command"><source>Bridge command</source><translation>ब्रिज कमांड</translation></message>
-    <message id="mcp.preferences.endpoint"><source>Endpoint</source><translation>कनेक्शन पता</translation></message>
-    <message id="mcp.preferences.copy"><source>Copy Configuration · OpenCode V2</source><translation>सेटिंग कॉपी करें · OpenCode V2</translation></message>
-    <message id="mcp.preferences.copied"><source>Copied</source><translation>कॉपी किया गया</translation></message>
-    <message id="mcp.preferences.advanced"><source>Advanced Settings</source><translation>उन्नत सेटिंग</translation></message>
-    <message id="mcp.preferences.custom"><source>Use a custom endpoint</source><translation>कस्टम कनेक्शन पता इस्तेमाल करें</translation></message>
-    <message id="mcp.preferences.next.start"><source>Endpoint changes take effect on the next Start. While MCP is running, Copy Configuration uses its current endpoint.</source><translation>कनेक्शन पते के बदलाव अगली बार शुरू करने पर लागू होंगे। MCP चल रहा हो तो सेटिंग कॉपी करें वर्तमान कनेक्शन पता इस्तेमाल करता है।</translation></message>
-    <message id="mcp.preferences.apply.note"><source>Start and Stop affect this session immediately. Apply saves automatic startup and endpoint settings; it does not restart an active connection.</source><translation>शुरू और बंद इस सत्र पर तुरंत असर करते हैं। लागू करें से अपने आप शुरू करने और कनेक्शन पते की सेटिंग सहेजी जाती हैं; सक्रिय कनेक्शन फिर से शुरू नहीं होता।</translation></message>
-    <message id="mcp.preferences.finishing"><source>Waiting for the current command to finish before disconnecting. Its changes are not cancelled or rolled back.</source><translation>कनेक्शन बंद करने से पहले वर्तमान आदेश पूरा होने की प्रतीक्षा है। उसके बदलाव रद्द नहीं होंगे और न ही वापस किए जाएँगे।</translation></message>
+    <message id="mcp.preferences.title">
+      <source>MCP</source>
+      <translation>MCP</translation>
+    </message>
+    <message id="mcp.preferences.start">
+      <source>Start MCP</source>
+      <translation>MCP शुरू करें</translation>
+    </message>
+    <message id="mcp.preferences.stop">
+      <source>Stop MCP</source>
+      <translation>MCP बंद करें</translation>
+    </message>
+    <message id="mcp.preferences.stopped">
+      <source>Stopped</source>
+      <translation>बंद</translation>
+    </message>
+    <message id="mcp.preferences.listening">
+      <source>Listening</source>
+      <translation>कनेक्शन की प्रतीक्षा</translation>
+    </message>
+    <message id="mcp.preferences.connected">
+      <source>Connected · Clients: %1</source>
+      <translation>जुड़ा है · क्लाइंट: %1</translation>
+    </message>
+    <message id="mcp.preferences.stopping">
+      <source>Stopping…</source>
+      <translation>बंद हो रहा है…</translation>
+    </message>
+    <message id="mcp.preferences.error">
+      <source>Error</source>
+      <translation>त्रुटि</translation>
+    </message>
+    <message id="mcp.preferences.autostart">
+      <source>Start automatically with Vulkana</source>
+      <translation>Vulkana के साथ अपने आप शुरू करें</translation>
+    </message>
+    <message id="mcp.preferences.security">
+      <source>Only connect clients you trust. MCP clients can modify documents and read or write files with your Vulkana host-user permissions. A client running in a container is not limited to that container's files.</source>
+      <translation>केवल भरोसेमंद क्लाइंट जोड़ें। MCP क्लाइंट दस्तावेज़ बदल सकते हैं और Vulkana चलाने वाले उपयोगकर्ता की अनुमतियों से फ़ाइलें पढ़ या लिख सकते हैं। कंटेनर में चलने वाला क्लाइंट केवल उसी कंटेनर की फ़ाइलों तक सीमित नहीं होता।</translation>
+    </message>
+    <message id="mcp.preferences.connection">
+      <source>Connection</source>
+      <translation>कनेक्शन</translation>
+    </message>
+    <message id="mcp.preferences.local">
+      <source>MCP uses local communication, without a network port. Multiple trusted clients can connect; editing commands run one at a time. Copy the configuration into OpenCode V2; Vulkana does not edit its configuration files.</source>
+      <translation>MCP नेटवर्क पोर्ट के बिना स्थानीय रूप से संचार करता है। कई भरोसेमंद क्लाइंट जुड़ सकते हैं; संपादन आदेश एक-एक करके चलते हैं। सेटिंग OpenCode V2 में कॉपी करें; Vulkana उसकी सेटिंग फ़ाइलें नहीं बदलता।</translation>
+    </message>
+    <message id="mcp.preferences.command">
+      <source>Bridge command</source>
+      <translation>ब्रिज कमांड</translation>
+    </message>
+    <message id="mcp.preferences.endpoint">
+      <source>Endpoint</source>
+      <translation>कनेक्शन पता</translation>
+    </message>
+    <message id="mcp.preferences.copy">
+      <source>Copy Configuration · OpenCode V2</source>
+      <translation>सेटिंग कॉपी करें · OpenCode V2</translation>
+    </message>
+    <message id="mcp.preferences.copied">
+      <source>Copied</source>
+      <translation>कॉपी किया गया</translation>
+    </message>
+    <message id="mcp.preferences.advanced">
+      <source>Advanced Settings</source>
+      <translation>उन्नत सेटिंग</translation>
+    </message>
+    <message id="mcp.preferences.custom">
+      <source>Use a custom endpoint</source>
+      <translation>कस्टम कनेक्शन पता इस्तेमाल करें</translation>
+    </message>
+    <message id="mcp.preferences.next.start">
+      <source>Endpoint changes take effect on the next Start. While MCP is running, Copy Configuration uses its current endpoint.</source>
+      <translation>कनेक्शन पते के बदलाव अगली बार शुरू करने पर लागू होंगे। MCP चल रहा हो तो सेटिंग कॉपी करें वर्तमान कनेक्शन पता इस्तेमाल करता है।</translation>
+    </message>
+    <message id="mcp.preferences.apply.note">
+      <source>Start and Stop affect this session immediately. Apply saves automatic startup and endpoint settings; it does not restart an active connection.</source>
+      <translation>शुरू और बंद इस सत्र पर तुरंत असर करते हैं। लागू करें से अपने आप शुरू करने और कनेक्शन पते की सेटिंग सहेजी जाती हैं; सक्रिय कनेक्शन फिर से शुरू नहीं होता।</translation>
+    </message>
+    <message id="mcp.preferences.finishing">
+      <source>Waiting for the current command to finish before disconnecting. Its changes are not cancelled or rolled back.</source>
+      <translation>कनेक्शन बंद करने से पहले वर्तमान आदेश पूरा होने की प्रतीक्षा है। उसके बदलाव रद्द नहीं होंगे और न ही वापस किए जाएँगे।</translation>
+    </message>
   </context>
   <context>
     <name>ShapePreview</name>
-    <message id="main.window.shape.preview.limit.named"><source>Shape “%1” (layer %2) exceeds the preview limit. Its editable data is retained.</source><translation>आकृति “%1” (परत %2) पूर्वावलोकन की सीमा से बड़ी है। संपादन योग्य डेटा सुरक्षित है।</translation></message>
-    <message id="main.window.shape.preview.memory.named"><source>Not enough memory to render shape “%1” (layer %2). Its editable data is retained.</source><translation>आकृति “%1” (परत %2) दिखाने के लिए पर्याप्त मेमोरी नहीं है। संपादन योग्य डेटा सुरक्षित है।</translation></message>
-    <message id="main.window.shape.preview.failed.named"><source>Could not render shape “%1” (layer %2): %3. Its editable data is retained.</source><translation>आकृति “%1” (परत %2) नहीं दिखाई जा सकी: %3। संपादन योग्य डेटा सुरक्षित है।</translation></message>
-    <message id="main.window.shape.preview.reduced.named"><source>Shape “%1” (layer %2) is shown at reduced preview resolution. Its editable data is retained.</source><translation>आकृति “%1” (परत %2) कम पूर्वावलोकन रिज़ॉल्यूशन पर दिखाई गई है। संपादन योग्य डेटा सुरक्षित है।</translation></message>
+    <message id="main.window.shape.preview.limit.named">
+      <source>Shape “%1” (layer %2) exceeds the preview limit. Its editable data is retained.</source>
+      <translation>आकृति “%1” (परत %2) पूर्वावलोकन की सीमा से बड़ी है। संपादन योग्य डेटा सुरक्षित है।</translation>
+    </message>
+    <message id="main.window.shape.preview.memory.named">
+      <source>Not enough memory to render shape “%1” (layer %2). Its editable data is retained.</source>
+      <translation>आकृति “%1” (परत %2) दिखाने के लिए पर्याप्त मेमोरी नहीं है। संपादन योग्य डेटा सुरक्षित है।</translation>
+    </message>
+    <message id="main.window.shape.preview.failed.named">
+      <source>Could not render shape “%1” (layer %2): %3. Its editable data is retained.</source>
+      <translation>आकृति “%1” (परत %2) नहीं दिखाई जा सकी: %3। संपादन योग्य डेटा सुरक्षित है।</translation>
+    </message>
+    <message id="main.window.shape.preview.reduced.named">
+      <source>Shape “%1” (layer %2) is shown at reduced preview resolution. Its editable data is retained.</source>
+      <translation>आकृति “%1” (परत %2) कम पूर्वावलोकन रिज़ॉल्यूशन पर दिखाई गई है। संपादन योग्य डेटा सुरक्षित है।</translation>
+    </message>
   </context>
   <context>
     <name>LayerSelectionFocus</name>
-    <message id="preferences.layer.focus.label"><source>Auto-scroll to selected layer</source><translation>चुनी गई परत तक अपने आप स्क्रॉल करें</translation></message>
-    <message id="preferences.layer.focus.normal"><source>Focus</source><translation>दिखाएँ</translation></message>
-    <message id="preferences.layer.focus.expand"><source>Focus and Expand</source><translation>दिखाएँ और खोलें</translation></message>
-    <message id="preferences.layer.focus.hint"><source>Focus scrolls to the selected layer or its visible parent. Focus and Expand also opens collapsed parents.</source><translation>दिखाएँ चुनी गई परत या उसके दिखाई देने वाले मूल समूह तक स्क्रॉल करता है। दिखाएँ और खोलें बंद मूल समूहों को भी खोलता है।</translation></message>
+    <message id="preferences.layer.focus.label">
+      <source>Auto-scroll to selected layer</source>
+      <translation>चुनी गई परत तक अपने आप स्क्रॉल करें</translation>
+    </message>
+    <message id="preferences.layer.focus.normal">
+      <source>Focus</source>
+      <translation>दिखाएँ</translation>
+    </message>
+    <message id="preferences.layer.focus.expand">
+      <source>Focus and Expand</source>
+      <translation>दिखाएँ और खोलें</translation>
+    </message>
+    <message id="preferences.layer.focus.hint">
+      <source>Focus scrolls to the selected layer or its visible parent. Focus and Expand also opens collapsed parents.</source>
+      <translation>दिखाएँ चुनी गई परत या उसके दिखाई देने वाले मूल समूह तक स्क्रॉल करता है। दिखाएँ और खोलें बंद मूल समूहों को भी खोलता है।</translation>
+    </message>
   </context>
   <context>
     <name>ArcShape</name>
@@ -11265,247 +11664,2167 @@ Prepare %3 · Finish %4 · Total %5</source>
   </context>
   <context>
     <name>McpStatus</name>
-    <message id="mcp.status.connected"><source>MCP connected (%1)</source><translation>MCP जुड़ा है (%1)</translation></message>
-    <message id="mcp.status.stopping"><source>MCP stopping…</source><translation>MCP बंद हो रहा है…</translation></message>
-    <message id="mcp.status.error"><source>MCP error</source><translation>MCP त्रुटि</translation></message>
-    <message id="mcp.status.enabled"><source>MCP enabled</source><translation>MCP चालू है</translation></message>
-    <message id="mcp.status.endpoint.hint"><source>Local document automation. Endpoint: %1</source><translation>स्थानीय दस्तावेज़ स्वचालन। कनेक्शन पता: %1</translation></message>
+    <message id="mcp.status.connected">
+      <source>MCP connected (%1)</source>
+      <translation>MCP जुड़ा है (%1)</translation>
+    </message>
+    <message id="mcp.status.stopping">
+      <source>MCP stopping…</source>
+      <translation>MCP बंद हो रहा है…</translation>
+    </message>
+    <message id="mcp.status.error">
+      <source>MCP error</source>
+      <translation>MCP त्रुटि</translation>
+    </message>
+    <message id="mcp.status.enabled">
+      <source>MCP enabled</source>
+      <translation>MCP चालू है</translation>
+    </message>
+    <message id="mcp.status.endpoint.hint">
+      <source>Local document automation. Endpoint: %1</source>
+      <translation>स्थानीय दस्तावेज़ स्वचालन। कनेक्शन पता: %1</translation>
+    </message>
   </context>
   <context>
     <name>ChannelGroups</name>
     <message id="channels.action.convert">
       <source>Convert to Channel Group</source>
-      <translation type="unfinished" />
+      <translation>चैनल समूह में बदलें</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.action.recombine">
       <source>Convert Channel Group to Raster</source>
-      <translation type="unfinished" />
+      <translation>चैनल समूह को रास्टर में बदलें</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.action.inspect.alpha">
       <source>Show alpha as transparency</source>
-      <translation type="unfinished" />
+      <translation>अल्फ़ा को पारदर्शिता के रूप में दिखाएँ</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.action.copy">
       <source>Copy channel pixels</source>
-      <translation type="unfinished" />
+      <translation>चैनल पिक्सल कॉपी करें</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.action.cut">
       <source>Cut channel pixels</source>
-      <translation type="unfinished" />
+      <translation>चैनल पिक्सल काटें</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.action.open">
       <source>Open data texture…</source>
-      <translation type="unfinished" />
+      <translation>डेटा टेक्सचर खोलें…</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.action.export">
       <source>Export channel data…</source>
-      <translation type="unfinished" />
+      <translation>चैनल डेटा निर्यात करें…</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.convert.to.edit">
       <source>Convert to a Channel Group to edit numeric data.</source>
-      <translation type="unfinished" />
+      <translation>संख्यात्मक डेटा संपादित करने के लिए चैनल समूह में बदलें।</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.operation.unavailable">
       <source>Unavailable for numeric channels.</source>
-      <translation type="unfinished" />
+      <translation>संख्यात्मक चैनलों के लिए उपलब्ध नहीं।</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.clipboard.copied">
       <source>Channel pixels copied.</source>
-      <translation type="unfinished" />
+      <translation>चैनल पिक्सल कॉपी किए गए।</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.clipboard.required">
       <source>Copy channel pixels or an 8-bit straight grayscale image to paste into a channel.</source>
-      <translation type="unfinished" />
+      <translation>चैनल में पेस्ट करने के लिए चैनल पिक्सल या 8-बिट गैर-प्रीमल्टिप्लाइड ग्रेस्केल इमेज कॉपी करें।</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.clipboard.target.changed">
       <source>The paste target changed. Try pasting again.</source>
-      <translation type="unfinished" />
+      <translation>पेस्ट करने का लक्ष्य बदल गया। फिर से पेस्ट करें।</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.clipboard.failed">
       <source>Could not paste into the channel. No pixels were changed.</source>
-      <translation type="unfinished" />
+      <translation>चैनल में पेस्ट नहीं हो सका। कोई पिक्सल नहीं बदला।</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.open.title">
       <source>Open data texture</source>
-      <translation type="unfinished" />
+      <translation>डेटा टेक्सचर खोलें</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.open.filter">
       <source>Lossless images (*.png *.tif *.tiff *.bmp *.tga);;All files (*)</source>
-      <translation type="unfinished" />
+      <translation>लॉसलेस इमेज (*.png *.tif *.tiff *.bmp *.tga);;सभी फ़ाइलें (*)</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.value">
       <source>Value</source>
-      <translation type="unfinished" />
+      <translation>मान</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.value.prefix">
       <source>Value: </source>
-      <translation type="unfinished" />
+      <translation>मान: </translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.value.hint">
       <source>Stored channel value. Black is 0; white is 255.</source>
-      <translation type="unfinished" />
+      <translation>संग्रहीत चैनल मान। काला 0 है; सफ़ेद 255।</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.group.hint">
       <source>Packed channel data. Select a channel to inspect and edit its numeric values.</source>
-      <translation type="unfinished" />
+      <translation>पैक किया गया चैनल डेटा। संख्यात्मक मान देखने और बदलने के लिए चैनल चुनें।</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.layer.hint">
       <source>Numeric channel: 0–255. Rename the label without changing its channel identity.</source>
-      <translation type="unfinished" />
+      <translation>संख्यात्मक चैनल: 0–255। नाम बदलने से चैनल की पहचान नहीं बदलती।</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.type.group">
       <source>Channel Group</source>
-      <translation type="unfinished" />
+      <translation>चैनल समूह</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.type.scalar">
       <source>Numeric channel · R8</source>
-      <translation type="unfinished" />
+      <translation>संख्यात्मक चैनल · R8</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.type.packed">
       <source>Packed data · RGBA8</source>
-      <translation type="unfinished" />
+      <translation>पैक किया गया डेटा · RGBA8</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.levels.hint">
       <source>Adjust stored channel values without colour conversion.</source>
-      <translation type="unfinished" />
+      <translation>रंग रूपांतरण के बिना संग्रहीत चैनल मान बदलें।</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.invert.hint">
       <source>Invert channel values: 0 becomes 255, and 255 becomes 0.</source>
-      <translation type="unfinished" />
+      <translation>चैनल मान उलटें: 0 से 255 और 255 से 0।</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.effects.unavailable">
       <source>Colour effects are unavailable for numeric channels.</source>
-      <translation type="unfinished" />
+      <translation>संख्यात्मक चैनलों के लिए रंग प्रभाव उपलब्ध नहीं हैं।</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.color.adjustments.unavailable">
       <source>Colour adjustments are unavailable for numeric channels.</source>
-      <translation type="unfinished" />
+      <translation>संख्यात्मक चैनलों के लिए रंग समायोजन उपलब्ध नहीं हैं।</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.histogram.sampled">
       <source>Sampled input · %1 numeric samples</source>
-      <translation type="unfinished" />
+      <translation>सैंपल किया गया इनपुट · %1 संख्यात्मक सैंपल</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.histogram.source">
       <source>Source input · %1 numeric samples</source>
-      <translation type="unfinished" />
+      <translation>मूल इनपुट · %1 संख्यात्मक सैंपल</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.export.title">
       <source>Export channel data</source>
-      <translation type="unfinished" />
+      <translation>चैनल डेटा निर्यात करें</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.export.hint">
       <source>Native pixel values · PNG · no colour conversion</source>
-      <translation type="unfinished" />
+      <translation>मूल पिक्सल मान · PNG · कोई रंग रूपांतरण नहीं</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.clone.source.hint">
       <source>Numeric channels sample an explicit channel layer. Rendered colour sources are unavailable.</source>
-      <translation type="unfinished" />
+      <translation>संख्यात्मक चैनल किसी चुनी हुई चैनल परत से सैंपल लेते हैं। रेंडर किए गए रंग स्रोत उपलब्ध नहीं हैं।</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.psd.unsupported">
       <source>Save a Vulkana project or export channel data as PNG to preserve numeric channels.</source>
-      <translation type="unfinished" />
+      <translation>संख्यात्मक चैनल सुरक्षित रखने के लिए Vulkana प्रोजेक्ट सहेजें या चैनल डेटा PNG में निर्यात करें।</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="history.channels.recombine">
       <source>Convert Channel Group to raster</source>
-      <translation type="unfinished" />
+      <translation>चैनल समूह को रास्टर में बदलें</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="history.channels.paste">
       <source>Paste channel pixels</source>
-      <translation type="unfinished" />
+      <translation>चैनल पिक्सल पेस्ट करें</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
   </context>
   <context>
     <name>DiffusionPanel</name>
     <message id="diffusion.override.reset.hint">
       <source>Reset to configuration default: %1</source>
-      <translation type="unfinished" />
+      <translation>कॉन्फ़िगरेशन के डिफ़ॉल्ट पर रीसेट करें: %1</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="diffusion.vae.tiling.required">
       <source>Available when VAE tiling is enabled.</source>
-      <translation type="unfinished" />
+      <translation>VAE टाइलिंग चालू होने पर उपलब्ध।</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="diffusion.progress.preview.required">
       <source>Available when progress previews are enabled.</source>
-      <translation type="unfinished" />
+      <translation>प्रगति पूर्वावलोकन चालू होने पर उपलब्ध।</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
   </context>
   <context>
     <name>PsdImportReview</name>
     <message id="psd.review.type.smart.object">
       <source>Smart Object</source>
-      <translation type="unfinished" />
+      <translation>स्मार्ट ऑब्जेक्ट</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.smart.object">
       <source>Smart object</source>
-      <translation type="unfinished" />
+      <translation>स्मार्ट ऑब्जेक्ट</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.font">
       <source>Missing font</source>
-      <translation type="unfinished" />
+      <translation>फ़ॉन्ट उपलब्ध नहीं</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.text">
       <source>Text layout</source>
-      <translation type="unfinished" />
+      <translation>टेक्स्ट लेआउट</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.shape">
       <source>Shape geometry</source>
-      <translation type="unfinished" />
+      <translation>आकृति ज्यामिति</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.effects">
       <source>Layer effects</source>
-      <translation type="unfinished" />
+      <translation>परत प्रभाव</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.mask">
       <source>Layer mask</source>
-      <translation type="unfinished" />
+      <translation>परत मास्क</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.blending">
       <source>Blending</source>
-      <translation type="unfinished" />
+      <translation>मिश्रण</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.group">
       <source>Group blending</source>
-      <translation type="unfinished" />
+      <translation>समूह मिश्रण</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.clipping">
       <source>Clipping</source>
-      <translation type="unfinished" />
+      <translation>क्लिपिंग</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.adjustment">
       <source>Adjustment</source>
-      <translation type="unfinished" />
+      <translation>समायोजन</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.unsupported">
       <source>Unsupported feature</source>
-      <translation type="unfinished" />
+      <translation>असमर्थित सुविधा</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.appearance">
       <source>Appearance</source>
-      <translation type="unfinished" />
+      <translation>दिखावट</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.import.dialog.fallback.summary">
       <source>Omitted items: %1 · Base pixels only: %2</source>
-      <translation type="unfinished" />
+      <translation>छोड़े गए आइटम: %1 · केवल मूल पिक्सल: %2</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.import.dialog.reason">
       <source>Reason</source>
-      <translation type="unfinished" />
+      <translation>कारण</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.import.dialog.reason.excluded">
       <source>Group omitted</source>
-      <translation type="unfinished" />
+      <translation>समूह छोड़ा गया</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.import.dialog.apply.similar">
       <source>Apply to similar (%1)</source>
-      <translation type="unfinished" />
+      <translation>समान पर लागू करें (%1)</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.import.dialog.apply.similar.hint">
       <source>Apply this conversion to matching layers. Font choices stay unchanged.</source>
-      <translation type="unfinished" />
+      <translation>यह रूपांतरण समान परतों पर लागू करें। चुने हुए फ़ॉन्ट नहीं बदलेंगे।</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.import.dialog.smart.object.raster.hint">
       <source>Import the saved Smart Object appearance as editable pixels. Embedded source editing is not retained.</source>
-      <translation type="unfinished" />
+      <translation>स्मार्ट ऑब्जेक्ट के सहेजे हुए रूप को संपादन योग्य पिक्सल के रूप में आयात करें। एम्बेडेड स्रोत का संपादन सुरक्षित नहीं रहेगा।</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+    </message>
+  </context>
+  <context>
+    <name>AIImageEditor</name>
+    <message id="diffusion.ui.restore.the.full.layer.input">
+      <source>Restore the full layer input</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>पूरी परत का इनपुट बहाल करें</translation>
+    </message>
+    <message id="diffusion.ui.crop.this.layer.input.to.its.canvas">
+      <source>Crop this layer input to its canvas</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>इस परत के इनपुट को उसके कैनवास तक काटें</translation>
+    </message>
+    <message id="diffusion.ui.create">
+      <source>Create</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बनाएँ</translation>
+    </message>
+    <message id="diffusion.ui.that.name.is.already.in.use">
+      <source>That name is already in use.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>यह नाम पहले से उपयोग में है।</translation>
+    </message>
+    <message id="diffusion.ui.delete.configuration">
+      <source>Delete configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कॉन्फ़िगरेशन हटाएँ</translation>
+    </message>
+    <message id="diffusion.ui.duplicate.configuration">
+      <source>Duplicate configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कॉन्फ़िगरेशन की प्रतिलिपि बनाएँ</translation>
+    </message>
+    <message id="diffusion.ui.new.configuration">
+      <source>New configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>नया कॉन्फ़िगरेशन</translation>
+    </message>
+    <message id="diffusion.ui.name">
+      <source>Name</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>नाम</translation>
+    </message>
+    <message id="diffusion.ui.images.and.region.guides.exceed.this.model">
+      <source>Images and region guides exceed this model's %1-reference limit. Remove an image or region before generating.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>इमेज और क्षेत्र गाइड मॉडल की %1 संदर्भ सीमा से अधिक हैं। बनाने से पहले कोई इमेज या क्षेत्र हटाएँ।</translation>
+    </message>
+    <message id="diffusion.ui.reference.limit.satisfied">
+      <source>Reference limit satisfied.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>संदर्भ सीमा के भीतर है।</translation>
+    </message>
+    <message id="diffusion.ui.linked.region.transfers.are.available.with.flux">
+      <source>Linked region transfers are available with FLUX.3. Unlink the destinations or select a FLUX configuration.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>लिंक किए गए क्षेत्र स्थानांतरण FLUX.3 में उपलब्ध हैं। गंतव्य अनलिंक करें या FLUX कॉन्फ़िगरेशन चुनें।</translation>
+    </message>
+    <message id="diffusion.ui.linked.transfers.need.at.least.two.input">
+      <source>Linked transfers need at least two input images. Add the missing input or unlink the destinations.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>लिंक किए गए स्थानांतरण के लिए कम से कम दो इनपुट इमेज चाहिए। छूटी हुई इमेज जोड़ें या गंतव्य अनलिंक करें।</translation>
+    </message>
+    <message id="diffusion.ui.choose.an.available.output.scene.before.generating">
+      <source>Choose an available output scene before generating.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बनाने से पहले उपलब्ध आउटपुट दृश्य चुनें।</translation>
+    </message>
+    <message id="diffusion.ui.source.region.1.is.outside.the.cropped">
+      <source>Source region %1 is outside the cropped input. Restore the input to use or unlink it.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>स्रोत क्षेत्र %1 कटे हुए इनपुट से बाहर है। उसे उपयोग करने के लिए इनपुट बहाल करें या अनलिंक करें।</translation>
+    </message>
+    <message id="diffusion.ui.the.destination.for.1.is.missing.choose">
+      <source>The destination for %1 is missing. Choose another target or unlink it.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1 का गंतव्य नहीं मिला। दूसरा लक्ष्य चुनें या अनलिंक करें।</translation>
+    </message>
+    <message id="diffusion.ui.choose.output.scene">
+      <source>Choose output scene…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>आउटपुट दृश्य चुनें…</translation>
+    </message>
+    <message id="diffusion.ui.output.layout.1.2.px">
+      <source>Output layout · %1 × %2 px</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>आउटपुट लेआउट · %1 × %2 px</translation>
+    </message>
+    <message id="diffusion.ui.output.layout">
+      <source>Output layout</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>आउटपुट लेआउट</translation>
+    </message>
+    <message id="diffusion.ui.fit.to.canvas">
+      <source>Fit to canvas</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कैनवास में फ़िट करें</translation>
+    </message>
+    <message id="diffusion.ui.fit.to.selected.layer">
+      <source>Fit to selected layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>चयनित परत में फ़िट करें</translation>
+    </message>
+    <message id="diffusion.ui.fit.to.original.bounds">
+      <source>Fit to original bounds</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>मूल सीमाओं में फ़िट करें</translation>
+    </message>
+    <message id="diffusion.ui.generative.fill.stays.aligned.to.its.captured">
+      <source>Generative Fill stays aligned to its captured canvas and soft selection.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>जनरेटिव फ़िल सहेजे गए कैनवास और नरम चयन के साथ संरेखित रहता है।</translation>
+    </message>
+    <message id="diffusion.ui.replacement.fits.the.selected.layer.use.add">
+      <source>Replacement fits the selected layer. Use Add new layer for a result at its generated size.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>प्रतिस्थापन चयनित परत में फ़िट होता है। बनाए गए आकार को रखने के लिए नई परत जोड़ें।</translation>
+    </message>
+    <message id="diffusion.ui.new.documents.use.the.generated.pixel.dimensions">
+      <source>New documents use the generated pixel dimensions.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>नए दस्तावेज़ बनाए गए पिक्सल आयाम इस्तेमाल करते हैं।</translation>
+    </message>
+    <message id="diffusion.ui.fit.the.result.to.the.original.input">
+      <source>Fit the result to the original input bounds. Uncheck for 1:1 pixels, keeping position and orientation.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>परिणाम को मूल इनपुट की सीमाओं में फ़िट करें। स्थिति और दिशा रखते हुए 1:1 पिक्सल के लिए इसे बंद करें।</translation>
+    </message>
+    <message id="diffusion.ui.scale.the.result.to.the.current.canvas">
+      <source>Scale the result to the current canvas. Uncheck to keep its generated size.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>परिणाम को वर्तमान कैनवास के आकार में बदलें। बनाए गए आकार को रखने के लिए इसे बंद करें।</translation>
+    </message>
+    <message id="diffusion.ui.current.configuration">
+      <source>Current configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>वर्तमान कॉन्फ़िगरेशन</translation>
+    </message>
+    <message id="diffusion.ui.missing.configuration">
+      <source>No configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कोई कॉन्फ़िगरेशन नहीं</translation>
+    </message>
+    <message id="diffusion.ui.cancel">
+      <source>Cancel</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>रद्द करें</translation>
+    </message>
+    <message id="diffusion.ui.generate">
+      <source>Generate</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बनाएँ</translation>
+    </message>
+    <message id="diffusion.ui.cancel.generation">
+      <source>Cancel generation</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बनाना रद्द करें</translation>
+    </message>
+    <message id="diffusion.ui.a.cropped.layer.is.outside.its.canvas">
+      <source>A cropped layer is outside its canvas. Restore or remove that input.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कटी हुई परत उसके कैनवास से बाहर है। यह इनपुट बहाल करें या हटाएँ।</translation>
+    </message>
+    <message id="diffusion.ui.remove.an.image.or.region.to.stay">
+      <source>Remove an image or region to stay within the model's reference limit.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>मॉडल की संदर्भ सीमा में रहने के लिए कोई इमेज या क्षेत्र हटाएँ।</translation>
+    </message>
+    <message id="diffusion.ui.add.model.files.in.the.configuration.tab">
+      <source>Add model files in the Configuration tab.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कॉन्फ़िगरेशन टैब में मॉडल फ़ाइलें जोड़ें।</translation>
+    </message>
+    <message id="diffusion.ui.preview">
+      <source>Preview</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>पूर्वावलोकन</translation>
+    </message>
+    <message id="diffusion.ui.preview.1">
+      <source>Preview · %1</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>पूर्वावलोकन · %1</translation>
+    </message>
+    <message id="diffusion.ui.this.model.generates.from.text.only.stored">
+      <source>This model generates from text only. Stored inputs will be available when you switch to a compatible model.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>यह मॉडल केवल टेक्स्ट से इमेज बनाता है। संगत मॉडल चुनने पर सहेजे गए इनपुट फिर उपलब्ध होंगे।</translation>
+    </message>
+    <message id="diffusion.ui.regions">
+      <source>Regions</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>क्षेत्र</translation>
+    </message>
+    <message id="diffusion.ui.regions.1">
+      <source>Regions · %1</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>क्षेत्र · %1</translation>
+    </message>
+    <message id="diffusion.ui.use.image.1.for.this.image.and">
+      <source>Use &lt;Image%1&gt; for this image and &lt;Image%1/Region1&gt; for a named region.</source>
+      <extracomment>Keep image/region/scene aliases inside angle brackets unchanged; they are prompt tokens, not translated names.</extracomment>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>इस इमेज के लिए &lt;Image%1&gt; और नाम वाले क्षेत्र के लिए &lt;Image%1/Region1&gt; इस्तेमाल करें।</translation>
+    </message>
+    <message id="diffusion.ui.with.one.input.region1.also.works">
+      <source> With one input, &lt;Region1&gt; also works.</source>
+      <extracomment>Keep image/region/scene aliases inside angle brackets unchanged; they are prompt tokens, not translated names.</extracomment>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation> एक ही इनपुट होने पर &lt;Region1&gt; भी काम करता है।</translation>
+    </message>
+    <message id="diffusion.ui.refer.to.output.regions.as.output.region1">
+      <source>Refer to output regions as &lt;Output/Region1&gt;. Regions guide placement; they do not protect pixels.</source>
+      <extracomment>Keep image/region/scene aliases inside angle brackets unchanged; they are prompt tokens, not translated names.</extracomment>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>आउटपुट क्षेत्रों को &lt;Output/Region1&gt; से बताएँ। क्षेत्र स्थान का मार्गदर्शन करते हैं, पिक्सल की रक्षा नहीं।</translation>
+    </message>
+    <message id="diffusion.ui.output.placement.guide.use.generative.fill.to">
+      <source>Output placement guide. Use Generative Fill to protect pixels outside a selection.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>आउटपुट स्थान गाइड। चयन के बाहर पिक्सल बचाने के लिए जनरेटिव फ़िल इस्तेमाल करें।</translation>
+    </message>
+    <message id="diffusion.ui.region.guidance.is.unavailable.for.this.model">
+      <source>Region guidance is unavailable for this model.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>इस मॉडल में क्षेत्र मार्गदर्शन उपलब्ध नहीं है।</translation>
+    </message>
+    <message id="diffusion.ui.generating">
+      <source>Generating…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बना रहे हैं…</translation>
+    </message>
+    <message id="diffusion.ui.generation.in.progress.a.live.draft.appears">
+      <source>Generation in progress. A live draft appears here when available. Pending previews cannot be applied.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बनाना जारी है। उपलब्ध होने पर यहाँ लाइव ड्राफ़्ट दिखेगा। अधूरे पूर्वावलोकन लागू नहीं किए जा सकते।</translation>
+    </message>
+    <message id="diffusion.ui.unsaved.configuration">
+      <source>Unsaved configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>सहेजा नहीं गया कॉन्फ़िगरेशन</translation>
+    </message>
+    <message id="diffusion.ui.generation.in.progress">
+      <source>Generation in progress</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बनाना जारी है</translation>
+    </message>
+    <message id="diffusion.ui.pending.preview.approximate">
+      <source>Pending preview — approximate</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>अधूरा पूर्वावलोकन — अनुमानित</translation>
+    </message>
+    <message id="diffusion.ui.ai.image.preview">
+      <source>AI image preview</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI इमेज पूर्वावलोकन</translation>
+    </message>
+    <message id="diffusion.ui.generated.previews.appear.here">
+      <source>Generated previews appear here</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बनाई गई इमेज यहाँ दिखाई देंगी</translation>
+    </message>
+    <message id="diffusion.ui.no.image">
+      <source>No image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कोई इमेज नहीं</translation>
+    </message>
+    <message id="diffusion.ui.this.model.generates.from.text.only.image">
+      <source>This model generates from text only. Image-to-image denoising is unavailable.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>यह मॉडल केवल टेक्स्ट से बनाता है। इमेज-टू-इमेज डीनॉइज़िंग उपलब्ध नहीं है।</translation>
+    </message>
+    <message id="diffusion.ui.always.used.for.generative.fill.the.canvas">
+      <source>Always used for Generative Fill. The canvas is the starting image; the selection limits where the result is applied.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>जनरेटिव फ़िल में हमेशा उपयोग होता है। कैनवास शुरुआती इमेज है; चयन तय करता है कि परिणाम कहाँ लागू होगा।</translation>
+    </message>
+    <message id="diffusion.ui.off.edit.using.image.references.on.start">
+      <source>Off: edit using image references. On: start from Image 1 and use Denoising strength.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बंद: संदर्भ इमेज से संपादन। चालू: इमेज 1 से शुरू करके डीनॉइज़िंग शक्ति इस्तेमाल करें।</translation>
+    </message>
+    <message id="diffusion.ui.starts.denoising.from.an.input.image.available">
+      <source>Starts denoising from an input image. Available in Edit layer; always used for Generative Fill.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>इनपुट इमेज से डीनॉइज़िंग शुरू करता है। परत संपादन में उपलब्ध; जनरेटिव फ़िल में हमेशा उपयोग होता है।</translation>
+    </message>
+    <message id="diffusion.ui.denoising.strength.is.available.for.models.that">
+      <source>Denoising strength is available for models that edit input images.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>डीनॉइज़िंग शक्ति इनपुट इमेज संपादित करने वाले मॉडल में उपलब्ध है।</translation>
+    </message>
+    <message id="diffusion.ui.lower.values.retain.more.of.the.starting">
+      <source>Lower values retain more of the starting image. Try 1.0 for larger changes or new objects.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कम मान शुरुआती इमेज का ज़्यादा हिस्सा बचाते हैं। बड़े बदलाव या नई वस्तुओं के लिए 1.0 आज़माएँ।</translation>
+    </message>
+    <message id="diffusion.ui.enable.image.to.image.denoising.to.use">
+      <source>Enable image-to-image denoising to use strength. Reference-only edits do not use this value.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>शक्ति इस्तेमाल करने के लिए इमेज-टू-इमेज डीनॉइज़िंग चालू करें। केवल संदर्भ वाला संपादन इस मान का उपयोग नहीं करता।</translation>
+    </message>
+    <message id="diffusion.ui.available.in.generative.fill.or.edit.layer">
+      <source>Available in Generative Fill, or Edit layer with image-to-image denoising enabled.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>जनरेटिव फ़िल में, या इमेज-टू-इमेज डीनॉइज़िंग चालू होने पर परत संपादन में उपलब्ध।</translation>
+    </message>
+    <message id="diffusion.ui.the.fixed.turbo.sigma.schedule.uses.8">
+      <source>The fixed Turbo sigma schedule uses 8 steps. Choose Auto sigma schedule to try other step counts.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Turbo का तय सिग्मा शेड्यूल 8 चरण लेता है। दूसरे चरणों की संख्या के लिए ऑटो सिग्मा शेड्यूल चुनें।</translation>
+    </message>
+    <message id="diffusion.ui.number.of.denoising.steps">
+      <source>Number of denoising steps.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>डीनॉइज़िंग चरणों की संख्या।</translation>
+    </message>
+    <message id="diffusion.ui.enter.steps.1.descending.values.ending.in">
+      <source>Enter steps + 1 descending values ending in zero. Available with a custom sigma schedule.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>चरणों की संख्या + 1 घटते हुए मान दर्ज करें, जो शून्य पर समाप्त हों। कस्टम सिग्मा शेड्यूल में उपलब्ध।</translation>
+    </message>
+    <message id="diffusion.ui.controls.how.noise.levels.are.spaced.available">
+      <source>Controls how noise levels are spaced. Available with the auto sigma schedule.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>शोर के स्तरों का वितरण तय करता है। ऑटो सिग्मा शेड्यूल में उपलब्ध।</translation>
+    </message>
+    <message id="diffusion.ui.flow.shift.does.not.apply.to.this">
+      <source>Flow shift does not apply to this model.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>फ़्लो शिफ़्ट इस मॉडल पर लागू नहीं होता।</translation>
+    </message>
+    <message id="diffusion.ui.adjusts.the.flow.schedule.available.with.the">
+      <source>Adjusts the flow schedule. Available with the auto sigma schedule. Auto uses the model default (%1).</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>फ़्लो शेड्यूल समायोजित करता है। ऑटो सिग्मा शेड्यूल में उपलब्ध। ऑटो मॉडल का डिफ़ॉल्ट (%1) इस्तेमाल करता है।</translation>
+    </message>
+    <message id="diffusion.ui.controls.added.sampler.noise.available.for.samplers">
+      <source>Controls added sampler noise. Available for samplers that use eta.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>सैंपलर का अतिरिक्त शोर नियंत्रित करता है। eta इस्तेमाल करने वाले सैंपलरों में उपलब्ध।</translation>
+    </message>
+    <message id="diffusion.ui.available.when.approximate.cache.is.enabled">
+      <source>Available when Approximate cache is enabled.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>अनुमानित कैश चालू होने पर उपलब्ध।</translation>
+    </message>
+    <message id="diffusion.ui.checkpoint">
+      <source>Checkpoint</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>चेकपॉइंट</translation>
+    </message>
+    <message id="diffusion.ui.diffusion.weights">
+      <source>Diffusion weights</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>डिफ़्यूज़न वेट</translation>
+    </message>
+    <message id="diffusion.ui.vae.override.optional">
+      <source>VAE override (optional)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बाहरी VAE (वैकल्पिक)</translation>
+    </message>
+    <message id="diffusion.ui.use.checkpoint.vae">
+      <source>Use checkpoint VAE</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>चेकपॉइंट का VAE इस्तेमाल करें</translation>
+    </message>
+    <message id="diffusion.ui.this.mode.is.unavailable.for.the.selected">
+      <source>This mode is unavailable for the selected model.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>चयनित मॉडल में यह मोड उपलब्ध नहीं है।</translation>
+    </message>
+    <message id="diffusion.ui.1.width.and.height.must.be.multiples">
+      <source>%1: width and height must be multiples of %2.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1: चौड़ाई और ऊँचाई %2 के गुणज होने चाहिए।</translation>
+    </message>
+    <message id="diffusion.ui.auto.1">
+      <source>Auto (%1)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ऑटो (%1)</translation>
+    </message>
+    <message id="diffusion.ui.auto.uses.the.selected.model.s.required">
+      <source>Auto uses the selected model's required multiple.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ऑटो चयनित मॉडल के लिए ज़रूरी गुणज इस्तेमाल करता है।</translation>
+    </message>
+    <message id="diffusion.ui.choose.where.weights.are.kept.available.when">
+      <source>Choose where weights are kept. Available when Keep weights in is manual.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>वेट कहाँ रखें, चुनें। वेट का स्थान मैन्युअल होने पर उपलब्ध।</translation>
+    </message>
+    <message id="diffusion.ui.reuse.text.encoder.prefix.data.available.for">
+      <source>Reuse text-encoder prefix data. Available for Qwen models.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>टेक्स्ट एनकोडर का प्रीफ़िक्स डेटा दोबारा इस्तेमाल करें। Qwen मॉडल में उपलब्ध।</translation>
+    </message>
+    <message id="diffusion.ui.for.image.editing.add.a.separate.vision">
+      <source>For image editing, add a separate vision projector only if the text encoder does not include vision weights.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>इमेज संपादन के लिए अलग विज़न प्रोजेक्टर तभी जोड़ें, जब टेक्स्ट एनकोडर में विज़न वेट न हों।</translation>
+    </message>
+    <message id="diffusion.ui.this.model.does.not.need.a.separate">
+      <source>This model does not need a separate vision component.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>इस मॉडल को अलग विज़न घटक की ज़रूरत नहीं है।</translation>
+    </message>
+    <message id="diffusion.ui.this.model.does.not.support.a.negative">
+      <source>This model does not support a negative prompt.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>यह मॉडल नेगेटिव प्रॉम्प्ट का समर्थन नहीं करता।</translation>
+    </message>
+    <message id="diffusion.ui.describe.what.to.avoid.requires.guidance.cfg">
+      <source>Describe what to avoid. Requires Guidance (CFG) above 1.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बताएँ कि किन चीज़ों से बचना है। मार्गदर्शन (CFG) 1 से अधिक होना चाहिए।</translation>
+    </message>
+    <message id="diffusion.ui.describe.what.to.avoid.in.the.generated">
+      <source>Describe what to avoid in the generated image.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बताएँ कि बनाई गई इमेज में किन चीज़ों से बचना है।</translation>
+    </message>
+    <message id="diffusion.ui.no.configurations">
+      <source>No configurations</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कोई कॉन्फ़िगरेशन नहीं</translation>
+    </message>
+    <message id="diffusion.ui.select.configuration">
+      <source>Select configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कॉन्फ़िगरेशन चुनें</translation>
+    </message>
+    <message id="diffusion.ui.add.input.image">
+      <source>Add input image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>इनपुट इमेज जोड़ें</translation>
+    </message>
+    <message id="diffusion.ui.regions.image.1.2.3.4.px">
+      <source>Regions — Image%1 · %2 · %3 × %4 px</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>क्षेत्र — Image%1 · %2 · %3 × %4 px</translation>
+    </message>
+    <message id="diffusion.ui.prompt.preset">
+      <source>Prompt preset…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>प्रॉम्प्ट प्रीसेट…</translation>
+    </message>
+    <message id="diffusion.ui.previous.preview">
+      <source>Previous preview</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>पिछला पूर्वावलोकन</translation>
+    </message>
+    <message id="diffusion.ui.next.preview">
+      <source>Next preview</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>अगला पूर्वावलोकन</translation>
+    </message>
+    <message id="diffusion.ui.fit.to.view">
+      <source>Fit to view</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>व्यू में फ़िट करें</translation>
+    </message>
+    <message id="diffusion.ui.actual.pixels.1.1">
+      <source>Actual pixels (1:1)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>वास्तविक पिक्सल (1:1)</translation>
+    </message>
+    <message id="diffusion.ui.close.preview">
+      <source>Close preview</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>पूर्वावलोकन बंद करें</translation>
+    </message>
+    <message id="diffusion.ui.drag.to.draw.or.move.shift.drag">
+      <source>Drag to draw or move · Shift-drag adds a region · Middle mouse pans</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>खींचकर बनाएँ या खिसकाएँ · Shift के साथ खींचने से क्षेत्र जुड़ता है · मध्य बटन से पैन करें</translation>
+    </message>
+    <message id="diffusion.ui.mouse.wheel.zooms.middle.mouse.pans">
+      <source>Mouse wheel zooms · Middle mouse pans</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>माउस व्हील से ज़ूम · मध्य बटन से पैन</translation>
+    </message>
+    <message id="diffusion.ui.compare.with.layer">
+      <source>Compare with layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>परत से तुलना करें</translation>
+    </message>
+    <message id="diffusion.ui.canvas.alignment">
+      <source>Canvas Alignment</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कैनवास संरेखण</translation>
+    </message>
+    <message id="diffusion.ui.center.alignment">
+      <source>Center Alignment</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>केंद्र संरेखण</translation>
+    </message>
+    <message id="diffusion.ui.fit.to.result">
+      <source>Fit to Result</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>परिणाम में फ़िट करें</translation>
+    </message>
+    <message id="diffusion.ui.canvas.document.positions.and.scale.center.native">
+      <source>Canvas: document positions and scale. Center: native pixel sizes. Fit: proportional reference scaling.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कैनवास: दस्तावेज़ की स्थिति और पैमाना। केंद्र: मूल पिक्सल आकार। फ़िट: अनुपात रखते हुए संदर्भ का आकार बदलें।</translation>
+    </message>
+    <message id="diffusion.ui.stop.comparing">
+      <source>Stop comparing</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>तुलना रोकें</translation>
+    </message>
+    <message id="diffusion.ui.search.layers">
+      <source>Search layers…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>परतें खोजें…</translation>
+    </message>
+    <message id="diffusion.ui.no.matching.layers">
+      <source>No matching layers</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कोई मेल खाती परत नहीं</translation>
+    </message>
+    <message id="diffusion.ui.draw.the.destination.box.scene.is.fitted">
+      <source>Draw the destination box. Scene is fitted as a guide; coordinates belong to the output frame.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>गंतव्य बॉक्स बनाएँ। दृश्य गाइड के रूप में फ़िट है; निर्देशांक आउटपुट फ़्रेम के हैं।</translation>
+    </message>
+    <message id="diffusion.ui.scene.is.fitted.as.a.guide.boxes">
+      <source>Scene is fitted as a guide · Boxes use output coordinates · Middle mouse pans</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>दृश्य गाइड के रूप में फ़िट है · बॉक्स आउटपुट निर्देशांक में हैं · मध्य बटन से पैन</translation>
+    </message>
+    <message id="diffusion.ui.region.label">
+      <source>Region label</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>क्षेत्र का नाम</translation>
+    </message>
+    <message id="diffusion.ui.description.optional">
+      <source>Description (optional)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>विवरण (वैकल्पिक)</translation>
+    </message>
+    <message id="diffusion.ui.optional.semantic.guidance.sent.as.desc.the">
+      <source>Optional semantic guidance sent as desc. The region name is only an alias.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>वैकल्पिक अर्थ-संबंधी मार्गदर्शन desc के रूप में भेजा जाता है। क्षेत्र का नाम केवल उपनाम है।</translation>
+    </message>
+    <message id="diffusion.ui.remove.selected.region">
+      <source>Remove selected region</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>चयनित क्षेत्र हटाएँ</translation>
+    </message>
+    <message id="diffusion.ui.destination">
+      <source>Destination</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>गंतव्य</translation>
+    </message>
+    <message id="diffusion.ui.edit">
+      <source>Edit…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>संपादित करें…</translation>
+    </message>
+    <message id="diffusion.ui.target.location.no.object.description">
+      <source>Target location — no object description</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>लक्ष्य स्थान — वस्तु का विवरण नहीं</translation>
+    </message>
+    <message id="diffusion.ui.none">
+      <source>None</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कोई नहीं</translation>
+    </message>
+    <message id="diffusion.ui.missing.target.choose.another">
+      <source>Missing target — choose another</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>लक्ष्य नहीं मिला — दूसरा चुनें</translation>
+    </message>
+    <message id="diffusion.ui.new.target">
+      <source>New target…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>नया लक्ष्य…</translation>
+    </message>
+    <message id="diffusion.ui.mouse.wheel.zooms.middle.mouse.pans.browse">
+      <source>Mouse wheel zooms · Middle mouse pans · ← / → browse previews</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>माउस व्हील से ज़ूम · मध्य बटन से पैन · ← / → से पूर्वावलोकन बदलें</translation>
+    </message>
+    <message id="diffusion.ui.choose.an.output.scene.first">
+      <source>Choose an output scene first.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>पहले आउटपुट दृश्य चुनें।</translation>
+    </message>
+    <message id="diffusion.ui.destination.for.image.1.2">
+      <source>Destination for Image%1/%2</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Image%1/%2 के लिए गंतव्य</translation>
+    </message>
+    <message id="diffusion.ui.ai.image.editor">
+      <source>AI Image Editor</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI इमेज संपादक</translation>
+    </message>
+    <message id="diffusion.ui.close.ai.image.editor">
+      <source>Close AI Image Editor</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI इमेज संपादक बंद करें</translation>
+    </message>
+    <message id="diffusion.ui.configuration">
+      <source>Configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कॉन्फ़िगरेशन</translation>
+    </message>
+    <message id="diffusion.ui.edit.layer">
+      <source>Edit layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>परत संपादित करें</translation>
+    </message>
+    <message id="diffusion.ui.generative.fill">
+      <source>Generative Fill</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>जनरेटिव फ़िल</translation>
+    </message>
+    <message id="diffusion.ui.add.configuration">
+      <source>Add configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कॉन्फ़िगरेशन जोड़ें</translation>
+    </message>
+    <message id="diffusion.ui.model.files">
+      <source>Model files</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>मॉडल फ़ाइलें</translation>
+    </message>
+    <message id="diffusion.ui.family">
+      <source>Family</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>परिवार</translation>
+    </message>
+    <message id="diffusion.ui.variant">
+      <source>Variant</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>वेरिएंट</translation>
+    </message>
+    <message id="diffusion.ui.choose.file">
+      <source>Choose file</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>फ़ाइल चुनें</translation>
+    </message>
+    <message id="diffusion.ui.choose.checkpoint">
+      <source>Choose checkpoint</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>चेकपॉइंट चुनें</translation>
+    </message>
+    <message id="diffusion.ui.choose.model.component">
+      <source>Choose model component</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>मॉडल घटक चुनें</translation>
+    </message>
+    <message id="diffusion.ui.checkpoints.safetensors.all.files">
+      <source>Checkpoints (*.safetensors);;All files (*)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>चेकपॉइंट (*.safetensors);;सभी फ़ाइलें (*)</translation>
+    </message>
+    <message id="diffusion.ui.models.gguf.safetensors.all.files">
+      <source>Models (*.gguf *.safetensors);;All files (*)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>मॉडल (*.gguf *.safetensors);;सभी फ़ाइलें (*)</translation>
+    </message>
+    <message id="diffusion.ui.text.encoder">
+      <source>Text encoder</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>टेक्स्ट एनकोडर</translation>
+    </message>
+    <message id="diffusion.ui.vision.optional">
+      <source>Vision (optional)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>विज़न (वैकल्पिक)</translation>
+    </message>
+    <message id="diffusion.ui.auto">
+      <source>Auto</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ऑटो</translation>
+    </message>
+    <message id="diffusion.ui.auto.prefers.an.available.cuda.worker.then">
+      <source>Auto prefers an available CUDA worker, then Vulkan. Explicit backends require the matching installed worker.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ऑटो पहले उपलब्ध CUDA वर्कर, फिर Vulkan चुनता है। किसी निश्चित बैकएंड के लिए उसका वर्कर स्थापित होना चाहिए।</translation>
+    </message>
+    <message id="diffusion.ui.backend">
+      <source>Backend</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बैकएंड</translation>
+    </message>
+    <message id="diffusion.ui.save.custom.prompt.preset">
+      <source>Save custom prompt preset</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कस्टम प्रॉम्प्ट प्रीसेट सहेजें</translation>
+    </message>
+    <message id="diffusion.ui.delete.custom.prompt.preset">
+      <source>Delete custom prompt preset</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कस्टम प्रॉम्प्ट प्रीसेट हटाएँ</translation>
+    </message>
+    <message id="diffusion.ui.describe.the.image.or.the.changes.you">
+      <source>Describe the image or the changes you want…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>इमेज या मनचाहे बदलावों का वर्णन करें…</translation>
+    </message>
+    <message id="diffusion.ui.negative.prompt">
+      <source>Negative prompt</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>नेगेटिव प्रॉम्प्ट</translation>
+    </message>
+    <message id="diffusion.ui.describe.what.to.avoid">
+      <source>Describe what to avoid…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बताएँ कि किन चीज़ों से बचना है…</translation>
+    </message>
+    <message id="diffusion.ui.size">
+      <source>Size</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>आकार</translation>
+    </message>
+    <message id="diffusion.ui.output.width.in.pixels">
+      <source>Output width in pixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>आउटपुट की चौड़ाई, पिक्सल में</translation>
+    </message>
+    <message id="diffusion.ui.output.height.in.pixels">
+      <source>Output height in pixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>आउटपुट की ऊँचाई, पिक्सल में</translation>
+    </message>
+    <message id="diffusion.ui.match.layer.canvas.size">
+      <source>Match layer / canvas size</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>परत / कैनवास का आकार मिलाएँ</translation>
+    </message>
+    <message id="diffusion.ui.match.selected.input.layer.size">
+      <source>Match selected input / layer size</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>चयनित इनपुट / परत का आकार मिलाएँ</translation>
+    </message>
+    <message id="diffusion.ui.match.the.selected.input.including.its.canvas">
+      <source>Match the selected input, including its canvas crop. With no input selected, use the active layer.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>चयनित इनपुट के कैनवास क्रॉप सहित उसका आकार मिलाएँ। इनपुट चयनित न हो तो सक्रिय परत लें।</translation>
+    </message>
+    <message id="diffusion.ui.resolution.selector">
+      <source>Resolution Selector</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>रिज़ॉल्यूशन चयन</translation>
+    </message>
+    <message id="diffusion.ui.1.1.square">
+      <source>1:1 (Square)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>1:1 (वर्ग)</translation>
+    </message>
+    <message id="diffusion.ui.2.3.portrait.photo">
+      <source>2:3 (Portrait Photo)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>2:3 (पोर्ट्रेट फ़ोटो)</translation>
+    </message>
+    <message id="diffusion.ui.3.2.photo">
+      <source>3:2 (Photo)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>3:2 (फ़ोटो)</translation>
+    </message>
+    <message id="diffusion.ui.3.4.portrait.standard">
+      <source>3:4 (Portrait Standard)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>3:4 (पोर्ट्रेट मानक)</translation>
+    </message>
+    <message id="diffusion.ui.4.3.standard">
+      <source>4:3 (Standard)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>4:3 (मानक)</translation>
+    </message>
+    <message id="diffusion.ui.9.16.portrait.widescreen">
+      <source>9:16 (Portrait Widescreen)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>9:16 (पोर्ट्रेट वाइडस्क्रीन)</translation>
+    </message>
+    <message id="diffusion.ui.16.9.widescreen">
+      <source>16:9 (Widescreen)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>16:9 (वाइडस्क्रीन)</translation>
+    </message>
+    <message id="diffusion.ui.21.9.ultrawide">
+      <source>21:9 (Ultrawide)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>21:9 (अल्ट्रावाइड)</translation>
+    </message>
+    <message id="diffusion.ui.custom">
+      <source>Custom</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कस्टम</translation>
+    </message>
+    <message id="diffusion.ui.choose.a.ratio.to.calculate.the.output">
+      <source>Choose a ratio to calculate the output size. Custom keeps the current dimensions.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>आउटपुट आकार निकालने के लिए अनुपात चुनें। कस्टम वर्तमान आयाम रखता है।</translation>
+    </message>
+    <message id="diffusion.ui.aspect.ratio">
+      <source>Aspect Ratio</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>पहलू अनुपात</translation>
+    </message>
+    <message id="diffusion.ui.approximate.pixel.count.1.0.mp.is">
+      <source>Approximate pixel count. 1.0 MP is 1024 × 1024 for Square. Rounding can change the total.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>लगभग पिक्सल संख्या। वर्ग के लिए 1.0 MP का अर्थ 1024 × 1024 है। राउंडिंग से कुल संख्या बदल सकती है।</translation>
+    </message>
+    <message id="diffusion.ui.megapixels">
+      <source>Megapixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>मेगापिक्सल</translation>
+    </message>
+    <message id="diffusion.ui.round.each.dimension.to.the.nearest.multiple">
+      <source>Round each dimension to the nearest multiple.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>हर आयाम को निकटतम गुणज तक राउंड करें।</translation>
+    </message>
+    <message id="diffusion.ui.multiple">
+      <source>Multiple</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>गुणज</translation>
+    </message>
+    <message id="diffusion.ui.overrides">
+      <source>Overrides</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ओवरराइड</translation>
+    </message>
+    <message id="diffusion.ui.seed">
+      <source>Seed</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>सीड</translation>
+    </message>
+    <message id="diffusion.ui.use.the.same.seed.to.reproduce.a">
+      <source>Use the same seed to reproduce a result.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>परिणाम दोहराने के लिए वही सीड इस्तेमाल करें।</translation>
+    </message>
+    <message id="diffusion.ui.generate.a.random.seed">
+      <source>Generate a random seed</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>रैंडम सीड बनाएँ</translation>
+    </message>
+    <message id="diffusion.ui.generate.a.random.seed.random.mode.also">
+      <source>Generate a random seed. Random mode also chooses a new seed for each generation.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>रैंडम सीड बनाएँ। रैंडम मोड हर बार नई इमेज बनाते समय भी नया सीड चुनता है।</translation>
+    </message>
+    <message id="diffusion.ui.random">
+      <source>Random</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>रैंडम</translation>
+    </message>
+    <message id="diffusion.ui.fixed">
+      <source>Fixed</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>निश्चित</translation>
+    </message>
+    <message id="diffusion.ui.increment">
+      <source>Increment</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बढ़ाएँ</translation>
+    </message>
+    <message id="diffusion.ui.random.new.seed.per.job.fixed.reuse">
+      <source>Random: new seed per job. Fixed: reuse the seed. Increment: advance it by the number of generated images.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>रैंडम: हर काम के लिए नया सीड। निश्चित: वही सीड। बढ़ाएँ: बनी हुई इमेज की संख्या के अनुसार सीड बढ़ाएँ।</translation>
+    </message>
+    <message id="diffusion.ui.input.images">
+      <source>Input images</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>इनपुट इमेज</translation>
+    </message>
+    <message id="diffusion.ui.max.input.1.px">
+      <source>Max input: %1 px</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>अधिकतम इनपुट: %1 px</translation>
+    </message>
+    <message id="diffusion.ui.limit.the.longest.side.of.input.images">
+      <source>Limit the longest side of input images after canvas cropping, keeping their proportions. Output size is separate.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कैनवास तक काटने के बाद इनपुट इमेज की लंबी भुजा सीमित करें और अनुपात बनाए रखें। आउटपुट आकार अलग है।</translation>
+    </message>
+    <message id="diffusion.ui.current.layer.appearance">
+      <source>Current layer — appearance</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>वर्तमान परत — दिखावट</translation>
+    </message>
+    <message id="diffusion.ui.current.layer.raw.pixels">
+      <source>Current layer — raw pixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>वर्तमान परत — मूल पिक्सल</translation>
+    </message>
+    <message id="diffusion.ui.another.document.layer.appearance">
+      <source>Another document layer — appearance</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>अन्य दस्तावेज़ की परत — दिखावट</translation>
+    </message>
+    <message id="diffusion.ui.another.document.layer.raw.pixels">
+      <source>Another document layer — raw pixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>अन्य दस्तावेज़ की परत — मूल पिक्सल</translation>
+    </message>
+    <message id="diffusion.ui.rendered.visible.canvas">
+      <source>Rendered visible canvas</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>रेंडर किया गया दृश्यमान कैनवास</translation>
+    </message>
+    <message id="diffusion.ui.image.file">
+      <source>Image file…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>इमेज फ़ाइल…</translation>
+    </message>
+    <message id="diffusion.ui.output.scene">
+      <source>Output scene</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>आउटपुट दृश्य</translation>
+    </message>
+    <message id="diffusion.ui.use.scene.in.your.prompt.to.reference">
+      <source>Use &lt;Scene&gt; in your prompt to reference this image. It is the backdrop for destination boxes; input order and your instructions are not changed.</source>
+      <extracomment>Keep image/region/scene aliases inside angle brackets unchanged; they are prompt tokens, not translated names.</extracomment>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>इस इमेज का उल्लेख करने के लिए प्रॉम्प्ट में &lt;Scene&gt; इस्तेमाल करें। यह गंतव्य बॉक्स की पृष्ठभूमि है; इनपुट क्रम और आपके निर्देश नहीं बदलते।</translation>
+    </message>
+    <message id="diffusion.ui.choose.an.input.image.to.identify.objects">
+      <source>Choose an input image to identify objects, or Output layout to guide placement.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>वस्तुएँ पहचानने के लिए इनपुट इमेज, या स्थान निर्देशित करने के लिए आउटपुट लेआउट चुनें।</translation>
+    </message>
+    <message id="diffusion.ui.edit.regions">
+      <source>Edit regions…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>क्षेत्र संपादित करें…</translation>
+    </message>
+    <message id="diffusion.ui.remove.regions.from.this.image.or.output">
+      <source>Remove regions from this image or output layout</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>इस इमेज या आउटपुट लेआउट से क्षेत्र हटाएँ</translation>
+    </message>
+    <message id="diffusion.ui.extra.crop.guidance.experimental">
+      <source>Extra crop guidance (experimental)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>अतिरिक्त क्रॉप मार्गदर्शन (प्रयोगात्मक)</translation>
+    </message>
+    <message id="diffusion.ui.optional.vulkana.guidance.also.send.each.input">
+      <source>Optional Vulkana guidance: also send each input region as a cropped reference. Uses extra memory and reference slots. Leave off to use FLUX's native bounding-box format alone.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>वैकल्पिक Vulkana मार्गदर्शन: हर इनपुट क्षेत्र को काटे हुए संदर्भ की तरह भी भेजें। इसमें अतिरिक्त मेमोरी और संदर्भ स्थान लगते हैं। केवल FLUX के मूल बाउंडिंग-बॉक्स प्रारूप के लिए इसे बंद रखें।</translation>
+    </message>
+    <message id="diffusion.ui.advanced.generation">
+      <source>Advanced generation</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>उन्नत जनरेशन</translation>
+    </message>
+    <message id="diffusion.ui.steps">
+      <source>Steps</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>चरण</translation>
+    </message>
+    <message id="diffusion.ui.guidance.cfg">
+      <source>Guidance (CFG)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>मार्गदर्शन (CFG)</translation>
+    </message>
+    <message id="diffusion.ui.sampler">
+      <source>Sampler</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>सैंपलर</translation>
+    </message>
+    <message id="diffusion.ui.scheduler">
+      <source>Scheduler</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>शेड्यूलर</translation>
+    </message>
+    <message id="diffusion.ui.sigma.schedule">
+      <source>Sigma schedule</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>सिग्मा शेड्यूल</translation>
+    </message>
+    <message id="diffusion.ui.custom.sigmas">
+      <source>Custom sigmas</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कस्टम सिग्मा</translation>
+    </message>
+    <message id="diffusion.ui.flow.shift">
+      <source>Flow shift</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>फ़्लो शिफ़्ट</translation>
+    </message>
+    <message id="diffusion.ui.use.image.to.image.denoising">
+      <source>Use image-to-image denoising</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>इमेज-टू-इमेज डीनॉइज़िंग</translation>
+    </message>
+    <message id="diffusion.ui.denoising.strength">
+      <source>Denoising strength</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>डीनॉइज़िंग शक्ति</translation>
+    </message>
+    <message id="diffusion.ui.images.per.job">
+      <source>Images per job</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>प्रति काम इमेज</translation>
+    </message>
+    <message id="diffusion.ui.vae.tiling">
+      <source>VAE tiling</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>VAE टाइलिंग</translation>
+    </message>
+    <message id="diffusion.ui.vae.tile.size">
+      <source>VAE tile size</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>VAE टाइल आकार</translation>
+    </message>
+    <message id="diffusion.ui.vae.tile.overlap">
+      <source>VAE tile overlap</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>VAE टाइल ओवरलैप</translation>
+    </message>
+    <message id="diffusion.ui.progress.previews">
+      <source>Progress previews</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>प्रगति पूर्वावलोकन</translation>
+    </message>
+    <message id="diffusion.ui.preview.every.n.steps">
+      <source>Preview every N steps</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>हर N चरण पर पूर्वावलोकन</translation>
+    </message>
+    <message id="diffusion.ui.sampler.noise.eta">
+      <source>Sampler noise (eta)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>सैंपलर शोर (eta)</translation>
+    </message>
+    <message id="diffusion.ui.approximate.cache.experimental">
+      <source>Approximate cache (experimental)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>अनुमानित कैश (प्रयोगात्मक)</translation>
+    </message>
+    <message id="diffusion.ui.cache.reuse.threshold">
+      <source>Cache reuse threshold</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कैश दोबारा उपयोग की सीमा</translation>
+    </message>
+    <message id="diffusion.ui.cache.start.fraction">
+      <source>Cache start fraction</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कैश आरंभ अनुपात</translation>
+    </message>
+    <message id="diffusion.ui.cache.end.fraction">
+      <source>Cache end fraction</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कैश समाप्ति अनुपात</translation>
+    </message>
+    <message id="diffusion.ui.restore.recommended.generation.settings">
+      <source>Restore recommended generation settings</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>सुझाई गई जनरेशन सेटिंग बहाल करें</translation>
+    </message>
+    <message id="diffusion.ui.memory.and.performance">
+      <source>Memory and performance</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>मेमोरी और प्रदर्शन</translation>
+    </message>
+    <message id="diffusion.ui.inference.device">
+      <source>Inference device</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>इन्फ़रेंस डिवाइस</translation>
+    </message>
+    <message id="diffusion.ui.vram.budget.gib">
+      <source>VRAM budget (GiB)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>VRAM बजट (GiB)</translation>
+    </message>
+    <message id="diffusion.ui.budget.for.managed.weights.workspaces.not.a">
+      <source>Budget for managed weights/workspaces, not a physical VRAM cap. Leave room for Vulkana and the desktop.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>यह प्रबंधित वेट और कार्य बफ़र का बजट है, वास्तविक VRAM सीमा नहीं। Vulkana और डेस्कटॉप के लिए जगह छोड़ें।</translation>
+    </message>
+    <message id="diffusion.ui.cpu.threads">
+      <source>CPU threads</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>CPU थ्रेड</translation>
+    </message>
+    <message id="diffusion.ui.keep.weights.in">
+      <source>Keep weights in</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>वेट रखें</translation>
+    </message>
+    <message id="diffusion.ui.text.encoder.weights">
+      <source>Text encoder weights</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>टेक्स्ट एनकोडर वेट</translation>
+    </message>
+    <message id="diffusion.ui.vae.weights">
+      <source>VAE weights</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>VAE वेट</translation>
+    </message>
+    <message id="diffusion.ui.text.encoder.compute">
+      <source>Text encoder compute</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>टेक्स्ट एनकोडर गणना</translation>
+    </message>
+    <message id="diffusion.ui.vae.compute">
+      <source>VAE compute</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>VAE गणना</translation>
+    </message>
+    <message id="diffusion.ui.flash.attention">
+      <source>Flash attention</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Flash Attention</translation>
+    </message>
+    <message id="diffusion.ui.direct.convolution">
+      <source>Direct convolution</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>डायरेक्ट कन्वोल्यूशन</translation>
+    </message>
+    <message id="diffusion.ui.sage.attention.experimental">
+      <source>Sage attention (experimental)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Sage Attention (प्रयोगात्मक)</translation>
+    </message>
+    <message id="diffusion.ui.memory.mapped.loading">
+      <source>Memory mapped loading</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>मेमोरी-मैप्ड लोडिंग</translation>
+    </message>
+    <message id="diffusion.ui.prefetch.weights">
+      <source>Prefetch weights</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>वेट पहले से लाएँ</translation>
+    </message>
+    <message id="diffusion.ui.segmented.computation">
+      <source>Segmented computation</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>खंडों में गणना</translation>
+    </message>
+    <message id="diffusion.ui.prepare.weights.at.load">
+      <source>Prepare weights at load</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>लोड करते समय वेट तैयार करें</translation>
+    </message>
+    <message id="diffusion.ui.cached.prompts">
+      <source>Cached prompts</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कैश किए गए प्रॉम्प्ट</translation>
+    </message>
+    <message id="diffusion.ui.qwen.prefix.cache">
+      <source>Qwen prefix cache</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Qwen प्रीफ़िक्स कैश</translation>
+    </message>
+    <message id="diffusion.ui.prefix.cache.format">
+      <source>Prefix cache format</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>प्रीफ़िक्स कैश प्रारूप</translation>
+    </message>
+    <message id="diffusion.ui.session">
+      <source>Session</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>सत्र</translation>
+    </message>
+    <message id="diffusion.ui.loaded.models">
+      <source>Loaded models</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>लोड किए गए मॉडल</translation>
+    </message>
+    <message id="diffusion.ui.no.models.loaded">
+      <source>No models loaded</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कोई मॉडल लोड नहीं है</translation>
+    </message>
+    <message id="diffusion.ui.choose.model.files.and.enter.a.prompt">
+      <source>Choose model files and enter a prompt to begin.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>शुरू करने के लिए मॉडल फ़ाइलें चुनें और प्रॉम्प्ट लिखें।</translation>
+    </message>
+    <message id="diffusion.ui.add.new.layer">
+      <source>Add new layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>नई परत जोड़ें</translation>
+    </message>
+    <message id="diffusion.ui.replace.selected.layer">
+      <source>Replace selected layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>चयनित परत बदलें</translation>
+    </message>
+    <message id="diffusion.ui.open.new.document">
+      <source>Open new document</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>नए दस्तावेज़ में खोलें</translation>
+    </message>
+    <message id="diffusion.ui.apply">
+      <source>Apply</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>लागू करें</translation>
+    </message>
+    <message id="diffusion.ui.generate.again">
+      <source>Generate again</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>फिर से बनाएँ</translation>
+    </message>
+    <message id="diffusion.ui.discard">
+      <source>Discard</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>त्यागें</translation>
+    </message>
+    <message id="diffusion.ui.image.details">
+      <source>Image details</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>इमेज विवरण</translation>
+    </message>
+    <message id="diffusion.ui.model">
+      <source>Model</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>मॉडल</translation>
+    </message>
+    <message id="diffusion.ui.resolution">
+      <source>Resolution</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>रिज़ॉल्यूशन</translation>
+    </message>
+    <message id="diffusion.ui.copy.seed">
+      <source>Copy seed</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>सीड कॉपी करें</translation>
+    </message>
+    <message id="diffusion.ui.generated">
+      <source>Generated</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बनाया गया</translation>
+    </message>
+    <message id="diffusion.ui.save.prompt.preset">
+      <source>Save prompt preset</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>प्रॉम्प्ट प्रीसेट सहेजें</translation>
+    </message>
+    <message id="diffusion.ui.prompt.preset.saved">
+      <source>Prompt preset saved.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>प्रॉम्प्ट प्रीसेट सहेजा गया।</translation>
+    </message>
+    <message id="diffusion.ui.choose.a.custom.preset.to.remove">
+      <source>Choose a custom preset to remove.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>हटाने के लिए कस्टम प्रीसेट चुनें।</translation>
+    </message>
+    <message id="diffusion.ui.images.and.region.guides.exceed.the.model">
+      <source>Images and region guides exceed the model's reference limit. Remove an image or region.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>इमेज और क्षेत्र गाइड मॉडल की संदर्भ सीमा से अधिक हैं। कोई इमेज या क्षेत्र हटाएँ।</translation>
+    </message>
+    <message id="diffusion.ui.unload">
+      <source>Unload</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>अनलोड करें</translation>
+    </message>
+    <message id="diffusion.ui.unload.this.configuration.and.its.components.to">
+      <source>Unload this configuration and its components to release memory. Generated images are kept.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>मेमोरी खाली करने के लिए यह कॉन्फ़िगरेशन और उसके घटक अनलोड करें। बनाई गई इमेज बनी रहेंगी।</translation>
+    </message>
+    <message id="diffusion.ui.this.model.generates.from.text.only.choose">
+      <source>This model generates from text only. Choose a compatible model to add input images.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>यह मॉडल केवल टेक्स्ट से बनाता है। इनपुट इमेज जोड़ने के लिए संगत मॉडल चुनें।</translation>
+    </message>
+    <message id="diffusion.ui.this.model.accepts.1.references.in.total">
+      <source>This model accepts %1 references in total, including input images and region guides.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>यह मॉडल इनपुट इमेज और क्षेत्र गाइड मिलाकर कुल %1 संदर्भ स्वीकार करता है।</translation>
+    </message>
+    <message id="diffusion.ui.this.layer.is.outside.its.source.canvas">
+      <source>This layer is outside its source canvas. Restore or remove the input.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>यह परत अपने मूल कैनवास से बाहर है। इनपुट बहाल करें या हटाएँ।</translation>
+    </message>
+    <message id="diffusion.ui.regions.outside.the.canvas.are.hidden.until">
+      <source>Regions outside the canvas are hidden until the full input is restored.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>पूरा इनपुट बहाल होने तक कैनवास से बाहर के क्षेत्र छिपे रहते हैं।</translation>
+    </message>
+    <message id="diffusion.ui.output.layout.regions">
+      <source>Output layout regions</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>आउटपुट लेआउट क्षेत्र</translation>
+    </message>
+    <message id="diffusion.ui.regions.image.1.2">
+      <source>Regions — Image%1 · %2</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>क्षेत्र — Image%1 · %2</translation>
+    </message>
+    <message id="diffusion.ui.pending">
+      <source>Pending</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>लंबित</translation>
+    </message>
+    <message id="diffusion.ui.live.draft.approximate.final.detail.appears.after">
+      <source>Live draft — approximate. Final detail appears after generation finishes.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>लाइव ड्राफ़्ट — अनुमानित। अंतिम विवरण जनरेशन पूरी होने पर दिखेगा।</translation>
+    </message>
+    <message id="diffusion.ui.lora.strength.1.00.uses.its.full">
+      <source>LoRA strength. 1.00 uses its full effect; 0.00 has no effect.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA शक्ति। 1.00 पर पूरा प्रभाव; 0.00 पर कोई प्रभाव नहीं।</translation>
+    </message>
+    <message id="diffusion.ui.lora.strength">
+      <source>LoRA strength</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA शक्ति</translation>
+    </message>
+    <message id="diffusion.ui.unnamed.lora">
+      <source>Unnamed LoRA</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बिना नाम की LoRA</translation>
+    </message>
+    <message id="diffusion.ui.loras.1.2.enabled">
+      <source>LoRAs (%1/%2 enabled)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRAs (%1/%2 चालू)</translation>
+    </message>
+    <message id="diffusion.ui.enable.this.lora.for.generation">
+      <source>Enable this LoRA for generation</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>जनरेशन के लिए यह LoRA चालू करें</translation>
+    </message>
+    <message id="diffusion.ui.reset.loras.to.configuration.defaults">
+      <source>Reset LoRAs to configuration defaults</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA को कॉन्फ़िगरेशन के डिफ़ॉल्ट पर रीसेट करें</translation>
+    </message>
+    <message id="diffusion.ui.choose.lora">
+      <source>Choose LoRA</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA चुनें</translation>
+    </message>
+    <message id="diffusion.ui.lora.models.safetensors.gguf.all.files">
+      <source>LoRA models (*.safetensors *.gguf);;All files (*)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA मॉडल (*.safetensors *.gguf);;सभी फ़ाइलें (*)</translation>
+    </message>
+    <message id="diffusion.ui.lora.file">
+      <source>LoRA file…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA फ़ाइल…</translation>
+    </message>
+    <message id="diffusion.ui.choose.lora.file">
+      <source>Choose LoRA file</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA फ़ाइल चुनें</translation>
+    </message>
+    <message id="diffusion.ui.remove.lora">
+      <source>Remove LoRA</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA हटाएँ</translation>
+    </message>
+    <message id="diffusion.ui.enabled.by.default">
+      <source>Enabled by default</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>डिफ़ॉल्ट रूप से चालू</translation>
+    </message>
+    <message id="diffusion.ui.lora.enabled.by.default">
+      <source>LoRA enabled by default</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA डिफ़ॉल्ट रूप से चालू</translation>
+    </message>
+    <message id="diffusion.ui.friendly.name">
+      <source>Friendly name</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>आसान नाम</translation>
+    </message>
+    <message id="diffusion.ui.add.lora">
+      <source>Add LoRA</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA जोड़ें</translation>
+    </message>
+    <message id="diffusion.ui.loras.optional">
+      <source>LoRAs (optional)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRAs (वैकल्पिक)</translation>
+    </message>
+    <message id="diffusion.ui.generate.image">
+      <source>Generate Image…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>इमेज बनाएँ…</translation>
+    </message>
+    <message id="diffusion.ui.edit.current.layer">
+      <source>Edit Current Layer…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>वर्तमान परत संपादित करें…</translation>
+    </message>
+    <message id="diffusion.ui.generative.fill.2">
+      <source>Generative Fill…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>जनरेटिव फ़िल…</translation>
+    </message>
+    <message id="diffusion.ui.ai.image.editor.2">
+      <source>AI Image Editor…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI इमेज संपादक…</translation>
+    </message>
+    <message id="diffusion.ui.unloading.model">
+      <source>Unloading model…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>मॉडल अनलोड हो रहा है…</translation>
+    </message>
+    <message id="diffusion.ui.variation.1">
+      <source>Variation %1</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>रूपांतर %1</translation>
+    </message>
+    <message id="diffusion.ui.generation.done">
+      <source>Generation done</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>जनरेशन पूरी हुई</translation>
+    </message>
+    <message id="diffusion.ui.ready.1.s.inspect.the.result.before">
+      <source>Ready · %1 s — inspect the result before applying.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>तैयार · %1 s — लागू करने से पहले परिणाम देखें।</translation>
+    </message>
+    <message id="diffusion.ui.generation.failed">
+      <source>Generation failed</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>जनरेशन असफल</translation>
+    </message>
+    <message id="diffusion.ui.cancelled.previous.successful.variations.are.still.available">
+      <source>Cancelled. Previous successful variations are still available.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>रद्द किया गया। पिछले सफल परिणाम अब भी उपलब्ध हैं।</translation>
+    </message>
+    <message id="diffusion.ui.generation.cancelled">
+      <source>Generation cancelled</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>जनरेशन रद्द किया गया</translation>
+    </message>
+    <message id="diffusion.ui.generate.again.to.restart.the.worker">
+      <source> Generate again to restart the worker.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation> इंजन फिर से शुरू करने के लिए दोबारा बनाएँ।</translation>
+    </message>
+    <message id="diffusion.ui.model.unloaded.generate.again.to.load.a">
+      <source>Model unloaded. Generate again to load a configuration.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>मॉडल अनलोड किया गया। कॉन्फ़िगरेशन लोड करने के लिए दोबारा बनाएँ।</translation>
+    </message>
+    <message id="diffusion.ui.this.model.generates.from.text.only.choose.2">
+      <source>This model generates from text only. Choose an editing model to edit a layer or selection.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>यह मॉडल केवल टेक्स्ट से बनाता है। परत या चयन बदलने के लिए संपादन समर्थित मॉडल चुनें।</translation>
+    </message>
+    <message id="diffusion.ui.select.a.raster.layer.to.start.an">
+      <source>Select a raster layer to start an editing session.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>संपादन शुरू करने के लिए रास्टर परत चुनें।</translation>
+    </message>
+    <message id="diffusion.ui.make.a.selection.before.using.generative.fill">
+      <source>Make a selection before using Generative Fill.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>जनरेटिव फ़िल से पहले चयन बनाएँ।</translation>
+    </message>
+    <message id="diffusion.ui.target.visible.canvas">
+      <source>Target · visible canvas</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>लक्ष्य · दिख रहा कैनवास</translation>
+    </message>
+    <message id="diffusion.ui.target.raw.layer.pixels">
+      <source>Target · raw layer pixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>लक्ष्य · परत के मूल पिक्सेल</translation>
+    </message>
+    <message id="diffusion.ui.target.captured.you.can.keep.editing.changed">
+      <source>Target captured. You can keep editing; changed targets are checked before generation and Apply.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>लक्ष्य कैप्चर किया गया। संपादन जारी रख सकते हैं; बनाने और लागू करने से पहले बदलाव जाँचे जाएँगे।</translation>
+    </message>
+    <message id="diffusion.ui.add.an.input.image.before.generating.an">
+      <source>Add an input image before generating an edit.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>संपादन बनाने से पहले इनपुट इमेज जोड़ें।</translation>
+    </message>
+    <message id="diffusion.ui.select.a.raster.layer.and.a.selection">
+      <source>Select a raster layer and a selection for Generative Fill.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>जनरेटिव फ़िल के लिए रास्टर परत चुनें और चयन बनाएँ।</translation>
+    </message>
+    <message id="diffusion.ui.enter.a.prompt.before.generating">
+      <source>Enter a prompt before generating.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बनाने से पहले प्रॉम्प्ट लिखें।</translation>
+    </message>
+    <message id="diffusion.ui.preparing.inference">
+      <source>Preparing inference…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>प्रोसेसिंग की तैयारी…</translation>
+    </message>
+    <message id="diffusion.ui.preparing.generation">
+      <source>Preparing generation…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>जनरेशन की तैयारी…</translation>
+    </message>
+    <message id="diffusion.ui.update.the.inference.worker.to.use.loras">
+      <source>Update the inference worker to use LoRAs.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA इस्तेमाल करने के लिए जनरेशन इंजन अपडेट करें।</translation>
+    </message>
+    <message id="diffusion.ui.generation.could.not.start">
+      <source>Generation could not start</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>जनरेशन शुरू नहीं हो सका</translation>
+    </message>
+    <message id="diffusion.ui.update.the.inference.worker.to.use.native">
+      <source>Update the inference worker to use native FLUX.3 image and region references.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>FLUX.3 के मूल इमेज और क्षेत्र संदर्भ इस्तेमाल करने के लिए जनरेशन इंजन अपडेट करें।</translation>
+    </message>
+    <message id="diffusion.ui.update.the.inference.worker.to.use.the">
+      <source>Update the inference worker to use the input-size limit.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>इनपुट आकार सीमा इस्तेमाल करने के लिए जनरेशन इंजन अपडेट करें।</translation>
+    </message>
+    <message id="diffusion.ui.update.the.inference.worker.to.use.region">
+      <source>Update the inference worker to use region descriptions, output scenes and linked destinations.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>क्षेत्र विवरण, आउटपुट दृश्य और जुड़े गंतव्य इस्तेमाल करने के लिए जनरेशन इंजन अपडेट करें।</translation>
+    </message>
+    <message id="diffusion.ui.the.installed.inference.worker.does.not.support">
+      <source>The installed inference worker does not support per-image regions. Update the worker before generating with input regions.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>इंस्टॉल किया गया इंजन हर इमेज के अलग क्षेत्र समर्थित नहीं करता। इनपुट क्षेत्रों के साथ बनाने से पहले इसे अपडेट करें।</translation>
+    </message>
+    <message id="diffusion.ui.1.is.unavailable.the.installed.worker.provides">
+      <source>%1 is unavailable: the installed worker provides %2.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1 उपलब्ध नहीं है: इंस्टॉल किया गया इंजन %2 देता है।</translation>
+    </message>
+    <message id="diffusion.ui.loading.the.selected.model">
+      <source>Loading the selected model…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>चुना गया मॉडल लोड हो रहा है…</translation>
+    </message>
+    <message id="diffusion.ui.loading.ai.model">
+      <source>Loading AI model…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI मॉडल लोड हो रहा है…</translation>
+    </message>
+    <message id="diffusion.ui.generating.you.can.inspect.previous.variations.while">
+      <source>Generating… You can inspect previous variations while this job runs.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बन रहा है… इस दौरान पिछले परिणाम देख सकते हैं।</translation>
+    </message>
+    <message id="diffusion.ui.the.generated.image.is.no.longer.available">
+      <source>The generated image is no longer available.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बनी हुई इमेज अब उपलब्ध नहीं है।</translation>
+    </message>
+    <message id="diffusion.ui.ai.image">
+      <source>AI image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI इमेज</translation>
+    </message>
+    <message id="diffusion.ui.open.a.document.or.choose.create.new">
+      <source>Open a document or choose Create New Document.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>दस्तावेज़ खोलें या «नए दस्तावेज़ में खोलें» चुनें।</translation>
+    </message>
+    <message id="diffusion.ui.finish.the.current.document.interaction.before.applying">
+      <source>Finish the current document interaction before applying this result.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>यह परिणाम लागू करने से पहले दस्तावेज़ की मौजूदा कार्रवाई पूरी करें।</translation>
+    </message>
+    <message id="diffusion.ui.select.a.raster.layer.to.replace">
+      <source>Select a raster layer to replace.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बदलने के लिए रास्टर परत चुनें।</translation>
+    </message>
+    <message id="diffusion.ui.ai.result.applied">
+      <source>AI result applied</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI परिणाम लागू किया गया</translation>
+    </message>
+    <message id="diffusion.ui.cancelling">
+      <source>Cancelling…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>रद्द हो रहा है…</translation>
+    </message>
+    <message id="diffusion.ui.generation.cancelled.2">
+      <source>Generation cancelled.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>जनरेशन रद्द किया गया।</translation>
+    </message>
+    <message id="diffusion.ui.this.input.has.no.pixels.inside.its">
+      <source>This input has no pixels inside its canvas.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>इस इनपुट के कैनवास के भीतर कोई पिक्सेल नहीं है।</translation>
+    </message>
+    <message id="diffusion.ui.select.an.input.image.or.a.layer">
+      <source>Select an input image or a layer first.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>पहले इनपुट इमेज या परत चुनें।</translation>
+    </message>
+    <message id="diffusion.ui.select.an.image.layer.rather.than.a">
+      <source>Select an image layer rather than a container.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>कंटेनर के बजाय इमेज परत चुनें।</translation>
+    </message>
+    <message id="diffusion.ui.the.selected.layer.has.no.visible.bounds">
+      <source>The selected layer has no visible bounds.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>चुनी गई परत की कोई दिखने वाली सीमा नहीं है।</translation>
+    </message>
+    <message id="diffusion.ui.add.reference.image">
+      <source>Add reference image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>संदर्भ इमेज जोड़ें</translation>
+    </message>
+    <message id="diffusion.ui.images.png.jpg.jpeg.webp.bmp.tif">
+      <source>Images (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>इमेज (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff)</translation>
+    </message>
+    <message id="diffusion.ui.file">
+      <source>File</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>फ़ाइल</translation>
+    </message>
+    <message id="diffusion.ui.reference.layer">
+      <source>Reference layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>संदर्भ परत</translation>
+    </message>
+    <message id="diffusion.ui.document.layer">
+      <source>Document / layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>दस्तावेज़ / परत</translation>
+    </message>
+    <message id="diffusion.ui.open.a.document.before.adding.this.input">
+      <source>Open a document before adding this input.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>यह इनपुट जोड़ने से पहले दस्तावेज़ खोलें।</translation>
+    </message>
+    <message id="diffusion.ui.visible.canvas">
+      <source>Visible canvas</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>दिख रहा कैनवास</translation>
+    </message>
+    <message id="diffusion.ui.select.a.layer.first">
+      <source>Select a layer first.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>पहले परत चुनें।</translation>
+    </message>
+    <message id="diffusion.ui.raw.pixels">
+      <source>Raw pixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>मूल पिक्सेल</translation>
+    </message>
+    <message id="diffusion.ui.rendered.appearance.isolated.layer">
+      <source>Rendered appearance · isolated layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>रेंडर किया रूप · अलग परत</translation>
+    </message>
+    <message id="diffusion.ui.close.document">
+      <source>Close document?</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>दस्तावेज़ बंद करें?</translation>
+    </message>
+    <message id="diffusion.ui.quit.vulkana">
+      <source>Quit Vulkana?</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Vulkana बंद करें?</translation>
+    </message>
+    <message id="diffusion.ui.ai.generation.is.using.an.image.captured">
+      <source>AI generation is using an image captured from this document. Generation will continue if you close it. You can still add the result to another document or open it as a new document.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI जनरेशन इस दस्तावेज़ से कैप्चर की गई इमेज इस्तेमाल कर रहा है। दस्तावेज़ बंद करने पर भी जनरेशन जारी रहेगा। परिणाम दूसरे दस्तावेज़ में जोड़ सकते हैं या नए दस्तावेज़ के रूप में खोल सकते हैं।</translation>
+    </message>
+    <message id="diffusion.ui.ai.generation.is.still.running.quitting.vulkana">
+      <source>AI generation is still running. Quitting Vulkana will cancel it.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI जनरेशन अभी चल रहा है। Vulkana बंद करने पर यह रद्द हो जाएगा।</translation>
+    </message>
+    <message id="diffusion.ui.close.document.2">
+      <source>Close document</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>दस्तावेज़ बंद करें</translation>
+    </message>
+    <message id="diffusion.ui.quit">
+      <source>Quit</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बंद करें</translation>
+    </message>
+    <message id="diffusion.ui.view.latest.preview">
+      <source>View latest preview</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>नवीनतम प्रीव्यू देखें</translation>
+    </message>
+    <message id="diffusion.ui.dismiss.notification">
+      <source>Dismiss notification</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>सूचना हटाएँ</translation>
+    </message>
+    <message id="diffusion.ui.target">
+      <source> · Target</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation> · लक्ष्य</translation>
+    </message>
+    <message id="diffusion.ui.ai">
+      <source>AI</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI</translation>
+    </message>
+    <message id="diffusion.ui.loras">
+      <source>LoRAs</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA</translation>
+    </message>
+    <message id="diffusion.ui.delete.1">
+      <source>Delete “%1”?</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>“%1” हटाएँ?</translation>
+    </message>
+    <message id="diffusion.ui.show.1.in.generate">
+      <source>Show %1 in Generate</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>जनरेट टैब में %1 दिखाएँ</translation>
+    </message>
+    <message id="diffusion.ui.1.override">
+      <source>%1 override</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1 ओवरराइड</translation>
+    </message>
+    <message id="diffusion.ui.reset.1.to.configuration.default">
+      <source>Reset %1 to configuration default</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1 को कॉन्फ़िगरेशन की डिफ़ॉल्ट वैल्यू पर रीसेट करें</translation>
+    </message>
+    <message id="diffusion.ui.1.copy">
+      <source>%1 copy</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1 की कॉपी</translation>
+    </message>
+    <message id="diffusion.ui.1.unavailable">
+      <source>%1 (unavailable)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1 (उपलब्ध नहीं)</translation>
+    </message>
+    <message id="diffusion.ui.ai.image.preview.1">
+      <source>AI image preview — %1</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI इमेज प्रीव्यू — %1</translation>
+    </message>
+    <message id="diffusion.ui.left.1.right.result.drag.the.divider">
+      <source>Left: %1 · Right: Result. Drag the divider to compare.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बाएँ: %1 · दाएँ: परिणाम। तुलना के लिए विभाजक खींचें।</translation>
+    </message>
+    <message id="diffusion.ui.edit.image">
+      <source> · Edit image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation> · इमेज संपादित करें</translation>
+    </message>
+    <message id="diffusion.ui.1.regions">
+      <source> · %1 regions</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation> · क्षेत्र: %1</translation>
+    </message>
+    <message id="diffusion.ui.cropped.to.the.source.canvas">
+      <source>
+Cropped to the source canvas.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>
+मूल कैनवास की सीमा तक क्रॉप किया गया।</translation>
+    </message>
+    <message id="diffusion.ui.double.click.to.inspect.and.edit.this">
+      <source>
+Double-click to inspect and edit this image’s regions. Image numbers follow the list order.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>
+इमेज के क्षेत्र देखने और बदलने के लिए डबल-क्लिक करें। इमेज नंबर सूची के क्रम के अनुसार हैं।</translation>
+    </message>
+    <message id="diffusion.ui.seed.1">
+      <source> · Seed %1</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation> · सीड %1</translation>
+    </message>
+    <message id="diffusion.ui.requested.1.2.px">
+      <source>
+Requested: %1 × %2 px</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>
+अनुरोधित: %1 × %2 px</translation>
+    </message>
+    <message id="diffusion.ui.1.inference.worker.is.not.installed.choose">
+      <source>%1 inference worker is not installed. Choose an available backend.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1 जनरेशन इंजन इंस्टॉल नहीं है। उपलब्ध बैकएंड चुनें।</translation>
+    </message>
+    <message id="diffusion.ui.disk">
+      <source>Disk</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>डिस्क</translation>
+    </message>
+    <message id="diffusion.ui.manual">
+      <source>Manual</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>मैनुअल</translation>
+    </message>
+    <message id="diffusion.ui.on">
+      <source>On</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>चालू</translation>
+    </message>
+    <message id="diffusion.ui.off">
+      <source>Off</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बंद</translation>
+    </message>
+    <message id="diffusion.ui.disabled">
+      <source>Disabled</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बंद</translation>
+    </message>
+    <message id="diffusion.ui.generate.image.2">
+      <source>Generate image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>इमेज बनाएँ</translation>
+    </message>
+    <message id="diffusion.ui.edit.image.2">
+      <source>Edit image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>इमेज संपादित करें</translation>
+    </message>
+    <message id="diffusion.ui.replace.background">
+      <source>Replace background</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बैकग्राउंड बदलें</translation>
+    </message>
+    <message id="diffusion.ui.remove.background">
+      <source>Remove background</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>बैकग्राउंड हटाएँ</translation>
     </message>
   </context>
 </TS>

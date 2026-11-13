@@ -10376,6 +10376,11 @@ Escape · 전체 자르기 세션 취소
       <translation>마스크 다듬기</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
+    <message id="history.layer.pixel.opacity">
+      <source>Layer pixel opacity</source>
+      <extracomment>Core history label: Layer pixel opacity</extracomment>
+      <translation>레이어 픽셀 불투명도</translation>
+    </message>
   </context>
   <context>
     <name>Theme</name>
@@ -10622,72 +10627,259 @@ Escape · 전체 자르기 세션 취소
   </context>
   <context>
     <name>Canvas clipboard</name>
-    <message id="clipboard.copy.canvas"><source>Copy canvas to clipboard</source><translation>캔버스를 클립보드에 복사</translation></message>
-    <message id="clipboard.copy.canvas.hint"><source>Copy the full canvas at its original size, including visible layers and transparency.</source><translation>표시된 레이어와 투명도를 포함한 전체 캔버스를 원래 크기로 복사합니다.</translation></message>
-    <message id="clipboard.copy.canvas.preparing"><source>Preparing canvas for clipboard…</source><translation>캔버스 복사 준비 중…</translation></message>
-    <message id="clipboard.copy.canvas.finish.edit"><source>Finish or cancel the current selection or shape edit before copying the canvas.</source><translation>현재 선택 영역 또는 도형 편집을 완료하거나 취소한 후 캔버스를 복사하세요.</translation></message>
-    <message id="clipboard.copy.canvas.failed"><source>Could not copy the canvas: %1</source><translation>캔버스를 복사할 수 없습니다: %1</translation></message>
-    <message id="clipboard.copy.canvas.done"><source>Canvas copied to clipboard · %1 × %2 px</source><translation>캔버스를 클립보드에 복사했습니다 · %1 × %2 px</translation></message>
+    <message id="clipboard.copy.canvas">
+      <source>Copy canvas to clipboard</source>
+      <translation>캔버스를 클립보드에 복사</translation>
+    </message>
+    <message id="clipboard.copy.canvas.hint">
+      <source>Copy the full canvas at its original size, including visible layers and transparency.</source>
+      <translation>표시된 레이어와 투명도를 포함한 전체 캔버스를 원래 크기로 복사합니다.</translation>
+    </message>
+    <message id="clipboard.copy.canvas.preparing">
+      <source>Preparing canvas for clipboard…</source>
+      <translation>캔버스 복사 준비 중…</translation>
+    </message>
+    <message id="clipboard.copy.canvas.finish.edit">
+      <source>Finish or cancel the current selection or shape edit before copying the canvas.</source>
+      <translation>현재 선택 영역 또는 도형 편집을 완료하거나 취소한 후 캔버스를 복사하세요.</translation>
+    </message>
+    <message id="clipboard.copy.canvas.failed">
+      <source>Could not copy the canvas: %1</source>
+      <translation>캔버스를 복사할 수 없습니다: %1</translation>
+    </message>
+    <message id="clipboard.copy.canvas.done">
+      <source>Canvas copied to clipboard · %1 × %2 px</source>
+      <translation>캔버스를 클립보드에 복사했습니다 · %1 × %2 px</translation>
+    </message>
   </context>
   <context>
     <name>Screenshot capture</name>
-    <message id="screenshot.action"><source>Take Screenshot…</source><translation>스크린샷 촬영…</translation></message>
-    <message id="screenshot.title"><source>Screenshot</source><translation>스크린샷</translation></message>
-    <message id="screenshot.document"><source>Screenshot</source><translation>스크린샷</translation></message>
-    <message id="screenshot.preview"><source>Screenshot crop preview</source><translation>스크린샷 자르기 미리보기</translation></message>
-    <message id="screenshot.close"><source>Close screenshot</source><translation>스크린샷 닫기</translation></message>
-    <message id="screenshot.desktop.chooser"><source>Desktop chooser</source><translation>데스크톱 캡처 선택기</translation></message>
-    <message id="screenshot.entire.desktop"><source>Entire desktop</source><translation>전체 데스크톱</translation></message>
-    <message id="screenshot.active.window"><source>Active window</source><translation>활성 창</translation></message>
-    <message id="screenshot.target"><source>Capture source</source><translation>캡처 대상</translation></message>
-    <message id="screenshot.delay"><source>Delay: </source><translation>지연: </translation></message>
-    <message id="screenshot.capture"><source>Capture</source><translation>캡처</translation></message>
-    <message id="screenshot.retake"><source>Retake</source><translation>다시 캡처</translation></message>
-    <message id="screenshot.reset.crop"><source>Reset Crop</source><translation>자르기 초기화</translation></message>
-    <message id="screenshot.reset.zoom"><source>Reset Zoom</source><translation>확대/축소 초기화</translation></message>
-    <message id="screenshot.add.layer"><source>Add as Layer</source><translation>레이어로 추가</translation></message>
-    <message id="screenshot.add.layer.hint"><source>Add the crop to the current document as an undoable raster layer.</source><translation>잘라낸 이미지를 현재 문서에 래스터 레이어로 추가합니다. 실행 취소할 수 있습니다.</translation></message>
-    <message id="screenshot.stop"><source>Cancel Capture</source><translation>캡처 취소</translation></message>
-    <message id="screenshot.cancel"><source>Cancel</source><translation>취소</translation></message>
-    <message id="screenshot.open"><source>Open as New Document</source><translation>새 문서로 열기</translation></message>
-    <message id="screenshot.chooser.hint"><source>Vulkana minimizes while you choose what to capture using your desktop's screenshot chooser.</source><translation>데스크톱 스크린샷 선택기에서 캡처할 대상을 고르는 동안 Vulkana가 최소화됩니다.</translation></message>
-    <message id="screenshot.native.hint"><source>Vulkana minimizes during capture. For Active Window, switch to your target during the delay. Restore Vulkana to cancel.</source><translation>캡처 중에는 Vulkana가 최소화됩니다. 활성 창을 캡처하려면 지연 시간 동안 대상 창으로 전환하세요. Vulkana를 다시 표시하면 취소됩니다.</translation></message>
-    <message id="screenshot.crop.hint"><source>Scroll to zoom; middle mouse to pan. Drag to crop or adjust its corners. Arrow keys move the crop; Shift moves 10 pixels.</source><oldsource>Drag to crop. Move the crop or drag its corners to adjust it. Arrow keys move it; Shift moves 10 pixels.</oldsource><translation>스크롤로 확대/축소하고 마우스 가운데 버튼으로 드래그해 이동합니다. 드래그로 자를 영역이나 모서리를 조정하세요. 방향키로 자르기 영역을 이동하며 Shift를 누르면 10픽셀씩 이동합니다.</translation></message>
-    <message id="screenshot.empty"><source>Capture a screenshot to preview and crop it here.</source><translation>스크린샷을 캡처하면 여기에서 미리 보고 자를 수 있습니다.</translation></message>
-    <message id="screenshot.countdown"><source>Capturing in %1 s…</source><translation>%1초 후 캡처…</translation></message>
-    <message id="screenshot.waiting"><source>Waiting for capture…</source><translation>캡처 대기 중…</translation></message>
-    <message id="screenshot.cancelled"><source>Capture cancelled.</source><translation>캡처가 취소되었습니다.</translation></message>
-    <message id="screenshot.dimensions"><source>%1 × %2 px</source><translation>%1 × %2 px</translation></message>
-    <message id="screenshot.failed"><source>Could not capture or open the screenshot: %1</source><translation>스크린샷을 캡처하거나 열 수 없습니다: %1</translation></message>
+    <message id="screenshot.action">
+      <source>Take Screenshot…</source>
+      <translation>스크린샷 촬영…</translation>
+    </message>
+    <message id="screenshot.title">
+      <source>Screenshot</source>
+      <translation>스크린샷</translation>
+    </message>
+    <message id="screenshot.document">
+      <source>Screenshot</source>
+      <translation>스크린샷</translation>
+    </message>
+    <message id="screenshot.preview">
+      <source>Screenshot crop preview</source>
+      <translation>스크린샷 자르기 미리보기</translation>
+    </message>
+    <message id="screenshot.close">
+      <source>Close screenshot</source>
+      <translation>스크린샷 닫기</translation>
+    </message>
+    <message id="screenshot.desktop.chooser">
+      <source>Desktop chooser</source>
+      <translation>데스크톱 캡처 선택기</translation>
+    </message>
+    <message id="screenshot.entire.desktop">
+      <source>Entire desktop</source>
+      <translation>전체 데스크톱</translation>
+    </message>
+    <message id="screenshot.active.window">
+      <source>Active window</source>
+      <translation>활성 창</translation>
+    </message>
+    <message id="screenshot.target">
+      <source>Capture source</source>
+      <translation>캡처 대상</translation>
+    </message>
+    <message id="screenshot.delay">
+      <source>Delay: </source>
+      <translation>지연: </translation>
+    </message>
+    <message id="screenshot.capture">
+      <source>Capture</source>
+      <translation>캡처</translation>
+    </message>
+    <message id="screenshot.retake">
+      <source>Retake</source>
+      <translation>다시 캡처</translation>
+    </message>
+    <message id="screenshot.reset.crop">
+      <source>Reset Crop</source>
+      <translation>자르기 초기화</translation>
+    </message>
+    <message id="screenshot.reset.zoom">
+      <source>Reset Zoom</source>
+      <translation>확대/축소 초기화</translation>
+    </message>
+    <message id="screenshot.add.layer">
+      <source>Add as Layer</source>
+      <translation>레이어로 추가</translation>
+    </message>
+    <message id="screenshot.add.layer.hint">
+      <source>Add the crop to the current document as an undoable raster layer.</source>
+      <translation>잘라낸 이미지를 현재 문서에 래스터 레이어로 추가합니다. 실행 취소할 수 있습니다.</translation>
+    </message>
+    <message id="screenshot.stop">
+      <source>Cancel Capture</source>
+      <translation>캡처 취소</translation>
+    </message>
+    <message id="screenshot.cancel">
+      <source>Cancel</source>
+      <translation>취소</translation>
+    </message>
+    <message id="screenshot.open">
+      <source>Open as New Document</source>
+      <translation>새 문서로 열기</translation>
+    </message>
+    <message id="screenshot.chooser.hint">
+      <source>Vulkana minimizes while you choose what to capture using your desktop's screenshot chooser.</source>
+      <translation>데스크톱 스크린샷 선택기에서 캡처할 대상을 고르는 동안 Vulkana가 최소화됩니다.</translation>
+    </message>
+    <message id="screenshot.native.hint">
+      <source>Vulkana minimizes during capture. For Active Window, switch to your target during the delay. Restore Vulkana to cancel.</source>
+      <translation>캡처 중에는 Vulkana가 최소화됩니다. 활성 창을 캡처하려면 지연 시간 동안 대상 창으로 전환하세요. Vulkana를 다시 표시하면 취소됩니다.</translation>
+    </message>
+    <message id="screenshot.crop.hint">
+      <source>Scroll to zoom; middle mouse to pan. Drag to crop or adjust its corners. Arrow keys move the crop; Shift moves 10 pixels.</source>
+      <oldsource>Drag to crop. Move the crop or drag its corners to adjust it. Arrow keys move it; Shift moves 10 pixels.</oldsource>
+      <translation>스크롤로 확대/축소하고 마우스 가운데 버튼으로 드래그해 이동합니다. 드래그로 자를 영역이나 모서리를 조정하세요. 방향키로 자르기 영역을 이동하며 Shift를 누르면 10픽셀씩 이동합니다.</translation>
+    </message>
+    <message id="screenshot.empty">
+      <source>Capture a screenshot to preview and crop it here.</source>
+      <translation>스크린샷을 캡처하면 여기에서 미리 보고 자를 수 있습니다.</translation>
+    </message>
+    <message id="screenshot.countdown">
+      <source>Capturing in %1 s…</source>
+      <translation>%1초 후 캡처…</translation>
+    </message>
+    <message id="screenshot.waiting">
+      <source>Waiting for capture…</source>
+      <translation>캡처 대기 중…</translation>
+    </message>
+    <message id="screenshot.cancelled">
+      <source>Capture cancelled.</source>
+      <translation>캡처가 취소되었습니다.</translation>
+    </message>
+    <message id="screenshot.dimensions">
+      <source>%1 × %2 px</source>
+      <translation>%1 × %2 px</translation>
+    </message>
+    <message id="screenshot.failed">
+      <source>Could not capture or open the screenshot: %1</source>
+      <translation>스크린샷을 캡처하거나 열 수 없습니다: %1</translation>
+    </message>
   </context>
   <context>
     <name>Performance preferences</name>
-    <message id="performance.title"><source>Performance</source><translation>성능</translation></message>
-    <message id="performance.gpu"><source>Graphics device</source><translation>그래픽 장치</translation></message>
-    <message id="performance.undo"><source>Undo memory per document</source><translation>문서별 실행 취소 메모리</translation></message>
-    <message id="performance.cpu.cache"><source>Document cache per window</source><translation>창별 문서 캐시</translation></message>
-    <message id="performance.gpu.cache"><source>GPU texture cache per window</source><translation>창별 GPU 텍스처 캐시</translation></message>
-    <message id="performance.threads"><source>Image-processing threads</source><translation>이미지 처리 스레드</translation></message>
-    <message id="performance.object.threads"><source>Object Selection threads</source><translation>개체 선택 스레드</translation></message>
-    <message id="performance.auto"><source>Auto</source><translation>자동</translation></message>
-    <message id="performance.auto.memory"><source>Auto (%1 MiB)</source><translation>자동 (%1 MiB)</translation></message>
-    <message id="performance.auto.threads"><source>Auto (up to %1)</source><translation>자동 (최대 %1)</translation></message>
-    <message id="performance.restart.note"><source>GPU and thread changes require a restart. Object Selection runs on the CPU.</source><translation>GPU나 스레드를 변경하면 다시 시작해야 합니다. 개체 선택은 CPU에서 처리합니다.</translation></message>
-    <message id="performance.memory.note"><source>Budgets are retention targets, not total RAM/VRAM limits. Undo trims on later edits.</source><translation>설정 용량은 데이터 보관 목표이며 전체 RAM/VRAM의 제한이 아닙니다. 실행 취소 기록은 이후 편집 시 줄어듭니다.</translation></message>
-    <message id="performance.usage"><source>RAM (process): %1&#10;Undo: %2 (current), %3 (all tabs)&#10;Document cache: %4 · GPU texture cache: %5&#10;Rendering GPU: %6</source><translation>RAM (프로세스): %1&#10;실행 취소: %2 (현재), %3 (모든 탭)&#10;문서 캐시: %4 · GPU 텍스처 캐시: %5&#10;렌더링 GPU: %6</translation></message>
-    <message id="performance.clear"><source>Clear Inactive Caches</source><translation>비활성 캐시 지우기</translation></message>
-    <message id="performance.clear.hint"><source>Release cached previews and textures for inactive tabs in this window. Source pixels and undo history stay intact.</source><translation>이 창의 비활성 탭에 저장된 미리보기와 텍스처 캐시를 해제합니다. 원본 픽셀과 실행 취소 기록은 유지됩니다.</translation></message>
-    <message id="performance.defaults"><source>Restore Defaults</source><translation>기본값 복원</translation></message>
-    <message id="performance.gpu.changed.title"><source>Graphics device changed</source><translation>그래픽 장치 변경됨</translation></message>
-    <message id="performance.gpu.changed.message"><source>The selected GPU (%1) could not be used. Falling back to %2.</source><translation>선택한 GPU(%1)를 사용할 수 없습니다. 대신 %2을(를) 사용합니다.</translation></message>
-    <message id="performance.gpu.changed.unknown"><source>The selected GPU could not be used. Falling back to %1.</source><translation>선택한 GPU를 사용할 수 없습니다. 대신 %1을(를) 사용합니다.</translation></message>
-    <message id="performance.gpu.unavailable"><source>Saved device (unavailable)</source><translation>저장된 장치 (사용 불가)</translation></message>
-    <message id="performance.gpu.check.hint"><source>GPU availability is checked on restart. If a device cannot display the canvas, Vulkana uses another GPU.</source><translation>다시 시작할 때 GPU 사용 가능 여부를 확인합니다. 캔버스를 표시할 수 없는 장치라면 다른 GPU를 사용합니다.</translation></message>
-    <message id="performance.gpu.failed.item"><source>%1 — startup check failed</source><translation>%1 — 시작 검사 실패</translation></message>
-    <message id="performance.gpu.unsupported.item"><source>%1 — unavailable for this display</source><translation>%1 — 이 디스플레이에서 사용 불가</translation></message>
-    <message id="performance.unknown"><source>Unavailable</source><translation>사용 불가</translation></message>
-    <message id="performance.undo.warning.title"><source>Reduce Undo Memory?</source><translation>실행 취소 메모리를 줄일까요?</translation></message>
-    <message id="performance.undo.warning"><source>Older undo steps may be discarded as you make new edits. This cannot be reversed by raising the budget later. Continue?</source><translation>새로 편집하면 이전 실행 취소 단계가 삭제될 수 있습니다. 나중에 용량을 늘려도 복구할 수 없습니다. 계속할까요?</translation></message>
+    <message id="performance.title">
+      <source>Performance</source>
+      <translation>성능</translation>
+    </message>
+    <message id="performance.gpu">
+      <source>Graphics device</source>
+      <translation>그래픽 장치</translation>
+    </message>
+    <message id="performance.undo">
+      <source>Undo memory per document</source>
+      <translation>문서별 실행 취소 메모리</translation>
+    </message>
+    <message id="performance.cpu.cache">
+      <source>Document cache per window</source>
+      <translation>창별 문서 캐시</translation>
+    </message>
+    <message id="performance.gpu.cache">
+      <source>GPU texture cache per window</source>
+      <translation>창별 GPU 텍스처 캐시</translation>
+    </message>
+    <message id="performance.threads">
+      <source>Image-processing threads</source>
+      <translation>이미지 처리 스레드</translation>
+    </message>
+    <message id="performance.object.threads">
+      <source>Object Selection threads</source>
+      <translation>개체 선택 스레드</translation>
+    </message>
+    <message id="performance.auto">
+      <source>Auto</source>
+      <translation>자동</translation>
+    </message>
+    <message id="performance.auto.memory">
+      <source>Auto (%1 MiB)</source>
+      <translation>자동 (%1 MiB)</translation>
+    </message>
+    <message id="performance.auto.threads">
+      <source>Auto (up to %1)</source>
+      <translation>자동 (최대 %1)</translation>
+    </message>
+    <message id="performance.restart.note">
+      <source>GPU and thread changes require a restart. Object Selection runs on the CPU.</source>
+      <translation>GPU나 스레드를 변경하면 다시 시작해야 합니다. 개체 선택은 CPU에서 처리합니다.</translation>
+    </message>
+    <message id="performance.memory.note">
+      <source>Budgets are retention targets, not total RAM/VRAM limits. Undo trims on later edits.</source>
+      <translation>설정 용량은 데이터 보관 목표이며 전체 RAM/VRAM의 제한이 아닙니다. 실행 취소 기록은 이후 편집 시 줄어듭니다.</translation>
+    </message>
+    <message id="performance.usage">
+      <source>RAM (process): %1
+Undo: %2 (current), %3 (all tabs)
+Document cache: %4 · GPU texture cache: %5
+Rendering GPU: %6</source>
+      <translation>RAM (프로세스): %1
+실행 취소: %2 (현재), %3 (모든 탭)
+문서 캐시: %4 · GPU 텍스처 캐시: %5
+렌더링 GPU: %6</translation>
+    </message>
+    <message id="performance.clear">
+      <source>Clear Inactive Caches</source>
+      <translation>비활성 캐시 지우기</translation>
+    </message>
+    <message id="performance.clear.hint">
+      <source>Release cached previews and textures for inactive tabs in this window. Source pixels and undo history stay intact.</source>
+      <translation>이 창의 비활성 탭에 저장된 미리보기와 텍스처 캐시를 해제합니다. 원본 픽셀과 실행 취소 기록은 유지됩니다.</translation>
+    </message>
+    <message id="performance.defaults">
+      <source>Restore Defaults</source>
+      <translation>기본값 복원</translation>
+    </message>
+    <message id="performance.gpu.changed.title">
+      <source>Graphics device changed</source>
+      <translation>그래픽 장치 변경됨</translation>
+    </message>
+    <message id="performance.gpu.changed.message">
+      <source>The selected GPU (%1) could not be used. Falling back to %2.</source>
+      <translation>선택한 GPU(%1)를 사용할 수 없습니다. 대신 %2을(를) 사용합니다.</translation>
+    </message>
+    <message id="performance.gpu.changed.unknown">
+      <source>The selected GPU could not be used. Falling back to %1.</source>
+      <translation>선택한 GPU를 사용할 수 없습니다. 대신 %1을(를) 사용합니다.</translation>
+    </message>
+    <message id="performance.gpu.unavailable">
+      <source>Saved device (unavailable)</source>
+      <translation>저장된 장치 (사용 불가)</translation>
+    </message>
+    <message id="performance.gpu.check.hint">
+      <source>GPU availability is checked on restart. If a device cannot display the canvas, Vulkana uses another GPU.</source>
+      <translation>다시 시작할 때 GPU 사용 가능 여부를 확인합니다. 캔버스를 표시할 수 없는 장치라면 다른 GPU를 사용합니다.</translation>
+    </message>
+    <message id="performance.gpu.failed.item">
+      <source>%1 — startup check failed</source>
+      <translation>%1 — 시작 검사 실패</translation>
+    </message>
+    <message id="performance.gpu.unsupported.item">
+      <source>%1 — unavailable for this display</source>
+      <translation>%1 — 이 디스플레이에서 사용 불가</translation>
+    </message>
+    <message id="performance.unknown">
+      <source>Unavailable</source>
+      <translation>사용 불가</translation>
+    </message>
+    <message id="performance.undo.warning.title">
+      <source>Reduce Undo Memory?</source>
+      <translation>실행 취소 메모리를 줄일까요?</translation>
+    </message>
+    <message id="performance.undo.warning">
+      <source>Older undo steps may be discarded as you make new edits. This cannot be reversed by raising the budget later. Continue?</source>
+      <translation>새로 편집하면 이전 실행 취소 단계가 삭제될 수 있습니다. 나중에 용량을 늘려도 복구할 수 없습니다. 계속할까요?</translation>
+    </message>
   </context>
   <context>
     <name>LayerMaskClipboard</name>
@@ -10746,72 +10938,192 @@ Escape · 전체 자르기 세션 취소
       <source>Photoshop Fill: fade the layer content while keeping its effects. Some blend modes respond differently than Layer opacity.</source>
       <translation>Photoshop 칠: 효과는 유지하면서 레이어 내용의 불투명도만 낮춥니다. 일부 혼합 모드에서는 레이어 불투명도와 다른 결과가 나타납니다.</translation>
     </message>
-    <message id="history.layer.pixel.opacity">
-      <source>Layer pixel opacity</source>
-      <extracomment>Core history label: Layer pixel opacity</extracomment>
-      <translation>레이어 픽셀 불투명도</translation>
-    </message>
   </context>
   <context>
     <name>GraphicsStartup</name>
-    <message id="graphics.startup.aborting"><source>Aborting…</source><translation>중단하는 중…</translation></message>
-    <message id="graphics.startup.closing"><source>Waiting for the graphics driver before closing.</source><translation>종료하기 전에 그래픽 드라이버를 기다리는 중입니다.</translation></message>
-    <message id="graphics.startup.title"><source>Initializing graphics…</source><translation>그래픽 초기화 중…</translation></message>
-    <message id="graphics.startup.detail"><source>Preparing shaders. This may take a few seconds.</source><translation>셰이더 준비 중입니다. 몇 초 정도 걸릴 수 있습니다.</translation></message>
+    <message id="graphics.startup.aborting">
+      <source>Aborting…</source>
+      <translation>중단하는 중…</translation>
+    </message>
+    <message id="graphics.startup.closing">
+      <source>Waiting for the graphics driver before closing.</source>
+      <translation>종료하기 전에 그래픽 드라이버를 기다리는 중입니다.</translation>
+    </message>
+    <message id="graphics.startup.title">
+      <source>Initializing graphics…</source>
+      <translation>그래픽 초기화 중…</translation>
+    </message>
+    <message id="graphics.startup.detail">
+      <source>Preparing shaders. This may take a few seconds.</source>
+      <translation>셰이더 준비 중입니다. 몇 초 정도 걸릴 수 있습니다.</translation>
+    </message>
   </context>
   <context>
     <name>LayerInfo</name>
-    <message id="preferences.layer.info"><source>Show layer info</source><translation>레이어 정보 표시</translation></message>
-    <message id="preferences.layer.info.hint"><source>Show non-Normal blend modes and active effect icons on layer rows.</source><translation>레이어 행에 표준 이외의 혼합 모드와 활성 효과 아이콘을 표시합니다.</translation></message>
+    <message id="preferences.layer.info">
+      <source>Show layer info</source>
+      <translation>레이어 정보 표시</translation>
+    </message>
+    <message id="preferences.layer.info.hint">
+      <source>Show non-Normal blend modes and active effect icons on layer rows.</source>
+      <translation>레이어 행에 표준 이외의 혼합 모드와 활성 효과 아이콘을 표시합니다.</translation>
+    </message>
   </context>
   <context>
     <name>CanvasResize</name>
+    <message id="canvas.resize.action">
+      <source>Quick canvas resize</source>
+      <translation>캔버스 크기 빠르게 조절</translation>
+    </message>
     <message id="canvas.resize.to.layer">
       <source>Canvas size to selected layer</source>
-      <translation type="unfinished" />
+      <translation>선택 레이어에 캔버스 크기 맞추기</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="canvas.resize.to.layer.hint">
       <source>Fit the canvas to the selected layer's bounds without resampling its pixels.</source>
-      <translation type="unfinished" />
+      <translation>픽셀을 리샘플링하지 않고 캔버스를 선택 레이어의 경계에 맞춥니다.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
-    <message id="canvas.resize.action"><source>Quick canvas resize</source><translation>캔버스 크기 빠르게 조절</translation></message>
-    <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translation>가장자리나 모서리를 드래그해 캔버스 크기를 조절하고, 안쪽을 드래그해 위치를 옮깁니다. 레이어 픽셀은 유지됩니다. 적용: {{FinishOperationAction}} · 취소: Escape.</translation></message>
-    <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translation>캔버스 가로세로 비율을 유지합니다. Shift를 누르는 동안 제한이 전환됩니다.</translation></message>
-    <message id="canvas.resize.reset"><source>Reset to the original canvas bounds</source><translation>원래 캔버스 경계로 초기화</translation></message>
-    <message id="canvas.resize.apply"><source>Apply canvas resize · {{FinishOperationAction}} / right-click</source><translation>캔버스 크기 적용 · {{FinishOperationAction}} / 오른쪽 클릭</translation></message>
-    <message id="canvas.resize.cancel"><source>Cancel canvas resize · Escape</source><translation>캔버스 크기 조절 취소 · Escape</translation></message>
-    <message id="canvas.resize.done"><source>Canvas resized to %1 × %2 px</source><translation>캔버스 크기를 %1 × %2 px로 변경했습니다</translation></message>
-    <message id="canvas.resize.undo"><source>Undo canvas resize adjustment</source><translation>캔버스 경계 조절 실행 취소</translation></message>
-    <message id="canvas.resize.redo"><source>Redo canvas resize adjustment</source><translation>캔버스 경계 조절 다시 실행</translation></message>
+    <message id="canvas.resize.hint">
+      <source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source>
+      <translation>가장자리나 모서리를 드래그해 캔버스 크기를 조절하고, 안쪽을 드래그해 위치를 옮깁니다. 레이어 픽셀은 유지됩니다. 적용: {{FinishOperationAction}} · 취소: Escape.</translation>
+    </message>
+    <message id="canvas.resize.ratio">
+      <source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source>
+      <translation>캔버스 가로세로 비율을 유지합니다. Shift를 누르는 동안 제한이 전환됩니다.</translation>
+    </message>
+    <message id="canvas.resize.reset">
+      <source>Reset to the original canvas bounds</source>
+      <translation>원래 캔버스 경계로 초기화</translation>
+    </message>
+    <message id="canvas.resize.apply">
+      <source>Apply canvas resize · {{FinishOperationAction}} / right-click</source>
+      <translation>캔버스 크기 적용 · {{FinishOperationAction}} / 오른쪽 클릭</translation>
+    </message>
+    <message id="canvas.resize.cancel">
+      <source>Cancel canvas resize · Escape</source>
+      <translation>캔버스 크기 조절 취소 · Escape</translation>
+    </message>
+    <message id="canvas.resize.done">
+      <source>Canvas resized to %1 × %2 px</source>
+      <translation>캔버스 크기를 %1 × %2 px로 변경했습니다</translation>
+    </message>
+    <message id="canvas.resize.undo">
+      <source>Undo canvas resize adjustment</source>
+      <translation>캔버스 경계 조절 실행 취소</translation>
+    </message>
+    <message id="canvas.resize.redo">
+      <source>Redo canvas resize adjustment</source>
+      <translation>캔버스 경계 조절 다시 실행</translation>
+    </message>
   </context>
   <context>
     <name>CompactProperties</name>
-    <message id="properties.info.title"><source>Layer Info</source><translation>레이어 정보</translation></message>
-    <message id="properties.info.size"><source>Size</source><translation>크기</translation></message>
-    <message id="properties.info.angle"><source>Angle</source><translation>각도</translation></message>
-    <message id="properties.info.position"><source>Position</source><translation>위치</translation></message>
-    <message id="properties.info.font"><source>Font</source><translation>글꼴</translation></message>
-    <message id="properties.info.color"><source>Color</source><translation>색상</translation></message>
-    <message id="properties.info.whole.text"><source>Changes apply to the entire text layer.</source><translation>변경 사항은 텍스트 레이어 전체에 적용됩니다.</translation></message>
-    <message id="properties.info.folder"><source>Folder</source><translation>폴더</translation></message>
-    <message id="properties.info.group"><source>Group</source><translation>그룹</translation></message>
-    <message id="properties.info.adjustment"><source>Adjustment layer</source><translation>조정 레이어</translation></message>
-    <message id="properties.info.brush.settings"><source>Brush settings</source><translation>브러시 설정</translation></message>
-    <message id="properties.info.width"><source>Width</source><translation>너비</translation></message>
-    <message id="properties.info.height"><source>Height</source><translation>높이</translation></message>
-    <message id="properties.info.text.color"><source>Text color</source><translation>텍스트 색상</translation></message>
-    <message id="properties.info.mixed"><source>Mixed</source><translation>혼합</translation></message>
-    <message id="properties.shortcuts.sample"><source>Sample color (hold)</source><translation>색상 추출 (누른 상태)</translation></message>
-    <message id="properties.shortcuts.source"><source>Set clone/heal source</source><translation>복제/복구 소스 설정</translation></message>
-    <message id="properties.shortcuts.add"><source>Add to selection</source><translation>선택 영역에 추가</translation></message>
-    <message id="properties.shortcuts.subtract"><source>Subtract from selection</source><translation>선택 영역에서 빼기</translation></message>
-    <message id="properties.shortcuts.intersect"><source>Intersect selection</source><translation>선택 영역과 교차</translation></message>
-    <message id="properties.shortcuts.constrain"><source>Constrain direction or proportions</source><translation>방향 또는 비율 제한</translation></message>
-    <message id="properties.shortcuts.ratio"><source>Toggle aspect constraint</source><translation>가로세로 비율 제한 전환</translation></message>
-    <message id="properties.shortcuts.center"><source>Resize from center</source><translation>중심에서 크기 조절</translation></message>
-    <message id="properties.shortcuts.cancel"><source>Cancel current operation</source><translation>현재 작업 취소</translation></message>
-    <message id="properties.shortcuts.middle"><source>Middle mouse</source><translation>마우스 가운데 버튼</translation></message>
-    <message id="properties.shortcuts.pan"><source>Pan canvas</source><translation>캔버스 이동</translation></message>
+    <message id="properties.info.title">
+      <source>Layer Info</source>
+      <translation>레이어 정보</translation>
+    </message>
+    <message id="properties.info.size">
+      <source>Size</source>
+      <translation>크기</translation>
+    </message>
+    <message id="properties.info.angle">
+      <source>Angle</source>
+      <translation>각도</translation>
+    </message>
+    <message id="properties.info.position">
+      <source>Position</source>
+      <translation>위치</translation>
+    </message>
+    <message id="properties.info.font">
+      <source>Font</source>
+      <translation>글꼴</translation>
+    </message>
+    <message id="properties.info.color">
+      <source>Color</source>
+      <translation>색상</translation>
+    </message>
+    <message id="properties.info.whole.text">
+      <source>Changes apply to the entire text layer.</source>
+      <translation>변경 사항은 텍스트 레이어 전체에 적용됩니다.</translation>
+    </message>
+    <message id="properties.info.folder">
+      <source>Folder</source>
+      <translation>폴더</translation>
+    </message>
+    <message id="properties.info.group">
+      <source>Group</source>
+      <translation>그룹</translation>
+    </message>
+    <message id="properties.info.adjustment">
+      <source>Adjustment layer</source>
+      <translation>조정 레이어</translation>
+    </message>
+    <message id="properties.info.brush.settings">
+      <source>Brush settings</source>
+      <translation>브러시 설정</translation>
+    </message>
+    <message id="properties.info.width">
+      <source>Width</source>
+      <translation>너비</translation>
+    </message>
+    <message id="properties.info.height">
+      <source>Height</source>
+      <translation>높이</translation>
+    </message>
+    <message id="properties.info.text.color">
+      <source>Text color</source>
+      <translation>텍스트 색상</translation>
+    </message>
+    <message id="properties.info.mixed">
+      <source>Mixed</source>
+      <translation>혼합</translation>
+    </message>
+    <message id="properties.shortcuts.sample">
+      <source>Sample color (hold)</source>
+      <translation>색상 추출 (누른 상태)</translation>
+    </message>
+    <message id="properties.shortcuts.source">
+      <source>Set clone/heal source</source>
+      <translation>복제/복구 소스 설정</translation>
+    </message>
+    <message id="properties.shortcuts.add">
+      <source>Add to selection</source>
+      <translation>선택 영역에 추가</translation>
+    </message>
+    <message id="properties.shortcuts.subtract">
+      <source>Subtract from selection</source>
+      <translation>선택 영역에서 빼기</translation>
+    </message>
+    <message id="properties.shortcuts.intersect">
+      <source>Intersect selection</source>
+      <translation>선택 영역과 교차</translation>
+    </message>
+    <message id="properties.shortcuts.constrain">
+      <source>Constrain direction or proportions</source>
+      <translation>방향 또는 비율 제한</translation>
+    </message>
+    <message id="properties.shortcuts.ratio">
+      <source>Toggle aspect constraint</source>
+      <translation>가로세로 비율 제한 전환</translation>
+    </message>
+    <message id="properties.shortcuts.center">
+      <source>Resize from center</source>
+      <translation>중심에서 크기 조절</translation>
+    </message>
+    <message id="properties.shortcuts.cancel">
+      <source>Cancel current operation</source>
+      <translation>현재 작업 취소</translation>
+    </message>
+    <message id="properties.shortcuts.middle">
+      <source>Middle mouse</source>
+      <translation>마우스 가운데 버튼</translation>
+    </message>
+    <message id="properties.shortcuts.pan">
+      <source>Pan canvas</source>
+      <translation>캔버스 이동</translation>
+    </message>
   </context>
   <context>
     <name>GradientEditor</name>
@@ -11180,41 +11492,128 @@ Prepare %3 · Finish %4 · Total %5</source>
   </context>
   <context>
     <name>McpPreferences</name>
-    <message id="mcp.preferences.title"><source>MCP</source><translation>MCP</translation></message>
-    <message id="mcp.preferences.start"><source>Start MCP</source><translation>MCP 시작</translation></message>
-    <message id="mcp.preferences.stop"><source>Stop MCP</source><translation>MCP 중지</translation></message>
-    <message id="mcp.preferences.stopped"><source>Stopped</source><translation>중지됨</translation></message>
-    <message id="mcp.preferences.listening"><source>Listening</source><translation>연결 대기 중</translation></message>
-    <message id="mcp.preferences.connected"><source>Connected · Clients: %1</source><translation>연결됨 · 클라이언트: %1</translation></message>
-    <message id="mcp.preferences.stopping"><source>Stopping…</source><translation>중지 중…</translation></message>
-    <message id="mcp.preferences.error"><source>Error</source><translation>오류</translation></message>
-    <message id="mcp.preferences.autostart"><source>Start automatically with Vulkana</source><translation>Vulkana와 함께 자동 시작</translation></message>
-    <message id="mcp.preferences.security"><source>Only connect clients you trust. MCP clients can modify documents and read or write files with your Vulkana host-user permissions. A client running in a container is not limited to that container's files.</source><translation>신뢰하는 클라이언트만 연결하세요. MCP 클라이언트는 Vulkana를 실행하는 사용자 권한으로 문서를 수정하고 파일을 읽거나 쓸 수 있습니다. 컨테이너 안에서 실행되는 클라이언트도 해당 컨테이너의 파일에만 접근하도록 제한되지는 않습니다.</translation></message>
-    <message id="mcp.preferences.connection"><source>Connection</source><translation>연결</translation></message>
-    <message id="mcp.preferences.local"><source>MCP uses local communication, without a network port. Multiple trusted clients can connect; editing commands run one at a time. Copy the configuration into OpenCode V2; Vulkana does not edit its configuration files.</source><translation>MCP는 네트워크 포트 없이 로컬로 통신합니다. 신뢰하는 클라이언트를 여러 개 연결할 수 있으며, 편집 명령은 하나씩 실행됩니다. 설정을 OpenCode V2에 복사하세요. Vulkana는 해당 설정 파일을 수정하지 않습니다.</translation></message>
-    <message id="mcp.preferences.command"><source>Bridge command</source><translation>브리지 명령</translation></message>
-    <message id="mcp.preferences.endpoint"><source>Endpoint</source><translation>연결 주소</translation></message>
-    <message id="mcp.preferences.copy"><source>Copy Configuration · OpenCode V2</source><translation>설정 복사 · OpenCode V2</translation></message>
-    <message id="mcp.preferences.copied"><source>Copied</source><translation>복사됨</translation></message>
-    <message id="mcp.preferences.advanced"><source>Advanced Settings</source><translation>고급 설정</translation></message>
-    <message id="mcp.preferences.custom"><source>Use a custom endpoint</source><translation>사용자 지정 연결 주소 사용</translation></message>
-    <message id="mcp.preferences.next.start"><source>Endpoint changes take effect on the next Start. While MCP is running, Copy Configuration uses its current endpoint.</source><translation>연결 주소 변경은 다음 시작부터 적용됩니다. MCP 실행 중에는 현재 연결 주소로 설정을 복사합니다.</translation></message>
-    <message id="mcp.preferences.apply.note"><source>Start and Stop affect this session immediately. Apply saves automatic startup and endpoint settings; it does not restart an active connection.</source><translation>시작과 중지는 현재 세션에 즉시 적용됩니다. 적용 버튼은 자동 시작과 연결 주소 설정을 저장하며, 활성 연결을 다시 시작하지는 않습니다.</translation></message>
-    <message id="mcp.preferences.finishing"><source>Waiting for the current command to finish before disconnecting. Its changes are not cancelled or rolled back.</source><translation>연결을 끊기 전에 현재 명령이 완료되기를 기다리는 중입니다. 해당 변경 사항은 취소되거나 되돌려지지 않습니다.</translation></message>
+    <message id="mcp.preferences.title">
+      <source>MCP</source>
+      <translation>MCP</translation>
+    </message>
+    <message id="mcp.preferences.start">
+      <source>Start MCP</source>
+      <translation>MCP 시작</translation>
+    </message>
+    <message id="mcp.preferences.stop">
+      <source>Stop MCP</source>
+      <translation>MCP 중지</translation>
+    </message>
+    <message id="mcp.preferences.stopped">
+      <source>Stopped</source>
+      <translation>중지됨</translation>
+    </message>
+    <message id="mcp.preferences.listening">
+      <source>Listening</source>
+      <translation>연결 대기 중</translation>
+    </message>
+    <message id="mcp.preferences.connected">
+      <source>Connected · Clients: %1</source>
+      <translation>연결됨 · 클라이언트: %1</translation>
+    </message>
+    <message id="mcp.preferences.stopping">
+      <source>Stopping…</source>
+      <translation>중지 중…</translation>
+    </message>
+    <message id="mcp.preferences.error">
+      <source>Error</source>
+      <translation>오류</translation>
+    </message>
+    <message id="mcp.preferences.autostart">
+      <source>Start automatically with Vulkana</source>
+      <translation>Vulkana와 함께 자동 시작</translation>
+    </message>
+    <message id="mcp.preferences.security">
+      <source>Only connect clients you trust. MCP clients can modify documents and read or write files with your Vulkana host-user permissions. A client running in a container is not limited to that container's files.</source>
+      <translation>신뢰하는 클라이언트만 연결하세요. MCP 클라이언트는 Vulkana를 실행하는 사용자 권한으로 문서를 수정하고 파일을 읽거나 쓸 수 있습니다. 컨테이너 안에서 실행되는 클라이언트도 해당 컨테이너의 파일에만 접근하도록 제한되지는 않습니다.</translation>
+    </message>
+    <message id="mcp.preferences.connection">
+      <source>Connection</source>
+      <translation>연결</translation>
+    </message>
+    <message id="mcp.preferences.local">
+      <source>MCP uses local communication, without a network port. Multiple trusted clients can connect; editing commands run one at a time. Copy the configuration into OpenCode V2; Vulkana does not edit its configuration files.</source>
+      <translation>MCP는 네트워크 포트 없이 로컬로 통신합니다. 신뢰하는 클라이언트를 여러 개 연결할 수 있으며, 편집 명령은 하나씩 실행됩니다. 설정을 OpenCode V2에 복사하세요. Vulkana는 해당 설정 파일을 수정하지 않습니다.</translation>
+    </message>
+    <message id="mcp.preferences.command">
+      <source>Bridge command</source>
+      <translation>브리지 명령</translation>
+    </message>
+    <message id="mcp.preferences.endpoint">
+      <source>Endpoint</source>
+      <translation>연결 주소</translation>
+    </message>
+    <message id="mcp.preferences.copy">
+      <source>Copy Configuration · OpenCode V2</source>
+      <translation>설정 복사 · OpenCode V2</translation>
+    </message>
+    <message id="mcp.preferences.copied">
+      <source>Copied</source>
+      <translation>복사됨</translation>
+    </message>
+    <message id="mcp.preferences.advanced">
+      <source>Advanced Settings</source>
+      <translation>고급 설정</translation>
+    </message>
+    <message id="mcp.preferences.custom">
+      <source>Use a custom endpoint</source>
+      <translation>사용자 지정 연결 주소 사용</translation>
+    </message>
+    <message id="mcp.preferences.next.start">
+      <source>Endpoint changes take effect on the next Start. While MCP is running, Copy Configuration uses its current endpoint.</source>
+      <translation>연결 주소 변경은 다음 시작부터 적용됩니다. MCP 실행 중에는 현재 연결 주소로 설정을 복사합니다.</translation>
+    </message>
+    <message id="mcp.preferences.apply.note">
+      <source>Start and Stop affect this session immediately. Apply saves automatic startup and endpoint settings; it does not restart an active connection.</source>
+      <translation>시작과 중지는 현재 세션에 즉시 적용됩니다. 적용 버튼은 자동 시작과 연결 주소 설정을 저장하며, 활성 연결을 다시 시작하지는 않습니다.</translation>
+    </message>
+    <message id="mcp.preferences.finishing">
+      <source>Waiting for the current command to finish before disconnecting. Its changes are not cancelled or rolled back.</source>
+      <translation>연결을 끊기 전에 현재 명령이 완료되기를 기다리는 중입니다. 해당 변경 사항은 취소되거나 되돌려지지 않습니다.</translation>
+    </message>
   </context>
   <context>
     <name>ShapePreview</name>
-    <message id="main.window.shape.preview.limit.named"><source>Shape “%1” (layer %2) exceeds the preview limit. Its editable data is retained.</source><translation>도형 “%1”(레이어 %2)이 미리보기 제한을 초과합니다. 편집 데이터는 유지됩니다.</translation></message>
-    <message id="main.window.shape.preview.memory.named"><source>Not enough memory to render shape “%1” (layer %2). Its editable data is retained.</source><translation>도형 “%1”(레이어 %2)을 그릴 메모리가 부족합니다. 편집 데이터는 유지됩니다.</translation></message>
-    <message id="main.window.shape.preview.failed.named"><source>Could not render shape “%1” (layer %2): %3. Its editable data is retained.</source><translation>도형 “%1”(레이어 %2)을 그릴 수 없습니다: %3. 편집 데이터는 유지됩니다.</translation></message>
-    <message id="main.window.shape.preview.reduced.named"><source>Shape “%1” (layer %2) is shown at reduced preview resolution. Its editable data is retained.</source><translation>도형 “%1”(레이어 %2)이 낮은 미리보기 해상도로 표시됩니다. 편집 데이터는 유지됩니다.</translation></message>
+    <message id="main.window.shape.preview.limit.named">
+      <source>Shape “%1” (layer %2) exceeds the preview limit. Its editable data is retained.</source>
+      <translation>도형 “%1”(레이어 %2)이 미리보기 제한을 초과합니다. 편집 데이터는 유지됩니다.</translation>
+    </message>
+    <message id="main.window.shape.preview.memory.named">
+      <source>Not enough memory to render shape “%1” (layer %2). Its editable data is retained.</source>
+      <translation>도형 “%1”(레이어 %2)을 그릴 메모리가 부족합니다. 편집 데이터는 유지됩니다.</translation>
+    </message>
+    <message id="main.window.shape.preview.failed.named">
+      <source>Could not render shape “%1” (layer %2): %3. Its editable data is retained.</source>
+      <translation>도형 “%1”(레이어 %2)을 그릴 수 없습니다: %3. 편집 데이터는 유지됩니다.</translation>
+    </message>
+    <message id="main.window.shape.preview.reduced.named">
+      <source>Shape “%1” (layer %2) is shown at reduced preview resolution. Its editable data is retained.</source>
+      <translation>도형 “%1”(레이어 %2)이 낮은 미리보기 해상도로 표시됩니다. 편집 데이터는 유지됩니다.</translation>
+    </message>
   </context>
   <context>
     <name>LayerSelectionFocus</name>
-    <message id="preferences.layer.focus.label"><source>Auto-scroll to selected layer</source><translation>선택한 레이어로 자동 스크롤</translation></message>
-    <message id="preferences.layer.focus.normal"><source>Focus</source><translation>찾아가기</translation></message>
-    <message id="preferences.layer.focus.expand"><source>Focus and Expand</source><translation>찾아가서 펼치기</translation></message>
-    <message id="preferences.layer.focus.hint"><source>Focus scrolls to the selected layer or its visible parent. Focus and Expand also opens collapsed parents.</source><translation>찾아가기는 선택한 레이어 또는 표시된 상위 항목으로 스크롤합니다. 찾아가서 펼치기는 접힌 상위 항목도 엽니다.</translation></message>
+    <message id="preferences.layer.focus.label">
+      <source>Auto-scroll to selected layer</source>
+      <translation>선택한 레이어로 자동 스크롤</translation>
+    </message>
+    <message id="preferences.layer.focus.normal">
+      <source>Focus</source>
+      <translation>찾아가기</translation>
+    </message>
+    <message id="preferences.layer.focus.expand">
+      <source>Focus and Expand</source>
+      <translation>찾아가서 펼치기</translation>
+    </message>
+    <message id="preferences.layer.focus.hint">
+      <source>Focus scrolls to the selected layer or its visible parent. Focus and Expand also opens collapsed parents.</source>
+      <translation>찾아가기는 선택한 레이어 또는 표시된 상위 항목으로 스크롤합니다. 찾아가서 펼치기는 접힌 상위 항목도 엽니다.</translation>
+    </message>
   </context>
   <context>
     <name>ArcShape</name>
@@ -11264,247 +11663,2167 @@ Prepare %3 · Finish %4 · Total %5</source>
   </context>
   <context>
     <name>McpStatus</name>
-    <message id="mcp.status.connected"><source>MCP connected (%1)</source><translation>MCP 연결됨 (%1)</translation></message>
-    <message id="mcp.status.stopping"><source>MCP stopping…</source><translation>MCP 중지 중…</translation></message>
-    <message id="mcp.status.error"><source>MCP error</source><translation>MCP 오류</translation></message>
-    <message id="mcp.status.enabled"><source>MCP enabled</source><translation>MCP 활성화됨</translation></message>
-    <message id="mcp.status.endpoint.hint"><source>Local document automation. Endpoint: %1</source><translation>로컬 문서 자동화. 연결 주소: %1</translation></message>
+    <message id="mcp.status.connected">
+      <source>MCP connected (%1)</source>
+      <translation>MCP 연결됨 (%1)</translation>
+    </message>
+    <message id="mcp.status.stopping">
+      <source>MCP stopping…</source>
+      <translation>MCP 중지 중…</translation>
+    </message>
+    <message id="mcp.status.error">
+      <source>MCP error</source>
+      <translation>MCP 오류</translation>
+    </message>
+    <message id="mcp.status.enabled">
+      <source>MCP enabled</source>
+      <translation>MCP 활성화됨</translation>
+    </message>
+    <message id="mcp.status.endpoint.hint">
+      <source>Local document automation. Endpoint: %1</source>
+      <translation>로컬 문서 자동화. 연결 주소: %1</translation>
+    </message>
   </context>
   <context>
     <name>ChannelGroups</name>
     <message id="channels.action.convert">
       <source>Convert to Channel Group</source>
-      <translation type="unfinished" />
+      <translation>채널 그룹으로 변환</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.action.recombine">
       <source>Convert Channel Group to Raster</source>
-      <translation type="unfinished" />
+      <translation>채널 그룹을 래스터로 변환</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.action.inspect.alpha">
       <source>Show alpha as transparency</source>
-      <translation type="unfinished" />
+      <translation>알파를 투명도로 표시</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.action.copy">
       <source>Copy channel pixels</source>
-      <translation type="unfinished" />
+      <translation>채널 픽셀 복사</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.action.cut">
       <source>Cut channel pixels</source>
-      <translation type="unfinished" />
+      <translation>채널 픽셀 잘라내기</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.action.open">
       <source>Open data texture…</source>
-      <translation type="unfinished" />
+      <translation>데이터 텍스처 열기…</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.action.export">
       <source>Export channel data…</source>
-      <translation type="unfinished" />
+      <translation>채널 데이터 내보내기…</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.convert.to.edit">
       <source>Convert to a Channel Group to edit numeric data.</source>
-      <translation type="unfinished" />
+      <translation>수치 데이터를 편집하려면 채널 그룹으로 변환하세요.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.operation.unavailable">
       <source>Unavailable for numeric channels.</source>
-      <translation type="unfinished" />
+      <translation>수치 채널에서는 사용할 수 없습니다.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.clipboard.copied">
       <source>Channel pixels copied.</source>
-      <translation type="unfinished" />
+      <translation>채널 픽셀을 복사했습니다.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.clipboard.required">
       <source>Copy channel pixels or an 8-bit straight grayscale image to paste into a channel.</source>
-      <translation type="unfinished" />
+      <translation>채널 픽셀이나 알파를 미리 곱하지 않은 8비트 회색조 이미지를 복사한 뒤 붙여넣으세요.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.clipboard.target.changed">
       <source>The paste target changed. Try pasting again.</source>
-      <translation type="unfinished" />
+      <translation>붙여넣기 대상이 바뀌었습니다. 다시 붙여넣으세요.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.clipboard.failed">
       <source>Could not paste into the channel. No pixels were changed.</source>
-      <translation type="unfinished" />
+      <translation>채널에 붙여넣지 못했습니다. 픽셀은 변경되지 않았습니다.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.open.title">
       <source>Open data texture</source>
-      <translation type="unfinished" />
+      <translation>데이터 텍스처 열기</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.open.filter">
       <source>Lossless images (*.png *.tif *.tiff *.bmp *.tga);;All files (*)</source>
-      <translation type="unfinished" />
+      <translation>무손실 이미지 (*.png *.tif *.tiff *.bmp *.tga);;모든 파일 (*)</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.value">
       <source>Value</source>
-      <translation type="unfinished" />
+      <translation>값</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.value.prefix">
       <source>Value: </source>
-      <translation type="unfinished" />
+      <translation>값: </translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.value.hint">
       <source>Stored channel value. Black is 0; white is 255.</source>
-      <translation type="unfinished" />
+      <translation>저장된 채널 값입니다. 검정은 0, 흰색은 255입니다.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.group.hint">
       <source>Packed channel data. Select a channel to inspect and edit its numeric values.</source>
-      <translation type="unfinished" />
+      <translation>패킹된 채널 데이터입니다. 채널을 선택해 수치를 확인하고 편집하세요.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.layer.hint">
       <source>Numeric channel: 0–255. Rename the label without changing its channel identity.</source>
-      <translation type="unfinished" />
+      <translation>수치 채널: 0–255. 이름을 바꿔도 채널의 고유 역할은 유지됩니다.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.type.group">
       <source>Channel Group</source>
-      <translation type="unfinished" />
+      <translation>채널 그룹</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.type.scalar">
       <source>Numeric channel · R8</source>
-      <translation type="unfinished" />
+      <translation>수치 채널 · R8</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.type.packed">
       <source>Packed data · RGBA8</source>
-      <translation type="unfinished" />
+      <translation>패킹 데이터 · RGBA8</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.levels.hint">
       <source>Adjust stored channel values without colour conversion.</source>
-      <translation type="unfinished" />
+      <translation>색상 변환 없이 저장된 채널 값을 조정합니다.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.invert.hint">
       <source>Invert channel values: 0 becomes 255, and 255 becomes 0.</source>
-      <translation type="unfinished" />
+      <translation>채널 값을 반전합니다. 0은 255로, 255는 0으로 바뀝니다.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.effects.unavailable">
       <source>Colour effects are unavailable for numeric channels.</source>
-      <translation type="unfinished" />
+      <translation>수치 채널에서는 색상 효과를 사용할 수 없습니다.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.color.adjustments.unavailable">
       <source>Colour adjustments are unavailable for numeric channels.</source>
-      <translation type="unfinished" />
+      <translation>수치 채널에서는 색상 조정을 사용할 수 없습니다.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.histogram.sampled">
       <source>Sampled input · %1 numeric samples</source>
-      <translation type="unfinished" />
+      <translation>샘플 입력 · 수치 샘플 %1개</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.histogram.source">
       <source>Source input · %1 numeric samples</source>
-      <translation type="unfinished" />
+      <translation>원본 입력 · 수치 샘플 %1개</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.export.title">
       <source>Export channel data</source>
-      <translation type="unfinished" />
+      <translation>채널 데이터 내보내기</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.export.hint">
       <source>Native pixel values · PNG · no colour conversion</source>
-      <translation type="unfinished" />
+      <translation>원본 픽셀 값 · PNG · 색상 변환 없음</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.clone.source.hint">
       <source>Numeric channels sample an explicit channel layer. Rendered colour sources are unavailable.</source>
-      <translation type="unfinished" />
+      <translation>수치 채널은 지정된 채널 레이어에서 샘플링합니다. 렌더링된 색상 소스는 사용할 수 없습니다.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.psd.unsupported">
       <source>Save a Vulkana project or export channel data as PNG to preserve numeric channels.</source>
-      <translation type="unfinished" />
+      <translation>수치 채널을 보존하려면 Vulkana 프로젝트를 저장하거나 채널 데이터를 PNG로 내보내세요.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="history.channels.recombine">
       <source>Convert Channel Group to raster</source>
-      <translation type="unfinished" />
+      <translation>채널 그룹을 래스터로 변환</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="history.channels.paste">
       <source>Paste channel pixels</source>
-      <translation type="unfinished" />
+      <translation>채널 픽셀 붙여넣기</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
   </context>
   <context>
     <name>DiffusionPanel</name>
     <message id="diffusion.override.reset.hint">
       <source>Reset to configuration default: %1</source>
-      <translation type="unfinished" />
+      <translation>구성 기본값으로 초기화: %1</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="diffusion.vae.tiling.required">
       <source>Available when VAE tiling is enabled.</source>
-      <translation type="unfinished" />
+      <translation>VAE 타일링을 켜면 사용할 수 있습니다.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="diffusion.progress.preview.required">
       <source>Available when progress previews are enabled.</source>
-      <translation type="unfinished" />
+      <translation>진행 미리보기를 켜면 사용할 수 있습니다.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
   </context>
   <context>
     <name>PsdImportReview</name>
     <message id="psd.review.type.smart.object">
       <source>Smart Object</source>
-      <translation type="unfinished" />
+      <translation>스마트 오브젝트</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.smart.object">
       <source>Smart object</source>
-      <translation type="unfinished" />
+      <translation>스마트 오브젝트</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.font">
       <source>Missing font</source>
-      <translation type="unfinished" />
+      <translation>글꼴 없음</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.text">
       <source>Text layout</source>
-      <translation type="unfinished" />
+      <translation>텍스트 레이아웃</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.shape">
       <source>Shape geometry</source>
-      <translation type="unfinished" />
+      <translation>도형 지오메트리</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.effects">
       <source>Layer effects</source>
-      <translation type="unfinished" />
+      <translation>레이어 효과</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.mask">
       <source>Layer mask</source>
-      <translation type="unfinished" />
+      <translation>레이어 마스크</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.blending">
       <source>Blending</source>
-      <translation type="unfinished" />
+      <translation>혼합</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.group">
       <source>Group blending</source>
-      <translation type="unfinished" />
+      <translation>그룹 혼합</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.clipping">
       <source>Clipping</source>
-      <translation type="unfinished" />
+      <translation>클리핑</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.adjustment">
       <source>Adjustment</source>
-      <translation type="unfinished" />
+      <translation>조정</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.unsupported">
       <source>Unsupported feature</source>
-      <translation type="unfinished" />
+      <translation>지원하지 않는 기능</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.appearance">
       <source>Appearance</source>
-      <translation type="unfinished" />
+      <translation>모양</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.import.dialog.fallback.summary">
       <source>Omitted items: %1 · Base pixels only: %2</source>
-      <translation type="unfinished" />
+      <translation>생략: %1 · 기본 픽셀만: %2</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.import.dialog.reason">
       <source>Reason</source>
-      <translation type="unfinished" />
+      <translation>이유</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.import.dialog.reason.excluded">
       <source>Group omitted</source>
-      <translation type="unfinished" />
+      <translation>그룹 생략</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.import.dialog.apply.similar">
       <source>Apply to similar (%1)</source>
-      <translation type="unfinished" />
+      <translation>비슷한 항목에 적용 (%1)</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.import.dialog.apply.similar.hint">
       <source>Apply this conversion to matching layers. Font choices stay unchanged.</source>
-      <translation type="unfinished" />
+      <translation>해당하는 레이어에 이 변환을 적용합니다. 선택한 글꼴은 유지됩니다.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.import.dialog.smart.object.raster.hint">
       <source>Import the saved Smart Object appearance as editable pixels. Embedded source editing is not retained.</source>
-      <translation type="unfinished" />
+      <translation>스마트 오브젝트의 저장된 모양을 편집 가능한 픽셀로 가져옵니다. 포함된 원본의 편집 기능은 유지되지 않습니다.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+    </message>
+  </context>
+  <context>
+    <name>AIImageEditor</name>
+    <message id="diffusion.ui.restore.the.full.layer.input">
+      <source>Restore the full layer input</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>전체 레이어 입력 복원</translation>
+    </message>
+    <message id="diffusion.ui.crop.this.layer.input.to.its.canvas">
+      <source>Crop this layer input to its canvas</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이 레이어 입력을 캔버스 경계로 자르기</translation>
+    </message>
+    <message id="diffusion.ui.create">
+      <source>Create</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>만들기</translation>
+    </message>
+    <message id="diffusion.ui.that.name.is.already.in.use">
+      <source>That name is already in use.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이미 사용 중인 이름입니다.</translation>
+    </message>
+    <message id="diffusion.ui.delete.configuration">
+      <source>Delete configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>구성 삭제</translation>
+    </message>
+    <message id="diffusion.ui.duplicate.configuration">
+      <source>Duplicate configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>구성 복제</translation>
+    </message>
+    <message id="diffusion.ui.new.configuration">
+      <source>New configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>새 구성</translation>
+    </message>
+    <message id="diffusion.ui.name">
+      <source>Name</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이름</translation>
+    </message>
+    <message id="diffusion.ui.images.and.region.guides.exceed.this.model">
+      <source>Images and region guides exceed this model's %1-reference limit. Remove an image or region before generating.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이미지와 영역 가이드가 모델의 참조 한도 %1개를 초과합니다. 생성 전에 이미지나 영역을 삭제하세요.</translation>
+    </message>
+    <message id="diffusion.ui.reference.limit.satisfied">
+      <source>Reference limit satisfied.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>참조 수가 한도 이내입니다.</translation>
+    </message>
+    <message id="diffusion.ui.linked.region.transfers.are.available.with.flux">
+      <source>Linked region transfers are available with FLUX.3. Unlink the destinations or select a FLUX configuration.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>연결된 영역 전송은 FLUX.3에서 사용할 수 있습니다. 대상 연결을 해제하거나 FLUX 구성을 선택하세요.</translation>
+    </message>
+    <message id="diffusion.ui.linked.transfers.need.at.least.two.input">
+      <source>Linked transfers need at least two input images. Add the missing input or unlink the destinations.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>연결된 전송에는 입력 이미지가 두 장 이상 필요합니다. 누락된 입력을 추가하거나 대상 연결을 해제하세요.</translation>
+    </message>
+    <message id="diffusion.ui.choose.an.available.output.scene.before.generating">
+      <source>Choose an available output scene before generating.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성 전에 사용할 출력 장면을 선택하세요.</translation>
+    </message>
+    <message id="diffusion.ui.source.region.1.is.outside.the.cropped">
+      <source>Source region %1 is outside the cropped input. Restore the input to use or unlink it.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>원본 영역 %1이 잘린 입력 밖에 있습니다. 입력을 복원하거나 연결을 해제하세요.</translation>
+    </message>
+    <message id="diffusion.ui.the.destination.for.1.is.missing.choose">
+      <source>The destination for %1 is missing. Choose another target or unlink it.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1의 대상이 없습니다. 다른 대상을 선택하거나 연결을 해제하세요.</translation>
+    </message>
+    <message id="diffusion.ui.choose.output.scene">
+      <source>Choose output scene…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>출력 장면 선택…</translation>
+    </message>
+    <message id="diffusion.ui.output.layout.1.2.px">
+      <source>Output layout · %1 × %2 px</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>출력 배치 · %1 × %2 px</translation>
+    </message>
+    <message id="diffusion.ui.output.layout">
+      <source>Output layout</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>출력 배치</translation>
+    </message>
+    <message id="diffusion.ui.fit.to.canvas">
+      <source>Fit to canvas</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>캔버스에 맞추기</translation>
+    </message>
+    <message id="diffusion.ui.fit.to.selected.layer">
+      <source>Fit to selected layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>선택 레이어에 맞추기</translation>
+    </message>
+    <message id="diffusion.ui.fit.to.original.bounds">
+      <source>Fit to original bounds</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>원래 경계에 맞추기</translation>
+    </message>
+    <message id="diffusion.ui.generative.fill.stays.aligned.to.its.captured">
+      <source>Generative Fill stays aligned to its captured canvas and soft selection.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성형 채우기는 캡처한 캔버스와 부드러운 선택 영역의 정렬을 유지합니다.</translation>
+    </message>
+    <message id="diffusion.ui.replacement.fits.the.selected.layer.use.add">
+      <source>Replacement fits the selected layer. Use Add new layer for a result at its generated size.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>교체 시 선택 레이어에 맞춥니다. 생성 크기를 유지하려면 새 레이어로 추가하세요.</translation>
+    </message>
+    <message id="diffusion.ui.new.documents.use.the.generated.pixel.dimensions">
+      <source>New documents use the generated pixel dimensions.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>새 문서는 생성된 픽셀 크기를 사용합니다.</translation>
+    </message>
+    <message id="diffusion.ui.fit.the.result.to.the.original.input">
+      <source>Fit the result to the original input bounds. Uncheck for 1:1 pixels, keeping position and orientation.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>결과를 원래 입력 경계에 맞춥니다. 끄면 위치와 방향을 유지하며 픽셀을 1:1로 사용합니다.</translation>
+    </message>
+    <message id="diffusion.ui.scale.the.result.to.the.current.canvas">
+      <source>Scale the result to the current canvas. Uncheck to keep its generated size.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>결과를 현재 캔버스 크기로 조절합니다. 생성 크기를 유지하려면 끄세요.</translation>
+    </message>
+    <message id="diffusion.ui.current.configuration">
+      <source>Current configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>현재 구성</translation>
+    </message>
+    <message id="diffusion.ui.missing.configuration">
+      <source>No configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>구성 없음</translation>
+    </message>
+    <message id="diffusion.ui.cancel">
+      <source>Cancel</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>취소</translation>
+    </message>
+    <message id="diffusion.ui.generate">
+      <source>Generate</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성</translation>
+    </message>
+    <message id="diffusion.ui.cancel.generation">
+      <source>Cancel generation</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성 취소</translation>
+    </message>
+    <message id="diffusion.ui.a.cropped.layer.is.outside.its.canvas">
+      <source>A cropped layer is outside its canvas. Restore or remove that input.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>잘린 레이어가 캔버스 밖에 있습니다. 입력을 복원하거나 삭제하세요.</translation>
+    </message>
+    <message id="diffusion.ui.remove.an.image.or.region.to.stay">
+      <source>Remove an image or region to stay within the model's reference limit.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>모델의 참조 한도에 맞도록 이미지나 영역을 삭제하세요.</translation>
+    </message>
+    <message id="diffusion.ui.add.model.files.in.the.configuration.tab">
+      <source>Add model files in the Configuration tab.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>구성 탭에서 모델 파일을 추가하세요.</translation>
+    </message>
+    <message id="diffusion.ui.preview">
+      <source>Preview</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>미리보기</translation>
+    </message>
+    <message id="diffusion.ui.preview.1">
+      <source>Preview · %1</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>미리보기 · %1</translation>
+    </message>
+    <message id="diffusion.ui.this.model.generates.from.text.only.stored">
+      <source>This model generates from text only. Stored inputs will be available when you switch to a compatible model.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이 모델은 텍스트로만 생성합니다. 호환 모델로 전환하면 저장된 입력을 사용할 수 있습니다.</translation>
+    </message>
+    <message id="diffusion.ui.regions">
+      <source>Regions</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>영역</translation>
+    </message>
+    <message id="diffusion.ui.regions.1">
+      <source>Regions · %1</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>영역 · %1</translation>
+    </message>
+    <message id="diffusion.ui.use.image.1.for.this.image.and">
+      <source>Use &lt;Image%1&gt; for this image and &lt;Image%1/Region1&gt; for a named region.</source>
+      <extracomment>Keep image/region/scene aliases inside angle brackets unchanged; they are prompt tokens, not translated names.</extracomment>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이 이미지에는 &lt;Image%1&gt;, 이름이 지정된 영역에는 &lt;Image%1/Region1&gt;을 사용하세요.</translation>
+    </message>
+    <message id="diffusion.ui.with.one.input.region1.also.works">
+      <source> With one input, &lt;Region1&gt; also works.</source>
+      <extracomment>Keep image/region/scene aliases inside angle brackets unchanged; they are prompt tokens, not translated names.</extracomment>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation> 입력이 하나이면 &lt;Region1&gt;도 사용할 수 있습니다.</translation>
+    </message>
+    <message id="diffusion.ui.refer.to.output.regions.as.output.region1">
+      <source>Refer to output regions as &lt;Output/Region1&gt;. Regions guide placement; they do not protect pixels.</source>
+      <extracomment>Keep image/region/scene aliases inside angle brackets unchanged; they are prompt tokens, not translated names.</extracomment>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>출력 영역은 &lt;Output/Region1&gt;으로 지정합니다. 영역은 배치를 안내하며 픽셀을 보호하지는 않습니다.</translation>
+    </message>
+    <message id="diffusion.ui.output.placement.guide.use.generative.fill.to">
+      <source>Output placement guide. Use Generative Fill to protect pixels outside a selection.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>출력 배치 가이드입니다. 선택 영역 밖의 픽셀을 보호하려면 생성형 채우기를 사용하세요.</translation>
+    </message>
+    <message id="diffusion.ui.region.guidance.is.unavailable.for.this.model">
+      <source>Region guidance is unavailable for this model.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이 모델에서는 영역 가이드를 사용할 수 없습니다.</translation>
+    </message>
+    <message id="diffusion.ui.generating">
+      <source>Generating…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성 중…</translation>
+    </message>
+    <message id="diffusion.ui.generation.in.progress.a.live.draft.appears">
+      <source>Generation in progress. A live draft appears here when available. Pending previews cannot be applied.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성 중입니다. 중간 결과가 준비되면 여기에 표시됩니다. 미완성 미리보기는 적용할 수 없습니다.</translation>
+    </message>
+    <message id="diffusion.ui.unsaved.configuration">
+      <source>Unsaved configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>저장하지 않은 구성</translation>
+    </message>
+    <message id="diffusion.ui.generation.in.progress">
+      <source>Generation in progress</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성 중</translation>
+    </message>
+    <message id="diffusion.ui.pending.preview.approximate">
+      <source>Pending preview — approximate</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>미완성 미리보기 — 근사 결과</translation>
+    </message>
+    <message id="diffusion.ui.ai.image.preview">
+      <source>AI image preview</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI 이미지 미리보기</translation>
+    </message>
+    <message id="diffusion.ui.generated.previews.appear.here">
+      <source>Generated previews appear here</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성된 미리보기가 여기에 표시됩니다</translation>
+    </message>
+    <message id="diffusion.ui.no.image">
+      <source>No image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이미지 없음</translation>
+    </message>
+    <message id="diffusion.ui.this.model.generates.from.text.only.image">
+      <source>This model generates from text only. Image-to-image denoising is unavailable.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이 모델은 텍스트로만 생성합니다. 이미지 간 디노이즈는 사용할 수 없습니다.</translation>
+    </message>
+    <message id="diffusion.ui.always.used.for.generative.fill.the.canvas">
+      <source>Always used for Generative Fill. The canvas is the starting image; the selection limits where the result is applied.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성형 채우기에서 항상 사용합니다. 캔버스를 시작 이미지로 사용하고 선택 영역 안에만 결과를 적용합니다.</translation>
+    </message>
+    <message id="diffusion.ui.off.edit.using.image.references.on.start">
+      <source>Off: edit using image references. On: start from Image 1 and use Denoising strength.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>끄기: 참조 이미지로 편집합니다. 켜기: 이미지 1에서 시작하고 디노이즈 강도를 사용합니다.</translation>
+    </message>
+    <message id="diffusion.ui.starts.denoising.from.an.input.image.available">
+      <source>Starts denoising from an input image. Available in Edit layer; always used for Generative Fill.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>입력 이미지에서 디노이즈를 시작합니다. 레이어 편집에서 사용 가능하며 생성형 채우기에서는 항상 사용합니다.</translation>
+    </message>
+    <message id="diffusion.ui.denoising.strength.is.available.for.models.that">
+      <source>Denoising strength is available for models that edit input images.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>입력 이미지를 편집하는 모델에서 디노이즈 강도를 사용할 수 있습니다.</translation>
+    </message>
+    <message id="diffusion.ui.lower.values.retain.more.of.the.starting">
+      <source>Lower values retain more of the starting image. Try 1.0 for larger changes or new objects.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>낮은 값은 시작 이미지를 더 많이 유지합니다. 큰 변화나 새 개체에는 1.0을 사용해 보세요.</translation>
+    </message>
+    <message id="diffusion.ui.enable.image.to.image.denoising.to.use">
+      <source>Enable image-to-image denoising to use strength. Reference-only edits do not use this value.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>강도를 사용하려면 이미지 간 디노이즈를 켜세요. 참조만 사용하는 편집에는 이 값이 적용되지 않습니다.</translation>
+    </message>
+    <message id="diffusion.ui.available.in.generative.fill.or.edit.layer">
+      <source>Available in Generative Fill, or Edit layer with image-to-image denoising enabled.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성형 채우기 또는 이미지 간 디노이즈를 켠 레이어 편집에서 사용 가능합니다.</translation>
+    </message>
+    <message id="diffusion.ui.the.fixed.turbo.sigma.schedule.uses.8">
+      <source>The fixed Turbo sigma schedule uses 8 steps. Choose Auto sigma schedule to try other step counts.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Turbo 고정 시그마 스케줄은 8단계를 사용합니다. 다른 단계 수를 사용하려면 자동 시그마 스케줄을 선택하세요.</translation>
+    </message>
+    <message id="diffusion.ui.number.of.denoising.steps">
+      <source>Number of denoising steps.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>디노이즈 단계 수입니다.</translation>
+    </message>
+    <message id="diffusion.ui.enter.steps.1.descending.values.ending.in">
+      <source>Enter steps + 1 descending values ending in zero. Available with a custom sigma schedule.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>단계 수 + 1개의 값을 내림차순으로 입력하고 마지막은 0으로 지정하세요. 사용자 지정 시그마 스케줄에서 사용 가능합니다.</translation>
+    </message>
+    <message id="diffusion.ui.controls.how.noise.levels.are.spaced.available">
+      <source>Controls how noise levels are spaced. Available with the auto sigma schedule.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>노이즈 수준의 간격을 조절합니다. 자동 시그마 스케줄에서 사용 가능합니다.</translation>
+    </message>
+    <message id="diffusion.ui.flow.shift.does.not.apply.to.this">
+      <source>Flow shift does not apply to this model.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이 모델에는 플로 시프트가 적용되지 않습니다.</translation>
+    </message>
+    <message id="diffusion.ui.adjusts.the.flow.schedule.available.with.the">
+      <source>Adjusts the flow schedule. Available with the auto sigma schedule. Auto uses the model default (%1).</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>플로 스케줄을 조절합니다. 자동 시그마 스케줄에서 사용 가능하며 자동은 모델 기본값(%1)을 사용합니다.</translation>
+    </message>
+    <message id="diffusion.ui.controls.added.sampler.noise.available.for.samplers">
+      <source>Controls added sampler noise. Available for samplers that use eta.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>샘플러가 추가하는 노이즈를 조절합니다. eta를 사용하는 샘플러에서 사용 가능합니다.</translation>
+    </message>
+    <message id="diffusion.ui.available.when.approximate.cache.is.enabled">
+      <source>Available when Approximate cache is enabled.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>근사 캐시를 켜면 사용할 수 있습니다.</translation>
+    </message>
+    <message id="diffusion.ui.checkpoint">
+      <source>Checkpoint</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>체크포인트</translation>
+    </message>
+    <message id="diffusion.ui.diffusion.weights">
+      <source>Diffusion weights</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>디퓨전 가중치</translation>
+    </message>
+    <message id="diffusion.ui.vae.override.optional">
+      <source>VAE override (optional)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>외부 VAE(선택 사항)</translation>
+    </message>
+    <message id="diffusion.ui.use.checkpoint.vae">
+      <source>Use checkpoint VAE</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>체크포인트 VAE 사용</translation>
+    </message>
+    <message id="diffusion.ui.this.mode.is.unavailable.for.the.selected">
+      <source>This mode is unavailable for the selected model.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>선택한 모델에서는 이 모드를 사용할 수 없습니다.</translation>
+    </message>
+    <message id="diffusion.ui.1.width.and.height.must.be.multiples">
+      <source>%1: width and height must be multiples of %2.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1: 너비와 높이는 %2의 배수여야 합니다.</translation>
+    </message>
+    <message id="diffusion.ui.auto.1">
+      <source>Auto (%1)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>자동 (%1)</translation>
+    </message>
+    <message id="diffusion.ui.auto.uses.the.selected.model.s.required">
+      <source>Auto uses the selected model's required multiple.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>자동은 선택한 모델이 요구하는 배수를 사용합니다.</translation>
+    </message>
+    <message id="diffusion.ui.choose.where.weights.are.kept.available.when">
+      <source>Choose where weights are kept. Available when Keep weights in is manual.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>가중치 저장 위치를 선택합니다. 가중치 위치를 수동으로 지정할 때 사용 가능합니다.</translation>
+    </message>
+    <message id="diffusion.ui.reuse.text.encoder.prefix.data.available.for">
+      <source>Reuse text-encoder prefix data. Available for Qwen models.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>텍스트 인코더 접두 데이터를 재사용합니다. Qwen 모델에서 사용 가능합니다.</translation>
+    </message>
+    <message id="diffusion.ui.for.image.editing.add.a.separate.vision">
+      <source>For image editing, add a separate vision projector only if the text encoder does not include vision weights.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이미지 편집 시 텍스트 인코더에 비전 가중치가 없는 경우에만 별도 비전 프로젝터를 추가하세요.</translation>
+    </message>
+    <message id="diffusion.ui.this.model.does.not.need.a.separate">
+      <source>This model does not need a separate vision component.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이 모델은 별도 비전 구성 요소가 필요하지 않습니다.</translation>
+    </message>
+    <message id="diffusion.ui.this.model.does.not.support.a.negative">
+      <source>This model does not support a negative prompt.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이 모델은 네거티브 프롬프트를 지원하지 않습니다.</translation>
+    </message>
+    <message id="diffusion.ui.describe.what.to.avoid.requires.guidance.cfg">
+      <source>Describe what to avoid. Requires Guidance (CFG) above 1.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>피하고 싶은 내용을 설명하세요. 가이던스(CFG)가 1보다 커야 합니다.</translation>
+    </message>
+    <message id="diffusion.ui.describe.what.to.avoid.in.the.generated">
+      <source>Describe what to avoid in the generated image.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성된 이미지에서 피하고 싶은 내용을 설명하세요.</translation>
+    </message>
+    <message id="diffusion.ui.no.configurations">
+      <source>No configurations</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>구성 없음</translation>
+    </message>
+    <message id="diffusion.ui.select.configuration">
+      <source>Select configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>구성 선택</translation>
+    </message>
+    <message id="diffusion.ui.add.input.image">
+      <source>Add input image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>입력 이미지 추가</translation>
+    </message>
+    <message id="diffusion.ui.regions.image.1.2.3.4.px">
+      <source>Regions — Image%1 · %2 · %3 × %4 px</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>영역 — Image%1 · %2 · %3 × %4 px</translation>
+    </message>
+    <message id="diffusion.ui.prompt.preset">
+      <source>Prompt preset…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>프롬프트 프리셋…</translation>
+    </message>
+    <message id="diffusion.ui.previous.preview">
+      <source>Previous preview</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이전 미리보기</translation>
+    </message>
+    <message id="diffusion.ui.next.preview">
+      <source>Next preview</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>다음 미리보기</translation>
+    </message>
+    <message id="diffusion.ui.fit.to.view">
+      <source>Fit to view</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>보기에 맞추기</translation>
+    </message>
+    <message id="diffusion.ui.actual.pixels.1.1">
+      <source>Actual pixels (1:1)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>실제 픽셀 (1:1)</translation>
+    </message>
+    <message id="diffusion.ui.close.preview">
+      <source>Close preview</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>미리보기 닫기</translation>
+    </message>
+    <message id="diffusion.ui.drag.to.draw.or.move.shift.drag">
+      <source>Drag to draw or move · Shift-drag adds a region · Middle mouse pans</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>드래그로 그리기 또는 이동 · Shift 드래그로 영역 추가 · 마우스 중간 버튼으로 이동</translation>
+    </message>
+    <message id="diffusion.ui.mouse.wheel.zooms.middle.mouse.pans">
+      <source>Mouse wheel zooms · Middle mouse pans</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>마우스 휠로 확대·축소 · 중간 버튼으로 이동</translation>
+    </message>
+    <message id="diffusion.ui.compare.with.layer">
+      <source>Compare with layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>레이어와 비교</translation>
+    </message>
+    <message id="diffusion.ui.canvas.alignment">
+      <source>Canvas Alignment</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>캔버스 정렬</translation>
+    </message>
+    <message id="diffusion.ui.center.alignment">
+      <source>Center Alignment</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>가운데 정렬</translation>
+    </message>
+    <message id="diffusion.ui.fit.to.result">
+      <source>Fit to Result</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>결과에 맞추기</translation>
+    </message>
+    <message id="diffusion.ui.canvas.document.positions.and.scale.center.native">
+      <source>Canvas: document positions and scale. Center: native pixel sizes. Fit: proportional reference scaling.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>캔버스: 문서 위치와 배율. 가운데: 원본 픽셀 크기. 맞춤: 비율을 유지하며 참조 크기 조절.</translation>
+    </message>
+    <message id="diffusion.ui.stop.comparing">
+      <source>Stop comparing</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>비교 중지</translation>
+    </message>
+    <message id="diffusion.ui.search.layers">
+      <source>Search layers…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>레이어 검색…</translation>
+    </message>
+    <message id="diffusion.ui.no.matching.layers">
+      <source>No matching layers</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>일치하는 레이어 없음</translation>
+    </message>
+    <message id="diffusion.ui.draw.the.destination.box.scene.is.fitted">
+      <source>Draw the destination box. Scene is fitted as a guide; coordinates belong to the output frame.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>대상 상자를 그리세요. 장면은 가이드로 크기를 맞추며 좌표는 출력 프레임 기준입니다.</translation>
+    </message>
+    <message id="diffusion.ui.scene.is.fitted.as.a.guide.boxes">
+      <source>Scene is fitted as a guide · Boxes use output coordinates · Middle mouse pans</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>장면은 가이드용 · 상자는 출력 좌표 사용 · 중간 버튼으로 이동</translation>
+    </message>
+    <message id="diffusion.ui.region.label">
+      <source>Region label</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>영역 이름</translation>
+    </message>
+    <message id="diffusion.ui.description.optional">
+      <source>Description (optional)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>설명(선택 사항)</translation>
+    </message>
+    <message id="diffusion.ui.optional.semantic.guidance.sent.as.desc.the">
+      <source>Optional semantic guidance sent as desc. The region name is only an alias.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>선택적인 의미 안내를 desc로 보냅니다. 영역 이름은 참조용 별칭입니다.</translation>
+    </message>
+    <message id="diffusion.ui.remove.selected.region">
+      <source>Remove selected region</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>선택 영역 삭제</translation>
+    </message>
+    <message id="diffusion.ui.destination">
+      <source>Destination</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>대상 위치</translation>
+    </message>
+    <message id="diffusion.ui.edit">
+      <source>Edit…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>편집…</translation>
+    </message>
+    <message id="diffusion.ui.target.location.no.object.description">
+      <source>Target location — no object description</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>대상 위치 — 개체 설명 없음</translation>
+    </message>
+    <message id="diffusion.ui.none">
+      <source>None</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>없음</translation>
+    </message>
+    <message id="diffusion.ui.missing.target.choose.another">
+      <source>Missing target — choose another</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>대상 없음 — 다른 대상 선택</translation>
+    </message>
+    <message id="diffusion.ui.new.target">
+      <source>New target…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>새 대상…</translation>
+    </message>
+    <message id="diffusion.ui.mouse.wheel.zooms.middle.mouse.pans.browse">
+      <source>Mouse wheel zooms · Middle mouse pans · ← / → browse previews</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>마우스 휠로 확대·축소 · 중간 버튼으로 이동 · ← / →로 미리보기 탐색</translation>
+    </message>
+    <message id="diffusion.ui.choose.an.output.scene.first">
+      <source>Choose an output scene first.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>먼저 출력 장면을 선택하세요.</translation>
+    </message>
+    <message id="diffusion.ui.destination.for.image.1.2">
+      <source>Destination for Image%1/%2</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Image%1/%2의 대상 위치</translation>
+    </message>
+    <message id="diffusion.ui.ai.image.editor">
+      <source>AI Image Editor</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI 이미지 편집기</translation>
+    </message>
+    <message id="diffusion.ui.close.ai.image.editor">
+      <source>Close AI Image Editor</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI 이미지 편집기 닫기</translation>
+    </message>
+    <message id="diffusion.ui.configuration">
+      <source>Configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>구성</translation>
+    </message>
+    <message id="diffusion.ui.edit.layer">
+      <source>Edit layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>레이어 편집</translation>
+    </message>
+    <message id="diffusion.ui.generative.fill">
+      <source>Generative Fill</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성형 채우기</translation>
+    </message>
+    <message id="diffusion.ui.add.configuration">
+      <source>Add configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>구성 추가</translation>
+    </message>
+    <message id="diffusion.ui.model.files">
+      <source>Model files</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>모델 파일</translation>
+    </message>
+    <message id="diffusion.ui.family">
+      <source>Family</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>계열</translation>
+    </message>
+    <message id="diffusion.ui.variant">
+      <source>Variant</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>변형</translation>
+    </message>
+    <message id="diffusion.ui.choose.file">
+      <source>Choose file</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>파일 선택</translation>
+    </message>
+    <message id="diffusion.ui.choose.checkpoint">
+      <source>Choose checkpoint</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>체크포인트 선택</translation>
+    </message>
+    <message id="diffusion.ui.choose.model.component">
+      <source>Choose model component</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>모델 구성 요소 선택</translation>
+    </message>
+    <message id="diffusion.ui.checkpoints.safetensors.all.files">
+      <source>Checkpoints (*.safetensors);;All files (*)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>체크포인트 (*.safetensors);;모든 파일 (*)</translation>
+    </message>
+    <message id="diffusion.ui.models.gguf.safetensors.all.files">
+      <source>Models (*.gguf *.safetensors);;All files (*)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>모델 (*.gguf *.safetensors);;모든 파일 (*)</translation>
+    </message>
+    <message id="diffusion.ui.text.encoder">
+      <source>Text encoder</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>텍스트 인코더</translation>
+    </message>
+    <message id="diffusion.ui.vision.optional">
+      <source>Vision (optional)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>비전(선택 사항)</translation>
+    </message>
+    <message id="diffusion.ui.auto">
+      <source>Auto</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>자동</translation>
+    </message>
+    <message id="diffusion.ui.auto.prefers.an.available.cuda.worker.then">
+      <source>Auto prefers an available CUDA worker, then Vulkan. Explicit backends require the matching installed worker.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>자동은 사용 가능한 CUDA 워커를 먼저, 다음으로 Vulkan을 선택합니다. 백엔드를 지정하려면 해당 워커가 설치되어 있어야 합니다.</translation>
+    </message>
+    <message id="diffusion.ui.backend">
+      <source>Backend</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>백엔드</translation>
+    </message>
+    <message id="diffusion.ui.save.custom.prompt.preset">
+      <source>Save custom prompt preset</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>사용자 프롬프트 프리셋 저장</translation>
+    </message>
+    <message id="diffusion.ui.delete.custom.prompt.preset">
+      <source>Delete custom prompt preset</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>사용자 프롬프트 프리셋 삭제</translation>
+    </message>
+    <message id="diffusion.ui.describe.the.image.or.the.changes.you">
+      <source>Describe the image or the changes you want…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이미지나 원하는 변경 사항을 설명하세요…</translation>
+    </message>
+    <message id="diffusion.ui.negative.prompt">
+      <source>Negative prompt</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>네거티브 프롬프트</translation>
+    </message>
+    <message id="diffusion.ui.describe.what.to.avoid">
+      <source>Describe what to avoid…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>피하고 싶은 내용을 설명하세요…</translation>
+    </message>
+    <message id="diffusion.ui.size">
+      <source>Size</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>크기</translation>
+    </message>
+    <message id="diffusion.ui.output.width.in.pixels">
+      <source>Output width in pixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>출력 너비(픽셀)</translation>
+    </message>
+    <message id="diffusion.ui.output.height.in.pixels">
+      <source>Output height in pixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>출력 높이(픽셀)</translation>
+    </message>
+    <message id="diffusion.ui.match.layer.canvas.size">
+      <source>Match layer / canvas size</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>레이어 / 캔버스 크기에 맞추기</translation>
+    </message>
+    <message id="diffusion.ui.match.selected.input.layer.size">
+      <source>Match selected input / layer size</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>선택 입력 / 레이어 크기에 맞추기</translation>
+    </message>
+    <message id="diffusion.ui.match.the.selected.input.including.its.canvas">
+      <source>Match the selected input, including its canvas crop. With no input selected, use the active layer.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>캔버스 자르기를 포함해 선택한 입력에 맞춥니다. 선택한 입력이 없으면 활성 레이어를 사용합니다.</translation>
+    </message>
+    <message id="diffusion.ui.resolution.selector">
+      <source>Resolution Selector</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>해상도 선택</translation>
+    </message>
+    <message id="diffusion.ui.1.1.square">
+      <source>1:1 (Square)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>1:1 (정사각형)</translation>
+    </message>
+    <message id="diffusion.ui.2.3.portrait.photo">
+      <source>2:3 (Portrait Photo)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>2:3 (세로 사진)</translation>
+    </message>
+    <message id="diffusion.ui.3.2.photo">
+      <source>3:2 (Photo)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>3:2 (사진)</translation>
+    </message>
+    <message id="diffusion.ui.3.4.portrait.standard">
+      <source>3:4 (Portrait Standard)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>3:4 (세로 표준)</translation>
+    </message>
+    <message id="diffusion.ui.4.3.standard">
+      <source>4:3 (Standard)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>4:3 (표준)</translation>
+    </message>
+    <message id="diffusion.ui.9.16.portrait.widescreen">
+      <source>9:16 (Portrait Widescreen)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>9:16 (세로 와이드)</translation>
+    </message>
+    <message id="diffusion.ui.16.9.widescreen">
+      <source>16:9 (Widescreen)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>16:9 (와이드)</translation>
+    </message>
+    <message id="diffusion.ui.21.9.ultrawide">
+      <source>21:9 (Ultrawide)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>21:9 (울트라와이드)</translation>
+    </message>
+    <message id="diffusion.ui.custom">
+      <source>Custom</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>사용자 지정</translation>
+    </message>
+    <message id="diffusion.ui.choose.a.ratio.to.calculate.the.output">
+      <source>Choose a ratio to calculate the output size. Custom keeps the current dimensions.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>비율을 선택해 출력 크기를 계산합니다. 사용자 지정은 현재 크기를 유지합니다.</translation>
+    </message>
+    <message id="diffusion.ui.aspect.ratio">
+      <source>Aspect Ratio</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>가로세로 비율</translation>
+    </message>
+    <message id="diffusion.ui.approximate.pixel.count.1.0.mp.is">
+      <source>Approximate pixel count. 1.0 MP is 1024 × 1024 for Square. Rounding can change the total.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>대략적인 픽셀 수입니다. 정사각형의 1.0 MP는 1024 × 1024입니다. 반올림하면 총수가 달라질 수 있습니다.</translation>
+    </message>
+    <message id="diffusion.ui.megapixels">
+      <source>Megapixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>메가픽셀</translation>
+    </message>
+    <message id="diffusion.ui.round.each.dimension.to.the.nearest.multiple">
+      <source>Round each dimension to the nearest multiple.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>각 크기를 가장 가까운 배수로 반올림합니다.</translation>
+    </message>
+    <message id="diffusion.ui.multiple">
+      <source>Multiple</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>배수</translation>
+    </message>
+    <message id="diffusion.ui.overrides">
+      <source>Overrides</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>임시 설정</translation>
+    </message>
+    <message id="diffusion.ui.seed">
+      <source>Seed</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>시드</translation>
+    </message>
+    <message id="diffusion.ui.use.the.same.seed.to.reproduce.a">
+      <source>Use the same seed to reproduce a result.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>같은 시드로 결과를 재현할 수 있습니다.</translation>
+    </message>
+    <message id="diffusion.ui.generate.a.random.seed">
+      <source>Generate a random seed</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>무작위 시드 생성</translation>
+    </message>
+    <message id="diffusion.ui.generate.a.random.seed.random.mode.also">
+      <source>Generate a random seed. Random mode also chooses a new seed for each generation.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>무작위 시드를 생성합니다. 무작위 모드에서는 생성할 때마다 새 시드를 선택합니다.</translation>
+    </message>
+    <message id="diffusion.ui.random">
+      <source>Random</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>무작위</translation>
+    </message>
+    <message id="diffusion.ui.fixed">
+      <source>Fixed</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>고정</translation>
+    </message>
+    <message id="diffusion.ui.increment">
+      <source>Increment</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>증가</translation>
+    </message>
+    <message id="diffusion.ui.random.new.seed.per.job.fixed.reuse">
+      <source>Random: new seed per job. Fixed: reuse the seed. Increment: advance it by the number of generated images.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>무작위: 작업마다 새 시드. 고정: 같은 시드 재사용. 증가: 생성한 이미지 수만큼 값을 늘립니다.</translation>
+    </message>
+    <message id="diffusion.ui.input.images">
+      <source>Input images</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>입력 이미지</translation>
+    </message>
+    <message id="diffusion.ui.max.input.1.px">
+      <source>Max input: %1 px</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>최대 입력: %1 px</translation>
+    </message>
+    <message id="diffusion.ui.limit.the.longest.side.of.input.images">
+      <source>Limit the longest side of input images after canvas cropping, keeping their proportions. Output size is separate.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>캔버스로 자른 뒤 비율을 유지하면서 입력 이미지의 긴 변을 제한합니다. 출력 크기는 별도입니다.</translation>
+    </message>
+    <message id="diffusion.ui.current.layer.appearance">
+      <source>Current layer — appearance</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>현재 레이어 — 모양</translation>
+    </message>
+    <message id="diffusion.ui.current.layer.raw.pixels">
+      <source>Current layer — raw pixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>현재 레이어 — 원본 픽셀</translation>
+    </message>
+    <message id="diffusion.ui.another.document.layer.appearance">
+      <source>Another document layer — appearance</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>다른 문서 레이어 — 모양</translation>
+    </message>
+    <message id="diffusion.ui.another.document.layer.raw.pixels">
+      <source>Another document layer — raw pixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>다른 문서 레이어 — 원본 픽셀</translation>
+    </message>
+    <message id="diffusion.ui.rendered.visible.canvas">
+      <source>Rendered visible canvas</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>렌더링된 보이는 캔버스</translation>
+    </message>
+    <message id="diffusion.ui.image.file">
+      <source>Image file…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이미지 파일…</translation>
+    </message>
+    <message id="diffusion.ui.output.scene">
+      <source>Output scene</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>출력 장면</translation>
+    </message>
+    <message id="diffusion.ui.use.scene.in.your.prompt.to.reference">
+      <source>Use &lt;Scene&gt; in your prompt to reference this image. It is the backdrop for destination boxes; input order and your instructions are not changed.</source>
+      <extracomment>Keep image/region/scene aliases inside angle brackets unchanged; they are prompt tokens, not translated names.</extracomment>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>프롬프트에서 &lt;Scene&gt;으로 이 이미지를 참조하세요. 대상 상자의 배경이 되며 입력 순서와 지시는 변경되지 않습니다.</translation>
+    </message>
+    <message id="diffusion.ui.choose.an.input.image.to.identify.objects">
+      <source>Choose an input image to identify objects, or Output layout to guide placement.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>개체를 지정하려면 입력 이미지를, 배치를 안내하려면 출력 배치를 선택하세요.</translation>
+    </message>
+    <message id="diffusion.ui.edit.regions">
+      <source>Edit regions…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>영역 편집…</translation>
+    </message>
+    <message id="diffusion.ui.remove.regions.from.this.image.or.output">
+      <source>Remove regions from this image or output layout</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이 이미지 또는 출력 배치의 영역 삭제</translation>
+    </message>
+    <message id="diffusion.ui.extra.crop.guidance.experimental">
+      <source>Extra crop guidance (experimental)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>추가 자르기 가이드(실험적)</translation>
+    </message>
+    <message id="diffusion.ui.optional.vulkana.guidance.also.send.each.input">
+      <source>Optional Vulkana guidance: also send each input region as a cropped reference. Uses extra memory and reference slots. Leave off to use FLUX's native bounding-box format alone.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>선택적인 Vulkana 가이드: 입력 영역마다 잘라낸 참조 이미지도 보냅니다. 추가 메모리와 참조 슬롯을 사용합니다. FLUX의 기본 경계 상자 형식만 사용하려면 꺼두세요.</translation>
+    </message>
+    <message id="diffusion.ui.advanced.generation">
+      <source>Advanced generation</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>고급 생성 설정</translation>
+    </message>
+    <message id="diffusion.ui.steps">
+      <source>Steps</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>단계 수</translation>
+    </message>
+    <message id="diffusion.ui.guidance.cfg">
+      <source>Guidance (CFG)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>가이던스 (CFG)</translation>
+    </message>
+    <message id="diffusion.ui.sampler">
+      <source>Sampler</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>샘플러</translation>
+    </message>
+    <message id="diffusion.ui.scheduler">
+      <source>Scheduler</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>스케줄러</translation>
+    </message>
+    <message id="diffusion.ui.sigma.schedule">
+      <source>Sigma schedule</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>시그마 스케줄</translation>
+    </message>
+    <message id="diffusion.ui.custom.sigmas">
+      <source>Custom sigmas</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>사용자 지정 시그마</translation>
+    </message>
+    <message id="diffusion.ui.flow.shift">
+      <source>Flow shift</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>플로 시프트</translation>
+    </message>
+    <message id="diffusion.ui.use.image.to.image.denoising">
+      <source>Use image-to-image denoising</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이미지 간 디노이즈 사용</translation>
+    </message>
+    <message id="diffusion.ui.denoising.strength">
+      <source>Denoising strength</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>디노이즈 강도</translation>
+    </message>
+    <message id="diffusion.ui.images.per.job">
+      <source>Images per job</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>작업당 이미지 수</translation>
+    </message>
+    <message id="diffusion.ui.vae.tiling">
+      <source>VAE tiling</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>VAE 타일링</translation>
+    </message>
+    <message id="diffusion.ui.vae.tile.size">
+      <source>VAE tile size</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>VAE 타일 크기</translation>
+    </message>
+    <message id="diffusion.ui.vae.tile.overlap">
+      <source>VAE tile overlap</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>VAE 타일 겹침</translation>
+    </message>
+    <message id="diffusion.ui.progress.previews">
+      <source>Progress previews</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>진행 미리보기</translation>
+    </message>
+    <message id="diffusion.ui.preview.every.n.steps">
+      <source>Preview every N steps</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>N단계마다 미리보기</translation>
+    </message>
+    <message id="diffusion.ui.sampler.noise.eta">
+      <source>Sampler noise (eta)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>샘플러 노이즈 (eta)</translation>
+    </message>
+    <message id="diffusion.ui.approximate.cache.experimental">
+      <source>Approximate cache (experimental)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>근사 캐시(실험적)</translation>
+    </message>
+    <message id="diffusion.ui.cache.reuse.threshold">
+      <source>Cache reuse threshold</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>캐시 재사용 임계값</translation>
+    </message>
+    <message id="diffusion.ui.cache.start.fraction">
+      <source>Cache start fraction</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>캐시 시작 비율</translation>
+    </message>
+    <message id="diffusion.ui.cache.end.fraction">
+      <source>Cache end fraction</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>캐시 종료 비율</translation>
+    </message>
+    <message id="diffusion.ui.restore.recommended.generation.settings">
+      <source>Restore recommended generation settings</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>권장 생성 설정 복원</translation>
+    </message>
+    <message id="diffusion.ui.memory.and.performance">
+      <source>Memory and performance</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>메모리와 성능</translation>
+    </message>
+    <message id="diffusion.ui.inference.device">
+      <source>Inference device</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>추론 장치</translation>
+    </message>
+    <message id="diffusion.ui.vram.budget.gib">
+      <source>VRAM budget (GiB)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>VRAM 예산 (GiB)</translation>
+    </message>
+    <message id="diffusion.ui.budget.for.managed.weights.workspaces.not.a">
+      <source>Budget for managed weights/workspaces, not a physical VRAM cap. Leave room for Vulkana and the desktop.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>관리되는 가중치와 작업 버퍼의 예산이며 실제 VRAM 한도가 아닙니다. Vulkana와 데스크톱을 위한 여유를 남기세요.</translation>
+    </message>
+    <message id="diffusion.ui.cpu.threads">
+      <source>CPU threads</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>CPU 스레드</translation>
+    </message>
+    <message id="diffusion.ui.keep.weights.in">
+      <source>Keep weights in</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>가중치 저장 위치</translation>
+    </message>
+    <message id="diffusion.ui.text.encoder.weights">
+      <source>Text encoder weights</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>텍스트 인코더 가중치</translation>
+    </message>
+    <message id="diffusion.ui.vae.weights">
+      <source>VAE weights</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>VAE 가중치</translation>
+    </message>
+    <message id="diffusion.ui.text.encoder.compute">
+      <source>Text encoder compute</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>텍스트 인코더 연산</translation>
+    </message>
+    <message id="diffusion.ui.vae.compute">
+      <source>VAE compute</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>VAE 연산</translation>
+    </message>
+    <message id="diffusion.ui.flash.attention">
+      <source>Flash attention</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Flash Attention</translation>
+    </message>
+    <message id="diffusion.ui.direct.convolution">
+      <source>Direct convolution</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>직접 합성곱</translation>
+    </message>
+    <message id="diffusion.ui.sage.attention.experimental">
+      <source>Sage attention (experimental)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Sage Attention(실험적)</translation>
+    </message>
+    <message id="diffusion.ui.memory.mapped.loading">
+      <source>Memory mapped loading</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>메모리 매핑 로드</translation>
+    </message>
+    <message id="diffusion.ui.prefetch.weights">
+      <source>Prefetch weights</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>가중치 미리 가져오기</translation>
+    </message>
+    <message id="diffusion.ui.segmented.computation">
+      <source>Segmented computation</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>분할 연산</translation>
+    </message>
+    <message id="diffusion.ui.prepare.weights.at.load">
+      <source>Prepare weights at load</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>로드 시 가중치 준비</translation>
+    </message>
+    <message id="diffusion.ui.cached.prompts">
+      <source>Cached prompts</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>캐시할 프롬프트 수</translation>
+    </message>
+    <message id="diffusion.ui.qwen.prefix.cache">
+      <source>Qwen prefix cache</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Qwen 접두 캐시</translation>
+    </message>
+    <message id="diffusion.ui.prefix.cache.format">
+      <source>Prefix cache format</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>접두 캐시 형식</translation>
+    </message>
+    <message id="diffusion.ui.session">
+      <source>Session</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>세션</translation>
+    </message>
+    <message id="diffusion.ui.loaded.models">
+      <source>Loaded models</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>로드된 모델</translation>
+    </message>
+    <message id="diffusion.ui.no.models.loaded">
+      <source>No models loaded</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>로드된 모델 없음</translation>
+    </message>
+    <message id="diffusion.ui.choose.model.files.and.enter.a.prompt">
+      <source>Choose model files and enter a prompt to begin.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>모델 파일을 선택하고 프롬프트를 입력해 시작하세요.</translation>
+    </message>
+    <message id="diffusion.ui.add.new.layer">
+      <source>Add new layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>새 레이어 추가</translation>
+    </message>
+    <message id="diffusion.ui.replace.selected.layer">
+      <source>Replace selected layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>선택 레이어 교체</translation>
+    </message>
+    <message id="diffusion.ui.open.new.document">
+      <source>Open new document</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>새 문서로 열기</translation>
+    </message>
+    <message id="diffusion.ui.apply">
+      <source>Apply</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>적용</translation>
+    </message>
+    <message id="diffusion.ui.generate.again">
+      <source>Generate again</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>다시 생성</translation>
+    </message>
+    <message id="diffusion.ui.discard">
+      <source>Discard</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>버리기</translation>
+    </message>
+    <message id="diffusion.ui.image.details">
+      <source>Image details</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이미지 정보</translation>
+    </message>
+    <message id="diffusion.ui.model">
+      <source>Model</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>모델</translation>
+    </message>
+    <message id="diffusion.ui.resolution">
+      <source>Resolution</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>해상도</translation>
+    </message>
+    <message id="diffusion.ui.copy.seed">
+      <source>Copy seed</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>시드 복사</translation>
+    </message>
+    <message id="diffusion.ui.generated">
+      <source>Generated</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성 시간</translation>
+    </message>
+    <message id="diffusion.ui.save.prompt.preset">
+      <source>Save prompt preset</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>프롬프트 프리셋 저장</translation>
+    </message>
+    <message id="diffusion.ui.prompt.preset.saved">
+      <source>Prompt preset saved.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>프롬프트 프리셋을 저장했습니다.</translation>
+    </message>
+    <message id="diffusion.ui.choose.a.custom.preset.to.remove">
+      <source>Choose a custom preset to remove.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>삭제할 사용자 프리셋을 선택하세요.</translation>
+    </message>
+    <message id="diffusion.ui.images.and.region.guides.exceed.the.model">
+      <source>Images and region guides exceed the model's reference limit. Remove an image or region.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이미지와 영역 가이드가 모델의 참조 한도를 초과합니다. 이미지나 영역을 삭제하세요.</translation>
+    </message>
+    <message id="diffusion.ui.unload">
+      <source>Unload</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>언로드</translation>
+    </message>
+    <message id="diffusion.ui.unload.this.configuration.and.its.components.to">
+      <source>Unload this configuration and its components to release memory. Generated images are kept.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이 구성과 구성 요소를 언로드해 메모리를 확보합니다. 생성한 이미지는 유지됩니다.</translation>
+    </message>
+    <message id="diffusion.ui.this.model.generates.from.text.only.choose">
+      <source>This model generates from text only. Choose a compatible model to add input images.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이 모델은 텍스트로만 생성합니다. 입력 이미지를 추가하려면 호환 모델을 선택하세요.</translation>
+    </message>
+    <message id="diffusion.ui.this.model.accepts.1.references.in.total">
+      <source>This model accepts %1 references in total, including input images and region guides.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이 모델은 입력 이미지와 영역 가이드를 포함해 총 %1개의 참조를 받습니다.</translation>
+    </message>
+    <message id="diffusion.ui.this.layer.is.outside.its.source.canvas">
+      <source>This layer is outside its source canvas. Restore or remove the input.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이 레이어는 원본 캔버스 밖에 있습니다. 입력을 복원하거나 삭제하세요.</translation>
+    </message>
+    <message id="diffusion.ui.regions.outside.the.canvas.are.hidden.until">
+      <source>Regions outside the canvas are hidden until the full input is restored.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>캔버스 밖의 영역은 전체 입력을 복원할 때까지 숨겨집니다.</translation>
+    </message>
+    <message id="diffusion.ui.output.layout.regions">
+      <source>Output layout regions</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>출력 배치 영역</translation>
+    </message>
+    <message id="diffusion.ui.regions.image.1.2">
+      <source>Regions — Image%1 · %2</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>영역 — Image%1 · %2</translation>
+    </message>
+    <message id="diffusion.ui.pending">
+      <source>Pending</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>대기 중</translation>
+    </message>
+    <message id="diffusion.ui.live.draft.approximate.final.detail.appears.after">
+      <source>Live draft — approximate. Final detail appears after generation finishes.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>실시간 초안 — 근사 결과입니다. 최종 세부 사항은 생성이 완료되면 표시됩니다.</translation>
+    </message>
+    <message id="diffusion.ui.lora.strength.1.00.uses.its.full">
+      <source>LoRA strength. 1.00 uses its full effect; 0.00 has no effect.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA 강도입니다. 1.00은 전체 효과, 0.00은 효과 없음입니다.</translation>
+    </message>
+    <message id="diffusion.ui.lora.strength">
+      <source>LoRA strength</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA 강도</translation>
+    </message>
+    <message id="diffusion.ui.unnamed.lora">
+      <source>Unnamed LoRA</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이름 없는 LoRA</translation>
+    </message>
+    <message id="diffusion.ui.loras.1.2.enabled">
+      <source>LoRAs (%1/%2 enabled)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRAs (%1/%2 사용)</translation>
+    </message>
+    <message id="diffusion.ui.enable.this.lora.for.generation">
+      <source>Enable this LoRA for generation</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성 시 이 LoRA 사용</translation>
+    </message>
+    <message id="diffusion.ui.reset.loras.to.configuration.defaults">
+      <source>Reset LoRAs to configuration defaults</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA를 구성 기본값으로 초기화</translation>
+    </message>
+    <message id="diffusion.ui.choose.lora">
+      <source>Choose LoRA</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA 선택</translation>
+    </message>
+    <message id="diffusion.ui.lora.models.safetensors.gguf.all.files">
+      <source>LoRA models (*.safetensors *.gguf);;All files (*)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA 모델 (*.safetensors *.gguf);;모든 파일 (*)</translation>
+    </message>
+    <message id="diffusion.ui.lora.file">
+      <source>LoRA file…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA 파일…</translation>
+    </message>
+    <message id="diffusion.ui.choose.lora.file">
+      <source>Choose LoRA file</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA 파일 선택</translation>
+    </message>
+    <message id="diffusion.ui.remove.lora">
+      <source>Remove LoRA</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA 제거</translation>
+    </message>
+    <message id="diffusion.ui.enabled.by.default">
+      <source>Enabled by default</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>기본으로 사용</translation>
+    </message>
+    <message id="diffusion.ui.lora.enabled.by.default">
+      <source>LoRA enabled by default</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA 기본으로 사용</translation>
+    </message>
+    <message id="diffusion.ui.friendly.name">
+      <source>Friendly name</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>표시 이름</translation>
+    </message>
+    <message id="diffusion.ui.add.lora">
+      <source>Add LoRA</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA 추가</translation>
+    </message>
+    <message id="diffusion.ui.loras.optional">
+      <source>LoRAs (optional)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRAs(선택 사항)</translation>
+    </message>
+    <message id="diffusion.ui.generate.image">
+      <source>Generate Image…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이미지 생성…</translation>
+    </message>
+    <message id="diffusion.ui.edit.current.layer">
+      <source>Edit Current Layer…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>현재 레이어 편집…</translation>
+    </message>
+    <message id="diffusion.ui.generative.fill.2">
+      <source>Generative Fill…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성형 채우기…</translation>
+    </message>
+    <message id="diffusion.ui.ai.image.editor.2">
+      <source>AI Image Editor…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI 이미지 편집기…</translation>
+    </message>
+    <message id="diffusion.ui.unloading.model">
+      <source>Unloading model…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>모델 언로드 중…</translation>
+    </message>
+    <message id="diffusion.ui.variation.1">
+      <source>Variation %1</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>변형 %1</translation>
+    </message>
+    <message id="diffusion.ui.generation.done">
+      <source>Generation done</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성 완료</translation>
+    </message>
+    <message id="diffusion.ui.ready.1.s.inspect.the.result.before">
+      <source>Ready · %1 s — inspect the result before applying.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>준비됨 · %1 s — 적용 전에 결과를 확인하세요.</translation>
+    </message>
+    <message id="diffusion.ui.generation.failed">
+      <source>Generation failed</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성 실패</translation>
+    </message>
+    <message id="diffusion.ui.cancelled.previous.successful.variations.are.still.available">
+      <source>Cancelled. Previous successful variations are still available.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>취소했습니다. 이전 생성 결과는 계속 사용할 수 있습니다.</translation>
+    </message>
+    <message id="diffusion.ui.generation.cancelled">
+      <source>Generation cancelled</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성 취소됨</translation>
+    </message>
+    <message id="diffusion.ui.generate.again.to.restart.the.worker">
+      <source> Generate again to restart the worker.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation> 다시 생성하면 워커가 재시작됩니다.</translation>
+    </message>
+    <message id="diffusion.ui.model.unloaded.generate.again.to.load.a">
+      <source>Model unloaded. Generate again to load a configuration.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>모델을 언로드했습니다. 다시 생성하면 구성을 불러옵니다.</translation>
+    </message>
+    <message id="diffusion.ui.this.model.generates.from.text.only.choose.2">
+      <source>This model generates from text only. Choose an editing model to edit a layer or selection.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이 모델은 텍스트로만 생성합니다. 레이어나 선택 영역을 편집하려면 편집을 지원하는 모델을 선택하세요.</translation>
+    </message>
+    <message id="diffusion.ui.select.a.raster.layer.to.start.an">
+      <source>Select a raster layer to start an editing session.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>래스터 레이어를 선택하여 편집을 시작하세요.</translation>
+    </message>
+    <message id="diffusion.ui.make.a.selection.before.using.generative.fill">
+      <source>Make a selection before using Generative Fill.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성형 채우기를 사용하기 전에 선택 영역을 만드세요.</translation>
+    </message>
+    <message id="diffusion.ui.target.visible.canvas">
+      <source>Target · visible canvas</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>대상 · 보이는 캔버스</translation>
+    </message>
+    <message id="diffusion.ui.target.raw.layer.pixels">
+      <source>Target · raw layer pixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>대상 · 레이어 원본 픽셀</translation>
+    </message>
+    <message id="diffusion.ui.target.captured.you.can.keep.editing.changed">
+      <source>Target captured. You can keep editing; changed targets are checked before generation and Apply.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>대상을 캡처했습니다. 계속 편집할 수 있으며 생성 및 적용 전에 대상 변경 사항을 확인합니다.</translation>
+    </message>
+    <message id="diffusion.ui.add.an.input.image.before.generating.an">
+      <source>Add an input image before generating an edit.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>편집 결과를 생성하기 전에 입력 이미지를 추가하세요.</translation>
+    </message>
+    <message id="diffusion.ui.select.a.raster.layer.and.a.selection">
+      <source>Select a raster layer and a selection for Generative Fill.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성형 채우기를 사용하려면 래스터 레이어를 선택하고 선택 영역을 만드세요.</translation>
+    </message>
+    <message id="diffusion.ui.enter.a.prompt.before.generating">
+      <source>Enter a prompt before generating.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성 전에 프롬프트를 입력하세요.</translation>
+    </message>
+    <message id="diffusion.ui.preparing.inference">
+      <source>Preparing inference…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>추론 준비 중…</translation>
+    </message>
+    <message id="diffusion.ui.preparing.generation">
+      <source>Preparing generation…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성 준비 중…</translation>
+    </message>
+    <message id="diffusion.ui.update.the.inference.worker.to.use.loras">
+      <source>Update the inference worker to use LoRAs.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA를 사용하려면 추론 워커를 업데이트하세요.</translation>
+    </message>
+    <message id="diffusion.ui.generation.could.not.start">
+      <source>Generation could not start</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성을 시작할 수 없음</translation>
+    </message>
+    <message id="diffusion.ui.update.the.inference.worker.to.use.native">
+      <source>Update the inference worker to use native FLUX.3 image and region references.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>FLUX.3 고유 이미지 및 영역 참조를 사용하려면 추론 워커를 업데이트하세요.</translation>
+    </message>
+    <message id="diffusion.ui.update.the.inference.worker.to.use.the">
+      <source>Update the inference worker to use the input-size limit.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>입력 크기 제한을 사용하려면 추론 워커를 업데이트하세요.</translation>
+    </message>
+    <message id="diffusion.ui.update.the.inference.worker.to.use.region">
+      <source>Update the inference worker to use region descriptions, output scenes and linked destinations.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>영역 설명, 출력 장면, 연결된 대상 영역을 사용하려면 추론 워커를 업데이트하세요.</translation>
+    </message>
+    <message id="diffusion.ui.the.installed.inference.worker.does.not.support">
+      <source>The installed inference worker does not support per-image regions. Update the worker before generating with input regions.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>설치된 추론 워커는 이미지별 영역을 지원하지 않습니다. 입력 영역으로 생성하기 전에 워커를 업데이트하세요.</translation>
+    </message>
+    <message id="diffusion.ui.1.is.unavailable.the.installed.worker.provides">
+      <source>%1 is unavailable: the installed worker provides %2.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1을(를) 사용할 수 없습니다. 설치된 워커는 %2을(를) 제공합니다.</translation>
+    </message>
+    <message id="diffusion.ui.loading.the.selected.model">
+      <source>Loading the selected model…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>선택한 모델 불러오는 중…</translation>
+    </message>
+    <message id="diffusion.ui.loading.ai.model">
+      <source>Loading AI model…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI 모델 불러오는 중…</translation>
+    </message>
+    <message id="diffusion.ui.generating.you.can.inspect.previous.variations.while">
+      <source>Generating… You can inspect previous variations while this job runs.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성 중… 작업 중에도 이전 결과를 살펴볼 수 있습니다.</translation>
+    </message>
+    <message id="diffusion.ui.the.generated.image.is.no.longer.available">
+      <source>The generated image is no longer available.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성된 이미지를 더 이상 사용할 수 없습니다.</translation>
+    </message>
+    <message id="diffusion.ui.ai.image">
+      <source>AI image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI 이미지</translation>
+    </message>
+    <message id="diffusion.ui.open.a.document.or.choose.create.new">
+      <source>Open a document or choose Create New Document.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>문서를 열거나 새 문서로 열기를 선택하세요.</translation>
+    </message>
+    <message id="diffusion.ui.finish.the.current.document.interaction.before.applying">
+      <source>Finish the current document interaction before applying this result.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>현재 문서 작업을 마친 후 이 결과를 적용하세요.</translation>
+    </message>
+    <message id="diffusion.ui.select.a.raster.layer.to.replace">
+      <source>Select a raster layer to replace.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>교체할 래스터 레이어를 선택하세요.</translation>
+    </message>
+    <message id="diffusion.ui.ai.result.applied">
+      <source>AI result applied</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI 결과 적용됨</translation>
+    </message>
+    <message id="diffusion.ui.cancelling">
+      <source>Cancelling…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>취소 중…</translation>
+    </message>
+    <message id="diffusion.ui.generation.cancelled.2">
+      <source>Generation cancelled.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성이 취소되었습니다.</translation>
+    </message>
+    <message id="diffusion.ui.this.input.has.no.pixels.inside.its">
+      <source>This input has no pixels inside its canvas.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이 입력의 캔버스 안에 픽셀이 없습니다.</translation>
+    </message>
+    <message id="diffusion.ui.select.an.input.image.or.a.layer">
+      <source>Select an input image or a layer first.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>먼저 입력 이미지나 레이어를 선택하세요.</translation>
+    </message>
+    <message id="diffusion.ui.select.an.image.layer.rather.than.a">
+      <source>Select an image layer rather than a container.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>컨테이너 대신 이미지 레이어를 선택하세요.</translation>
+    </message>
+    <message id="diffusion.ui.the.selected.layer.has.no.visible.bounds">
+      <source>The selected layer has no visible bounds.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>선택한 레이어에 보이는 영역이 없습니다.</translation>
+    </message>
+    <message id="diffusion.ui.add.reference.image">
+      <source>Add reference image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>참조 이미지 추가</translation>
+    </message>
+    <message id="diffusion.ui.images.png.jpg.jpeg.webp.bmp.tif">
+      <source>Images (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이미지 (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff)</translation>
+    </message>
+    <message id="diffusion.ui.file">
+      <source>File</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>파일</translation>
+    </message>
+    <message id="diffusion.ui.reference.layer">
+      <source>Reference layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>참조 레이어</translation>
+    </message>
+    <message id="diffusion.ui.document.layer">
+      <source>Document / layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>문서 / 레이어</translation>
+    </message>
+    <message id="diffusion.ui.open.a.document.before.adding.this.input">
+      <source>Open a document before adding this input.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이 입력을 추가하기 전에 문서를 여세요.</translation>
+    </message>
+    <message id="diffusion.ui.visible.canvas">
+      <source>Visible canvas</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>보이는 캔버스</translation>
+    </message>
+    <message id="diffusion.ui.select.a.layer.first">
+      <source>Select a layer first.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>먼저 레이어를 선택하세요.</translation>
+    </message>
+    <message id="diffusion.ui.raw.pixels">
+      <source>Raw pixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>원본 픽셀</translation>
+    </message>
+    <message id="diffusion.ui.rendered.appearance.isolated.layer">
+      <source>Rendered appearance · isolated layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>렌더링된 모습 · 개별 레이어</translation>
+    </message>
+    <message id="diffusion.ui.close.document">
+      <source>Close document?</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>문서를 닫을까요?</translation>
+    </message>
+    <message id="diffusion.ui.quit.vulkana">
+      <source>Quit Vulkana?</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Vulkana를 종료할까요?</translation>
+    </message>
+    <message id="diffusion.ui.ai.generation.is.using.an.image.captured">
+      <source>AI generation is using an image captured from this document. Generation will continue if you close it. You can still add the result to another document or open it as a new document.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI가 이 문서에서 캡처한 이미지로 생성 중입니다. 문서를 닫아도 생성은 계속됩니다. 결과를 다른 문서에 추가하거나 새 문서로 열 수 있습니다.</translation>
+    </message>
+    <message id="diffusion.ui.ai.generation.is.still.running.quitting.vulkana">
+      <source>AI generation is still running. Quitting Vulkana will cancel it.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI가 아직 생성 중입니다. Vulkana를 종료하면 생성이 취소됩니다.</translation>
+    </message>
+    <message id="diffusion.ui.close.document.2">
+      <source>Close document</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>문서 닫기</translation>
+    </message>
+    <message id="diffusion.ui.quit">
+      <source>Quit</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>종료</translation>
+    </message>
+    <message id="diffusion.ui.view.latest.preview">
+      <source>View latest preview</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>최신 미리보기 보기</translation>
+    </message>
+    <message id="diffusion.ui.dismiss.notification">
+      <source>Dismiss notification</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>알림 닫기</translation>
+    </message>
+    <message id="diffusion.ui.target">
+      <source> · Target</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation> · 대상</translation>
+    </message>
+    <message id="diffusion.ui.ai">
+      <source>AI</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI</translation>
+    </message>
+    <message id="diffusion.ui.loras">
+      <source>LoRAs</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA</translation>
+    </message>
+    <message id="diffusion.ui.delete.1">
+      <source>Delete “%1”?</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>“%1”을(를) 삭제할까요?</translation>
+    </message>
+    <message id="diffusion.ui.show.1.in.generate">
+      <source>Show %1 in Generate</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성 탭에 %1 표시</translation>
+    </message>
+    <message id="diffusion.ui.1.override">
+      <source>%1 override</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1 재정의</translation>
+    </message>
+    <message id="diffusion.ui.reset.1.to.configuration.default">
+      <source>Reset %1 to configuration default</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1을(를) 구성 기본값으로 초기화</translation>
+    </message>
+    <message id="diffusion.ui.1.copy">
+      <source>%1 copy</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1 복사본</translation>
+    </message>
+    <message id="diffusion.ui.1.unavailable">
+      <source>%1 (unavailable)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1 (사용 불가)</translation>
+    </message>
+    <message id="diffusion.ui.ai.image.preview.1">
+      <source>AI image preview — %1</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI 이미지 미리보기 — %1</translation>
+    </message>
+    <message id="diffusion.ui.left.1.right.result.drag.the.divider">
+      <source>Left: %1 · Right: Result. Drag the divider to compare.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>왼쪽: %1 · 오른쪽: 결과. 구분선을 드래그하여 비교하세요.</translation>
+    </message>
+    <message id="diffusion.ui.edit.image">
+      <source> · Edit image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation> · 이미지 편집</translation>
+    </message>
+    <message id="diffusion.ui.1.regions">
+      <source> · %1 regions</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation> · 영역 %1개</translation>
+    </message>
+    <message id="diffusion.ui.cropped.to.the.source.canvas">
+      <source>
+Cropped to the source canvas.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>
+원본 캔버스 경계로 잘렸습니다.</translation>
+    </message>
+    <message id="diffusion.ui.double.click.to.inspect.and.edit.this">
+      <source>
+Double-click to inspect and edit this image’s regions. Image numbers follow the list order.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>
+두 번 클릭하여 이 이미지의 영역을 확인하고 편집하세요. 이미지 번호는 목록 순서를 따릅니다.</translation>
+    </message>
+    <message id="diffusion.ui.seed.1">
+      <source> · Seed %1</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation> · 시드 %1</translation>
+    </message>
+    <message id="diffusion.ui.requested.1.2.px">
+      <source>
+Requested: %1 × %2 px</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>
+요청 크기: %1 × %2 px</translation>
+    </message>
+    <message id="diffusion.ui.1.inference.worker.is.not.installed.choose">
+      <source>%1 inference worker is not installed. Choose an available backend.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1 추론 워커가 설치되어 있지 않습니다. 사용 가능한 백엔드를 선택하세요.</translation>
+    </message>
+    <message id="diffusion.ui.disk">
+      <source>Disk</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>디스크</translation>
+    </message>
+    <message id="diffusion.ui.manual">
+      <source>Manual</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>수동</translation>
+    </message>
+    <message id="diffusion.ui.on">
+      <source>On</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>켜짐</translation>
+    </message>
+    <message id="diffusion.ui.off">
+      <source>Off</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>꺼짐</translation>
+    </message>
+    <message id="diffusion.ui.disabled">
+      <source>Disabled</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>사용 안 함</translation>
+    </message>
+    <message id="diffusion.ui.generate.image.2">
+      <source>Generate image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이미지 생성</translation>
+    </message>
+    <message id="diffusion.ui.edit.image.2">
+      <source>Edit image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이미지 편집</translation>
+    </message>
+    <message id="diffusion.ui.replace.background">
+      <source>Replace background</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>배경 교체</translation>
+    </message>
+    <message id="diffusion.ui.remove.background">
+      <source>Remove background</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>배경 제거</translation>
     </message>
   </context>
 </TS>

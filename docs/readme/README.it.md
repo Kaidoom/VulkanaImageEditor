@@ -15,6 +15,9 @@ con un’area di lavoro Qt e una tela accelerata da Vulkan.
 - **Modifica a livelli:** livelli raster, testo e forme modificabili; maschere
   bitmap, cartelle, gruppi di maschere di ritaglio, selezione multipla, metodi di
   fusione, duplicazione, unione e rasterizzazione esplicita.
+- **Gruppi di canali:** modifica i singoli canali come livelli in scala di grigi
+  per texture con dati combinati, con conversione senza perdita, pittura numerica,
+  ritocco e regolazioni. Consulta la [guida ai gruppi di canali](../CHANNEL_GROUPS.md).
 - **Pittura e ritocco:** pennelli sensibili alla pressione, preimpostazioni
   procedurali e con texture, gomma, riempimento, sfocatura locale, timbro clone,
   pennello correttivo e correzione al volo automatica.
@@ -26,6 +29,10 @@ con un’area di lavoro Qt e una tela accelerata da Vulkan.
   selezioni e le maschere bitmap con Perfeziona selezione, anteprime in tempo reale
   e correzioni manuali. Per usare Selezione oggetto non occorre scaricare un modello
   né installare Python.
+- **Modifica locale con IA:** genera immagini, modifica livelli e riempi selezioni
+  con i tuoi modelli e il motore CUDA facoltativo. Visualizza i risultati prima di
+  applicarli come modifiche annullabili. Richiede una GPU NVIDIA compatibile;
+  consulta [Vulkana Diffusion](../../DIFFUSION.md).
 - **Trasformazioni:** spostamento, ridimensionamento, rotazione, riflessione e
   distorsione dagli angoli; trasforma i contorni della selezione o i pixel
   selezionati, con aggancio e guide di allineamento.

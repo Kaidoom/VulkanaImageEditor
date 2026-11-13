@@ -7057,172 +7057,442 @@ Chamfer: pull corners inward; Alt also changes the opposite corner. Side handles
   </context>
   <context>
     <name>Project file integration</name>
-    <message id="project.integration.title"><source>Register Vulkana project files?</source></message>
-    <message id="project.integration.description"><source>Show saved canvas previews in File Explorer and add Vulkana to Open with for .vulkana files. This applies only to your Windows account and does not need administrator access. Your existing default app stays unchanged.</source></message>
-    <message id="project.integration.location"><source>Newer portable versions update registration when launched. Keep the registered folder in place. If you move the same version, use Register Vulkana project files in Preferences → General.</source></message>
-    <message id="project.integration.register"><source>Register</source></message>
-    <message id="project.integration.remove"><source>Remove registration</source></message>
-    <message id="project.integration.decline"><source>No thanks</source></message>
-    <message id="project.integration.close"><source>Close</source></message>
-    <message id="project.integration.preferences"><source>Register Vulkana project files…</source></message>
+    <message id="project.integration.title">
+      <source>Register Vulkana project files?</source>
+    </message>
+    <message id="project.integration.description">
+      <source>Show saved canvas previews in File Explorer and add Vulkana to Open with for .vulkana files. This applies only to your Windows account and does not need administrator access. Your existing default app stays unchanged.</source>
+    </message>
+    <message id="project.integration.location">
+      <source>Newer portable versions update registration when launched. Keep the registered folder in place. If you move the same version, use Register Vulkana project files in Preferences → General.</source>
+    </message>
+    <message id="project.integration.register">
+      <source>Register</source>
+    </message>
+    <message id="project.integration.remove">
+      <source>Remove registration</source>
+    </message>
+    <message id="project.integration.decline">
+      <source>No thanks</source>
+    </message>
+    <message id="project.integration.close">
+      <source>Close</source>
+    </message>
+    <message id="project.integration.preferences">
+      <source>Register Vulkana project files…</source>
+    </message>
   </context>
   <context>
     <name>Canvas clipboard</name>
-    <message id="clipboard.copy.canvas"><source>Copy canvas to clipboard</source></message>
-    <message id="clipboard.copy.canvas.hint"><source>Copy the full canvas at its original size, including visible layers and transparency.</source></message>
-    <message id="clipboard.copy.canvas.preparing"><source>Preparing canvas for clipboard…</source></message>
-    <message id="clipboard.copy.canvas.finish.edit"><source>Finish or cancel the current selection or shape edit before copying the canvas.</source></message>
-    <message id="clipboard.copy.canvas.failed"><source>Could not copy the canvas: %1</source></message>
-    <message id="clipboard.copy.canvas.done"><source>Canvas copied to clipboard · %1 × %2 px</source></message>
+    <message id="clipboard.copy.canvas">
+      <source>Copy canvas to clipboard</source>
+    </message>
+    <message id="clipboard.copy.canvas.hint">
+      <source>Copy the full canvas at its original size, including visible layers and transparency.</source>
+    </message>
+    <message id="clipboard.copy.canvas.preparing">
+      <source>Preparing canvas for clipboard…</source>
+    </message>
+    <message id="clipboard.copy.canvas.finish.edit">
+      <source>Finish or cancel the current selection or shape edit before copying the canvas.</source>
+    </message>
+    <message id="clipboard.copy.canvas.failed">
+      <source>Could not copy the canvas: %1</source>
+    </message>
+    <message id="clipboard.copy.canvas.done">
+      <source>Canvas copied to clipboard · %1 × %2 px</source>
+    </message>
   </context>
   <context>
     <name>Screenshot capture</name>
-    <message id="screenshot.action"><source>Take Screenshot…</source></message>
-    <message id="screenshot.title"><source>Screenshot</source></message>
-    <message id="screenshot.document"><source>Screenshot</source></message>
-    <message id="screenshot.preview"><source>Screenshot crop preview</source></message>
-    <message id="screenshot.close"><source>Close screenshot</source></message>
-    <message id="screenshot.desktop.chooser"><source>Desktop chooser</source></message>
-    <message id="screenshot.entire.desktop"><source>Entire desktop</source></message>
-    <message id="screenshot.active.window"><source>Active window</source></message>
-    <message id="screenshot.target"><source>Capture source</source></message>
-    <message id="screenshot.delay"><source>Delay: </source></message>
-    <message id="screenshot.capture"><source>Capture</source></message>
-    <message id="screenshot.retake"><source>Retake</source></message>
-    <message id="screenshot.reset.crop"><source>Reset Crop</source></message>
-    <message id="screenshot.reset.zoom"><source>Reset Zoom</source></message>
-    <message id="screenshot.add.layer"><source>Add as Layer</source></message>
-    <message id="screenshot.add.layer.hint"><source>Add the crop to the current document as an undoable raster layer.</source></message>
-    <message id="screenshot.stop"><source>Cancel Capture</source></message>
-    <message id="screenshot.cancel"><source>Cancel</source></message>
-    <message id="screenshot.open"><source>Open as New Document</source></message>
-    <message id="screenshot.chooser.hint"><source>Vulkana minimizes while you choose what to capture using your desktop's screenshot chooser.</source></message>
-    <message id="screenshot.native.hint"><source>Vulkana minimizes during capture. For Active Window, switch to your target during the delay. Restore Vulkana to cancel.</source></message>
-    <message id="screenshot.crop.hint"><source>Scroll to zoom; middle mouse to pan. Drag to crop or adjust its corners. Arrow keys move the crop; Shift moves 10 pixels.</source></message>
-    <message id="screenshot.empty"><source>Capture a screenshot to preview and crop it here.</source></message>
-    <message id="screenshot.countdown"><source>Capturing in %1 s…</source></message>
-    <message id="screenshot.waiting"><source>Waiting for capture…</source></message>
-    <message id="screenshot.cancelled"><source>Capture cancelled.</source></message>
-    <message id="screenshot.dimensions"><source>%1 × %2 px</source></message>
-    <message id="screenshot.failed"><source>Could not capture or open the screenshot: %1</source></message>
+    <message id="screenshot.action">
+      <source>Take Screenshot…</source>
+    </message>
+    <message id="screenshot.title">
+      <source>Screenshot</source>
+    </message>
+    <message id="screenshot.document">
+      <source>Screenshot</source>
+    </message>
+    <message id="screenshot.preview">
+      <source>Screenshot crop preview</source>
+    </message>
+    <message id="screenshot.close">
+      <source>Close screenshot</source>
+    </message>
+    <message id="screenshot.desktop.chooser">
+      <source>Desktop chooser</source>
+    </message>
+    <message id="screenshot.entire.desktop">
+      <source>Entire desktop</source>
+    </message>
+    <message id="screenshot.active.window">
+      <source>Active window</source>
+    </message>
+    <message id="screenshot.target">
+      <source>Capture source</source>
+    </message>
+    <message id="screenshot.delay">
+      <source>Delay: </source>
+    </message>
+    <message id="screenshot.capture">
+      <source>Capture</source>
+    </message>
+    <message id="screenshot.retake">
+      <source>Retake</source>
+    </message>
+    <message id="screenshot.reset.crop">
+      <source>Reset Crop</source>
+    </message>
+    <message id="screenshot.reset.zoom">
+      <source>Reset Zoom</source>
+    </message>
+    <message id="screenshot.add.layer">
+      <source>Add as Layer</source>
+    </message>
+    <message id="screenshot.add.layer.hint">
+      <source>Add the crop to the current document as an undoable raster layer.</source>
+    </message>
+    <message id="screenshot.stop">
+      <source>Cancel Capture</source>
+    </message>
+    <message id="screenshot.cancel">
+      <source>Cancel</source>
+    </message>
+    <message id="screenshot.open">
+      <source>Open as New Document</source>
+    </message>
+    <message id="screenshot.chooser.hint">
+      <source>Vulkana minimizes while you choose what to capture using your desktop's screenshot chooser.</source>
+    </message>
+    <message id="screenshot.native.hint">
+      <source>Vulkana minimizes during capture. For Active Window, switch to your target during the delay. Restore Vulkana to cancel.</source>
+    </message>
+    <message id="screenshot.crop.hint">
+      <source>Scroll to zoom; middle mouse to pan. Drag to crop or adjust its corners. Arrow keys move the crop; Shift moves 10 pixels.</source>
+    </message>
+    <message id="screenshot.empty">
+      <source>Capture a screenshot to preview and crop it here.</source>
+    </message>
+    <message id="screenshot.countdown">
+      <source>Capturing in %1 s…</source>
+    </message>
+    <message id="screenshot.waiting">
+      <source>Waiting for capture…</source>
+    </message>
+    <message id="screenshot.cancelled">
+      <source>Capture cancelled.</source>
+    </message>
+    <message id="screenshot.dimensions">
+      <source>%1 × %2 px</source>
+    </message>
+    <message id="screenshot.failed">
+      <source>Could not capture or open the screenshot: %1</source>
+    </message>
   </context>
   <context>
     <name>Performance preferences</name>
-    <message id="performance.title"><source>Performance</source></message>
-    <message id="performance.gpu"><source>Graphics device</source></message>
-    <message id="performance.undo"><source>Undo memory per document</source></message>
-    <message id="performance.cpu.cache"><source>Document cache per window</source></message>
-    <message id="performance.gpu.cache"><source>GPU texture cache per window</source></message>
-    <message id="performance.threads"><source>Image-processing threads</source></message>
-    <message id="performance.object.threads"><source>Object Selection threads</source></message>
-    <message id="performance.auto"><source>Auto</source></message>
-    <message id="performance.auto.memory"><source>Auto (%1 MiB)</source></message>
-    <message id="performance.auto.threads"><source>Auto (up to %1)</source></message>
-    <message id="performance.restart.note"><source>GPU and thread changes require a restart. Object Selection runs on the CPU.</source></message>
-    <message id="performance.memory.note"><source>Budgets are retention targets, not total RAM/VRAM limits. Undo trims on later edits.</source></message>
-    <message id="performance.usage"><source>RAM (process): %1&#10;Undo: %2 (current), %3 (all tabs)&#10;Document cache: %4 · GPU texture cache: %5&#10;Rendering GPU: %6</source></message>
-    <message id="performance.clear"><source>Clear Inactive Caches</source></message>
-    <message id="performance.clear.hint"><source>Release cached previews and textures for inactive tabs in this window. Source pixels and undo history stay intact.</source></message>
-    <message id="performance.defaults"><source>Restore Defaults</source></message>
-    <message id="performance.gpu.changed.title"><source>Graphics device changed</source></message>
-    <message id="performance.gpu.changed.message"><source>The selected GPU (%1) could not be used. Falling back to %2.</source></message>
-    <message id="performance.gpu.changed.unknown"><source>The selected GPU could not be used. Falling back to %1.</source></message>
-    <message id="performance.gpu.unavailable"><source>Saved device (unavailable)</source></message>
-    <message id="performance.gpu.check.hint"><source>GPU availability is checked on restart. If a device cannot display the canvas, Vulkana uses another GPU.</source></message>
-    <message id="performance.gpu.failed.item"><source>%1 — startup check failed</source></message>
-    <message id="performance.gpu.unsupported.item"><source>%1 — unavailable for this display</source></message>
-    <message id="performance.unknown"><source>Unavailable</source></message>
-    <message id="performance.undo.warning.title"><source>Reduce Undo Memory?</source></message>
-    <message id="performance.undo.warning"><source>Older undo steps may be discarded as you make new edits. This cannot be reversed by raising the budget later. Continue?</source></message>
+    <message id="performance.title">
+      <source>Performance</source>
+    </message>
+    <message id="performance.gpu">
+      <source>Graphics device</source>
+    </message>
+    <message id="performance.undo">
+      <source>Undo memory per document</source>
+    </message>
+    <message id="performance.cpu.cache">
+      <source>Document cache per window</source>
+    </message>
+    <message id="performance.gpu.cache">
+      <source>GPU texture cache per window</source>
+    </message>
+    <message id="performance.threads">
+      <source>Image-processing threads</source>
+    </message>
+    <message id="performance.object.threads">
+      <source>Object Selection threads</source>
+    </message>
+    <message id="performance.auto">
+      <source>Auto</source>
+    </message>
+    <message id="performance.auto.memory">
+      <source>Auto (%1 MiB)</source>
+    </message>
+    <message id="performance.auto.threads">
+      <source>Auto (up to %1)</source>
+    </message>
+    <message id="performance.restart.note">
+      <source>GPU and thread changes require a restart. Object Selection runs on the CPU.</source>
+    </message>
+    <message id="performance.memory.note">
+      <source>Budgets are retention targets, not total RAM/VRAM limits. Undo trims on later edits.</source>
+    </message>
+    <message id="performance.usage">
+      <source>RAM (process): %1
+Undo: %2 (current), %3 (all tabs)
+Document cache: %4 · GPU texture cache: %5
+Rendering GPU: %6</source>
+    </message>
+    <message id="performance.clear">
+      <source>Clear Inactive Caches</source>
+    </message>
+    <message id="performance.clear.hint">
+      <source>Release cached previews and textures for inactive tabs in this window. Source pixels and undo history stay intact.</source>
+    </message>
+    <message id="performance.defaults">
+      <source>Restore Defaults</source>
+    </message>
+    <message id="performance.gpu.changed.title">
+      <source>Graphics device changed</source>
+    </message>
+    <message id="performance.gpu.changed.message">
+      <source>The selected GPU (%1) could not be used. Falling back to %2.</source>
+    </message>
+    <message id="performance.gpu.changed.unknown">
+      <source>The selected GPU could not be used. Falling back to %1.</source>
+    </message>
+    <message id="performance.gpu.unavailable">
+      <source>Saved device (unavailable)</source>
+    </message>
+    <message id="performance.gpu.check.hint">
+      <source>GPU availability is checked on restart. If a device cannot display the canvas, Vulkana uses another GPU.</source>
+    </message>
+    <message id="performance.gpu.failed.item">
+      <source>%1 — startup check failed</source>
+    </message>
+    <message id="performance.gpu.unsupported.item">
+      <source>%1 — unavailable for this display</source>
+    </message>
+    <message id="performance.unknown">
+      <source>Unavailable</source>
+    </message>
+    <message id="performance.undo.warning.title">
+      <source>Reduce Undo Memory?</source>
+    </message>
+    <message id="performance.undo.warning">
+      <source>Older undo steps may be discarded as you make new edits. This cannot be reversed by raising the budget later. Continue?</source>
+    </message>
   </context>
   <context>
     <name>LayerMaskClipboard</name>
-    <message id="layer.mask.copy"><source>Copy layer mask</source></message>
-    <message id="layer.mask.paste"><source>Paste layer mask</source></message>
-    <message id="layer.mask.paste.hint"><source>Replace masks on the selected layers, keeping the copied mask's canvas position. Undo restores the previous masks.</source></message>
-    <message id="layer.mask.copy.done"><source>Layer mask copied.</source></message>
-    <message id="layer.mask.paste.failed"><source>The layer mask could not be pasted at its original position.</source></message>
+    <message id="layer.mask.copy">
+      <source>Copy layer mask</source>
+    </message>
+    <message id="layer.mask.paste">
+      <source>Paste layer mask</source>
+    </message>
+    <message id="layer.mask.paste.hint">
+      <source>Replace masks on the selected layers, keeping the copied mask's canvas position. Undo restores the previous masks.</source>
+    </message>
+    <message id="layer.mask.copy.done">
+      <source>Layer mask copied.</source>
+    </message>
+    <message id="layer.mask.paste.failed">
+      <source>The layer mask could not be pasted at its original position.</source>
+    </message>
   </context>
   <context>
     <name>LayerOpacity</name>
-    <message id="layer.opacity.layer.prefix"><source>Layer opacity: </source></message>
-    <message id="layer.opacity.pixel.prefix"><source>Pixel opacity: </source></message>
-    <message id="layer.opacity.pixel"><source>Pixel opacity</source></message>
-    <message id="layer.opacity.switch"><source>Switch opacity control</source></message>
-    <message id="layer.opacity.switch.layer"><source>Show Layer opacity</source></message>
-    <message id="layer.opacity.switch.pixel"><source>Show Pixel opacity (Fill)</source></message>
-    <message id="layer.opacity.layer.help"><source>Fade the entire layer, including its effects.</source></message>
-    <message id="layer.opacity.pixel.help"><source>Photoshop Fill: fade the layer content while keeping its effects. Some blend modes respond differently than Layer opacity.</source></message>
+    <message id="layer.opacity.layer.prefix">
+      <source>Layer opacity: </source>
+    </message>
+    <message id="layer.opacity.pixel.prefix">
+      <source>Pixel opacity: </source>
+    </message>
+    <message id="layer.opacity.pixel">
+      <source>Pixel opacity</source>
+    </message>
+    <message id="layer.opacity.switch">
+      <source>Switch opacity control</source>
+    </message>
+    <message id="layer.opacity.switch.layer">
+      <source>Show Layer opacity</source>
+    </message>
+    <message id="layer.opacity.switch.pixel">
+      <source>Show Pixel opacity (Fill)</source>
+    </message>
+    <message id="layer.opacity.layer.help">
+      <source>Fade the entire layer, including its effects.</source>
+    </message>
+    <message id="layer.opacity.pixel.help">
+      <source>Photoshop Fill: fade the layer content while keeping its effects. Some blend modes respond differently than Layer opacity.</source>
+    </message>
   </context>
   <context>
     <name>History</name>
-    <message id="history.layer.pixel.opacity"><source>Layer pixel opacity</source><extracomment>Core history label: Layer pixel opacity</extracomment></message>
+    <message id="history.layer.pixel.opacity">
+      <source>Layer pixel opacity</source>
+      <extracomment>Core history label: Layer pixel opacity</extracomment>
+    </message>
   </context>
   <context>
     <name>GraphicsStartup</name>
-    <message id="graphics.startup.aborting"><source>Aborting…</source></message>
-    <message id="graphics.startup.closing"><source>Waiting for the graphics driver before closing.</source></message>
-    <message id="graphics.startup.title"><source>Initializing graphics…</source></message>
-    <message id="graphics.startup.detail"><source>Preparing shaders. This may take a few seconds.</source></message>
+    <message id="graphics.startup.aborting">
+      <source>Aborting…</source>
+    </message>
+    <message id="graphics.startup.closing">
+      <source>Waiting for the graphics driver before closing.</source>
+    </message>
+    <message id="graphics.startup.title">
+      <source>Initializing graphics…</source>
+    </message>
+    <message id="graphics.startup.detail">
+      <source>Preparing shaders. This may take a few seconds.</source>
+    </message>
   </context>
   <context>
     <name>LayerInfo</name>
-    <message id="preferences.layer.info"><source>Show layer info</source></message>
-    <message id="preferences.layer.info.hint"><source>Show non-Normal blend modes and active effect icons on layer rows.</source></message>
+    <message id="preferences.layer.info">
+      <source>Show layer info</source>
+    </message>
+    <message id="preferences.layer.info.hint">
+      <source>Show non-Normal blend modes and active effect icons on layer rows.</source>
+    </message>
   </context>
   <context>
     <name>CanvasResize</name>
-    <message id="canvas.resize.action"><source>Quick canvas resize</source></message>
-    <message id="canvas.resize.to.layer"><source>Canvas size to selected layer</source></message>
-    <message id="canvas.resize.to.layer.hint"><source>Fit the canvas to the selected layer's bounds without resampling its pixels.</source></message>
-    <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source></message>
-    <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source></message>
-    <message id="canvas.resize.reset"><source>Reset to the original canvas bounds</source></message>
-    <message id="canvas.resize.apply"><source>Apply canvas resize · {{FinishOperationAction}} / right-click</source></message>
-    <message id="canvas.resize.cancel"><source>Cancel canvas resize · Escape</source></message>
-    <message id="canvas.resize.done"><source>Canvas resized to %1 × %2 px</source></message>
-    <message id="canvas.resize.undo"><source>Undo canvas resize adjustment</source></message>
-    <message id="canvas.resize.redo"><source>Redo canvas resize adjustment</source></message>
+    <message id="canvas.resize.action">
+      <source>Quick canvas resize</source>
+    </message>
+    <message id="canvas.resize.to.layer">
+      <source>Canvas size to selected layer</source>
+    </message>
+    <message id="canvas.resize.to.layer.hint">
+      <source>Fit the canvas to the selected layer's bounds without resampling its pixels.</source>
+    </message>
+    <message id="canvas.resize.hint">
+      <source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source>
+    </message>
+    <message id="canvas.resize.ratio">
+      <source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source>
+    </message>
+    <message id="canvas.resize.reset">
+      <source>Reset to the original canvas bounds</source>
+    </message>
+    <message id="canvas.resize.apply">
+      <source>Apply canvas resize · {{FinishOperationAction}} / right-click</source>
+    </message>
+    <message id="canvas.resize.cancel">
+      <source>Cancel canvas resize · Escape</source>
+    </message>
+    <message id="canvas.resize.done">
+      <source>Canvas resized to %1 × %2 px</source>
+    </message>
+    <message id="canvas.resize.undo">
+      <source>Undo canvas resize adjustment</source>
+    </message>
+    <message id="canvas.resize.redo">
+      <source>Redo canvas resize adjustment</source>
+    </message>
   </context>
   <context>
     <name>CompactProperties</name>
-    <message id="properties.info.title"><source>Layer Info</source></message>
-    <message id="properties.info.size"><source>Size</source></message>
-    <message id="properties.info.angle"><source>Angle</source></message>
-    <message id="properties.info.position"><source>Position</source></message>
-    <message id="properties.info.font"><source>Font</source></message>
-    <message id="properties.info.color"><source>Color</source></message>
-    <message id="properties.info.whole.text"><source>Changes apply to the entire text layer.</source></message>
-    <message id="properties.info.folder"><source>Folder</source></message>
-    <message id="properties.info.group"><source>Group</source></message>
-    <message id="properties.info.adjustment"><source>Adjustment layer</source></message>
-    <message id="properties.info.brush.settings"><source>Brush settings</source></message>
-    <message id="properties.info.width"><source>Width</source></message>
-    <message id="properties.info.height"><source>Height</source></message>
-    <message id="properties.info.text.color"><source>Text color</source></message>
-    <message id="properties.info.mixed"><source>Mixed</source></message>
-    <message id="properties.shortcuts.sample"><source>Sample color (hold)</source></message>
-    <message id="properties.shortcuts.source"><source>Set clone/heal source</source></message>
-    <message id="properties.shortcuts.add"><source>Add to selection</source></message>
-    <message id="properties.shortcuts.subtract"><source>Subtract from selection</source></message>
-    <message id="properties.shortcuts.intersect"><source>Intersect selection</source></message>
-    <message id="properties.shortcuts.constrain"><source>Constrain direction or proportions</source></message>
-    <message id="properties.shortcuts.ratio"><source>Toggle aspect constraint</source></message>
-    <message id="properties.shortcuts.center"><source>Resize from center</source></message>
-    <message id="properties.shortcuts.cancel"><source>Cancel current operation</source></message>
-    <message id="properties.shortcuts.middle"><source>Middle mouse</source></message>
-    <message id="properties.shortcuts.pan"><source>Pan canvas</source></message>
+    <message id="properties.info.title">
+      <source>Layer Info</source>
+    </message>
+    <message id="properties.info.size">
+      <source>Size</source>
+    </message>
+    <message id="properties.info.angle">
+      <source>Angle</source>
+    </message>
+    <message id="properties.info.position">
+      <source>Position</source>
+    </message>
+    <message id="properties.info.font">
+      <source>Font</source>
+    </message>
+    <message id="properties.info.color">
+      <source>Color</source>
+    </message>
+    <message id="properties.info.whole.text">
+      <source>Changes apply to the entire text layer.</source>
+    </message>
+    <message id="properties.info.folder">
+      <source>Folder</source>
+    </message>
+    <message id="properties.info.group">
+      <source>Group</source>
+    </message>
+    <message id="properties.info.adjustment">
+      <source>Adjustment layer</source>
+    </message>
+    <message id="properties.info.brush.settings">
+      <source>Brush settings</source>
+    </message>
+    <message id="properties.info.width">
+      <source>Width</source>
+    </message>
+    <message id="properties.info.height">
+      <source>Height</source>
+    </message>
+    <message id="properties.info.text.color">
+      <source>Text color</source>
+    </message>
+    <message id="properties.info.mixed">
+      <source>Mixed</source>
+    </message>
+    <message id="properties.shortcuts.sample">
+      <source>Sample color (hold)</source>
+    </message>
+    <message id="properties.shortcuts.source">
+      <source>Set clone/heal source</source>
+    </message>
+    <message id="properties.shortcuts.add">
+      <source>Add to selection</source>
+    </message>
+    <message id="properties.shortcuts.subtract">
+      <source>Subtract from selection</source>
+    </message>
+    <message id="properties.shortcuts.intersect">
+      <source>Intersect selection</source>
+    </message>
+    <message id="properties.shortcuts.constrain">
+      <source>Constrain direction or proportions</source>
+    </message>
+    <message id="properties.shortcuts.ratio">
+      <source>Toggle aspect constraint</source>
+    </message>
+    <message id="properties.shortcuts.center">
+      <source>Resize from center</source>
+    </message>
+    <message id="properties.shortcuts.cancel">
+      <source>Cancel current operation</source>
+    </message>
+    <message id="properties.shortcuts.middle">
+      <source>Middle mouse</source>
+    </message>
+    <message id="properties.shortcuts.pan">
+      <source>Pan canvas</source>
+    </message>
   </context>
   <context>
     <name>GradientEditor</name>
-    <message id="effects.gradient.editor"><source>Gradient colors</source></message>
-    <message id="effects.gradient.editor.hint"><source>Click the gradient to add a color. Drag a stop to move it, click a stop to edit its color, or right-click to remove it.</source></message>
-    <message id="effects.gradient.stop.color"><source>Gradient color</source></message>
-    <message id="swatches.panel.gradient"><source>Gradient</source></message>
-    <message id="swatches.panel.gradient.swatches"><source>Gradient presets</source></message>
-    <message id="swatches.panel.gradient.apply.hint"><source>Apply a gradient overlay. Adjust its colors in Effects.</source></message>
-    <message id="swatches.panel.gradient.disabled.hint"><source>Select a compatible layer to apply a gradient overlay.</source></message>
-    <message id="swatches.panel.gradient.preset"><source>Gradient %1</source></message>
+    <message id="effects.gradient.editor">
+      <source>Gradient colors</source>
+    </message>
+    <message id="effects.gradient.editor.hint">
+      <source>Click the gradient to add a color. Drag a stop to move it, click a stop to edit its color, or right-click to remove it.</source>
+    </message>
+    <message id="effects.gradient.stop.color">
+      <source>Gradient color</source>
+    </message>
+    <message id="swatches.panel.gradient">
+      <source>Gradient</source>
+    </message>
+    <message id="swatches.panel.gradient.swatches">
+      <source>Gradient presets</source>
+    </message>
+    <message id="swatches.panel.gradient.apply.hint">
+      <source>Apply a gradient overlay. Adjust its colors in Effects.</source>
+    </message>
+    <message id="swatches.panel.gradient.disabled.hint">
+      <source>Select a compatible layer to apply a gradient overlay.</source>
+    </message>
+    <message id="swatches.panel.gradient.preset">
+      <source>Gradient %1</source>
+    </message>
   </context>
   <context>
     <name>BackgroundRemoval</name>
@@ -7476,65 +7746,153 @@ Prepare %3 · Finish %4 · Total %5</source>
   </context>
   <context>
     <name>McpPreferences</name>
-    <message id="mcp.preferences.title"><source>MCP</source></message>
-    <message id="mcp.preferences.start"><source>Start MCP</source></message>
-    <message id="mcp.preferences.stop"><source>Stop MCP</source></message>
-    <message id="mcp.preferences.stopped"><source>Stopped</source></message>
-    <message id="mcp.preferences.listening"><source>Listening</source></message>
-    <message id="mcp.preferences.connected"><source>Connected · Clients: %1</source></message>
-    <message id="mcp.preferences.stopping"><source>Stopping…</source></message>
-    <message id="mcp.preferences.error"><source>Error</source></message>
-    <message id="mcp.preferences.autostart"><source>Start automatically with Vulkana</source></message>
-    <message id="mcp.preferences.security"><source>Only connect clients you trust. MCP clients can modify documents and read or write files with your Vulkana host-user permissions. A client running in a container is not limited to that container's files.</source></message>
-    <message id="mcp.preferences.connection"><source>Connection</source></message>
-    <message id="mcp.preferences.local"><source>MCP uses local communication, without a network port. Multiple trusted clients can connect; editing commands run one at a time. Copy the configuration into OpenCode V2; Vulkana does not edit its configuration files.</source></message>
-    <message id="mcp.preferences.command"><source>Bridge command</source></message>
-    <message id="mcp.preferences.endpoint"><source>Endpoint</source></message>
-    <message id="mcp.preferences.copy"><source>Copy Configuration · OpenCode V2</source></message>
-    <message id="mcp.preferences.copied"><source>Copied</source></message>
-    <message id="mcp.preferences.advanced"><source>Advanced Settings</source></message>
-    <message id="mcp.preferences.custom"><source>Use a custom endpoint</source></message>
-    <message id="mcp.preferences.next.start"><source>Endpoint changes take effect on the next Start. While MCP is running, Copy Configuration uses its current endpoint.</source></message>
-    <message id="mcp.preferences.apply.note"><source>Start and Stop affect this session immediately. Apply saves automatic startup and endpoint settings; it does not restart an active connection.</source></message>
-    <message id="mcp.preferences.finishing"><source>Waiting for the current command to finish before disconnecting. Its changes are not cancelled or rolled back.</source></message>
+    <message id="mcp.preferences.title">
+      <source>MCP</source>
+    </message>
+    <message id="mcp.preferences.start">
+      <source>Start MCP</source>
+    </message>
+    <message id="mcp.preferences.stop">
+      <source>Stop MCP</source>
+    </message>
+    <message id="mcp.preferences.stopped">
+      <source>Stopped</source>
+    </message>
+    <message id="mcp.preferences.listening">
+      <source>Listening</source>
+    </message>
+    <message id="mcp.preferences.connected">
+      <source>Connected · Clients: %1</source>
+    </message>
+    <message id="mcp.preferences.stopping">
+      <source>Stopping…</source>
+    </message>
+    <message id="mcp.preferences.error">
+      <source>Error</source>
+    </message>
+    <message id="mcp.preferences.autostart">
+      <source>Start automatically with Vulkana</source>
+    </message>
+    <message id="mcp.preferences.security">
+      <source>Only connect clients you trust. MCP clients can modify documents and read or write files with your Vulkana host-user permissions. A client running in a container is not limited to that container's files.</source>
+    </message>
+    <message id="mcp.preferences.connection">
+      <source>Connection</source>
+    </message>
+    <message id="mcp.preferences.local">
+      <source>MCP uses local communication, without a network port. Multiple trusted clients can connect; editing commands run one at a time. Copy the configuration into OpenCode V2; Vulkana does not edit its configuration files.</source>
+    </message>
+    <message id="mcp.preferences.command">
+      <source>Bridge command</source>
+    </message>
+    <message id="mcp.preferences.endpoint">
+      <source>Endpoint</source>
+    </message>
+    <message id="mcp.preferences.copy">
+      <source>Copy Configuration · OpenCode V2</source>
+    </message>
+    <message id="mcp.preferences.copied">
+      <source>Copied</source>
+    </message>
+    <message id="mcp.preferences.advanced">
+      <source>Advanced Settings</source>
+    </message>
+    <message id="mcp.preferences.custom">
+      <source>Use a custom endpoint</source>
+    </message>
+    <message id="mcp.preferences.next.start">
+      <source>Endpoint changes take effect on the next Start. While MCP is running, Copy Configuration uses its current endpoint.</source>
+    </message>
+    <message id="mcp.preferences.apply.note">
+      <source>Start and Stop affect this session immediately. Apply saves automatic startup and endpoint settings; it does not restart an active connection.</source>
+    </message>
+    <message id="mcp.preferences.finishing">
+      <source>Waiting for the current command to finish before disconnecting. Its changes are not cancelled or rolled back.</source>
+    </message>
   </context>
   <context>
     <name>ShapePreview</name>
-    <message id="main.window.shape.preview.limit.named"><source>Shape “%1” (layer %2) exceeds the preview limit. Its editable data is retained.</source></message>
-    <message id="main.window.shape.preview.memory.named"><source>Not enough memory to render shape “%1” (layer %2). Its editable data is retained.</source></message>
-    <message id="main.window.shape.preview.failed.named"><source>Could not render shape “%1” (layer %2): %3. Its editable data is retained.</source></message>
-    <message id="main.window.shape.preview.reduced.named"><source>Shape “%1” (layer %2) is shown at reduced preview resolution. Its editable data is retained.</source></message>
+    <message id="main.window.shape.preview.limit.named">
+      <source>Shape “%1” (layer %2) exceeds the preview limit. Its editable data is retained.</source>
+    </message>
+    <message id="main.window.shape.preview.memory.named">
+      <source>Not enough memory to render shape “%1” (layer %2). Its editable data is retained.</source>
+    </message>
+    <message id="main.window.shape.preview.failed.named">
+      <source>Could not render shape “%1” (layer %2): %3. Its editable data is retained.</source>
+    </message>
+    <message id="main.window.shape.preview.reduced.named">
+      <source>Shape “%1” (layer %2) is shown at reduced preview resolution. Its editable data is retained.</source>
+    </message>
   </context>
   <context>
     <name>LayerSelectionFocus</name>
-    <message id="preferences.layer.focus.label"><source>Auto-scroll to selected layer</source></message>
-    <message id="preferences.layer.focus.normal"><source>Focus</source></message>
-    <message id="preferences.layer.focus.expand"><source>Focus and Expand</source></message>
-    <message id="preferences.layer.focus.hint"><source>Focus scrolls to the selected layer or its visible parent. Focus and Expand also opens collapsed parents.</source></message>
+    <message id="preferences.layer.focus.label">
+      <source>Auto-scroll to selected layer</source>
+    </message>
+    <message id="preferences.layer.focus.normal">
+      <source>Focus</source>
+    </message>
+    <message id="preferences.layer.focus.expand">
+      <source>Focus and Expand</source>
+    </message>
+    <message id="preferences.layer.focus.hint">
+      <source>Focus scrolls to the selected layer or its visible parent. Focus and Expand also opens collapsed parents.</source>
+    </message>
   </context>
   <context>
     <name>ArcShape</name>
-    <message id="shape.arc"><source>Arc</source></message>
-    <message id="shape.arc.start"><source>Start</source></message>
-    <message id="shape.arc.sweep"><source>Sweep</source></message>
-    <message id="shape.arc.start.hint"><source>Start angle in degrees. Zero points right; positive angles run clockwise.</source></message>
-    <message id="shape.arc.sweep.hint"><source>Arc length in degrees. Positive runs clockwise; negative runs counterclockwise. 360 makes a full ellipse.</source></message>
+    <message id="shape.arc">
+      <source>Arc</source>
+    </message>
+    <message id="shape.arc.start">
+      <source>Start</source>
+    </message>
+    <message id="shape.arc.sweep">
+      <source>Sweep</source>
+    </message>
+    <message id="shape.arc.start.hint">
+      <source>Start angle in degrees. Zero points right; positive angles run clockwise.</source>
+    </message>
+    <message id="shape.arc.sweep.hint">
+      <source>Arc length in degrees. Positive runs clockwise; negative runs counterclockwise. 360 makes a full ellipse.</source>
+    </message>
   </context>
   <context>
     <name>McpHistory</name>
-    <message id="history.add.layers"><source>Add layers</source></message>
-    <message id="history.paint.strokes"><source>Paint strokes</source></message>
-    <message id="history.repeat.layers"><source>Repeat layers</source></message>
-    <message id="history.style.layers"><source>Style layers</source></message>
-    <message id="history.edit.layer.properties"><source>Edit layer properties</source></message>
+    <message id="history.add.layers">
+      <source>Add layers</source>
+    </message>
+    <message id="history.paint.strokes">
+      <source>Paint strokes</source>
+    </message>
+    <message id="history.repeat.layers">
+      <source>Repeat layers</source>
+    </message>
+    <message id="history.style.layers">
+      <source>Style layers</source>
+    </message>
+    <message id="history.edit.layer.properties">
+      <source>Edit layer properties</source>
+    </message>
   </context>
   <context>
     <name>McpStatus</name>
-    <message id="mcp.status.connected"><source>MCP connected (%1)</source></message>
-    <message id="mcp.status.stopping"><source>MCP stopping…</source></message>
-    <message id="mcp.status.error"><source>MCP error</source></message>
-    <message id="mcp.status.enabled"><source>MCP enabled</source></message>
-    <message id="mcp.status.endpoint.hint"><source>Local document automation. Endpoint: %1</source></message>
+    <message id="mcp.status.connected">
+      <source>MCP connected (%1)</source>
+    </message>
+    <message id="mcp.status.stopping">
+      <source>MCP stopping…</source>
+    </message>
+    <message id="mcp.status.error">
+      <source>MCP error</source>
+    </message>
+    <message id="mcp.status.enabled">
+      <source>MCP enabled</source>
+    </message>
+    <message id="mcp.status.endpoint.hint">
+      <source>Local document automation. Endpoint: %1</source>
+    </message>
   </context>
   <context>
     <name>ChannelGroups</name>
@@ -7714,6 +8072,1117 @@ Prepare %3 · Finish %4 · Total %5</source>
     </message>
     <message id="psd.import.dialog.smart.object.raster.hint">
       <source>Import the saved Smart Object appearance as editable pixels. Embedded source editing is not retained.</source>
+    </message>
+  </context>
+  <context>
+    <name>AIImageEditor</name>
+    <message id="diffusion.ui.restore.the.full.layer.input">
+      <source>Restore the full layer input</source>
+    </message>
+    <message id="diffusion.ui.crop.this.layer.input.to.its.canvas">
+      <source>Crop this layer input to its canvas</source>
+    </message>
+    <message id="diffusion.ui.create">
+      <source>Create</source>
+    </message>
+    <message id="diffusion.ui.that.name.is.already.in.use">
+      <source>That name is already in use.</source>
+    </message>
+    <message id="diffusion.ui.delete.configuration">
+      <source>Delete configuration</source>
+    </message>
+    <message id="diffusion.ui.duplicate.configuration">
+      <source>Duplicate configuration</source>
+    </message>
+    <message id="diffusion.ui.new.configuration">
+      <source>New configuration</source>
+    </message>
+    <message id="diffusion.ui.name">
+      <source>Name</source>
+    </message>
+    <message id="diffusion.ui.images.and.region.guides.exceed.this.model">
+      <source>Images and region guides exceed this model's %1-reference limit. Remove an image or region before generating.</source>
+    </message>
+    <message id="diffusion.ui.reference.limit.satisfied">
+      <source>Reference limit satisfied.</source>
+    </message>
+    <message id="diffusion.ui.linked.region.transfers.are.available.with.flux">
+      <source>Linked region transfers are available with FLUX.3. Unlink the destinations or select a FLUX configuration.</source>
+    </message>
+    <message id="diffusion.ui.linked.transfers.need.at.least.two.input">
+      <source>Linked transfers need at least two input images. Add the missing input or unlink the destinations.</source>
+    </message>
+    <message id="diffusion.ui.choose.an.available.output.scene.before.generating">
+      <source>Choose an available output scene before generating.</source>
+    </message>
+    <message id="diffusion.ui.source.region.1.is.outside.the.cropped">
+      <source>Source region %1 is outside the cropped input. Restore the input to use or unlink it.</source>
+    </message>
+    <message id="diffusion.ui.the.destination.for.1.is.missing.choose">
+      <source>The destination for %1 is missing. Choose another target or unlink it.</source>
+    </message>
+    <message id="diffusion.ui.choose.output.scene">
+      <source>Choose output scene…</source>
+    </message>
+    <message id="diffusion.ui.output.layout.1.2.px">
+      <source>Output layout · %1 × %2 px</source>
+    </message>
+    <message id="diffusion.ui.output.layout">
+      <source>Output layout</source>
+    </message>
+    <message id="diffusion.ui.fit.to.canvas">
+      <source>Fit to canvas</source>
+    </message>
+    <message id="diffusion.ui.fit.to.selected.layer">
+      <source>Fit to selected layer</source>
+    </message>
+    <message id="diffusion.ui.fit.to.original.bounds">
+      <source>Fit to original bounds</source>
+    </message>
+    <message id="diffusion.ui.generative.fill.stays.aligned.to.its.captured">
+      <source>Generative Fill stays aligned to its captured canvas and soft selection.</source>
+    </message>
+    <message id="diffusion.ui.replacement.fits.the.selected.layer.use.add">
+      <source>Replacement fits the selected layer. Use Add new layer for a result at its generated size.</source>
+    </message>
+    <message id="diffusion.ui.new.documents.use.the.generated.pixel.dimensions">
+      <source>New documents use the generated pixel dimensions.</source>
+    </message>
+    <message id="diffusion.ui.fit.the.result.to.the.original.input">
+      <source>Fit the result to the original input bounds. Uncheck for 1:1 pixels, keeping position and orientation.</source>
+    </message>
+    <message id="diffusion.ui.scale.the.result.to.the.current.canvas">
+      <source>Scale the result to the current canvas. Uncheck to keep its generated size.</source>
+    </message>
+    <message id="diffusion.ui.current.configuration">
+      <source>Current configuration</source>
+    </message>
+    <message id="diffusion.ui.missing.configuration">
+      <source>No configuration</source>
+    </message>
+    <message id="diffusion.ui.cancel">
+      <source>Cancel</source>
+    </message>
+    <message id="diffusion.ui.generate">
+      <source>Generate</source>
+    </message>
+    <message id="diffusion.ui.cancel.generation">
+      <source>Cancel generation</source>
+    </message>
+    <message id="diffusion.ui.a.cropped.layer.is.outside.its.canvas">
+      <source>A cropped layer is outside its canvas. Restore or remove that input.</source>
+    </message>
+    <message id="diffusion.ui.remove.an.image.or.region.to.stay">
+      <source>Remove an image or region to stay within the model's reference limit.</source>
+    </message>
+    <message id="diffusion.ui.add.model.files.in.the.configuration.tab">
+      <source>Add model files in the Configuration tab.</source>
+    </message>
+    <message id="diffusion.ui.preview">
+      <source>Preview</source>
+    </message>
+    <message id="diffusion.ui.preview.1">
+      <source>Preview · %1</source>
+    </message>
+    <message id="diffusion.ui.this.model.generates.from.text.only.stored">
+      <source>This model generates from text only. Stored inputs will be available when you switch to a compatible model.</source>
+    </message>
+    <message id="diffusion.ui.regions">
+      <source>Regions</source>
+    </message>
+    <message id="diffusion.ui.regions.1">
+      <source>Regions · %1</source>
+    </message>
+    <message id="diffusion.ui.use.image.1.for.this.image.and">
+      <source>Use &lt;Image%1&gt; for this image and &lt;Image%1/Region1&gt; for a named region.</source>
+      <extracomment>Keep image/region/scene aliases inside angle brackets unchanged; they are prompt tokens, not translated names.</extracomment>
+    </message>
+    <message id="diffusion.ui.with.one.input.region1.also.works">
+      <source> With one input, &lt;Region1&gt; also works.</source>
+      <extracomment>Keep image/region/scene aliases inside angle brackets unchanged; they are prompt tokens, not translated names.</extracomment>
+    </message>
+    <message id="diffusion.ui.refer.to.output.regions.as.output.region1">
+      <source>Refer to output regions as &lt;Output/Region1&gt;. Regions guide placement; they do not protect pixels.</source>
+      <extracomment>Keep image/region/scene aliases inside angle brackets unchanged; they are prompt tokens, not translated names.</extracomment>
+    </message>
+    <message id="diffusion.ui.output.placement.guide.use.generative.fill.to">
+      <source>Output placement guide. Use Generative Fill to protect pixels outside a selection.</source>
+    </message>
+    <message id="diffusion.ui.region.guidance.is.unavailable.for.this.model">
+      <source>Region guidance is unavailable for this model.</source>
+    </message>
+    <message id="diffusion.ui.generating">
+      <source>Generating…</source>
+    </message>
+    <message id="diffusion.ui.generation.in.progress.a.live.draft.appears">
+      <source>Generation in progress. A live draft appears here when available. Pending previews cannot be applied.</source>
+    </message>
+    <message id="diffusion.ui.unsaved.configuration">
+      <source>Unsaved configuration</source>
+    </message>
+    <message id="diffusion.ui.generation.in.progress">
+      <source>Generation in progress</source>
+    </message>
+    <message id="diffusion.ui.pending.preview.approximate">
+      <source>Pending preview — approximate</source>
+    </message>
+    <message id="diffusion.ui.ai.image.preview">
+      <source>AI image preview</source>
+    </message>
+    <message id="diffusion.ui.generated.previews.appear.here">
+      <source>Generated previews appear here</source>
+    </message>
+    <message id="diffusion.ui.no.image">
+      <source>No image</source>
+    </message>
+    <message id="diffusion.ui.this.model.generates.from.text.only.image">
+      <source>This model generates from text only. Image-to-image denoising is unavailable.</source>
+    </message>
+    <message id="diffusion.ui.always.used.for.generative.fill.the.canvas">
+      <source>Always used for Generative Fill. The canvas is the starting image; the selection limits where the result is applied.</source>
+    </message>
+    <message id="diffusion.ui.off.edit.using.image.references.on.start">
+      <source>Off: edit using image references. On: start from Image 1 and use Denoising strength.</source>
+    </message>
+    <message id="diffusion.ui.starts.denoising.from.an.input.image.available">
+      <source>Starts denoising from an input image. Available in Edit layer; always used for Generative Fill.</source>
+    </message>
+    <message id="diffusion.ui.denoising.strength.is.available.for.models.that">
+      <source>Denoising strength is available for models that edit input images.</source>
+    </message>
+    <message id="diffusion.ui.lower.values.retain.more.of.the.starting">
+      <source>Lower values retain more of the starting image. Try 1.0 for larger changes or new objects.</source>
+    </message>
+    <message id="diffusion.ui.enable.image.to.image.denoising.to.use">
+      <source>Enable image-to-image denoising to use strength. Reference-only edits do not use this value.</source>
+    </message>
+    <message id="diffusion.ui.available.in.generative.fill.or.edit.layer">
+      <source>Available in Generative Fill, or Edit layer with image-to-image denoising enabled.</source>
+    </message>
+    <message id="diffusion.ui.the.fixed.turbo.sigma.schedule.uses.8">
+      <source>The fixed Turbo sigma schedule uses 8 steps. Choose Auto sigma schedule to try other step counts.</source>
+    </message>
+    <message id="diffusion.ui.number.of.denoising.steps">
+      <source>Number of denoising steps.</source>
+    </message>
+    <message id="diffusion.ui.enter.steps.1.descending.values.ending.in">
+      <source>Enter steps + 1 descending values ending in zero. Available with a custom sigma schedule.</source>
+    </message>
+    <message id="diffusion.ui.controls.how.noise.levels.are.spaced.available">
+      <source>Controls how noise levels are spaced. Available with the auto sigma schedule.</source>
+    </message>
+    <message id="diffusion.ui.flow.shift.does.not.apply.to.this">
+      <source>Flow shift does not apply to this model.</source>
+    </message>
+    <message id="diffusion.ui.adjusts.the.flow.schedule.available.with.the">
+      <source>Adjusts the flow schedule. Available with the auto sigma schedule. Auto uses the model default (%1).</source>
+    </message>
+    <message id="diffusion.ui.controls.added.sampler.noise.available.for.samplers">
+      <source>Controls added sampler noise. Available for samplers that use eta.</source>
+    </message>
+    <message id="diffusion.ui.available.when.approximate.cache.is.enabled">
+      <source>Available when Approximate cache is enabled.</source>
+    </message>
+    <message id="diffusion.ui.checkpoint">
+      <source>Checkpoint</source>
+    </message>
+    <message id="diffusion.ui.diffusion.weights">
+      <source>Diffusion weights</source>
+    </message>
+    <message id="diffusion.ui.vae.override.optional">
+      <source>VAE override (optional)</source>
+    </message>
+    <message id="diffusion.ui.use.checkpoint.vae">
+      <source>Use checkpoint VAE</source>
+    </message>
+    <message id="diffusion.ui.this.mode.is.unavailable.for.the.selected">
+      <source>This mode is unavailable for the selected model.</source>
+    </message>
+    <message id="diffusion.ui.1.width.and.height.must.be.multiples">
+      <source>%1: width and height must be multiples of %2.</source>
+    </message>
+    <message id="diffusion.ui.auto.1">
+      <source>Auto (%1)</source>
+    </message>
+    <message id="diffusion.ui.auto.uses.the.selected.model.s.required">
+      <source>Auto uses the selected model's required multiple.</source>
+    </message>
+    <message id="diffusion.ui.choose.where.weights.are.kept.available.when">
+      <source>Choose where weights are kept. Available when Keep weights in is manual.</source>
+    </message>
+    <message id="diffusion.ui.reuse.text.encoder.prefix.data.available.for">
+      <source>Reuse text-encoder prefix data. Available for Qwen models.</source>
+    </message>
+    <message id="diffusion.ui.for.image.editing.add.a.separate.vision">
+      <source>For image editing, add a separate vision projector only if the text encoder does not include vision weights.</source>
+    </message>
+    <message id="diffusion.ui.this.model.does.not.need.a.separate">
+      <source>This model does not need a separate vision component.</source>
+    </message>
+    <message id="diffusion.ui.this.model.does.not.support.a.negative">
+      <source>This model does not support a negative prompt.</source>
+    </message>
+    <message id="diffusion.ui.describe.what.to.avoid.requires.guidance.cfg">
+      <source>Describe what to avoid. Requires Guidance (CFG) above 1.</source>
+    </message>
+    <message id="diffusion.ui.describe.what.to.avoid.in.the.generated">
+      <source>Describe what to avoid in the generated image.</source>
+    </message>
+    <message id="diffusion.ui.no.configurations">
+      <source>No configurations</source>
+    </message>
+    <message id="diffusion.ui.select.configuration">
+      <source>Select configuration</source>
+    </message>
+    <message id="diffusion.ui.add.input.image">
+      <source>Add input image</source>
+    </message>
+    <message id="diffusion.ui.regions.image.1.2.3.4.px">
+      <source>Regions — Image%1 · %2 · %3 × %4 px</source>
+    </message>
+    <message id="diffusion.ui.prompt.preset">
+      <source>Prompt preset…</source>
+    </message>
+    <message id="diffusion.ui.previous.preview">
+      <source>Previous preview</source>
+    </message>
+    <message id="diffusion.ui.next.preview">
+      <source>Next preview</source>
+    </message>
+    <message id="diffusion.ui.fit.to.view">
+      <source>Fit to view</source>
+    </message>
+    <message id="diffusion.ui.actual.pixels.1.1">
+      <source>Actual pixels (1:1)</source>
+    </message>
+    <message id="diffusion.ui.close.preview">
+      <source>Close preview</source>
+    </message>
+    <message id="diffusion.ui.drag.to.draw.or.move.shift.drag">
+      <source>Drag to draw or move · Shift-drag adds a region · Middle mouse pans</source>
+    </message>
+    <message id="diffusion.ui.mouse.wheel.zooms.middle.mouse.pans">
+      <source>Mouse wheel zooms · Middle mouse pans</source>
+    </message>
+    <message id="diffusion.ui.compare.with.layer">
+      <source>Compare with layer</source>
+    </message>
+    <message id="diffusion.ui.canvas.alignment">
+      <source>Canvas Alignment</source>
+    </message>
+    <message id="diffusion.ui.center.alignment">
+      <source>Center Alignment</source>
+    </message>
+    <message id="diffusion.ui.fit.to.result">
+      <source>Fit to Result</source>
+    </message>
+    <message id="diffusion.ui.canvas.document.positions.and.scale.center.native">
+      <source>Canvas: document positions and scale. Center: native pixel sizes. Fit: proportional reference scaling.</source>
+    </message>
+    <message id="diffusion.ui.stop.comparing">
+      <source>Stop comparing</source>
+    </message>
+    <message id="diffusion.ui.search.layers">
+      <source>Search layers…</source>
+    </message>
+    <message id="diffusion.ui.no.matching.layers">
+      <source>No matching layers</source>
+    </message>
+    <message id="diffusion.ui.draw.the.destination.box.scene.is.fitted">
+      <source>Draw the destination box. Scene is fitted as a guide; coordinates belong to the output frame.</source>
+    </message>
+    <message id="diffusion.ui.scene.is.fitted.as.a.guide.boxes">
+      <source>Scene is fitted as a guide · Boxes use output coordinates · Middle mouse pans</source>
+    </message>
+    <message id="diffusion.ui.region.label">
+      <source>Region label</source>
+    </message>
+    <message id="diffusion.ui.description.optional">
+      <source>Description (optional)</source>
+    </message>
+    <message id="diffusion.ui.optional.semantic.guidance.sent.as.desc.the">
+      <source>Optional semantic guidance sent as desc. The region name is only an alias.</source>
+    </message>
+    <message id="diffusion.ui.remove.selected.region">
+      <source>Remove selected region</source>
+    </message>
+    <message id="diffusion.ui.destination">
+      <source>Destination</source>
+    </message>
+    <message id="diffusion.ui.edit">
+      <source>Edit…</source>
+    </message>
+    <message id="diffusion.ui.target.location.no.object.description">
+      <source>Target location — no object description</source>
+    </message>
+    <message id="diffusion.ui.none">
+      <source>None</source>
+    </message>
+    <message id="diffusion.ui.missing.target.choose.another">
+      <source>Missing target — choose another</source>
+    </message>
+    <message id="diffusion.ui.new.target">
+      <source>New target…</source>
+    </message>
+    <message id="diffusion.ui.mouse.wheel.zooms.middle.mouse.pans.browse">
+      <source>Mouse wheel zooms · Middle mouse pans · ← / → browse previews</source>
+    </message>
+    <message id="diffusion.ui.choose.an.output.scene.first">
+      <source>Choose an output scene first.</source>
+    </message>
+    <message id="diffusion.ui.destination.for.image.1.2">
+      <source>Destination for Image%1/%2</source>
+    </message>
+    <message id="diffusion.ui.ai.image.editor">
+      <source>AI Image Editor</source>
+    </message>
+    <message id="diffusion.ui.close.ai.image.editor">
+      <source>Close AI Image Editor</source>
+    </message>
+    <message id="diffusion.ui.configuration">
+      <source>Configuration</source>
+    </message>
+    <message id="diffusion.ui.edit.layer">
+      <source>Edit layer</source>
+    </message>
+    <message id="diffusion.ui.generative.fill">
+      <source>Generative Fill</source>
+    </message>
+    <message id="diffusion.ui.add.configuration">
+      <source>Add configuration</source>
+    </message>
+    <message id="diffusion.ui.model.files">
+      <source>Model files</source>
+    </message>
+    <message id="diffusion.ui.family">
+      <source>Family</source>
+    </message>
+    <message id="diffusion.ui.variant">
+      <source>Variant</source>
+    </message>
+    <message id="diffusion.ui.choose.file">
+      <source>Choose file</source>
+    </message>
+    <message id="diffusion.ui.choose.checkpoint">
+      <source>Choose checkpoint</source>
+    </message>
+    <message id="diffusion.ui.choose.model.component">
+      <source>Choose model component</source>
+    </message>
+    <message id="diffusion.ui.checkpoints.safetensors.all.files">
+      <source>Checkpoints (*.safetensors);;All files (*)</source>
+    </message>
+    <message id="diffusion.ui.models.gguf.safetensors.all.files">
+      <source>Models (*.gguf *.safetensors);;All files (*)</source>
+    </message>
+    <message id="diffusion.ui.text.encoder">
+      <source>Text encoder</source>
+    </message>
+    <message id="diffusion.ui.vision.optional">
+      <source>Vision (optional)</source>
+    </message>
+    <message id="diffusion.ui.auto">
+      <source>Auto</source>
+    </message>
+    <message id="diffusion.ui.auto.prefers.an.available.cuda.worker.then">
+      <source>Auto prefers an available CUDA worker, then Vulkan. Explicit backends require the matching installed worker.</source>
+    </message>
+    <message id="diffusion.ui.backend">
+      <source>Backend</source>
+    </message>
+    <message id="diffusion.ui.save.custom.prompt.preset">
+      <source>Save custom prompt preset</source>
+    </message>
+    <message id="diffusion.ui.delete.custom.prompt.preset">
+      <source>Delete custom prompt preset</source>
+    </message>
+    <message id="diffusion.ui.describe.the.image.or.the.changes.you">
+      <source>Describe the image or the changes you want…</source>
+    </message>
+    <message id="diffusion.ui.negative.prompt">
+      <source>Negative prompt</source>
+    </message>
+    <message id="diffusion.ui.describe.what.to.avoid">
+      <source>Describe what to avoid…</source>
+    </message>
+    <message id="diffusion.ui.size">
+      <source>Size</source>
+    </message>
+    <message id="diffusion.ui.output.width.in.pixels">
+      <source>Output width in pixels</source>
+    </message>
+    <message id="diffusion.ui.output.height.in.pixels">
+      <source>Output height in pixels</source>
+    </message>
+    <message id="diffusion.ui.match.layer.canvas.size">
+      <source>Match layer / canvas size</source>
+    </message>
+    <message id="diffusion.ui.match.selected.input.layer.size">
+      <source>Match selected input / layer size</source>
+    </message>
+    <message id="diffusion.ui.match.the.selected.input.including.its.canvas">
+      <source>Match the selected input, including its canvas crop. With no input selected, use the active layer.</source>
+    </message>
+    <message id="diffusion.ui.resolution.selector">
+      <source>Resolution Selector</source>
+    </message>
+    <message id="diffusion.ui.1.1.square">
+      <source>1:1 (Square)</source>
+    </message>
+    <message id="diffusion.ui.2.3.portrait.photo">
+      <source>2:3 (Portrait Photo)</source>
+    </message>
+    <message id="diffusion.ui.3.2.photo">
+      <source>3:2 (Photo)</source>
+    </message>
+    <message id="diffusion.ui.3.4.portrait.standard">
+      <source>3:4 (Portrait Standard)</source>
+    </message>
+    <message id="diffusion.ui.4.3.standard">
+      <source>4:3 (Standard)</source>
+    </message>
+    <message id="diffusion.ui.9.16.portrait.widescreen">
+      <source>9:16 (Portrait Widescreen)</source>
+    </message>
+    <message id="diffusion.ui.16.9.widescreen">
+      <source>16:9 (Widescreen)</source>
+    </message>
+    <message id="diffusion.ui.21.9.ultrawide">
+      <source>21:9 (Ultrawide)</source>
+    </message>
+    <message id="diffusion.ui.custom">
+      <source>Custom</source>
+    </message>
+    <message id="diffusion.ui.choose.a.ratio.to.calculate.the.output">
+      <source>Choose a ratio to calculate the output size. Custom keeps the current dimensions.</source>
+    </message>
+    <message id="diffusion.ui.aspect.ratio">
+      <source>Aspect Ratio</source>
+    </message>
+    <message id="diffusion.ui.approximate.pixel.count.1.0.mp.is">
+      <source>Approximate pixel count. 1.0 MP is 1024 × 1024 for Square. Rounding can change the total.</source>
+    </message>
+    <message id="diffusion.ui.megapixels">
+      <source>Megapixels</source>
+    </message>
+    <message id="diffusion.ui.round.each.dimension.to.the.nearest.multiple">
+      <source>Round each dimension to the nearest multiple.</source>
+    </message>
+    <message id="diffusion.ui.multiple">
+      <source>Multiple</source>
+    </message>
+    <message id="diffusion.ui.overrides">
+      <source>Overrides</source>
+    </message>
+    <message id="diffusion.ui.seed">
+      <source>Seed</source>
+    </message>
+    <message id="diffusion.ui.use.the.same.seed.to.reproduce.a">
+      <source>Use the same seed to reproduce a result.</source>
+    </message>
+    <message id="diffusion.ui.generate.a.random.seed">
+      <source>Generate a random seed</source>
+    </message>
+    <message id="diffusion.ui.generate.a.random.seed.random.mode.also">
+      <source>Generate a random seed. Random mode also chooses a new seed for each generation.</source>
+    </message>
+    <message id="diffusion.ui.random">
+      <source>Random</source>
+    </message>
+    <message id="diffusion.ui.fixed">
+      <source>Fixed</source>
+    </message>
+    <message id="diffusion.ui.increment">
+      <source>Increment</source>
+    </message>
+    <message id="diffusion.ui.random.new.seed.per.job.fixed.reuse">
+      <source>Random: new seed per job. Fixed: reuse the seed. Increment: advance it by the number of generated images.</source>
+    </message>
+    <message id="diffusion.ui.input.images">
+      <source>Input images</source>
+    </message>
+    <message id="diffusion.ui.max.input.1.px">
+      <source>Max input: %1 px</source>
+    </message>
+    <message id="diffusion.ui.limit.the.longest.side.of.input.images">
+      <source>Limit the longest side of input images after canvas cropping, keeping their proportions. Output size is separate.</source>
+    </message>
+    <message id="diffusion.ui.current.layer.appearance">
+      <source>Current layer — appearance</source>
+    </message>
+    <message id="diffusion.ui.current.layer.raw.pixels">
+      <source>Current layer — raw pixels</source>
+    </message>
+    <message id="diffusion.ui.another.document.layer.appearance">
+      <source>Another document layer — appearance</source>
+    </message>
+    <message id="diffusion.ui.another.document.layer.raw.pixels">
+      <source>Another document layer — raw pixels</source>
+    </message>
+    <message id="diffusion.ui.rendered.visible.canvas">
+      <source>Rendered visible canvas</source>
+    </message>
+    <message id="diffusion.ui.image.file">
+      <source>Image file…</source>
+    </message>
+    <message id="diffusion.ui.output.scene">
+      <source>Output scene</source>
+    </message>
+    <message id="diffusion.ui.use.scene.in.your.prompt.to.reference">
+      <source>Use &lt;Scene&gt; in your prompt to reference this image. It is the backdrop for destination boxes; input order and your instructions are not changed.</source>
+      <extracomment>Keep image/region/scene aliases inside angle brackets unchanged; they are prompt tokens, not translated names.</extracomment>
+    </message>
+    <message id="diffusion.ui.choose.an.input.image.to.identify.objects">
+      <source>Choose an input image to identify objects, or Output layout to guide placement.</source>
+    </message>
+    <message id="diffusion.ui.edit.regions">
+      <source>Edit regions…</source>
+    </message>
+    <message id="diffusion.ui.remove.regions.from.this.image.or.output">
+      <source>Remove regions from this image or output layout</source>
+    </message>
+    <message id="diffusion.ui.extra.crop.guidance.experimental">
+      <source>Extra crop guidance (experimental)</source>
+    </message>
+    <message id="diffusion.ui.optional.vulkana.guidance.also.send.each.input">
+      <source>Optional Vulkana guidance: also send each input region as a cropped reference. Uses extra memory and reference slots. Leave off to use FLUX's native bounding-box format alone.</source>
+    </message>
+    <message id="diffusion.ui.advanced.generation">
+      <source>Advanced generation</source>
+    </message>
+    <message id="diffusion.ui.steps">
+      <source>Steps</source>
+    </message>
+    <message id="diffusion.ui.guidance.cfg">
+      <source>Guidance (CFG)</source>
+    </message>
+    <message id="diffusion.ui.sampler">
+      <source>Sampler</source>
+    </message>
+    <message id="diffusion.ui.scheduler">
+      <source>Scheduler</source>
+    </message>
+    <message id="diffusion.ui.sigma.schedule">
+      <source>Sigma schedule</source>
+    </message>
+    <message id="diffusion.ui.custom.sigmas">
+      <source>Custom sigmas</source>
+    </message>
+    <message id="diffusion.ui.flow.shift">
+      <source>Flow shift</source>
+    </message>
+    <message id="diffusion.ui.use.image.to.image.denoising">
+      <source>Use image-to-image denoising</source>
+    </message>
+    <message id="diffusion.ui.denoising.strength">
+      <source>Denoising strength</source>
+    </message>
+    <message id="diffusion.ui.images.per.job">
+      <source>Images per job</source>
+    </message>
+    <message id="diffusion.ui.vae.tiling">
+      <source>VAE tiling</source>
+    </message>
+    <message id="diffusion.ui.vae.tile.size">
+      <source>VAE tile size</source>
+    </message>
+    <message id="diffusion.ui.vae.tile.overlap">
+      <source>VAE tile overlap</source>
+    </message>
+    <message id="diffusion.ui.progress.previews">
+      <source>Progress previews</source>
+    </message>
+    <message id="diffusion.ui.preview.every.n.steps">
+      <source>Preview every N steps</source>
+    </message>
+    <message id="diffusion.ui.sampler.noise.eta">
+      <source>Sampler noise (eta)</source>
+    </message>
+    <message id="diffusion.ui.approximate.cache.experimental">
+      <source>Approximate cache (experimental)</source>
+    </message>
+    <message id="diffusion.ui.cache.reuse.threshold">
+      <source>Cache reuse threshold</source>
+    </message>
+    <message id="diffusion.ui.cache.start.fraction">
+      <source>Cache start fraction</source>
+    </message>
+    <message id="diffusion.ui.cache.end.fraction">
+      <source>Cache end fraction</source>
+    </message>
+    <message id="diffusion.ui.restore.recommended.generation.settings">
+      <source>Restore recommended generation settings</source>
+    </message>
+    <message id="diffusion.ui.memory.and.performance">
+      <source>Memory and performance</source>
+    </message>
+    <message id="diffusion.ui.inference.device">
+      <source>Inference device</source>
+    </message>
+    <message id="diffusion.ui.vram.budget.gib">
+      <source>VRAM budget (GiB)</source>
+    </message>
+    <message id="diffusion.ui.budget.for.managed.weights.workspaces.not.a">
+      <source>Budget for managed weights/workspaces, not a physical VRAM cap. Leave room for Vulkana and the desktop.</source>
+    </message>
+    <message id="diffusion.ui.cpu.threads">
+      <source>CPU threads</source>
+    </message>
+    <message id="diffusion.ui.keep.weights.in">
+      <source>Keep weights in</source>
+    </message>
+    <message id="diffusion.ui.text.encoder.weights">
+      <source>Text encoder weights</source>
+    </message>
+    <message id="diffusion.ui.vae.weights">
+      <source>VAE weights</source>
+    </message>
+    <message id="diffusion.ui.text.encoder.compute">
+      <source>Text encoder compute</source>
+    </message>
+    <message id="diffusion.ui.vae.compute">
+      <source>VAE compute</source>
+    </message>
+    <message id="diffusion.ui.flash.attention">
+      <source>Flash attention</source>
+    </message>
+    <message id="diffusion.ui.direct.convolution">
+      <source>Direct convolution</source>
+    </message>
+    <message id="diffusion.ui.sage.attention.experimental">
+      <source>Sage attention (experimental)</source>
+    </message>
+    <message id="diffusion.ui.memory.mapped.loading">
+      <source>Memory mapped loading</source>
+    </message>
+    <message id="diffusion.ui.prefetch.weights">
+      <source>Prefetch weights</source>
+    </message>
+    <message id="diffusion.ui.segmented.computation">
+      <source>Segmented computation</source>
+    </message>
+    <message id="diffusion.ui.prepare.weights.at.load">
+      <source>Prepare weights at load</source>
+    </message>
+    <message id="diffusion.ui.cached.prompts">
+      <source>Cached prompts</source>
+    </message>
+    <message id="diffusion.ui.qwen.prefix.cache">
+      <source>Qwen prefix cache</source>
+    </message>
+    <message id="diffusion.ui.prefix.cache.format">
+      <source>Prefix cache format</source>
+    </message>
+    <message id="diffusion.ui.session">
+      <source>Session</source>
+    </message>
+    <message id="diffusion.ui.loaded.models">
+      <source>Loaded models</source>
+    </message>
+    <message id="diffusion.ui.no.models.loaded">
+      <source>No models loaded</source>
+    </message>
+    <message id="diffusion.ui.choose.model.files.and.enter.a.prompt">
+      <source>Choose model files and enter a prompt to begin.</source>
+    </message>
+    <message id="diffusion.ui.add.new.layer">
+      <source>Add new layer</source>
+    </message>
+    <message id="diffusion.ui.replace.selected.layer">
+      <source>Replace selected layer</source>
+    </message>
+    <message id="diffusion.ui.open.new.document">
+      <source>Open new document</source>
+    </message>
+    <message id="diffusion.ui.apply">
+      <source>Apply</source>
+    </message>
+    <message id="diffusion.ui.generate.again">
+      <source>Generate again</source>
+    </message>
+    <message id="diffusion.ui.discard">
+      <source>Discard</source>
+    </message>
+    <message id="diffusion.ui.image.details">
+      <source>Image details</source>
+    </message>
+    <message id="diffusion.ui.model">
+      <source>Model</source>
+    </message>
+    <message id="diffusion.ui.resolution">
+      <source>Resolution</source>
+    </message>
+    <message id="diffusion.ui.copy.seed">
+      <source>Copy seed</source>
+    </message>
+    <message id="diffusion.ui.generated">
+      <source>Generated</source>
+    </message>
+    <message id="diffusion.ui.save.prompt.preset">
+      <source>Save prompt preset</source>
+    </message>
+    <message id="diffusion.ui.prompt.preset.saved">
+      <source>Prompt preset saved.</source>
+    </message>
+    <message id="diffusion.ui.choose.a.custom.preset.to.remove">
+      <source>Choose a custom preset to remove.</source>
+    </message>
+    <message id="diffusion.ui.images.and.region.guides.exceed.the.model">
+      <source>Images and region guides exceed the model's reference limit. Remove an image or region.</source>
+    </message>
+    <message id="diffusion.ui.unload">
+      <source>Unload</source>
+    </message>
+    <message id="diffusion.ui.unload.this.configuration.and.its.components.to">
+      <source>Unload this configuration and its components to release memory. Generated images are kept.</source>
+    </message>
+    <message id="diffusion.ui.this.model.generates.from.text.only.choose">
+      <source>This model generates from text only. Choose a compatible model to add input images.</source>
+    </message>
+    <message id="diffusion.ui.this.model.accepts.1.references.in.total">
+      <source>This model accepts %1 references in total, including input images and region guides.</source>
+    </message>
+    <message id="diffusion.ui.this.layer.is.outside.its.source.canvas">
+      <source>This layer is outside its source canvas. Restore or remove the input.</source>
+    </message>
+    <message id="diffusion.ui.regions.outside.the.canvas.are.hidden.until">
+      <source>Regions outside the canvas are hidden until the full input is restored.</source>
+    </message>
+    <message id="diffusion.ui.output.layout.regions">
+      <source>Output layout regions</source>
+    </message>
+    <message id="diffusion.ui.regions.image.1.2">
+      <source>Regions — Image%1 · %2</source>
+    </message>
+    <message id="diffusion.ui.pending">
+      <source>Pending</source>
+    </message>
+    <message id="diffusion.ui.live.draft.approximate.final.detail.appears.after">
+      <source>Live draft — approximate. Final detail appears after generation finishes.</source>
+    </message>
+    <message id="diffusion.ui.lora.strength.1.00.uses.its.full">
+      <source>LoRA strength. 1.00 uses its full effect; 0.00 has no effect.</source>
+    </message>
+    <message id="diffusion.ui.lora.strength">
+      <source>LoRA strength</source>
+    </message>
+    <message id="diffusion.ui.unnamed.lora">
+      <source>Unnamed LoRA</source>
+    </message>
+    <message id="diffusion.ui.loras.1.2.enabled">
+      <source>LoRAs (%1/%2 enabled)</source>
+    </message>
+    <message id="diffusion.ui.enable.this.lora.for.generation">
+      <source>Enable this LoRA for generation</source>
+    </message>
+    <message id="diffusion.ui.reset.loras.to.configuration.defaults">
+      <source>Reset LoRAs to configuration defaults</source>
+    </message>
+    <message id="diffusion.ui.choose.lora">
+      <source>Choose LoRA</source>
+    </message>
+    <message id="diffusion.ui.lora.models.safetensors.gguf.all.files">
+      <source>LoRA models (*.safetensors *.gguf);;All files (*)</source>
+    </message>
+    <message id="diffusion.ui.lora.file">
+      <source>LoRA file…</source>
+    </message>
+    <message id="diffusion.ui.choose.lora.file">
+      <source>Choose LoRA file</source>
+    </message>
+    <message id="diffusion.ui.remove.lora">
+      <source>Remove LoRA</source>
+    </message>
+    <message id="diffusion.ui.enabled.by.default">
+      <source>Enabled by default</source>
+    </message>
+    <message id="diffusion.ui.lora.enabled.by.default">
+      <source>LoRA enabled by default</source>
+    </message>
+    <message id="diffusion.ui.friendly.name">
+      <source>Friendly name</source>
+    </message>
+    <message id="diffusion.ui.add.lora">
+      <source>Add LoRA</source>
+    </message>
+    <message id="diffusion.ui.loras.optional">
+      <source>LoRAs (optional)</source>
+    </message>
+    <message id="diffusion.ui.generate.image">
+      <source>Generate Image…</source>
+    </message>
+    <message id="diffusion.ui.edit.current.layer">
+      <source>Edit Current Layer…</source>
+    </message>
+    <message id="diffusion.ui.generative.fill.2">
+      <source>Generative Fill…</source>
+    </message>
+    <message id="diffusion.ui.ai.image.editor.2">
+      <source>AI Image Editor…</source>
+    </message>
+    <message id="diffusion.ui.unloading.model">
+      <source>Unloading model…</source>
+    </message>
+    <message id="diffusion.ui.variation.1">
+      <source>Variation %1</source>
+    </message>
+    <message id="diffusion.ui.generation.done">
+      <source>Generation done</source>
+    </message>
+    <message id="diffusion.ui.ready.1.s.inspect.the.result.before">
+      <source>Ready · %1 s — inspect the result before applying.</source>
+    </message>
+    <message id="diffusion.ui.generation.failed">
+      <source>Generation failed</source>
+    </message>
+    <message id="diffusion.ui.cancelled.previous.successful.variations.are.still.available">
+      <source>Cancelled. Previous successful variations are still available.</source>
+    </message>
+    <message id="diffusion.ui.generation.cancelled">
+      <source>Generation cancelled</source>
+    </message>
+    <message id="diffusion.ui.generate.again.to.restart.the.worker">
+      <source> Generate again to restart the worker.</source>
+    </message>
+    <message id="diffusion.ui.model.unloaded.generate.again.to.load.a">
+      <source>Model unloaded. Generate again to load a configuration.</source>
+    </message>
+    <message id="diffusion.ui.this.model.generates.from.text.only.choose.2">
+      <source>This model generates from text only. Choose an editing model to edit a layer or selection.</source>
+    </message>
+    <message id="diffusion.ui.select.a.raster.layer.to.start.an">
+      <source>Select a raster layer to start an editing session.</source>
+    </message>
+    <message id="diffusion.ui.make.a.selection.before.using.generative.fill">
+      <source>Make a selection before using Generative Fill.</source>
+    </message>
+    <message id="diffusion.ui.target.visible.canvas">
+      <source>Target · visible canvas</source>
+    </message>
+    <message id="diffusion.ui.target.raw.layer.pixels">
+      <source>Target · raw layer pixels</source>
+    </message>
+    <message id="diffusion.ui.target.captured.you.can.keep.editing.changed">
+      <source>Target captured. You can keep editing; changed targets are checked before generation and Apply.</source>
+    </message>
+    <message id="diffusion.ui.add.an.input.image.before.generating.an">
+      <source>Add an input image before generating an edit.</source>
+    </message>
+    <message id="diffusion.ui.select.a.raster.layer.and.a.selection">
+      <source>Select a raster layer and a selection for Generative Fill.</source>
+    </message>
+    <message id="diffusion.ui.enter.a.prompt.before.generating">
+      <source>Enter a prompt before generating.</source>
+    </message>
+    <message id="diffusion.ui.preparing.inference">
+      <source>Preparing inference…</source>
+    </message>
+    <message id="diffusion.ui.preparing.generation">
+      <source>Preparing generation…</source>
+    </message>
+    <message id="diffusion.ui.update.the.inference.worker.to.use.loras">
+      <source>Update the inference worker to use LoRAs.</source>
+    </message>
+    <message id="diffusion.ui.generation.could.not.start">
+      <source>Generation could not start</source>
+    </message>
+    <message id="diffusion.ui.update.the.inference.worker.to.use.native">
+      <source>Update the inference worker to use native FLUX.3 image and region references.</source>
+    </message>
+    <message id="diffusion.ui.update.the.inference.worker.to.use.the">
+      <source>Update the inference worker to use the input-size limit.</source>
+    </message>
+    <message id="diffusion.ui.update.the.inference.worker.to.use.region">
+      <source>Update the inference worker to use region descriptions, output scenes and linked destinations.</source>
+    </message>
+    <message id="diffusion.ui.the.installed.inference.worker.does.not.support">
+      <source>The installed inference worker does not support per-image regions. Update the worker before generating with input regions.</source>
+    </message>
+    <message id="diffusion.ui.1.is.unavailable.the.installed.worker.provides">
+      <source>%1 is unavailable: the installed worker provides %2.</source>
+    </message>
+    <message id="diffusion.ui.loading.the.selected.model">
+      <source>Loading the selected model…</source>
+    </message>
+    <message id="diffusion.ui.loading.ai.model">
+      <source>Loading AI model…</source>
+    </message>
+    <message id="diffusion.ui.generating.you.can.inspect.previous.variations.while">
+      <source>Generating… You can inspect previous variations while this job runs.</source>
+    </message>
+    <message id="diffusion.ui.the.generated.image.is.no.longer.available">
+      <source>The generated image is no longer available.</source>
+    </message>
+    <message id="diffusion.ui.ai.image">
+      <source>AI image</source>
+    </message>
+    <message id="diffusion.ui.open.a.document.or.choose.create.new">
+      <source>Open a document or choose Create New Document.</source>
+    </message>
+    <message id="diffusion.ui.finish.the.current.document.interaction.before.applying">
+      <source>Finish the current document interaction before applying this result.</source>
+    </message>
+    <message id="diffusion.ui.select.a.raster.layer.to.replace">
+      <source>Select a raster layer to replace.</source>
+    </message>
+    <message id="diffusion.ui.ai.result.applied">
+      <source>AI result applied</source>
+    </message>
+    <message id="diffusion.ui.cancelling">
+      <source>Cancelling…</source>
+    </message>
+    <message id="diffusion.ui.generation.cancelled.2">
+      <source>Generation cancelled.</source>
+    </message>
+    <message id="diffusion.ui.this.input.has.no.pixels.inside.its">
+      <source>This input has no pixels inside its canvas.</source>
+    </message>
+    <message id="diffusion.ui.select.an.input.image.or.a.layer">
+      <source>Select an input image or a layer first.</source>
+    </message>
+    <message id="diffusion.ui.select.an.image.layer.rather.than.a">
+      <source>Select an image layer rather than a container.</source>
+    </message>
+    <message id="diffusion.ui.the.selected.layer.has.no.visible.bounds">
+      <source>The selected layer has no visible bounds.</source>
+    </message>
+    <message id="diffusion.ui.add.reference.image">
+      <source>Add reference image</source>
+    </message>
+    <message id="diffusion.ui.images.png.jpg.jpeg.webp.bmp.tif">
+      <source>Images (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff)</source>
+    </message>
+    <message id="diffusion.ui.file">
+      <source>File</source>
+    </message>
+    <message id="diffusion.ui.reference.layer">
+      <source>Reference layer</source>
+    </message>
+    <message id="diffusion.ui.document.layer">
+      <source>Document / layer</source>
+    </message>
+    <message id="diffusion.ui.open.a.document.before.adding.this.input">
+      <source>Open a document before adding this input.</source>
+    </message>
+    <message id="diffusion.ui.visible.canvas">
+      <source>Visible canvas</source>
+    </message>
+    <message id="diffusion.ui.select.a.layer.first">
+      <source>Select a layer first.</source>
+    </message>
+    <message id="diffusion.ui.raw.pixels">
+      <source>Raw pixels</source>
+    </message>
+    <message id="diffusion.ui.rendered.appearance.isolated.layer">
+      <source>Rendered appearance · isolated layer</source>
+    </message>
+    <message id="diffusion.ui.close.document">
+      <source>Close document?</source>
+    </message>
+    <message id="diffusion.ui.quit.vulkana">
+      <source>Quit Vulkana?</source>
+    </message>
+    <message id="diffusion.ui.ai.generation.is.using.an.image.captured">
+      <source>AI generation is using an image captured from this document. Generation will continue if you close it. You can still add the result to another document or open it as a new document.</source>
+    </message>
+    <message id="diffusion.ui.ai.generation.is.still.running.quitting.vulkana">
+      <source>AI generation is still running. Quitting Vulkana will cancel it.</source>
+    </message>
+    <message id="diffusion.ui.close.document.2">
+      <source>Close document</source>
+    </message>
+    <message id="diffusion.ui.quit">
+      <source>Quit</source>
+    </message>
+    <message id="diffusion.ui.view.latest.preview">
+      <source>View latest preview</source>
+    </message>
+    <message id="diffusion.ui.dismiss.notification">
+      <source>Dismiss notification</source>
+    </message>
+    <message id="diffusion.ui.target">
+      <source> · Target</source>
+    </message>
+    <message id="diffusion.ui.ai">
+      <source>AI</source>
+    </message>
+    <message id="diffusion.ui.loras">
+      <source>LoRAs</source>
+    </message>
+    <message id="diffusion.ui.delete.1">
+      <source>Delete “%1”?</source>
+    </message>
+    <message id="diffusion.ui.show.1.in.generate">
+      <source>Show %1 in Generate</source>
+    </message>
+    <message id="diffusion.ui.1.override">
+      <source>%1 override</source>
+    </message>
+    <message id="diffusion.ui.reset.1.to.configuration.default">
+      <source>Reset %1 to configuration default</source>
+    </message>
+    <message id="diffusion.ui.1.copy">
+      <source>%1 copy</source>
+    </message>
+    <message id="diffusion.ui.1.unavailable">
+      <source>%1 (unavailable)</source>
+    </message>
+    <message id="diffusion.ui.ai.image.preview.1">
+      <source>AI image preview — %1</source>
+    </message>
+    <message id="diffusion.ui.left.1.right.result.drag.the.divider">
+      <source>Left: %1 · Right: Result. Drag the divider to compare.</source>
+    </message>
+    <message id="diffusion.ui.edit.image">
+      <source> · Edit image</source>
+    </message>
+    <message id="diffusion.ui.1.regions">
+      <source> · %1 regions</source>
+    </message>
+    <message id="diffusion.ui.cropped.to.the.source.canvas">
+      <source>
+Cropped to the source canvas.</source>
+    </message>
+    <message id="diffusion.ui.double.click.to.inspect.and.edit.this">
+      <source>
+Double-click to inspect and edit this image’s regions. Image numbers follow the list order.</source>
+    </message>
+    <message id="diffusion.ui.seed.1">
+      <source> · Seed %1</source>
+    </message>
+    <message id="diffusion.ui.requested.1.2.px">
+      <source>
+Requested: %1 × %2 px</source>
+    </message>
+    <message id="diffusion.ui.1.inference.worker.is.not.installed.choose">
+      <source>%1 inference worker is not installed. Choose an available backend.</source>
+    </message>
+    <message id="diffusion.ui.disk">
+      <source>Disk</source>
+    </message>
+    <message id="diffusion.ui.manual">
+      <source>Manual</source>
+    </message>
+    <message id="diffusion.ui.on">
+      <source>On</source>
+    </message>
+    <message id="diffusion.ui.off">
+      <source>Off</source>
+    </message>
+    <message id="diffusion.ui.disabled">
+      <source>Disabled</source>
+    </message>
+    <message id="diffusion.ui.generate.image.2">
+      <source>Generate image</source>
+    </message>
+    <message id="diffusion.ui.edit.image.2">
+      <source>Edit image</source>
+    </message>
+    <message id="diffusion.ui.replace.background">
+      <source>Replace background</source>
+    </message>
+    <message id="diffusion.ui.remove.background">
+      <source>Remove background</source>
     </message>
   </context>
 </TS>

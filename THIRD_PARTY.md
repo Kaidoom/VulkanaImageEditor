@@ -50,6 +50,14 @@ and [Remove Background guide](docs/BACKGROUND_REMOVAL.md). The bundle and offlin
 notices contain the complete accompanying licenses. No additional runtime,
 model download or image upload is required.
 
+Vulkana Diffusion uses an optional, separate native worker built from pinned
+stable-diffusion.cpp and GGML sources, both under MIT, with their separately
+licensed dependencies. CUDA worker bundles also contain NVIDIA runtimes under
+NVIDIA's terms and the required platform runtimes. Their exact versions,
+attributions and full license texts accompany the worker and appear in the
+application's offline notices. Model weights are supplied separately by the
+user. See [Vulkana Diffusion build and distribution details](DIFFUSION.md).
+
 The source build finds these libraries on the developer's system. Their library
 source and binaries are not vendored in the application source tree.
 

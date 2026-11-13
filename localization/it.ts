@@ -10374,6 +10374,11 @@ Smusso: tira gli angoli all'interno; Alt cambia anche l'opposto. I lati ridimens
       <translation>Affina maschera</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
+    <message id="history.layer.pixel.opacity">
+      <source>Layer pixel opacity</source>
+      <extracomment>Core history label: Layer pixel opacity</extracomment>
+      <translation>Opacità dei pixel del livello</translation>
+    </message>
   </context>
   <context>
     <name>Theme</name>
@@ -10620,72 +10625,259 @@ Smusso: tira gli angoli all'interno; Alt cambia anche l'opposto. I lati ridimens
   </context>
   <context>
     <name>Canvas clipboard</name>
-    <message id="clipboard.copy.canvas"><source>Copy canvas to clipboard</source><translation>Copia tela negli appunti</translation></message>
-    <message id="clipboard.copy.canvas.hint"><source>Copy the full canvas at its original size, including visible layers and transparency.</source><translation>Copia l’intera tela alle dimensioni originali, con i livelli visibili e la trasparenza.</translation></message>
-    <message id="clipboard.copy.canvas.preparing"><source>Preparing canvas for clipboard…</source><translation>Preparazione della tela per la copia…</translation></message>
-    <message id="clipboard.copy.canvas.finish.edit"><source>Finish or cancel the current selection or shape edit before copying the canvas.</source><translation>Termina o annulla la modifica della selezione o della forma prima di copiare la tela.</translation></message>
-    <message id="clipboard.copy.canvas.failed"><source>Could not copy the canvas: %1</source><translation>Impossibile copiare la tela: %1</translation></message>
-    <message id="clipboard.copy.canvas.done"><source>Canvas copied to clipboard · %1 × %2 px</source><translation>Tela copiata negli appunti · %1 × %2 px</translation></message>
+    <message id="clipboard.copy.canvas">
+      <source>Copy canvas to clipboard</source>
+      <translation>Copia tela negli appunti</translation>
+    </message>
+    <message id="clipboard.copy.canvas.hint">
+      <source>Copy the full canvas at its original size, including visible layers and transparency.</source>
+      <translation>Copia l’intera tela alle dimensioni originali, con i livelli visibili e la trasparenza.</translation>
+    </message>
+    <message id="clipboard.copy.canvas.preparing">
+      <source>Preparing canvas for clipboard…</source>
+      <translation>Preparazione della tela per la copia…</translation>
+    </message>
+    <message id="clipboard.copy.canvas.finish.edit">
+      <source>Finish or cancel the current selection or shape edit before copying the canvas.</source>
+      <translation>Termina o annulla la modifica della selezione o della forma prima di copiare la tela.</translation>
+    </message>
+    <message id="clipboard.copy.canvas.failed">
+      <source>Could not copy the canvas: %1</source>
+      <translation>Impossibile copiare la tela: %1</translation>
+    </message>
+    <message id="clipboard.copy.canvas.done">
+      <source>Canvas copied to clipboard · %1 × %2 px</source>
+      <translation>Tela copiata negli appunti · %1 × %2 px</translation>
+    </message>
   </context>
   <context>
     <name>Screenshot capture</name>
-    <message id="screenshot.action"><source>Take Screenshot…</source><translation>Cattura schermata…</translation></message>
-    <message id="screenshot.title"><source>Screenshot</source><translation>Cattura schermata</translation></message>
-    <message id="screenshot.document"><source>Screenshot</source><translation>Cattura schermata</translation></message>
-    <message id="screenshot.preview"><source>Screenshot crop preview</source><translation>Anteprima del ritaglio</translation></message>
-    <message id="screenshot.close"><source>Close screenshot</source><translation>Chiudi cattura</translation></message>
-    <message id="screenshot.desktop.chooser"><source>Desktop chooser</source><translation>Selettore del desktop</translation></message>
-    <message id="screenshot.entire.desktop"><source>Entire desktop</source><translation>Intero desktop</translation></message>
-    <message id="screenshot.active.window"><source>Active window</source><translation>Finestra attiva</translation></message>
-    <message id="screenshot.target"><source>Capture source</source><translation>Origine della cattura</translation></message>
-    <message id="screenshot.delay"><source>Delay: </source><translation>Ritardo: </translation></message>
-    <message id="screenshot.capture"><source>Capture</source><translation>Cattura</translation></message>
-    <message id="screenshot.retake"><source>Retake</source><translation>Ripeti cattura</translation></message>
-    <message id="screenshot.reset.crop"><source>Reset Crop</source><translation>Ripristina ritaglio</translation></message>
-    <message id="screenshot.reset.zoom"><source>Reset Zoom</source><translation>Ripristina zoom</translation></message>
-    <message id="screenshot.add.layer"><source>Add as Layer</source><translation>Aggiungi come livello</translation></message>
-    <message id="screenshot.add.layer.hint"><source>Add the crop to the current document as an undoable raster layer.</source><translation>Aggiunge il ritaglio al documento corrente come livello raster. L’operazione è annullabile.</translation></message>
-    <message id="screenshot.stop"><source>Cancel Capture</source><translation>Annulla cattura</translation></message>
-    <message id="screenshot.cancel"><source>Cancel</source><translation>Annulla</translation></message>
-    <message id="screenshot.open"><source>Open as New Document</source><translation>Apri come nuovo documento</translation></message>
-    <message id="screenshot.chooser.hint"><source>Vulkana minimizes while you choose what to capture using your desktop's screenshot chooser.</source><translation>Vulkana si riduce a icona mentre scegli cosa catturare con il selettore di schermate del desktop.</translation></message>
-    <message id="screenshot.native.hint"><source>Vulkana minimizes during capture. For Active Window, switch to your target during the delay. Restore Vulkana to cancel.</source><translation>Vulkana si riduce a icona durante la cattura. Per «Finestra attiva», passa alla finestra desiderata durante il ritardo. Ripristina Vulkana per annullare.</translation></message>
-    <message id="screenshot.crop.hint"><source>Scroll to zoom; middle mouse to pan. Drag to crop or adjust its corners. Arrow keys move the crop; Shift moves 10 pixels.</source><oldsource>Drag to crop. Move the crop or drag its corners to adjust it. Arrow keys move it; Shift moves 10 pixels.</oldsource><translation>Rotellina: zoom; pulsante centrale: sposta la vista. Trascina per ritagliare o regolare gli angoli. Le frecce spostano il ritaglio; Shift lo sposta di 10 pixel.</translation></message>
-    <message id="screenshot.empty"><source>Capture a screenshot to preview and crop it here.</source><translation>Cattura una schermata per visualizzarla e ritagliarla qui.</translation></message>
-    <message id="screenshot.countdown"><source>Capturing in %1 s…</source><translation>Cattura tra %1 s…</translation></message>
-    <message id="screenshot.waiting"><source>Waiting for capture…</source><translation>In attesa della cattura…</translation></message>
-    <message id="screenshot.cancelled"><source>Capture cancelled.</source><translation>Cattura annullata.</translation></message>
-    <message id="screenshot.dimensions"><source>%1 × %2 px</source><translation>%1 × %2 px</translation></message>
-    <message id="screenshot.failed"><source>Could not capture or open the screenshot: %1</source><translation>Impossibile catturare o aprire la schermata: %1</translation></message>
+    <message id="screenshot.action">
+      <source>Take Screenshot…</source>
+      <translation>Cattura schermata…</translation>
+    </message>
+    <message id="screenshot.title">
+      <source>Screenshot</source>
+      <translation>Cattura schermata</translation>
+    </message>
+    <message id="screenshot.document">
+      <source>Screenshot</source>
+      <translation>Cattura schermata</translation>
+    </message>
+    <message id="screenshot.preview">
+      <source>Screenshot crop preview</source>
+      <translation>Anteprima del ritaglio</translation>
+    </message>
+    <message id="screenshot.close">
+      <source>Close screenshot</source>
+      <translation>Chiudi cattura</translation>
+    </message>
+    <message id="screenshot.desktop.chooser">
+      <source>Desktop chooser</source>
+      <translation>Selettore del desktop</translation>
+    </message>
+    <message id="screenshot.entire.desktop">
+      <source>Entire desktop</source>
+      <translation>Intero desktop</translation>
+    </message>
+    <message id="screenshot.active.window">
+      <source>Active window</source>
+      <translation>Finestra attiva</translation>
+    </message>
+    <message id="screenshot.target">
+      <source>Capture source</source>
+      <translation>Origine della cattura</translation>
+    </message>
+    <message id="screenshot.delay">
+      <source>Delay: </source>
+      <translation>Ritardo: </translation>
+    </message>
+    <message id="screenshot.capture">
+      <source>Capture</source>
+      <translation>Cattura</translation>
+    </message>
+    <message id="screenshot.retake">
+      <source>Retake</source>
+      <translation>Ripeti cattura</translation>
+    </message>
+    <message id="screenshot.reset.crop">
+      <source>Reset Crop</source>
+      <translation>Ripristina ritaglio</translation>
+    </message>
+    <message id="screenshot.reset.zoom">
+      <source>Reset Zoom</source>
+      <translation>Ripristina zoom</translation>
+    </message>
+    <message id="screenshot.add.layer">
+      <source>Add as Layer</source>
+      <translation>Aggiungi come livello</translation>
+    </message>
+    <message id="screenshot.add.layer.hint">
+      <source>Add the crop to the current document as an undoable raster layer.</source>
+      <translation>Aggiunge il ritaglio al documento corrente come livello raster. L’operazione è annullabile.</translation>
+    </message>
+    <message id="screenshot.stop">
+      <source>Cancel Capture</source>
+      <translation>Annulla cattura</translation>
+    </message>
+    <message id="screenshot.cancel">
+      <source>Cancel</source>
+      <translation>Annulla</translation>
+    </message>
+    <message id="screenshot.open">
+      <source>Open as New Document</source>
+      <translation>Apri come nuovo documento</translation>
+    </message>
+    <message id="screenshot.chooser.hint">
+      <source>Vulkana minimizes while you choose what to capture using your desktop's screenshot chooser.</source>
+      <translation>Vulkana si riduce a icona mentre scegli cosa catturare con il selettore di schermate del desktop.</translation>
+    </message>
+    <message id="screenshot.native.hint">
+      <source>Vulkana minimizes during capture. For Active Window, switch to your target during the delay. Restore Vulkana to cancel.</source>
+      <translation>Vulkana si riduce a icona durante la cattura. Per «Finestra attiva», passa alla finestra desiderata durante il ritardo. Ripristina Vulkana per annullare.</translation>
+    </message>
+    <message id="screenshot.crop.hint">
+      <source>Scroll to zoom; middle mouse to pan. Drag to crop or adjust its corners. Arrow keys move the crop; Shift moves 10 pixels.</source>
+      <oldsource>Drag to crop. Move the crop or drag its corners to adjust it. Arrow keys move it; Shift moves 10 pixels.</oldsource>
+      <translation>Rotellina: zoom; pulsante centrale: sposta la vista. Trascina per ritagliare o regolare gli angoli. Le frecce spostano il ritaglio; Shift lo sposta di 10 pixel.</translation>
+    </message>
+    <message id="screenshot.empty">
+      <source>Capture a screenshot to preview and crop it here.</source>
+      <translation>Cattura una schermata per visualizzarla e ritagliarla qui.</translation>
+    </message>
+    <message id="screenshot.countdown">
+      <source>Capturing in %1 s…</source>
+      <translation>Cattura tra %1 s…</translation>
+    </message>
+    <message id="screenshot.waiting">
+      <source>Waiting for capture…</source>
+      <translation>In attesa della cattura…</translation>
+    </message>
+    <message id="screenshot.cancelled">
+      <source>Capture cancelled.</source>
+      <translation>Cattura annullata.</translation>
+    </message>
+    <message id="screenshot.dimensions">
+      <source>%1 × %2 px</source>
+      <translation>%1 × %2 px</translation>
+    </message>
+    <message id="screenshot.failed">
+      <source>Could not capture or open the screenshot: %1</source>
+      <translation>Impossibile catturare o aprire la schermata: %1</translation>
+    </message>
   </context>
   <context>
     <name>Performance preferences</name>
-    <message id="performance.title"><source>Performance</source><translation>Prestazioni</translation></message>
-    <message id="performance.gpu"><source>Graphics device</source><translation>Dispositivo grafico</translation></message>
-    <message id="performance.undo"><source>Undo memory per document</source><translation>Memoria annullamenti per documento</translation></message>
-    <message id="performance.cpu.cache"><source>Document cache per window</source><translation>Cache documenti per finestra</translation></message>
-    <message id="performance.gpu.cache"><source>GPU texture cache per window</source><translation>Cache texture GPU per finestra</translation></message>
-    <message id="performance.threads"><source>Image-processing threads</source><translation>Thread di elaborazione immagini</translation></message>
-    <message id="performance.object.threads"><source>Object Selection threads</source><translation>Thread di selezione oggetti</translation></message>
-    <message id="performance.auto"><source>Auto</source><translation>Auto</translation></message>
-    <message id="performance.auto.memory"><source>Auto (%1 MiB)</source><translation>Auto (%1 MiB)</translation></message>
-    <message id="performance.auto.threads"><source>Auto (up to %1)</source><translation>Auto (fino a %1)</translation></message>
-    <message id="performance.restart.note"><source>GPU and thread changes require a restart. Object Selection runs on the CPU.</source><translation>Le modifiche a GPU e thread richiedono un riavvio. La selezione oggetti usa la CPU.</translation></message>
-    <message id="performance.memory.note"><source>Budgets are retention targets, not total RAM/VRAM limits. Undo trims on later edits.</source><translation>I budget sono obiettivi per i dati conservati, non limiti totali di RAM/VRAM. La cronologia verrà ridotta con le modifiche successive.</translation></message>
-    <message id="performance.usage"><source>RAM (process): %1&#10;Undo: %2 (current), %3 (all tabs)&#10;Document cache: %4 · GPU texture cache: %5&#10;Rendering GPU: %6</source><translation>RAM (processo): %1&#10;Annullamenti: %2 (corrente), %3 (tutte le schede)&#10;Cache documenti: %4 · Cache texture GPU: %5&#10;GPU di rendering: %6</translation></message>
-    <message id="performance.clear"><source>Clear Inactive Caches</source><translation>Svuota cache inattive</translation></message>
-    <message id="performance.clear.hint"><source>Release cached previews and textures for inactive tabs in this window. Source pixels and undo history stay intact.</source><translation>Libera le anteprime e le texture delle schede inattive in questa finestra. I pixel originali e la cronologia degli annullamenti restano intatti.</translation></message>
-    <message id="performance.defaults"><source>Restore Defaults</source><translation>Ripristina valori predefiniti</translation></message>
-    <message id="performance.gpu.changed.title"><source>Graphics device changed</source><translation>Dispositivo grafico cambiato</translation></message>
-    <message id="performance.gpu.changed.message"><source>The selected GPU (%1) could not be used. Falling back to %2.</source><translation>Impossibile usare la GPU selezionata (%1). Verrà usata %2 al suo posto.</translation></message>
-    <message id="performance.gpu.changed.unknown"><source>The selected GPU could not be used. Falling back to %1.</source><translation>Impossibile usare la GPU selezionata. Verrà usata %1 al suo posto.</translation></message>
-    <message id="performance.gpu.unavailable"><source>Saved device (unavailable)</source><translation>Dispositivo salvato (non disponibile)</translation></message>
-    <message id="performance.gpu.check.hint"><source>GPU availability is checked on restart. If a device cannot display the canvas, Vulkana uses another GPU.</source><translation>La disponibilità della GPU viene verificata al riavvio. Se un dispositivo non può visualizzare la tela, Vulkana usa un’altra GPU.</translation></message>
-    <message id="performance.gpu.failed.item"><source>%1 — startup check failed</source><translation>%1 — verifica all’avvio non riuscita</translation></message>
-    <message id="performance.gpu.unsupported.item"><source>%1 — unavailable for this display</source><translation>%1 — non disponibile per questo schermo</translation></message>
-    <message id="performance.unknown"><source>Unavailable</source><translation>Non disponibile</translation></message>
-    <message id="performance.undo.warning.title"><source>Reduce Undo Memory?</source><translation>Ridurre la memoria degli annullamenti?</translation></message>
-    <message id="performance.undo.warning"><source>Older undo steps may be discarded as you make new edits. This cannot be reversed by raising the budget later. Continue?</source><translation>Le vecchie operazioni annullabili potrebbero essere eliminate con le nuove modifiche. Aumentare il budget in seguito non le ripristinerà. Continuare?</translation></message>
+    <message id="performance.title">
+      <source>Performance</source>
+      <translation>Prestazioni</translation>
+    </message>
+    <message id="performance.gpu">
+      <source>Graphics device</source>
+      <translation>Dispositivo grafico</translation>
+    </message>
+    <message id="performance.undo">
+      <source>Undo memory per document</source>
+      <translation>Memoria annullamenti per documento</translation>
+    </message>
+    <message id="performance.cpu.cache">
+      <source>Document cache per window</source>
+      <translation>Cache documenti per finestra</translation>
+    </message>
+    <message id="performance.gpu.cache">
+      <source>GPU texture cache per window</source>
+      <translation>Cache texture GPU per finestra</translation>
+    </message>
+    <message id="performance.threads">
+      <source>Image-processing threads</source>
+      <translation>Thread di elaborazione immagini</translation>
+    </message>
+    <message id="performance.object.threads">
+      <source>Object Selection threads</source>
+      <translation>Thread di selezione oggetti</translation>
+    </message>
+    <message id="performance.auto">
+      <source>Auto</source>
+      <translation>Auto</translation>
+    </message>
+    <message id="performance.auto.memory">
+      <source>Auto (%1 MiB)</source>
+      <translation>Auto (%1 MiB)</translation>
+    </message>
+    <message id="performance.auto.threads">
+      <source>Auto (up to %1)</source>
+      <translation>Auto (fino a %1)</translation>
+    </message>
+    <message id="performance.restart.note">
+      <source>GPU and thread changes require a restart. Object Selection runs on the CPU.</source>
+      <translation>Le modifiche a GPU e thread richiedono un riavvio. La selezione oggetti usa la CPU.</translation>
+    </message>
+    <message id="performance.memory.note">
+      <source>Budgets are retention targets, not total RAM/VRAM limits. Undo trims on later edits.</source>
+      <translation>I budget sono obiettivi per i dati conservati, non limiti totali di RAM/VRAM. La cronologia verrà ridotta con le modifiche successive.</translation>
+    </message>
+    <message id="performance.usage">
+      <source>RAM (process): %1
+Undo: %2 (current), %3 (all tabs)
+Document cache: %4 · GPU texture cache: %5
+Rendering GPU: %6</source>
+      <translation>RAM (processo): %1
+Annullamenti: %2 (corrente), %3 (tutte le schede)
+Cache documenti: %4 · Cache texture GPU: %5
+GPU di rendering: %6</translation>
+    </message>
+    <message id="performance.clear">
+      <source>Clear Inactive Caches</source>
+      <translation>Svuota cache inattive</translation>
+    </message>
+    <message id="performance.clear.hint">
+      <source>Release cached previews and textures for inactive tabs in this window. Source pixels and undo history stay intact.</source>
+      <translation>Libera le anteprime e le texture delle schede inattive in questa finestra. I pixel originali e la cronologia degli annullamenti restano intatti.</translation>
+    </message>
+    <message id="performance.defaults">
+      <source>Restore Defaults</source>
+      <translation>Ripristina valori predefiniti</translation>
+    </message>
+    <message id="performance.gpu.changed.title">
+      <source>Graphics device changed</source>
+      <translation>Dispositivo grafico cambiato</translation>
+    </message>
+    <message id="performance.gpu.changed.message">
+      <source>The selected GPU (%1) could not be used. Falling back to %2.</source>
+      <translation>Impossibile usare la GPU selezionata (%1). Verrà usata %2 al suo posto.</translation>
+    </message>
+    <message id="performance.gpu.changed.unknown">
+      <source>The selected GPU could not be used. Falling back to %1.</source>
+      <translation>Impossibile usare la GPU selezionata. Verrà usata %1 al suo posto.</translation>
+    </message>
+    <message id="performance.gpu.unavailable">
+      <source>Saved device (unavailable)</source>
+      <translation>Dispositivo salvato (non disponibile)</translation>
+    </message>
+    <message id="performance.gpu.check.hint">
+      <source>GPU availability is checked on restart. If a device cannot display the canvas, Vulkana uses another GPU.</source>
+      <translation>La disponibilità della GPU viene verificata al riavvio. Se un dispositivo non può visualizzare la tela, Vulkana usa un’altra GPU.</translation>
+    </message>
+    <message id="performance.gpu.failed.item">
+      <source>%1 — startup check failed</source>
+      <translation>%1 — verifica all’avvio non riuscita</translation>
+    </message>
+    <message id="performance.gpu.unsupported.item">
+      <source>%1 — unavailable for this display</source>
+      <translation>%1 — non disponibile per questo schermo</translation>
+    </message>
+    <message id="performance.unknown">
+      <source>Unavailable</source>
+      <translation>Non disponibile</translation>
+    </message>
+    <message id="performance.undo.warning.title">
+      <source>Reduce Undo Memory?</source>
+      <translation>Ridurre la memoria degli annullamenti?</translation>
+    </message>
+    <message id="performance.undo.warning">
+      <source>Older undo steps may be discarded as you make new edits. This cannot be reversed by raising the budget later. Continue?</source>
+      <translation>Le vecchie operazioni annullabili potrebbero essere eliminate con le nuove modifiche. Aumentare il budget in seguito non le ripristinerà. Continuare?</translation>
+    </message>
   </context>
   <context>
     <name>LayerMaskClipboard</name>
@@ -10744,72 +10936,190 @@ Smusso: tira gli angoli all'interno; Alt cambia anche l'opposto. I lati ridimens
       <source>Photoshop Fill: fade the layer content while keeping its effects. Some blend modes respond differently than Layer opacity.</source>
       <translation>Riempimento di Photoshop: attenua il contenuto del livello mantenendo gli effetti. Alcuni metodi di fusione rispondono diversamente rispetto all’opacità del livello.</translation>
     </message>
-    <message id="history.layer.pixel.opacity">
-      <source>Layer pixel opacity</source>
-      <extracomment>Core history label: Layer pixel opacity</extracomment>
-      <translation>Opacità dei pixel del livello</translation>
-    </message>
   </context>
   <context>
     <name>GraphicsStartup</name>
-    <message id="graphics.startup.aborting"><source>Aborting…</source><translation>Annullamento…</translation></message>
-    <message id="graphics.startup.closing"><source>Waiting for the graphics driver before closing.</source><translation>In attesa del driver grafico prima di chiudere.</translation></message>
-    <message id="graphics.startup.title"><source>Initializing graphics…</source><translation>Inizializzazione grafica…</translation></message>
-    <message id="graphics.startup.detail"><source>Preparing shaders. This may take a few seconds.</source><translation>Preparazione degli shader. Potrebbe richiedere qualche secondo.</translation></message>
+    <message id="graphics.startup.aborting">
+      <source>Aborting…</source>
+      <translation>Annullamento…</translation>
+    </message>
+    <message id="graphics.startup.closing">
+      <source>Waiting for the graphics driver before closing.</source>
+      <translation>In attesa del driver grafico prima di chiudere.</translation>
+    </message>
+    <message id="graphics.startup.title">
+      <source>Initializing graphics…</source>
+      <translation>Inizializzazione grafica…</translation>
+    </message>
+    <message id="graphics.startup.detail">
+      <source>Preparing shaders. This may take a few seconds.</source>
+      <translation>Preparazione degli shader. Potrebbe richiedere qualche secondo.</translation>
+    </message>
   </context>
   <context>
     <name>LayerInfo</name>
-    <message id="preferences.layer.info"><source>Show layer info</source><translation>Mostra informazioni sui livelli</translation></message>
-    <message id="preferences.layer.info.hint"><source>Show non-Normal blend modes and active effect icons on layer rows.</source><translation>Mostra i metodi di fusione diversi da Normale e le icone degli effetti attivi nelle righe dei livelli.</translation></message>
+    <message id="preferences.layer.info">
+      <source>Show layer info</source>
+      <translation>Mostra informazioni sui livelli</translation>
+    </message>
+    <message id="preferences.layer.info.hint">
+      <source>Show non-Normal blend modes and active effect icons on layer rows.</source>
+      <translation>Mostra i metodi di fusione diversi da Normale e le icone degli effetti attivi nelle righe dei livelli.</translation>
+    </message>
   </context>
   <context>
     <name>CanvasResize</name>
+    <message id="canvas.resize.action">
+      <source>Quick canvas resize</source>
+      <translation>Ridimensionamento rapido della tela</translation>
+    </message>
     <message id="canvas.resize.to.layer">
       <source>Canvas size to selected layer</source>
-      <translation type="unfinished" />
+      <translation>Adatta tela al livello selezionato</translation>
     </message>
     <message id="canvas.resize.to.layer.hint">
       <source>Fit the canvas to the selected layer's bounds without resampling its pixels.</source>
-      <translation type="unfinished" />
+      <translation>Adatta la tela ai limiti del livello selezionato senza ricampionare i pixel.</translation>
     </message>
-    <message id="canvas.resize.action"><source>Quick canvas resize</source><translation>Ridimensionamento rapido della tela</translation></message>
-    <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translation>Trascina un bordo o un angolo per ridimensionare la tela, oppure l’interno per spostarla. I pixel dei livelli vengono conservati. Applica: {{FinishOperationAction}} · Annulla: Esc.</translation></message>
-    <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translation>Mantiene le proporzioni della tela; Shift attiva o disattiva temporaneamente il vincolo.</translation></message>
-    <message id="canvas.resize.reset"><source>Reset to the original canvas bounds</source><translation>Ripristina i limiti originali della tela</translation></message>
-    <message id="canvas.resize.apply"><source>Apply canvas resize · {{FinishOperationAction}} / right-click</source><translation>Applica ridimensionamento · {{FinishOperationAction}} / clic destro</translation></message>
-    <message id="canvas.resize.cancel"><source>Cancel canvas resize · Escape</source><translation>Annulla ridimensionamento · Esc</translation></message>
-    <message id="canvas.resize.done"><source>Canvas resized to %1 × %2 px</source><translation>Tela ridimensionata a %1 × %2 px</translation></message>
-    <message id="canvas.resize.undo"><source>Undo canvas resize adjustment</source><translation>Annulla modifica della tela</translation></message>
-    <message id="canvas.resize.redo"><source>Redo canvas resize adjustment</source><translation>Ripeti modifica della tela</translation></message>
+    <message id="canvas.resize.hint">
+      <source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source>
+      <translation>Trascina un bordo o un angolo per ridimensionare la tela, oppure l’interno per spostarla. I pixel dei livelli vengono conservati. Applica: {{FinishOperationAction}} · Annulla: Esc.</translation>
+    </message>
+    <message id="canvas.resize.ratio">
+      <source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source>
+      <translation>Mantiene le proporzioni della tela; Shift attiva o disattiva temporaneamente il vincolo.</translation>
+    </message>
+    <message id="canvas.resize.reset">
+      <source>Reset to the original canvas bounds</source>
+      <translation>Ripristina i limiti originali della tela</translation>
+    </message>
+    <message id="canvas.resize.apply">
+      <source>Apply canvas resize · {{FinishOperationAction}} / right-click</source>
+      <translation>Applica ridimensionamento · {{FinishOperationAction}} / clic destro</translation>
+    </message>
+    <message id="canvas.resize.cancel">
+      <source>Cancel canvas resize · Escape</source>
+      <translation>Annulla ridimensionamento · Esc</translation>
+    </message>
+    <message id="canvas.resize.done">
+      <source>Canvas resized to %1 × %2 px</source>
+      <translation>Tela ridimensionata a %1 × %2 px</translation>
+    </message>
+    <message id="canvas.resize.undo">
+      <source>Undo canvas resize adjustment</source>
+      <translation>Annulla modifica della tela</translation>
+    </message>
+    <message id="canvas.resize.redo">
+      <source>Redo canvas resize adjustment</source>
+      <translation>Ripeti modifica della tela</translation>
+    </message>
   </context>
   <context>
     <name>CompactProperties</name>
-    <message id="properties.info.title"><source>Layer Info</source><translation>Info livello</translation></message>
-    <message id="properties.info.size"><source>Size</source><translation>Dimensione</translation></message>
-    <message id="properties.info.angle"><source>Angle</source><translation>Angolo</translation></message>
-    <message id="properties.info.position"><source>Position</source><translation>Posizione</translation></message>
-    <message id="properties.info.font"><source>Font</source><translation>Font</translation></message>
-    <message id="properties.info.color"><source>Color</source><translation>Colore</translation></message>
-    <message id="properties.info.whole.text"><source>Changes apply to the entire text layer.</source><translation>Le modifiche si applicano all’intero livello di testo.</translation></message>
-    <message id="properties.info.folder"><source>Folder</source><translation>Cartella</translation></message>
-    <message id="properties.info.group"><source>Group</source><translation>Gruppo</translation></message>
-    <message id="properties.info.adjustment"><source>Adjustment layer</source><translation>Livello di regolazione</translation></message>
-    <message id="properties.info.brush.settings"><source>Brush settings</source><translation>Impostazioni pennello</translation></message>
-    <message id="properties.info.width"><source>Width</source><translation>Larghezza</translation></message>
-    <message id="properties.info.height"><source>Height</source><translation>Altezza</translation></message>
-    <message id="properties.info.text.color"><source>Text color</source><translation>Colore testo</translation></message>
-    <message id="properties.info.mixed"><source>Mixed</source><translation>Misto</translation></message>
-    <message id="properties.shortcuts.sample"><source>Sample color (hold)</source><translation>Campiona colore (tieni premuto)</translation></message>
-    <message id="properties.shortcuts.source"><source>Set clone/heal source</source><translation>Imposta sorgente clone/correzione</translation></message>
-    <message id="properties.shortcuts.add"><source>Add to selection</source><translation>Aggiungi alla selezione</translation></message>
-    <message id="properties.shortcuts.subtract"><source>Subtract from selection</source><translation>Sottrai dalla selezione</translation></message>
-    <message id="properties.shortcuts.intersect"><source>Intersect selection</source><translation>Interseca selezione</translation></message>
-    <message id="properties.shortcuts.constrain"><source>Constrain direction or proportions</source><translation>Vincola direzione o proporzioni</translation></message>
-    <message id="properties.shortcuts.ratio"><source>Toggle aspect constraint</source><translation>Attiva/disattiva proporzioni fisse</translation></message>
-    <message id="properties.shortcuts.center"><source>Resize from center</source><translation>Ridimensiona dal centro</translation></message>
-    <message id="properties.shortcuts.cancel"><source>Cancel current operation</source><translation>Annulla operazione corrente</translation></message>
-    <message id="properties.shortcuts.middle"><source>Middle mouse</source><translation>Tasto centrale</translation></message>
-    <message id="properties.shortcuts.pan"><source>Pan canvas</source><translation>Sposta vista tela</translation></message>
+    <message id="properties.info.title">
+      <source>Layer Info</source>
+      <translation>Info livello</translation>
+    </message>
+    <message id="properties.info.size">
+      <source>Size</source>
+      <translation>Dimensione</translation>
+    </message>
+    <message id="properties.info.angle">
+      <source>Angle</source>
+      <translation>Angolo</translation>
+    </message>
+    <message id="properties.info.position">
+      <source>Position</source>
+      <translation>Posizione</translation>
+    </message>
+    <message id="properties.info.font">
+      <source>Font</source>
+      <translation>Font</translation>
+    </message>
+    <message id="properties.info.color">
+      <source>Color</source>
+      <translation>Colore</translation>
+    </message>
+    <message id="properties.info.whole.text">
+      <source>Changes apply to the entire text layer.</source>
+      <translation>Le modifiche si applicano all’intero livello di testo.</translation>
+    </message>
+    <message id="properties.info.folder">
+      <source>Folder</source>
+      <translation>Cartella</translation>
+    </message>
+    <message id="properties.info.group">
+      <source>Group</source>
+      <translation>Gruppo</translation>
+    </message>
+    <message id="properties.info.adjustment">
+      <source>Adjustment layer</source>
+      <translation>Livello di regolazione</translation>
+    </message>
+    <message id="properties.info.brush.settings">
+      <source>Brush settings</source>
+      <translation>Impostazioni pennello</translation>
+    </message>
+    <message id="properties.info.width">
+      <source>Width</source>
+      <translation>Larghezza</translation>
+    </message>
+    <message id="properties.info.height">
+      <source>Height</source>
+      <translation>Altezza</translation>
+    </message>
+    <message id="properties.info.text.color">
+      <source>Text color</source>
+      <translation>Colore testo</translation>
+    </message>
+    <message id="properties.info.mixed">
+      <source>Mixed</source>
+      <translation>Misto</translation>
+    </message>
+    <message id="properties.shortcuts.sample">
+      <source>Sample color (hold)</source>
+      <translation>Campiona colore (tieni premuto)</translation>
+    </message>
+    <message id="properties.shortcuts.source">
+      <source>Set clone/heal source</source>
+      <translation>Imposta sorgente clone/correzione</translation>
+    </message>
+    <message id="properties.shortcuts.add">
+      <source>Add to selection</source>
+      <translation>Aggiungi alla selezione</translation>
+    </message>
+    <message id="properties.shortcuts.subtract">
+      <source>Subtract from selection</source>
+      <translation>Sottrai dalla selezione</translation>
+    </message>
+    <message id="properties.shortcuts.intersect">
+      <source>Intersect selection</source>
+      <translation>Interseca selezione</translation>
+    </message>
+    <message id="properties.shortcuts.constrain">
+      <source>Constrain direction or proportions</source>
+      <translation>Vincola direzione o proporzioni</translation>
+    </message>
+    <message id="properties.shortcuts.ratio">
+      <source>Toggle aspect constraint</source>
+      <translation>Attiva/disattiva proporzioni fisse</translation>
+    </message>
+    <message id="properties.shortcuts.center">
+      <source>Resize from center</source>
+      <translation>Ridimensiona dal centro</translation>
+    </message>
+    <message id="properties.shortcuts.cancel">
+      <source>Cancel current operation</source>
+      <translation>Annulla operazione corrente</translation>
+    </message>
+    <message id="properties.shortcuts.middle">
+      <source>Middle mouse</source>
+      <translation>Tasto centrale</translation>
+    </message>
+    <message id="properties.shortcuts.pan">
+      <source>Pan canvas</source>
+      <translation>Sposta vista tela</translation>
+    </message>
   </context>
   <context>
     <name>GradientEditor</name>
@@ -11178,41 +11488,128 @@ Preparazione %3 · Completamento %4 · Totale %5</translation>
   </context>
   <context>
     <name>McpPreferences</name>
-    <message id="mcp.preferences.title"><source>MCP</source><translation>MCP</translation></message>
-    <message id="mcp.preferences.start"><source>Start MCP</source><translation>Avvia MCP</translation></message>
-    <message id="mcp.preferences.stop"><source>Stop MCP</source><translation>Arresta MCP</translation></message>
-    <message id="mcp.preferences.stopped"><source>Stopped</source><translation>Arrestato</translation></message>
-    <message id="mcp.preferences.listening"><source>Listening</source><translation>In attesa</translation></message>
-    <message id="mcp.preferences.connected"><source>Connected · Clients: %1</source><translation>Connesso · Client: %1</translation></message>
-    <message id="mcp.preferences.stopping"><source>Stopping…</source><translation>Arresto in corso…</translation></message>
-    <message id="mcp.preferences.error"><source>Error</source><translation>Errore</translation></message>
-    <message id="mcp.preferences.autostart"><source>Start automatically with Vulkana</source><translation>Avvia automaticamente con Vulkana</translation></message>
-    <message id="mcp.preferences.security"><source>Only connect clients you trust. MCP clients can modify documents and read or write files with your Vulkana host-user permissions. A client running in a container is not limited to that container's files.</source><translation>Collega solo client fidati. I client MCP possono modificare documenti e leggere o scrivere file con i permessi dell’utente che esegue Vulkana sul computer host. Un client eseguito in un container non è limitato ai file di quel container.</translation></message>
-    <message id="mcp.preferences.connection"><source>Connection</source><translation>Connessione</translation></message>
-    <message id="mcp.preferences.local"><source>MCP uses local communication, without a network port. Multiple trusted clients can connect; editing commands run one at a time. Copy the configuration into OpenCode V2; Vulkana does not edit its configuration files.</source><translation>MCP comunica in locale, senza una porta di rete. Possono collegarsi più client fidati; i comandi di modifica vengono eseguiti uno alla volta. Copia la configurazione in OpenCode V2; Vulkana non ne modifica i file di configurazione.</translation></message>
-    <message id="mcp.preferences.command"><source>Bridge command</source><translation>Comando di collegamento</translation></message>
-    <message id="mcp.preferences.endpoint"><source>Endpoint</source><translation>Indirizzo locale</translation></message>
-    <message id="mcp.preferences.copy"><source>Copy Configuration · OpenCode V2</source><translation>Copia configurazione · OpenCode V2</translation></message>
-    <message id="mcp.preferences.copied"><source>Copied</source><translation>Copiato</translation></message>
-    <message id="mcp.preferences.advanced"><source>Advanced Settings</source><translation>Impostazioni avanzate</translation></message>
-    <message id="mcp.preferences.custom"><source>Use a custom endpoint</source><translation>Usa un indirizzo locale personalizzato</translation></message>
-    <message id="mcp.preferences.next.start"><source>Endpoint changes take effect on the next Start. While MCP is running, Copy Configuration uses its current endpoint.</source><translation>Le modifiche all’indirizzo hanno effetto al prossimo avvio di MCP. Quando MCP è attivo, Copia configurazione usa l’indirizzo corrente.</translation></message>
-    <message id="mcp.preferences.apply.note"><source>Start and Stop affect this session immediately. Apply saves automatic startup and endpoint settings; it does not restart an active connection.</source><translation>Avvia e Arresta agiscono subito sulla sessione. Applica salva l’avvio automatico e l’indirizzo locale, senza riavviare una connessione attiva.</translation></message>
-    <message id="mcp.preferences.finishing"><source>Waiting for the current command to finish before disconnecting. Its changes are not cancelled or rolled back.</source><translation>Disconnessione al termine del comando corrente. Le sue modifiche non verranno annullate.</translation></message>
+    <message id="mcp.preferences.title">
+      <source>MCP</source>
+      <translation>MCP</translation>
+    </message>
+    <message id="mcp.preferences.start">
+      <source>Start MCP</source>
+      <translation>Avvia MCP</translation>
+    </message>
+    <message id="mcp.preferences.stop">
+      <source>Stop MCP</source>
+      <translation>Arresta MCP</translation>
+    </message>
+    <message id="mcp.preferences.stopped">
+      <source>Stopped</source>
+      <translation>Arrestato</translation>
+    </message>
+    <message id="mcp.preferences.listening">
+      <source>Listening</source>
+      <translation>In attesa</translation>
+    </message>
+    <message id="mcp.preferences.connected">
+      <source>Connected · Clients: %1</source>
+      <translation>Connesso · Client: %1</translation>
+    </message>
+    <message id="mcp.preferences.stopping">
+      <source>Stopping…</source>
+      <translation>Arresto in corso…</translation>
+    </message>
+    <message id="mcp.preferences.error">
+      <source>Error</source>
+      <translation>Errore</translation>
+    </message>
+    <message id="mcp.preferences.autostart">
+      <source>Start automatically with Vulkana</source>
+      <translation>Avvia automaticamente con Vulkana</translation>
+    </message>
+    <message id="mcp.preferences.security">
+      <source>Only connect clients you trust. MCP clients can modify documents and read or write files with your Vulkana host-user permissions. A client running in a container is not limited to that container's files.</source>
+      <translation>Collega solo client fidati. I client MCP possono modificare documenti e leggere o scrivere file con i permessi dell’utente che esegue Vulkana sul computer host. Un client eseguito in un container non è limitato ai file di quel container.</translation>
+    </message>
+    <message id="mcp.preferences.connection">
+      <source>Connection</source>
+      <translation>Connessione</translation>
+    </message>
+    <message id="mcp.preferences.local">
+      <source>MCP uses local communication, without a network port. Multiple trusted clients can connect; editing commands run one at a time. Copy the configuration into OpenCode V2; Vulkana does not edit its configuration files.</source>
+      <translation>MCP comunica in locale, senza una porta di rete. Possono collegarsi più client fidati; i comandi di modifica vengono eseguiti uno alla volta. Copia la configurazione in OpenCode V2; Vulkana non ne modifica i file di configurazione.</translation>
+    </message>
+    <message id="mcp.preferences.command">
+      <source>Bridge command</source>
+      <translation>Comando di collegamento</translation>
+    </message>
+    <message id="mcp.preferences.endpoint">
+      <source>Endpoint</source>
+      <translation>Indirizzo locale</translation>
+    </message>
+    <message id="mcp.preferences.copy">
+      <source>Copy Configuration · OpenCode V2</source>
+      <translation>Copia configurazione · OpenCode V2</translation>
+    </message>
+    <message id="mcp.preferences.copied">
+      <source>Copied</source>
+      <translation>Copiato</translation>
+    </message>
+    <message id="mcp.preferences.advanced">
+      <source>Advanced Settings</source>
+      <translation>Impostazioni avanzate</translation>
+    </message>
+    <message id="mcp.preferences.custom">
+      <source>Use a custom endpoint</source>
+      <translation>Usa un indirizzo locale personalizzato</translation>
+    </message>
+    <message id="mcp.preferences.next.start">
+      <source>Endpoint changes take effect on the next Start. While MCP is running, Copy Configuration uses its current endpoint.</source>
+      <translation>Le modifiche all’indirizzo hanno effetto al prossimo avvio di MCP. Quando MCP è attivo, Copia configurazione usa l’indirizzo corrente.</translation>
+    </message>
+    <message id="mcp.preferences.apply.note">
+      <source>Start and Stop affect this session immediately. Apply saves automatic startup and endpoint settings; it does not restart an active connection.</source>
+      <translation>Avvia e Arresta agiscono subito sulla sessione. Applica salva l’avvio automatico e l’indirizzo locale, senza riavviare una connessione attiva.</translation>
+    </message>
+    <message id="mcp.preferences.finishing">
+      <source>Waiting for the current command to finish before disconnecting. Its changes are not cancelled or rolled back.</source>
+      <translation>Disconnessione al termine del comando corrente. Le sue modifiche non verranno annullate.</translation>
+    </message>
   </context>
   <context>
     <name>ShapePreview</name>
-    <message id="main.window.shape.preview.limit.named"><source>Shape “%1” (layer %2) exceeds the preview limit. Its editable data is retained.</source><translation>La forma «%1» (livello %2) supera il limite di anteprima. Rimane modificabile.</translation></message>
-    <message id="main.window.shape.preview.memory.named"><source>Not enough memory to render shape “%1” (layer %2). Its editable data is retained.</source><translation>Memoria insufficiente per visualizzare la forma «%1» (livello %2). Rimane modificabile.</translation></message>
-    <message id="main.window.shape.preview.failed.named"><source>Could not render shape “%1” (layer %2): %3. Its editable data is retained.</source><translation>Impossibile visualizzare la forma «%1» (livello %2): %3. Rimane modificabile.</translation></message>
-    <message id="main.window.shape.preview.reduced.named"><source>Shape “%1” (layer %2) is shown at reduced preview resolution. Its editable data is retained.</source><translation>La forma «%1» (livello %2) è mostrata a risoluzione ridotta nell’anteprima. Rimane modificabile.</translation></message>
+    <message id="main.window.shape.preview.limit.named">
+      <source>Shape “%1” (layer %2) exceeds the preview limit. Its editable data is retained.</source>
+      <translation>La forma «%1» (livello %2) supera il limite di anteprima. Rimane modificabile.</translation>
+    </message>
+    <message id="main.window.shape.preview.memory.named">
+      <source>Not enough memory to render shape “%1” (layer %2). Its editable data is retained.</source>
+      <translation>Memoria insufficiente per visualizzare la forma «%1» (livello %2). Rimane modificabile.</translation>
+    </message>
+    <message id="main.window.shape.preview.failed.named">
+      <source>Could not render shape “%1” (layer %2): %3. Its editable data is retained.</source>
+      <translation>Impossibile visualizzare la forma «%1» (livello %2): %3. Rimane modificabile.</translation>
+    </message>
+    <message id="main.window.shape.preview.reduced.named">
+      <source>Shape “%1” (layer %2) is shown at reduced preview resolution. Its editable data is retained.</source>
+      <translation>La forma «%1» (livello %2) è mostrata a risoluzione ridotta nell’anteprima. Rimane modificabile.</translation>
+    </message>
   </context>
   <context>
     <name>LayerSelectionFocus</name>
-    <message id="preferences.layer.focus.label"><source>Auto-scroll to selected layer</source><translation>Scorri al livello selezionato</translation></message>
-    <message id="preferences.layer.focus.normal"><source>Focus</source><translation>Mostra</translation></message>
-    <message id="preferences.layer.focus.expand"><source>Focus and Expand</source><translation>Mostra ed espandi</translation></message>
-    <message id="preferences.layer.focus.hint"><source>Focus scrolls to the selected layer or its visible parent. Focus and Expand also opens collapsed parents.</source><translation>Mostra scorre fino al livello selezionato o al suo contenitore visibile. Mostra ed espandi apre anche i contenitori compressi.</translation></message>
+    <message id="preferences.layer.focus.label">
+      <source>Auto-scroll to selected layer</source>
+      <translation>Scorri al livello selezionato</translation>
+    </message>
+    <message id="preferences.layer.focus.normal">
+      <source>Focus</source>
+      <translation>Mostra</translation>
+    </message>
+    <message id="preferences.layer.focus.expand">
+      <source>Focus and Expand</source>
+      <translation>Mostra ed espandi</translation>
+    </message>
+    <message id="preferences.layer.focus.hint">
+      <source>Focus scrolls to the selected layer or its visible parent. Focus and Expand also opens collapsed parents.</source>
+      <translation>Mostra scorre fino al livello selezionato o al suo contenitore visibile. Mostra ed espandi apre anche i contenitori compressi.</translation>
+    </message>
   </context>
   <context>
     <name>ArcShape</name>
@@ -11262,247 +11659,2111 @@ Preparazione %3 · Completamento %4 · Totale %5</translation>
   </context>
   <context>
     <name>McpStatus</name>
-    <message id="mcp.status.connected"><source>MCP connected (%1)</source><translation>MCP connesso (%1)</translation></message>
-    <message id="mcp.status.stopping"><source>MCP stopping…</source><translation>Arresto MCP…</translation></message>
-    <message id="mcp.status.error"><source>MCP error</source><translation>Errore MCP</translation></message>
-    <message id="mcp.status.enabled"><source>MCP enabled</source><translation>MCP attivo</translation></message>
-    <message id="mcp.status.endpoint.hint"><source>Local document automation. Endpoint: %1</source><translation>Automazione locale dei documenti. Indirizzo: %1</translation></message>
+    <message id="mcp.status.connected">
+      <source>MCP connected (%1)</source>
+      <translation>MCP connesso (%1)</translation>
+    </message>
+    <message id="mcp.status.stopping">
+      <source>MCP stopping…</source>
+      <translation>Arresto MCP…</translation>
+    </message>
+    <message id="mcp.status.error">
+      <source>MCP error</source>
+      <translation>Errore MCP</translation>
+    </message>
+    <message id="mcp.status.enabled">
+      <source>MCP enabled</source>
+      <translation>MCP attivo</translation>
+    </message>
+    <message id="mcp.status.endpoint.hint">
+      <source>Local document automation. Endpoint: %1</source>
+      <translation>Automazione locale dei documenti. Indirizzo: %1</translation>
+    </message>
   </context>
   <context>
     <name>ChannelGroups</name>
     <message id="channels.action.convert">
       <source>Convert to Channel Group</source>
-      <translation type="unfinished" />
+      <translation>Converti in gruppo di canali</translation>
     </message>
     <message id="channels.action.recombine">
       <source>Convert Channel Group to Raster</source>
-      <translation type="unfinished" />
+      <translation>Converti gruppo di canali in livello raster</translation>
     </message>
     <message id="channels.action.inspect.alpha">
       <source>Show alpha as transparency</source>
-      <translation type="unfinished" />
+      <translation>Mostra alfa come trasparenza</translation>
     </message>
     <message id="channels.action.copy">
       <source>Copy channel pixels</source>
-      <translation type="unfinished" />
+      <translation>Copia pixel del canale</translation>
     </message>
     <message id="channels.action.cut">
       <source>Cut channel pixels</source>
-      <translation type="unfinished" />
+      <translation>Taglia pixel del canale</translation>
     </message>
     <message id="channels.action.open">
       <source>Open data texture…</source>
-      <translation type="unfinished" />
+      <translation>Apri texture di dati…</translation>
     </message>
     <message id="channels.action.export">
       <source>Export channel data…</source>
-      <translation type="unfinished" />
+      <translation>Esporta dati dei canali…</translation>
     </message>
     <message id="channels.convert.to.edit">
       <source>Convert to a Channel Group to edit numeric data.</source>
-      <translation type="unfinished" />
+      <translation>Converti in un gruppo di canali per modificare i dati numerici.</translation>
     </message>
     <message id="channels.operation.unavailable">
       <source>Unavailable for numeric channels.</source>
-      <translation type="unfinished" />
+      <translation>Non disponibile per i canali numerici.</translation>
     </message>
     <message id="channels.clipboard.copied">
       <source>Channel pixels copied.</source>
-      <translation type="unfinished" />
+      <translation>Pixel del canale copiati.</translation>
     </message>
     <message id="channels.clipboard.required">
       <source>Copy channel pixels or an 8-bit straight grayscale image to paste into a channel.</source>
-      <translation type="unfinished" />
+      <translation>Copia pixel di un canale o un’immagine grigia a 8 bit non premoltiplicata per incollare in un canale.</translation>
     </message>
     <message id="channels.clipboard.target.changed">
       <source>The paste target changed. Try pasting again.</source>
-      <translation type="unfinished" />
+      <translation>La destinazione è cambiata. Prova a incollare di nuovo.</translation>
     </message>
     <message id="channels.clipboard.failed">
       <source>Could not paste into the channel. No pixels were changed.</source>
-      <translation type="unfinished" />
+      <translation>Impossibile incollare nel canale. Nessun pixel è stato modificato.</translation>
     </message>
     <message id="channels.open.title">
       <source>Open data texture</source>
-      <translation type="unfinished" />
+      <translation>Apri texture di dati</translation>
     </message>
     <message id="channels.open.filter">
       <source>Lossless images (*.png *.tif *.tiff *.bmp *.tga);;All files (*)</source>
-      <translation type="unfinished" />
+      <translation>Immagini senza perdita (*.png *.tif *.tiff *.bmp *.tga);;Tutti i file (*)</translation>
     </message>
     <message id="channels.value">
       <source>Value</source>
-      <translation type="unfinished" />
+      <translation>Valore</translation>
     </message>
     <message id="channels.value.prefix">
       <source>Value: </source>
-      <translation type="unfinished" />
+      <translation>Valore: </translation>
     </message>
     <message id="channels.value.hint">
       <source>Stored channel value. Black is 0; white is 255.</source>
-      <translation type="unfinished" />
+      <translation>Valore memorizzato nel canale. Nero: 0; bianco: 255.</translation>
     </message>
     <message id="channels.group.hint">
       <source>Packed channel data. Select a channel to inspect and edit its numeric values.</source>
-      <translation type="unfinished" />
+      <translation>Dati dei canali combinati. Seleziona un canale per visualizzare e modificare i suoi valori numerici.</translation>
     </message>
     <message id="channels.layer.hint">
       <source>Numeric channel: 0–255. Rename the label without changing its channel identity.</source>
-      <translation type="unfinished" />
+      <translation>Canale numerico: 0–255. Rinominare l’etichetta non cambia l’identità del canale.</translation>
     </message>
     <message id="channels.type.group">
       <source>Channel Group</source>
-      <translation type="unfinished" />
+      <translation>Gruppo di canali</translation>
     </message>
     <message id="channels.type.scalar">
       <source>Numeric channel · R8</source>
-      <translation type="unfinished" />
+      <translation>Canale numerico · R8</translation>
     </message>
     <message id="channels.type.packed">
       <source>Packed data · RGBA8</source>
-      <translation type="unfinished" />
+      <translation>Dati combinati · RGBA8</translation>
     </message>
     <message id="channels.levels.hint">
       <source>Adjust stored channel values without colour conversion.</source>
-      <translation type="unfinished" />
+      <translation>Regola i valori del canale senza conversione dei colori.</translation>
     </message>
     <message id="channels.invert.hint">
       <source>Invert channel values: 0 becomes 255, and 255 becomes 0.</source>
-      <translation type="unfinished" />
+      <translation>Inverti i valori del canale: 0 diventa 255 e 255 diventa 0.</translation>
     </message>
     <message id="channels.effects.unavailable">
       <source>Colour effects are unavailable for numeric channels.</source>
-      <translation type="unfinished" />
+      <translation>Gli effetti colore non sono disponibili per i canali numerici.</translation>
     </message>
     <message id="channels.color.adjustments.unavailable">
       <source>Colour adjustments are unavailable for numeric channels.</source>
-      <translation type="unfinished" />
+      <translation>Le regolazioni colore non sono disponibili per i canali numerici.</translation>
     </message>
     <message id="channels.histogram.sampled">
       <source>Sampled input · %1 numeric samples</source>
-      <translation type="unfinished" />
+      <translation>Ingresso campionato · %1 campioni numerici</translation>
     </message>
     <message id="channels.histogram.source">
       <source>Source input · %1 numeric samples</source>
-      <translation type="unfinished" />
+      <translation>Ingresso originale · %1 campioni numerici</translation>
     </message>
     <message id="channels.export.title">
       <source>Export channel data</source>
-      <translation type="unfinished" />
+      <translation>Esporta dati dei canali</translation>
     </message>
     <message id="channels.export.hint">
       <source>Native pixel values · PNG · no colour conversion</source>
-      <translation type="unfinished" />
+      <translation>Valori originali · PNG · senza conversione dei colori</translation>
     </message>
     <message id="channels.clone.source.hint">
       <source>Numeric channels sample an explicit channel layer. Rendered colour sources are unavailable.</source>
-      <translation type="unfinished" />
+      <translation>I canali numerici usano un livello di canale specifico come sorgente. Le sorgenti di colore renderizzate non sono disponibili.</translation>
     </message>
     <message id="channels.psd.unsupported">
       <source>Save a Vulkana project or export channel data as PNG to preserve numeric channels.</source>
-      <translation type="unfinished" />
+      <translation>Salva un progetto Vulkana o esporta i dati in PNG per conservare i canali numerici.</translation>
     </message>
     <message id="history.channels.recombine">
       <source>Convert Channel Group to raster</source>
-      <translation type="unfinished" />
+      <translation>Converti gruppo di canali in livello raster</translation>
     </message>
     <message id="history.channels.paste">
       <source>Paste channel pixels</source>
-      <translation type="unfinished" />
+      <translation>Incolla pixel del canale</translation>
     </message>
   </context>
   <context>
     <name>DiffusionPanel</name>
     <message id="diffusion.override.reset.hint">
       <source>Reset to configuration default: %1</source>
-      <translation type="unfinished" />
+      <translation>Ripristina il valore della configurazione: %1</translation>
     </message>
     <message id="diffusion.vae.tiling.required">
       <source>Available when VAE tiling is enabled.</source>
-      <translation type="unfinished" />
+      <translation>Disponibile con l’elaborazione VAE a tasselli attiva.</translation>
     </message>
     <message id="diffusion.progress.preview.required">
       <source>Available when progress previews are enabled.</source>
-      <translation type="unfinished" />
+      <translation>Disponibile con le anteprime di avanzamento attive.</translation>
     </message>
   </context>
   <context>
     <name>PsdImportReview</name>
     <message id="psd.review.type.smart.object">
       <source>Smart Object</source>
-      <translation type="unfinished" />
+      <translation>Oggetto avanzato</translation>
     </message>
     <message id="psd.review.reason.smart.object">
       <source>Smart object</source>
-      <translation type="unfinished" />
+      <translation>Oggetto avanzato</translation>
     </message>
     <message id="psd.review.reason.font">
       <source>Missing font</source>
-      <translation type="unfinished" />
+      <translation>Font mancante</translation>
     </message>
     <message id="psd.review.reason.text">
       <source>Text layout</source>
-      <translation type="unfinished" />
+      <translation>Disposizione del testo</translation>
     </message>
     <message id="psd.review.reason.shape">
       <source>Shape geometry</source>
-      <translation type="unfinished" />
+      <translation>Geometria della forma</translation>
     </message>
     <message id="psd.review.reason.effects">
       <source>Layer effects</source>
-      <translation type="unfinished" />
+      <translation>Effetti del livello</translation>
     </message>
     <message id="psd.review.reason.mask">
       <source>Layer mask</source>
-      <translation type="unfinished" />
+      <translation>Maschera di livello</translation>
     </message>
     <message id="psd.review.reason.blending">
       <source>Blending</source>
-      <translation type="unfinished" />
+      <translation>Fusione</translation>
     </message>
     <message id="psd.review.reason.group">
       <source>Group blending</source>
-      <translation type="unfinished" />
+      <translation>Fusione del gruppo</translation>
     </message>
     <message id="psd.review.reason.clipping">
       <source>Clipping</source>
-      <translation type="unfinished" />
+      <translation>Ritaglio</translation>
     </message>
     <message id="psd.review.reason.adjustment">
       <source>Adjustment</source>
-      <translation type="unfinished" />
+      <translation>Regolazione</translation>
     </message>
     <message id="psd.review.reason.unsupported">
       <source>Unsupported feature</source>
-      <translation type="unfinished" />
+      <translation>Funzione non supportata</translation>
     </message>
     <message id="psd.review.reason.appearance">
       <source>Appearance</source>
-      <translation type="unfinished" />
+      <translation>Aspetto</translation>
     </message>
     <message id="psd.import.dialog.fallback.summary">
       <source>Omitted items: %1 · Base pixels only: %2</source>
-      <translation type="unfinished" />
+      <translation>Elementi omessi: %1 · Solo pixel di base: %2</translation>
     </message>
     <message id="psd.import.dialog.reason">
       <source>Reason</source>
-      <translation type="unfinished" />
+      <translation>Motivo</translation>
     </message>
     <message id="psd.import.dialog.reason.excluded">
       <source>Group omitted</source>
-      <translation type="unfinished" />
+      <translation>Gruppo omesso</translation>
     </message>
     <message id="psd.import.dialog.apply.similar">
       <source>Apply to similar (%1)</source>
-      <translation type="unfinished" />
+      <translation>Applica a simili (%1)</translation>
     </message>
     <message id="psd.import.dialog.apply.similar.hint">
       <source>Apply this conversion to matching layers. Font choices stay unchanged.</source>
-      <translation type="unfinished" />
+      <translation>Applica questa conversione ai livelli corrispondenti. I font scelti non cambiano.</translation>
     </message>
     <message id="psd.import.dialog.smart.object.raster.hint">
       <source>Import the saved Smart Object appearance as editable pixels. Embedded source editing is not retained.</source>
-      <translation type="unfinished" />
+      <translation>Importa l’aspetto salvato dell’oggetto avanzato come pixel modificabili. La sorgente incorporata non resterà modificabile.</translation>
+    </message>
+  </context>
+  <context>
+    <name>AIImageEditor</name>
+    <message id="diffusion.ui.restore.the.full.layer.input">
+      <source>Restore the full layer input</source>
+      <translation>Ripristina il livello completo in ingresso</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.crop.this.layer.input.to.its.canvas">
+      <source>Crop this layer input to its canvas</source>
+      <translation>Ritaglia questo livello ai limiti della sua tela</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.create">
+      <source>Create</source>
+      <translation>Crea</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.that.name.is.already.in.use">
+      <source>That name is already in use.</source>
+      <translation>Questo nome è già in uso.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.delete.configuration">
+      <source>Delete configuration</source>
+      <translation>Elimina configurazione</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.duplicate.configuration">
+      <source>Duplicate configuration</source>
+      <translation>Duplica configurazione</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.new.configuration">
+      <source>New configuration</source>
+      <translation>Nuova configurazione</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.name">
+      <source>Name</source>
+      <translation>Nome</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.images.and.region.guides.exceed.this.model">
+      <source>Images and region guides exceed this model's %1-reference limit. Remove an image or region before generating.</source>
+      <translation>Immagini e guide delle regioni superano il limite di %1 riferimenti del modello. Rimuovi un’immagine o una regione prima di generare.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.reference.limit.satisfied">
+      <source>Reference limit satisfied.</source>
+      <translation>Limite dei riferimenti rispettato.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.linked.region.transfers.are.available.with.flux">
+      <source>Linked region transfers are available with FLUX.3. Unlink the destinations or select a FLUX configuration.</source>
+      <translation>I trasferimenti tra regioni collegate sono disponibili con FLUX.3. Scollega le destinazioni o scegli una configurazione FLUX.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.linked.transfers.need.at.least.two.input">
+      <source>Linked transfers need at least two input images. Add the missing input or unlink the destinations.</source>
+      <translation>I trasferimenti collegati richiedono almeno due immagini in ingresso. Aggiungi quella mancante o scollega le destinazioni.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.choose.an.available.output.scene.before.generating">
+      <source>Choose an available output scene before generating.</source>
+      <translation>Scegli una scena di uscita disponibile prima di generare.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.source.region.1.is.outside.the.cropped">
+      <source>Source region %1 is outside the cropped input. Restore the input to use or unlink it.</source>
+      <translation>La regione sorgente %1 è fuori dall’ingresso ritagliato. Ripristina l’ingresso per usarla o scollegala.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.the.destination.for.1.is.missing.choose">
+      <source>The destination for %1 is missing. Choose another target or unlink it.</source>
+      <translation>Manca la destinazione di %1. Scegline un’altra o scollegala.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.choose.output.scene">
+      <source>Choose output scene…</source>
+      <translation>Scegli scena di uscita…</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.output.layout.1.2.px">
+      <source>Output layout · %1 × %2 px</source>
+      <translation>Disposizione di uscita · %1 × %2 px</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.output.layout">
+      <source>Output layout</source>
+      <translation>Disposizione di uscita</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.fit.to.canvas">
+      <source>Fit to canvas</source>
+      <translation>Adatta alla tela</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.fit.to.selected.layer">
+      <source>Fit to selected layer</source>
+      <translation>Adatta al livello selezionato</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.fit.to.original.bounds">
+      <source>Fit to original bounds</source>
+      <translation>Adatta ai limiti originali</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.generative.fill.stays.aligned.to.its.captured">
+      <source>Generative Fill stays aligned to its captured canvas and soft selection.</source>
+      <translation>Il riempimento generativo resta allineato alla tela acquisita e alla sua selezione sfumata.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.replacement.fits.the.selected.layer.use.add">
+      <source>Replacement fits the selected layer. Use Add new layer for a result at its generated size.</source>
+      <translation>La sostituzione si adatta al livello selezionato. Usa Aggiungi livello per mantenere le dimensioni generate.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.new.documents.use.the.generated.pixel.dimensions">
+      <source>New documents use the generated pixel dimensions.</source>
+      <translation>I nuovi documenti usano le dimensioni dell’immagine generata.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.fit.the.result.to.the.original.input">
+      <source>Fit the result to the original input bounds. Uncheck for 1:1 pixels, keeping position and orientation.</source>
+      <translation>Adatta il risultato ai limiti dell’ingresso originale. Disattiva per mantenere i pixel a 1:1, posizione e orientamento.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.scale.the.result.to.the.current.canvas">
+      <source>Scale the result to the current canvas. Uncheck to keep its generated size.</source>
+      <translation>Adatta il risultato alla tela attuale. Disattiva per mantenere le dimensioni generate.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.current.configuration">
+      <source>Current configuration</source>
+      <translation>Configurazione attuale</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.missing.configuration">
+      <source>No configuration</source>
+      <oldsource>&lt;Missing configuration&gt;</oldsource>
+      <translation>Nessuna configurazione</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.cancel">
+      <source>Cancel</source>
+      <translation>Annulla</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.generate">
+      <source>Generate</source>
+      <translation>Genera</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.cancel.generation">
+      <source>Cancel generation</source>
+      <translation>Annulla generazione</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.a.cropped.layer.is.outside.its.canvas">
+      <source>A cropped layer is outside its canvas. Restore or remove that input.</source>
+      <translation>Un livello ritagliato è fuori dalla sua tela. Ripristina o rimuovi quell’ingresso.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.remove.an.image.or.region.to.stay">
+      <source>Remove an image or region to stay within the model's reference limit.</source>
+      <translation>Rimuovi un’immagine o una regione per rispettare il limite di riferimenti del modello.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.add.model.files.in.the.configuration.tab">
+      <source>Add model files in the Configuration tab.</source>
+      <translation>Aggiungi i file del modello nella scheda Configurazione.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.preview">
+      <source>Preview</source>
+      <translation>Anteprima</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.preview.1">
+      <source>Preview · %1</source>
+      <translation>Anteprima · %1</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.this.model.generates.from.text.only.stored">
+      <source>This model generates from text only. Stored inputs will be available when you switch to a compatible model.</source>
+      <translation>Questo modello genera solo da testo. Gli ingressi salvati resteranno disponibili passando a un modello compatibile.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.regions">
+      <source>Regions</source>
+      <translation>Regioni</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.regions.1">
+      <source>Regions · %1</source>
+      <translation>Regioni · %1</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.use.image.1.for.this.image.and">
+      <source>Use &lt;Image%1&gt; for this image and &lt;Image%1/Region1&gt; for a named region.</source>
+      <extracomment>Keep image/region/scene aliases inside angle brackets unchanged; they are prompt tokens, not translated names.</extracomment>
+      <translation>Usa &lt;Image%1&gt; per questa immagine e &lt;Image%1/Region1&gt; per una regione con nome.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.with.one.input.region1.also.works">
+      <source> With one input, &lt;Region1&gt; also works.</source>
+      <extracomment>Keep image/region/scene aliases inside angle brackets unchanged; they are prompt tokens, not translated names.</extracomment>
+      <translation> Con un solo ingresso funziona anche &lt;Region1&gt;.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.refer.to.output.regions.as.output.region1">
+      <source>Refer to output regions as &lt;Output/Region1&gt;. Regions guide placement; they do not protect pixels.</source>
+      <extracomment>Keep image/region/scene aliases inside angle brackets unchanged; they are prompt tokens, not translated names.</extracomment>
+      <translation>Indica le regioni di uscita con &lt;Output/Region1&gt;. Guidano il posizionamento, ma non proteggono i pixel.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.output.placement.guide.use.generative.fill.to">
+      <source>Output placement guide. Use Generative Fill to protect pixels outside a selection.</source>
+      <translation>Guida al posizionamento in uscita. Usa Riempimento generativo per proteggere i pixel fuori dalla selezione.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.region.guidance.is.unavailable.for.this.model">
+      <source>Region guidance is unavailable for this model.</source>
+      <translation>La guida tramite regioni non è disponibile per questo modello.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.generating">
+      <source>Generating…</source>
+      <translation>Generazione…</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.generation.in.progress.a.live.draft.appears">
+      <source>Generation in progress. A live draft appears here when available. Pending previews cannot be applied.</source>
+      <translation>Generazione in corso. Una bozza appare qui quando disponibile. Le anteprime provvisorie non possono essere applicate.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.unsaved.configuration">
+      <source>Unsaved configuration</source>
+      <translation>Configurazione non salvata</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.generation.in.progress">
+      <source>Generation in progress</source>
+      <translation>Generazione in corso</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.pending.preview.approximate">
+      <source>Pending preview — approximate</source>
+      <translation>Anteprima provvisoria — approssimativa</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.ai.image.preview">
+      <source>AI image preview</source>
+      <translation>Anteprima immagine IA</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.generated.previews.appear.here">
+      <source>Generated previews appear here</source>
+      <translation>Le anteprime generate appaiono qui</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.no.image">
+      <source>No image</source>
+      <translation>Nessuna immagine</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.this.model.generates.from.text.only.image">
+      <source>This model generates from text only. Image-to-image denoising is unavailable.</source>
+      <translation>Questo modello genera solo da testo. La riduzione del rumore da immagine a immagine non è disponibile.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.always.used.for.generative.fill.the.canvas">
+      <source>Always used for Generative Fill. The canvas is the starting image; the selection limits where the result is applied.</source>
+      <translation>Sempre usata per il riempimento generativo. La tela è l’immagine iniziale; la selezione limita dove si applica il risultato.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.off.edit.using.image.references.on.start">
+      <source>Off: edit using image references. On: start from Image 1 and use Denoising strength.</source>
+      <translation>Disattivata: modifica con immagini di riferimento. Attivata: parti da Image 1 e usa l’intensità di riduzione del rumore.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.starts.denoising.from.an.input.image.available">
+      <source>Starts denoising from an input image. Available in Edit layer; always used for Generative Fill.</source>
+      <translation>Avvia la riduzione del rumore da un’immagine in ingresso. Disponibile in Modifica livello; sempre usata per il riempimento generativo.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.denoising.strength.is.available.for.models.that">
+      <source>Denoising strength is available for models that edit input images.</source>
+      <translation>L’intensità di riduzione del rumore è disponibile per i modelli che modificano immagini in ingresso.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.lower.values.retain.more.of.the.starting">
+      <source>Lower values retain more of the starting image. Try 1.0 for larger changes or new objects.</source>
+      <translation>Valori bassi conservano di più l’immagine iniziale. Prova 1.0 per grandi modifiche o nuovi oggetti.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.enable.image.to.image.denoising.to.use">
+      <source>Enable image-to-image denoising to use strength. Reference-only edits do not use this value.</source>
+      <translation>Attiva la riduzione del rumore da immagine a immagine per usarne l’intensità. Le modifiche basate solo sui riferimenti ignorano questo valore.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.available.in.generative.fill.or.edit.layer">
+      <source>Available in Generative Fill, or Edit layer with image-to-image denoising enabled.</source>
+      <translation>Disponibile in Riempimento generativo o Modifica livello con riduzione del rumore da immagine a immagine attiva.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.the.fixed.turbo.sigma.schedule.uses.8">
+      <source>The fixed Turbo sigma schedule uses 8 steps. Choose Auto sigma schedule to try other step counts.</source>
+      <translation>Il programma sigma Turbo fisso usa 8 passi. Scegli Auto per provare un numero diverso.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.number.of.denoising.steps">
+      <source>Number of denoising steps.</source>
+      <translation>Numero di passi di riduzione del rumore.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.enter.steps.1.descending.values.ending.in">
+      <source>Enter steps + 1 descending values ending in zero. Available with a custom sigma schedule.</source>
+      <translation>Inserisci passi + 1 valori decrescenti terminanti con zero. Disponibile con un programma sigma personalizzato.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.controls.how.noise.levels.are.spaced.available">
+      <source>Controls how noise levels are spaced. Available with the auto sigma schedule.</source>
+      <translation>Controlla la distanza tra i livelli di rumore. Disponibile con il programma sigma automatico.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.flow.shift.does.not.apply.to.this">
+      <source>Flow shift does not apply to this model.</source>
+      <translation>Lo spostamento del flusso non si applica a questo modello.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.adjusts.the.flow.schedule.available.with.the">
+      <source>Adjusts the flow schedule. Available with the auto sigma schedule. Auto uses the model default (%1).</source>
+      <translation>Regola il programma del flusso. Disponibile con sigma automatico. Auto usa il valore del modello (%1).</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.controls.added.sampler.noise.available.for.samplers">
+      <source>Controls added sampler noise. Available for samplers that use eta.</source>
+      <translation>Controlla il rumore aggiunto dal campionatore. Disponibile per campionatori che usano eta.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.available.when.approximate.cache.is.enabled">
+      <source>Available when Approximate cache is enabled.</source>
+      <translation>Disponibile quando la cache approssimata è attiva.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.checkpoint">
+      <source>Checkpoint</source>
+      <translation>Checkpoint</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.diffusion.weights">
+      <source>Diffusion weights</source>
+      <translation>Pesi di diffusione</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.vae.override.optional">
+      <source>VAE override (optional)</source>
+      <translation>VAE alternativo (facoltativo)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.use.checkpoint.vae">
+      <source>Use checkpoint VAE</source>
+      <translation>Usa VAE del checkpoint</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.this.mode.is.unavailable.for.the.selected">
+      <source>This mode is unavailable for the selected model.</source>
+      <translation>Questo modo non è disponibile per il modello selezionato.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.1.width.and.height.must.be.multiples">
+      <source>%1: width and height must be multiples of %2.</source>
+      <translation>%1: larghezza e altezza devono essere multipli di %2.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.auto.1">
+      <source>Auto (%1)</source>
+      <translation>Auto (%1)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.auto.uses.the.selected.model.s.required">
+      <source>Auto uses the selected model's required multiple.</source>
+      <translation>Auto usa il multiplo richiesto dal modello selezionato.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.choose.where.weights.are.kept.available.when">
+      <source>Choose where weights are kept. Available when Keep weights in is manual.</source>
+      <translation>Scegli dove conservare i pesi. Disponibile quando il loro posizionamento è Manuale.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.reuse.text.encoder.prefix.data.available.for">
+      <source>Reuse text-encoder prefix data. Available for Qwen models.</source>
+      <translation>Riutilizza i dati di prefisso del codificatore di testo. Disponibile per i modelli Qwen.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.for.image.editing.add.a.separate.vision">
+      <source>For image editing, add a separate vision projector only if the text encoder does not include vision weights.</source>
+      <translation>Per modificare immagini, aggiungi un proiettore visivo separato solo se il codificatore di testo non include pesi visivi.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.this.model.does.not.need.a.separate">
+      <source>This model does not need a separate vision component.</source>
+      <translation>Questo modello non richiede un componente visivo separato.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.this.model.does.not.support.a.negative">
+      <source>This model does not support a negative prompt.</source>
+      <translation>Questo modello non supporta un prompt negativo.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.describe.what.to.avoid.requires.guidance.cfg">
+      <source>Describe what to avoid. Requires Guidance (CFG) above 1.</source>
+      <translation>Descrivi cosa evitare. Richiede una guida (CFG) superiore a 1.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.describe.what.to.avoid.in.the.generated">
+      <source>Describe what to avoid in the generated image.</source>
+      <translation>Descrivi cosa evitare nell’immagine generata.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.no.configurations">
+      <source>No configurations</source>
+      <translation>Nessuna configurazione</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.select.configuration">
+      <source>Select configuration</source>
+      <translation>Scegli configurazione</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.add.input.image">
+      <source>Add input image</source>
+      <translation>Aggiungi immagine in ingresso</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.regions.image.1.2.3.4.px">
+      <source>Regions — Image%1 · %2 · %3 × %4 px</source>
+      <translation>Regioni — Image%1 · %2 · %3 × %4 px</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.prompt.preset">
+      <source>Prompt preset…</source>
+      <translation>Preimpostazione prompt…</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.previous.preview">
+      <source>Previous preview</source>
+      <translation>Anteprima precedente</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.next.preview">
+      <source>Next preview</source>
+      <translation>Anteprima successiva</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.fit.to.view">
+      <source>Fit to view</source>
+      <translation>Adatta alla vista</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.actual.pixels.1.1">
+      <source>Actual pixels (1:1)</source>
+      <translation>Pixel reali (1:1)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.close.preview">
+      <source>Close preview</source>
+      <translation>Chiudi anteprima</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.drag.to.draw.or.move.shift.drag">
+      <source>Drag to draw or move · Shift-drag adds a region · Middle mouse pans</source>
+      <translation>Trascina per disegnare o spostare · Maiusc-trascina aggiunge una regione · Tasto centrale sposta la vista</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.mouse.wheel.zooms.middle.mouse.pans">
+      <source>Mouse wheel zooms · Middle mouse pans</source>
+      <translation>Rotella per lo zoom · Tasto centrale per spostare la vista</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.compare.with.layer">
+      <source>Compare with layer</source>
+      <translation>Confronta con livello</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.canvas.alignment">
+      <source>Canvas Alignment</source>
+      <translation>Allinea alla tela</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.center.alignment">
+      <source>Center Alignment</source>
+      <translation>Allinea al centro</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.fit.to.result">
+      <source>Fit to Result</source>
+      <translation>Adatta al risultato</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.canvas.document.positions.and.scale.center.native">
+      <source>Canvas: document positions and scale. Center: native pixel sizes. Fit: proportional reference scaling.</source>
+      <translation>Tela: posizioni e scala del documento. Centro: dimensioni originali. Adatta: scala proporzionale del riferimento.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.stop.comparing">
+      <source>Stop comparing</source>
+      <translation>Termina confronto</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.search.layers">
+      <source>Search layers…</source>
+      <translation>Cerca livelli…</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.no.matching.layers">
+      <source>No matching layers</source>
+      <translation>Nessun livello corrispondente</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.draw.the.destination.box.scene.is.fitted">
+      <source>Draw the destination box. Scene is fitted as a guide; coordinates belong to the output frame.</source>
+      <translation>Disegna il riquadro di destinazione. La scena è adattata come guida; le coordinate appartengono all’immagine di uscita.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.scene.is.fitted.as.a.guide.boxes">
+      <source>Scene is fitted as a guide · Boxes use output coordinates · Middle mouse pans</source>
+      <translation>Scena adattata come guida · Coordinate di uscita · Tasto centrale sposta la vista</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.region.label">
+      <source>Region label</source>
+      <translation>Nome della regione</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.description.optional">
+      <source>Description (optional)</source>
+      <translation>Descrizione (facoltativa)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.optional.semantic.guidance.sent.as.desc.the">
+      <source>Optional semantic guidance sent as desc. The region name is only an alias.</source>
+      <translation>Guida semantica facoltativa inviata come desc. Il nome della regione è solo un alias.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.remove.selected.region">
+      <source>Remove selected region</source>
+      <translation>Rimuovi regione selezionata</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.destination">
+      <source>Destination</source>
+      <translation>Destinazione</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.edit">
+      <source>Edit…</source>
+      <translation>Modifica…</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.target.location.no.object.description">
+      <source>Target location — no object description</source>
+      <translation>Posizione di destinazione — senza descrizione dell’oggetto</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.none">
+      <source>None</source>
+      <translation>Nessuna</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.missing.target.choose.another">
+      <source>Missing target — choose another</source>
+      <translation>Destinazione mancante — scegline un’altra</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.new.target">
+      <source>New target…</source>
+      <translation>Nuova destinazione…</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.mouse.wheel.zooms.middle.mouse.pans.browse">
+      <source>Mouse wheel zooms · Middle mouse pans · ← / → browse previews</source>
+      <translation>Rotella per lo zoom · Tasto centrale sposta la vista · ← / → scorre le anteprime</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.choose.an.output.scene.first">
+      <source>Choose an output scene first.</source>
+      <translation>Scegli prima una scena di uscita.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.destination.for.image.1.2">
+      <source>Destination for Image%1/%2</source>
+      <translation>Destinazione per Image%1/%2</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.ai.image.editor">
+      <source>AI Image Editor</source>
+      <translation>Editor immagini IA</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.close.ai.image.editor">
+      <source>Close AI Image Editor</source>
+      <translation>Chiudi editor immagini IA</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.configuration">
+      <source>Configuration</source>
+      <translation>Configurazione</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.edit.layer">
+      <source>Edit layer</source>
+      <translation>Modifica livello</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.generative.fill">
+      <source>Generative Fill</source>
+      <translation>Riempimento generativo</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.add.configuration">
+      <source>Add configuration</source>
+      <translation>Aggiungi configurazione</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.model.files">
+      <source>Model files</source>
+      <translation>File del modello</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.family">
+      <source>Family</source>
+      <translation>Famiglia</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.variant">
+      <source>Variant</source>
+      <translation>Variante</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.choose.file">
+      <source>Choose file</source>
+      <translation>Scegli file</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.choose.checkpoint">
+      <source>Choose checkpoint</source>
+      <translation>Scegli checkpoint</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.choose.model.component">
+      <source>Choose model component</source>
+      <translation>Scegli componente del modello</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.checkpoints.safetensors.all.files">
+      <source>Checkpoints (*.safetensors);;All files (*)</source>
+      <translation>Checkpoint (*.safetensors);;Tutti i file (*)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.models.gguf.safetensors.all.files">
+      <source>Models (*.gguf *.safetensors);;All files (*)</source>
+      <translation>Modelli (*.gguf *.safetensors);;Tutti i file (*)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.text.encoder">
+      <source>Text encoder</source>
+      <translation>Codificatore di testo</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.vision.optional">
+      <source>Vision (optional)</source>
+      <translation>Visione (facoltativa)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.auto">
+      <source>Auto</source>
+      <translation>Auto</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.auto.prefers.an.available.cuda.worker.then">
+      <source>Auto prefers an available CUDA worker, then Vulkan. Explicit backends require the matching installed worker.</source>
+      <translation>Auto preferisce un motore CUDA disponibile, poi Vulkan. Una scelta esplicita richiede il motore corrispondente installato.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.backend">
+      <source>Backend</source>
+      <translation>Motore</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.save.custom.prompt.preset">
+      <source>Save custom prompt preset</source>
+      <translation>Salva preimpostazione prompt</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.delete.custom.prompt.preset">
+      <source>Delete custom prompt preset</source>
+      <translation>Elimina preimpostazione prompt</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.describe.the.image.or.the.changes.you">
+      <source>Describe the image or the changes you want…</source>
+      <translation>Descrivi l’immagine o le modifiche desiderate…</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.negative.prompt">
+      <source>Negative prompt</source>
+      <translation>Prompt negativo</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.describe.what.to.avoid">
+      <source>Describe what to avoid…</source>
+      <translation>Descrivi cosa evitare…</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.size">
+      <source>Size</source>
+      <translation>Dimensioni</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.output.width.in.pixels">
+      <source>Output width in pixels</source>
+      <translation>Larghezza di uscita in pixel</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.output.height.in.pixels">
+      <source>Output height in pixels</source>
+      <translation>Altezza di uscita in pixel</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.match.layer.canvas.size">
+      <source>Match layer / canvas size</source>
+      <translation>Usa dimensioni del livello / della tela</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.match.selected.input.layer.size">
+      <source>Match selected input / layer size</source>
+      <translation>Usa dimensioni dell’ingresso / livello selezionato</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.match.the.selected.input.including.its.canvas">
+      <source>Match the selected input, including its canvas crop. With no input selected, use the active layer.</source>
+      <translation>Usa le dimensioni dell’ingresso selezionato, incluso il ritaglio alla tela. Senza un ingresso selezionato, usa il livello attivo.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.resolution.selector">
+      <source>Resolution Selector</source>
+      <translation>Selettore di risoluzione</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.1.1.square">
+      <source>1:1 (Square)</source>
+      <translation>1:1 (Quadrato)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.2.3.portrait.photo">
+      <source>2:3 (Portrait Photo)</source>
+      <translation>2:3 (Foto verticale)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.3.2.photo">
+      <source>3:2 (Photo)</source>
+      <translation>3:2 (Foto)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.3.4.portrait.standard">
+      <source>3:4 (Portrait Standard)</source>
+      <translation>3:4 (Verticale standard)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.4.3.standard">
+      <source>4:3 (Standard)</source>
+      <translation>4:3 (Standard)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.9.16.portrait.widescreen">
+      <source>9:16 (Portrait Widescreen)</source>
+      <translation>9:16 (Verticale ampio)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.16.9.widescreen">
+      <source>16:9 (Widescreen)</source>
+      <translation>16:9 (Panoramico)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.21.9.ultrawide">
+      <source>21:9 (Ultrawide)</source>
+      <translation>21:9 (Ultrapanoramico)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.custom">
+      <source>Custom</source>
+      <translation>Personalizzato</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.choose.a.ratio.to.calculate.the.output">
+      <source>Choose a ratio to calculate the output size. Custom keeps the current dimensions.</source>
+      <translation>Scegli un rapporto per calcolare le dimensioni di uscita. Personalizzato mantiene quelle attuali.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.aspect.ratio">
+      <source>Aspect Ratio</source>
+      <translation>Proporzioni</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.approximate.pixel.count.1.0.mp.is">
+      <source>Approximate pixel count. 1.0 MP is 1024 × 1024 for Square. Rounding can change the total.</source>
+      <translation>Numero approssimativo di pixel. In formato quadrato, 1.0 MP equivale a 1024 × 1024. L’arrotondamento può cambiare il totale.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.megapixels">
+      <source>Megapixels</source>
+      <translation>Megapixel</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.round.each.dimension.to.the.nearest.multiple">
+      <source>Round each dimension to the nearest multiple.</source>
+      <translation>Arrotonda ogni dimensione al multiplo più vicino.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.multiple">
+      <source>Multiple</source>
+      <translation>Multiplo</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.overrides">
+      <source>Overrides</source>
+      <translation>Valori temporanei</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.seed">
+      <source>Seed</source>
+      <translation>Seed</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.use.the.same.seed.to.reproduce.a">
+      <source>Use the same seed to reproduce a result.</source>
+      <translation>Usa lo stesso seed per riprodurre un risultato.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.generate.a.random.seed">
+      <source>Generate a random seed</source>
+      <translation>Genera seed casuale</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.generate.a.random.seed.random.mode.also">
+      <source>Generate a random seed. Random mode also chooses a new seed for each generation.</source>
+      <translation>Genera un seed casuale. Il modo Casuale ne sceglie uno nuovo anche a ogni generazione.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.random">
+      <source>Random</source>
+      <translation>Casuale</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.fixed">
+      <source>Fixed</source>
+      <translation>Fisso</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.increment">
+      <source>Increment</source>
+      <translation>Incrementa</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.random.new.seed.per.job.fixed.reuse">
+      <source>Random: new seed per job. Fixed: reuse the seed. Increment: advance it by the number of generated images.</source>
+      <translation>Casuale: nuovo seed per attività. Fisso: riutilizza il seed. Incrementa: aumenta del numero di immagini generate.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.input.images">
+      <source>Input images</source>
+      <translation>Immagini in ingresso</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.max.input.1.px">
+      <source>Max input: %1 px</source>
+      <translation>Ingresso max.: %1 px</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.limit.the.longest.side.of.input.images">
+      <source>Limit the longest side of input images after canvas cropping, keeping their proportions. Output size is separate.</source>
+      <translation>Limita il lato più lungo degli ingressi dopo il ritaglio alla tela, mantenendone le proporzioni. Le dimensioni di uscita sono indipendenti.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.current.layer.appearance">
+      <source>Current layer — appearance</source>
+      <translation>Livello attuale — aspetto</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.current.layer.raw.pixels">
+      <source>Current layer — raw pixels</source>
+      <translation>Livello attuale — pixel grezzi</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.another.document.layer.appearance">
+      <source>Another document layer — appearance</source>
+      <translation>Altro livello del documento — aspetto</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.another.document.layer.raw.pixels">
+      <source>Another document layer — raw pixels</source>
+      <translation>Altro livello del documento — pixel grezzi</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.rendered.visible.canvas">
+      <source>Rendered visible canvas</source>
+      <translation>Tela visibile renderizzata</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.image.file">
+      <source>Image file…</source>
+      <translation>File immagine…</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.output.scene">
+      <source>Output scene</source>
+      <translation>Scena di uscita</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.use.scene.in.your.prompt.to.reference">
+      <source>Use &lt;Scene&gt; in your prompt to reference this image. It is the backdrop for destination boxes; input order and your instructions are not changed.</source>
+      <extracomment>Keep image/region/scene aliases inside angle brackets unchanged; they are prompt tokens, not translated names.</extracomment>
+      <translation>Usa &lt;Scene&gt; nel prompt per indicare questa immagine. È lo sfondo dei riquadri di destinazione; l’ordine degli ingressi e le tue istruzioni non cambiano.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.choose.an.input.image.to.identify.objects">
+      <source>Choose an input image to identify objects, or Output layout to guide placement.</source>
+      <translation>Scegli un’immagine in ingresso per identificare oggetti, oppure Disposizione di uscita per guidarne la posizione.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.edit.regions">
+      <source>Edit regions…</source>
+      <translation>Modifica regioni…</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.remove.regions.from.this.image.or.output">
+      <source>Remove regions from this image or output layout</source>
+      <translation>Rimuovi regioni da questa immagine o disposizione di uscita</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.extra.crop.guidance.experimental">
+      <source>Extra crop guidance (experimental)</source>
+      <translation>Guida con ritagli extra (sperimentale)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.optional.vulkana.guidance.also.send.each.input">
+      <source>Optional Vulkana guidance: also send each input region as a cropped reference. Uses extra memory and reference slots. Leave off to use FLUX's native bounding-box format alone.</source>
+      <translation>Guida Vulkana facoltativa: invia anche ogni regione come riferimento ritagliato. Usa più memoria e riferimenti. Disattiva per usare solo i riquadri nativi FLUX.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.advanced.generation">
+      <source>Advanced generation</source>
+      <translation>Generazione avanzata</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.steps">
+      <source>Steps</source>
+      <translation>Passi</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.guidance.cfg">
+      <source>Guidance (CFG)</source>
+      <translation>Guida (CFG)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.sampler">
+      <source>Sampler</source>
+      <translation>Campionatore</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.scheduler">
+      <source>Scheduler</source>
+      <translation>Pianificatore</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.sigma.schedule">
+      <source>Sigma schedule</source>
+      <translation>Programma sigma</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.custom.sigmas">
+      <source>Custom sigmas</source>
+      <translation>Sigma personalizzati</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.flow.shift">
+      <source>Flow shift</source>
+      <translation>Spostamento del flusso</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.use.image.to.image.denoising">
+      <source>Use image-to-image denoising</source>
+      <translation>Usa riduzione rumore da immagine a immagine</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.denoising.strength">
+      <source>Denoising strength</source>
+      <translation>Intensità di riduzione del rumore</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.images.per.job">
+      <source>Images per job</source>
+      <translation>Immagini per attività</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.vae.tiling">
+      <source>VAE tiling</source>
+      <translation>VAE a tasselli</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.vae.tile.size">
+      <source>VAE tile size</source>
+      <translation>Dimensioni tasselli VAE</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.vae.tile.overlap">
+      <source>VAE tile overlap</source>
+      <translation>Sovrapposizione tasselli VAE</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.progress.previews">
+      <source>Progress previews</source>
+      <translation>Anteprime di avanzamento</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.preview.every.n.steps">
+      <source>Preview every N steps</source>
+      <translation>Anteprima ogni N passi</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.sampler.noise.eta">
+      <source>Sampler noise (eta)</source>
+      <translation>Rumore del campionatore (eta)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.approximate.cache.experimental">
+      <source>Approximate cache (experimental)</source>
+      <translation>Cache approssimata (sperimentale)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.cache.reuse.threshold">
+      <source>Cache reuse threshold</source>
+      <translation>Soglia di riutilizzo cache</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.cache.start.fraction">
+      <source>Cache start fraction</source>
+      <translation>Frazione iniziale cache</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.cache.end.fraction">
+      <source>Cache end fraction</source>
+      <translation>Frazione finale cache</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.restore.recommended.generation.settings">
+      <source>Restore recommended generation settings</source>
+      <translation>Ripristina impostazioni di generazione consigliate</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.memory.and.performance">
+      <source>Memory and performance</source>
+      <translation>Memoria e prestazioni</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.inference.device">
+      <source>Inference device</source>
+      <translation>Dispositivo di inferenza</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.vram.budget.gib">
+      <source>VRAM budget (GiB)</source>
+      <translation>Budget VRAM (GiB)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.budget.for.managed.weights.workspaces.not.a">
+      <source>Budget for managed weights/workspaces, not a physical VRAM cap. Leave room for Vulkana and the desktop.</source>
+      <translation>Budget per pesi e aree di lavoro gestiti, non un limite di VRAM fisica. Lascia spazio per Vulkana e il desktop.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.cpu.threads">
+      <source>CPU threads</source>
+      <translation>Thread CPU</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.keep.weights.in">
+      <source>Keep weights in</source>
+      <translation>Conserva i pesi in</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.text.encoder.weights">
+      <source>Text encoder weights</source>
+      <translation>Pesi del codificatore di testo</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.vae.weights">
+      <source>VAE weights</source>
+      <translation>Pesi VAE</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.text.encoder.compute">
+      <source>Text encoder compute</source>
+      <translation>Calcolo del codificatore di testo</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.vae.compute">
+      <source>VAE compute</source>
+      <translation>Calcolo VAE</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.flash.attention">
+      <source>Flash attention</source>
+      <translation>Flash Attention</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.direct.convolution">
+      <source>Direct convolution</source>
+      <translation>Convoluzione diretta</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.sage.attention.experimental">
+      <source>Sage attention (experimental)</source>
+      <translation>Sage Attention (sperimentale)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.memory.mapped.loading">
+      <source>Memory mapped loading</source>
+      <translation>Caricamento con mappatura in memoria</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.prefetch.weights">
+      <source>Prefetch weights</source>
+      <translation>Precarica pesi</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.segmented.computation">
+      <source>Segmented computation</source>
+      <translation>Calcolo segmentato</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.prepare.weights.at.load">
+      <source>Prepare weights at load</source>
+      <translation>Prepara pesi al caricamento</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.cached.prompts">
+      <source>Cached prompts</source>
+      <translation>Prompt in cache</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.qwen.prefix.cache">
+      <source>Qwen prefix cache</source>
+      <translation>Cache prefisso Qwen</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.prefix.cache.format">
+      <source>Prefix cache format</source>
+      <translation>Formato cache prefisso</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.session">
+      <source>Session</source>
+      <translation>Sessione</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.loaded.models">
+      <source>Loaded models</source>
+      <translation>Modelli caricati</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.no.models.loaded">
+      <source>No models loaded</source>
+      <translation>Nessun modello caricato</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.choose.model.files.and.enter.a.prompt">
+      <source>Choose model files and enter a prompt to begin.</source>
+      <translation>Scegli i file del modello e inserisci un prompt per iniziare.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.add.new.layer">
+      <source>Add new layer</source>
+      <translation>Aggiungi livello</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.replace.selected.layer">
+      <source>Replace selected layer</source>
+      <translation>Sostituisci livello selezionato</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.open.new.document">
+      <source>Open new document</source>
+      <translation>Apri nuovo documento</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.apply">
+      <source>Apply</source>
+      <translation>Applica</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.generate.again">
+      <source>Generate again</source>
+      <translation>Genera di nuovo</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.discard">
+      <source>Discard</source>
+      <translation>Scarta</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.image.details">
+      <source>Image details</source>
+      <translation>Dettagli immagine</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.model">
+      <source>Model</source>
+      <translation>Modello</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.resolution">
+      <source>Resolution</source>
+      <translation>Risoluzione</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.copy.seed">
+      <source>Copy seed</source>
+      <translation>Copia seed</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.generated">
+      <source>Generated</source>
+      <translation>Generata</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.save.prompt.preset">
+      <source>Save prompt preset</source>
+      <translation>Salva preimpostazione prompt</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.prompt.preset.saved">
+      <source>Prompt preset saved.</source>
+      <translation>Preimpostazione prompt salvata.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.choose.a.custom.preset.to.remove">
+      <source>Choose a custom preset to remove.</source>
+      <translation>Scegli una preimpostazione personalizzata da rimuovere.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.images.and.region.guides.exceed.the.model">
+      <source>Images and region guides exceed the model's reference limit. Remove an image or region.</source>
+      <translation>Immagini e guide delle regioni superano il limite di riferimenti del modello. Rimuovi un’immagine o una regione.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.unload">
+      <source>Unload</source>
+      <translation>Libera memoria</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.unload.this.configuration.and.its.components.to">
+      <source>Unload this configuration and its components to release memory. Generated images are kept.</source>
+      <translation>Scarica dalla memoria questa configurazione e i suoi componenti. Le immagini generate vengono conservate.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.this.model.generates.from.text.only.choose">
+      <source>This model generates from text only. Choose a compatible model to add input images.</source>
+      <translation>Questo modello genera solo da testo. Scegli un modello compatibile per aggiungere immagini in ingresso.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.this.model.accepts.1.references.in.total">
+      <source>This model accepts %1 references in total, including input images and region guides.</source>
+      <translation>Questo modello accetta %1 riferimenti in totale, comprese immagini in ingresso e guide delle regioni.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.this.layer.is.outside.its.source.canvas">
+      <source>This layer is outside its source canvas. Restore or remove the input.</source>
+      <translation>Questo livello è fuori dalla sua tela sorgente. Ripristina o rimuovi l’ingresso.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.regions.outside.the.canvas.are.hidden.until">
+      <source>Regions outside the canvas are hidden until the full input is restored.</source>
+      <translation>Le regioni fuori dalla tela restano nascoste finché non ripristini l’ingresso completo.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.output.layout.regions">
+      <source>Output layout regions</source>
+      <translation>Regioni di disposizione di uscita</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.regions.image.1.2">
+      <source>Regions — Image%1 · %2</source>
+      <translation>Regioni — Image%1 · %2</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.pending">
+      <source>Pending</source>
+      <translation>In attesa</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.live.draft.approximate.final.detail.appears.after">
+      <source>Live draft — approximate. Final detail appears after generation finishes.</source>
+      <translation>Bozza in tempo reale — approssimativa. I dettagli finali appaiono al termine della generazione.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.lora.strength.1.00.uses.its.full">
+      <source>LoRA strength. 1.00 uses its full effect; 0.00 has no effect.</source>
+      <translation>Intensità LoRA. 1.00 applica l’effetto completo; 0.00 non ha effetto.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.lora.strength">
+      <source>LoRA strength</source>
+      <translation>Intensità LoRA</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.unnamed.lora">
+      <source>Unnamed LoRA</source>
+      <translation>LoRA senza nome</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.loras.1.2.enabled">
+      <source>LoRAs (%1/%2 enabled)</source>
+      <translation>LoRAs (%1/%2 attivi)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.enable.this.lora.for.generation">
+      <source>Enable this LoRA for generation</source>
+      <translation>Attiva questo LoRA per la generazione</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.reset.loras.to.configuration.defaults">
+      <source>Reset LoRAs to configuration defaults</source>
+      <translation>Ripristina i LoRAs della configurazione</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.choose.lora">
+      <source>Choose LoRA</source>
+      <translation>Scegli LoRA</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.lora.models.safetensors.gguf.all.files">
+      <source>LoRA models (*.safetensors *.gguf);;All files (*)</source>
+      <translation>Modelli LoRA (*.safetensors *.gguf);;Tutti i file (*)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.lora.file">
+      <source>LoRA file…</source>
+      <translation>File LoRA…</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.choose.lora.file">
+      <source>Choose LoRA file</source>
+      <translation>Scegli file LoRA</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.remove.lora">
+      <source>Remove LoRA</source>
+      <translation>Rimuovi LoRA</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.enabled.by.default">
+      <source>Enabled by default</source>
+      <translation>Attivo per impostazione predefinita</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.lora.enabled.by.default">
+      <source>LoRA enabled by default</source>
+      <translation>LoRA attivo per impostazione predefinita</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.friendly.name">
+      <source>Friendly name</source>
+      <translation>Nome visualizzato</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.add.lora">
+      <source>Add LoRA</source>
+      <translation>Aggiungi LoRA</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.loras.optional">
+      <source>LoRAs (optional)</source>
+      <translation>LoRAs (facoltativi)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.generate.image">
+      <source>Generate Image…</source>
+      <translation>Genera immagine…</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.edit.current.layer">
+      <source>Edit Current Layer…</source>
+      <translation>Modifica livello attuale…</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.generative.fill.2">
+      <source>Generative Fill…</source>
+      <translation>Riempimento generativo…</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.ai.image.editor.2">
+      <source>AI Image Editor…</source>
+      <translation>Editor immagini IA…</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.unloading.model">
+      <source>Unloading model…</source>
+      <translation>Liberazione del modello…</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.variation.1">
+      <source>Variation %1</source>
+      <translation>Variante %1</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.generation.done">
+      <source>Generation done</source>
+      <translation>Generazione completata</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.ready.1.s.inspect.the.result.before">
+      <source>Ready · %1 s — inspect the result before applying.</source>
+      <translation>Pronto · %1 s — controlla il risultato prima di applicarlo.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.generation.failed">
+      <source>Generation failed</source>
+      <translation>Generazione non riuscita</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.cancelled.previous.successful.variations.are.still.available">
+      <source>Cancelled. Previous successful variations are still available.</source>
+      <translation>Annullata. Le varianti precedenti riuscite sono ancora disponibili.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.generation.cancelled">
+      <source>Generation cancelled</source>
+      <translation>Generazione annullata</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.generate.again.to.restart.the.worker">
+      <source> Generate again to restart the worker.</source>
+      <translation> Genera di nuovo per riavviare il motore.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.model.unloaded.generate.again.to.load.a">
+      <source>Model unloaded. Generate again to load a configuration.</source>
+      <translation>Modello scaricato dalla memoria. Genera di nuovo per caricare una configurazione.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.this.model.generates.from.text.only.choose.2">
+      <source>This model generates from text only. Choose an editing model to edit a layer or selection.</source>
+      <translation>Questo modello genera solo da testo. Scegli un modello di modifica per intervenire su un livello o una selezione.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.select.a.raster.layer.to.start.an">
+      <source>Select a raster layer to start an editing session.</source>
+      <translation>Seleziona un livello raster per iniziare una sessione di modifica.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.make.a.selection.before.using.generative.fill">
+      <source>Make a selection before using Generative Fill.</source>
+      <translation>Crea una selezione prima di usare Riempimento generativo.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.target.visible.canvas">
+      <source>Target · visible canvas</source>
+      <translation>Destinazione · tela visibile</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.target.raw.layer.pixels">
+      <source>Target · raw layer pixels</source>
+      <translation>Destinazione · pixel grezzi del livello</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.target.captured.you.can.keep.editing.changed">
+      <source>Target captured. You can keep editing; changed targets are checked before generation and Apply.</source>
+      <translation>Destinazione acquisita. Puoi continuare a modificare; le destinazioni cambiate vengono controllate prima di generare e applicare.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.add.an.input.image.before.generating.an">
+      <source>Add an input image before generating an edit.</source>
+      <translation>Aggiungi un’immagine in ingresso prima di generare una modifica.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.select.a.raster.layer.and.a.selection">
+      <source>Select a raster layer and a selection for Generative Fill.</source>
+      <translation>Seleziona un livello raster e una selezione per Riempimento generativo.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.enter.a.prompt.before.generating">
+      <source>Enter a prompt before generating.</source>
+      <translation>Inserisci un prompt prima di generare.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.preparing.inference">
+      <source>Preparing inference…</source>
+      <translation>Preparazione dell’inferenza…</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.preparing.generation">
+      <source>Preparing generation…</source>
+      <translation>Preparazione della generazione…</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.update.the.inference.worker.to.use.loras">
+      <source>Update the inference worker to use LoRAs.</source>
+      <translation>Aggiorna il motore di inferenza per usare i LoRAs.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.generation.could.not.start">
+      <source>Generation could not start</source>
+      <translation>Impossibile avviare la generazione</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.update.the.inference.worker.to.use.native">
+      <source>Update the inference worker to use native FLUX.3 image and region references.</source>
+      <translation>Aggiorna il motore di inferenza per usare i riferimenti nativi a immagini e regioni FLUX.3.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.update.the.inference.worker.to.use.the">
+      <source>Update the inference worker to use the input-size limit.</source>
+      <translation>Aggiorna il motore di inferenza per usare il limite delle dimensioni in ingresso.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.update.the.inference.worker.to.use.region">
+      <source>Update the inference worker to use region descriptions, output scenes and linked destinations.</source>
+      <translation>Aggiorna il motore di inferenza per usare descrizioni delle regioni, scene di uscita e destinazioni collegate.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.the.installed.inference.worker.does.not.support">
+      <source>The installed inference worker does not support per-image regions. Update the worker before generating with input regions.</source>
+      <translation>Il motore di inferenza installato non supporta regioni per immagine. Aggiornalo prima di generare con regioni in ingresso.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.1.is.unavailable.the.installed.worker.provides">
+      <source>%1 is unavailable: the installed worker provides %2.</source>
+      <translation>%1 non è disponibile: il motore installato fornisce %2.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.loading.the.selected.model">
+      <source>Loading the selected model…</source>
+      <translation>Caricamento del modello selezionato…</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.loading.ai.model">
+      <source>Loading AI model…</source>
+      <translation>Caricamento del modello IA…</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.generating.you.can.inspect.previous.variations.while">
+      <source>Generating… You can inspect previous variations while this job runs.</source>
+      <translation>Generazione… Puoi controllare le varianti precedenti mentre questa attività procede.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.the.generated.image.is.no.longer.available">
+      <source>The generated image is no longer available.</source>
+      <translation>L’immagine generata non è più disponibile.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.ai.image">
+      <source>AI image</source>
+      <translation>Immagine IA</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.open.a.document.or.choose.create.new">
+      <source>Open a document or choose Create New Document.</source>
+      <translation>Apri un documento o scegli Crea nuovo documento.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.finish.the.current.document.interaction.before.applying">
+      <source>Finish the current document interaction before applying this result.</source>
+      <translation>Completa l’interazione corrente con il documento prima di applicare questo risultato.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.select.a.raster.layer.to.replace">
+      <source>Select a raster layer to replace.</source>
+      <translation>Seleziona un livello raster da sostituire.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.ai.result.applied">
+      <source>AI result applied</source>
+      <translation>Risultato IA applicato</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.cancelling">
+      <source>Cancelling…</source>
+      <translation>Annullamento…</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.generation.cancelled.2">
+      <source>Generation cancelled.</source>
+      <translation>Generazione annullata.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.this.input.has.no.pixels.inside.its">
+      <source>This input has no pixels inside its canvas.</source>
+      <translation>Questo ingresso non contiene pixel dentro la sua tela.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.select.an.input.image.or.a.layer">
+      <source>Select an input image or a layer first.</source>
+      <translation>Seleziona prima un’immagine in ingresso o un livello.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.select.an.image.layer.rather.than.a">
+      <source>Select an image layer rather than a container.</source>
+      <translation>Seleziona un livello immagine invece di un contenitore.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.the.selected.layer.has.no.visible.bounds">
+      <source>The selected layer has no visible bounds.</source>
+      <translation>Il livello selezionato non ha limiti visibili.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.add.reference.image">
+      <source>Add reference image</source>
+      <translation>Aggiungi immagine di riferimento</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.images.png.jpg.jpeg.webp.bmp.tif">
+      <source>Images (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff)</source>
+      <translation>Immagini (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.file">
+      <source>File</source>
+      <translation>File</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.reference.layer">
+      <source>Reference layer</source>
+      <translation>Livello di riferimento</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.document.layer">
+      <source>Document / layer</source>
+      <translation>Documento / livello</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.open.a.document.before.adding.this.input">
+      <source>Open a document before adding this input.</source>
+      <translation>Apri un documento prima di aggiungere questo ingresso.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.visible.canvas">
+      <source>Visible canvas</source>
+      <translation>Tela visibile</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.select.a.layer.first">
+      <source>Select a layer first.</source>
+      <translation>Seleziona prima un livello.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.raw.pixels">
+      <source>Raw pixels</source>
+      <translation>Pixel grezzi</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.rendered.appearance.isolated.layer">
+      <source>Rendered appearance · isolated layer</source>
+      <translation>Aspetto renderizzato · livello isolato</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.close.document">
+      <source>Close document?</source>
+      <translation>Chiudere il documento?</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.quit.vulkana">
+      <source>Quit Vulkana?</source>
+      <translation>Uscire da Vulkana?</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.ai.generation.is.using.an.image.captured">
+      <source>AI generation is using an image captured from this document. Generation will continue if you close it. You can still add the result to another document or open it as a new document.</source>
+      <translation>La generazione IA usa un’immagine acquisita da questo documento. Continuerà se lo chiudi. Potrai aggiungere il risultato a un altro documento o aprirlo come nuovo documento.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.ai.generation.is.still.running.quitting.vulkana">
+      <source>AI generation is still running. Quitting Vulkana will cancel it.</source>
+      <translation>La generazione IA è ancora in corso. Uscire da Vulkana la annullerà.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.close.document.2">
+      <source>Close document</source>
+      <translation>Chiudi documento</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.quit">
+      <source>Quit</source>
+      <translation>Esci</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.view.latest.preview">
+      <source>View latest preview</source>
+      <translation>Mostra ultima anteprima</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.dismiss.notification">
+      <source>Dismiss notification</source>
+      <translation>Chiudi notifica</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.target">
+      <source> · Target</source>
+      <translation> · Destinazione</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.ai">
+      <source>AI</source>
+      <translation>IA</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.loras">
+      <source>LoRAs</source>
+      <translation>LoRAs</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.delete.1">
+      <source>Delete “%1”?</source>
+      <translation>Eliminare «%1»?</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.show.1.in.generate">
+      <source>Show %1 in Generate</source>
+      <translation>Mostra %1 in Genera</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.1.override">
+      <source>%1 override</source>
+      <translation>Valore temporaneo di %1</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.reset.1.to.configuration.default">
+      <source>Reset %1 to configuration default</source>
+      <translation>Ripristina %1 dalla configurazione</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.1.copy">
+      <source>%1 copy</source>
+      <translation>Copia di %1</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.1.unavailable">
+      <source>%1 (unavailable)</source>
+      <translation>%1 (non disponibile)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.ai.image.preview.1">
+      <source>AI image preview — %1</source>
+      <translation>Anteprima immagine IA — %1</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.left.1.right.result.drag.the.divider">
+      <source>Left: %1 · Right: Result. Drag the divider to compare.</source>
+      <translation>Sinistra: %1 · Destra: risultato. Trascina il divisore per confrontare.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.edit.image">
+      <source> · Edit image</source>
+      <translation> · Modifica immagine</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.1.regions">
+      <source> · %1 regions</source>
+      <translation> · %1 regioni</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.cropped.to.the.source.canvas">
+      <source>
+Cropped to the source canvas.</source>
+      <translation>
+Ritagliata alla tela sorgente.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.double.click.to.inspect.and.edit.this">
+      <source>
+Double-click to inspect and edit this image’s regions. Image numbers follow the list order.</source>
+      <translation>
+Fai doppio clic per visualizzare e modificare le regioni di questa immagine. I numeri delle immagini seguono l’ordine della lista.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.seed.1">
+      <source> · Seed %1</source>
+      <translation> · Seed %1</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.requested.1.2.px">
+      <source>
+Requested: %1 × %2 px</source>
+      <translation>
+Richiesto: %1 × %2 px</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.1.inference.worker.is.not.installed.choose">
+      <source>%1 inference worker is not installed. Choose an available backend.</source>
+      <translation>Il motore di inferenza %1 non è installato. Scegli un motore disponibile.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.disk">
+      <source>Disk</source>
+      <translation>Disco</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.manual">
+      <source>Manual</source>
+      <translation>Manuale</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.on">
+      <source>On</source>
+      <translation>Attivo</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.off">
+      <source>Off</source>
+      <translation>Disattivo</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.disabled">
+      <source>Disabled</source>
+      <translation>Disabilitato</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.generate.image.2">
+      <source>Generate image</source>
+      <translation>Genera immagine</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.edit.image.2">
+      <source>Edit image</source>
+      <translation>Modifica immagine</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.replace.background">
+      <source>Replace background</source>
+      <translation>Sostituisci sfondo</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.remove.background">
+      <source>Remove background</source>
+      <translation>Rimuovi sfondo</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
     </message>
   </context>
 </TS>

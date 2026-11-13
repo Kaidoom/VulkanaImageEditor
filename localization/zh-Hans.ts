@@ -10376,6 +10376,11 @@ Escape 取消整次裁切
       <translation>优化蒙版</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
+    <message id="history.layer.pixel.opacity">
+      <source>Layer pixel opacity</source>
+      <extracomment>Core history label: Layer pixel opacity</extracomment>
+      <translation>图层像素不透明度</translation>
+    </message>
   </context>
   <context>
     <name>Theme</name>
@@ -10622,72 +10627,259 @@ Escape 取消整次裁切
   </context>
   <context>
     <name>Canvas clipboard</name>
-    <message id="clipboard.copy.canvas"><source>Copy canvas to clipboard</source><translation>复制画布到剪贴板</translation></message>
-    <message id="clipboard.copy.canvas.hint"><source>Copy the full canvas at its original size, including visible layers and transparency.</source><translation>按原始尺寸复制整个画布，包含可见图层和透明度。</translation></message>
-    <message id="clipboard.copy.canvas.preparing"><source>Preparing canvas for clipboard…</source><translation>正在准备复制画布…</translation></message>
-    <message id="clipboard.copy.canvas.finish.edit"><source>Finish or cancel the current selection or shape edit before copying the canvas.</source><translation>请先完成或取消当前选区或形状的编辑，再复制画布。</translation></message>
-    <message id="clipboard.copy.canvas.failed"><source>Could not copy the canvas: %1</source><translation>无法复制画布：%1</translation></message>
-    <message id="clipboard.copy.canvas.done"><source>Canvas copied to clipboard · %1 × %2 px</source><translation>画布已复制到剪贴板 · %1 × %2 px</translation></message>
+    <message id="clipboard.copy.canvas">
+      <source>Copy canvas to clipboard</source>
+      <translation>复制画布到剪贴板</translation>
+    </message>
+    <message id="clipboard.copy.canvas.hint">
+      <source>Copy the full canvas at its original size, including visible layers and transparency.</source>
+      <translation>按原始尺寸复制整个画布，包含可见图层和透明度。</translation>
+    </message>
+    <message id="clipboard.copy.canvas.preparing">
+      <source>Preparing canvas for clipboard…</source>
+      <translation>正在准备复制画布…</translation>
+    </message>
+    <message id="clipboard.copy.canvas.finish.edit">
+      <source>Finish or cancel the current selection or shape edit before copying the canvas.</source>
+      <translation>请先完成或取消当前选区或形状的编辑，再复制画布。</translation>
+    </message>
+    <message id="clipboard.copy.canvas.failed">
+      <source>Could not copy the canvas: %1</source>
+      <translation>无法复制画布：%1</translation>
+    </message>
+    <message id="clipboard.copy.canvas.done">
+      <source>Canvas copied to clipboard · %1 × %2 px</source>
+      <translation>画布已复制到剪贴板 · %1 × %2 px</translation>
+    </message>
   </context>
   <context>
     <name>Screenshot capture</name>
-    <message id="screenshot.action"><source>Take Screenshot…</source><translation>截取屏幕…</translation></message>
-    <message id="screenshot.title"><source>Screenshot</source><translation>截图</translation></message>
-    <message id="screenshot.document"><source>Screenshot</source><translation>截图</translation></message>
-    <message id="screenshot.preview"><source>Screenshot crop preview</source><translation>截图裁剪预览</translation></message>
-    <message id="screenshot.close"><source>Close screenshot</source><translation>关闭截图</translation></message>
-    <message id="screenshot.desktop.chooser"><source>Desktop chooser</source><translation>桌面截图选择器</translation></message>
-    <message id="screenshot.entire.desktop"><source>Entire desktop</source><translation>整个桌面</translation></message>
-    <message id="screenshot.active.window"><source>Active window</source><translation>活动窗口</translation></message>
-    <message id="screenshot.target"><source>Capture source</source><translation>截取来源</translation></message>
-    <message id="screenshot.delay"><source>Delay: </source><translation>延迟：</translation></message>
-    <message id="screenshot.capture"><source>Capture</source><translation>截取</translation></message>
-    <message id="screenshot.retake"><source>Retake</source><translation>重新截取</translation></message>
-    <message id="screenshot.reset.crop"><source>Reset Crop</source><translation>重置裁剪</translation></message>
-    <message id="screenshot.reset.zoom"><source>Reset Zoom</source><translation>重置缩放</translation></message>
-    <message id="screenshot.add.layer"><source>Add as Layer</source><translation>添加为图层</translation></message>
-    <message id="screenshot.add.layer.hint"><source>Add the crop to the current document as an undoable raster layer.</source><translation>将裁剪结果作为栅格图层添加到当前文档，可撤销。</translation></message>
-    <message id="screenshot.stop"><source>Cancel Capture</source><translation>取消截取</translation></message>
-    <message id="screenshot.cancel"><source>Cancel</source><translation>取消</translation></message>
-    <message id="screenshot.open"><source>Open as New Document</source><translation>作为新文档打开</translation></message>
-    <message id="screenshot.chooser.hint"><source>Vulkana minimizes while you choose what to capture using your desktop's screenshot chooser.</source><translation>使用桌面的截图选择器选择截取内容时，Vulkana 会最小化。</translation></message>
-    <message id="screenshot.native.hint"><source>Vulkana minimizes during capture. For Active Window, switch to your target during the delay. Restore Vulkana to cancel.</source><translation>截取期间 Vulkana 会最小化。截取活动窗口时，请在延迟期间切换到目标窗口。恢复 Vulkana 窗口可取消截取。</translation></message>
-    <message id="screenshot.crop.hint"><source>Scroll to zoom; middle mouse to pan. Drag to crop or adjust its corners. Arrow keys move the crop; Shift moves 10 pixels.</source><oldsource>Drag to crop. Move the crop or drag its corners to adjust it. Arrow keys move it; Shift moves 10 pixels.</oldsource><translation>滚轮缩放，中键拖动平移。拖动以裁剪或调整四角。方向键移动裁剪框；按住 Shift 每次移动 10 像素。</translation></message>
-    <message id="screenshot.empty"><source>Capture a screenshot to preview and crop it here.</source><translation>截取屏幕后可在此预览和裁剪。</translation></message>
-    <message id="screenshot.countdown"><source>Capturing in %1 s…</source><translation>%1 秒后截取…</translation></message>
-    <message id="screenshot.waiting"><source>Waiting for capture…</source><translation>正在等待截取…</translation></message>
-    <message id="screenshot.cancelled"><source>Capture cancelled.</source><translation>已取消截取。</translation></message>
-    <message id="screenshot.dimensions"><source>%1 × %2 px</source><translation>%1 × %2 px</translation></message>
-    <message id="screenshot.failed"><source>Could not capture or open the screenshot: %1</source><translation>无法截取或打开截图：%1</translation></message>
+    <message id="screenshot.action">
+      <source>Take Screenshot…</source>
+      <translation>截取屏幕…</translation>
+    </message>
+    <message id="screenshot.title">
+      <source>Screenshot</source>
+      <translation>截图</translation>
+    </message>
+    <message id="screenshot.document">
+      <source>Screenshot</source>
+      <translation>截图</translation>
+    </message>
+    <message id="screenshot.preview">
+      <source>Screenshot crop preview</source>
+      <translation>截图裁剪预览</translation>
+    </message>
+    <message id="screenshot.close">
+      <source>Close screenshot</source>
+      <translation>关闭截图</translation>
+    </message>
+    <message id="screenshot.desktop.chooser">
+      <source>Desktop chooser</source>
+      <translation>桌面截图选择器</translation>
+    </message>
+    <message id="screenshot.entire.desktop">
+      <source>Entire desktop</source>
+      <translation>整个桌面</translation>
+    </message>
+    <message id="screenshot.active.window">
+      <source>Active window</source>
+      <translation>活动窗口</translation>
+    </message>
+    <message id="screenshot.target">
+      <source>Capture source</source>
+      <translation>截取来源</translation>
+    </message>
+    <message id="screenshot.delay">
+      <source>Delay: </source>
+      <translation>延迟：</translation>
+    </message>
+    <message id="screenshot.capture">
+      <source>Capture</source>
+      <translation>截取</translation>
+    </message>
+    <message id="screenshot.retake">
+      <source>Retake</source>
+      <translation>重新截取</translation>
+    </message>
+    <message id="screenshot.reset.crop">
+      <source>Reset Crop</source>
+      <translation>重置裁剪</translation>
+    </message>
+    <message id="screenshot.reset.zoom">
+      <source>Reset Zoom</source>
+      <translation>重置缩放</translation>
+    </message>
+    <message id="screenshot.add.layer">
+      <source>Add as Layer</source>
+      <translation>添加为图层</translation>
+    </message>
+    <message id="screenshot.add.layer.hint">
+      <source>Add the crop to the current document as an undoable raster layer.</source>
+      <translation>将裁剪结果作为栅格图层添加到当前文档，可撤销。</translation>
+    </message>
+    <message id="screenshot.stop">
+      <source>Cancel Capture</source>
+      <translation>取消截取</translation>
+    </message>
+    <message id="screenshot.cancel">
+      <source>Cancel</source>
+      <translation>取消</translation>
+    </message>
+    <message id="screenshot.open">
+      <source>Open as New Document</source>
+      <translation>作为新文档打开</translation>
+    </message>
+    <message id="screenshot.chooser.hint">
+      <source>Vulkana minimizes while you choose what to capture using your desktop's screenshot chooser.</source>
+      <translation>使用桌面的截图选择器选择截取内容时，Vulkana 会最小化。</translation>
+    </message>
+    <message id="screenshot.native.hint">
+      <source>Vulkana minimizes during capture. For Active Window, switch to your target during the delay. Restore Vulkana to cancel.</source>
+      <translation>截取期间 Vulkana 会最小化。截取活动窗口时，请在延迟期间切换到目标窗口。恢复 Vulkana 窗口可取消截取。</translation>
+    </message>
+    <message id="screenshot.crop.hint">
+      <source>Scroll to zoom; middle mouse to pan. Drag to crop or adjust its corners. Arrow keys move the crop; Shift moves 10 pixels.</source>
+      <oldsource>Drag to crop. Move the crop or drag its corners to adjust it. Arrow keys move it; Shift moves 10 pixels.</oldsource>
+      <translation>滚轮缩放，中键拖动平移。拖动以裁剪或调整四角。方向键移动裁剪框；按住 Shift 每次移动 10 像素。</translation>
+    </message>
+    <message id="screenshot.empty">
+      <source>Capture a screenshot to preview and crop it here.</source>
+      <translation>截取屏幕后可在此预览和裁剪。</translation>
+    </message>
+    <message id="screenshot.countdown">
+      <source>Capturing in %1 s…</source>
+      <translation>%1 秒后截取…</translation>
+    </message>
+    <message id="screenshot.waiting">
+      <source>Waiting for capture…</source>
+      <translation>正在等待截取…</translation>
+    </message>
+    <message id="screenshot.cancelled">
+      <source>Capture cancelled.</source>
+      <translation>已取消截取。</translation>
+    </message>
+    <message id="screenshot.dimensions">
+      <source>%1 × %2 px</source>
+      <translation>%1 × %2 px</translation>
+    </message>
+    <message id="screenshot.failed">
+      <source>Could not capture or open the screenshot: %1</source>
+      <translation>无法截取或打开截图：%1</translation>
+    </message>
   </context>
   <context>
     <name>Performance preferences</name>
-    <message id="performance.title"><source>Performance</source><translation>性能</translation></message>
-    <message id="performance.gpu"><source>Graphics device</source><translation>图形设备</translation></message>
-    <message id="performance.undo"><source>Undo memory per document</source><translation>每个文档的撤销内存</translation></message>
-    <message id="performance.cpu.cache"><source>Document cache per window</source><translation>每个窗口的文档缓存</translation></message>
-    <message id="performance.gpu.cache"><source>GPU texture cache per window</source><translation>每个窗口的 GPU 纹理缓存</translation></message>
-    <message id="performance.threads"><source>Image-processing threads</source><translation>图像处理线程</translation></message>
-    <message id="performance.object.threads"><source>Object Selection threads</source><translation>对象选择线程</translation></message>
-    <message id="performance.auto"><source>Auto</source><translation>自动</translation></message>
-    <message id="performance.auto.memory"><source>Auto (%1 MiB)</source><translation>自动（%1 MiB）</translation></message>
-    <message id="performance.auto.threads"><source>Auto (up to %1)</source><translation>自动（最多 %1）</translation></message>
-    <message id="performance.restart.note"><source>GPU and thread changes require a restart. Object Selection runs on the CPU.</source><translation>更改 GPU 或线程设置后需重启。对象选择在 CPU 上运行。</translation></message>
-    <message id="performance.memory.note"><source>Budgets are retention targets, not total RAM/VRAM limits. Undo trims on later edits.</source><translation>这些预算是保留数据的目标大小，并非总 RAM/VRAM 上限。撤销记录会在后续编辑时缩减。</translation></message>
-    <message id="performance.usage"><source>RAM (process): %1&#10;Undo: %2 (current), %3 (all tabs)&#10;Document cache: %4 · GPU texture cache: %5&#10;Rendering GPU: %6</source><translation>RAM（进程）：%1&#10;撤销：%2（当前），%3（所有标签页）&#10;文档缓存：%4 · GPU 纹理缓存：%5&#10;渲染 GPU：%6</translation></message>
-    <message id="performance.clear"><source>Clear Inactive Caches</source><translation>清除非活动缓存</translation></message>
-    <message id="performance.clear.hint"><source>Release cached previews and textures for inactive tabs in this window. Source pixels and undo history stay intact.</source><translation>释放此窗口中非活动标签页的预览和纹理缓存。不影响源像素和撤销历史。</translation></message>
-    <message id="performance.defaults"><source>Restore Defaults</source><translation>恢复默认值</translation></message>
-    <message id="performance.gpu.changed.title"><source>Graphics device changed</source><translation>图形设备已更改</translation></message>
-    <message id="performance.gpu.changed.message"><source>The selected GPU (%1) could not be used. Falling back to %2.</source><translation>无法使用所选 GPU（%1）。将改用 %2。</translation></message>
-    <message id="performance.gpu.changed.unknown"><source>The selected GPU could not be used. Falling back to %1.</source><translation>无法使用所选 GPU。将改用 %1。</translation></message>
-    <message id="performance.gpu.unavailable"><source>Saved device (unavailable)</source><translation>已保存的设备（不可用）</translation></message>
-    <message id="performance.gpu.check.hint"><source>GPU availability is checked on restart. If a device cannot display the canvas, Vulkana uses another GPU.</source><translation>重启时会检查 GPU 是否可用。如果某设备无法显示画布，Vulkana 会使用其他 GPU。</translation></message>
-    <message id="performance.gpu.failed.item"><source>%1 — startup check failed</source><translation>%1 — 启动检查失败</translation></message>
-    <message id="performance.gpu.unsupported.item"><source>%1 — unavailable for this display</source><translation>%1 — 无法用于此显示器</translation></message>
-    <message id="performance.unknown"><source>Unavailable</source><translation>不可用</translation></message>
-    <message id="performance.undo.warning.title"><source>Reduce Undo Memory?</source><translation>减少撤销内存？</translation></message>
-    <message id="performance.undo.warning"><source>Older undo steps may be discarded as you make new edits. This cannot be reversed by raising the budget later. Continue?</source><translation>进行新编辑时，旧的撤销步骤可能被丢弃。之后增加预算也无法恢复。是否继续？</translation></message>
+    <message id="performance.title">
+      <source>Performance</source>
+      <translation>性能</translation>
+    </message>
+    <message id="performance.gpu">
+      <source>Graphics device</source>
+      <translation>图形设备</translation>
+    </message>
+    <message id="performance.undo">
+      <source>Undo memory per document</source>
+      <translation>每个文档的撤销内存</translation>
+    </message>
+    <message id="performance.cpu.cache">
+      <source>Document cache per window</source>
+      <translation>每个窗口的文档缓存</translation>
+    </message>
+    <message id="performance.gpu.cache">
+      <source>GPU texture cache per window</source>
+      <translation>每个窗口的 GPU 纹理缓存</translation>
+    </message>
+    <message id="performance.threads">
+      <source>Image-processing threads</source>
+      <translation>图像处理线程</translation>
+    </message>
+    <message id="performance.object.threads">
+      <source>Object Selection threads</source>
+      <translation>对象选择线程</translation>
+    </message>
+    <message id="performance.auto">
+      <source>Auto</source>
+      <translation>自动</translation>
+    </message>
+    <message id="performance.auto.memory">
+      <source>Auto (%1 MiB)</source>
+      <translation>自动（%1 MiB）</translation>
+    </message>
+    <message id="performance.auto.threads">
+      <source>Auto (up to %1)</source>
+      <translation>自动（最多 %1）</translation>
+    </message>
+    <message id="performance.restart.note">
+      <source>GPU and thread changes require a restart. Object Selection runs on the CPU.</source>
+      <translation>更改 GPU 或线程设置后需重启。对象选择在 CPU 上运行。</translation>
+    </message>
+    <message id="performance.memory.note">
+      <source>Budgets are retention targets, not total RAM/VRAM limits. Undo trims on later edits.</source>
+      <translation>这些预算是保留数据的目标大小，并非总 RAM/VRAM 上限。撤销记录会在后续编辑时缩减。</translation>
+    </message>
+    <message id="performance.usage">
+      <source>RAM (process): %1
+Undo: %2 (current), %3 (all tabs)
+Document cache: %4 · GPU texture cache: %5
+Rendering GPU: %6</source>
+      <translation>RAM（进程）：%1
+撤销：%2（当前），%3（所有标签页）
+文档缓存：%4 · GPU 纹理缓存：%5
+渲染 GPU：%6</translation>
+    </message>
+    <message id="performance.clear">
+      <source>Clear Inactive Caches</source>
+      <translation>清除非活动缓存</translation>
+    </message>
+    <message id="performance.clear.hint">
+      <source>Release cached previews and textures for inactive tabs in this window. Source pixels and undo history stay intact.</source>
+      <translation>释放此窗口中非活动标签页的预览和纹理缓存。不影响源像素和撤销历史。</translation>
+    </message>
+    <message id="performance.defaults">
+      <source>Restore Defaults</source>
+      <translation>恢复默认值</translation>
+    </message>
+    <message id="performance.gpu.changed.title">
+      <source>Graphics device changed</source>
+      <translation>图形设备已更改</translation>
+    </message>
+    <message id="performance.gpu.changed.message">
+      <source>The selected GPU (%1) could not be used. Falling back to %2.</source>
+      <translation>无法使用所选 GPU（%1）。将改用 %2。</translation>
+    </message>
+    <message id="performance.gpu.changed.unknown">
+      <source>The selected GPU could not be used. Falling back to %1.</source>
+      <translation>无法使用所选 GPU。将改用 %1。</translation>
+    </message>
+    <message id="performance.gpu.unavailable">
+      <source>Saved device (unavailable)</source>
+      <translation>已保存的设备（不可用）</translation>
+    </message>
+    <message id="performance.gpu.check.hint">
+      <source>GPU availability is checked on restart. If a device cannot display the canvas, Vulkana uses another GPU.</source>
+      <translation>重启时会检查 GPU 是否可用。如果某设备无法显示画布，Vulkana 会使用其他 GPU。</translation>
+    </message>
+    <message id="performance.gpu.failed.item">
+      <source>%1 — startup check failed</source>
+      <translation>%1 — 启动检查失败</translation>
+    </message>
+    <message id="performance.gpu.unsupported.item">
+      <source>%1 — unavailable for this display</source>
+      <translation>%1 — 无法用于此显示器</translation>
+    </message>
+    <message id="performance.unknown">
+      <source>Unavailable</source>
+      <translation>不可用</translation>
+    </message>
+    <message id="performance.undo.warning.title">
+      <source>Reduce Undo Memory?</source>
+      <translation>减少撤销内存？</translation>
+    </message>
+    <message id="performance.undo.warning">
+      <source>Older undo steps may be discarded as you make new edits. This cannot be reversed by raising the budget later. Continue?</source>
+      <translation>进行新编辑时，旧的撤销步骤可能被丢弃。之后增加预算也无法恢复。是否继续？</translation>
+    </message>
   </context>
   <context>
     <name>LayerMaskClipboard</name>
@@ -10746,72 +10938,192 @@ Escape 取消整次裁切
       <source>Photoshop Fill: fade the layer content while keeping its effects. Some blend modes respond differently than Layer opacity.</source>
       <translation>Photoshop 填充：降低图层内容的不透明度，同时保留效果。在某些混合模式下，其作用与图层不透明度不同。</translation>
     </message>
-    <message id="history.layer.pixel.opacity">
-      <source>Layer pixel opacity</source>
-      <extracomment>Core history label: Layer pixel opacity</extracomment>
-      <translation>图层像素不透明度</translation>
-    </message>
   </context>
   <context>
     <name>GraphicsStartup</name>
-    <message id="graphics.startup.aborting"><source>Aborting…</source><translation>正在中止…</translation></message>
-    <message id="graphics.startup.closing"><source>Waiting for the graphics driver before closing.</source><translation>正在等待图形驱动完成后关闭。</translation></message>
-    <message id="graphics.startup.title"><source>Initializing graphics…</source><translation>正在初始化图形…</translation></message>
-    <message id="graphics.startup.detail"><source>Preparing shaders. This may take a few seconds.</source><translation>正在准备着色器，可能需要几秒钟。</translation></message>
+    <message id="graphics.startup.aborting">
+      <source>Aborting…</source>
+      <translation>正在中止…</translation>
+    </message>
+    <message id="graphics.startup.closing">
+      <source>Waiting for the graphics driver before closing.</source>
+      <translation>正在等待图形驱动完成后关闭。</translation>
+    </message>
+    <message id="graphics.startup.title">
+      <source>Initializing graphics…</source>
+      <translation>正在初始化图形…</translation>
+    </message>
+    <message id="graphics.startup.detail">
+      <source>Preparing shaders. This may take a few seconds.</source>
+      <translation>正在准备着色器，可能需要几秒钟。</translation>
+    </message>
   </context>
   <context>
     <name>LayerInfo</name>
-    <message id="preferences.layer.info"><source>Show layer info</source><translation>显示图层信息</translation></message>
-    <message id="preferences.layer.info.hint"><source>Show non-Normal blend modes and active effect icons on layer rows.</source><translation>在图层行显示非“正常”混合模式和已启用的效果图标。</translation></message>
+    <message id="preferences.layer.info">
+      <source>Show layer info</source>
+      <translation>显示图层信息</translation>
+    </message>
+    <message id="preferences.layer.info.hint">
+      <source>Show non-Normal blend modes and active effect icons on layer rows.</source>
+      <translation>在图层行显示非“正常”混合模式和已启用的效果图标。</translation>
+    </message>
   </context>
   <context>
     <name>CanvasResize</name>
+    <message id="canvas.resize.action">
+      <source>Quick canvas resize</source>
+      <translation>快速调整画布</translation>
+    </message>
     <message id="canvas.resize.to.layer">
       <source>Canvas size to selected layer</source>
-      <translation type="unfinished" />
+      <translation>画布匹配所选图层</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="canvas.resize.to.layer.hint">
       <source>Fit the canvas to the selected layer's bounds without resampling its pixels.</source>
-      <translation type="unfinished" />
+      <translation>将画布调整为所选图层的边界，不重采样像素。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
-    <message id="canvas.resize.action"><source>Quick canvas resize</source><translation>快速调整画布</translation></message>
-    <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translation>拖动边缘或角点调整画布大小，或在内部拖动以移动画布。图层像素保持不变。应用：{{FinishOperationAction}} · 取消：Escape。</translation></message>
-    <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translation>保持画布宽高比；按住 Shift 临时切换约束。</translation></message>
-    <message id="canvas.resize.reset"><source>Reset to the original canvas bounds</source><translation>恢复原始画布边界</translation></message>
-    <message id="canvas.resize.apply"><source>Apply canvas resize · {{FinishOperationAction}} / right-click</source><translation>应用画布调整 · {{FinishOperationAction}} / 右键</translation></message>
-    <message id="canvas.resize.cancel"><source>Cancel canvas resize · Escape</source><translation>取消画布调整 · Escape</translation></message>
-    <message id="canvas.resize.done"><source>Canvas resized to %1 × %2 px</source><translation>画布已调整为 %1 × %2 px</translation></message>
-    <message id="canvas.resize.undo"><source>Undo canvas resize adjustment</source><translation>撤销画布边界调整</translation></message>
-    <message id="canvas.resize.redo"><source>Redo canvas resize adjustment</source><translation>重做画布边界调整</translation></message>
+    <message id="canvas.resize.hint">
+      <source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source>
+      <translation>拖动边缘或角点调整画布大小，或在内部拖动以移动画布。图层像素保持不变。应用：{{FinishOperationAction}} · 取消：Escape。</translation>
+    </message>
+    <message id="canvas.resize.ratio">
+      <source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source>
+      <translation>保持画布宽高比；按住 Shift 临时切换约束。</translation>
+    </message>
+    <message id="canvas.resize.reset">
+      <source>Reset to the original canvas bounds</source>
+      <translation>恢复原始画布边界</translation>
+    </message>
+    <message id="canvas.resize.apply">
+      <source>Apply canvas resize · {{FinishOperationAction}} / right-click</source>
+      <translation>应用画布调整 · {{FinishOperationAction}} / 右键</translation>
+    </message>
+    <message id="canvas.resize.cancel">
+      <source>Cancel canvas resize · Escape</source>
+      <translation>取消画布调整 · Escape</translation>
+    </message>
+    <message id="canvas.resize.done">
+      <source>Canvas resized to %1 × %2 px</source>
+      <translation>画布已调整为 %1 × %2 px</translation>
+    </message>
+    <message id="canvas.resize.undo">
+      <source>Undo canvas resize adjustment</source>
+      <translation>撤销画布边界调整</translation>
+    </message>
+    <message id="canvas.resize.redo">
+      <source>Redo canvas resize adjustment</source>
+      <translation>重做画布边界调整</translation>
+    </message>
   </context>
   <context>
     <name>CompactProperties</name>
-    <message id="properties.info.title"><source>Layer Info</source><translation>图层信息</translation></message>
-    <message id="properties.info.size"><source>Size</source><translation>大小</translation></message>
-    <message id="properties.info.angle"><source>Angle</source><translation>角度</translation></message>
-    <message id="properties.info.position"><source>Position</source><translation>位置</translation></message>
-    <message id="properties.info.font"><source>Font</source><translation>字体</translation></message>
-    <message id="properties.info.color"><source>Color</source><translation>颜色</translation></message>
-    <message id="properties.info.whole.text"><source>Changes apply to the entire text layer.</source><translation>更改将应用于整个文本图层。</translation></message>
-    <message id="properties.info.folder"><source>Folder</source><translation>文件夹</translation></message>
-    <message id="properties.info.group"><source>Group</source><translation>组</translation></message>
-    <message id="properties.info.adjustment"><source>Adjustment layer</source><translation>调整图层</translation></message>
-    <message id="properties.info.brush.settings"><source>Brush settings</source><translation>画笔设置</translation></message>
-    <message id="properties.info.width"><source>Width</source><translation>宽度</translation></message>
-    <message id="properties.info.height"><source>Height</source><translation>高度</translation></message>
-    <message id="properties.info.text.color"><source>Text color</source><translation>文本颜色</translation></message>
-    <message id="properties.info.mixed"><source>Mixed</source><translation>混合</translation></message>
-    <message id="properties.shortcuts.sample"><source>Sample color (hold)</source><translation>取色（按住）</translation></message>
-    <message id="properties.shortcuts.source"><source>Set clone/heal source</source><translation>设置仿制/修复源</translation></message>
-    <message id="properties.shortcuts.add"><source>Add to selection</source><translation>添加到选区</translation></message>
-    <message id="properties.shortcuts.subtract"><source>Subtract from selection</source><translation>从选区减去</translation></message>
-    <message id="properties.shortcuts.intersect"><source>Intersect selection</source><translation>与选区相交</translation></message>
-    <message id="properties.shortcuts.constrain"><source>Constrain direction or proportions</source><translation>约束方向或比例</translation></message>
-    <message id="properties.shortcuts.ratio"><source>Toggle aspect constraint</source><translation>切换宽高比约束</translation></message>
-    <message id="properties.shortcuts.center"><source>Resize from center</source><translation>从中心调整大小</translation></message>
-    <message id="properties.shortcuts.cancel"><source>Cancel current operation</source><translation>取消当前操作</translation></message>
-    <message id="properties.shortcuts.middle"><source>Middle mouse</source><translation>鼠标中键</translation></message>
-    <message id="properties.shortcuts.pan"><source>Pan canvas</source><translation>平移画布</translation></message>
+    <message id="properties.info.title">
+      <source>Layer Info</source>
+      <translation>图层信息</translation>
+    </message>
+    <message id="properties.info.size">
+      <source>Size</source>
+      <translation>大小</translation>
+    </message>
+    <message id="properties.info.angle">
+      <source>Angle</source>
+      <translation>角度</translation>
+    </message>
+    <message id="properties.info.position">
+      <source>Position</source>
+      <translation>位置</translation>
+    </message>
+    <message id="properties.info.font">
+      <source>Font</source>
+      <translation>字体</translation>
+    </message>
+    <message id="properties.info.color">
+      <source>Color</source>
+      <translation>颜色</translation>
+    </message>
+    <message id="properties.info.whole.text">
+      <source>Changes apply to the entire text layer.</source>
+      <translation>更改将应用于整个文本图层。</translation>
+    </message>
+    <message id="properties.info.folder">
+      <source>Folder</source>
+      <translation>文件夹</translation>
+    </message>
+    <message id="properties.info.group">
+      <source>Group</source>
+      <translation>组</translation>
+    </message>
+    <message id="properties.info.adjustment">
+      <source>Adjustment layer</source>
+      <translation>调整图层</translation>
+    </message>
+    <message id="properties.info.brush.settings">
+      <source>Brush settings</source>
+      <translation>画笔设置</translation>
+    </message>
+    <message id="properties.info.width">
+      <source>Width</source>
+      <translation>宽度</translation>
+    </message>
+    <message id="properties.info.height">
+      <source>Height</source>
+      <translation>高度</translation>
+    </message>
+    <message id="properties.info.text.color">
+      <source>Text color</source>
+      <translation>文本颜色</translation>
+    </message>
+    <message id="properties.info.mixed">
+      <source>Mixed</source>
+      <translation>混合</translation>
+    </message>
+    <message id="properties.shortcuts.sample">
+      <source>Sample color (hold)</source>
+      <translation>取色（按住）</translation>
+    </message>
+    <message id="properties.shortcuts.source">
+      <source>Set clone/heal source</source>
+      <translation>设置仿制/修复源</translation>
+    </message>
+    <message id="properties.shortcuts.add">
+      <source>Add to selection</source>
+      <translation>添加到选区</translation>
+    </message>
+    <message id="properties.shortcuts.subtract">
+      <source>Subtract from selection</source>
+      <translation>从选区减去</translation>
+    </message>
+    <message id="properties.shortcuts.intersect">
+      <source>Intersect selection</source>
+      <translation>与选区相交</translation>
+    </message>
+    <message id="properties.shortcuts.constrain">
+      <source>Constrain direction or proportions</source>
+      <translation>约束方向或比例</translation>
+    </message>
+    <message id="properties.shortcuts.ratio">
+      <source>Toggle aspect constraint</source>
+      <translation>切换宽高比约束</translation>
+    </message>
+    <message id="properties.shortcuts.center">
+      <source>Resize from center</source>
+      <translation>从中心调整大小</translation>
+    </message>
+    <message id="properties.shortcuts.cancel">
+      <source>Cancel current operation</source>
+      <translation>取消当前操作</translation>
+    </message>
+    <message id="properties.shortcuts.middle">
+      <source>Middle mouse</source>
+      <translation>鼠标中键</translation>
+    </message>
+    <message id="properties.shortcuts.pan">
+      <source>Pan canvas</source>
+      <translation>平移画布</translation>
+    </message>
   </context>
   <context>
     <name>GradientEditor</name>
@@ -11180,41 +11492,128 @@ Prepare %3 · Finish %4 · Total %5</source>
   </context>
   <context>
     <name>McpPreferences</name>
-    <message id="mcp.preferences.title"><source>MCP</source><translation>MCP</translation></message>
-    <message id="mcp.preferences.start"><source>Start MCP</source><translation>启动 MCP</translation></message>
-    <message id="mcp.preferences.stop"><source>Stop MCP</source><translation>停止 MCP</translation></message>
-    <message id="mcp.preferences.stopped"><source>Stopped</source><translation>已停止</translation></message>
-    <message id="mcp.preferences.listening"><source>Listening</source><translation>等待连接</translation></message>
-    <message id="mcp.preferences.connected"><source>Connected · Clients: %1</source><translation>已连接 · 客户端：%1</translation></message>
-    <message id="mcp.preferences.stopping"><source>Stopping…</source><translation>正在停止…</translation></message>
-    <message id="mcp.preferences.error"><source>Error</source><translation>错误</translation></message>
-    <message id="mcp.preferences.autostart"><source>Start automatically with Vulkana</source><translation>随 Vulkana 自动启动</translation></message>
-    <message id="mcp.preferences.security"><source>Only connect clients you trust. MCP clients can modify documents and read or write files with your Vulkana host-user permissions. A client running in a container is not limited to that container's files.</source><translation>仅连接可信的客户端。MCP 客户端可使用运行 Vulkana 的用户权限修改文档、读写文件。即使客户端在容器中运行，它的访问范围也不限于容器内的文件。</translation></message>
-    <message id="mcp.preferences.connection"><source>Connection</source><translation>连接</translation></message>
-    <message id="mcp.preferences.local"><source>MCP uses local communication, without a network port. Multiple trusted clients can connect; editing commands run one at a time. Copy the configuration into OpenCode V2; Vulkana does not edit its configuration files.</source><translation>MCP 通过本地通信连接，不使用网络端口。可连接多个可信客户端，编辑命令会依次执行。请将配置复制到 OpenCode V2；Vulkana 不会修改其配置文件。</translation></message>
-    <message id="mcp.preferences.command"><source>Bridge command</source><translation>桥接命令</translation></message>
-    <message id="mcp.preferences.endpoint"><source>Endpoint</source><translation>连接地址</translation></message>
-    <message id="mcp.preferences.copy"><source>Copy Configuration · OpenCode V2</source><translation>复制配置 · OpenCode V2</translation></message>
-    <message id="mcp.preferences.copied"><source>Copied</source><translation>已复制</translation></message>
-    <message id="mcp.preferences.advanced"><source>Advanced Settings</source><translation>高级设置</translation></message>
-    <message id="mcp.preferences.custom"><source>Use a custom endpoint</source><translation>使用自定义连接地址</translation></message>
-    <message id="mcp.preferences.next.start"><source>Endpoint changes take effect on the next Start. While MCP is running, Copy Configuration uses its current endpoint.</source><translation>连接地址的更改将在下次启动时生效。MCP 运行期间，复制配置使用当前连接地址。</translation></message>
-    <message id="mcp.preferences.apply.note"><source>Start and Stop affect this session immediately. Apply saves automatic startup and endpoint settings; it does not restart an active connection.</source><translation>启动和停止会立即影响当前会话。“应用”会保存自动启动和连接地址设置，不会重启现有连接。</translation></message>
-    <message id="mcp.preferences.finishing"><source>Waiting for the current command to finish before disconnecting. Its changes are not cancelled or rolled back.</source><translation>正在等待当前命令完成后断开连接。其更改不会被取消或撤销。</translation></message>
+    <message id="mcp.preferences.title">
+      <source>MCP</source>
+      <translation>MCP</translation>
+    </message>
+    <message id="mcp.preferences.start">
+      <source>Start MCP</source>
+      <translation>启动 MCP</translation>
+    </message>
+    <message id="mcp.preferences.stop">
+      <source>Stop MCP</source>
+      <translation>停止 MCP</translation>
+    </message>
+    <message id="mcp.preferences.stopped">
+      <source>Stopped</source>
+      <translation>已停止</translation>
+    </message>
+    <message id="mcp.preferences.listening">
+      <source>Listening</source>
+      <translation>等待连接</translation>
+    </message>
+    <message id="mcp.preferences.connected">
+      <source>Connected · Clients: %1</source>
+      <translation>已连接 · 客户端：%1</translation>
+    </message>
+    <message id="mcp.preferences.stopping">
+      <source>Stopping…</source>
+      <translation>正在停止…</translation>
+    </message>
+    <message id="mcp.preferences.error">
+      <source>Error</source>
+      <translation>错误</translation>
+    </message>
+    <message id="mcp.preferences.autostart">
+      <source>Start automatically with Vulkana</source>
+      <translation>随 Vulkana 自动启动</translation>
+    </message>
+    <message id="mcp.preferences.security">
+      <source>Only connect clients you trust. MCP clients can modify documents and read or write files with your Vulkana host-user permissions. A client running in a container is not limited to that container's files.</source>
+      <translation>仅连接可信的客户端。MCP 客户端可使用运行 Vulkana 的用户权限修改文档、读写文件。即使客户端在容器中运行，它的访问范围也不限于容器内的文件。</translation>
+    </message>
+    <message id="mcp.preferences.connection">
+      <source>Connection</source>
+      <translation>连接</translation>
+    </message>
+    <message id="mcp.preferences.local">
+      <source>MCP uses local communication, without a network port. Multiple trusted clients can connect; editing commands run one at a time. Copy the configuration into OpenCode V2; Vulkana does not edit its configuration files.</source>
+      <translation>MCP 通过本地通信连接，不使用网络端口。可连接多个可信客户端，编辑命令会依次执行。请将配置复制到 OpenCode V2；Vulkana 不会修改其配置文件。</translation>
+    </message>
+    <message id="mcp.preferences.command">
+      <source>Bridge command</source>
+      <translation>桥接命令</translation>
+    </message>
+    <message id="mcp.preferences.endpoint">
+      <source>Endpoint</source>
+      <translation>连接地址</translation>
+    </message>
+    <message id="mcp.preferences.copy">
+      <source>Copy Configuration · OpenCode V2</source>
+      <translation>复制配置 · OpenCode V2</translation>
+    </message>
+    <message id="mcp.preferences.copied">
+      <source>Copied</source>
+      <translation>已复制</translation>
+    </message>
+    <message id="mcp.preferences.advanced">
+      <source>Advanced Settings</source>
+      <translation>高级设置</translation>
+    </message>
+    <message id="mcp.preferences.custom">
+      <source>Use a custom endpoint</source>
+      <translation>使用自定义连接地址</translation>
+    </message>
+    <message id="mcp.preferences.next.start">
+      <source>Endpoint changes take effect on the next Start. While MCP is running, Copy Configuration uses its current endpoint.</source>
+      <translation>连接地址的更改将在下次启动时生效。MCP 运行期间，复制配置使用当前连接地址。</translation>
+    </message>
+    <message id="mcp.preferences.apply.note">
+      <source>Start and Stop affect this session immediately. Apply saves automatic startup and endpoint settings; it does not restart an active connection.</source>
+      <translation>启动和停止会立即影响当前会话。“应用”会保存自动启动和连接地址设置，不会重启现有连接。</translation>
+    </message>
+    <message id="mcp.preferences.finishing">
+      <source>Waiting for the current command to finish before disconnecting. Its changes are not cancelled or rolled back.</source>
+      <translation>正在等待当前命令完成后断开连接。其更改不会被取消或撤销。</translation>
+    </message>
   </context>
   <context>
     <name>ShapePreview</name>
-    <message id="main.window.shape.preview.limit.named"><source>Shape “%1” (layer %2) exceeds the preview limit. Its editable data is retained.</source><translation>形状“%1”（图层 %2）超出预览限制。可编辑数据已保留。</translation></message>
-    <message id="main.window.shape.preview.memory.named"><source>Not enough memory to render shape “%1” (layer %2). Its editable data is retained.</source><translation>内存不足，无法渲染形状“%1”（图层 %2）。可编辑数据已保留。</translation></message>
-    <message id="main.window.shape.preview.failed.named"><source>Could not render shape “%1” (layer %2): %3. Its editable data is retained.</source><translation>无法渲染形状“%1”（图层 %2）：%3。可编辑数据已保留。</translation></message>
-    <message id="main.window.shape.preview.reduced.named"><source>Shape “%1” (layer %2) is shown at reduced preview resolution. Its editable data is retained.</source><translation>形状“%1”（图层 %2）以较低的预览分辨率显示。可编辑数据已保留。</translation></message>
+    <message id="main.window.shape.preview.limit.named">
+      <source>Shape “%1” (layer %2) exceeds the preview limit. Its editable data is retained.</source>
+      <translation>形状“%1”（图层 %2）超出预览限制。可编辑数据已保留。</translation>
+    </message>
+    <message id="main.window.shape.preview.memory.named">
+      <source>Not enough memory to render shape “%1” (layer %2). Its editable data is retained.</source>
+      <translation>内存不足，无法渲染形状“%1”（图层 %2）。可编辑数据已保留。</translation>
+    </message>
+    <message id="main.window.shape.preview.failed.named">
+      <source>Could not render shape “%1” (layer %2): %3. Its editable data is retained.</source>
+      <translation>无法渲染形状“%1”（图层 %2）：%3。可编辑数据已保留。</translation>
+    </message>
+    <message id="main.window.shape.preview.reduced.named">
+      <source>Shape “%1” (layer %2) is shown at reduced preview resolution. Its editable data is retained.</source>
+      <translation>形状“%1”（图层 %2）以较低的预览分辨率显示。可编辑数据已保留。</translation>
+    </message>
   </context>
   <context>
     <name>LayerSelectionFocus</name>
-    <message id="preferences.layer.focus.label"><source>Auto-scroll to selected layer</source><translation>自动滚动到所选图层</translation></message>
-    <message id="preferences.layer.focus.normal"><source>Focus</source><translation>定位</translation></message>
-    <message id="preferences.layer.focus.expand"><source>Focus and Expand</source><translation>定位并展开</translation></message>
-    <message id="preferences.layer.focus.hint"><source>Focus scrolls to the selected layer or its visible parent. Focus and Expand also opens collapsed parents.</source><translation>“定位”会滚动到所选图层或其可见的父级。“定位并展开”还会展开折叠的父级。</translation></message>
+    <message id="preferences.layer.focus.label">
+      <source>Auto-scroll to selected layer</source>
+      <translation>自动滚动到所选图层</translation>
+    </message>
+    <message id="preferences.layer.focus.normal">
+      <source>Focus</source>
+      <translation>定位</translation>
+    </message>
+    <message id="preferences.layer.focus.expand">
+      <source>Focus and Expand</source>
+      <translation>定位并展开</translation>
+    </message>
+    <message id="preferences.layer.focus.hint">
+      <source>Focus scrolls to the selected layer or its visible parent. Focus and Expand also opens collapsed parents.</source>
+      <translation>“定位”会滚动到所选图层或其可见的父级。“定位并展开”还会展开折叠的父级。</translation>
+    </message>
   </context>
   <context>
     <name>ArcShape</name>
@@ -11264,247 +11663,2167 @@ Prepare %3 · Finish %4 · Total %5</source>
   </context>
   <context>
     <name>McpStatus</name>
-    <message id="mcp.status.connected"><source>MCP connected (%1)</source><translation>MCP 已连接（%1）</translation></message>
-    <message id="mcp.status.stopping"><source>MCP stopping…</source><translation>MCP 正在停止…</translation></message>
-    <message id="mcp.status.error"><source>MCP error</source><translation>MCP 错误</translation></message>
-    <message id="mcp.status.enabled"><source>MCP enabled</source><translation>MCP 已启用</translation></message>
-    <message id="mcp.status.endpoint.hint"><source>Local document automation. Endpoint: %1</source><translation>本地文档自动化。连接地址：%1</translation></message>
+    <message id="mcp.status.connected">
+      <source>MCP connected (%1)</source>
+      <translation>MCP 已连接（%1）</translation>
+    </message>
+    <message id="mcp.status.stopping">
+      <source>MCP stopping…</source>
+      <translation>MCP 正在停止…</translation>
+    </message>
+    <message id="mcp.status.error">
+      <source>MCP error</source>
+      <translation>MCP 错误</translation>
+    </message>
+    <message id="mcp.status.enabled">
+      <source>MCP enabled</source>
+      <translation>MCP 已启用</translation>
+    </message>
+    <message id="mcp.status.endpoint.hint">
+      <source>Local document automation. Endpoint: %1</source>
+      <translation>本地文档自动化。连接地址：%1</translation>
+    </message>
   </context>
   <context>
     <name>ChannelGroups</name>
     <message id="channels.action.convert">
       <source>Convert to Channel Group</source>
-      <translation type="unfinished" />
+      <translation>转换为通道组</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.action.recombine">
       <source>Convert Channel Group to Raster</source>
-      <translation type="unfinished" />
+      <translation>通道组转换为栅格图层</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.action.inspect.alpha">
       <source>Show alpha as transparency</source>
-      <translation type="unfinished" />
+      <translation>将 Alpha 显示为透明度</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.action.copy">
       <source>Copy channel pixels</source>
-      <translation type="unfinished" />
+      <translation>复制通道像素</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.action.cut">
       <source>Cut channel pixels</source>
-      <translation type="unfinished" />
+      <translation>剪切通道像素</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.action.open">
       <source>Open data texture…</source>
-      <translation type="unfinished" />
+      <translation>打开数据纹理…</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.action.export">
       <source>Export channel data…</source>
-      <translation type="unfinished" />
+      <translation>导出通道数据…</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.convert.to.edit">
       <source>Convert to a Channel Group to edit numeric data.</source>
-      <translation type="unfinished" />
+      <translation>转换为通道组后可编辑数值数据。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.operation.unavailable">
       <source>Unavailable for numeric channels.</source>
-      <translation type="unfinished" />
+      <translation>不适用于数值通道。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.clipboard.copied">
       <source>Channel pixels copied.</source>
-      <translation type="unfinished" />
+      <translation>已复制通道像素。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.clipboard.required">
       <source>Copy channel pixels or an 8-bit straight grayscale image to paste into a channel.</source>
-      <translation type="unfinished" />
+      <translation>请先复制通道像素或 8 位非预乘灰度图像，再粘贴到通道。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.clipboard.target.changed">
       <source>The paste target changed. Try pasting again.</source>
-      <translation type="unfinished" />
+      <translation>粘贴目标已改变，请重试。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.clipboard.failed">
       <source>Could not paste into the channel. No pixels were changed.</source>
-      <translation type="unfinished" />
+      <translation>无法粘贴到通道，像素未改变。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.open.title">
       <source>Open data texture</source>
-      <translation type="unfinished" />
+      <translation>打开数据纹理</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.open.filter">
       <source>Lossless images (*.png *.tif *.tiff *.bmp *.tga);;All files (*)</source>
-      <translation type="unfinished" />
+      <translation>无损图像 (*.png *.tif *.tiff *.bmp *.tga);;所有文件 (*)</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.value">
       <source>Value</source>
-      <translation type="unfinished" />
+      <translation>数值</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.value.prefix">
       <source>Value: </source>
-      <translation type="unfinished" />
+      <translation>数值： </translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.value.hint">
       <source>Stored channel value. Black is 0; white is 255.</source>
-      <translation type="unfinished" />
+      <translation>存储的通道数值。黑色为 0，白色为 255。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.group.hint">
       <source>Packed channel data. Select a channel to inspect and edit its numeric values.</source>
-      <translation type="unfinished" />
+      <translation>打包的通道数据。选择通道可查看和编辑其数值。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.layer.hint">
       <source>Numeric channel: 0–255. Rename the label without changing its channel identity.</source>
-      <translation type="unfinished" />
+      <translation>数值通道：0–255。重命名不会改变通道身份。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.type.group">
       <source>Channel Group</source>
-      <translation type="unfinished" />
+      <translation>通道组</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.type.scalar">
       <source>Numeric channel · R8</source>
-      <translation type="unfinished" />
+      <translation>数值通道 · R8</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.type.packed">
       <source>Packed data · RGBA8</source>
-      <translation type="unfinished" />
+      <translation>打包数据 · RGBA8</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.levels.hint">
       <source>Adjust stored channel values without colour conversion.</source>
-      <translation type="unfinished" />
+      <translation>调整存储的通道数值，不进行颜色转换。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.invert.hint">
       <source>Invert channel values: 0 becomes 255, and 255 becomes 0.</source>
-      <translation type="unfinished" />
+      <translation>反转通道数值：0 变为 255，255 变为 0。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.effects.unavailable">
       <source>Colour effects are unavailable for numeric channels.</source>
-      <translation type="unfinished" />
+      <translation>数值通道不支持颜色效果。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.color.adjustments.unavailable">
       <source>Colour adjustments are unavailable for numeric channels.</source>
-      <translation type="unfinished" />
+      <translation>数值通道不支持颜色调整。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.histogram.sampled">
       <source>Sampled input · %1 numeric samples</source>
-      <translation type="unfinished" />
+      <translation>采样输入 · %1 个数值样本</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.histogram.source">
       <source>Source input · %1 numeric samples</source>
-      <translation type="unfinished" />
+      <translation>源输入 · %1 个数值样本</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.export.title">
       <source>Export channel data</source>
-      <translation type="unfinished" />
+      <translation>导出通道数据</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.export.hint">
       <source>Native pixel values · PNG · no colour conversion</source>
-      <translation type="unfinished" />
+      <translation>原始像素数值 · PNG · 不转换颜色</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.clone.source.hint">
       <source>Numeric channels sample an explicit channel layer. Rendered colour sources are unavailable.</source>
-      <translation type="unfinished" />
+      <translation>数值通道从指定的通道图层取样，不能使用渲染后的颜色源。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.psd.unsupported">
       <source>Save a Vulkana project or export channel data as PNG to preserve numeric channels.</source>
-      <translation type="unfinished" />
+      <translation>请保存 Vulkana 项目或将通道数据导出为 PNG，以保留数值通道。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="history.channels.recombine">
       <source>Convert Channel Group to raster</source>
-      <translation type="unfinished" />
+      <translation>通道组转换为栅格图层</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="history.channels.paste">
       <source>Paste channel pixels</source>
-      <translation type="unfinished" />
+      <translation>粘贴通道像素</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
   </context>
   <context>
     <name>DiffusionPanel</name>
     <message id="diffusion.override.reset.hint">
       <source>Reset to configuration default: %1</source>
-      <translation type="unfinished" />
+      <translation>恢复配置默认值：%1</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="diffusion.vae.tiling.required">
       <source>Available when VAE tiling is enabled.</source>
-      <translation type="unfinished" />
+      <translation>启用 VAE 分块时可用。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="diffusion.progress.preview.required">
       <source>Available when progress previews are enabled.</source>
-      <translation type="unfinished" />
+      <translation>启用生成过程预览时可用。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
   </context>
   <context>
     <name>PsdImportReview</name>
     <message id="psd.review.type.smart.object">
       <source>Smart Object</source>
-      <translation type="unfinished" />
+      <translation>智能对象</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.smart.object">
       <source>Smart object</source>
-      <translation type="unfinished" />
+      <translation>智能对象</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.font">
       <source>Missing font</source>
-      <translation type="unfinished" />
+      <translation>缺少字体</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.text">
       <source>Text layout</source>
-      <translation type="unfinished" />
+      <translation>文本布局</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.shape">
       <source>Shape geometry</source>
-      <translation type="unfinished" />
+      <translation>形状几何</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.effects">
       <source>Layer effects</source>
-      <translation type="unfinished" />
+      <translation>图层效果</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.mask">
       <source>Layer mask</source>
-      <translation type="unfinished" />
+      <translation>图层蒙版</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.blending">
       <source>Blending</source>
-      <translation type="unfinished" />
+      <translation>混合</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.group">
       <source>Group blending</source>
-      <translation type="unfinished" />
+      <translation>组混合</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.clipping">
       <source>Clipping</source>
-      <translation type="unfinished" />
+      <translation>剪贴</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.adjustment">
       <source>Adjustment</source>
-      <translation type="unfinished" />
+      <translation>调整</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.unsupported">
       <source>Unsupported feature</source>
-      <translation type="unfinished" />
+      <translation>不支持的功能</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.appearance">
       <source>Appearance</source>
-      <translation type="unfinished" />
+      <translation>外观</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.import.dialog.fallback.summary">
       <source>Omitted items: %1 · Base pixels only: %2</source>
-      <translation type="unfinished" />
+      <translation>已省略：%1 · 仅基础像素：%2</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.import.dialog.reason">
       <source>Reason</source>
-      <translation type="unfinished" />
+      <translation>原因</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.import.dialog.reason.excluded">
       <source>Group omitted</source>
-      <translation type="unfinished" />
+      <translation>已省略组</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.import.dialog.apply.similar">
       <source>Apply to similar (%1)</source>
-      <translation type="unfinished" />
+      <translation>应用到相似项 (%1)</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.import.dialog.apply.similar.hint">
       <source>Apply this conversion to matching layers. Font choices stay unchanged.</source>
-      <translation type="unfinished" />
+      <translation>将此转换应用到匹配的图层，字体选择保持不变。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.import.dialog.smart.object.raster.hint">
       <source>Import the saved Smart Object appearance as editable pixels. Embedded source editing is not retained.</source>
-      <translation type="unfinished" />
+      <translation>将智能对象保存的外观导入为可编辑像素，不保留嵌入源的编辑能力。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+    </message>
+  </context>
+  <context>
+    <name>AIImageEditor</name>
+    <message id="diffusion.ui.restore.the.full.layer.input">
+      <source>Restore the full layer input</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>恢复完整图层输入</translation>
+    </message>
+    <message id="diffusion.ui.crop.this.layer.input.to.its.canvas">
+      <source>Crop this layer input to its canvas</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>将此图层输入裁剪到画布边界</translation>
+    </message>
+    <message id="diffusion.ui.create">
+      <source>Create</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>创建</translation>
+    </message>
+    <message id="diffusion.ui.that.name.is.already.in.use">
+      <source>That name is already in use.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>此名称已被使用。</translation>
+    </message>
+    <message id="diffusion.ui.delete.configuration">
+      <source>Delete configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>删除配置</translation>
+    </message>
+    <message id="diffusion.ui.duplicate.configuration">
+      <source>Duplicate configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>复制配置</translation>
+    </message>
+    <message id="diffusion.ui.new.configuration">
+      <source>New configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>新建配置</translation>
+    </message>
+    <message id="diffusion.ui.name">
+      <source>Name</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>名称</translation>
+    </message>
+    <message id="diffusion.ui.images.and.region.guides.exceed.this.model">
+      <source>Images and region guides exceed this model's %1-reference limit. Remove an image or region before generating.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>图像和区域引导超过此模型的 %1 个参考限制。生成前请删除图像或区域。</translation>
+    </message>
+    <message id="diffusion.ui.reference.limit.satisfied">
+      <source>Reference limit satisfied.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>参考数量未超限。</translation>
+    </message>
+    <message id="diffusion.ui.linked.region.transfers.are.available.with.flux">
+      <source>Linked region transfers are available with FLUX.3. Unlink the destinations or select a FLUX configuration.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>关联区域转移适用于 FLUX.3。请取消目标关联或选择 FLUX 配置。</translation>
+    </message>
+    <message id="diffusion.ui.linked.transfers.need.at.least.two.input">
+      <source>Linked transfers need at least two input images. Add the missing input or unlink the destinations.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>关联转移至少需要两张输入图像。请补充图像或取消目标关联。</translation>
+    </message>
+    <message id="diffusion.ui.choose.an.available.output.scene.before.generating">
+      <source>Choose an available output scene before generating.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成前请选择可用的输出场景。</translation>
+    </message>
+    <message id="diffusion.ui.source.region.1.is.outside.the.cropped">
+      <source>Source region %1 is outside the cropped input. Restore the input to use or unlink it.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>源区域 %1 超出裁剪后的输入。请恢复输入或取消关联。</translation>
+    </message>
+    <message id="diffusion.ui.the.destination.for.1.is.missing.choose">
+      <source>The destination for %1 is missing. Choose another target or unlink it.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1 的目标不存在。请选择其他目标或取消关联。</translation>
+    </message>
+    <message id="diffusion.ui.choose.output.scene">
+      <source>Choose output scene…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>选择输出场景…</translation>
+    </message>
+    <message id="diffusion.ui.output.layout.1.2.px">
+      <source>Output layout · %1 × %2 px</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>输出布局 · %1 × %2 px</translation>
+    </message>
+    <message id="diffusion.ui.output.layout">
+      <source>Output layout</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>输出布局</translation>
+    </message>
+    <message id="diffusion.ui.fit.to.canvas">
+      <source>Fit to canvas</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>适合画布</translation>
+    </message>
+    <message id="diffusion.ui.fit.to.selected.layer">
+      <source>Fit to selected layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>适合所选图层</translation>
+    </message>
+    <message id="diffusion.ui.fit.to.original.bounds">
+      <source>Fit to original bounds</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>适合原始边界</translation>
+    </message>
+    <message id="diffusion.ui.generative.fill.stays.aligned.to.its.captured">
+      <source>Generative Fill stays aligned to its captured canvas and soft selection.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成式填充始终对齐捕获的画布和柔化选区。</translation>
+    </message>
+    <message id="diffusion.ui.replacement.fits.the.selected.layer.use.add">
+      <source>Replacement fits the selected layer. Use Add new layer for a result at its generated size.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>替换时会适合所选图层。要保留生成尺寸，请添加为新图层。</translation>
+    </message>
+    <message id="diffusion.ui.new.documents.use.the.generated.pixel.dimensions">
+      <source>New documents use the generated pixel dimensions.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>新文档使用生成的像素尺寸。</translation>
+    </message>
+    <message id="diffusion.ui.fit.the.result.to.the.original.input">
+      <source>Fit the result to the original input bounds. Uncheck for 1:1 pixels, keeping position and orientation.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>将结果适合原始输入边界。取消勾选可保留 1:1 像素及原有位置和方向。</translation>
+    </message>
+    <message id="diffusion.ui.scale.the.result.to.the.current.canvas">
+      <source>Scale the result to the current canvas. Uncheck to keep its generated size.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>将结果缩放到当前画布。取消勾选可保留生成尺寸。</translation>
+    </message>
+    <message id="diffusion.ui.current.configuration">
+      <source>Current configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>当前配置</translation>
+    </message>
+    <message id="diffusion.ui.missing.configuration">
+      <source>No configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>无配置</translation>
+    </message>
+    <message id="diffusion.ui.cancel">
+      <source>Cancel</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>取消</translation>
+    </message>
+    <message id="diffusion.ui.generate">
+      <source>Generate</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成</translation>
+    </message>
+    <message id="diffusion.ui.cancel.generation">
+      <source>Cancel generation</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>取消生成</translation>
+    </message>
+    <message id="diffusion.ui.a.cropped.layer.is.outside.its.canvas">
+      <source>A cropped layer is outside its canvas. Restore or remove that input.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>裁剪后的图层位于画布之外。请恢复或删除此输入。</translation>
+    </message>
+    <message id="diffusion.ui.remove.an.image.or.region.to.stay">
+      <source>Remove an image or region to stay within the model's reference limit.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>请删除图像或区域，以免超出模型的参考数量限制。</translation>
+    </message>
+    <message id="diffusion.ui.add.model.files.in.the.configuration.tab">
+      <source>Add model files in the Configuration tab.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>请在配置选项卡添加模型文件。</translation>
+    </message>
+    <message id="diffusion.ui.preview">
+      <source>Preview</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>预览</translation>
+    </message>
+    <message id="diffusion.ui.preview.1">
+      <source>Preview · %1</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>预览 · %1</translation>
+    </message>
+    <message id="diffusion.ui.this.model.generates.from.text.only.stored">
+      <source>This model generates from text only. Stored inputs will be available when you switch to a compatible model.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>此模型仅支持文本生成。切换到兼容模型后，可继续使用已保存的输入。</translation>
+    </message>
+    <message id="diffusion.ui.regions">
+      <source>Regions</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>区域</translation>
+    </message>
+    <message id="diffusion.ui.regions.1">
+      <source>Regions · %1</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>区域 · %1</translation>
+    </message>
+    <message id="diffusion.ui.use.image.1.for.this.image.and">
+      <source>Use &lt;Image%1&gt; for this image and &lt;Image%1/Region1&gt; for a named region.</source>
+      <extracomment>Keep image/region/scene aliases inside angle brackets unchanged; they are prompt tokens, not translated names.</extracomment>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>用 &lt;Image%1&gt; 引用此图像，用 &lt;Image%1/Region1&gt; 引用命名区域。</translation>
+    </message>
+    <message id="diffusion.ui.with.one.input.region1.also.works">
+      <source> With one input, &lt;Region1&gt; also works.</source>
+      <extracomment>Keep image/region/scene aliases inside angle brackets unchanged; they are prompt tokens, not translated names.</extracomment>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation> 仅有一张输入时，也可使用 &lt;Region1&gt;。</translation>
+    </message>
+    <message id="diffusion.ui.refer.to.output.regions.as.output.region1">
+      <source>Refer to output regions as &lt;Output/Region1&gt;. Regions guide placement; they do not protect pixels.</source>
+      <extracomment>Keep image/region/scene aliases inside angle brackets unchanged; they are prompt tokens, not translated names.</extracomment>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>用 &lt;Output/Region1&gt; 引用输出区域。区域仅引导位置，不保护像素。</translation>
+    </message>
+    <message id="diffusion.ui.output.placement.guide.use.generative.fill.to">
+      <source>Output placement guide. Use Generative Fill to protect pixels outside a selection.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>输出位置引导。要保护选区外的像素，请使用生成式填充。</translation>
+    </message>
+    <message id="diffusion.ui.region.guidance.is.unavailable.for.this.model">
+      <source>Region guidance is unavailable for this model.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>此模型不支持区域引导。</translation>
+    </message>
+    <message id="diffusion.ui.generating">
+      <source>Generating…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在生成…</translation>
+    </message>
+    <message id="diffusion.ui.generation.in.progress.a.live.draft.appears">
+      <source>Generation in progress. A live draft appears here when available. Pending previews cannot be applied.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在生成，可用时会在此显示实时草稿。未完成的预览无法应用。</translation>
+    </message>
+    <message id="diffusion.ui.unsaved.configuration">
+      <source>Unsaved configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>未保存的配置</translation>
+    </message>
+    <message id="diffusion.ui.generation.in.progress">
+      <source>Generation in progress</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在生成</translation>
+    </message>
+    <message id="diffusion.ui.pending.preview.approximate">
+      <source>Pending preview — approximate</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>待完成预览 — 近似结果</translation>
+    </message>
+    <message id="diffusion.ui.ai.image.preview">
+      <source>AI image preview</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI 图像预览</translation>
+    </message>
+    <message id="diffusion.ui.generated.previews.appear.here">
+      <source>Generated previews appear here</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成的预览会显示在此处</translation>
+    </message>
+    <message id="diffusion.ui.no.image">
+      <source>No image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>无图像</translation>
+    </message>
+    <message id="diffusion.ui.this.model.generates.from.text.only.image">
+      <source>This model generates from text only. Image-to-image denoising is unavailable.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>此模型仅支持文本生成，不支持图生图去噪。</translation>
+    </message>
+    <message id="diffusion.ui.always.used.for.generative.fill.the.canvas">
+      <source>Always used for Generative Fill. The canvas is the starting image; the selection limits where the result is applied.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成式填充始终使用此项。画布作为初始图像，选区限定结果的应用范围。</translation>
+    </message>
+    <message id="diffusion.ui.off.edit.using.image.references.on.start">
+      <source>Off: edit using image references. On: start from Image 1 and use Denoising strength.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>关闭：使用参考图像编辑。开启：从图像 1 开始，并使用去噪强度。</translation>
+    </message>
+    <message id="diffusion.ui.starts.denoising.from.an.input.image.available">
+      <source>Starts denoising from an input image. Available in Edit layer; always used for Generative Fill.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>从输入图像开始去噪。适用于编辑图层，生成式填充始终启用。</translation>
+    </message>
+    <message id="diffusion.ui.denoising.strength.is.available.for.models.that">
+      <source>Denoising strength is available for models that edit input images.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>去噪强度适用于可编辑输入图像的模型。</translation>
+    </message>
+    <message id="diffusion.ui.lower.values.retain.more.of.the.starting">
+      <source>Lower values retain more of the starting image. Try 1.0 for larger changes or new objects.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>较低值保留更多初始图像。要大幅修改或添加对象，可尝试 1.0。</translation>
+    </message>
+    <message id="diffusion.ui.enable.image.to.image.denoising.to.use">
+      <source>Enable image-to-image denoising to use strength. Reference-only edits do not use this value.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>启用图生图去噪后可使用强度。仅参考图像的编辑不使用此值。</translation>
+    </message>
+    <message id="diffusion.ui.available.in.generative.fill.or.edit.layer">
+      <source>Available in Generative Fill, or Edit layer with image-to-image denoising enabled.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>适用于生成式填充，或已启用图生图去噪的图层编辑。</translation>
+    </message>
+    <message id="diffusion.ui.the.fixed.turbo.sigma.schedule.uses.8">
+      <source>The fixed Turbo sigma schedule uses 8 steps. Choose Auto sigma schedule to try other step counts.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Turbo 固定 Sigma 调度使用 8 步。要尝试其他步数，请选择自动 Sigma 调度。</translation>
+    </message>
+    <message id="diffusion.ui.number.of.denoising.steps">
+      <source>Number of denoising steps.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>去噪步数。</translation>
+    </message>
+    <message id="diffusion.ui.enter.steps.1.descending.values.ending.in">
+      <source>Enter steps + 1 descending values ending in zero. Available with a custom sigma schedule.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>输入“步数 + 1”个递减数值，最后一个为零。适用于自定义 Sigma 调度。</translation>
+    </message>
+    <message id="diffusion.ui.controls.how.noise.levels.are.spaced.available">
+      <source>Controls how noise levels are spaced. Available with the auto sigma schedule.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>控制噪声级别的分布。适用于自动 Sigma 调度。</translation>
+    </message>
+    <message id="diffusion.ui.flow.shift.does.not.apply.to.this">
+      <source>Flow shift does not apply to this model.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>流偏移不适用于此模型。</translation>
+    </message>
+    <message id="diffusion.ui.adjusts.the.flow.schedule.available.with.the">
+      <source>Adjusts the flow schedule. Available with the auto sigma schedule. Auto uses the model default (%1).</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>调整流调度。适用于自动 Sigma 调度。自动使用模型默认值 (%1)。</translation>
+    </message>
+    <message id="diffusion.ui.controls.added.sampler.noise.available.for.samplers">
+      <source>Controls added sampler noise. Available for samplers that use eta.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>控制采样器添加的噪声。适用于使用 eta 的采样器。</translation>
+    </message>
+    <message id="diffusion.ui.available.when.approximate.cache.is.enabled">
+      <source>Available when Approximate cache is enabled.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>启用近似缓存时可用。</translation>
+    </message>
+    <message id="diffusion.ui.checkpoint">
+      <source>Checkpoint</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>检查点</translation>
+    </message>
+    <message id="diffusion.ui.diffusion.weights">
+      <source>Diffusion weights</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>扩散权重</translation>
+    </message>
+    <message id="diffusion.ui.vae.override.optional">
+      <source>VAE override (optional)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>外部 VAE（可选）</translation>
+    </message>
+    <message id="diffusion.ui.use.checkpoint.vae">
+      <source>Use checkpoint VAE</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>使用检查点 VAE</translation>
+    </message>
+    <message id="diffusion.ui.this.mode.is.unavailable.for.the.selected">
+      <source>This mode is unavailable for the selected model.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>此模式不适用于所选模型。</translation>
+    </message>
+    <message id="diffusion.ui.1.width.and.height.must.be.multiples">
+      <source>%1: width and height must be multiples of %2.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1：宽度和高度必须是 %2 的倍数。</translation>
+    </message>
+    <message id="diffusion.ui.auto.1">
+      <source>Auto (%1)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>自动 (%1)</translation>
+    </message>
+    <message id="diffusion.ui.auto.uses.the.selected.model.s.required">
+      <source>Auto uses the selected model's required multiple.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>自动使用所选模型要求的倍数。</translation>
+    </message>
+    <message id="diffusion.ui.choose.where.weights.are.kept.available.when">
+      <source>Choose where weights are kept. Available when Keep weights in is manual.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>选择权重的存储位置。手动指定权重位置时可用。</translation>
+    </message>
+    <message id="diffusion.ui.reuse.text.encoder.prefix.data.available.for">
+      <source>Reuse text-encoder prefix data. Available for Qwen models.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>复用文本编码器的前缀数据。适用于 Qwen 模型。</translation>
+    </message>
+    <message id="diffusion.ui.for.image.editing.add.a.separate.vision">
+      <source>For image editing, add a separate vision projector only if the text encoder does not include vision weights.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>编辑图像时，仅在文本编码器不含视觉权重的情况下添加独立视觉投影器。</translation>
+    </message>
+    <message id="diffusion.ui.this.model.does.not.need.a.separate">
+      <source>This model does not need a separate vision component.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>此模型不需要独立视觉组件。</translation>
+    </message>
+    <message id="diffusion.ui.this.model.does.not.support.a.negative">
+      <source>This model does not support a negative prompt.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>此模型不支持负面提示词。</translation>
+    </message>
+    <message id="diffusion.ui.describe.what.to.avoid.requires.guidance.cfg">
+      <source>Describe what to avoid. Requires Guidance (CFG) above 1.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>描述要避免的内容。引导强度 (CFG) 需大于 1。</translation>
+    </message>
+    <message id="diffusion.ui.describe.what.to.avoid.in.the.generated">
+      <source>Describe what to avoid in the generated image.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>描述生成图像中要避免的内容。</translation>
+    </message>
+    <message id="diffusion.ui.no.configurations">
+      <source>No configurations</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>无配置</translation>
+    </message>
+    <message id="diffusion.ui.select.configuration">
+      <source>Select configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>选择配置</translation>
+    </message>
+    <message id="diffusion.ui.add.input.image">
+      <source>Add input image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>添加输入图像</translation>
+    </message>
+    <message id="diffusion.ui.regions.image.1.2.3.4.px">
+      <source>Regions — Image%1 · %2 · %3 × %4 px</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>区域 — Image%1 · %2 · %3 × %4 px</translation>
+    </message>
+    <message id="diffusion.ui.prompt.preset">
+      <source>Prompt preset…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>提示词预设…</translation>
+    </message>
+    <message id="diffusion.ui.previous.preview">
+      <source>Previous preview</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>上一张预览</translation>
+    </message>
+    <message id="diffusion.ui.next.preview">
+      <source>Next preview</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>下一张预览</translation>
+    </message>
+    <message id="diffusion.ui.fit.to.view">
+      <source>Fit to view</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>适合视图</translation>
+    </message>
+    <message id="diffusion.ui.actual.pixels.1.1">
+      <source>Actual pixels (1:1)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>实际像素 (1:1)</translation>
+    </message>
+    <message id="diffusion.ui.close.preview">
+      <source>Close preview</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>关闭预览</translation>
+    </message>
+    <message id="diffusion.ui.drag.to.draw.or.move.shift.drag">
+      <source>Drag to draw or move · Shift-drag adds a region · Middle mouse pans</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>拖动绘制或移动 · Shift 拖动添加区域 · 鼠标中键平移</translation>
+    </message>
+    <message id="diffusion.ui.mouse.wheel.zooms.middle.mouse.pans">
+      <source>Mouse wheel zooms · Middle mouse pans</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>滚轮缩放 · 鼠标中键平移</translation>
+    </message>
+    <message id="diffusion.ui.compare.with.layer">
+      <source>Compare with layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>与图层比较</translation>
+    </message>
+    <message id="diffusion.ui.canvas.alignment">
+      <source>Canvas Alignment</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>画布对齐</translation>
+    </message>
+    <message id="diffusion.ui.center.alignment">
+      <source>Center Alignment</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>居中对齐</translation>
+    </message>
+    <message id="diffusion.ui.fit.to.result">
+      <source>Fit to Result</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>适合结果</translation>
+    </message>
+    <message id="diffusion.ui.canvas.document.positions.and.scale.center.native">
+      <source>Canvas: document positions and scale. Center: native pixel sizes. Fit: proportional reference scaling.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>画布：文档位置和比例。居中：原始像素尺寸。适合：按比例缩放参考。</translation>
+    </message>
+    <message id="diffusion.ui.stop.comparing">
+      <source>Stop comparing</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>停止比较</translation>
+    </message>
+    <message id="diffusion.ui.search.layers">
+      <source>Search layers…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>搜索图层…</translation>
+    </message>
+    <message id="diffusion.ui.no.matching.layers">
+      <source>No matching layers</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>无匹配图层</translation>
+    </message>
+    <message id="diffusion.ui.draw.the.destination.box.scene.is.fitted">
+      <source>Draw the destination box. Scene is fitted as a guide; coordinates belong to the output frame.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>绘制目标框。场景仅作为适配后的参考；坐标基于输出画面。</translation>
+    </message>
+    <message id="diffusion.ui.scene.is.fitted.as.a.guide.boxes">
+      <source>Scene is fitted as a guide · Boxes use output coordinates · Middle mouse pans</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>场景仅作参考 · 框使用输出坐标 · 鼠标中键平移</translation>
+    </message>
+    <message id="diffusion.ui.region.label">
+      <source>Region label</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>区域标签</translation>
+    </message>
+    <message id="diffusion.ui.description.optional">
+      <source>Description (optional)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>描述（可选）</translation>
+    </message>
+    <message id="diffusion.ui.optional.semantic.guidance.sent.as.desc.the">
+      <source>Optional semantic guidance sent as desc. The region name is only an alias.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>可选的语义引导以 desc 发送。区域名称仅为别名。</translation>
+    </message>
+    <message id="diffusion.ui.remove.selected.region">
+      <source>Remove selected region</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>删除所选区域</translation>
+    </message>
+    <message id="diffusion.ui.destination">
+      <source>Destination</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>目标</translation>
+    </message>
+    <message id="diffusion.ui.edit">
+      <source>Edit…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>编辑…</translation>
+    </message>
+    <message id="diffusion.ui.target.location.no.object.description">
+      <source>Target location — no object description</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>目标位置 — 无对象描述</translation>
+    </message>
+    <message id="diffusion.ui.none">
+      <source>None</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>无</translation>
+    </message>
+    <message id="diffusion.ui.missing.target.choose.another">
+      <source>Missing target — choose another</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>目标缺失 — 请选择其他目标</translation>
+    </message>
+    <message id="diffusion.ui.new.target">
+      <source>New target…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>新建目标…</translation>
+    </message>
+    <message id="diffusion.ui.mouse.wheel.zooms.middle.mouse.pans.browse">
+      <source>Mouse wheel zooms · Middle mouse pans · ← / → browse previews</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>滚轮缩放 · 鼠标中键平移 · ← / → 浏览预览</translation>
+    </message>
+    <message id="diffusion.ui.choose.an.output.scene.first">
+      <source>Choose an output scene first.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>请先选择输出场景。</translation>
+    </message>
+    <message id="diffusion.ui.destination.for.image.1.2">
+      <source>Destination for Image%1/%2</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Image%1/%2 的目标</translation>
+    </message>
+    <message id="diffusion.ui.ai.image.editor">
+      <source>AI Image Editor</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI 图像编辑器</translation>
+    </message>
+    <message id="diffusion.ui.close.ai.image.editor">
+      <source>Close AI Image Editor</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>关闭 AI 图像编辑器</translation>
+    </message>
+    <message id="diffusion.ui.configuration">
+      <source>Configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>配置</translation>
+    </message>
+    <message id="diffusion.ui.edit.layer">
+      <source>Edit layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>编辑图层</translation>
+    </message>
+    <message id="diffusion.ui.generative.fill">
+      <source>Generative Fill</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成式填充</translation>
+    </message>
+    <message id="diffusion.ui.add.configuration">
+      <source>Add configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>添加配置</translation>
+    </message>
+    <message id="diffusion.ui.model.files">
+      <source>Model files</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>模型文件</translation>
+    </message>
+    <message id="diffusion.ui.family">
+      <source>Family</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>系列</translation>
+    </message>
+    <message id="diffusion.ui.variant">
+      <source>Variant</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>版本</translation>
+    </message>
+    <message id="diffusion.ui.choose.file">
+      <source>Choose file</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>选择文件</translation>
+    </message>
+    <message id="diffusion.ui.choose.checkpoint">
+      <source>Choose checkpoint</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>选择检查点</translation>
+    </message>
+    <message id="diffusion.ui.choose.model.component">
+      <source>Choose model component</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>选择模型组件</translation>
+    </message>
+    <message id="diffusion.ui.checkpoints.safetensors.all.files">
+      <source>Checkpoints (*.safetensors);;All files (*)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>检查点 (*.safetensors);;所有文件 (*)</translation>
+    </message>
+    <message id="diffusion.ui.models.gguf.safetensors.all.files">
+      <source>Models (*.gguf *.safetensors);;All files (*)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>模型 (*.gguf *.safetensors);;所有文件 (*)</translation>
+    </message>
+    <message id="diffusion.ui.text.encoder">
+      <source>Text encoder</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>文本编码器</translation>
+    </message>
+    <message id="diffusion.ui.vision.optional">
+      <source>Vision (optional)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>视觉组件（可选）</translation>
+    </message>
+    <message id="diffusion.ui.auto">
+      <source>Auto</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>自动</translation>
+    </message>
+    <message id="diffusion.ui.auto.prefers.an.available.cuda.worker.then">
+      <source>Auto prefers an available CUDA worker, then Vulkan. Explicit backends require the matching installed worker.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>自动优先使用可用的 CUDA 工作进程，其次是 Vulkan。指定后端需安装对应的工作进程。</translation>
+    </message>
+    <message id="diffusion.ui.backend">
+      <source>Backend</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>后端</translation>
+    </message>
+    <message id="diffusion.ui.save.custom.prompt.preset">
+      <source>Save custom prompt preset</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>保存自定义提示词预设</translation>
+    </message>
+    <message id="diffusion.ui.delete.custom.prompt.preset">
+      <source>Delete custom prompt preset</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>删除自定义提示词预设</translation>
+    </message>
+    <message id="diffusion.ui.describe.the.image.or.the.changes.you">
+      <source>Describe the image or the changes you want…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>描述图像或想要的修改…</translation>
+    </message>
+    <message id="diffusion.ui.negative.prompt">
+      <source>Negative prompt</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>负面提示词</translation>
+    </message>
+    <message id="diffusion.ui.describe.what.to.avoid">
+      <source>Describe what to avoid…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>描述要避免的内容…</translation>
+    </message>
+    <message id="diffusion.ui.size">
+      <source>Size</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>尺寸</translation>
+    </message>
+    <message id="diffusion.ui.output.width.in.pixels">
+      <source>Output width in pixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>输出宽度（像素）</translation>
+    </message>
+    <message id="diffusion.ui.output.height.in.pixels">
+      <source>Output height in pixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>输出高度（像素）</translation>
+    </message>
+    <message id="diffusion.ui.match.layer.canvas.size">
+      <source>Match layer / canvas size</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>匹配图层 / 画布尺寸</translation>
+    </message>
+    <message id="diffusion.ui.match.selected.input.layer.size">
+      <source>Match selected input / layer size</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>匹配所选输入 / 图层尺寸</translation>
+    </message>
+    <message id="diffusion.ui.match.the.selected.input.including.its.canvas">
+      <source>Match the selected input, including its canvas crop. With no input selected, use the active layer.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>匹配所选输入的尺寸，包括画布裁剪。未选中输入时，使用活动图层。</translation>
+    </message>
+    <message id="diffusion.ui.resolution.selector">
+      <source>Resolution Selector</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>分辨率选择</translation>
+    </message>
+    <message id="diffusion.ui.1.1.square">
+      <source>1:1 (Square)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>1:1（正方形）</translation>
+    </message>
+    <message id="diffusion.ui.2.3.portrait.photo">
+      <source>2:3 (Portrait Photo)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>2:3（竖向照片）</translation>
+    </message>
+    <message id="diffusion.ui.3.2.photo">
+      <source>3:2 (Photo)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>3:2（照片）</translation>
+    </message>
+    <message id="diffusion.ui.3.4.portrait.standard">
+      <source>3:4 (Portrait Standard)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>3:4（竖向标准）</translation>
+    </message>
+    <message id="diffusion.ui.4.3.standard">
+      <source>4:3 (Standard)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>4:3（标准）</translation>
+    </message>
+    <message id="diffusion.ui.9.16.portrait.widescreen">
+      <source>9:16 (Portrait Widescreen)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>9:16（竖向宽屏）</translation>
+    </message>
+    <message id="diffusion.ui.16.9.widescreen">
+      <source>16:9 (Widescreen)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>16:9（宽屏）</translation>
+    </message>
+    <message id="diffusion.ui.21.9.ultrawide">
+      <source>21:9 (Ultrawide)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>21:9（超宽）</translation>
+    </message>
+    <message id="diffusion.ui.custom">
+      <source>Custom</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>自定义</translation>
+    </message>
+    <message id="diffusion.ui.choose.a.ratio.to.calculate.the.output">
+      <source>Choose a ratio to calculate the output size. Custom keeps the current dimensions.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>选择比例以计算输出尺寸。自定义会保留当前尺寸。</translation>
+    </message>
+    <message id="diffusion.ui.aspect.ratio">
+      <source>Aspect Ratio</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>宽高比</translation>
+    </message>
+    <message id="diffusion.ui.approximate.pixel.count.1.0.mp.is">
+      <source>Approximate pixel count. 1.0 MP is 1024 × 1024 for Square. Rounding can change the total.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>近似像素数量。正方形的 1.0 MP 为 1024 × 1024。取整可能改变总数。</translation>
+    </message>
+    <message id="diffusion.ui.megapixels">
+      <source>Megapixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>百万像素</translation>
+    </message>
+    <message id="diffusion.ui.round.each.dimension.to.the.nearest.multiple">
+      <source>Round each dimension to the nearest multiple.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>将各边尺寸取整到最近的倍数。</translation>
+    </message>
+    <message id="diffusion.ui.multiple">
+      <source>Multiple</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>倍数</translation>
+    </message>
+    <message id="diffusion.ui.overrides">
+      <source>Overrides</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>临时覆盖</translation>
+    </message>
+    <message id="diffusion.ui.seed">
+      <source>Seed</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>种子</translation>
+    </message>
+    <message id="diffusion.ui.use.the.same.seed.to.reproduce.a">
+      <source>Use the same seed to reproduce a result.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>使用相同种子可复现结果。</translation>
+    </message>
+    <message id="diffusion.ui.generate.a.random.seed">
+      <source>Generate a random seed</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成随机种子</translation>
+    </message>
+    <message id="diffusion.ui.generate.a.random.seed.random.mode.also">
+      <source>Generate a random seed. Random mode also chooses a new seed for each generation.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成随机种子。随机模式也会在每次生成时选择新种子。</translation>
+    </message>
+    <message id="diffusion.ui.random">
+      <source>Random</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>随机</translation>
+    </message>
+    <message id="diffusion.ui.fixed">
+      <source>Fixed</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>固定</translation>
+    </message>
+    <message id="diffusion.ui.increment">
+      <source>Increment</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>递增</translation>
+    </message>
+    <message id="diffusion.ui.random.new.seed.per.job.fixed.reuse">
+      <source>Random: new seed per job. Fixed: reuse the seed. Increment: advance it by the number of generated images.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>随机：每个任务使用新种子。固定：复用种子。递增：按生成的图像数量增加种子值。</translation>
+    </message>
+    <message id="diffusion.ui.input.images">
+      <source>Input images</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>输入图像</translation>
+    </message>
+    <message id="diffusion.ui.max.input.1.px">
+      <source>Max input: %1 px</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>输入上限：%1 px</translation>
+    </message>
+    <message id="diffusion.ui.limit.the.longest.side.of.input.images">
+      <source>Limit the longest side of input images after canvas cropping, keeping their proportions. Output size is separate.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>画布裁剪后，限制输入图像的最长边并保持比例。输出尺寸单独设置。</translation>
+    </message>
+    <message id="diffusion.ui.current.layer.appearance">
+      <source>Current layer — appearance</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>当前图层 — 外观</translation>
+    </message>
+    <message id="diffusion.ui.current.layer.raw.pixels">
+      <source>Current layer — raw pixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>当前图层 — 原始像素</translation>
+    </message>
+    <message id="diffusion.ui.another.document.layer.appearance">
+      <source>Another document layer — appearance</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>其他文档图层 — 外观</translation>
+    </message>
+    <message id="diffusion.ui.another.document.layer.raw.pixels">
+      <source>Another document layer — raw pixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>其他文档图层 — 原始像素</translation>
+    </message>
+    <message id="diffusion.ui.rendered.visible.canvas">
+      <source>Rendered visible canvas</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>渲染后的可见画布</translation>
+    </message>
+    <message id="diffusion.ui.image.file">
+      <source>Image file…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>图像文件…</translation>
+    </message>
+    <message id="diffusion.ui.output.scene">
+      <source>Output scene</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>输出场景</translation>
+    </message>
+    <message id="diffusion.ui.use.scene.in.your.prompt.to.reference">
+      <source>Use &lt;Scene&gt; in your prompt to reference this image. It is the backdrop for destination boxes; input order and your instructions are not changed.</source>
+      <extracomment>Keep image/region/scene aliases inside angle brackets unchanged; they are prompt tokens, not translated names.</extracomment>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>在提示词中用 &lt;Scene&gt; 引用此图像。它是目标框的背景；不会改变输入顺序或您的指令。</translation>
+    </message>
+    <message id="diffusion.ui.choose.an.input.image.to.identify.objects">
+      <source>Choose an input image to identify objects, or Output layout to guide placement.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>选择输入图像以识别对象，或选择输出布局以引导位置。</translation>
+    </message>
+    <message id="diffusion.ui.edit.regions">
+      <source>Edit regions…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>编辑区域…</translation>
+    </message>
+    <message id="diffusion.ui.remove.regions.from.this.image.or.output">
+      <source>Remove regions from this image or output layout</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>移除此图像或输出布局中的区域</translation>
+    </message>
+    <message id="diffusion.ui.extra.crop.guidance.experimental">
+      <source>Extra crop guidance (experimental)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>额外裁剪引导（实验性）</translation>
+    </message>
+    <message id="diffusion.ui.optional.vulkana.guidance.also.send.each.input">
+      <source>Optional Vulkana guidance: also send each input region as a cropped reference. Uses extra memory and reference slots. Leave off to use FLUX's native bounding-box format alone.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>可选的 Vulkana 引导：将各输入区域额外裁剪为参考图像。会占用更多内存和参考名额。关闭时仅使用 FLUX 原生边界框格式。</translation>
+    </message>
+    <message id="diffusion.ui.advanced.generation">
+      <source>Advanced generation</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>高级生成</translation>
+    </message>
+    <message id="diffusion.ui.steps">
+      <source>Steps</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>步数</translation>
+    </message>
+    <message id="diffusion.ui.guidance.cfg">
+      <source>Guidance (CFG)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>引导强度 (CFG)</translation>
+    </message>
+    <message id="diffusion.ui.sampler">
+      <source>Sampler</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>采样器</translation>
+    </message>
+    <message id="diffusion.ui.scheduler">
+      <source>Scheduler</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>调度器</translation>
+    </message>
+    <message id="diffusion.ui.sigma.schedule">
+      <source>Sigma schedule</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Sigma 调度</translation>
+    </message>
+    <message id="diffusion.ui.custom.sigmas">
+      <source>Custom sigmas</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>自定义 Sigma</translation>
+    </message>
+    <message id="diffusion.ui.flow.shift">
+      <source>Flow shift</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>流偏移</translation>
+    </message>
+    <message id="diffusion.ui.use.image.to.image.denoising">
+      <source>Use image-to-image denoising</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>使用图生图去噪</translation>
+    </message>
+    <message id="diffusion.ui.denoising.strength">
+      <source>Denoising strength</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>去噪强度</translation>
+    </message>
+    <message id="diffusion.ui.images.per.job">
+      <source>Images per job</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>每次生成张数</translation>
+    </message>
+    <message id="diffusion.ui.vae.tiling">
+      <source>VAE tiling</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>VAE 分块</translation>
+    </message>
+    <message id="diffusion.ui.vae.tile.size">
+      <source>VAE tile size</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>VAE 分块尺寸</translation>
+    </message>
+    <message id="diffusion.ui.vae.tile.overlap">
+      <source>VAE tile overlap</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>VAE 分块重叠</translation>
+    </message>
+    <message id="diffusion.ui.progress.previews">
+      <source>Progress previews</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成过程预览</translation>
+    </message>
+    <message id="diffusion.ui.preview.every.n.steps">
+      <source>Preview every N steps</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>每 N 步预览</translation>
+    </message>
+    <message id="diffusion.ui.sampler.noise.eta">
+      <source>Sampler noise (eta)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>采样器噪声 (eta)</translation>
+    </message>
+    <message id="diffusion.ui.approximate.cache.experimental">
+      <source>Approximate cache (experimental)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>近似缓存（实验性）</translation>
+    </message>
+    <message id="diffusion.ui.cache.reuse.threshold">
+      <source>Cache reuse threshold</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>缓存复用阈值</translation>
+    </message>
+    <message id="diffusion.ui.cache.start.fraction">
+      <source>Cache start fraction</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>缓存起始比例</translation>
+    </message>
+    <message id="diffusion.ui.cache.end.fraction">
+      <source>Cache end fraction</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>缓存结束比例</translation>
+    </message>
+    <message id="diffusion.ui.restore.recommended.generation.settings">
+      <source>Restore recommended generation settings</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>恢复推荐生成设置</translation>
+    </message>
+    <message id="diffusion.ui.memory.and.performance">
+      <source>Memory and performance</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>内存与性能</translation>
+    </message>
+    <message id="diffusion.ui.inference.device">
+      <source>Inference device</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>推理设备</translation>
+    </message>
+    <message id="diffusion.ui.vram.budget.gib">
+      <source>VRAM budget (GiB)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>显存预算 (GiB)</translation>
+    </message>
+    <message id="diffusion.ui.budget.for.managed.weights.workspaces.not.a">
+      <source>Budget for managed weights/workspaces, not a physical VRAM cap. Leave room for Vulkana and the desktop.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>用于管理权重和工作缓冲区的预算，不是物理显存上限。请为 Vulkana 和桌面预留空间。</translation>
+    </message>
+    <message id="diffusion.ui.cpu.threads">
+      <source>CPU threads</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>CPU 线程</translation>
+    </message>
+    <message id="diffusion.ui.keep.weights.in">
+      <source>Keep weights in</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>权重存放位置</translation>
+    </message>
+    <message id="diffusion.ui.text.encoder.weights">
+      <source>Text encoder weights</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>文本编码器权重</translation>
+    </message>
+    <message id="diffusion.ui.vae.weights">
+      <source>VAE weights</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>VAE 权重</translation>
+    </message>
+    <message id="diffusion.ui.text.encoder.compute">
+      <source>Text encoder compute</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>文本编码器计算</translation>
+    </message>
+    <message id="diffusion.ui.vae.compute">
+      <source>VAE compute</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>VAE 计算</translation>
+    </message>
+    <message id="diffusion.ui.flash.attention">
+      <source>Flash attention</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Flash Attention</translation>
+    </message>
+    <message id="diffusion.ui.direct.convolution">
+      <source>Direct convolution</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>直接卷积</translation>
+    </message>
+    <message id="diffusion.ui.sage.attention.experimental">
+      <source>Sage attention (experimental)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Sage Attention（实验性）</translation>
+    </message>
+    <message id="diffusion.ui.memory.mapped.loading">
+      <source>Memory mapped loading</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>内存映射加载</translation>
+    </message>
+    <message id="diffusion.ui.prefetch.weights">
+      <source>Prefetch weights</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>预取权重</translation>
+    </message>
+    <message id="diffusion.ui.segmented.computation">
+      <source>Segmented computation</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>分段计算</translation>
+    </message>
+    <message id="diffusion.ui.prepare.weights.at.load">
+      <source>Prepare weights at load</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>加载时准备权重</translation>
+    </message>
+    <message id="diffusion.ui.cached.prompts">
+      <source>Cached prompts</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>缓存提示词数量</translation>
+    </message>
+    <message id="diffusion.ui.qwen.prefix.cache">
+      <source>Qwen prefix cache</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Qwen 前缀缓存</translation>
+    </message>
+    <message id="diffusion.ui.prefix.cache.format">
+      <source>Prefix cache format</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>前缀缓存格式</translation>
+    </message>
+    <message id="diffusion.ui.session">
+      <source>Session</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>会话</translation>
+    </message>
+    <message id="diffusion.ui.loaded.models">
+      <source>Loaded models</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>已加载模型</translation>
+    </message>
+    <message id="diffusion.ui.no.models.loaded">
+      <source>No models loaded</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>未加载模型</translation>
+    </message>
+    <message id="diffusion.ui.choose.model.files.and.enter.a.prompt">
+      <source>Choose model files and enter a prompt to begin.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>选择模型文件并输入提示词即可开始。</translation>
+    </message>
+    <message id="diffusion.ui.add.new.layer">
+      <source>Add new layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>添加新图层</translation>
+    </message>
+    <message id="diffusion.ui.replace.selected.layer">
+      <source>Replace selected layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>替换所选图层</translation>
+    </message>
+    <message id="diffusion.ui.open.new.document">
+      <source>Open new document</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>打开为新文档</translation>
+    </message>
+    <message id="diffusion.ui.apply">
+      <source>Apply</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>应用</translation>
+    </message>
+    <message id="diffusion.ui.generate.again">
+      <source>Generate again</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>再次生成</translation>
+    </message>
+    <message id="diffusion.ui.discard">
+      <source>Discard</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>丢弃</translation>
+    </message>
+    <message id="diffusion.ui.image.details">
+      <source>Image details</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>图像详情</translation>
+    </message>
+    <message id="diffusion.ui.model">
+      <source>Model</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>模型</translation>
+    </message>
+    <message id="diffusion.ui.resolution">
+      <source>Resolution</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>分辨率</translation>
+    </message>
+    <message id="diffusion.ui.copy.seed">
+      <source>Copy seed</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>复制种子</translation>
+    </message>
+    <message id="diffusion.ui.generated">
+      <source>Generated</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成时间</translation>
+    </message>
+    <message id="diffusion.ui.save.prompt.preset">
+      <source>Save prompt preset</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>保存提示词预设</translation>
+    </message>
+    <message id="diffusion.ui.prompt.preset.saved">
+      <source>Prompt preset saved.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>提示词预设已保存。</translation>
+    </message>
+    <message id="diffusion.ui.choose.a.custom.preset.to.remove">
+      <source>Choose a custom preset to remove.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>请选择要删除的自定义预设。</translation>
+    </message>
+    <message id="diffusion.ui.images.and.region.guides.exceed.the.model">
+      <source>Images and region guides exceed the model's reference limit. Remove an image or region.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>图像和区域引导超过模型的参考数量限制。请删除图像或区域。</translation>
+    </message>
+    <message id="diffusion.ui.unload">
+      <source>Unload</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>卸载</translation>
+    </message>
+    <message id="diffusion.ui.unload.this.configuration.and.its.components.to">
+      <source>Unload this configuration and its components to release memory. Generated images are kept.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>卸载此配置及其组件以释放内存，生成的图像会保留。</translation>
+    </message>
+    <message id="diffusion.ui.this.model.generates.from.text.only.choose">
+      <source>This model generates from text only. Choose a compatible model to add input images.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>此模型仅支持文本生成。请选择兼容模型以添加输入图像。</translation>
+    </message>
+    <message id="diffusion.ui.this.model.accepts.1.references.in.total">
+      <source>This model accepts %1 references in total, including input images and region guides.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>此模型最多接受 %1 个参考，包含输入图像和区域引导。</translation>
+    </message>
+    <message id="diffusion.ui.this.layer.is.outside.its.source.canvas">
+      <source>This layer is outside its source canvas. Restore or remove the input.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>此图层位于源画布之外。请恢复或删除输入。</translation>
+    </message>
+    <message id="diffusion.ui.regions.outside.the.canvas.are.hidden.until">
+      <source>Regions outside the canvas are hidden until the full input is restored.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>画布外的区域会隐藏，直到恢复完整输入。</translation>
+    </message>
+    <message id="diffusion.ui.output.layout.regions">
+      <source>Output layout regions</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>输出布局区域</translation>
+    </message>
+    <message id="diffusion.ui.regions.image.1.2">
+      <source>Regions — Image%1 · %2</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>区域 — Image%1 · %2</translation>
+    </message>
+    <message id="diffusion.ui.pending">
+      <source>Pending</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>待完成</translation>
+    </message>
+    <message id="diffusion.ui.live.draft.approximate.final.detail.appears.after">
+      <source>Live draft — approximate. Final detail appears after generation finishes.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>实时草稿 — 近似结果。最终细节会在生成完成后显示。</translation>
+    </message>
+    <message id="diffusion.ui.lora.strength.1.00.uses.its.full">
+      <source>LoRA strength. 1.00 uses its full effect; 0.00 has no effect.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA 强度。1.00 为完整效果，0.00 为无效果。</translation>
+    </message>
+    <message id="diffusion.ui.lora.strength">
+      <source>LoRA strength</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA 强度</translation>
+    </message>
+    <message id="diffusion.ui.unnamed.lora">
+      <source>Unnamed LoRA</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>未命名 LoRA</translation>
+    </message>
+    <message id="diffusion.ui.loras.1.2.enabled">
+      <source>LoRAs (%1/%2 enabled)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRAs（已启用 %1/%2）</translation>
+    </message>
+    <message id="diffusion.ui.enable.this.lora.for.generation">
+      <source>Enable this LoRA for generation</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成时启用此 LoRA</translation>
+    </message>
+    <message id="diffusion.ui.reset.loras.to.configuration.defaults">
+      <source>Reset LoRAs to configuration defaults</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>将 LoRA 重置为配置默认值</translation>
+    </message>
+    <message id="diffusion.ui.choose.lora">
+      <source>Choose LoRA</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>选择 LoRA</translation>
+    </message>
+    <message id="diffusion.ui.lora.models.safetensors.gguf.all.files">
+      <source>LoRA models (*.safetensors *.gguf);;All files (*)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA 模型 (*.safetensors *.gguf);;所有文件 (*)</translation>
+    </message>
+    <message id="diffusion.ui.lora.file">
+      <source>LoRA file…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA 文件…</translation>
+    </message>
+    <message id="diffusion.ui.choose.lora.file">
+      <source>Choose LoRA file</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>选择 LoRA 文件</translation>
+    </message>
+    <message id="diffusion.ui.remove.lora">
+      <source>Remove LoRA</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>移除 LoRA</translation>
+    </message>
+    <message id="diffusion.ui.enabled.by.default">
+      <source>Enabled by default</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>默认启用</translation>
+    </message>
+    <message id="diffusion.ui.lora.enabled.by.default">
+      <source>LoRA enabled by default</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA 默认启用</translation>
+    </message>
+    <message id="diffusion.ui.friendly.name">
+      <source>Friendly name</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>易记名称</translation>
+    </message>
+    <message id="diffusion.ui.add.lora">
+      <source>Add LoRA</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>添加 LoRA</translation>
+    </message>
+    <message id="diffusion.ui.loras.optional">
+      <source>LoRAs (optional)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRAs（可选）</translation>
+    </message>
+    <message id="diffusion.ui.generate.image">
+      <source>Generate Image…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成图像…</translation>
+    </message>
+    <message id="diffusion.ui.edit.current.layer">
+      <source>Edit Current Layer…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>编辑当前图层…</translation>
+    </message>
+    <message id="diffusion.ui.generative.fill.2">
+      <source>Generative Fill…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成式填充…</translation>
+    </message>
+    <message id="diffusion.ui.ai.image.editor.2">
+      <source>AI Image Editor…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI 图像编辑器…</translation>
+    </message>
+    <message id="diffusion.ui.unloading.model">
+      <source>Unloading model…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在卸载模型…</translation>
+    </message>
+    <message id="diffusion.ui.variation.1">
+      <source>Variation %1</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>变体 %1</translation>
+    </message>
+    <message id="diffusion.ui.generation.done">
+      <source>Generation done</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成完成</translation>
+    </message>
+    <message id="diffusion.ui.ready.1.s.inspect.the.result.before">
+      <source>Ready · %1 s — inspect the result before applying.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>就绪 · %1 s — 应用前请检查结果。</translation>
+    </message>
+    <message id="diffusion.ui.generation.failed">
+      <source>Generation failed</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成失败</translation>
+    </message>
+    <message id="diffusion.ui.cancelled.previous.successful.variations.are.still.available">
+      <source>Cancelled. Previous successful variations are still available.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>已取消。之前成功生成的结果仍可使用。</translation>
+    </message>
+    <message id="diffusion.ui.generation.cancelled">
+      <source>Generation cancelled</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成已取消</translation>
+    </message>
+    <message id="diffusion.ui.generate.again.to.restart.the.worker">
+      <source> Generate again to restart the worker.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation> 再次生成以重启推理进程。</translation>
+    </message>
+    <message id="diffusion.ui.model.unloaded.generate.again.to.load.a">
+      <source>Model unloaded. Generate again to load a configuration.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>模型已卸载。再次生成以加载配置。</translation>
+    </message>
+    <message id="diffusion.ui.this.model.generates.from.text.only.choose.2">
+      <source>This model generates from text only. Choose an editing model to edit a layer or selection.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>此模型仅支持文生图。要编辑图层或选区，请选择支持编辑的模型。</translation>
+    </message>
+    <message id="diffusion.ui.select.a.raster.layer.to.start.an">
+      <source>Select a raster layer to start an editing session.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>选择栅格图层以开始编辑。</translation>
+    </message>
+    <message id="diffusion.ui.make.a.selection.before.using.generative.fill">
+      <source>Make a selection before using Generative Fill.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>使用生成式填充前请先创建选区。</translation>
+    </message>
+    <message id="diffusion.ui.target.visible.canvas">
+      <source>Target · visible canvas</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>目标 · 可见画布</translation>
+    </message>
+    <message id="diffusion.ui.target.raw.layer.pixels">
+      <source>Target · raw layer pixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>目标 · 图层原始像素</translation>
+    </message>
+    <message id="diffusion.ui.target.captured.you.can.keep.editing.changed">
+      <source>Target captured. You can keep editing; changed targets are checked before generation and Apply.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>已捕获目标。可以继续编辑；生成和应用前会检查目标变化。</translation>
+    </message>
+    <message id="diffusion.ui.add.an.input.image.before.generating.an">
+      <source>Add an input image before generating an edit.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成编辑结果前请添加输入图像。</translation>
+    </message>
+    <message id="diffusion.ui.select.a.raster.layer.and.a.selection">
+      <source>Select a raster layer and a selection for Generative Fill.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>使用生成式填充时，请选择栅格图层并创建选区。</translation>
+    </message>
+    <message id="diffusion.ui.enter.a.prompt.before.generating">
+      <source>Enter a prompt before generating.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成前请输入提示词。</translation>
+    </message>
+    <message id="diffusion.ui.preparing.inference">
+      <source>Preparing inference…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在准备推理…</translation>
+    </message>
+    <message id="diffusion.ui.preparing.generation">
+      <source>Preparing generation…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在准备生成…</translation>
+    </message>
+    <message id="diffusion.ui.update.the.inference.worker.to.use.loras">
+      <source>Update the inference worker to use LoRAs.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>请更新推理进程以使用 LoRA。</translation>
+    </message>
+    <message id="diffusion.ui.generation.could.not.start">
+      <source>Generation could not start</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>无法开始生成</translation>
+    </message>
+    <message id="diffusion.ui.update.the.inference.worker.to.use.native">
+      <source>Update the inference worker to use native FLUX.3 image and region references.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>请更新推理进程以使用 FLUX.3 原生图像和区域引用。</translation>
+    </message>
+    <message id="diffusion.ui.update.the.inference.worker.to.use.the">
+      <source>Update the inference worker to use the input-size limit.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>请更新推理进程以使用输入尺寸限制。</translation>
+    </message>
+    <message id="diffusion.ui.update.the.inference.worker.to.use.region">
+      <source>Update the inference worker to use region descriptions, output scenes and linked destinations.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>请更新推理进程以使用区域描述、输出场景和关联目标区域。</translation>
+    </message>
+    <message id="diffusion.ui.the.installed.inference.worker.does.not.support">
+      <source>The installed inference worker does not support per-image regions. Update the worker before generating with input regions.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>已安装的推理进程不支持逐图像区域。请更新后再使用输入区域生成。</translation>
+    </message>
+    <message id="diffusion.ui.1.is.unavailable.the.installed.worker.provides">
+      <source>%1 is unavailable: the installed worker provides %2.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1 不可用：已安装的推理进程提供 %2。</translation>
+    </message>
+    <message id="diffusion.ui.loading.the.selected.model">
+      <source>Loading the selected model…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在加载所选模型…</translation>
+    </message>
+    <message id="diffusion.ui.loading.ai.model">
+      <source>Loading AI model…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在加载 AI 模型…</translation>
+    </message>
+    <message id="diffusion.ui.generating.you.can.inspect.previous.variations.while">
+      <source>Generating… You can inspect previous variations while this job runs.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在生成… 此时可查看之前的结果。</translation>
+    </message>
+    <message id="diffusion.ui.the.generated.image.is.no.longer.available">
+      <source>The generated image is no longer available.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成的图像已不可用。</translation>
+    </message>
+    <message id="diffusion.ui.ai.image">
+      <source>AI image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI 图像</translation>
+    </message>
+    <message id="diffusion.ui.open.a.document.or.choose.create.new">
+      <source>Open a document or choose Create New Document.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>请打开文档或选择“打开为新文档”。</translation>
+    </message>
+    <message id="diffusion.ui.finish.the.current.document.interaction.before.applying">
+      <source>Finish the current document interaction before applying this result.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>请先完成当前文档操作，再应用此结果。</translation>
+    </message>
+    <message id="diffusion.ui.select.a.raster.layer.to.replace">
+      <source>Select a raster layer to replace.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>请选择要替换的栅格图层。</translation>
+    </message>
+    <message id="diffusion.ui.ai.result.applied">
+      <source>AI result applied</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>已应用 AI 结果</translation>
+    </message>
+    <message id="diffusion.ui.cancelling">
+      <source>Cancelling…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在取消…</translation>
+    </message>
+    <message id="diffusion.ui.generation.cancelled.2">
+      <source>Generation cancelled.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成已取消。</translation>
+    </message>
+    <message id="diffusion.ui.this.input.has.no.pixels.inside.its">
+      <source>This input has no pixels inside its canvas.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>此输入在其画布内没有像素。</translation>
+    </message>
+    <message id="diffusion.ui.select.an.input.image.or.a.layer">
+      <source>Select an input image or a layer first.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>请先选择输入图像或图层。</translation>
+    </message>
+    <message id="diffusion.ui.select.an.image.layer.rather.than.a">
+      <source>Select an image layer rather than a container.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>请选择图像图层，而非容器。</translation>
+    </message>
+    <message id="diffusion.ui.the.selected.layer.has.no.visible.bounds">
+      <source>The selected layer has no visible bounds.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>所选图层没有可见边界。</translation>
+    </message>
+    <message id="diffusion.ui.add.reference.image">
+      <source>Add reference image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>添加参考图像</translation>
+    </message>
+    <message id="diffusion.ui.images.png.jpg.jpeg.webp.bmp.tif">
+      <source>Images (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>图像 (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff)</translation>
+    </message>
+    <message id="diffusion.ui.file">
+      <source>File</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>文件</translation>
+    </message>
+    <message id="diffusion.ui.reference.layer">
+      <source>Reference layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>参考图层</translation>
+    </message>
+    <message id="diffusion.ui.document.layer">
+      <source>Document / layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>文档 / 图层</translation>
+    </message>
+    <message id="diffusion.ui.open.a.document.before.adding.this.input">
+      <source>Open a document before adding this input.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>添加此输入前请先打开文档。</translation>
+    </message>
+    <message id="diffusion.ui.visible.canvas">
+      <source>Visible canvas</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>可见画布</translation>
+    </message>
+    <message id="diffusion.ui.select.a.layer.first">
+      <source>Select a layer first.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>请先选择图层。</translation>
+    </message>
+    <message id="diffusion.ui.raw.pixels">
+      <source>Raw pixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>原始像素</translation>
+    </message>
+    <message id="diffusion.ui.rendered.appearance.isolated.layer">
+      <source>Rendered appearance · isolated layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>渲染外观 · 单独图层</translation>
+    </message>
+    <message id="diffusion.ui.close.document">
+      <source>Close document?</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>关闭文档？</translation>
+    </message>
+    <message id="diffusion.ui.quit.vulkana">
+      <source>Quit Vulkana?</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>退出 Vulkana？</translation>
+    </message>
+    <message id="diffusion.ui.ai.generation.is.using.an.image.captured">
+      <source>AI generation is using an image captured from this document. Generation will continue if you close it. You can still add the result to another document or open it as a new document.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI 正在使用此文档的快照生成图像。关闭文档后生成仍会继续。您可以将结果添加到其他文档，或打开为新文档。</translation>
+    </message>
+    <message id="diffusion.ui.ai.generation.is.still.running.quitting.vulkana">
+      <source>AI generation is still running. Quitting Vulkana will cancel it.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI 仍在生成。退出 Vulkana 将取消生成。</translation>
+    </message>
+    <message id="diffusion.ui.close.document.2">
+      <source>Close document</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>关闭文档</translation>
+    </message>
+    <message id="diffusion.ui.quit">
+      <source>Quit</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>退出</translation>
+    </message>
+    <message id="diffusion.ui.view.latest.preview">
+      <source>View latest preview</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>查看最新预览</translation>
+    </message>
+    <message id="diffusion.ui.dismiss.notification">
+      <source>Dismiss notification</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>关闭通知</translation>
+    </message>
+    <message id="diffusion.ui.target">
+      <source> · Target</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation> · 目标</translation>
+    </message>
+    <message id="diffusion.ui.ai">
+      <source>AI</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI</translation>
+    </message>
+    <message id="diffusion.ui.loras">
+      <source>LoRAs</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA</translation>
+    </message>
+    <message id="diffusion.ui.delete.1">
+      <source>Delete “%1”?</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>删除“%1”？</translation>
+    </message>
+    <message id="diffusion.ui.show.1.in.generate">
+      <source>Show %1 in Generate</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>在生成页显示%1</translation>
+    </message>
+    <message id="diffusion.ui.1.override">
+      <source>%1 override</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1覆盖值</translation>
+    </message>
+    <message id="diffusion.ui.reset.1.to.configuration.default">
+      <source>Reset %1 to configuration default</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>将%1恢复为配置默认值</translation>
+    </message>
+    <message id="diffusion.ui.1.copy">
+      <source>%1 copy</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1 副本</translation>
+    </message>
+    <message id="diffusion.ui.1.unavailable">
+      <source>%1 (unavailable)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1（不可用）</translation>
+    </message>
+    <message id="diffusion.ui.ai.image.preview.1">
+      <source>AI image preview — %1</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI 图像预览 — %1</translation>
+    </message>
+    <message id="diffusion.ui.left.1.right.result.drag.the.divider">
+      <source>Left: %1 · Right: Result. Drag the divider to compare.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>左侧：%1 · 右侧：结果。拖动分隔线进行比较。</translation>
+    </message>
+    <message id="diffusion.ui.edit.image">
+      <source> · Edit image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation> · 编辑图像</translation>
+    </message>
+    <message id="diffusion.ui.1.regions">
+      <source> · %1 regions</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation> · %1 个区域</translation>
+    </message>
+    <message id="diffusion.ui.cropped.to.the.source.canvas">
+      <source>
+Cropped to the source canvas.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>
+已裁剪到源画布边界。</translation>
+    </message>
+    <message id="diffusion.ui.double.click.to.inspect.and.edit.this">
+      <source>
+Double-click to inspect and edit this image’s regions. Image numbers follow the list order.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>
+双击可检查和编辑此图像的区域。图像编号按列表顺序排列。</translation>
+    </message>
+    <message id="diffusion.ui.seed.1">
+      <source> · Seed %1</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation> · 种子 %1</translation>
+    </message>
+    <message id="diffusion.ui.requested.1.2.px">
+      <source>
+Requested: %1 × %2 px</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>
+请求尺寸：%1 × %2 px</translation>
+    </message>
+    <message id="diffusion.ui.1.inference.worker.is.not.installed.choose">
+      <source>%1 inference worker is not installed. Choose an available backend.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>未安装 %1 推理进程。请选择可用的后端。</translation>
+    </message>
+    <message id="diffusion.ui.disk">
+      <source>Disk</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>磁盘</translation>
+    </message>
+    <message id="diffusion.ui.manual">
+      <source>Manual</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>手动</translation>
+    </message>
+    <message id="diffusion.ui.on">
+      <source>On</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>开启</translation>
+    </message>
+    <message id="diffusion.ui.off">
+      <source>Off</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>关闭</translation>
+    </message>
+    <message id="diffusion.ui.disabled">
+      <source>Disabled</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>禁用</translation>
+    </message>
+    <message id="diffusion.ui.generate.image.2">
+      <source>Generate image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成图像</translation>
+    </message>
+    <message id="diffusion.ui.edit.image.2">
+      <source>Edit image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>编辑图像</translation>
+    </message>
+    <message id="diffusion.ui.replace.background">
+      <source>Replace background</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>替换背景</translation>
+    </message>
+    <message id="diffusion.ui.remove.background">
+      <source>Remove background</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>移除背景</translation>
     </message>
   </context>
 </TS>

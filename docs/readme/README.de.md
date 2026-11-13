@@ -15,6 +15,9 @@ Qt-Arbeitsoberfläche und einer Vulkan-beschleunigten Leinwand.
 - **Bearbeitung mit Ebenen:** Rasterebenen, bearbeitbarer Text und Formen;
   Bitmap-Masken, Ordner, Schnittmaskengruppen, Mehrfachauswahl, Mischmodi,
   Duplizieren, Zusammenführen und ausdrückliches Rastern.
+- **Kanalgruppen:** einzelne Kanäle als Graustufenebenen für gepackte Texturen
+  bearbeiten, mit verlustfreier Umwandlung, numerischem Malen, Retusche und
+  Anpassungen. Siehe die [Anleitung zu Kanalgruppen](../CHANNEL_GROUPS.md).
 - **Malen und Retuschieren:** druckempfindliche Pinsel, prozedurale und texturierte
   Vorgaben, Radieren, Füllen, lokales Weichzeichnen, Kopierstempel, Reparaturpinsel
   und automatische Bereichsreparatur.
@@ -26,6 +29,10 @@ Qt-Arbeitsoberfläche und einer Vulkan-beschleunigten Leinwand.
   Bitmap-Masken lassen sich mit „Auswahl verfeinern“, Live-Vorschauen und manuellen
   Korrekturen verbessern. Für die Objektauswahl muss weder ein Modell
   heruntergeladen noch Python installiert werden.
+- **Lokale KI-Bildbearbeitung:** Bilder erzeugen, Ebenen bearbeiten und Auswahlen
+  mit eigenen Modellen und dem optionalen CUDA-Prozess füllen. Ergebnisse vor dem
+  Anwenden prüfen; Änderungen lassen sich rückgängig machen. Eine unterstützte
+  NVIDIA-GPU ist erforderlich; siehe [Vulkana Diffusion](../../DIFFUSION.md).
 - **Transformationen:** Verschieben, Skalieren, Drehen, Spiegeln und Verzerren
   über die Eckpunkte; Auswahlgrenzen oder ausgewählte Pixel transformieren,
   mit Einrasten und Ausrichtungshilfen.

@@ -44,6 +44,7 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QRandomGenerator>
+#include <QRegularExpression>
 #include <QScreen>
 #include <QScopedValueRollback>
 #include <QScrollArea>
@@ -160,7 +161,7 @@ public:
     if (index.data(Qt::UserRole + 2).toBool() && event->pos().x() >= option.rect.right() - 60 &&
         event->pos().x() < option.rect.right() - 30) {
       QToolTip::showText(event->globalPos(), index.data(Qt::UserRole + 3).toBool()
-          ? "Restore the full layer input" : "Crop this layer input to its canvas", view);
+          ? i18n::text("diffusion.ui.restore.the.full.layer.input") : i18n::text("diffusion.ui.crop.this.layer.input.to.its.canvas"), view);
       return true;
     }
     return SubtleItemDelegate::helpEvent(event, view, option, index);
@@ -273,7 +274,7 @@ private:
     return false;
   }
 };
-QString promptText(QWidget *origin, const QString &title, const QString &label,
+QString promptText(QWidget *origin, const i18n::Message &title, const i18n::Message &label,
                    const QString &initial, bool *accepted,
                    bool multiline = false, bool panelLocal = false,
                    const QStringList &existingNames = {}) {
@@ -295,7 +296,7 @@ QString promptText(QWidget *origin, const QString &title, const QString &label,
                       (presenter ? Qt::SubWindow : Qt::Dialog) |
                           Qt::FramelessWindowHint);
   dialog.setObjectName("DiffusionTextPrompt");
-  dialog.setWindowTitle(title);
+  i18n::setWindowTitle(&dialog, title);
   dialog.setWindowFlag(Qt::WindowMinMaxButtonsHint, false);
   dialog.setLabelText(title + "\n" + label);
   dialog.setTextValue(initial);
@@ -303,11 +304,11 @@ QString promptText(QWidget *origin, const QString &title, const QString &label,
     dialog.setObjectName("DiffusionConfigurationNamePrompt");
     dialog.setMinimumWidth(std::max(180, std::min(360, origin->width() - 24)));
     dialog.findChild<QLineEdit *>()->setMaxLength(200);
-    dialog.setOkButtonText("Create");
+    dialog.setOkButtonText(i18n::text("diffusion.ui.create"));
     const auto validate = [&dialog, title, label, existingNames](const QString &value) {
       const auto name = value.trimmed();
       const bool duplicate = existingNames.contains(name, Qt::CaseInsensitive);
-      dialog.setLabelText(title + "\n" + (duplicate ? "That name is already in use." : label));
+      dialog.setLabelText(title + "\n" + (duplicate ? i18n::text("diffusion.ui.that.name.is.already.in.use") : label));
       if (auto *buttons = dialog.findChild<QDialogButtonBox *>())
         buttons->button(QDialogButtonBox::Ok)->setEnabled(!name.isEmpty() && !duplicate);
     };
@@ -333,8 +334,8 @@ bool confirmConfigurationDelete(QWidget *origin, const QString &name) {
     presenter = std::make_unique<WorkspaceDialog>(*workspace, *host);
     presenter->setCenterWidget(origin);
   }
-  QMessageBox dialog(QMessageBox::Question, "Delete configuration",
-                    "Delete “" + name + "”?", QMessageBox::Yes | QMessageBox::No,
+  QMessageBox dialog(QMessageBox::Question, i18n::text("diffusion.ui.delete.configuration"),
+                    i18n::text("diffusion.ui.delete.1").arg(name), QMessageBox::Yes | QMessageBox::No,
                     presenter ? presenter.get() : origin);
   dialog.setObjectName("DiffusionConfigurationDeletePrompt");
   dialog.setTextFormat(Qt::PlainText);
@@ -353,23 +354,37 @@ QString chooseFile(QWidget *origin, const QString &title,
   return dialog.exec() == QDialog::Accepted ? dialog.selectedFiles().value(0)
                                             : QString{};
 }
-QToolButton *iconButton(ToolGlyph icon, const QString &tip, QWidget *parent) {
+// Only presentation text is isolated: aliases in editable prompts stay byte-for-byte unchanged.
+i18n::Message referenceHelp(i18n::Message message) {
+  const auto resolve = [message] {
+    QString result = message.resolved();
+    const QRegularExpression aliases("<(?:Image[0-9]+(?:/[^<>]+)?|Output/[^<>]+|Region[0-9]+|Scene)>");
+    auto matches = aliases.globalMatch(result);
+    QVector<QRegularExpressionMatch> values;
+    while (matches.hasNext()) values.append(matches.next());
+    for (auto it = values.crbegin(); it != values.crend(); ++it)
+      result.replace(it->capturedStart(), it->capturedLength(), i18n::ltrToken(it->captured()).resolved());
+    return result;
+  };
+  return {resolve(), resolve};
+}
+QToolButton *iconButton(ToolGlyph icon, const i18n::Message &tip, QWidget *parent) {
   auto *b = new QToolButton(parent);
   b->setIcon(toolGlyph(icon));
-  b->setToolTip(tip);
-  b->setAccessibleName(tip);
+  i18n::setToolTip(b, tip);
+  i18n::setAccessibleName(b, tip);
   b->setIconSize({16, 16});
   b->setFixedSize(28, 28);
   b->setAutoRaise(true);
   return b;
 }
-QComboBox *combo(const QStringList &labels, const QStringList &values,
+QComboBox *combo(const QList<i18n::Message> &labels, const QStringList &values,
                  QWidget *parent) {
   auto *c = new ScrollSafe<QComboBox>(parent);
   c->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
   c->setMinimumContentsLength(6);
   for (int i = 0; i < labels.size(); ++i)
-    c->addItem(labels[i], values.value(i, labels[i]));
+    i18n::addItem(c, labels[i], values.value(i, labels[i].source()));
   return c;
 }
 void select(QComboBox *c, const QString &value) {
@@ -396,7 +411,7 @@ void setControl(QWidget *w, const QJsonValue &value) {
   const QSignalBlocker block(w);
   if (auto *c = qobject_cast<QComboBox *>(w)) {
     if (c->findData(value.toString()) < 0)
-      c->addItem(value.toString() + " (unavailable)", value.toString());
+      i18n::addItem(c, i18n::text("diffusion.ui.1.unavailable").arg(i18n::ltrToken(value.toString())), value.toString());
     select(c, value.toString());
   } else if (auto *c = qobject_cast<QCheckBox *>(w))
     c->setChecked(value.toBool());
@@ -421,7 +436,7 @@ void putControls(const QMap<QString, QWidget *> &controls,
     if (controls.contains(it.key()))
       setControl(controls[it.key()], it.value());
 }
-QWidget *section(const QString &title, const QString &id, QVBoxLayout *&layout,
+QWidget *section(const i18n::Message &title, const QString &id, QVBoxLayout *&layout,
                  bool open = false) {
   auto *w = collapsibleSection(i18n::Message(title), id, layout);
   if (auto *header = w->findChild<QToolButton *>(id + "SectionHeader"))
@@ -575,6 +590,10 @@ struct DiffusionPanel::Impl {
       }
       if (controlValue(target) != values[it.key()]) setControl(target, values[it.key()]);
       target->setToolTip(source->toolTip());
+      if (auto *from = qobject_cast<QDoubleSpinBox *>(source)) {
+        const QSignalBlocker block(target);
+        qobject_cast<QDoubleSpinBox *>(target)->setSpecialValueText(from->specialValueText());
+      }
       const bool shown = exposeButtons[it.key()]->isChecked();
       overridesForm->setRowVisible(overrideRows[it.key()], shown);
       any |= shown;
@@ -589,14 +608,16 @@ struct DiffusionPanel::Impl {
     for (int row = 0; row < defaults->rowCount(); ++row) {
       auto *source = defaults->itemAt(row, QFormLayout::FieldRole)->widget();
       const auto key = source == sigmas ? QString("sigmas") : sampling.key(source);
-      const auto label = qobject_cast<QLabel *>(defaults->itemAt(row, QFormLayout::LabelRole)->widget())->text();
+      auto *sourceLabel = qobject_cast<QLabel *>(defaults->itemAt(row, QFormLayout::LabelRole)->widget());
+      const auto resolveLabel = [sourceLabel] { return sourceLabel->text(); };
+      const i18n::Message label(resolveLabel(), resolveLabel);
       auto *wrapper = new QWidget;
       auto *defaultRow = new QHBoxLayout(wrapper);
       defaultRow->setContentsMargins(0, 0, 0, 0);
       defaultRow->setSpacing(4);
       defaults->removeWidget(source);
       defaultRow->addWidget(source, 1);
-      auto *expose = iconButton(ToolGlyph::Panels, "Show " + label + " in Generate", wrapper);
+      auto *expose = iconButton(ToolGlyph::Panels, i18n::text("diffusion.ui.show.1.in.generate").arg(label), wrapper);
       expose->setObjectName("DiffusionExpose_" + key);
       expose->setCheckable(true);
       expose->setFixedSize(24, 24);
@@ -630,13 +651,13 @@ struct DiffusionPanel::Impl {
       }
       Q_ASSERT(control);
       control->setObjectName("DiffusionOverride_" + key);
-      control->setAccessibleName(label + " override");
+      i18n::setAccessibleName(control, i18n::text("diffusion.ui.1.override").arg(label));
       layout->addWidget(control, 1);
-      auto *reset = iconButton(ToolGlyph::Refresh, "Reset " + label + " to configuration default", overrideRow);
+      auto *reset = iconButton(ToolGlyph::Refresh, i18n::text("diffusion.ui.reset.1.to.configuration.default").arg(label), overrideRow);
       reset->setObjectName("DiffusionOverrideReset_" + key);
       reset->setFixedSize(24, 24);
       layout->addWidget(reset, 0, Qt::AlignTop);
-      overridesForm->addRow(label, overrideRow);
+      i18n::addRow(overridesForm, label, overrideRow);
       overrideControls[key] = control;
       overrideRows[key] = overrideRow;
       overrideResetButtons[key] = reset;
@@ -711,11 +732,11 @@ struct DiffusionPanel::Impl {
     if (busy) return;
     QStringList names;
     for (const auto &entry : modelConfigs) names << entry.toObject()["name"].toString();
-    const auto base = q.configurationName() + " copy";
+    const QString base = i18n::text("diffusion.ui.1.copy").arg(q.configurationName());
     auto initial = duplicate ? base : QString{};
     for (int n = 2; names.contains(initial, Qt::CaseInsensitive); ++n) initial = base + QString(" %1").arg(n);
     bool accepted = false;
-    const auto name = promptText(&q, duplicate ? "Duplicate configuration" : "New configuration", "Name",
+    const auto name = promptText(&q, duplicate ? i18n::text("diffusion.ui.duplicate.configuration") : i18n::text("diffusion.ui.new.configuration"), i18n::text("diffusion.ui.name"),
                                  initial, &accepted, false, true, names).trimmed();
     if (!accepted || name.isEmpty() || names.contains(name, Qt::CaseInsensitive)) return;
     q.saveSettings();
@@ -954,12 +975,11 @@ struct DiffusionPanel::Impl {
   void reportReferenceLimit() {
     if (!referencesFit()) {
       referenceLimitShown = true;
-      q.setStatus(QString("Images and region guides exceed this model's %1-reference limit. "
-                          "Remove an image or region before generating.")
+      q.setStatus(i18n::text("diffusion.ui.images.and.region.guides.exceed.this.model")
                       .arg(profile().value("maxReferenceImages").toInt(8)), true);
     } else if (referenceLimitShown) {
       referenceLimitShown = false;
-      q.setStatus("Reference limit satisfied.");
+      q.setStatus(i18n::text("diffusion.ui.reference.limit.satisfied"));
     }
   }
   int inputIndex(const QString &id) const {
@@ -977,16 +997,16 @@ struct DiffusionPanel::Impl {
   QString transferError() const {
     if (!q.supportsRegions()) return {};
     const bool flux = profile().value("family") == "flux3";
-    if (hasTransfers() && !flux) return "Linked region transfers are available with FLUX.3. Unlink the destinations or select a FLUX configuration.";
-    if (hasTransfers() && inputs.size() < 2) return "Linked transfers need at least two input images. Add the missing input or unlink the destinations.";
+    if (hasTransfers() && !flux) return i18n::text("diffusion.ui.linked.region.transfers.are.available.with.flux");
+    if (hasTransfers() && inputs.size() < 2) return i18n::text("diffusion.ui.linked.transfers.need.at.least.two.input");
     if ((hasTransfers() || (flux && prompt->toPlainText().contains("<Scene>"))) && inputIndex(outputSceneId) < 0)
-      return "Choose an available output scene before generating.";
+      return i18n::text("diffusion.ui.choose.an.available.output.scene.before.generating");
     for (const auto& input : inputs) for (const auto& region : input.fullRegions) {
       if (region.destinationId.isEmpty()) continue;
       if (std::none_of(input.regions.begin(), input.regions.end(), [&](const auto& r) { return r.id == region.id; }))
-        return QString("Source region %1 is outside the cropped input. Restore the input to use or unlink it.").arg(region.label);
+        return i18n::text("diffusion.ui.source.region.1.is.outside.the.cropped").arg(region.label);
       if (std::none_of(regions.begin(), regions.end(), [&](const auto& r) { return r.id == region.destinationId && r.targetOnly; }))
-        return QString("The destination for %1 is missing. Choose another target or unlink it.").arg(region.label);
+        return i18n::text("diffusion.ui.the.destination.for.1.is.missing.choose").arg(region.label);
     }
     return {};
   }
@@ -1002,11 +1022,11 @@ struct DiffusionPanel::Impl {
     outputScene->clear();
     for (int i = 0; i < inputs.size(); ++i)
       outputScene->addItem(QString("<Image%1> · %2").arg(i + 1).arg(inputs[i].label), inputs[i].id);
-    if (inputIndex(outputSceneId) < 0) outputScene->addItem("Choose output scene…", outputSceneId);
+    if (inputIndex(outputSceneId) < 0) i18n::addItem(outputScene, i18n::text("diffusion.ui.choose.output.scene"), outputSceneId);
     select(outputScene, outputSceneId);
     if (profile().value("family") == "flux3" && lightbox && lightboxPreview && regionEditorInput.isEmpty() && !previewShowsResult) {
       lightboxPreview->setImage(outputLayoutImage(), true);
-      lightboxTitle->setText(QString("Output layout · %1 × %2 px").arg(width->value()).arg(height->value()));
+      i18n::setText(lightboxTitle, i18n::text("diffusion.ui.output.layout.1.2.px").arg(width->value()).arg(height->value()));
     }
   }
   void rebuildRegionSources() {
@@ -1016,7 +1036,7 @@ struct DiffusionPanel::Impl {
     const auto selected = regionSource->currentData().toString();
     const QSignalBlocker block(regionSource);
     regionSource->clear();
-    regionSource->addItem("Output layout", QString{});
+    i18n::addItem(regionSource, i18n::text("diffusion.ui.output.layout"), QString{});
     for (int i = 0; i < inputs.size(); ++i)
       regionSource->addItem(QString("Image%1 · %2").arg(i + 1).arg(inputs[i].label),
                             inputs[i].id);
@@ -1034,15 +1054,15 @@ struct DiffusionPanel::Impl {
       const bool newLayer = q.destination() == Destination::NewLayer;
       const bool edit = result->mode == Mode::Edit;
       const QSignalBlocker guard(fitOutput);
-      fitOutput->setText(fill ? "Fit to canvas" : replace ? "Fit to selected layer"
-                                            : edit ? "Fit to original bounds" : "Fit to canvas");
+      i18n::setText(fitOutput, fill ? i18n::text("diffusion.ui.fit.to.canvas") : replace ? i18n::text("diffusion.ui.fit.to.selected.layer")
+                                            : edit ? i18n::text("diffusion.ui.fit.to.original.bounds") : i18n::text("diffusion.ui.fit.to.canvas"));
       fitOutput->setChecked(fill || replace || (newLayer && result->fitToBounds.value_or(edit)));
       fitOutput->setEnabled(!busy && newLayer && !fill && (edit || outputCanvasSize.isValid()));
-      fitOutput->setToolTip(fill ? "Generative Fill stays aligned to its captured canvas and soft selection."
-          : replace ? "Replacement fits the selected layer. Use Add new layer for a result at its generated size."
-          : !newLayer ? "New documents use the generated pixel dimensions."
-          : edit ? "Fit the result to the original input bounds. Uncheck for 1:1 pixels, keeping position and orientation."
-                 : "Scale the result to the current canvas. Uncheck to keep its generated size.");
+      i18n::setToolTip(fitOutput, fill ? i18n::text("diffusion.ui.generative.fill.stays.aligned.to.its.captured")
+          : replace ? i18n::text("diffusion.ui.replacement.fits.the.selected.layer.use.add")
+          : !newLayer ? i18n::text("diffusion.ui.new.documents.use.the.generated.pixel.dimensions")
+          : edit ? i18n::text("diffusion.ui.fit.the.result.to.the.original.input")
+                 : i18n::text("diffusion.ui.scale.the.result.to.the.current.canvas"));
     }
     if (previewShowsResult && lightboxPreview && !comparisonReference.isNull())
       lightboxPreview->setComparison(comparisonReference, comparisonTransform, q.resultPlacement());
@@ -1059,26 +1079,26 @@ struct DiffusionPanel::Impl {
     configModels->setEnabled(!busy && !modelConfigs.isEmpty());
     duplicateModel->setEnabled(!busy && (configured || !currentModelId.isEmpty()));
     deleteModel->setEnabled(!busy && !currentModelId.isEmpty());
-    models->setItemText(0, configured ? "Current configuration"
-                                      : "<Missing configuration>");
+    models->setItemText(0, configured ? i18n::text("diffusion.ui.current.configuration")
+                                      : i18n::text("diffusion.ui.missing.configuration"));
     const bool hasInputs = q.mode() == Mode::Generate || !inputs.isEmpty();
     const bool nonempty = !q.supportsImageInputs() || std::none_of(inputs.begin(), inputs.end(), [](const auto &in) { return in.image.isNull(); });
     const auto linkError = transferError();
-    generate->setText(busy ? "Cancel" : "Generate");
+    i18n::setText(generate, busy ? i18n::text("diffusion.ui.cancel") : i18n::text("diffusion.ui.generate"));
     generate->setEnabled(busy || (configured && hasInputs && nonempty && referencesFit() && linkError.isEmpty()));
     for (auto *button : unloadButtons)
       button->setEnabled(!busy && canUnloadModels);
-    generate->setToolTip(busy ? "Cancel generation" : !linkError.isEmpty() ? linkError : !nonempty ? "A cropped layer is outside its canvas. Restore or remove that input."
+    i18n::setToolTip(generate, busy ? i18n::text("diffusion.ui.cancel.generation") : !linkError.isEmpty() ? linkError : !nonempty ? i18n::text("diffusion.ui.a.cropped.layer.is.outside.its.canvas")
         : !referencesFit()
-        ? "Remove an image or region to stay within the model's reference limit."
-        : configured ? QString{} : "Add model files in the Configuration tab.");
+        ? i18n::text("diffusion.ui.remove.an.image.or.region.to.stay")
+        : configured ? QString{} : i18n::text("diffusion.ui.add.model.files.in.the.configuration.tab"));
     regenerate->setEnabled(!busy && ready && configured && hasInputs && nonempty && referencesFit() && linkError.isEmpty());
     apply->setEnabled(!busy && ready);
     discard->setEnabled(ready);
     resultImage->setVisible(true);
     tabs->setTabText(2, results.isEmpty()
-                            ? "Preview"
-                            : QString("Preview · %1").arg(results.size()));
+                            ? i18n::text("diffusion.ui.preview")
+                            : i18n::text("diffusion.ui.preview.1").arg(results.size()));
     updateOutputControls();
     resultList->setVisible(resultList->count() > 0);
     if (previousPreview)
@@ -1114,7 +1134,7 @@ struct DiffusionPanel::Impl {
     mode->setEnabled(!busy);
     updateModeControls();
     inputList->setEnabled(!busy && q.supportsImageInputs());
-    inputList->setToolTip(q.supportsImageInputs() ? QString{} : "This model generates from text only. Stored inputs will be available when you switch to a compatible model.");
+    i18n::setToolTip(inputList, q.supportsImageInputs() ? QString{} : i18n::text("diffusion.ui.this.model.generates.from.text.only.stored"));
     maxInputSize->setEnabled(!busy && q.supportsImageInputs());
     if (auto *header = q.findChild<QToolButton *>("DiffusionInputsSectionHeader"))
       header->setToolTip(inputList->toolTip());
@@ -1132,20 +1152,20 @@ struct DiffusionPanel::Impl {
     if (outputScene) outputScene->setEnabled(!busy);
     if (auto *header =
             q.findChild<QToolButton *>("DiffusionRegionsSectionHeader"))
-      header->setText(regionCount == 0
-                          ? QString("Regions")
-                          : QString("Regions · %1").arg(regionCount));
+      i18n::setText(header, regionCount == 0
+                          ? i18n::text("diffusion.ui.regions")
+                          : i18n::text("diffusion.ui.regions.1").arg(regionCount));
     if (regionInput >= 0)
-      regionHint->setText(QString("Use <Image%1> for this image and <Image%1/Region1> for a named region.").arg(regionInput + 1)
-          + (inputs.size() == 1 ? " With one input, <Region1> also works." : QString{}));
+      i18n::setText(regionHint, referenceHelp(i18n::text("diffusion.ui.use.image.1.for.this.image.and").arg(regionInput + 1)
+          + (inputs.size() == 1 ? i18n::text("diffusion.ui.with.one.input.region1.also.works") : QString{})));
     else
-      regionHint->setText(profile().value("spatialGuidance").toString() == "structured-caption"
-          ? "Refer to output regions as <Output/Region1>. Regions guide placement; they do not protect pixels."
-          : "Output placement guide. Use Generative Fill to protect pixels outside a selection.");
+      i18n::setText(regionHint, profile().value("spatialGuidance").toString() == "structured-caption"
+          ? referenceHelp(i18n::text("diffusion.ui.refer.to.output.regions.as.output.region1"))
+          : i18n::text("diffusion.ui.output.placement.guide.use.generative.fill.to"));
     regionsButton->setEnabled(!busy && q.supportsRegions());
-    regionsButton->setToolTip(q.supportsRegions() ? QString{} : "Region guidance is unavailable for this model.");
+    i18n::setToolTip(regionsButton, q.supportsRegions() ? QString{} : i18n::text("diffusion.ui.region.guidance.is.unavailable.for.this.model"));
     if (!q.supportsRegions())
-      regionHint->setText("Region guidance is unavailable for this model.");
+      i18n::setText(regionHint, i18n::text("diffusion.ui.region.guidance.is.unavailable.for.this.model"));
 
     if (auto *model =
             qobject_cast<QStandardItemModel *>(outputDestination->model()))
@@ -1164,10 +1184,9 @@ struct DiffusionPanel::Impl {
     if (busy && !pendingItem) {
       const int previous = resultList->currentRow();
       pendingItem = new QListWidgetItem(toolGlyph(ToolGlyph::Effects),
-                                        "Generating…", resultList);
+                                        i18n::text("diffusion.ui.generating"), resultList);
       pendingItem->setToolTip(
-          "Generation in progress. A live draft appears here when available. "
-          "Pending previews cannot be applied.");
+          i18n::text("diffusion.ui.generation.in.progress.a.live.draft.appears"));
       if (previous < 0)
         resultList->setCurrentItem(pendingItem);
     } else if (!busy && pendingItem) {
@@ -1183,7 +1202,7 @@ struct DiffusionPanel::Impl {
     generationImage->setVisible(busy || !image.isNull());
     if (image.isNull()) {
       generationImage->clear();
-      generationImage->setText("Generating…");
+      i18n::setText(generationImage, i18n::text("diffusion.ui.generating"));
     } else {
       generationImage->setPixmap(QPixmap::fromImage(
           thumbnail(image, {std::max(80, generationImage->width()), 200})));
@@ -1198,7 +1217,7 @@ struct DiffusionPanel::Impl {
     const auto info = image["generationInfo"].toObject();
     const auto config = metadata["configuration"].toObject();
     const auto request = metadata["request"].toObject();
-    resultConfig->setText(metadata["configurationName"].toString("Unsaved configuration"));
+    i18n::setText(resultConfig, metadata.contains("configurationName") ? i18n::Message(metadata["configurationName"].toString()) : i18n::text("diffusion.ui.unsaved.configuration"));
     const auto model = QFileInfo(config["files"].toObject()["diffusion"].toString()).fileName();
     resultModel->setText(model.isEmpty() ? metadata["profile"].toObject()["name"].toString("—") : model);
     resultSize->setText(QString("%1 × %2 px").arg(image["width"].toInt(result->image.width()))
@@ -1218,21 +1237,21 @@ struct DiffusionPanel::Impl {
     const QImage image = result              ? result->image
                          : pendingSelected() ? draftPreview
                                              : QImage{};
-    const QString title =
-        result              ? "AI image preview — " + result->label
-        : pendingSelected() ? (image.isNull() ? "Generation in progress"
-                                              : "Pending preview — approximate")
-                            : "AI image preview";
+    const i18n::Message title =
+        result              ? i18n::text("diffusion.ui.ai.image.preview.1").arg(result->label)
+        : pendingSelected() ? (image.isNull() ? i18n::text("diffusion.ui.generation.in.progress")
+                                              : i18n::text("diffusion.ui.pending.preview.approximate"))
+                            : i18n::text("diffusion.ui.ai.image.preview");
     if (image.isNull()) {
       resultImage->clear();
-      resultImage->setText(
-          pendingSelected() ? "Generating…" : "Generated previews appear here");
+      i18n::setText(resultImage,
+          pendingSelected() ? i18n::text("diffusion.ui.generating") : i18n::text("diffusion.ui.generated.previews.appear.here"));
     } else
       resultImage->setPixmap(QPixmap::fromImage(
           thumbnail(image, {std::max(80, resultImage->width()), 180})));
     if (previewShowsResult && lightboxPreview) {
-      lightboxPreview->setEmptyText(pendingSelected() ? "Generating…"
-                                                      : "No image");
+      lightboxPreview->setEmptyText(pendingSelected() ? i18n::text("diffusion.ui.generating")
+                                                      : i18n::text("diffusion.ui.no.image"));
       lightboxPreview->setImage(image, true);
       if (lightboxTitle)
         lightboxTitle->setText(title + (image.isNull()
@@ -1265,47 +1284,40 @@ struct DiffusionPanel::Impl {
                               (mode == Mode::Edit && editImageToImage));
     }
     imageToImage->setEnabled(mode == Mode::Edit && q.supportsMode(Mode::Edit));
-    imageToImage->setToolTip(
+    i18n::setToolTip(imageToImage,
         !q.supportsMode(Mode::Edit) && !q.supportsMode(Mode::Fill)
-            ? "This model generates from text only. Image-to-image denoising is unavailable."
+            ? i18n::text("diffusion.ui.this.model.generates.from.text.only.image")
         : mode == Mode::Fill
-            ? "Always used for Generative Fill. The canvas is the starting "
-              "image; the selection limits where the result is applied."
+            ? i18n::text("diffusion.ui.always.used.for.generative.fill.the.canvas")
         : mode == Mode::Edit
-            ? "Off: edit using image references. On: start from Image 1 and "
-              "use Denoising strength."
-            : "Starts denoising from an input image. Available in Edit layer; "
-              "always used for Generative Fill.");
+            ? i18n::text("diffusion.ui.off.edit.using.image.references.on.start")
+            : i18n::text("diffusion.ui.starts.denoising.from.an.input.image.available"));
     sampling["strength"]->setEnabled(q.imageToImageEnabled());
-    sampling["strength"]->setToolTip(
+    i18n::setToolTip(sampling["strength"],
         !q.supportsMode(Mode::Edit) && !q.supportsMode(Mode::Fill)
-            ? "Denoising strength is available for models that edit input images."
+            ? i18n::text("diffusion.ui.denoising.strength.is.available.for.models.that")
         : q.imageToImageEnabled()
-            ? "Lower values retain more of the starting image. Try 1.0 for "
-              "larger changes or new objects."
+            ? i18n::text("diffusion.ui.lower.values.retain.more.of.the.starting")
         : mode == Mode::Edit
-            ? "Enable image-to-image denoising to use strength. Reference-only "
-              "edits do not use this value."
-            : "Available in Generative Fill, or Edit layer with image-to-image "
-              "denoising enabled.");
+            ? i18n::text("diffusion.ui.enable.image.to.image.denoising.to.use")
+            : i18n::text("diffusion.ui.available.in.generative.fill.or.edit.layer"));
   }
   void updateSamplingAvailability(const QMap<QString, QWidget *> &widgets,
                                   QWidget *customSigmas, const QJsonObject &values) {
     const auto p = profile();
     const auto schedule = values["schedule"].toString();
-    widgets["steps"]->setToolTip(schedule == "turbo"
-        ? "The fixed Turbo sigma schedule uses 8 steps. Choose Auto sigma schedule to try other step counts."
-        : "Number of denoising steps.");
+    i18n::setToolTip(widgets["steps"], schedule == "turbo"
+        ? i18n::text("diffusion.ui.the.fixed.turbo.sigma.schedule.uses.8")
+        : i18n::text("diffusion.ui.number.of.denoising.steps"));
     customSigmas->setEnabled(schedule == "custom");
-    customSigmas->setToolTip("Enter steps + 1 descending values ending in zero. "
-                       "Available with a custom sigma schedule.");
+    i18n::setToolTip(customSigmas, i18n::text("diffusion.ui.enter.steps.1.descending.values.ending.in"));
     widgets["scheduler"]->setEnabled(schedule == "auto");
-    widgets["scheduler"]->setToolTip(
-        "Controls how noise levels are spaced. Available with the auto sigma schedule.");
+    i18n::setToolTip(widgets["scheduler"],
+        i18n::text("diffusion.ui.controls.how.noise.levels.are.spaced.available"));
     widgets["flowShift"]->setEnabled(schedule == "auto" && p.value("flowSchedule").toBool(true));
-    widgets["flowShift"]->setToolTip(
-        !p.value("flowSchedule").toBool(true) ? "Flow shift does not apply to this model." :
-        QString("Adjusts the flow schedule. Available with the auto sigma schedule. Auto uses the model default (%1).")
+    i18n::setToolTip(widgets["flowShift"],
+        !p.value("flowSchedule").toBool(true) ? i18n::text("diffusion.ui.flow.shift.does.not.apply.to.this") :
+        i18n::text("diffusion.ui.adjusts.the.flow.schedule.available.with.the")
             .arg(p.value("flowShift").toDouble()));
     auto *scheduleCombo = qobject_cast<QComboBox *>(widgets["schedule"]);
     if (auto *items =
@@ -1318,13 +1330,13 @@ struct DiffusionPanel::Impl {
         QStringList{"ddim_trailing", "tcd", "res_multistep", "res_2s"}.contains(
             sampler);
     widgets["eta"]->setEnabled(stochastic);
-    widgets["eta"]->setToolTip(
-        "Controls added sampler noise. Available for samplers that use eta.");
+    i18n::setToolTip(widgets["eta"],
+        i18n::text("diffusion.ui.controls.added.sampler.noise.available.for.samplers"));
     const bool caching = values["cacheMode"].toString() != "disabled";
     for (const auto &key : {QString("cacheReuseThreshold"),
                             QString("cacheStart"), QString("cacheEnd")}) {
       widgets[key]->setEnabled(caching);
-      widgets[key]->setToolTip("Available when Approximate cache is enabled.");
+      i18n::setToolTip(widgets[key], i18n::text("diffusion.ui.available.when.approximate.cache.is.enabled"));
     }
     for (const auto &key : {QString("vaeTileSize"), QString("vaeTileOverlap")}) {
       widgets[key]->setEnabled(values["vaeTiling"].toBool());
@@ -1339,16 +1351,16 @@ struct DiffusionPanel::Impl {
     for (const auto &key : {QString("textEncoder"), QString("vision")})
       modelForm->setRowVisible(files[key]->parentWidget(), !checkpoint);
     for (const auto &key : {QString("diffusion"), QString("vae")}) {
-      const QString label = key == "diffusion" ? (checkpoint ? "Checkpoint" : "Diffusion weights")
-                                               : (checkpoint ? "VAE override (optional)" : "VAE");
-      qobject_cast<QLabel *>(modelForm->labelForField(files[key]->parentWidget()))->setText(label);
-      files[key]->setPlaceholderText(checkpoint && key == "vae" ? "Use checkpoint VAE" : label);
+      const i18n::Message label = key == "diffusion" ? (checkpoint ? i18n::text("diffusion.ui.checkpoint") : i18n::text("diffusion.ui.diffusion.weights"))
+                                               : (checkpoint ? i18n::text("diffusion.ui.vae.override.optional") : "VAE");
+      i18n::setText(modelForm->labelForField(files[key]->parentWidget()), label);
+      i18n::setPlaceholderText(files[key], checkpoint && key == "vae" ? i18n::text("diffusion.ui.use.checkpoint.vae") : label);
     }
     if (auto *items = qobject_cast<QStandardItemModel *>(mode->model())) {
       for (const auto value : {Mode::Generate, Mode::Edit, Mode::Fill}) {
         const bool supported = q.supportsMode(value);
         items->item(int(value))->setEnabled(supported);
-        items->item(int(value))->setToolTip(supported ? QString{} : "This mode is unavailable for the selected model.");
+        items->item(int(value))->setToolTip(supported ? QString{} : i18n::text("diffusion.ui.this.mode.is.unavailable.for.the.selected"));
       }
     }
     if (!q.supportsMode(q.mode())) {
@@ -1360,10 +1372,10 @@ struct DiffusionPanel::Impl {
     height->setSingleStep(alignment);
     // Discovery, configuration and mode changes must not rewrite a size already
     // captured for a job (or one the user is still choosing).
-    resolutionRequirement->setText(QString("%1: width and height must be multiples of %2.")
+    i18n::setText(resolutionRequirement, i18n::text("diffusion.ui.1.width.and.height.must.be.multiples")
                                       .arg(p.value("name").toString()).arg(alignment));
-    resolutionMultiple->setItemText(0, QString("Auto (%1)").arg(alignment));
-    resolutionMultiple->setToolTip("Auto uses the selected model's required multiple.");
+    resolutionMultiple->setItemText(0, i18n::text("diffusion.ui.auto.1").arg(alignment));
+    i18n::setToolTip(resolutionMultiple, i18n::text("diffusion.ui.auto.uses.the.selected.model.s.required"));
     const bool qwen = p.value("family").toString() == "qwen-image-2.1";
     const bool manual =
         qobject_cast<QComboBox *>(resource["weights"])->currentData() ==
@@ -1371,19 +1383,19 @@ struct DiffusionPanel::Impl {
     for (const auto &name :
          {QString("diffusion"), QString("textEncoder"), QString("vae")}) {
       resource["placement_" + name]->setEnabled(manual);
-      resource["placement_" + name]->setToolTip(
-          "Choose where weights are kept. Available when Keep weights in is manual.");
+      i18n::setToolTip(resource["placement_" + name],
+          i18n::text("diffusion.ui.choose.where.weights.are.kept.available.when"));
     }
     for (const auto &key : {QString("prefixCache"), QString("prefixCacheType")}) {
       resource[key]->setEnabled(qwen);
-      resource[key]->setToolTip("Reuse text-encoder prefix data. Available for Qwen models.");
+      i18n::setToolTip(resource[key], i18n::text("diffusion.ui.reuse.text.encoder.prefix.data.available.for"));
     }
     files["vision"]->parentWidget()->setEnabled(
         p.value("visionRequiredForReferences").toBool());
     files["vision"]->parentWidget()->setToolTip(
         p.value("visionRequiredForReferences").toBool()
-            ? "For image editing, add a separate vision projector only if the text encoder does not include vision weights."
-            : "This model does not need a separate vision component.");
+            ? i18n::text("diffusion.ui.for.image.editing.add.a.separate.vision")
+            : i18n::text("diffusion.ui.this.model.does.not.need.a.separate"));
     if (defaults) {
       putControls(sampling,
                   {{"steps", p.value("steps")},
@@ -1408,10 +1420,10 @@ struct DiffusionPanel::Impl {
     const double cfg = effectiveSampling()["guidance"].toDouble();
     const bool supportsNegative = p.value("negativePrompt").toBool();
     negative->setEnabled(supportsNegative && cfg > 1);
-    negative->setToolTip(
-        !supportsNegative ? "This model does not support a negative prompt."
-        : cfg <= 1 ? "Describe what to avoid. Requires Guidance (CFG) above 1."
-                   : "Describe what to avoid in the generated image.");
+    i18n::setToolTip(negative,
+        !supportsNegative ? i18n::text("diffusion.ui.this.model.does.not.support.a.negative")
+        : cfg <= 1 ? i18n::text("diffusion.ui.describe.what.to.avoid.requires.guidance.cfg")
+                   : i18n::text("diffusion.ui.describe.what.to.avoid.in.the.generated"));
     if (auto *header = q.findChild<QToolButton *>("DiffusionNegativeSectionHeader"))
       header->setToolTip(negative->toolTip());
     updateSamplingAvailability(sampling, sigmas, controls(sampling));
@@ -1424,8 +1436,8 @@ struct DiffusionPanel::Impl {
     for (auto *box : {models, configModels}) {
       const QSignalBlocker block(box);
       box->clear();
-      if (box == models) box->addItem("<Missing configuration>", QString{});
-      else box->setPlaceholderText(modelConfigs.isEmpty() ? "No configurations" : "Select configuration");
+      if (box == models) i18n::addItem(box, i18n::text("diffusion.ui.missing.configuration"), QString{});
+      else i18n::setPlaceholderText(box, modelConfigs.isEmpty() ? i18n::text("diffusion.ui.no.configurations") : i18n::text("diffusion.ui.select.configuration"));
       for (const auto &entry : modelConfigs) {
         const auto o = entry.toObject();
         box->addItem(o["name"].toString(), o["id"].toString());
@@ -1436,13 +1448,13 @@ struct DiffusionPanel::Impl {
   QString inputTitle(int index) const {
     const auto &input = inputs[index];
     return QString("Image%1%2\n%3%4").arg(index + 1)
-        .arg(index == 0 && q.mode() != Mode::Generate ? " · Edit image" : "")
+        .arg(index == 0 && q.mode() != Mode::Generate ? i18n::text("diffusion.ui.edit.image") : "")
         .arg(input.label)
-        .arg(input.regions.isEmpty() ? QString{}
-             : input.regions.size() == 1 ? QString(" · 1 region")
-                                        : QString(" · %1 regions").arg(input.regions.size()));
+        .arg(input.regions.isEmpty() ? QString{} : QString(" · ")
+             + i18n::text("diffusion.ui.regions") + ": " + QString::number(input.regions.size()));
   }
   void refreshInputRegionLabels() {
+    const QSignalBlocker block(inputList);
     for (int i = 0; i < inputs.size(); ++i)
       if (auto *item = inputList->item(i))
         item->setText(inputTitle(i));
@@ -1465,13 +1477,12 @@ struct DiffusionPanel::Impl {
                            .arg(in.source)
                            .arg(in.image.width())
                            .arg(in.image.height())
-                           .arg(in.label) + (in.cropToCanvas ? "\nCropped to the source canvas." : "") +
-                                            "\nDouble-click to inspect and edit this image's regions. "
-                                            "Image numbers follow the list order.");
+                           .arg(in.label) + (in.cropToCanvas ? i18n::text("diffusion.ui.cropped.to.the.source.canvas") : "") +
+                                            i18n::text("diffusion.ui.double.click.to.inspect.and.edit.this"));
     }
     auto *add = new QListWidgetItem(inputList);
     add->setData(Qt::UserRole, -1);
-    add->setToolTip("Add input image");
+    add->setToolTip(i18n::text("diffusion.ui.add.input.image"));
     inputList->setFixedHeight(std::min(5, int(inputs.size())) * 48 + 32);
     inputList->setCurrentRow(std::min(selected, int(inputs.size()) - 1));
     rebuildRegionSources();
@@ -1479,7 +1490,7 @@ struct DiffusionPanel::Impl {
       lightbox->close();
     else if (!regionEditorInput.isEmpty() && lightbox && lightboxTitle) {
       const int index = inputIndex(regionEditorInput);
-      lightboxTitle->setText(QString("Regions — Image%1 · %2 · %3 × %4 px")
+      i18n::setText(lightboxTitle, i18n::text("diffusion.ui.regions.image.1.2.3.4.px")
                                 .arg(index + 1).arg(inputs[index].label)
                                 .arg(inputs[index].image.width()).arg(inputs[index].image.height()));
     }
@@ -1489,11 +1500,17 @@ struct DiffusionPanel::Impl {
     presetList = presetStore.allPresets();
     const QSignalBlocker block(presets);
     presets->clear();
-    presets->addItem("Prompt preset…");
-    for (const auto &p : presetList)
-      presets->addItem(p.name, p.id);
+    i18n::addItem(presets, i18n::text("diffusion.ui.prompt.preset"));
+    for (const auto &p : presetList) {
+      const i18n::Message name = p.id == "builtin.generate" ? i18n::text("diffusion.ui.generate.image.2")
+          : p.id == "builtin.fill" ? i18n::text("diffusion.ui.generative.fill")
+          : p.id == "builtin.background-replace" ? i18n::text("diffusion.ui.replace.background")
+          : p.id == "builtin.background-remove" ? i18n::text("diffusion.ui.remove.background")
+          : i18n::Message(p.name);
+      i18n::addItem(presets, name, p.id);
+    }
   }
-  void showPreview(const QImage &image, const QImage &, const QString &title,
+  void showPreview(const QImage &image, const QImage &, const i18n::Message &title,
                    bool editRegions = false, bool resultPreview = false,
                    const QString &inputId = {}, const QString &destinationInput = {},
                    const QString &destinationRegion = {}, bool createTarget = false) {
@@ -1519,7 +1536,7 @@ struct DiffusionPanel::Impl {
       previewShowsResult = false;
     });
     dialog->setObjectName("DiffusionPreviewDialog");
-    dialog->setWindowTitle(title);
+    i18n::setWindowTitle(dialog, title);
     dialog->setMinimumSize(480, 320);
     const auto available = q.screen()->availableGeometry().size();
     dialog->resize(std::min(1000, int(available.width() * .85)),
@@ -1542,7 +1559,7 @@ struct DiffusionPanel::Impl {
     root->setContentsMargins(10, 10, 10, 10);
     root->setSpacing(8);
     auto *bar = new QHBoxLayout;
-    auto *label = new QLabel(
+    auto *label = i18n::make<QLabel>(
         title +
         QString(" · %1 × %2 px").arg(image.width()).arg(image.height()));
     lightboxTitle = label;
@@ -1555,14 +1572,14 @@ struct DiffusionPanel::Impl {
       previousPreview = previous;
       previous->setObjectName("DiffusionPreviousPreview");
       previous->setArrowType(Qt::LeftArrow);
-      previous->setToolTip("Previous preview");
-      previous->setAccessibleName("Previous preview");
+      i18n::setToolTip(previous, i18n::text("diffusion.ui.previous.preview"));
+      i18n::setAccessibleName(previous, i18n::text("diffusion.ui.previous.preview"));
       auto *next = new QToolButton(dialog);
       nextPreview = next;
       next->setObjectName("DiffusionNextPreview");
       next->setArrowType(Qt::RightArrow);
-      next->setToolTip("Next preview");
-      next->setAccessibleName("Next preview");
+      i18n::setToolTip(next, i18n::text("diffusion.ui.next.preview"));
+      i18n::setAccessibleName(next, i18n::text("diffusion.ui.next.preview"));
       for (auto *button : {previous, next}) {
         button->setAutoRaise(true);
         button->setFixedSize(28, 28);
@@ -1576,10 +1593,10 @@ struct DiffusionPanel::Impl {
       QObject::connect(next, &QToolButton::clicked, &q,
                        [this] { stepPreview(1); });
     }
-    auto *fit = iconButton(ToolGlyph::FitCanvas, "Fit to view", dialog);
+    auto *fit = iconButton(ToolGlyph::FitCanvas, i18n::text("diffusion.ui.fit.to.view"), dialog);
     auto *actual =
-        iconButton(ToolGlyph::ZoomActual, "Actual pixels (1:1)", dialog);
-    auto *close = iconButton(ToolGlyph::Close, "Close preview", dialog);
+        iconButton(ToolGlyph::ZoomActual, i18n::text("diffusion.ui.actual.pixels.1.1"), dialog);
+    auto *close = iconButton(ToolGlyph::Close, i18n::text("diffusion.ui.close.preview"), dialog);
     auto *zoom = new QLabel;
     bar->addWidget(zoom);
     bar->addWidget(fit);
@@ -1606,9 +1623,8 @@ struct DiffusionPanel::Impl {
     preview->onViewChanged();
     auto *bottom = new QHBoxLayout;
     auto *hint =
-        new QLabel(editRegions ? "Drag to draw or move · Shift-drag adds a "
-                                 "region · Middle mouse pans"
-                               : "Mouse wheel zooms · Middle mouse pans");
+        new QLabel(editRegions ? i18n::text("diffusion.ui.drag.to.draw.or.move.shift.drag")
+                               : i18n::text("diffusion.ui.mouse.wheel.zooms.middle.mouse.pans"));
     hint->setWordWrap(true);
     if (!resultPreview) bottom->addWidget(hint, 1);
     if (resultPreview) {
@@ -1621,7 +1637,7 @@ struct DiffusionPanel::Impl {
       outputColumn->addWidget(fitOutput);
       bottom->addLayout(outputColumn);
       bottom->addStretch();
-      auto *compare = new QPushButton("Compare with layer");
+      auto *compare = i18n::make<QPushButton>(i18n::text("diffusion.ui.compare.with.layer"));
       compare->setObjectName("DiffusionCompareLayer");
       compare->setAutoDefault(false);
       apply->setAutoDefault(false);
@@ -1630,27 +1646,26 @@ struct DiffusionPanel::Impl {
       compareToggle = compare;
       bottom->addWidget(compare);
       auto *alignment =
-          combo({"Canvas Alignment", "Center Alignment", "Fit to Result"},
+          combo({i18n::text("diffusion.ui.canvas.alignment"), i18n::text("diffusion.ui.center.alignment"), i18n::text("diffusion.ui.fit.to.result")},
                 {"canvas", "center", "fit"}, dialog);
       alignment->setObjectName("DiffusionCompareAlignment");
       alignment->setMinimumWidth(180);
       alignment->setEnabled(false);
-      alignment->setToolTip(
-          "Canvas: document positions and scale. Center: native pixel sizes. "
-          "Fit: proportional reference scaling.");
+      i18n::setToolTip(alignment,
+          i18n::text("diffusion.ui.canvas.document.positions.and.scale.center.native"));
       compareAlignment = alignment;
       bottom->addWidget(alignment);
       auto *chooseLayout = new QVBoxLayout(chooser);
       chooseLayout->setContentsMargins(10, 10, 10, 10);
       auto *chooseHeader = new QHBoxLayout;
-      chooseHeader->addWidget(new QLabel("Compare with layer", chooser), 1);
-      auto *closeChooser = iconButton(ToolGlyph::Close, "Stop comparing", chooser);
+      chooseHeader->addWidget(i18n::make<QLabel>(i18n::text("diffusion.ui.compare.with.layer"), chooser), 1);
+      auto *closeChooser = iconButton(ToolGlyph::Close, i18n::text("diffusion.ui.stop.comparing"), chooser);
       chooseHeader->addWidget(closeChooser);
       chooseLayout->addLayout(chooseHeader);
       auto *search = new QLineEdit(chooser);
       comparisonSearch = search;
       search->setObjectName("DiffusionComparisonSearch");
-      search->setPlaceholderText("Search layers…");
+      i18n::setPlaceholderText(search, i18n::text("diffusion.ui.search.layers"));
       search->setClearButtonEnabled(true);
       chooseLayout->addWidget(search);
       auto *list = new QListWidget(chooser);
@@ -1663,7 +1678,7 @@ struct DiffusionPanel::Impl {
       list->setTextElideMode(Qt::ElideRight);
       list->setSpacing(2);
       chooseLayout->addWidget(list, 1);
-      comparisonEmpty = new QLabel("No matching layers", chooser);
+      comparisonEmpty = i18n::make<QLabel>(i18n::text("diffusion.ui.no.matching.layers"), chooser);
       comparisonEmpty->setAlignment(Qt::AlignCenter);
       chooseLayout->addWidget(comparisonEmpty);
       populateComparisonLayers();
@@ -1700,34 +1715,34 @@ struct DiffusionPanel::Impl {
     }
     if (editRegions) {
       if (inputId.isEmpty() && profile().value("family") == "flux3")
-        hint->setText(createTarget ? "Draw the destination box. Scene is fitted as a guide; coordinates belong to the output frame."
-                                  : "Scene is fitted as a guide · Boxes use output coordinates · Middle mouse pans");
+        i18n::setText(hint, createTarget ? i18n::text("diffusion.ui.draw.the.destination.box.scene.is.fitted")
+                                  : i18n::text("diffusion.ui.scene.is.fitted.as.a.guide.boxes"));
       auto *metadata = new QHBoxLayout;
       auto *regionName = new QLineEdit;
       regionName->setObjectName("DiffusionRegionLabel");
-      regionName->setPlaceholderText("Region label");
+      i18n::setPlaceholderText(regionName, i18n::text("diffusion.ui.region.label"));
       regionName->setMaxLength(200);
       regionName->setMaximumWidth(240);
       metadata->addWidget(regionName);
       auto *description = new QLineEdit;
       description->setObjectName("DiffusionRegionDescription");
-      description->setPlaceholderText("Description (optional)");
+      i18n::setPlaceholderText(description, i18n::text("diffusion.ui.description.optional"));
       description->setMaxLength(2000);
       description->setVisible(profile().value("family") == "flux3");
-      description->setToolTip("Optional semantic guidance sent as desc. The region name is only an alias.");
+      i18n::setToolTip(description, i18n::text("diffusion.ui.optional.semantic.guidance.sent.as.desc.the"));
       metadata->addWidget(description, 1);
       auto *remove =
-          iconButton(ToolGlyph::Trash, "Remove selected region", dialog);
+          iconButton(ToolGlyph::Trash, i18n::text("diffusion.ui.remove.selected.region"), dialog);
       metadata->addWidget(remove);
       root->addLayout(metadata);
       auto *destinationRow = new QWidget(dialog);
       auto *destLayout = new QHBoxLayout(destinationRow);
       destLayout->setContentsMargins(0, 0, 0, 0);
-      destLayout->addWidget(new QLabel("Destination"));
+      destLayout->addWidget(i18n::make<QLabel>(i18n::text("diffusion.ui.destination")));
       auto *destination = new ScrollSafe<QComboBox>;
       destination->setObjectName("DiffusionRegionDestination");
       destLayout->addWidget(destination, 1);
-      auto *editTarget = new QPushButton("Edit…");
+      auto *editTarget = i18n::make<QPushButton>(i18n::text("diffusion.ui.edit"));
       editTarget->setObjectName("DiffusionEditDestination");
       destLayout->addWidget(editTarget);
       destinationRow->setVisible(!inputId.isEmpty() && profile().value("family") == "flux3" && (inputs.size() > 1 || hasTransfers()));
@@ -1740,14 +1755,14 @@ struct DiffusionPanel::Impl {
         regionName->setEnabled(index >= 0);
         description->setText(region.description);
         description->setEnabled(index >= 0 && !region.targetOnly);
-        description->setPlaceholderText(region.targetOnly ? "Target location — no object description" : "Description (optional)");
-        destination->clear(); destination->addItem("None", QString{});
+        i18n::setPlaceholderText(description, region.targetOnly ? i18n::text("diffusion.ui.target.location.no.object.description") : i18n::text("diffusion.ui.description.optional"));
+        destination->clear(); i18n::addItem(destination, i18n::text("diffusion.ui.none"), QString{});
         const bool canLink = inputs.size() > 1 && inputIndex(outputSceneId) >= 0;
         for (const auto& r : regions) if (canLink || r.id == region.destinationId)
           destination->addItem("Output/" + r.label, r.id);
         if (!region.destinationId.isEmpty() && destination->findData(region.destinationId) < 0)
-          destination->addItem("Missing target — choose another", region.destinationId);
-        if (canLink) destination->addItem("New target…", "__new_target__");
+          i18n::addItem(destination, i18n::text("diffusion.ui.missing.target.choose.another"), region.destinationId);
+        if (canLink) i18n::addItem(destination, i18n::text("diffusion.ui.new.target"), "__new_target__");
         select(destination, region.destinationId);
         destination->setEnabled(index >= 0);
         editTarget->setEnabled(index >= 0 && std::any_of(regions.begin(), regions.end(), [&](const auto& r) {return r.id == region.destinationId;}));
@@ -1809,7 +1824,7 @@ struct DiffusionPanel::Impl {
     root->addLayout(bottom);
     if (resultPreview) {
       hint->setObjectName("DiffusionPreviewHint");
-      hint->setText("Mouse wheel zooms · Middle mouse pans · ← / → browse previews");
+      i18n::setText(hint, i18n::text("diffusion.ui.mouse.wheel.zooms.middle.mouse.pans.browse"));
       hint->setAlignment(Qt::AlignCenter);
       auto font = hint->font();
       font.setPointSizeF(std::max(7., font.pointSizeF() - 1));
@@ -1830,10 +1845,10 @@ struct DiffusionPanel::Impl {
   }
   void editDestination(const QString& inputId, const QString& regionId, bool create) {
     const int source = inputIndex(inputId);
-    if (busy || source < 0 || inputIndex(outputSceneId) < 0) { q.setStatus("Choose an output scene first.", true); return; }
+    if (busy || source < 0 || inputIndex(outputSceneId) < 0) { q.setStatus(i18n::text("diffusion.ui.choose.an.output.scene.first"), true); return; }
     const auto it = std::find_if(inputs[source].regions.begin(), inputs[source].regions.end(), [&](const auto& r) {return r.id == regionId;});
     if (it == inputs[source].regions.end()) return;
-    showPreview(outputLayoutImage(), {}, QString("Destination for Image%1/%2").arg(source + 1).arg(it->label), true, false, {}, inputId, regionId, create);
+    showPreview(outputLayoutImage(), {}, i18n::text("diffusion.ui.destination.for.image.1.2").arg(source + 1).arg(it->label), true, false, {}, inputId, regionId, create);
   }
 };
 
@@ -1845,9 +1860,9 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   outer->setContentsMargins(8, 8, 8, 8);
   outer->setSpacing(6);
   auto *titleRow = new QHBoxLayout;
-  auto *title = new QLabel("AI Image Editor");
+  auto *title = i18n::make<QLabel>(i18n::text("diffusion.ui.ai.image.editor"));
   titleRow->addWidget(title, 1);
-  auto *close = iconButton(ToolGlyph::Close, "Close AI Image Editor", this);
+  auto *close = iconButton(ToolGlyph::Close, i18n::text("diffusion.ui.close.ai.image.editor"), this);
   titleRow->addWidget(close);
   outer->addLayout(titleRow);
   connect(close, &QToolButton::clicked, this, [this] {
@@ -1857,7 +1872,7 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   d->tabs = new QTabWidget(this);
   d->tabs->setObjectName("DiffusionTabs");
   outer->addWidget(d->tabs, 1);
-  auto page = [&](const QString &title, const QString &name,
+  auto page = [&](const i18n::Message &title, const QString &name,
                   QVBoxLayout *&layout) {
     auto *scroll = new QScrollArea;
     scroll->setObjectName(name);
@@ -1869,21 +1884,21 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
     layout->setContentsMargins(4, 8, 4, 4);
     layout->setSpacing(7);
     scroll->setWidget(content);
-    d->tabs->addTab(scroll, title);
+    i18n::addTab(d->tabs, scroll, title);
     return content;
   };
   QVBoxLayout *layout{}, *configLayout{}, *outputLayout{};
   d->configurationPage =
-      page("Configuration", "DiffusionConfigurationPage", configLayout);
-  auto *content = page("Generate", "DiffusionGenerationPage", layout);
-  page("Preview", "DiffusionOutputPage", outputLayout);
+      page(i18n::text("diffusion.ui.configuration"), "DiffusionConfigurationPage", configLayout);
+  auto *content = page(i18n::text("diffusion.ui.generate"), "DiffusionGenerationPage", layout);
+  page(i18n::text("diffusion.ui.preview"), "DiffusionOutputPage", outputLayout);
   auto *footer = new QWidget(this);
   auto *footerLayout = new QVBoxLayout(footer);
   footerLayout->setContentsMargins(0, 0, 0, 0);
   footerLayout->setSpacing(6);
   outer->addWidget(footer);
   auto *top = new QHBoxLayout;
-  d->mode = combo({"Generate", "Edit layer", "Generative Fill"},
+  d->mode = combo({i18n::text("diffusion.ui.generate"), i18n::text("diffusion.ui.edit.layer"), i18n::text("diffusion.ui.generative.fill")},
                   {"generate", "edit", "fill"}, content);
   d->mode->setObjectName("DiffusionMode");
   top->addWidget(d->mode, 1);
@@ -1901,88 +1916,87 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   d->configModels->setMinimumContentsLength(6);
   auto *configurationRow = new QHBoxLayout;
   configurationRow->addWidget(d->configModels, 1);
-  d->addModel = iconButton(ToolGlyph::Plus, "Add configuration", this);
+  d->addModel = iconButton(ToolGlyph::Plus, i18n::text("diffusion.ui.add.configuration"), this);
   d->addModel->setObjectName("DiffusionAddConfiguration");
-  d->duplicateModel = iconButton(ToolGlyph::Copy, "Duplicate configuration", this);
+  d->duplicateModel = iconButton(ToolGlyph::Copy, i18n::text("diffusion.ui.duplicate.configuration"), this);
   d->duplicateModel->setObjectName("DiffusionDuplicateConfiguration");
-  d->deleteModel = iconButton(ToolGlyph::Trash, "Delete configuration", this);
+  d->deleteModel = iconButton(ToolGlyph::Trash, i18n::text("diffusion.ui.delete.configuration"), this);
   d->deleteModel->setObjectName("DiffusionDeleteConfiguration");
   configurationRow->addWidget(d->addModel);
   configurationRow->addWidget(d->duplicateModel);
   configurationRow->addWidget(d->deleteModel);
   configLayout->addLayout(configurationRow);
   configLayout->addWidget(
-      section("Model files", "DiffusionModel", modelLayout, true));
+      section(i18n::text("diffusion.ui.model.files"), "DiffusionModel", modelLayout, true));
   auto *modelForm = d->modelForm = form(modelLayout);
   d->families = new ScrollSafe<QComboBox>;
   d->families->setObjectName("DiffusionFamily");
-  modelForm->addRow("Family", d->families);
+  i18n::addRow(modelForm, i18n::text("diffusion.ui.family"), d->families);
   d->profiles = new ScrollSafe<QComboBox>;
   d->profiles->setObjectName("DiffusionProfile");
-  modelForm->addRow("Variant", d->profiles);
+  i18n::addRow(modelForm, i18n::text("diffusion.ui.variant"), d->profiles);
   auto fileRow = [this, content](const QString &key,
-                                 const QString &placeholder) {
+                                 const i18n::Message &placeholder) {
     auto *row = new QWidget(content);
     auto *h = new QHBoxLayout(row);
     h->setContentsMargins(0, 0, 0, 0);
     h->setSpacing(3);
     auto *edit = new QLineEdit;
-    edit->setPlaceholderText(placeholder);
+    i18n::setPlaceholderText(edit, placeholder);
     edit->setObjectName("DiffusionFile_" + key);
     h->addWidget(edit, 1);
-    auto *browse = iconButton(ToolGlyph::Folder, "Choose file", row);
+    auto *browse = iconButton(ToolGlyph::Folder, i18n::text("diffusion.ui.choose.file"), row);
     h->addWidget(browse);
     connect(browse, &QToolButton::clicked, this, [this, edit, key] {
       const bool checkpoint = d->profile().value("checkpoint").toBool() && key == "diffusion";
       const auto path =
-          chooseFile(this, checkpoint ? "Choose checkpoint" : "Choose model component", edit->text(),
-                     checkpoint ? "Checkpoints (*.safetensors);;All files (*)" :
-                                  "Models (*.gguf *.safetensors);;All files (*)");
+          chooseFile(this, checkpoint ? i18n::text("diffusion.ui.choose.checkpoint") : i18n::text("diffusion.ui.choose.model.component"), edit->text(),
+                     checkpoint ? i18n::text("diffusion.ui.checkpoints.safetensors.all.files") :
+                                  i18n::text("diffusion.ui.models.gguf.safetensors.all.files"));
       if (!path.isEmpty())
         edit->setText(path);
     });
     return std::pair{row, edit};
   };
   for (const auto &pair :
-       QVector<QPair<QString, QString>>{{"diffusion", "Diffusion weights"},
-                                        {"textEncoder", "Text encoder"},
+       QVector<QPair<QString, i18n::Message>>{{"diffusion", i18n::text("diffusion.ui.diffusion.weights")},
+                                        {"textEncoder", i18n::text("diffusion.ui.text.encoder")},
                                         {"vae", "VAE"},
-                                        {"vision", "Vision (optional)"}}) {
+                                        {"vision", i18n::text("diffusion.ui.vision.optional")}}) {
     auto [row, edit] = fileRow(pair.first, pair.second);
     d->files[pair.first] = edit;
-    modelForm->addRow(pair.second, row);
+    i18n::addRow(modelForm, pair.second, row);
   }
   d->loras = std::make_unique<DiffusionLoras>(this);
   modelForm->addRow(d->loras->configurationSection());
   d->backend =
-      combo({"Auto", "Vulkan", "CUDA"}, {"auto", "vulkan", "cuda"}, this);
+      combo({i18n::text("diffusion.ui.auto"), "Vulkan", "CUDA"}, {"auto", "vulkan", "cuda"}, this);
   d->backend->setObjectName("DiffusionBackend");
-  d->backend->setToolTip(
-      "Auto prefers an available CUDA worker, then Vulkan. Explicit backends "
-      "require the matching installed worker.");
-  modelForm->addRow("Backend", d->backend);
+  i18n::setToolTip(d->backend,
+      i18n::text("diffusion.ui.auto.prefers.an.available.cuda.worker.then"));
+  i18n::addRow(modelForm, i18n::text("diffusion.ui.backend"), d->backend);
   auto *presetRow = new QHBoxLayout;
   d->presets = new ScrollSafe<QComboBox>;
   d->presets->setObjectName("DiffusionPresets");
   presetRow->addWidget(d->presets, 1);
   auto *savePreset =
-      iconButton(ToolGlyph::Save, "Save custom prompt preset", content);
+      iconButton(ToolGlyph::Save, i18n::text("diffusion.ui.save.custom.prompt.preset"), content);
   auto *deletePreset =
-      iconButton(ToolGlyph::Trash, "Delete custom prompt preset", content);
+      iconButton(ToolGlyph::Trash, i18n::text("diffusion.ui.delete.custom.prompt.preset"), content);
   presetRow->addWidget(savePreset);
   presetRow->addWidget(deletePreset);
   layout->addLayout(presetRow);
   d->prompt = new QPlainTextEdit;
   d->prompt->setObjectName("DiffusionPrompt");
-  d->prompt->setPlaceholderText("Describe the image or the changes you want…");
+  i18n::setPlaceholderText(d->prompt, i18n::text("diffusion.ui.describe.the.image.or.the.changes.you"));
   d->prompt->setMinimumHeight(80);
   d->prompt->setMaximumHeight(100);
   layout->addWidget(d->prompt);
   QVBoxLayout *negativeLayout{};
-  layout->addWidget(section("Negative prompt", "DiffusionNegative", negativeLayout));
+  layout->addWidget(section(i18n::text("diffusion.ui.negative.prompt"), "DiffusionNegative", negativeLayout));
   d->negative = new QPlainTextEdit;
   d->negative->setObjectName("DiffusionNegativePrompt");
-  d->negative->setPlaceholderText("Describe what to avoid…");
+  i18n::setPlaceholderText(d->negative, i18n::text("diffusion.ui.describe.what.to.avoid"));
   d->negative->setMaximumHeight(70);
   negativeLayout->addWidget(d->negative);
   layout->addWidget(d->loras->generationSection());
@@ -1991,10 +2005,11 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   outputRow->setObjectName("DiffusionSizeRow");
   outputRow->setSpacing(4);
   outputRow->addStretch();
-  outputRow->addWidget(new QLabel("Size"));
+  outputRow->addWidget(i18n::make<QLabel>(i18n::text("diffusion.ui.size")));
   d->width = new ScrollSafe<QSpinBox>;
   d->height = new ScrollSafe<QSpinBox>;
   for (auto *s : {d->width, d->height}) {
+    s->setLocale(QLocale::c());
     s->setRange(32, 8192);
     s->setSingleStep(32);
     s->setValue(1024);
@@ -2003,18 +2018,18 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   }
   d->width->setObjectName("DiffusionWidth");
   d->height->setObjectName("DiffusionHeight");
-  d->width->setToolTip("Output width in pixels");
-  d->height->setToolTip("Output height in pixels");
+  i18n::setToolTip(d->width, i18n::text("diffusion.ui.output.width.in.pixels"));
+  i18n::setToolTip(d->height, i18n::text("diffusion.ui.output.height.in.pixels"));
   outputRow->addWidget(d->width);
   outputRow->addWidget(new QLabel("×"));
   outputRow->addWidget(d->height);
   auto *resetSize =
-      iconButton(ToolGlyph::FitCanvas, "Match layer / canvas size", content);
+      iconButton(ToolGlyph::FitCanvas, i18n::text("diffusion.ui.match.layer.canvas.size"), content);
   resetSize->setObjectName("DiffusionResetSize");
   outputRow->addWidget(resetSize);
-  auto *selectedSize = iconButton(ToolGlyph::LayerRaster, "Match selected input / layer size", content);
+  auto *selectedSize = iconButton(ToolGlyph::LayerRaster, i18n::text("diffusion.ui.match.selected.input.layer.size"), content);
   selectedSize->setObjectName("DiffusionMatchSelectedSize");
-  selectedSize->setToolTip("Match the selected input, including its canvas crop. With no input selected, use the active layer.");
+  i18n::setToolTip(selectedSize, i18n::text("diffusion.ui.match.the.selected.input.including.its.canvas"));
   outputRow->addWidget(selectedSize);
   connect(selectedSize, &QToolButton::clicked, this, [this] {
     if (onMatchSelectedSize) onMatchSelectedSize();
@@ -2026,37 +2041,37 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   });
   essentials->addLayout(outputRow);
   QVBoxLayout *resolutionLayout{};
-  essentials->addWidget(section("Resolution Selector", "DiffusionResolution", resolutionLayout));
+  essentials->addWidget(section(i18n::text("diffusion.ui.resolution.selector"), "DiffusionResolution", resolutionLayout));
   auto *resolutionForm = form(resolutionLayout);
   d->aspectRatio = new ScrollSafe<QComboBox>;
   d->aspectRatio->setObjectName("DiffusionAspectRatio");
   d->aspectRatio->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
   d->aspectRatio->setMinimumContentsLength(6);
-  const QVector<QPair<QString, QSize>> ratios{
-      {"1:1 (Square)", {1, 1}}, {"2:3 (Portrait Photo)", {2, 3}},
-      {"3:2 (Photo)", {3, 2}}, {"3:4 (Portrait Standard)", {3, 4}},
-      {"4:3 (Standard)", {4, 3}}, {"9:16 (Portrait Widescreen)", {9, 16}},
-      {"16:9 (Widescreen)", {16, 9}}, {"21:9 (Ultrawide)", {21, 9}}, {"Custom", {}}};
+  const QVector<QPair<i18n::Message, QSize>> ratios{
+      {i18n::text("diffusion.ui.1.1.square"), {1, 1}}, {i18n::text("diffusion.ui.2.3.portrait.photo"), {2, 3}},
+      {i18n::text("diffusion.ui.3.2.photo"), {3, 2}}, {i18n::text("diffusion.ui.3.4.portrait.standard"), {3, 4}},
+      {i18n::text("diffusion.ui.4.3.standard"), {4, 3}}, {i18n::text("diffusion.ui.9.16.portrait.widescreen"), {9, 16}},
+      {i18n::text("diffusion.ui.16.9.widescreen"), {16, 9}}, {i18n::text("diffusion.ui.21.9.ultrawide"), {21, 9}}, {i18n::text("diffusion.ui.custom"), {}}};
   for (const auto &[name, ratio] : ratios)
-    d->aspectRatio->addItem(name, ratio);
-  d->aspectRatio->setToolTip("Choose a ratio to calculate the output size. Custom keeps the current dimensions.");
-  resolutionForm->addRow("Aspect Ratio", d->aspectRatio);
+    i18n::addItem(d->aspectRatio, name, ratio);
+  i18n::setToolTip(d->aspectRatio, i18n::text("diffusion.ui.choose.a.ratio.to.calculate.the.output"));
+  i18n::addRow(resolutionForm, i18n::text("diffusion.ui.aspect.ratio"), d->aspectRatio);
   d->megapixels = new ScrollSafe<QComboBox>;
   d->megapixels->setObjectName("DiffusionMegapixels");
   for (int tenths = 1; tenths <= 160; ++tenths)
     d->megapixels->addItem(QString("%1 MP").arg(tenths / 10.0, 0, 'f', 1), tenths / 10.0);
   d->megapixels->setCurrentIndex(9);
   d->megapixels->setMaxVisibleItems(12);
-  d->megapixels->setToolTip("Approximate pixel count. 1.0 MP is 1024 × 1024 for Square. Rounding can change the total.");
-  resolutionForm->addRow("Megapixels", d->megapixels);
+  i18n::setToolTip(d->megapixels, i18n::text("diffusion.ui.approximate.pixel.count.1.0.mp.is"));
+  i18n::addRow(resolutionForm, i18n::text("diffusion.ui.megapixels"), d->megapixels);
   d->resolutionMultiple = new ScrollSafe<QComboBox>;
   d->resolutionMultiple->setObjectName("DiffusionResolutionMultiple");
-  d->resolutionMultiple->addItem("Auto", 0);
+  i18n::addItem(d->resolutionMultiple, i18n::text("diffusion.ui.auto"), 0);
   for (int multiple = 8; multiple <= 128; multiple += 4)
     d->resolutionMultiple->addItem(QString::number(multiple), multiple);
   d->resolutionMultiple->setMaxVisibleItems(12);
-  d->resolutionMultiple->setToolTip("Round each dimension to the nearest multiple.");
-  resolutionForm->addRow("Multiple", d->resolutionMultiple);
+  i18n::setToolTip(d->resolutionMultiple, i18n::text("diffusion.ui.round.each.dimension.to.the.nearest.multiple"));
+  i18n::addRow(resolutionForm, i18n::text("diffusion.ui.multiple"), d->resolutionMultiple);
   d->resolutionRequirement = new QLabel;
   d->resolutionRequirement->setObjectName("DiffusionResolutionRequirement");
   d->resolutionRequirement->setWordWrap(true);
@@ -2071,12 +2086,12 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
       d->aspectRatio->setCurrentIndex(d->aspectRatio->count() - 1);
     });
   QVBoxLayout *overridesLayout{};
-  d->overridesSection = section("Overrides", "DiffusionOverrides", overridesLayout);
+  d->overridesSection = section(i18n::text("diffusion.ui.overrides"), "DiffusionOverrides", overridesLayout);
   d->overridesForm = form(overridesLayout);
   d->overridesSection->hide();
   essentials->addWidget(d->overridesSection);
   auto *seedRow = new QHBoxLayout;
-  seedRow->addWidget(new QLabel("Seed"));
+  seedRow->addWidget(i18n::make<QLabel>(i18n::text("diffusion.ui.seed")));
   d->seed = new ScrollSafe<QDoubleSpinBox>;
   // JSON seeds are exact integers up to 2^53-1; QSpinBox would truncate them
   // to 32 bits. Zero decimals keep the familiar integer stepper presentation.
@@ -2087,12 +2102,12 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   d->seed->setGroupSeparatorShown(false);
   d->seed->setKeyboardTracking(false);
   d->seed->setObjectName("DiffusionSeed");
-  d->seed->setToolTip("Use the same seed to reproduce a result.");
+  i18n::setToolTip(d->seed, i18n::text("diffusion.ui.use.the.same.seed.to.reproduce.a"));
   seedRow->addWidget(d->seed, 1);
-  d->randomSeed = iconButton(ToolGlyph::Refresh, "Generate a random seed", content);
+  d->randomSeed = iconButton(ToolGlyph::Refresh, i18n::text("diffusion.ui.generate.a.random.seed"), content);
   d->randomSeed->setObjectName("DiffusionRandomSeed");
-  d->randomSeed->setToolTip(
-      "Generate a random seed. Random mode also chooses a new seed for each generation.");
+  i18n::setToolTip(d->randomSeed,
+      i18n::text("diffusion.ui.generate.a.random.seed.random.mode.also"));
   seedRow->addWidget(d->randomSeed);
   connect(d->randomSeed, &QToolButton::clicked, this, [this] {
     quint32 seed;
@@ -2102,12 +2117,11 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
     d->seed->setValue(seed);
     saveSettings();
   });
-  d->seedMode = combo({"Random", "Fixed", "Increment"},
+  d->seedMode = combo({i18n::text("diffusion.ui.random"), i18n::text("diffusion.ui.fixed"), i18n::text("diffusion.ui.increment")},
                       {"random", "fixed", "increment"}, content);
   d->seedMode->setObjectName("DiffusionSeedMode");
-  d->seedMode->setToolTip(
-      "Random: new seed per job. Fixed: reuse the seed. Increment: advance it "
-      "by the number of generated images.");
+  i18n::setToolTip(d->seedMode,
+      i18n::text("diffusion.ui.random.new.seed.per.job.fixed.reuse"));
   seedRow->addWidget(d->seedMode);
   connect(d->seedMode, &QComboBox::currentIndexChanged, this, [this] {
     d->seed->setEnabled(d->seedMode->currentData() != "random");
@@ -2123,7 +2137,7 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   layout->addWidget(d->modeSettings);
   QVBoxLayout *inputsLayout{};
   layout->addWidget(
-      section("Input images", "DiffusionInputs", inputsLayout, true));
+      section(i18n::text("diffusion.ui.input.images"), "DiffusionInputs", inputsLayout, true));
   d->inputList = new QListWidget;
   d->inputList->setObjectName("DiffusionInputsList");
   d->inputList->setIconSize({48, 40});
@@ -2138,11 +2152,12 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   d->maxInputSize = new ScrollSafe<QComboBox>;
   d->maxInputSize->setObjectName("DiffusionMaxInputSize");
   for (const int size : {256, 512, 768, 1024, 1280, 1440, 1536, 2048, 2560, 3072, 4096, 6144, 8192})
-    d->maxInputSize->addItem(QString("Max input: %1 px").arg(size), size);
-  d->maxInputSize->setMaximumWidth(220);
+    i18n::addItem(d->maxInputSize, i18n::text("diffusion.ui.max.input.1.px").arg(size), size);
+  d->maxInputSize->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+  d->maxInputSize->setMaximumWidth(300);
   d->maxInputSize->setMaxVisibleItems(12);
   setMaxInputSize(QSettings().value("diffusion/maxInputSize", 1024).toInt());
-  d->maxInputSize->setToolTip("Limit the longest side of input images after canvas cropping, keeping their proportions. Output size is separate.");
+  i18n::setToolTip(d->maxInputSize, i18n::text("diffusion.ui.limit.the.longest.side.of.input.images"));
   inputsLayout->addWidget(d->maxInputSize, 0, Qt::AlignHCenter);
   connect(d->maxInputSize, &QComboBox::currentIndexChanged, this, [this, previous = maxInputSize()]() mutable {
     if (d->lightbox && !d->regionEditorInput.isEmpty()) d->lightbox->close();
@@ -2169,14 +2184,14 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
       return;
     auto *menu = new QMenu(d->inputList);
     const QVector<QPair<QString, InputSource>> sources{
-        {"Current layer — appearance", InputSource::CurrentLayerAppearance},
-        {"Current layer — raw pixels", InputSource::CurrentLayerPixels},
-        {"Another document layer — appearance",
+        {i18n::text("diffusion.ui.current.layer.appearance"), InputSource::CurrentLayerAppearance},
+        {i18n::text("diffusion.ui.current.layer.raw.pixels"), InputSource::CurrentLayerPixels},
+        {i18n::text("diffusion.ui.another.document.layer.appearance"),
          InputSource::DocumentLayerAppearance},
-        {"Another document layer — raw pixels",
+        {i18n::text("diffusion.ui.another.document.layer.raw.pixels"),
          InputSource::DocumentLayerPixels},
-        {"Rendered visible canvas", InputSource::VisibleCanvas},
-        {"Image file…", InputSource::File}};
+        {i18n::text("diffusion.ui.rendered.visible.canvas"), InputSource::VisibleCanvas},
+        {i18n::text("diffusion.ui.image.file"), InputSource::File}};
     for (const auto &s : sources) {
       auto *a = menu->addAction(s.first);
       connect(a, &QAction::triggered, this, [this, source = s.second] {
@@ -2235,14 +2250,14 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
       onInputsChanged();
   });
   QVBoxLayout *regionsLayout{};
-  layout->addWidget(section("Regions", "DiffusionRegions", regionsLayout));
+  layout->addWidget(section(i18n::text("diffusion.ui.regions"), "DiffusionRegions", regionsLayout));
   d->outputSceneRow = new QWidget;
   auto *sceneLayout = new QHBoxLayout(d->outputSceneRow);
   sceneLayout->setContentsMargins(0, 0, 0, 0);
-  sceneLayout->addWidget(new QLabel("Output scene"));
+  sceneLayout->addWidget(i18n::make<QLabel>(i18n::text("diffusion.ui.output.scene")));
   d->outputScene = new ScrollSafe<QComboBox>;
   d->outputScene->setObjectName("DiffusionOutputScene");
-  d->outputScene->setToolTip("Use <Scene> in your prompt to reference this image. It is the backdrop for destination boxes; input order and your instructions are not changed.");
+  i18n::setToolTip(d->outputScene, referenceHelp(i18n::text("diffusion.ui.use.scene.in.your.prompt.to.reference")));
   sceneLayout->addWidget(d->outputScene, 1);
   regionsLayout->addWidget(d->outputSceneRow);
   connect(d->outputScene, &QComboBox::activated, this, [this] {
@@ -2252,7 +2267,7 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
     connect(size, &QSpinBox::valueChanged, this, [this] { d->rebuildScenes(); });
   d->regionSource = new ScrollSafe<QComboBox>;
   d->regionSource->setObjectName("DiffusionRegionSource");
-  d->regionSource->setToolTip("Choose an input image to identify objects, or Output layout to guide placement.");
+  i18n::setToolTip(d->regionSource, i18n::text("diffusion.ui.choose.an.input.image.to.identify.objects"));
   regionsLayout->addWidget(d->regionSource);
   d->rebuildRegionSources();
   connect(d->regionSource, &QComboBox::currentIndexChanged, this,
@@ -2261,18 +2276,18 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   d->regionHint->setTextFormat(Qt::PlainText);
   d->regionHint->setWordWrap(true);
   regionsLayout->addWidget(d->regionHint);
-  d->regionsButton = new QPushButton("Edit regions…");
+  d->regionsButton = i18n::make<QPushButton>(i18n::text("diffusion.ui.edit.regions"));
   d->regionsButton->setObjectName("DiffusionRegionsButton");
   auto *regionButtons = new QHBoxLayout;
   regionButtons->addWidget(d->regionsButton, 1);
-  d->clearRegions = iconButton(ToolGlyph::Trash, "Remove regions from this image or output layout", content);
+  d->clearRegions = iconButton(ToolGlyph::Trash, i18n::text("diffusion.ui.remove.regions.from.this.image.or.output"), content);
   d->clearRegions->setObjectName("DiffusionClearRegions");
   regionButtons->addWidget(d->clearRegions);
   regionsLayout->addLayout(regionButtons);
-  d->cropGuidance = new QCheckBox("Extra crop guidance (experimental)");
+  d->cropGuidance = i18n::make<QCheckBox>(i18n::text("diffusion.ui.extra.crop.guidance.experimental"));
   d->cropGuidance->setObjectName("DiffusionRegionCropGuidance");
   d->cropGuidance->setChecked(QSettings().value("diffusion/fluxCropGuidance", false).toBool());
-  d->cropGuidance->setToolTip("Optional Vulkana guidance: also send each input region as a cropped reference. Uses extra memory and reference slots. Leave off to use FLUX's native bounding-box format alone.");
+  i18n::setToolTip(d->cropGuidance, i18n::text("diffusion.ui.optional.vulkana.guidance.also.send.each.input"));
   regionsLayout->addWidget(d->cropGuidance);
   connect(d->cropGuidance, &QCheckBox::toggled, this, [this] {
     d->updateActions(); d->reportReferenceLimit(); saveSettings();
@@ -2296,12 +2311,13 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   });
   QVBoxLayout *advanced{};
   configLayout->addWidget(
-      section("Advanced generation", "DiffusionGeneration", advanced));
+      section(i18n::text("diffusion.ui.advanced.generation"), "DiffusionGeneration", advanced));
   auto *samplingForm = form(advanced);
   auto addSpin = [content](QFormLayout *f, QMap<QString, QWidget *> &map,
-                           const QString &key, const QString &label, double low,
+                           const QString &key, const i18n::Message &label, double low,
                            double high, double initial, int decimals = 0) {
     auto *s = new ScrollSafe<QDoubleSpinBox>(content);
+    s->setLocale(QLocale::c());
     s->setDecimals(decimals);
     s->setRange(low, high);
     s->setValue(initial);
@@ -2309,56 +2325,66 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
     s->setObjectName("Diffusion_" + key);
     if (decimals)
       s->setSingleStep(.1);
-    f->addRow(label, s);
+    i18n::addRow(f, label, s);
     map[key] = s;
     return s;
   };
   auto addChoice = [content](QFormLayout *f, QMap<QString, QWidget *> &map,
-                             const QString &key, const QString &label,
+                             const QString &key, const i18n::Message &label,
                              const QStringList &values,
                              const QString &initial) {
-    auto *c = combo(values, values, content);
+    QList<i18n::Message> labels;
+    for (const auto &value : values) {
+      labels.append(value == "auto" || value == "Auto" ? i18n::text("diffusion.ui.auto")
+          : value == "custom" ? i18n::text("diffusion.ui.custom")
+          : value == "disabled" ? i18n::text("diffusion.ui.disabled")
+          : value == "disk" ? i18n::text("diffusion.ui.disk")
+          : value == "manual" ? i18n::text("diffusion.ui.manual")
+          : value == "on" ? i18n::text("diffusion.ui.on")
+          : value == "off" ? i18n::text("diffusion.ui.off") : i18n::Message(value));
+    }
+    auto *c = combo(labels, values, content);
     select(c, initial);
     c->setObjectName("Diffusion_" + key);
-    f->addRow(label, c);
+    i18n::addRow(f, label, c);
     map[key] = c;
     return c;
   };
   auto addFlag = [content](QFormLayout *f, QMap<QString, QWidget *> &map,
-                           const QString &key, const QString &label,
+                           const QString &key, const i18n::Message &label,
                            bool initial) {
     auto *c = new QCheckBox(content);
     c->setChecked(initial);
     c->setObjectName("Diffusion_" + key);
-    f->addRow(label, c);
+    i18n::addRow(f, label, c);
     map[key] = c;
     return c;
   };
-  addSpin(samplingForm, d->sampling, "steps", "Steps", 1, 1000, 8);
+  addSpin(samplingForm, d->sampling, "steps", i18n::text("diffusion.ui.steps"), 1, 1000, 8);
   auto *guidance = addSpin(samplingForm, d->sampling, "guidance",
-                           "Guidance (CFG)", 0, 100, 1, 2);
+                           i18n::text("diffusion.ui.guidance.cfg"), 0, 100, 1, 2);
   addChoice(
-      samplingForm, d->sampling, "sampler", "Sampler",
+      samplingForm, d->sampling, "sampler", i18n::text("diffusion.ui.sampler"),
       {"euler", "euler_a", "heun", "dpm2", "dpm++2s_a", "dpm++2m", "dpm++2mv2",
        "ipndm", "ipndm_v", "lcm", "ddim_trailing", "tcd", "res_multistep", "res_2s",
        "er_sde", "euler_cfg_pp", "euler_a_cfg_pp", "euler_ge", "dpm++2m_sde", "dpm++2m_sde_bt", "lms"},
       "euler");
-  addChoice(samplingForm, d->sampling, "scheduler", "Scheduler",
+  addChoice(samplingForm, d->sampling, "scheduler", i18n::text("diffusion.ui.scheduler"),
             {"auto", "discrete", "karras", "exponential", "ays", "gits", "sgm_uniform", "simple",
              "smoothstep", "kl_optimal", "lcm", "bong_tangent", "ltx2", "logit_normal", "flux2", "flux", "beta", "llada_image"},
             "auto");
   auto *schedule =
-      addChoice(samplingForm, d->sampling, "schedule", "Sigma schedule",
+      addChoice(samplingForm, d->sampling, "schedule", i18n::text("diffusion.ui.sigma.schedule"),
                 {"auto", "turbo", "custom"}, "turbo");
   d->sigmas = new QPlainTextEdit;
   d->sigmas->setObjectName("DiffusionSigmas");
   d->sigmas->setPlaceholderText("1.0, 0.9, …, 0.0");
   d->sigmas->setMaximumHeight(65);
-  samplingForm->addRow("Custom sigmas", d->sigmas);
-  auto *shift = addSpin(samplingForm, d->sampling, "flowShift", "Flow shift", 0,
+  i18n::addRow(samplingForm, i18n::text("diffusion.ui.custom.sigmas"), d->sigmas);
+  auto *shift = addSpin(samplingForm, d->sampling, "flowShift", i18n::text("diffusion.ui.flow.shift"), 0,
                         100, 0, 3);
-  shift->setSpecialValueText("Auto");
-  d->imageToImage = new QCheckBox("Use image-to-image denoising");
+  i18n::property(shift, "specialValueText", i18n::text("diffusion.ui.auto"));
+  d->imageToImage = i18n::make<QCheckBox>(i18n::text("diffusion.ui.use.image.to.image.denoising"));
   d->imageToImage->setObjectName("DiffusionImageToImage");
   modeLayout->addWidget(d->imageToImage);
   connect(d->imageToImage, &QCheckBox::toggled, this,
@@ -2369,7 +2395,7 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
           });
   auto *strength = new CompactValueControl(d->modeSettings);
   strength->setObjectName("Diffusion_strength");
-  strength->setAccessibleName("Denoising strength");
+  i18n::setAccessibleName(strength, i18n::text("diffusion.ui.denoising.strength"));
   strength->setDecimals(2);
   strength->setRange(0, 1);
   strength->setSingleStep(.01);
@@ -2381,33 +2407,33 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   d->sampling["strength"] = strength;
   connect(strength, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
           [this] { d->hasExplicitStrength = true; });
-  addSpin(samplingForm, d->sampling, "batch", "Images per job", 1, 8, 1);
-  addFlag(samplingForm, d->sampling, "vaeTiling", "VAE tiling", false);
-  addSpin(samplingForm, d->sampling, "vaeTileSize", "VAE tile size", 64, 2048,
+  addSpin(samplingForm, d->sampling, "batch", i18n::text("diffusion.ui.images.per.job"), 1, 8, 1);
+  addFlag(samplingForm, d->sampling, "vaeTiling", i18n::text("diffusion.ui.vae.tiling"), false);
+  addSpin(samplingForm, d->sampling, "vaeTileSize", i18n::text("diffusion.ui.vae.tile.size"), 64, 2048,
           256);
-  addSpin(samplingForm, d->sampling, "vaeTileOverlap", "VAE tile overlap", 0,
+  addSpin(samplingForm, d->sampling, "vaeTileOverlap", i18n::text("diffusion.ui.vae.tile.overlap"), 0,
           .5, .25, 2);
-  addFlag(samplingForm, d->sampling, "preview", "Progress previews", true);
-  addSpin(samplingForm, d->sampling, "previewInterval", "Preview every N steps",
+  addFlag(samplingForm, d->sampling, "preview", i18n::text("diffusion.ui.progress.previews"), true);
+  addSpin(samplingForm, d->sampling, "previewInterval", i18n::text("diffusion.ui.preview.every.n.steps"),
           1, 1000, 1);
-  auto *eta = addSpin(samplingForm, d->sampling, "eta", "Sampler noise (eta)",
+  auto *eta = addSpin(samplingForm, d->sampling, "eta", i18n::text("diffusion.ui.sampler.noise.eta"),
                       -1, 10, -1, 2);
-  eta->setSpecialValueText("Auto");
+  i18n::property(eta, "specialValueText", i18n::text("diffusion.ui.auto"));
   auto *cacheMode = addChoice(samplingForm, d->sampling, "cacheMode",
-                              "Approximate cache (experimental)",
+                              i18n::text("diffusion.ui.approximate.cache.experimental"),
                               {"disabled", "easycache", "ucache"}, "disabled");
   addSpin(samplingForm, d->sampling, "cacheReuseThreshold",
-          "Cache reuse threshold", 0, 1, .2, 3);
-  addSpin(samplingForm, d->sampling, "cacheStart", "Cache start fraction", 0, 1,
+          i18n::text("diffusion.ui.cache.reuse.threshold"), 0, 1, .2, 3);
+  addSpin(samplingForm, d->sampling, "cacheStart", i18n::text("diffusion.ui.cache.start.fraction"), 0, 1,
           .15, 3);
-  addSpin(samplingForm, d->sampling, "cacheEnd", "Cache end fraction", 0, 1,
+  addSpin(samplingForm, d->sampling, "cacheEnd", i18n::text("diffusion.ui.cache.end.fraction"), 0, 1,
           .95, 3);
   connect(cacheMode, &QComboBox::currentIndexChanged, this,
           [this] { d->updateCapabilities(false); });
   connect(qobject_cast<QComboBox *>(d->sampling["sampler"]),
           &QComboBox::currentIndexChanged, this,
           [this] { d->updateCapabilities(false); });
-  auto *defaults = new QPushButton("Restore recommended generation settings");
+  auto *defaults = i18n::make<QPushButton>(i18n::text("diffusion.ui.restore.recommended.generation.settings"));
   advanced->addWidget(defaults);
   connect(defaults, &QPushButton::clicked, this,
           [this] {
@@ -2421,55 +2447,53 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   d->createOverrideControls(samplingForm);
   QVBoxLayout *resources{};
   configLayout->addWidget(
-      section("Memory and performance", "DiffusionResources", resources));
+      section(i18n::text("diffusion.ui.memory.and.performance"), "DiffusionResources", resources));
   auto *resourceForm = form(resources);
   auto *device = addChoice(resourceForm, d->resource, "device",
-                           "Inference device", {"Auto"}, "Auto");
+                           i18n::text("diffusion.ui.inference.device"), {"Auto"}, "Auto");
   device->setItemData(0, QString{});
   auto *budget = addSpin(resourceForm, d->resource, "maxVramGiB",
-                         "VRAM budget (GiB)", 0, 1024, 10, 2);
-  budget->setSpecialValueText("Auto");
-  budget->setToolTip("Budget for managed weights/workspaces, not a physical "
-                     "VRAM cap. Leave room for "
-                     "Vulkana and the desktop.");
+                         i18n::text("diffusion.ui.vram.budget.gib"), 0, 1024, 10, 2);
+  i18n::property(budget, "specialValueText", i18n::text("diffusion.ui.auto"));
+  i18n::setToolTip(budget, i18n::text("diffusion.ui.budget.for.managed.weights.workspaces.not.a"));
   auto *threads =
-      addSpin(resourceForm, d->resource, "threads", "CPU threads", 0, 1024, 0);
-  threads->setSpecialValueText("Auto");
+      addSpin(resourceForm, d->resource, "threads", i18n::text("diffusion.ui.cpu.threads"), 0, 1024, 0);
+  i18n::property(threads, "specialValueText", i18n::text("diffusion.ui.auto"));
   auto *weights =
-      addChoice(resourceForm, d->resource, "weights", "Keep weights in",
+      addChoice(resourceForm, d->resource, "weights", i18n::text("diffusion.ui.keep.weights.in"),
                 {"auto", "gpu", "ram", "disk", "manual"}, "auto");
   for (const auto &name :
        {QString("diffusion"), QString("textEncoder"), QString("vae")})
     addChoice(resourceForm, d->resource, "placement_" + name,
-              (name == "diffusion"     ? "Diffusion weights"
-               : name == "textEncoder" ? "Text encoder weights"
-                                       : "VAE weights"),
+              (name == "diffusion"     ? i18n::text("diffusion.ui.diffusion.weights")
+               : name == "textEncoder" ? i18n::text("diffusion.ui.text.encoder.weights")
+                                       : i18n::text("diffusion.ui.vae.weights")),
               {"gpu", "ram", "disk"}, name == "diffusion" ? "gpu" : "ram");
   for (const auto &name :
        {QString("textEncoderCompute"), QString("vaeCompute")})
     addChoice(resourceForm, d->resource, name,
-              name == "textEncoderCompute" ? "Text encoder compute"
-                                           : "VAE compute",
+              name == "textEncoderCompute" ? i18n::text("diffusion.ui.text.encoder.compute")
+                                           : i18n::text("diffusion.ui.vae.compute"),
               {"gpu", "cpu"}, "gpu");
   for (const auto &name :
        {QString("flashAttention"), QString("directConvolution")})
     addChoice(resourceForm, d->resource, name,
-              name == "flashAttention" ? "Flash attention"
-                                       : "Direct convolution",
+              name == "flashAttention" ? i18n::text("diffusion.ui.flash.attention")
+                                       : i18n::text("diffusion.ui.direct.convolution"),
               {"auto", "on", "off"}, "auto");
-  for (const auto &pair : QVector<QPair<QString, QString>>{
-           {"sageAttention", "Sage attention (experimental)"},
-           {"mmap", "Memory mapped loading"},
-           {"prefetch", "Prefetch weights"},
-           {"segmentedCompute", "Segmented computation"},
-           {"eagerLoad", "Prepare weights at load"}})
+  for (const auto &pair : QVector<QPair<QString, i18n::Message>>{
+           {"sageAttention", i18n::text("diffusion.ui.sage.attention.experimental")},
+           {"mmap", i18n::text("diffusion.ui.memory.mapped.loading")},
+           {"prefetch", i18n::text("diffusion.ui.prefetch.weights")},
+           {"segmentedCompute", i18n::text("diffusion.ui.segmented.computation")},
+           {"eagerLoad", i18n::text("diffusion.ui.prepare.weights.at.load")}})
     addFlag(resourceForm, d->resource, pair.first, pair.second,
             pair.first == "mmap" || pair.first == "prefetch" ||
                 pair.first == "segmentedCompute");
-  addSpin(resourceForm, d->resource, "conditioningCacheSize", "Cached prompts",
+  addSpin(resourceForm, d->resource, "conditioningCacheSize", i18n::text("diffusion.ui.cached.prompts"),
           0, 64, 1);
-  addFlag(resourceForm, d->resource, "prefixCache", "Qwen prefix cache", true);
-  addChoice(resourceForm, d->resource, "prefixCacheType", "Prefix cache format",
+  addFlag(resourceForm, d->resource, "prefixCache", i18n::text("diffusion.ui.qwen.prefix.cache"), true);
+  addChoice(resourceForm, d->resource, "prefixCacheType", i18n::text("diffusion.ui.prefix.cache.format"),
             {"auto", "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "q5_0",
              "q5_1", "q4_K", "q6_K"},
             "auto");
@@ -2487,7 +2511,7 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   auto *sessionHeader = new QHBoxLayout;
   sessionHeader->setContentsMargins(4, 2, 4, 2);
   sessionHeader->setSpacing(10);
-  auto *sessionHeading = new QLabel("Session");
+  auto *sessionHeading = i18n::make<QLabel>(i18n::text("diffusion.ui.session"));
   sessionHeading->setStyleSheet("color: " + themeColor(ThemeColor::SecondaryText).name());
   auto sessionFont = sessionHeading->font();
   sessionFont.setPointSizeF(std::max(7., sessionFont.pointSizeF() - 1));
@@ -2502,15 +2526,15 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
       .arg(border.red()).arg(border.green()).arg(border.blue()));
   sessionHeader->addWidget(sessionDivider, 1);
   configLayout->addLayout(sessionHeader);
-  configLayout->addWidget(section("Loaded models", "DiffusionLoadedModels",
+  configLayout->addWidget(section(i18n::text("diffusion.ui.loaded.models"), "DiffusionLoadedModels",
                                  d->loadedModelsLayout, true));
-  auto *empty = new QLabel("No models loaded");
+  auto *empty = i18n::make<QLabel>(i18n::text("diffusion.ui.no.models.loaded"));
   empty->setObjectName("DiffusionLoadedModelsEmpty");
   d->loadedModelsLayout->addWidget(empty);
-  d->generate = new GenerateButton(toolGlyph(ToolGlyph::Effects), "Generate");
+  d->generate = i18n::make<GenerateButton>(toolGlyph(ToolGlyph::Effects), i18n::text("diffusion.ui.generate"));
   d->generate->setObjectName("DiffusionGenerate");
   layout->addWidget(d->generate);
-  auto *generationThumbnail = new ClickableImage("Generating…");
+  auto *generationThumbnail = i18n::make<ClickableImage>(i18n::text("diffusion.ui.generating"));
   generationThumbnail->setObjectName("DiffusionGenerationThumbnail");
   generationThumbnail->setAlignment(Qt::AlignCenter);
   generationThumbnail->setMinimumHeight(96);
@@ -2527,11 +2551,11 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   d->progress->setRange(0, 0);
   d->progress->setVisible(false);
   footerLayout->addWidget(d->progress);
-  d->status = new QLabel("Choose model files and enter a prompt to begin.");
+  d->status = i18n::make<QLabel>(i18n::text("diffusion.ui.choose.model.files.and.enter.a.prompt"));
   d->status->setWordWrap(true);
   d->status->setTextInteractionFlags(Qt::TextSelectableByMouse);
   footerLayout->addWidget(d->status);
-  auto *resultThumbnail = new ClickableImage("Generated previews appear here");
+  auto *resultThumbnail = i18n::make<ClickableImage>(i18n::text("diffusion.ui.generated.previews.appear.here"));
   resultThumbnail->clicked = [this] { showResultPreview(); };
   resultThumbnail->setCursor(Qt::PointingHandCursor);
   d->resultImage = resultThumbnail;
@@ -2554,11 +2578,11 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   d->resultList->setMaximumHeight(95);
   outputLayout->addWidget(d->resultList);
   d->outputDestination =
-      combo({"Add new layer", "Replace selected layer", "Open new document"},
+      combo({i18n::text("diffusion.ui.add.new.layer"), i18n::text("diffusion.ui.replace.selected.layer"), i18n::text("diffusion.ui.open.new.document")},
             {"newLayer", "replaceSelected", "newDocument"}, this);
   d->outputDestination->setObjectName("DiffusionOutputDestination");
   d->outputDestination->setMinimumWidth(200);
-  d->fitOutput = new QCheckBox("Fit to original bounds", this);
+  d->fitOutput = i18n::make<QCheckBox>(i18n::text("diffusion.ui.fit.to.original.bounds"), this);
   d->fitOutput->setObjectName("DiffusionFitOutput");
   d->fitOutput->hide();
   connect(d->fitOutput, &QCheckBox::toggled, this, [this](bool checked) {
@@ -2572,13 +2596,13 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
     if (onDestinationChanged)
       onDestinationChanged();
   });
-  d->apply = new QPushButton("Apply", this);
+  d->apply = i18n::make<QPushButton>(i18n::text("diffusion.ui.apply"), this);
   d->apply->setObjectName("DiffusionApply");
   d->outputDestination->hide();
   d->apply->hide();
-  d->regenerate = new QPushButton(toolGlyph(ToolGlyph::Refresh), "Generate again");
+  d->regenerate = new QPushButton(toolGlyph(ToolGlyph::Refresh), i18n::text("diffusion.ui.generate.again"));
   d->regenerate->setObjectName("DiffusionRegenerate");
-  d->discard = new QPushButton("Discard");
+  d->discard = i18n::make<QPushButton>(i18n::text("diffusion.ui.discard"));
   d->discard->setObjectName("DiffusionDiscard");
   auto *resultsActions = new QHBoxLayout;
   resultsActions->addStretch();
@@ -2587,32 +2611,34 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   resultsActions->addStretch();
   outputLayout->addLayout(resultsActions);
   QVBoxLayout *detailsLayout;
-  d->resultDetails = section("Image details", "DiffusionResultDetails", detailsLayout, true);
+  d->resultDetails = section(i18n::text("diffusion.ui.image.details"), "DiffusionResultDetails", detailsLayout, true);
   outputLayout->addWidget(d->resultDetails);
   auto *detailsForm = form(detailsLayout);
-  const auto detail = [&](const QString &title, const QString &name) {
+  const auto detail = [&](const i18n::Message &title, const QString &name) {
     auto *label = new QLabel;
     label->setObjectName(name);
     label->setWordWrap(true);
     label->setTextFormat(Qt::PlainText);
     label->setTextInteractionFlags(Qt::TextSelectableByMouse);
     label->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-    detailsForm->addRow(title, label);
+    i18n::addRow(detailsForm, title, label);
     return label;
   };
-  d->resultConfig = detail("Configuration", "DiffusionResultConfig");
-  d->resultModel = detail("Model", "DiffusionResultModel");
-  d->resultSize = detail("Resolution", "DiffusionResultSize");
+  d->resultConfig = detail(i18n::text("diffusion.ui.configuration"), "DiffusionResultConfig");
+  d->resultModel = detail(i18n::text("diffusion.ui.model"), "DiffusionResultModel");
+  d->resultSize = detail(i18n::text("diffusion.ui.resolution"), "DiffusionResultSize");
+  d->resultSize->setLayoutDirection(Qt::LeftToRight);
   auto *resultSeedRow = new QHBoxLayout;
   d->resultSeed = new QLineEdit;
   d->resultSeed->setObjectName("DiffusionResultSeed");
   d->resultSeed->setReadOnly(true);
-  d->copyResultSeed = iconButton(ToolGlyph::Copy, "Copy seed", this);
+  d->resultSeed->setLayoutDirection(Qt::LeftToRight);
+  d->copyResultSeed = iconButton(ToolGlyph::Copy, i18n::text("diffusion.ui.copy.seed"), this);
   d->copyResultSeed->setObjectName("DiffusionCopyResultSeed");
   resultSeedRow->addWidget(d->resultSeed);
   resultSeedRow->addWidget(d->copyResultSeed);
-  detailsForm->addRow("Seed", resultSeedRow);
-  d->resultCreated = detail("Generated", "DiffusionResultCreated");
+  detailsForm->addRow(i18n::make<QLabel>(i18n::text("diffusion.ui.seed")), resultSeedRow);
+  d->resultCreated = detail(i18n::text("diffusion.ui.generated"), "DiffusionResultCreated");
   d->resultDetails->hide();
   connect(d->copyResultSeed, &QToolButton::clicked, this, [this] {
     QApplication::clipboard()->setText(d->resultSeed->text());
@@ -2721,7 +2747,7 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   connect(savePreset, &QToolButton::clicked, this, [this] {
     bool ok = false;
     const auto name =
-        promptText(this, "Save prompt preset", "Name", {}, &ok).trimmed();
+        promptText(this, i18n::text("diffusion.ui.save.prompt.preset"), i18n::text("diffusion.ui.name"), {}, &ok).trimmed();
     if (!ok || name.isEmpty())
       return;
     diffusion::PromptPreset preset{
@@ -2739,12 +2765,12 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
       return;
     }
     d->rebuildPresets();
-    setStatus("Prompt preset saved.");
+    setStatus(i18n::text("diffusion.ui.prompt.preset.saved"));
   });
   connect(deletePreset, &QToolButton::clicked, this, [this] {
     const auto id = d->presets->currentData().toString();
     if (id.isEmpty() || id.startsWith("builtin.")) {
-      setStatus("Choose a custom preset to remove.");
+      setStatus(i18n::text("diffusion.ui.choose.a.custom.preset.to.remove"));
       return;
     }
     QString error;
@@ -2833,6 +2859,17 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
     else if (auto *value = qobject_cast<QPlainTextEdit *>(widget)) connect(value, &QPlainTextEdit::textChanged, this, changed);
   }
   d->loras->onDefaultsChanged = [this] { d->queueSave(); };
+  connect(&i18n::Localization::instance(), &i18n::Localization::languageChanged, this, [this] {
+    const QScopedValueRollback guard(d->updating, true);
+    d->refreshInputRegionLabels();
+    {
+      const QSignalBlocker block(d->maxInputSize);
+      for (int i = 0; i < d->maxInputSize->count(); ++i)
+        d->maxInputSize->setItemText(i, i18n::text("diffusion.ui.max.input.1.px").arg(d->maxInputSize->itemData(i).toInt()));
+    }
+    d->updateCapabilities(false);
+    if (d->pendingItem) d->pendingItem->setText(i18n::text("diffusion.ui.generating"));
+  });
   d->initializing = false;
   if (d->files["diffusion"]->text().isEmpty())
     if (auto *header = findChild<QToolButton *>("DiffusionModelSectionHeader"))
@@ -2873,7 +2910,7 @@ DiffusionPanel::Destination DiffusionPanel::destination() const {
 }
 QString DiffusionPanel::configurationName() const {
   return d->models->currentIndex() > 0 ? d->models->currentText()
-                                      : QString("Current configuration");
+                                      : i18n::text("diffusion.ui.current.configuration");
 }
 void DiffusionPanel::setDestination(Destination value) {
   d->outputDestination->setCurrentIndex(int(value));
@@ -2980,9 +3017,9 @@ QJsonObject DiffusionPanel::prepareGeneration() {
   if (const auto error = d->transferError(); !error.isEmpty())
     throw std::invalid_argument(error.toStdString());
   if (supportsImageInputs() && std::any_of(d->inputs.begin(), d->inputs.end(), [](const auto &in) { return in.image.isNull(); }))
-    throw std::invalid_argument("A cropped layer is outside its canvas. Restore or remove that input.");
+    throw std::invalid_argument(i18n::text("diffusion.ui.a.cropped.layer.is.outside.its.canvas").toStdString());
   if (!d->referencesFit())
-    throw std::invalid_argument("Images and region guides exceed the model's reference limit. Remove an image or region.");
+    throw std::invalid_argument(i18n::text("diffusion.ui.images.and.region.guides.exceed.the.model").toStdString());
   if (d->seedMode->currentData() == "random")
     d->seed->setValue(QRandomGenerator::global()->generate());
   else
@@ -3023,7 +3060,7 @@ void DiffusionPanel::setLoadedModels(const QJsonArray &models, bool canUnload) {
       delete item;
     }
     if (models.isEmpty()) {
-      auto *empty = new QLabel("No models loaded");
+      auto *empty = i18n::make<QLabel>(i18n::text("diffusion.ui.no.models.loaded"));
       empty->setObjectName("DiffusionLoadedModelsEmpty");
       d->loadedModelsLayout->addWidget(empty);
     }
@@ -3042,12 +3079,11 @@ void DiffusionPanel::setLoadedModels(const QJsonArray &models, bool canUnload) {
       title->setTextFormat(Qt::PlainText);
       title->setWordWrap(true);
       header->addWidget(title, 1);
-      auto *unload = new QPushButton("Unload");
+      auto *unload = i18n::make<QPushButton>(i18n::text("diffusion.ui.unload"));
       unload->setObjectName("DiffusionUnloadModel");
       const auto id = model.value("id").toString();
       unload->setProperty("modelId", id);
-      unload->setToolTip("Unload this configuration and its components to "
-                         "release memory. Generated images are kept.");
+      i18n::setToolTip(unload, i18n::text("diffusion.ui.unload.this.configuration.and.its.components.to"));
       connect(unload, &QPushButton::clicked, this, [this, id] {
         if (!d->busy && d->canUnloadModels && onUnloadModel)
           onUnloadModel(id);
@@ -3056,13 +3092,13 @@ void DiffusionPanel::setLoadedModels(const QJsonArray &models, bool canUnload) {
       header->addWidget(unload);
       layout->addLayout(header);
       const auto files = model.value("files").toObject();
-      for (const auto &[key, label] : QVector<QPair<QString, QString>>{
-               {"diffusion", "Diffusion"}, {"textEncoder", "Text encoder"},
+      for (const auto &[key, label] : QVector<QPair<QString, i18n::Message>>{
+               {"diffusion", "Diffusion"}, {"textEncoder", i18n::text("diffusion.ui.text.encoder")},
                {"vae", "VAE"}, {"vision", "Vision"}}) {
         const auto path = files.value(key).toString();
         if (path.isEmpty())
           continue;
-        auto *file = new QLabel(label + " · " + QFileInfo(path).fileName());
+        auto *file = i18n::make<QLabel>(label + " · " + QFileInfo(path).fileName());
         file->setObjectName("DiffusionLoadedFile_" + key);
         file->setTextFormat(Qt::PlainText);
         file->setWordWrap(true);
@@ -3081,13 +3117,13 @@ void DiffusionPanel::setDevices(const QJsonArray &devices) {
   const auto current = c->currentData().toString();
   const QSignalBlocker b(c);
   c->clear();
-  c->addItem("Auto", QString{});
+  i18n::addItem(c, i18n::text("diffusion.ui.auto"), QString{});
   for (const auto &value : devices) {
     const auto v = value.toObject();
     c->addItem(v["name"].toString(), v["id"].toString());
   }
   if (!current.isEmpty() && c->findData(current) < 0)
-    c->addItem(current + " (unavailable)", current);
+    i18n::addItem(c, i18n::text("diffusion.ui.1.unavailable").arg(i18n::ltrToken(current)), current);
   select(c, current);
 }
 void DiffusionPanel::setSamplers(const QJsonArray &samplers,
@@ -3099,11 +3135,11 @@ void DiffusionPanel::setSamplers(const QJsonArray &samplers,
     const QSignalBlocker b(c);
     c->clear();
     if (pair.first == "scheduler")
-      c->addItem("Auto", "auto");
+      i18n::addItem(c, i18n::text("diffusion.ui.auto"), "auto");
     for (const auto &value : pair.second)
       c->addItem(value.toString(), value.toString());
     if (!current.isEmpty() && c->findData(current) < 0)
-      c->addItem(current + " (unavailable)", current);
+      i18n::addItem(c, i18n::text("diffusion.ui.1.unavailable").arg(i18n::ltrToken(current)), current);
     select(c, current);
   }
   d->updateCapabilities(false);
@@ -3147,13 +3183,13 @@ const QVector<DiffusionPanel::Input> &DiffusionPanel::inputs() const {
 }
 bool DiffusionPanel::addInput(Input input) {
   if (!supportsImageInputs()) {
-    setStatus("This model generates from text only. Choose a compatible model to add input images.");
+    setStatus(i18n::text("diffusion.ui.this.model.generates.from.text.only.choose"));
     return false;
   }
   if (input.image.isNull())
     return false;
   if (d->inputs.size() >= d->maxInputs()) {
-    setStatus(QString("This model accepts %1 references in total, including input images and region guides.")
+    setStatus(i18n::text("diffusion.ui.this.model.accepts.1.references.in.total")
                   .arg(d->profile().value("maxReferenceImages").toInt(8)),
               true);
     return false;
@@ -3196,7 +3232,7 @@ void DiffusionPanel::setMaxInputSize(int size) {
     // Preserve a previously saved/custom limit without rounding it to a preset.
     index = 0;
     while (index < d->maxInputSize->count() && d->maxInputSize->itemData(index).toInt() < size) ++index;
-    d->maxInputSize->insertItem(index, QString("Max input: %1 px").arg(size), size);
+    d->maxInputSize->insertItem(index, i18n::text("diffusion.ui.max.input.1.px").arg(size), size);
   }
   d->maxInputSize->setCurrentIndex(index);
 }
@@ -3212,9 +3248,9 @@ bool DiffusionPanel::setInputCropToCanvas(const QString &id, bool cropped) {
     d->inputs[index] = std::move(input);
     d->rebuildInputs();
     if (d->inputs[index].image.isNull())
-      setStatus("This layer is outside its source canvas. Restore or remove the input.", true);
+      setStatus(i18n::text("diffusion.ui.this.layer.is.outside.its.source.canvas"), true);
     else if (d->inputs[index].regions.size() < d->inputs[index].fullRegions.size())
-      setStatus("Regions outside the canvas are hidden until the full input is restored.");
+      setStatus(i18n::text("diffusion.ui.regions.outside.the.canvas.are.hidden.until"));
     if (onInputsChanged) onInputsChanged();
     return true;
   } catch (const std::exception &error) {
@@ -3300,7 +3336,7 @@ bool DiffusionPanel::setRegionDestination(const QString &inputId, const QString 
 void DiffusionPanel::showOutputRegions() {
   if (d->busy || !supportsRegions()) return;
   if (d->profile().value("family") == "flux3")
-    d->showPreview(d->outputLayoutImage(), {}, "Output layout", true);
+    d->showPreview(d->outputLayoutImage(), {}, i18n::text("diffusion.ui.output.layout"), true);
   else {
     QImage image;
     if (!d->inputs.isEmpty()) image = d->inputs.front().image;
@@ -3308,7 +3344,7 @@ void DiffusionPanel::showOutputRegions() {
       image = QImage(d->width->value(), d->height->value(), QImage::Format_RGBA8888);
       image.fill(Qt::white);
     }
-    d->showPreview(image, {}, "Output layout regions", true);
+    d->showPreview(image, {}, i18n::text("diffusion.ui.output.layout.regions"), true);
   }
 }
 bool DiffusionPanel::setInputRegions(const QString &id, QVector<DiffusionRegion> regions) {
@@ -3328,7 +3364,7 @@ void DiffusionPanel::showInputRegions(const QString &id) {
     return;
   select(d->regionSource, id);
   d->showPreview(d->inputs[index].image, {},
-                 QString("Regions — Image%1 · %2").arg(index + 1).arg(d->inputs[index].label),
+                 i18n::text("diffusion.ui.regions.image.1.2").arg(index + 1).arg(d->inputs[index].label),
                  true, false, id);
 }
 void DiffusionPanel::setRegions(QVector<DiffusionRegion> regions) {
@@ -3354,10 +3390,10 @@ void DiffusionPanel::appendResult(Result result) {
   const auto request = r.metadata["request"].toObject();
   if (request.contains("seed"))
     details +=
-        QString(" · Seed %1").arg(request["seed"].toVariant().toString());
+        i18n::text("diffusion.ui.seed.1").arg(request["seed"].toVariant().toString());
   const QSize requested(request["width"].toInt(), request["height"].toInt());
   if (requested.isValid() && requested != r.image.size())
-    details += QString("\nRequested: %1 × %2 px")
+    details += i18n::text("diffusion.ui.requested.1.2.px")
                    .arg(requested.width())
                    .arg(requested.height());
   item->setToolTip(details);
@@ -3393,7 +3429,7 @@ void DiffusionPanel::clearResults() {
   d->resultList->clear();
   d->syncPending();
   d->resultImage->clear();
-  d->resultImage->setText("Generated previews appear here");
+  i18n::setText(d->resultImage, i18n::text("diffusion.ui.generated.previews.appear.here"));
   if (d->lightbox)
     d->lightbox->close();
   d->refreshDisplayedPreview();
@@ -3425,9 +3461,9 @@ void DiffusionPanel::showLatestPreview() {
 void DiffusionPanel::showResultPreview() {
   if (const auto *result = selectedResult())
     d->showPreview(result->image, result->before,
-                   "AI image preview — " + result->label, false, true);
+                   i18n::text("diffusion.ui.ai.image.preview.1").arg(result->label), false, true);
   else if (d->pendingSelected())
-    d->showPreview(d->draftPreview, {}, "Pending preview — approximate", false,
+    d->showPreview(d->draftPreview, {}, i18n::text("diffusion.ui.pending.preview.approximate"), false,
                    true);
 }
 void DiffusionPanel::setBusy(bool busy) {
@@ -3443,8 +3479,8 @@ void DiffusionPanel::setBusy(bool busy) {
     onResultSelected(selectedResultIndex());
 }
 bool DiffusionPanel::isBusy() const { return d->busy; }
-void DiffusionPanel::setStatus(const QString &text, bool error) {
-  d->status->setText(text);
+void DiffusionPanel::setStatus(const i18n::Message &text, bool error) {
+  i18n::setText(d->status, text);
   d->status->setStyleSheet(error ? "color: #e88a79;" : QString{});
 }
 void DiffusionPanel::setProgress(int step, int steps, double elapsed) {
@@ -3462,11 +3498,10 @@ void DiffusionPanel::setProgressPreview(QImage image) {
     return;
   d->draftPreview = std::move(image);
   d->syncPending();
-  d->pendingItem->setText("Pending");
+  d->pendingItem->setText(i18n::text("diffusion.ui.pending"));
   d->pendingItem->setIcon(
       QIcon(QPixmap::fromImage(thumbnail(d->draftPreview, {64, 48}))));
-  d->pendingItem->setToolTip("Live draft — approximate. Final detail appears "
-                             "after generation finishes.");
+  d->pendingItem->setToolTip(i18n::text("diffusion.ui.live.draft.approximate.final.detail.appears.after"));
   d->refreshGenerationPreview();
   if (d->pendingSelected())
     d->refreshDisplayedPreview();
@@ -3501,8 +3536,8 @@ void DiffusionPanel::setComparisonReference(QImage image, QTransform toDocument,
   if (d->previewShowsResult && d->lightboxPreview) {
     d->lightboxPreview->setComparison(d->comparisonReference, toDocument, resultPlacement());
     if (d->compareToggle)
-      d->compareToggle->setToolTip(d->comparisonReference.isNull() ? QString{} :
-          "Left: " + label + " · Right: Result. Drag the divider to compare.");
+      i18n::setToolTip(d->compareToggle, d->comparisonReference.isNull() ? i18n::Message{} :
+          i18n::text("diffusion.ui.left.1.right.result.drag.the.divider").arg(label));
   }
   d->updateActions();
 }

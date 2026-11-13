@@ -15,6 +15,10 @@ avec un espace de travail Qt et un canevas accéléré par Vulkan.
 - **Édition par calques :** calques matriciels, textes et formes modifiables ;
   masques bitmap, dossiers, groupes de masques d’écrêtage, sélection multiple,
   modes de fusion, duplication, fusion et pixellisation explicite.
+- **Groupes de canaux :** modifiez chaque canal comme un calque en niveaux de gris
+  pour les textures regroupant plusieurs données, avec conversion sans perte,
+  peinture numérique, retouches et réglages. Consultez le
+  [guide des groupes de canaux](../CHANNEL_GROUPS.md).
 - **Peinture et retouche :** pinceaux sensibles à la pression, préréglages
   procéduraux et texturés, gomme, remplissage, flou local, tampon de duplication,
   correcteur et correcteur localisé automatique.
@@ -26,6 +30,10 @@ avec un espace de travail Qt et un canevas accéléré par Vulkan.
   et les masques bitmap avec l’outil d’amélioration de la sélection, ses aperçus en
   direct et les corrections manuelles. Aucun téléchargement de modèle ni aucune
   installation de Python n’est nécessaire pour utiliser la sélection d’objet.
+- **Édition locale par IA :** générez des images, modifiez des calques et remplissez
+  des sélections avec vos propres modèles et le moteur CUDA facultatif. Prévisualisez
+  les résultats avant de les appliquer comme modifications annulables. Nécessite un
+  GPU NVIDIA compatible ; consultez [Vulkana Diffusion](../../DIFFUSION.md).
 - **Transformations :** déplacement, mise à l’échelle, rotation, retournement et
   déformation par les coins ; transformez les limites d’une sélection ou les pixels
   sélectionnés, avec magnétisme et repères d’alignement.

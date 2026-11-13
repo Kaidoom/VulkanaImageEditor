@@ -565,18 +565,25 @@ def merge_notices(base, prefix, output):
     data['components'] = [c for c in data['components'] if not c.get('vulkana_diffusion_component')] + worker['components']
     data['texts'] = {k: v for k, v in data['texts'].items() if not k.startswith('diffusion-cuda-')}
     data['texts'].update(worker['texts'])
-    data['notice_text_keys'] = sorted(data['texts'])
+    # Downstream inventories may also contain build/audit records. Preserve
+    # their existing reader projection rather than publishing every raw text.
+    data['notice_text_keys'] = sorted({k for k in data.get('notice_text_keys', data['texts'])
+                                      if not k.startswith('diffusion-cuda-')} | set(worker['notice_text_keys']))
     data['acknowledgements'] = [a for a in data['acknowledgements'] if not a.startswith('Vulkana Diffusion:')] + worker['acknowledgements']
     encoded = json.dumps(data, indent=2, ensure_ascii=False) + '\n'
     if len(encoded.encode('utf-8')) > 16 * 1024 * 1024: fail('Merged notices exceed the application reader limit')
     output.mkdir(parents=True, exist_ok=True)
     lines = ['Vulkana ' + data['version'] + ' — third-party notices', *data['acknowledgements']]
     for c in data['components']:
-        n = c['notice']
+        n = c.get('notice')
+        if not n:
+            continue
         lines += ['', n['name'] + ' ' + n['version'], n['scope'], n['license'], n['copyright']]
         for key in c['texts']:
             if key not in data['texts']: fail('Missing notice text: ' + key)
-    for key, value in sorted(data['texts'].items()): lines += ['', '--- ' + key + ' ---', value]
+    for key in data['notice_text_keys']:
+        if key not in data['texts']: fail('Missing notice text: ' + key)
+        lines += ['', '--- ' + key + ' ---', data['texts'][key]]
     (output / 'notices.json').write_text(encoded, encoding='utf-8')
     (output / 'THIRD-PARTY-NOTICES.txt').write_text('\n'.join(lines) + '\n', encoding='utf-8')
     # Preserve the enclosing package's source-access and library replacement records.

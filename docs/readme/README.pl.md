@@ -15,6 +15,9 @@ obszarem roboczym Qt i płótnem przyspieszanym przez Vulkan.
 - **Edycja warstwowa:** warstwy rastrowe, edytowalny tekst i kształty; maski bitmapowe,
   foldery, grupy masek przycinających, zaznaczanie wielu warstw, tryby mieszania,
   powielanie, scalanie i rasteryzacja na żądanie.
+- **Grupy kanałów:** edytuj poszczególne kanały jako warstwy w skali szarości
+  dla tekstur z pakowanymi danymi, z bezstratną konwersją, malowaniem wartości,
+  retuszem i korektami. Zobacz [przewodnik po grupach kanałów](../CHANNEL_GROUPS.md).
 - **Malowanie i retusz:** pędzle reagujące na nacisk, ustawienia proceduralne i teksturowane,
   gumka, wypełnienie, miejscowe rozmycie, stempel klonujący, pędzel korygujący
   i automatyczny punktowy pędzel korygujący.
@@ -25,6 +28,10 @@ obszarem roboczym Qt i płótnem przyspieszanym przez Vulkan.
   prostokąta i dołączonego modelu działającego offline; dopracowywanie zaznaczeń i masek
   bitmapowych z podglądem na żywo i ręcznymi poprawkami. Zaznaczanie obiektów nie wymaga
   pobierania modelu ani instalacji Pythona.
+- **Lokalna edycja z AI:** generuj obrazy, edytuj warstwy i wypełniaj zaznaczenia
+  za pomocą własnych modeli i opcjonalnego silnika CUDA. Przeglądaj wyniki przed
+  zastosowaniem odwracalnych zmian. Wymaga obsługiwanej karty NVIDIA;
+  zobacz [Vulkana Diffusion](../../DIFFUSION.md).
 - **Przekształcenia:** przesuwanie, skalowanie, obracanie, odbijanie i zniekształcanie
   narożników; przekształcanie granic zaznaczenia lub zaznaczonych pikseli,
   z przyciąganiem i prowadnicami wyrównania.

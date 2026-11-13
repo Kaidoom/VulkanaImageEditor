@@ -140,6 +140,24 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual((base / 'notices.json').read_text(), source)
         self.assertEqual((base / 'SOURCES.json').read_bytes(), (second / 'SOURCES.json').read_bytes())
 
+    def test_merge_preserves_downstream_reader_projection(self):
+        base, output = self.prefix / 'base', self.prefix / 'merged'
+        base.mkdir()
+        original = {'format': 1, 'version': bundle.app_version(), 'profile': 'custom',
+                    'acknowledgements': [], 'components': [{'name': 'Audit-only record'}],
+                    'texts': {'public.txt': 'Required attribution', 'audit.txt': 'Internal audit record'},
+                    'notice_text_keys': ['public.txt']}
+        (base / 'notices.json').write_text(json.dumps(original))
+        bundle.merge_notices(base, self.prefix, output)
+        merged = json.loads((output / 'notices.json').read_text())
+        self.assertEqual(merged['components'][0], original['components'][0])
+        self.assertEqual(merged['notice_text_keys'], ['diffusion-cuda-fixture.txt', 'public.txt'])
+        self.assertEqual(merged['texts']['audit.txt'], 'Internal audit record')
+        plain = (output / 'THIRD-PARTY-NOTICES.txt').read_text()
+        self.assertIn('Required attribution', plain)
+        self.assertIn('fixture legal text', plain)
+        self.assertNotIn('Internal audit record', plain)
+
     @staticmethod
     def pe_fixture(imports=(), delayed=()):
         data = bytearray(2048)

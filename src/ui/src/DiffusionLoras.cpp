@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/DiffusionLoras.hpp"
 #include "imageeditor/ui/CollapsibleSection.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
@@ -21,14 +22,14 @@
 
 namespace imageeditor::ui {
 namespace {
-QToolButton *button(ToolGlyph glyph, const QString &tip, QWidget *parent) {
+QToolButton *button(ToolGlyph glyph, const i18n::Message &tip, QWidget *parent) {
   auto *result = new QToolButton(parent);
   result->setIcon(toolGlyph(glyph));
   result->setIconSize({16, 16});
   result->setFixedSize(28, 28);
   result->setAutoRaise(true);
-  result->setToolTip(tip);
-  result->setAccessibleName(tip);
+  i18n::setToolTip(result, tip);
+  i18n::setAccessibleName(result, tip);
   return result;
 }
 CompactValueControl *strengthControl(double strength, QWidget *parent) {
@@ -39,8 +40,8 @@ CompactValueControl *strengthControl(double strength, QWidget *parent) {
   value->setSuffix("×");
   value->setValue(strength);
   value->setFixedWidth(120);
-  value->setToolTip("LoRA strength. 1.00 uses its full effect; 0.00 has no effect.");
-  value->setAccessibleName("LoRA strength");
+  i18n::setToolTip(value, i18n::text("diffusion.ui.lora.strength.1.00.uses.its.full"));
+  i18n::setAccessibleName(value, i18n::text("diffusion.ui.lora.strength"));
   return value;
 }
 void clearLayout(QVBoxLayout *layout) {
@@ -56,10 +57,10 @@ struct DiffusionLoras::Impl {
     QString id, path, name;
     double strength{1};
     bool enabled{true};
-    QString displayName() const {
+    i18n::Message displayName() const {
       const auto friendly = name.trimmed();
       const auto label = friendly.isEmpty() ? QFileInfo(path).completeBaseName() : friendly;
-      return label.isEmpty() ? QString("Unnamed LoRA") : label;
+      return label.isEmpty() ? i18n::text("diffusion.ui.unnamed.lora") : i18n::Message(label);
     }
   };
   DiffusionLoras &owner;
@@ -83,8 +84,7 @@ struct DiffusionLoras::Impl {
   void updateHeader() {
     int enabled = 0;
     for (const auto &value : entries) enabled += effective(value)["enabled"].toBool();
-    generation->findChild<QToolButton *>("DiffusionLorasSectionHeader")
-        ->setText(QString("LoRAs (%1/%2 enabled)").arg(enabled).arg(entries.size()));
+    i18n::setText(generation->findChild<QToolButton *>("DiffusionLorasSectionHeader"), i18n::text("diffusion.ui.loras.1.2.enabled").arg(enabled).arg(entries.size()));
     generation->setVisible(!entries.isEmpty());
     generation->setEnabled(!busy);
   }
@@ -107,9 +107,9 @@ struct DiffusionLoras::Impl {
       auto *enabled = new QCheckBox(row);
       enabled->setObjectName("DiffusionLoraEnabled");
       enabled->setProperty("loraId", item.id);
-      enabled->setToolTip("Enable this LoRA for generation");
+      i18n::setToolTip(enabled, i18n::text("diffusion.ui.enable.this.lora.for.generation"));
       enabled->setChecked(state["enabled"].toBool());
-      auto *name = new QLabel(item.displayName(), row);
+      auto *name = i18n::make<QLabel>(item.displayName(), row);
       name->setObjectName("DiffusionLoraName");
       name->setTextFormat(Qt::PlainText);
       name->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
@@ -135,7 +135,7 @@ struct DiffusionLoras::Impl {
     auto *resetLayout = new QHBoxLayout(resetRow);
     resetLayout->setContentsMargins(0, 0, 0, 0);
     resetLayout->addStretch();
-    auto *reset = button(ToolGlyph::Refresh, "Reset LoRAs to configuration defaults", resetRow);
+    auto *reset = button(ToolGlyph::Refresh, i18n::text("diffusion.ui.reset.loras.to.configuration.defaults"), resetRow);
     reset->setObjectName("DiffusionLorasReset");
     resetLayout->addWidget(reset);
     generationRows->addWidget(resetRow);
@@ -146,7 +146,7 @@ struct DiffusionLoras::Impl {
     updateHeader();
   }
   void choosePath(QLineEdit *field) {
-    QFileDialog chooser(parent, "Choose LoRA", field->text(), "LoRA models (*.safetensors *.gguf);;All files (*)");
+    QFileDialog chooser(parent, i18n::text("diffusion.ui.choose.lora"), field->text(), i18n::text("diffusion.ui.lora.models.safetensors.gguf.all.files"));
     chooser.setFileMode(QFileDialog::ExistingFile);
     preparePopupOwnership(&chooser, parent);
     if (chooser.exec() == QDialog::Accepted && !chooser.selectedFiles().isEmpty())
@@ -163,11 +163,11 @@ struct DiffusionLoras::Impl {
       auto *path = new QLineEdit(item.path, row);
       path->setObjectName("DiffusionLoraPath");
       path->setProperty("loraId", item.id);
-      path->setPlaceholderText("LoRA file…");
+      i18n::setPlaceholderText(path, i18n::text("diffusion.ui.lora.file"));
       path->setMinimumWidth(0);
       fileRow->addWidget(path, 1);
-      auto *browse = button(ToolGlyph::Folder, "Choose LoRA file", row);
-      auto *remove = button(ToolGlyph::Trash, "Remove LoRA", row);
+      auto *browse = button(ToolGlyph::Folder, i18n::text("diffusion.ui.choose.lora.file"), row);
+      auto *remove = button(ToolGlyph::Trash, i18n::text("diffusion.ui.remove.lora"), row);
       remove->setObjectName("DiffusionLoraRemove");
       fileRow->addWidget(browse);
       fileRow->addWidget(remove);
@@ -175,13 +175,13 @@ struct DiffusionLoras::Impl {
       auto *details = new QHBoxLayout;
       auto *enabled = new QCheckBox(row);
       enabled->setObjectName("DiffusionLoraDefaultEnabled");
-      enabled->setToolTip("Enabled by default");
-      enabled->setAccessibleName("LoRA enabled by default");
+      i18n::setToolTip(enabled, i18n::text("diffusion.ui.enabled.by.default"));
+      i18n::setAccessibleName(enabled, i18n::text("diffusion.ui.lora.enabled.by.default"));
       enabled->setChecked(item.enabled);
       auto *name = new QLineEdit(item.name, row);
       name->setObjectName("DiffusionLoraFriendlyName");
       name->setProperty("loraId", item.id);
-      name->setPlaceholderText("Friendly name");
+      i18n::setPlaceholderText(name, i18n::text("diffusion.ui.friendly.name"));
       name->setMaxLength(200);
       name->setMinimumWidth(0);
       auto *strength = strengthControl(item.strength, row);
@@ -227,7 +227,7 @@ struct DiffusionLoras::Impl {
         if (owner.onDefaultsChanged) owner.onDefaultsChanged();
       });
     }
-    auto *add = button(ToolGlyph::Plus, "Add LoRA", config);
+    auto *add = button(ToolGlyph::Plus, i18n::text("diffusion.ui.add.lora"), config);
     add->setObjectName("DiffusionLoraAdd");
     configRows->addWidget(add, 0, Qt::AlignHCenter);
     QObject::connect(add, &QToolButton::clicked, &owner, [this] {
@@ -239,8 +239,8 @@ struct DiffusionLoras::Impl {
 };
 
 DiffusionLoras::DiffusionLoras(QWidget *parent) : QObject(parent), d(std::make_unique<Impl>(*this, parent)) {
-  d->config = collapsibleSection(i18n::Message("LoRAs (optional)"), "DiffusionLoraDefaults", d->configRows);
-  d->generation = collapsibleSection(i18n::Message("LoRAs"), "DiffusionLoras", d->generationRows);
+  d->config = collapsibleSection(i18n::Message(i18n::text("diffusion.ui.loras.optional")), "DiffusionLoraDefaults", d->configRows);
+  d->generation = collapsibleSection(i18n::Message(i18n::text("diffusion.ui.loras")), "DiffusionLoras", d->generationRows);
   for (auto *section : {d->config, d->generation}) {
     section->setParent(parent);
     section->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);

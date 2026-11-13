@@ -15,6 +15,9 @@ sunan bir görüntü düzenleyici.
 - **Katmanlı düzenleme:** raster katmanlar, düzenlenebilir metin ve şekiller; bitmap
   maskeleri, klasörler, kırpma maskesi grupları, çoklu seçim, karıştırma modları,
   çoğaltma, birleştirme ve isteğe bağlı rasterleştirme.
+- **Kanal grupları:** paketlenmiş dokular için kanalları ayrı gri tonlamalı
+  katmanlar olarak düzenleyin; kayıpsız dönüşüm, sayısal boyama, rötuş ve ayarları
+  kullanın. [Kanal grupları kılavuzuna](../CHANNEL_GROUPS.md) bakın.
 - **Boyama ve rötuş:** basınca duyarlı fırçalar, işlemsel ve dokulu hazır ayarlar,
   silgi, dolgu, yerel bulanıklaştırma, Klonlama Damgası, İyileştirme ve otomatik Nokta İyileştirme.
 - **Seçimler:** dikdörtgen, elips, serbest/poligonal/manyetik kement, renge göre seçim
@@ -23,6 +26,10 @@ sunan bir görüntü düzenleyici.
   nesneyi kabaca çizilmiş bir dikdörtgenle seçme; Seçimi İyileştir, canlı önizlemeler
   ve elle düzeltmelerle seçimleri ve bitmap maskelerini iyileştirme. Nesne Seçimi
   için model indirmeniz veya Python yüklemeniz gerekmez.
+- **Yerel yapay zekâ düzenleme:** kendi modelleriniz ve isteğe bağlı CUDA motoruyla
+  görüntü üretin, katmanları düzenleyin ve seçimleri doldurun. Sonuçları geri alınabilir
+  değişiklikler olarak uygulamadan önce önizleyin. Desteklenen bir NVIDIA GPU gerekir;
+  [Vulkana Diffusion](../../DIFFUSION.md) kılavuzuna bakın.
 - **Dönüşümler:** taşıma, ölçekleme, döndürme, çevirme ve köşeleri çarpıtma;
   yakalama ve hizalama kılavuzlarıyla seçim sınırlarını veya seçili pikselleri dönüştürme.
 - **Tahribatsız ayarlamalar:** katman başına düzeltmeler ve Aşağıdakilerin Tümü / Bu Grup

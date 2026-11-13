@@ -10376,6 +10376,11 @@ Escape で切り抜きを中止
       <translation>マスクを調整</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
+    <message id="history.layer.pixel.opacity">
+      <source>Layer pixel opacity</source>
+      <extracomment>Core history label: Layer pixel opacity</extracomment>
+      <translation>レイヤーのピクセル不透明度</translation>
+    </message>
   </context>
   <context>
     <name>Theme</name>
@@ -10622,72 +10627,259 @@ Escape で切り抜きを中止
   </context>
   <context>
     <name>Canvas clipboard</name>
-    <message id="clipboard.copy.canvas"><source>Copy canvas to clipboard</source><translation>キャンバスをクリップボードにコピー</translation></message>
-    <message id="clipboard.copy.canvas.hint"><source>Copy the full canvas at its original size, including visible layers and transparency.</source><translation>表示中のレイヤーと透明度を含め、キャンバス全体を元のサイズでコピーします。</translation></message>
-    <message id="clipboard.copy.canvas.preparing"><source>Preparing canvas for clipboard…</source><translation>キャンバスのコピーを準備中…</translation></message>
-    <message id="clipboard.copy.canvas.finish.edit"><source>Finish or cancel the current selection or shape edit before copying the canvas.</source><translation>選択範囲または図形の編集を完了するかキャンセルしてから、キャンバスをコピーしてください。</translation></message>
-    <message id="clipboard.copy.canvas.failed"><source>Could not copy the canvas: %1</source><translation>キャンバスをコピーできませんでした: %1</translation></message>
-    <message id="clipboard.copy.canvas.done"><source>Canvas copied to clipboard · %1 × %2 px</source><translation>キャンバスをクリップボードにコピーしました · %1 × %2 px</translation></message>
+    <message id="clipboard.copy.canvas">
+      <source>Copy canvas to clipboard</source>
+      <translation>キャンバスをクリップボードにコピー</translation>
+    </message>
+    <message id="clipboard.copy.canvas.hint">
+      <source>Copy the full canvas at its original size, including visible layers and transparency.</source>
+      <translation>表示中のレイヤーと透明度を含め、キャンバス全体を元のサイズでコピーします。</translation>
+    </message>
+    <message id="clipboard.copy.canvas.preparing">
+      <source>Preparing canvas for clipboard…</source>
+      <translation>キャンバスのコピーを準備中…</translation>
+    </message>
+    <message id="clipboard.copy.canvas.finish.edit">
+      <source>Finish or cancel the current selection or shape edit before copying the canvas.</source>
+      <translation>選択範囲または図形の編集を完了するかキャンセルしてから、キャンバスをコピーしてください。</translation>
+    </message>
+    <message id="clipboard.copy.canvas.failed">
+      <source>Could not copy the canvas: %1</source>
+      <translation>キャンバスをコピーできませんでした: %1</translation>
+    </message>
+    <message id="clipboard.copy.canvas.done">
+      <source>Canvas copied to clipboard · %1 × %2 px</source>
+      <translation>キャンバスをクリップボードにコピーしました · %1 × %2 px</translation>
+    </message>
   </context>
   <context>
     <name>Screenshot capture</name>
-    <message id="screenshot.action"><source>Take Screenshot…</source><translation>スクリーンショットを撮影…</translation></message>
-    <message id="screenshot.title"><source>Screenshot</source><translation>スクリーンショット</translation></message>
-    <message id="screenshot.document"><source>Screenshot</source><translation>スクリーンショット</translation></message>
-    <message id="screenshot.preview"><source>Screenshot crop preview</source><translation>スクリーンショットの切り抜きプレビュー</translation></message>
-    <message id="screenshot.close"><source>Close screenshot</source><translation>スクリーンショットを閉じる</translation></message>
-    <message id="screenshot.desktop.chooser"><source>Desktop chooser</source><translation>デスクトップの撮影選択画面</translation></message>
-    <message id="screenshot.entire.desktop"><source>Entire desktop</source><translation>デスクトップ全体</translation></message>
-    <message id="screenshot.active.window"><source>Active window</source><translation>アクティブウィンドウ</translation></message>
-    <message id="screenshot.target"><source>Capture source</source><translation>撮影対象</translation></message>
-    <message id="screenshot.delay"><source>Delay: </source><translation>遅延: </translation></message>
-    <message id="screenshot.capture"><source>Capture</source><translation>撮影</translation></message>
-    <message id="screenshot.retake"><source>Retake</source><translation>撮り直す</translation></message>
-    <message id="screenshot.reset.crop"><source>Reset Crop</source><translation>切り抜きをリセット</translation></message>
-    <message id="screenshot.reset.zoom"><source>Reset Zoom</source><translation>ズームをリセット</translation></message>
-    <message id="screenshot.add.layer"><source>Add as Layer</source><translation>レイヤーとして追加</translation></message>
-    <message id="screenshot.add.layer.hint"><source>Add the crop to the current document as an undoable raster layer.</source><translation>切り抜いた画像を現在のドキュメントにラスターレイヤーとして追加します。元に戻せます。</translation></message>
-    <message id="screenshot.stop"><source>Cancel Capture</source><translation>撮影をキャンセル</translation></message>
-    <message id="screenshot.cancel"><source>Cancel</source><translation>キャンセル</translation></message>
-    <message id="screenshot.open"><source>Open as New Document</source><translation>新規ドキュメントとして開く</translation></message>
-    <message id="screenshot.chooser.hint"><source>Vulkana minimizes while you choose what to capture using your desktop's screenshot chooser.</source><translation>デスクトップのスクリーンショット選択画面で撮影対象を選ぶ間、Vulkana は最小化されます。</translation></message>
-    <message id="screenshot.native.hint"><source>Vulkana minimizes during capture. For Active Window, switch to your target during the delay. Restore Vulkana to cancel.</source><translation>撮影中は Vulkana が最小化されます。アクティブウィンドウを撮る場合は、待ち時間中に対象へ切り替えてください。Vulkana を再表示すると撮影をキャンセルします。</translation></message>
-    <message id="screenshot.crop.hint"><source>Scroll to zoom; middle mouse to pan. Drag to crop or adjust its corners. Arrow keys move the crop; Shift moves 10 pixels.</source><oldsource>Drag to crop. Move the crop or drag its corners to adjust it. Arrow keys move it; Shift moves 10 pixels.</oldsource><translation>スクロールでズーム、中ボタンドラッグで移動。ドラッグで切り抜き範囲や四隅を調整します。矢印キーで範囲を移動し、Shift を押すと 10 ピクセルずつ移動します。</translation></message>
-    <message id="screenshot.empty"><source>Capture a screenshot to preview and crop it here.</source><translation>スクリーンショットを撮影すると、ここで確認して切り抜けます。</translation></message>
-    <message id="screenshot.countdown"><source>Capturing in %1 s…</source><translation>%1 秒後に撮影…</translation></message>
-    <message id="screenshot.waiting"><source>Waiting for capture…</source><translation>撮影待ち…</translation></message>
-    <message id="screenshot.cancelled"><source>Capture cancelled.</source><translation>撮影をキャンセルしました。</translation></message>
-    <message id="screenshot.dimensions"><source>%1 × %2 px</source><translation>%1 × %2 px</translation></message>
-    <message id="screenshot.failed"><source>Could not capture or open the screenshot: %1</source><translation>スクリーンショットを撮影または開くことができませんでした: %1</translation></message>
+    <message id="screenshot.action">
+      <source>Take Screenshot…</source>
+      <translation>スクリーンショットを撮影…</translation>
+    </message>
+    <message id="screenshot.title">
+      <source>Screenshot</source>
+      <translation>スクリーンショット</translation>
+    </message>
+    <message id="screenshot.document">
+      <source>Screenshot</source>
+      <translation>スクリーンショット</translation>
+    </message>
+    <message id="screenshot.preview">
+      <source>Screenshot crop preview</source>
+      <translation>スクリーンショットの切り抜きプレビュー</translation>
+    </message>
+    <message id="screenshot.close">
+      <source>Close screenshot</source>
+      <translation>スクリーンショットを閉じる</translation>
+    </message>
+    <message id="screenshot.desktop.chooser">
+      <source>Desktop chooser</source>
+      <translation>デスクトップの撮影選択画面</translation>
+    </message>
+    <message id="screenshot.entire.desktop">
+      <source>Entire desktop</source>
+      <translation>デスクトップ全体</translation>
+    </message>
+    <message id="screenshot.active.window">
+      <source>Active window</source>
+      <translation>アクティブウィンドウ</translation>
+    </message>
+    <message id="screenshot.target">
+      <source>Capture source</source>
+      <translation>撮影対象</translation>
+    </message>
+    <message id="screenshot.delay">
+      <source>Delay: </source>
+      <translation>遅延: </translation>
+    </message>
+    <message id="screenshot.capture">
+      <source>Capture</source>
+      <translation>撮影</translation>
+    </message>
+    <message id="screenshot.retake">
+      <source>Retake</source>
+      <translation>撮り直す</translation>
+    </message>
+    <message id="screenshot.reset.crop">
+      <source>Reset Crop</source>
+      <translation>切り抜きをリセット</translation>
+    </message>
+    <message id="screenshot.reset.zoom">
+      <source>Reset Zoom</source>
+      <translation>ズームをリセット</translation>
+    </message>
+    <message id="screenshot.add.layer">
+      <source>Add as Layer</source>
+      <translation>レイヤーとして追加</translation>
+    </message>
+    <message id="screenshot.add.layer.hint">
+      <source>Add the crop to the current document as an undoable raster layer.</source>
+      <translation>切り抜いた画像を現在のドキュメントにラスターレイヤーとして追加します。元に戻せます。</translation>
+    </message>
+    <message id="screenshot.stop">
+      <source>Cancel Capture</source>
+      <translation>撮影をキャンセル</translation>
+    </message>
+    <message id="screenshot.cancel">
+      <source>Cancel</source>
+      <translation>キャンセル</translation>
+    </message>
+    <message id="screenshot.open">
+      <source>Open as New Document</source>
+      <translation>新規ドキュメントとして開く</translation>
+    </message>
+    <message id="screenshot.chooser.hint">
+      <source>Vulkana minimizes while you choose what to capture using your desktop's screenshot chooser.</source>
+      <translation>デスクトップのスクリーンショット選択画面で撮影対象を選ぶ間、Vulkana は最小化されます。</translation>
+    </message>
+    <message id="screenshot.native.hint">
+      <source>Vulkana minimizes during capture. For Active Window, switch to your target during the delay. Restore Vulkana to cancel.</source>
+      <translation>撮影中は Vulkana が最小化されます。アクティブウィンドウを撮る場合は、待ち時間中に対象へ切り替えてください。Vulkana を再表示すると撮影をキャンセルします。</translation>
+    </message>
+    <message id="screenshot.crop.hint">
+      <source>Scroll to zoom; middle mouse to pan. Drag to crop or adjust its corners. Arrow keys move the crop; Shift moves 10 pixels.</source>
+      <oldsource>Drag to crop. Move the crop or drag its corners to adjust it. Arrow keys move it; Shift moves 10 pixels.</oldsource>
+      <translation>スクロールでズーム、中ボタンドラッグで移動。ドラッグで切り抜き範囲や四隅を調整します。矢印キーで範囲を移動し、Shift を押すと 10 ピクセルずつ移動します。</translation>
+    </message>
+    <message id="screenshot.empty">
+      <source>Capture a screenshot to preview and crop it here.</source>
+      <translation>スクリーンショットを撮影すると、ここで確認して切り抜けます。</translation>
+    </message>
+    <message id="screenshot.countdown">
+      <source>Capturing in %1 s…</source>
+      <translation>%1 秒後に撮影…</translation>
+    </message>
+    <message id="screenshot.waiting">
+      <source>Waiting for capture…</source>
+      <translation>撮影待ち…</translation>
+    </message>
+    <message id="screenshot.cancelled">
+      <source>Capture cancelled.</source>
+      <translation>撮影をキャンセルしました。</translation>
+    </message>
+    <message id="screenshot.dimensions">
+      <source>%1 × %2 px</source>
+      <translation>%1 × %2 px</translation>
+    </message>
+    <message id="screenshot.failed">
+      <source>Could not capture or open the screenshot: %1</source>
+      <translation>スクリーンショットを撮影または開くことができませんでした: %1</translation>
+    </message>
   </context>
   <context>
     <name>Performance preferences</name>
-    <message id="performance.title"><source>Performance</source><translation>パフォーマンス</translation></message>
-    <message id="performance.gpu"><source>Graphics device</source><translation>グラフィックスデバイス</translation></message>
-    <message id="performance.undo"><source>Undo memory per document</source><translation>履歴メモリ（文書ごと）</translation></message>
-    <message id="performance.cpu.cache"><source>Document cache per window</source><translation>文書キャッシュ（ウィンドウごと）</translation></message>
-    <message id="performance.gpu.cache"><source>GPU texture cache per window</source><translation>GPU テクスチャキャッシュ（ウィンドウごと）</translation></message>
-    <message id="performance.threads"><source>Image-processing threads</source><translation>画像処理スレッド数</translation></message>
-    <message id="performance.object.threads"><source>Object Selection threads</source><translation>オブジェクト選択のスレッド数</translation></message>
-    <message id="performance.auto"><source>Auto</source><translation>自動</translation></message>
-    <message id="performance.auto.memory"><source>Auto (%1 MiB)</source><translation>自動（%1 MiB）</translation></message>
-    <message id="performance.auto.threads"><source>Auto (up to %1)</source><translation>自動（最大 %1）</translation></message>
-    <message id="performance.restart.note"><source>GPU and thread changes require a restart. Object Selection runs on the CPU.</source><translation>GPU とスレッドの変更には再起動が必要です。オブジェクト選択は CPU で処理します。</translation></message>
-    <message id="performance.memory.note"><source>Budgets are retention targets, not total RAM/VRAM limits. Undo trims on later edits.</source><translation>容量はデータを保持する目安であり、RAM/VRAM 全体の上限ではありません。取り消し履歴は次の編集から削減されます。</translation></message>
-    <message id="performance.usage"><source>RAM (process): %1&#10;Undo: %2 (current), %3 (all tabs)&#10;Document cache: %4 · GPU texture cache: %5&#10;Rendering GPU: %6</source><translation>RAM（プロセス）: %1&#10;取り消し履歴: %2（現在）、%3（全タブ）&#10;文書キャッシュ: %4 · GPU テクスチャキャッシュ: %5&#10;描画 GPU: %6</translation></message>
-    <message id="performance.clear"><source>Clear Inactive Caches</source><translation>非アクティブなキャッシュを消去</translation></message>
-    <message id="performance.clear.hint"><source>Release cached previews and textures for inactive tabs in this window. Source pixels and undo history stay intact.</source><translation>このウィンドウの非アクティブなタブのプレビューとテクスチャを解放します。元の画素と取り消し履歴は保持されます。</translation></message>
-    <message id="performance.defaults"><source>Restore Defaults</source><translation>既定値に戻す</translation></message>
-    <message id="performance.gpu.changed.title"><source>Graphics device changed</source><translation>グラフィックスデバイスを変更しました</translation></message>
-    <message id="performance.gpu.changed.message"><source>The selected GPU (%1) could not be used. Falling back to %2.</source><translation>選択した GPU（%1）を使用できませんでした。代わりに %2 を使用します。</translation></message>
-    <message id="performance.gpu.changed.unknown"><source>The selected GPU could not be used. Falling back to %1.</source><translation>選択した GPU を使用できませんでした。代わりに %1 を使用します。</translation></message>
-    <message id="performance.gpu.unavailable"><source>Saved device (unavailable)</source><translation>保存済みのデバイス（使用不可）</translation></message>
-    <message id="performance.gpu.check.hint"><source>GPU availability is checked on restart. If a device cannot display the canvas, Vulkana uses another GPU.</source><translation>再起動時に GPU が使用可能か確認します。キャンバスを表示できない場合は、別の GPU を使用します。</translation></message>
-    <message id="performance.gpu.failed.item"><source>%1 — startup check failed</source><translation>%1 — 起動時の確認に失敗</translation></message>
-    <message id="performance.gpu.unsupported.item"><source>%1 — unavailable for this display</source><translation>%1 — このディスプレイでは使用不可</translation></message>
-    <message id="performance.unknown"><source>Unavailable</source><translation>使用不可</translation></message>
-    <message id="performance.undo.warning.title"><source>Reduce Undo Memory?</source><translation>履歴用メモリを減らしますか？</translation></message>
-    <message id="performance.undo.warning"><source>Older undo steps may be discarded as you make new edits. This cannot be reversed by raising the budget later. Continue?</source><translation>新しく編集すると、古い取り消し履歴が破棄される場合があります。後で容量を増やしても復元できません。続けますか？</translation></message>
+    <message id="performance.title">
+      <source>Performance</source>
+      <translation>パフォーマンス</translation>
+    </message>
+    <message id="performance.gpu">
+      <source>Graphics device</source>
+      <translation>グラフィックスデバイス</translation>
+    </message>
+    <message id="performance.undo">
+      <source>Undo memory per document</source>
+      <translation>履歴メモリ（文書ごと）</translation>
+    </message>
+    <message id="performance.cpu.cache">
+      <source>Document cache per window</source>
+      <translation>文書キャッシュ（ウィンドウごと）</translation>
+    </message>
+    <message id="performance.gpu.cache">
+      <source>GPU texture cache per window</source>
+      <translation>GPU テクスチャキャッシュ（ウィンドウごと）</translation>
+    </message>
+    <message id="performance.threads">
+      <source>Image-processing threads</source>
+      <translation>画像処理スレッド数</translation>
+    </message>
+    <message id="performance.object.threads">
+      <source>Object Selection threads</source>
+      <translation>オブジェクト選択のスレッド数</translation>
+    </message>
+    <message id="performance.auto">
+      <source>Auto</source>
+      <translation>自動</translation>
+    </message>
+    <message id="performance.auto.memory">
+      <source>Auto (%1 MiB)</source>
+      <translation>自動（%1 MiB）</translation>
+    </message>
+    <message id="performance.auto.threads">
+      <source>Auto (up to %1)</source>
+      <translation>自動（最大 %1）</translation>
+    </message>
+    <message id="performance.restart.note">
+      <source>GPU and thread changes require a restart. Object Selection runs on the CPU.</source>
+      <translation>GPU とスレッドの変更には再起動が必要です。オブジェクト選択は CPU で処理します。</translation>
+    </message>
+    <message id="performance.memory.note">
+      <source>Budgets are retention targets, not total RAM/VRAM limits. Undo trims on later edits.</source>
+      <translation>容量はデータを保持する目安であり、RAM/VRAM 全体の上限ではありません。取り消し履歴は次の編集から削減されます。</translation>
+    </message>
+    <message id="performance.usage">
+      <source>RAM (process): %1
+Undo: %2 (current), %3 (all tabs)
+Document cache: %4 · GPU texture cache: %5
+Rendering GPU: %6</source>
+      <translation>RAM（プロセス）: %1
+取り消し履歴: %2（現在）、%3（全タブ）
+文書キャッシュ: %4 · GPU テクスチャキャッシュ: %5
+描画 GPU: %6</translation>
+    </message>
+    <message id="performance.clear">
+      <source>Clear Inactive Caches</source>
+      <translation>非アクティブなキャッシュを消去</translation>
+    </message>
+    <message id="performance.clear.hint">
+      <source>Release cached previews and textures for inactive tabs in this window. Source pixels and undo history stay intact.</source>
+      <translation>このウィンドウの非アクティブなタブのプレビューとテクスチャを解放します。元の画素と取り消し履歴は保持されます。</translation>
+    </message>
+    <message id="performance.defaults">
+      <source>Restore Defaults</source>
+      <translation>既定値に戻す</translation>
+    </message>
+    <message id="performance.gpu.changed.title">
+      <source>Graphics device changed</source>
+      <translation>グラフィックスデバイスを変更しました</translation>
+    </message>
+    <message id="performance.gpu.changed.message">
+      <source>The selected GPU (%1) could not be used. Falling back to %2.</source>
+      <translation>選択した GPU（%1）を使用できませんでした。代わりに %2 を使用します。</translation>
+    </message>
+    <message id="performance.gpu.changed.unknown">
+      <source>The selected GPU could not be used. Falling back to %1.</source>
+      <translation>選択した GPU を使用できませんでした。代わりに %1 を使用します。</translation>
+    </message>
+    <message id="performance.gpu.unavailable">
+      <source>Saved device (unavailable)</source>
+      <translation>保存済みのデバイス（使用不可）</translation>
+    </message>
+    <message id="performance.gpu.check.hint">
+      <source>GPU availability is checked on restart. If a device cannot display the canvas, Vulkana uses another GPU.</source>
+      <translation>再起動時に GPU が使用可能か確認します。キャンバスを表示できない場合は、別の GPU を使用します。</translation>
+    </message>
+    <message id="performance.gpu.failed.item">
+      <source>%1 — startup check failed</source>
+      <translation>%1 — 起動時の確認に失敗</translation>
+    </message>
+    <message id="performance.gpu.unsupported.item">
+      <source>%1 — unavailable for this display</source>
+      <translation>%1 — このディスプレイでは使用不可</translation>
+    </message>
+    <message id="performance.unknown">
+      <source>Unavailable</source>
+      <translation>使用不可</translation>
+    </message>
+    <message id="performance.undo.warning.title">
+      <source>Reduce Undo Memory?</source>
+      <translation>履歴用メモリを減らしますか？</translation>
+    </message>
+    <message id="performance.undo.warning">
+      <source>Older undo steps may be discarded as you make new edits. This cannot be reversed by raising the budget later. Continue?</source>
+      <translation>新しく編集すると、古い取り消し履歴が破棄される場合があります。後で容量を増やしても復元できません。続けますか？</translation>
+    </message>
   </context>
   <context>
     <name>LayerMaskClipboard</name>
@@ -10746,72 +10938,192 @@ Escape で切り抜きを中止
       <source>Photoshop Fill: fade the layer content while keeping its effects. Some blend modes respond differently than Layer opacity.</source>
       <translation>Photoshop の「塗り」：効果を残してレイヤーの内容を薄くします。一部の描画モードでは、レイヤー不透明度とは異なる結果になります。</translation>
     </message>
-    <message id="history.layer.pixel.opacity">
-      <source>Layer pixel opacity</source>
-      <extracomment>Core history label: Layer pixel opacity</extracomment>
-      <translation>レイヤーのピクセル不透明度</translation>
-    </message>
   </context>
   <context>
     <name>GraphicsStartup</name>
-    <message id="graphics.startup.aborting"><source>Aborting…</source><translation>中止しています…</translation></message>
-    <message id="graphics.startup.closing"><source>Waiting for the graphics driver before closing.</source><translation>終了前にグラフィックスドライバーの処理を待っています。</translation></message>
-    <message id="graphics.startup.title"><source>Initializing graphics…</source><translation>グラフィックスを初期化しています…</translation></message>
-    <message id="graphics.startup.detail"><source>Preparing shaders. This may take a few seconds.</source><translation>シェーダーを準備しています。数秒かかる場合があります。</translation></message>
+    <message id="graphics.startup.aborting">
+      <source>Aborting…</source>
+      <translation>中止しています…</translation>
+    </message>
+    <message id="graphics.startup.closing">
+      <source>Waiting for the graphics driver before closing.</source>
+      <translation>終了前にグラフィックスドライバーの処理を待っています。</translation>
+    </message>
+    <message id="graphics.startup.title">
+      <source>Initializing graphics…</source>
+      <translation>グラフィックスを初期化しています…</translation>
+    </message>
+    <message id="graphics.startup.detail">
+      <source>Preparing shaders. This may take a few seconds.</source>
+      <translation>シェーダーを準備しています。数秒かかる場合があります。</translation>
+    </message>
   </context>
   <context>
     <name>LayerInfo</name>
-    <message id="preferences.layer.info"><source>Show layer info</source><translation>レイヤー情報を表示</translation></message>
-    <message id="preferences.layer.info.hint"><source>Show non-Normal blend modes and active effect icons on layer rows.</source><translation>レイヤー行に「通常」以外の描画モードと有効な効果のアイコンを表示します。</translation></message>
+    <message id="preferences.layer.info">
+      <source>Show layer info</source>
+      <translation>レイヤー情報を表示</translation>
+    </message>
+    <message id="preferences.layer.info.hint">
+      <source>Show non-Normal blend modes and active effect icons on layer rows.</source>
+      <translation>レイヤー行に「通常」以外の描画モードと有効な効果のアイコンを表示します。</translation>
+    </message>
   </context>
   <context>
     <name>CanvasResize</name>
+    <message id="canvas.resize.action">
+      <source>Quick canvas resize</source>
+      <translation>キャンバスをすばやくサイズ変更</translation>
+    </message>
     <message id="canvas.resize.to.layer">
       <source>Canvas size to selected layer</source>
-      <translation type="unfinished" />
+      <translation>選択レイヤーにキャンバスを合わせる</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="canvas.resize.to.layer.hint">
       <source>Fit the canvas to the selected layer's bounds without resampling its pixels.</source>
-      <translation type="unfinished" />
+      <translation>ピクセルを再サンプリングせず、キャンバスを選択レイヤーの境界に合わせます。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
-    <message id="canvas.resize.action"><source>Quick canvas resize</source><translation>キャンバスをすばやくサイズ変更</translation></message>
-    <message id="canvas.resize.hint"><source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source><translation>辺や角をドラッグしてキャンバスのサイズを変更し、内側をドラッグして位置を調整します。レイヤーのピクセルは保持されます。適用: {{FinishOperationAction}} · キャンセル: Escape。</translation></message>
-    <message id="canvas.resize.ratio"><source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source><translation>キャンバスの縦横比を固定します。Shift で一時的に切り替えられます。</translation></message>
-    <message id="canvas.resize.reset"><source>Reset to the original canvas bounds</source><translation>元のキャンバス範囲に戻す</translation></message>
-    <message id="canvas.resize.apply"><source>Apply canvas resize · {{FinishOperationAction}} / right-click</source><translation>キャンバスのサイズ変更を適用 · {{FinishOperationAction}} / 右クリック</translation></message>
-    <message id="canvas.resize.cancel"><source>Cancel canvas resize · Escape</source><translation>キャンバスのサイズ変更をキャンセル · Escape</translation></message>
-    <message id="canvas.resize.done"><source>Canvas resized to %1 × %2 px</source><translation>キャンバスを %1 × %2 px に変更しました</translation></message>
-    <message id="canvas.resize.undo"><source>Undo canvas resize adjustment</source><translation>キャンバス範囲の調整を元に戻す</translation></message>
-    <message id="canvas.resize.redo"><source>Redo canvas resize adjustment</source><translation>キャンバス範囲の調整をやり直す</translation></message>
+    <message id="canvas.resize.hint">
+      <source>Drag an edge or corner to resize the canvas, or drag inside to reposition it. Layer pixels are preserved. Apply: {{FinishOperationAction}} · Cancel: Escape.</source>
+      <translation>辺や角をドラッグしてキャンバスのサイズを変更し、内側をドラッグして位置を調整します。レイヤーのピクセルは保持されます。適用: {{FinishOperationAction}} · キャンセル: Escape。</translation>
+    </message>
+    <message id="canvas.resize.ratio">
+      <source>Keep the canvas aspect ratio; Shift temporarily toggles the constraint.</source>
+      <translation>キャンバスの縦横比を固定します。Shift で一時的に切り替えられます。</translation>
+    </message>
+    <message id="canvas.resize.reset">
+      <source>Reset to the original canvas bounds</source>
+      <translation>元のキャンバス範囲に戻す</translation>
+    </message>
+    <message id="canvas.resize.apply">
+      <source>Apply canvas resize · {{FinishOperationAction}} / right-click</source>
+      <translation>キャンバスのサイズ変更を適用 · {{FinishOperationAction}} / 右クリック</translation>
+    </message>
+    <message id="canvas.resize.cancel">
+      <source>Cancel canvas resize · Escape</source>
+      <translation>キャンバスのサイズ変更をキャンセル · Escape</translation>
+    </message>
+    <message id="canvas.resize.done">
+      <source>Canvas resized to %1 × %2 px</source>
+      <translation>キャンバスを %1 × %2 px に変更しました</translation>
+    </message>
+    <message id="canvas.resize.undo">
+      <source>Undo canvas resize adjustment</source>
+      <translation>キャンバス範囲の調整を元に戻す</translation>
+    </message>
+    <message id="canvas.resize.redo">
+      <source>Redo canvas resize adjustment</source>
+      <translation>キャンバス範囲の調整をやり直す</translation>
+    </message>
   </context>
   <context>
     <name>CompactProperties</name>
-    <message id="properties.info.title"><source>Layer Info</source><translation>レイヤー情報</translation></message>
-    <message id="properties.info.size"><source>Size</source><translation>サイズ</translation></message>
-    <message id="properties.info.angle"><source>Angle</source><translation>角度</translation></message>
-    <message id="properties.info.position"><source>Position</source><translation>位置</translation></message>
-    <message id="properties.info.font"><source>Font</source><translation>フォント</translation></message>
-    <message id="properties.info.color"><source>Color</source><translation>カラー</translation></message>
-    <message id="properties.info.whole.text"><source>Changes apply to the entire text layer.</source><translation>変更はテキストレイヤー全体に適用されます。</translation></message>
-    <message id="properties.info.folder"><source>Folder</source><translation>フォルダー</translation></message>
-    <message id="properties.info.group"><source>Group</source><translation>グループ</translation></message>
-    <message id="properties.info.adjustment"><source>Adjustment layer</source><translation>調整レイヤー</translation></message>
-    <message id="properties.info.brush.settings"><source>Brush settings</source><translation>ブラシ設定</translation></message>
-    <message id="properties.info.width"><source>Width</source><translation>幅</translation></message>
-    <message id="properties.info.height"><source>Height</source><translation>高さ</translation></message>
-    <message id="properties.info.text.color"><source>Text color</source><translation>テキストの色</translation></message>
-    <message id="properties.info.mixed"><source>Mixed</source><translation>混在</translation></message>
-    <message id="properties.shortcuts.sample"><source>Sample color (hold)</source><translation>色を採取（押している間）</translation></message>
-    <message id="properties.shortcuts.source"><source>Set clone/heal source</source><translation>複製・修復の参照元を設定</translation></message>
-    <message id="properties.shortcuts.add"><source>Add to selection</source><translation>選択範囲に追加</translation></message>
-    <message id="properties.shortcuts.subtract"><source>Subtract from selection</source><translation>選択範囲から削除</translation></message>
-    <message id="properties.shortcuts.intersect"><source>Intersect selection</source><translation>選択範囲との共通部分</translation></message>
-    <message id="properties.shortcuts.constrain"><source>Constrain direction or proportions</source><translation>方向または比率を固定</translation></message>
-    <message id="properties.shortcuts.ratio"><source>Toggle aspect constraint</source><translation>縦横比の固定を切り替え</translation></message>
-    <message id="properties.shortcuts.center"><source>Resize from center</source><translation>中心からサイズ変更</translation></message>
-    <message id="properties.shortcuts.cancel"><source>Cancel current operation</source><translation>現在の操作をキャンセル</translation></message>
-    <message id="properties.shortcuts.middle"><source>Middle mouse</source><translation>マウスの中ボタン</translation></message>
-    <message id="properties.shortcuts.pan"><source>Pan canvas</source><translation>キャンバスをパン</translation></message>
+    <message id="properties.info.title">
+      <source>Layer Info</source>
+      <translation>レイヤー情報</translation>
+    </message>
+    <message id="properties.info.size">
+      <source>Size</source>
+      <translation>サイズ</translation>
+    </message>
+    <message id="properties.info.angle">
+      <source>Angle</source>
+      <translation>角度</translation>
+    </message>
+    <message id="properties.info.position">
+      <source>Position</source>
+      <translation>位置</translation>
+    </message>
+    <message id="properties.info.font">
+      <source>Font</source>
+      <translation>フォント</translation>
+    </message>
+    <message id="properties.info.color">
+      <source>Color</source>
+      <translation>カラー</translation>
+    </message>
+    <message id="properties.info.whole.text">
+      <source>Changes apply to the entire text layer.</source>
+      <translation>変更はテキストレイヤー全体に適用されます。</translation>
+    </message>
+    <message id="properties.info.folder">
+      <source>Folder</source>
+      <translation>フォルダー</translation>
+    </message>
+    <message id="properties.info.group">
+      <source>Group</source>
+      <translation>グループ</translation>
+    </message>
+    <message id="properties.info.adjustment">
+      <source>Adjustment layer</source>
+      <translation>調整レイヤー</translation>
+    </message>
+    <message id="properties.info.brush.settings">
+      <source>Brush settings</source>
+      <translation>ブラシ設定</translation>
+    </message>
+    <message id="properties.info.width">
+      <source>Width</source>
+      <translation>幅</translation>
+    </message>
+    <message id="properties.info.height">
+      <source>Height</source>
+      <translation>高さ</translation>
+    </message>
+    <message id="properties.info.text.color">
+      <source>Text color</source>
+      <translation>テキストの色</translation>
+    </message>
+    <message id="properties.info.mixed">
+      <source>Mixed</source>
+      <translation>混在</translation>
+    </message>
+    <message id="properties.shortcuts.sample">
+      <source>Sample color (hold)</source>
+      <translation>色を採取（押している間）</translation>
+    </message>
+    <message id="properties.shortcuts.source">
+      <source>Set clone/heal source</source>
+      <translation>複製・修復の参照元を設定</translation>
+    </message>
+    <message id="properties.shortcuts.add">
+      <source>Add to selection</source>
+      <translation>選択範囲に追加</translation>
+    </message>
+    <message id="properties.shortcuts.subtract">
+      <source>Subtract from selection</source>
+      <translation>選択範囲から削除</translation>
+    </message>
+    <message id="properties.shortcuts.intersect">
+      <source>Intersect selection</source>
+      <translation>選択範囲との共通部分</translation>
+    </message>
+    <message id="properties.shortcuts.constrain">
+      <source>Constrain direction or proportions</source>
+      <translation>方向または比率を固定</translation>
+    </message>
+    <message id="properties.shortcuts.ratio">
+      <source>Toggle aspect constraint</source>
+      <translation>縦横比の固定を切り替え</translation>
+    </message>
+    <message id="properties.shortcuts.center">
+      <source>Resize from center</source>
+      <translation>中心からサイズ変更</translation>
+    </message>
+    <message id="properties.shortcuts.cancel">
+      <source>Cancel current operation</source>
+      <translation>現在の操作をキャンセル</translation>
+    </message>
+    <message id="properties.shortcuts.middle">
+      <source>Middle mouse</source>
+      <translation>マウスの中ボタン</translation>
+    </message>
+    <message id="properties.shortcuts.pan">
+      <source>Pan canvas</source>
+      <translation>キャンバスをパン</translation>
+    </message>
   </context>
   <context>
     <name>GradientEditor</name>
@@ -11180,41 +11492,128 @@ Prepare %3 · Finish %4 · Total %5</source>
   </context>
   <context>
     <name>McpPreferences</name>
-    <message id="mcp.preferences.title"><source>MCP</source><translation>MCP</translation></message>
-    <message id="mcp.preferences.start"><source>Start MCP</source><translation>MCP を開始</translation></message>
-    <message id="mcp.preferences.stop"><source>Stop MCP</source><translation>MCP を停止</translation></message>
-    <message id="mcp.preferences.stopped"><source>Stopped</source><translation>停止中</translation></message>
-    <message id="mcp.preferences.listening"><source>Listening</source><translation>接続待ち</translation></message>
-    <message id="mcp.preferences.connected"><source>Connected · Clients: %1</source><translation>接続済み · クライアント数: %1</translation></message>
-    <message id="mcp.preferences.stopping"><source>Stopping…</source><translation>停止処理中…</translation></message>
-    <message id="mcp.preferences.error"><source>Error</source><translation>エラー</translation></message>
-    <message id="mcp.preferences.autostart"><source>Start automatically with Vulkana</source><translation>Vulkana と同時に自動起動</translation></message>
-    <message id="mcp.preferences.security"><source>Only connect clients you trust. MCP clients can modify documents and read or write files with your Vulkana host-user permissions. A client running in a container is not limited to that container's files.</source><translation>信頼できるクライアントのみ接続してください。MCP クライアントは Vulkana の実行ユーザー権限でドキュメントを変更し、ファイルを読み書きできます。コンテナー内で動くクライアントでも、アクセス先はコンテナー内のファイルに限られません。</translation></message>
-    <message id="mcp.preferences.connection"><source>Connection</source><translation>接続</translation></message>
-    <message id="mcp.preferences.local"><source>MCP uses local communication, without a network port. Multiple trusted clients can connect; editing commands run one at a time. Copy the configuration into OpenCode V2; Vulkana does not edit its configuration files.</source><translation>MCP はネットワークポートを使わず、ローカルで通信します。複数の信頼できるクライアントを接続でき、編集コマンドは順番に実行されます。設定を OpenCode V2 にコピーしてください。Vulkana はその設定ファイルを変更しません。</translation></message>
-    <message id="mcp.preferences.command"><source>Bridge command</source><translation>ブリッジのコマンド</translation></message>
-    <message id="mcp.preferences.endpoint"><source>Endpoint</source><translation>接続先</translation></message>
-    <message id="mcp.preferences.copy"><source>Copy Configuration · OpenCode V2</source><translation>設定をコピー · OpenCode V2</translation></message>
-    <message id="mcp.preferences.copied"><source>Copied</source><translation>コピーしました</translation></message>
-    <message id="mcp.preferences.advanced"><source>Advanced Settings</source><translation>詳細設定</translation></message>
-    <message id="mcp.preferences.custom"><source>Use a custom endpoint</source><translation>接続先を指定</translation></message>
-    <message id="mcp.preferences.next.start"><source>Endpoint changes take effect on the next Start. While MCP is running, Copy Configuration uses its current endpoint.</source><translation>接続先の変更は次回の開始時に反映されます。MCP の実行中は、設定のコピーに現在の接続先を使用します。</translation></message>
-    <message id="mcp.preferences.apply.note"><source>Start and Stop affect this session immediately. Apply saves automatic startup and endpoint settings; it does not restart an active connection.</source><translation>開始と停止は現在のセッションにすぐ反映されます。「適用」は自動起動と接続先の設定を保存し、接続中のセッションは再起動しません。</translation></message>
-    <message id="mcp.preferences.finishing"><source>Waiting for the current command to finish before disconnecting. Its changes are not cancelled or rolled back.</source><translation>接続を切る前に、現在のコマンドの完了を待っています。その変更はキャンセルも取り消しもされません。</translation></message>
+    <message id="mcp.preferences.title">
+      <source>MCP</source>
+      <translation>MCP</translation>
+    </message>
+    <message id="mcp.preferences.start">
+      <source>Start MCP</source>
+      <translation>MCP を開始</translation>
+    </message>
+    <message id="mcp.preferences.stop">
+      <source>Stop MCP</source>
+      <translation>MCP を停止</translation>
+    </message>
+    <message id="mcp.preferences.stopped">
+      <source>Stopped</source>
+      <translation>停止中</translation>
+    </message>
+    <message id="mcp.preferences.listening">
+      <source>Listening</source>
+      <translation>接続待ち</translation>
+    </message>
+    <message id="mcp.preferences.connected">
+      <source>Connected · Clients: %1</source>
+      <translation>接続済み · クライアント数: %1</translation>
+    </message>
+    <message id="mcp.preferences.stopping">
+      <source>Stopping…</source>
+      <translation>停止処理中…</translation>
+    </message>
+    <message id="mcp.preferences.error">
+      <source>Error</source>
+      <translation>エラー</translation>
+    </message>
+    <message id="mcp.preferences.autostart">
+      <source>Start automatically with Vulkana</source>
+      <translation>Vulkana と同時に自動起動</translation>
+    </message>
+    <message id="mcp.preferences.security">
+      <source>Only connect clients you trust. MCP clients can modify documents and read or write files with your Vulkana host-user permissions. A client running in a container is not limited to that container's files.</source>
+      <translation>信頼できるクライアントのみ接続してください。MCP クライアントは Vulkana の実行ユーザー権限でドキュメントを変更し、ファイルを読み書きできます。コンテナー内で動くクライアントでも、アクセス先はコンテナー内のファイルに限られません。</translation>
+    </message>
+    <message id="mcp.preferences.connection">
+      <source>Connection</source>
+      <translation>接続</translation>
+    </message>
+    <message id="mcp.preferences.local">
+      <source>MCP uses local communication, without a network port. Multiple trusted clients can connect; editing commands run one at a time. Copy the configuration into OpenCode V2; Vulkana does not edit its configuration files.</source>
+      <translation>MCP はネットワークポートを使わず、ローカルで通信します。複数の信頼できるクライアントを接続でき、編集コマンドは順番に実行されます。設定を OpenCode V2 にコピーしてください。Vulkana はその設定ファイルを変更しません。</translation>
+    </message>
+    <message id="mcp.preferences.command">
+      <source>Bridge command</source>
+      <translation>ブリッジのコマンド</translation>
+    </message>
+    <message id="mcp.preferences.endpoint">
+      <source>Endpoint</source>
+      <translation>接続先</translation>
+    </message>
+    <message id="mcp.preferences.copy">
+      <source>Copy Configuration · OpenCode V2</source>
+      <translation>設定をコピー · OpenCode V2</translation>
+    </message>
+    <message id="mcp.preferences.copied">
+      <source>Copied</source>
+      <translation>コピーしました</translation>
+    </message>
+    <message id="mcp.preferences.advanced">
+      <source>Advanced Settings</source>
+      <translation>詳細設定</translation>
+    </message>
+    <message id="mcp.preferences.custom">
+      <source>Use a custom endpoint</source>
+      <translation>接続先を指定</translation>
+    </message>
+    <message id="mcp.preferences.next.start">
+      <source>Endpoint changes take effect on the next Start. While MCP is running, Copy Configuration uses its current endpoint.</source>
+      <translation>接続先の変更は次回の開始時に反映されます。MCP の実行中は、設定のコピーに現在の接続先を使用します。</translation>
+    </message>
+    <message id="mcp.preferences.apply.note">
+      <source>Start and Stop affect this session immediately. Apply saves automatic startup and endpoint settings; it does not restart an active connection.</source>
+      <translation>開始と停止は現在のセッションにすぐ反映されます。「適用」は自動起動と接続先の設定を保存し、接続中のセッションは再起動しません。</translation>
+    </message>
+    <message id="mcp.preferences.finishing">
+      <source>Waiting for the current command to finish before disconnecting. Its changes are not cancelled or rolled back.</source>
+      <translation>接続を切る前に、現在のコマンドの完了を待っています。その変更はキャンセルも取り消しもされません。</translation>
+    </message>
   </context>
   <context>
     <name>ShapePreview</name>
-    <message id="main.window.shape.preview.limit.named"><source>Shape “%1” (layer %2) exceeds the preview limit. Its editable data is retained.</source><translation>図形「%1」（レイヤー %2）がプレビューの制限を超えています。編集用データは保持されています。</translation></message>
-    <message id="main.window.shape.preview.memory.named"><source>Not enough memory to render shape “%1” (layer %2). Its editable data is retained.</source><translation>図形「%1」（レイヤー %2）の描画に必要なメモリが不足しています。編集用データは保持されています。</translation></message>
-    <message id="main.window.shape.preview.failed.named"><source>Could not render shape “%1” (layer %2): %3. Its editable data is retained.</source><translation>図形「%1」（レイヤー %2）を描画できませんでした: %3。編集用データは保持されています。</translation></message>
-    <message id="main.window.shape.preview.reduced.named"><source>Shape “%1” (layer %2) is shown at reduced preview resolution. Its editable data is retained.</source><translation>図形「%1」（レイヤー %2）は低いプレビュー解像度で表示されています。編集用データは保持されています。</translation></message>
+    <message id="main.window.shape.preview.limit.named">
+      <source>Shape “%1” (layer %2) exceeds the preview limit. Its editable data is retained.</source>
+      <translation>図形「%1」（レイヤー %2）がプレビューの制限を超えています。編集用データは保持されています。</translation>
+    </message>
+    <message id="main.window.shape.preview.memory.named">
+      <source>Not enough memory to render shape “%1” (layer %2). Its editable data is retained.</source>
+      <translation>図形「%1」（レイヤー %2）の描画に必要なメモリが不足しています。編集用データは保持されています。</translation>
+    </message>
+    <message id="main.window.shape.preview.failed.named">
+      <source>Could not render shape “%1” (layer %2): %3. Its editable data is retained.</source>
+      <translation>図形「%1」（レイヤー %2）を描画できませんでした: %3。編集用データは保持されています。</translation>
+    </message>
+    <message id="main.window.shape.preview.reduced.named">
+      <source>Shape “%1” (layer %2) is shown at reduced preview resolution. Its editable data is retained.</source>
+      <translation>図形「%1」（レイヤー %2）は低いプレビュー解像度で表示されています。編集用データは保持されています。</translation>
+    </message>
   </context>
   <context>
     <name>LayerSelectionFocus</name>
-    <message id="preferences.layer.focus.label"><source>Auto-scroll to selected layer</source><translation>選択レイヤーへ自動スクロール</translation></message>
-    <message id="preferences.layer.focus.normal"><source>Focus</source><translation>表示</translation></message>
-    <message id="preferences.layer.focus.expand"><source>Focus and Expand</source><translation>表示して展開</translation></message>
-    <message id="preferences.layer.focus.hint"><source>Focus scrolls to the selected layer or its visible parent. Focus and Expand also opens collapsed parents.</source><translation>「表示」は選択レイヤーまたは表示中の親項目へスクロールします。「表示して展開」は折りたたまれた親項目も開きます。</translation></message>
+    <message id="preferences.layer.focus.label">
+      <source>Auto-scroll to selected layer</source>
+      <translation>選択レイヤーへ自動スクロール</translation>
+    </message>
+    <message id="preferences.layer.focus.normal">
+      <source>Focus</source>
+      <translation>表示</translation>
+    </message>
+    <message id="preferences.layer.focus.expand">
+      <source>Focus and Expand</source>
+      <translation>表示して展開</translation>
+    </message>
+    <message id="preferences.layer.focus.hint">
+      <source>Focus scrolls to the selected layer or its visible parent. Focus and Expand also opens collapsed parents.</source>
+      <translation>「表示」は選択レイヤーまたは表示中の親項目へスクロールします。「表示して展開」は折りたたまれた親項目も開きます。</translation>
+    </message>
   </context>
   <context>
     <name>ArcShape</name>
@@ -11264,247 +11663,2167 @@ Prepare %3 · Finish %4 · Total %5</source>
   </context>
   <context>
     <name>McpStatus</name>
-    <message id="mcp.status.connected"><source>MCP connected (%1)</source><translation>MCP 接続済み (%1)</translation></message>
-    <message id="mcp.status.stopping"><source>MCP stopping…</source><translation>MCP 停止処理中…</translation></message>
-    <message id="mcp.status.error"><source>MCP error</source><translation>MCP エラー</translation></message>
-    <message id="mcp.status.enabled"><source>MCP enabled</source><translation>MCP 有効</translation></message>
-    <message id="mcp.status.endpoint.hint"><source>Local document automation. Endpoint: %1</source><translation>ローカルでのドキュメント自動操作。接続先: %1</translation></message>
+    <message id="mcp.status.connected">
+      <source>MCP connected (%1)</source>
+      <translation>MCP 接続済み (%1)</translation>
+    </message>
+    <message id="mcp.status.stopping">
+      <source>MCP stopping…</source>
+      <translation>MCP 停止処理中…</translation>
+    </message>
+    <message id="mcp.status.error">
+      <source>MCP error</source>
+      <translation>MCP エラー</translation>
+    </message>
+    <message id="mcp.status.enabled">
+      <source>MCP enabled</source>
+      <translation>MCP 有効</translation>
+    </message>
+    <message id="mcp.status.endpoint.hint">
+      <source>Local document automation. Endpoint: %1</source>
+      <translation>ローカルでのドキュメント自動操作。接続先: %1</translation>
+    </message>
   </context>
   <context>
     <name>ChannelGroups</name>
     <message id="channels.action.convert">
       <source>Convert to Channel Group</source>
-      <translation type="unfinished" />
+      <translation>チャンネルグループに変換</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.action.recombine">
       <source>Convert Channel Group to Raster</source>
-      <translation type="unfinished" />
+      <translation>チャンネルグループをラスターレイヤーに変換</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.action.inspect.alpha">
       <source>Show alpha as transparency</source>
-      <translation type="unfinished" />
+      <translation>アルファを透明度として表示</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.action.copy">
       <source>Copy channel pixels</source>
-      <translation type="unfinished" />
+      <translation>チャンネルのピクセルをコピー</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.action.cut">
       <source>Cut channel pixels</source>
-      <translation type="unfinished" />
+      <translation>チャンネルのピクセルを切り取り</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.action.open">
       <source>Open data texture…</source>
-      <translation type="unfinished" />
+      <translation>データテクスチャを開く…</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.action.export">
       <source>Export channel data…</source>
-      <translation type="unfinished" />
+      <translation>チャンネルデータを書き出す…</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.convert.to.edit">
       <source>Convert to a Channel Group to edit numeric data.</source>
-      <translation type="unfinished" />
+      <translation>数値データを編集するにはチャンネルグループに変換してください。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.operation.unavailable">
       <source>Unavailable for numeric channels.</source>
-      <translation type="unfinished" />
+      <translation>数値チャンネルでは使用できません。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.clipboard.copied">
       <source>Channel pixels copied.</source>
-      <translation type="unfinished" />
+      <translation>チャンネルのピクセルをコピーしました。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.clipboard.required">
       <source>Copy channel pixels or an 8-bit straight grayscale image to paste into a channel.</source>
-      <translation type="unfinished" />
+      <translation>チャンネルに貼り付けるには、チャンネルのピクセルか、アルファを乗算していない8ビットグレースケール画像をコピーしてください。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.clipboard.target.changed">
       <source>The paste target changed. Try pasting again.</source>
-      <translation type="unfinished" />
+      <translation>貼り付け先が変わりました。もう一度貼り付けてください。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.clipboard.failed">
       <source>Could not paste into the channel. No pixels were changed.</source>
-      <translation type="unfinished" />
+      <translation>チャンネルに貼り付けられませんでした。ピクセルは変更されていません。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.open.title">
       <source>Open data texture</source>
-      <translation type="unfinished" />
+      <translation>データテクスチャを開く</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.open.filter">
       <source>Lossless images (*.png *.tif *.tiff *.bmp *.tga);;All files (*)</source>
-      <translation type="unfinished" />
+      <translation>可逆形式の画像 (*.png *.tif *.tiff *.bmp *.tga);;すべてのファイル (*)</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.value">
       <source>Value</source>
-      <translation type="unfinished" />
+      <translation>値</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.value.prefix">
       <source>Value: </source>
-      <translation type="unfinished" />
+      <translation>値： </translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.value.hint">
       <source>Stored channel value. Black is 0; white is 255.</source>
-      <translation type="unfinished" />
+      <translation>保存されたチャンネル値。黒は0、白は255です。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.group.hint">
       <source>Packed channel data. Select a channel to inspect and edit its numeric values.</source>
-      <translation type="unfinished" />
+      <translation>複数チャンネルをまとめたデータです。チャンネルを選択すると数値を確認・編集できます。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.layer.hint">
       <source>Numeric channel: 0–255. Rename the label without changing its channel identity.</source>
-      <translation type="unfinished" />
+      <translation>数値チャンネル：0–255。名前を変えてもチャンネルの識別情報は変わりません。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.type.group">
       <source>Channel Group</source>
-      <translation type="unfinished" />
+      <translation>チャンネルグループ</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.type.scalar">
       <source>Numeric channel · R8</source>
-      <translation type="unfinished" />
+      <translation>数値チャンネル · R8</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.type.packed">
       <source>Packed data · RGBA8</source>
-      <translation type="unfinished" />
+      <translation>パックデータ · RGBA8</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.levels.hint">
       <source>Adjust stored channel values without colour conversion.</source>
-      <translation type="unfinished" />
+      <translation>色変換せずに保存されたチャンネル値を調整します。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.invert.hint">
       <source>Invert channel values: 0 becomes 255, and 255 becomes 0.</source>
-      <translation type="unfinished" />
+      <translation>チャンネル値を反転します。0は255に、255は0になります。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.effects.unavailable">
       <source>Colour effects are unavailable for numeric channels.</source>
-      <translation type="unfinished" />
+      <translation>数値チャンネルではカラー効果を使用できません。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.color.adjustments.unavailable">
       <source>Colour adjustments are unavailable for numeric channels.</source>
-      <translation type="unfinished" />
+      <translation>数値チャンネルではカラー調整を使用できません。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.histogram.sampled">
       <source>Sampled input · %1 numeric samples</source>
-      <translation type="unfinished" />
+      <translation>サンプル入力 · %1 個の数値サンプル</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.histogram.source">
       <source>Source input · %1 numeric samples</source>
-      <translation type="unfinished" />
+      <translation>元の入力 · %1 個の数値サンプル</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.export.title">
       <source>Export channel data</source>
-      <translation type="unfinished" />
+      <translation>チャンネルデータを書き出す</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.export.hint">
       <source>Native pixel values · PNG · no colour conversion</source>
-      <translation type="unfinished" />
+      <translation>元のピクセル値 · PNG · 色変換なし</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.clone.source.hint">
       <source>Numeric channels sample an explicit channel layer. Rendered colour sources are unavailable.</source>
-      <translation type="unfinished" />
+      <translation>数値チャンネルは指定したチャンネルレイヤーからサンプリングします。描画後のカラーは使用できません。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="channels.psd.unsupported">
       <source>Save a Vulkana project or export channel data as PNG to preserve numeric channels.</source>
-      <translation type="unfinished" />
+      <translation>数値チャンネルを保持するには、Vulkanaプロジェクトを保存するか、チャンネルデータをPNGで書き出してください。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="history.channels.recombine">
       <source>Convert Channel Group to raster</source>
-      <translation type="unfinished" />
+      <translation>チャンネルグループをラスターレイヤーに変換</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="history.channels.paste">
       <source>Paste channel pixels</source>
-      <translation type="unfinished" />
+      <translation>チャンネルのピクセルを貼り付け</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
   </context>
   <context>
     <name>DiffusionPanel</name>
     <message id="diffusion.override.reset.hint">
       <source>Reset to configuration default: %1</source>
-      <translation type="unfinished" />
+      <translation>設定の既定値に戻す：%1</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="diffusion.vae.tiling.required">
       <source>Available when VAE tiling is enabled.</source>
-      <translation type="unfinished" />
+      <translation>VAEタイル処理が有効な場合に使用できます。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="diffusion.progress.preview.required">
       <source>Available when progress previews are enabled.</source>
-      <translation type="unfinished" />
+      <translation>生成中のプレビューが有効な場合に使用できます。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
   </context>
   <context>
     <name>PsdImportReview</name>
     <message id="psd.review.type.smart.object">
       <source>Smart Object</source>
-      <translation type="unfinished" />
+      <translation>スマートオブジェクト</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.smart.object">
       <source>Smart object</source>
-      <translation type="unfinished" />
+      <translation>スマートオブジェクト</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.font">
       <source>Missing font</source>
-      <translation type="unfinished" />
+      <translation>フォント不足</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.text">
       <source>Text layout</source>
-      <translation type="unfinished" />
+      <translation>テキストレイアウト</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.shape">
       <source>Shape geometry</source>
-      <translation type="unfinished" />
+      <translation>シェイプの形状</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.effects">
       <source>Layer effects</source>
-      <translation type="unfinished" />
+      <translation>レイヤー効果</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.mask">
       <source>Layer mask</source>
-      <translation type="unfinished" />
+      <translation>レイヤーマスク</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.blending">
       <source>Blending</source>
-      <translation type="unfinished" />
+      <translation>合成</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.group">
       <source>Group blending</source>
-      <translation type="unfinished" />
+      <translation>グループの合成</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.clipping">
       <source>Clipping</source>
-      <translation type="unfinished" />
+      <translation>クリッピング</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.adjustment">
       <source>Adjustment</source>
-      <translation type="unfinished" />
+      <translation>調整</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.unsupported">
       <source>Unsupported feature</source>
-      <translation type="unfinished" />
+      <translation>未対応の機能</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.review.reason.appearance">
       <source>Appearance</source>
-      <translation type="unfinished" />
+      <translation>外観</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.import.dialog.fallback.summary">
       <source>Omitted items: %1 · Base pixels only: %2</source>
-      <translation type="unfinished" />
+      <translation>省略：%1 · 元のピクセルのみ：%2</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.import.dialog.reason">
       <source>Reason</source>
-      <translation type="unfinished" />
+      <translation>理由</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.import.dialog.reason.excluded">
       <source>Group omitted</source>
-      <translation type="unfinished" />
+      <translation>グループを省略</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.import.dialog.apply.similar">
       <source>Apply to similar (%1)</source>
-      <translation type="unfinished" />
+      <translation>類似項目に適用 (%1)</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.import.dialog.apply.similar.hint">
       <source>Apply this conversion to matching layers. Font choices stay unchanged.</source>
-      <translation type="unfinished" />
+      <translation>一致するレイヤーにこの変換を適用します。フォントの選択は変わりません。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="psd.import.dialog.smart.object.raster.hint">
       <source>Import the saved Smart Object appearance as editable pixels. Embedded source editing is not retained.</source>
-      <translation type="unfinished" />
+      <translation>スマートオブジェクトの保存済み表示を編集可能なピクセルとして読み込みます。埋め込み元の編集機能は保持されません。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+    </message>
+  </context>
+  <context>
+    <name>AIImageEditor</name>
+    <message id="diffusion.ui.restore.the.full.layer.input">
+      <source>Restore the full layer input</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>入力レイヤー全体を復元</translation>
+    </message>
+    <message id="diffusion.ui.crop.this.layer.input.to.its.canvas">
+      <source>Crop this layer input to its canvas</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>入力レイヤーをキャンバスに合わせて切り抜く</translation>
+    </message>
+    <message id="diffusion.ui.create">
+      <source>Create</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>作成</translation>
+    </message>
+    <message id="diffusion.ui.that.name.is.already.in.use">
+      <source>That name is already in use.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>その名前はすでに使用されています。</translation>
+    </message>
+    <message id="diffusion.ui.delete.configuration">
+      <source>Delete configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>設定を削除</translation>
+    </message>
+    <message id="diffusion.ui.duplicate.configuration">
+      <source>Duplicate configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>設定を複製</translation>
+    </message>
+    <message id="diffusion.ui.new.configuration">
+      <source>New configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>新しい設定</translation>
+    </message>
+    <message id="diffusion.ui.name">
+      <source>Name</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>名前</translation>
+    </message>
+    <message id="diffusion.ui.images.and.region.guides.exceed.this.model">
+      <source>Images and region guides exceed this model's %1-reference limit. Remove an image or region before generating.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>画像と領域ガイドがモデルの参照上限（%1）を超えています。生成前に画像か領域を削除してください。</translation>
+    </message>
+    <message id="diffusion.ui.reference.limit.satisfied">
+      <source>Reference limit satisfied.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>参照数は上限内です。</translation>
+    </message>
+    <message id="diffusion.ui.linked.region.transfers.are.available.with.flux">
+      <source>Linked region transfers are available with FLUX.3. Unlink the destinations or select a FLUX configuration.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>領域の関連付けによる転送はFLUX.3で使用できます。移動先の関連付けを解除するかFLUXの設定を選んでください。</translation>
+    </message>
+    <message id="diffusion.ui.linked.transfers.need.at.least.two.input">
+      <source>Linked transfers need at least two input images. Add the missing input or unlink the destinations.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>関連付けによる転送には2枚以上の入力画像が必要です。画像を追加するか移動先の関連付けを解除してください。</translation>
+    </message>
+    <message id="diffusion.ui.choose.an.available.output.scene.before.generating">
+      <source>Choose an available output scene before generating.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成前に利用可能な出力シーンを選んでください。</translation>
+    </message>
+    <message id="diffusion.ui.source.region.1.is.outside.the.cropped">
+      <source>Source region %1 is outside the cropped input. Restore the input to use or unlink it.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>元の領域%1が切り抜いた入力の外にあります。入力を復元するか関連付けを解除してください。</translation>
+    </message>
+    <message id="diffusion.ui.the.destination.for.1.is.missing.choose">
+      <source>The destination for %1 is missing. Choose another target or unlink it.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1の移動先がありません。別の移動先を選ぶか関連付けを解除してください。</translation>
+    </message>
+    <message id="diffusion.ui.choose.output.scene">
+      <source>Choose output scene…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>出力シーンを選択…</translation>
+    </message>
+    <message id="diffusion.ui.output.layout.1.2.px">
+      <source>Output layout · %1 × %2 px</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>出力レイアウト · %1 × %2 px</translation>
+    </message>
+    <message id="diffusion.ui.output.layout">
+      <source>Output layout</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>出力レイアウト</translation>
+    </message>
+    <message id="diffusion.ui.fit.to.canvas">
+      <source>Fit to canvas</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>キャンバスに合わせる</translation>
+    </message>
+    <message id="diffusion.ui.fit.to.selected.layer">
+      <source>Fit to selected layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>選択レイヤーに合わせる</translation>
+    </message>
+    <message id="diffusion.ui.fit.to.original.bounds">
+      <source>Fit to original bounds</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>元の境界に合わせる</translation>
+    </message>
+    <message id="diffusion.ui.generative.fill.stays.aligned.to.its.captured">
+      <source>Generative Fill stays aligned to its captured canvas and soft selection.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成塗りつぶしは取得したキャンバスとソフトな選択範囲に位置を合わせます。</translation>
+    </message>
+    <message id="diffusion.ui.replacement.fits.the.selected.layer.use.add">
+      <source>Replacement fits the selected layer. Use Add new layer for a result at its generated size.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>置換時は選択レイヤーに合わせます。生成サイズを保つには新規レイヤーとして追加してください。</translation>
+    </message>
+    <message id="diffusion.ui.new.documents.use.the.generated.pixel.dimensions">
+      <source>New documents use the generated pixel dimensions.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>新しいドキュメントには生成したピクセルサイズを使います。</translation>
+    </message>
+    <message id="diffusion.ui.fit.the.result.to.the.original.input">
+      <source>Fit the result to the original input bounds. Uncheck for 1:1 pixels, keeping position and orientation.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>結果を元の入力の境界に合わせます。オフにすると位置と向きを保ち、ピクセルを1:1で使います。</translation>
+    </message>
+    <message id="diffusion.ui.scale.the.result.to.the.current.canvas">
+      <source>Scale the result to the current canvas. Uncheck to keep its generated size.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>結果を現在のキャンバスに拡大縮小します。生成サイズを保つにはオフにしてください。</translation>
+    </message>
+    <message id="diffusion.ui.current.configuration">
+      <source>Current configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>現在の設定</translation>
+    </message>
+    <message id="diffusion.ui.missing.configuration">
+      <source>No configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>設定なし</translation>
+    </message>
+    <message id="diffusion.ui.cancel">
+      <source>Cancel</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>キャンセル</translation>
+    </message>
+    <message id="diffusion.ui.generate">
+      <source>Generate</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成</translation>
+    </message>
+    <message id="diffusion.ui.cancel.generation">
+      <source>Cancel generation</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成をキャンセル</translation>
+    </message>
+    <message id="diffusion.ui.a.cropped.layer.is.outside.its.canvas">
+      <source>A cropped layer is outside its canvas. Restore or remove that input.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>切り抜いたレイヤーがキャンバスの外にあります。入力を復元するか削除してください。</translation>
+    </message>
+    <message id="diffusion.ui.remove.an.image.or.region.to.stay">
+      <source>Remove an image or region to stay within the model's reference limit.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>モデルの参照上限を超えないよう画像か領域を削除してください。</translation>
+    </message>
+    <message id="diffusion.ui.add.model.files.in.the.configuration.tab">
+      <source>Add model files in the Configuration tab.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>設定タブにモデルファイルを追加してください。</translation>
+    </message>
+    <message id="diffusion.ui.preview">
+      <source>Preview</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>プレビュー</translation>
+    </message>
+    <message id="diffusion.ui.preview.1">
+      <source>Preview · %1</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>プレビュー · %1</translation>
+    </message>
+    <message id="diffusion.ui.this.model.generates.from.text.only.stored">
+      <source>This model generates from text only. Stored inputs will be available when you switch to a compatible model.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>このモデルはテキストからの生成専用です。対応モデルに切り替えると保存した入力を使えます。</translation>
+    </message>
+    <message id="diffusion.ui.regions">
+      <source>Regions</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>領域</translation>
+    </message>
+    <message id="diffusion.ui.regions.1">
+      <source>Regions · %1</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>領域 · %1</translation>
+    </message>
+    <message id="diffusion.ui.use.image.1.for.this.image.and">
+      <source>Use &lt;Image%1&gt; for this image and &lt;Image%1/Region1&gt; for a named region.</source>
+      <extracomment>Keep image/region/scene aliases inside angle brackets unchanged; they are prompt tokens, not translated names.</extracomment>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>この画像には&lt;Image%1&gt;、名前付き領域には&lt;Image%1/Region1&gt;を使ってください。</translation>
+    </message>
+    <message id="diffusion.ui.with.one.input.region1.also.works">
+      <source> With one input, &lt;Region1&gt; also works.</source>
+      <extracomment>Keep image/region/scene aliases inside angle brackets unchanged; they are prompt tokens, not translated names.</extracomment>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation> 入力が1枚なら&lt;Region1&gt;も使えます。</translation>
+    </message>
+    <message id="diffusion.ui.refer.to.output.regions.as.output.region1">
+      <source>Refer to output regions as &lt;Output/Region1&gt;. Regions guide placement; they do not protect pixels.</source>
+      <extracomment>Keep image/region/scene aliases inside angle brackets unchanged; they are prompt tokens, not translated names.</extracomment>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>出力領域は&lt;Output/Region1&gt;で指定します。領域は配置の目安で、ピクセルを保護するものではありません。</translation>
+    </message>
+    <message id="diffusion.ui.output.placement.guide.use.generative.fill.to">
+      <source>Output placement guide. Use Generative Fill to protect pixels outside a selection.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>出力の配置ガイドです。選択範囲外のピクセルを保護するには生成塗りつぶしを使ってください。</translation>
+    </message>
+    <message id="diffusion.ui.region.guidance.is.unavailable.for.this.model">
+      <source>Region guidance is unavailable for this model.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>このモデルでは領域ガイドを使用できません。</translation>
+    </message>
+    <message id="diffusion.ui.generating">
+      <source>Generating…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成中…</translation>
+    </message>
+    <message id="diffusion.ui.generation.in.progress.a.live.draft.appears">
+      <source>Generation in progress. A live draft appears here when available. Pending previews cannot be applied.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成中です。途中結果が利用可能になるとここに表示されます。未完成のプレビューは適用できません。</translation>
+    </message>
+    <message id="diffusion.ui.unsaved.configuration">
+      <source>Unsaved configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>未保存の設定</translation>
+    </message>
+    <message id="diffusion.ui.generation.in.progress">
+      <source>Generation in progress</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成中</translation>
+    </message>
+    <message id="diffusion.ui.pending.preview.approximate">
+      <source>Pending preview — approximate</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>未完成のプレビュー — 概略</translation>
+    </message>
+    <message id="diffusion.ui.ai.image.preview">
+      <source>AI image preview</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI画像プレビュー</translation>
+    </message>
+    <message id="diffusion.ui.generated.previews.appear.here">
+      <source>Generated previews appear here</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成したプレビューがここに表示されます</translation>
+    </message>
+    <message id="diffusion.ui.no.image">
+      <source>No image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>画像なし</translation>
+    </message>
+    <message id="diffusion.ui.this.model.generates.from.text.only.image">
+      <source>This model generates from text only. Image-to-image denoising is unavailable.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>このモデルはテキストからの生成専用です。画像からのノイズ除去は使用できません。</translation>
+    </message>
+    <message id="diffusion.ui.always.used.for.generative.fill.the.canvas">
+      <source>Always used for Generative Fill. The canvas is the starting image; the selection limits where the result is applied.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成塗りつぶしでは常に使います。キャンバスを開始画像とし、選択範囲内だけに結果を適用します。</translation>
+    </message>
+    <message id="diffusion.ui.off.edit.using.image.references.on.start">
+      <source>Off: edit using image references. On: start from Image 1 and use Denoising strength.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>オフ：参照画像で編集。オン：画像1から開始し、ノイズ除去強度を使います。</translation>
+    </message>
+    <message id="diffusion.ui.starts.denoising.from.an.input.image.available">
+      <source>Starts denoising from an input image. Available in Edit layer; always used for Generative Fill.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>入力画像からノイズ除去を開始します。レイヤー編集で利用でき、生成塗りつぶしでは常に使います。</translation>
+    </message>
+    <message id="diffusion.ui.denoising.strength.is.available.for.models.that">
+      <source>Denoising strength is available for models that edit input images.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ノイズ除去強度は入力画像を編集できるモデルで使用できます。</translation>
+    </message>
+    <message id="diffusion.ui.lower.values.retain.more.of.the.starting">
+      <source>Lower values retain more of the starting image. Try 1.0 for larger changes or new objects.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>値が低いほど開始画像を残します。大きな変更や新しい物体には1.0を試してください。</translation>
+    </message>
+    <message id="diffusion.ui.enable.image.to.image.denoising.to.use">
+      <source>Enable image-to-image denoising to use strength. Reference-only edits do not use this value.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>強度を使うには画像からのノイズ除去を有効にしてください。参照だけの編集では使われません。</translation>
+    </message>
+    <message id="diffusion.ui.available.in.generative.fill.or.edit.layer">
+      <source>Available in Generative Fill, or Edit layer with image-to-image denoising enabled.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成塗りつぶし、または画像からのノイズ除去を有効にしたレイヤー編集で使用できます。</translation>
+    </message>
+    <message id="diffusion.ui.the.fixed.turbo.sigma.schedule.uses.8">
+      <source>The fixed Turbo sigma schedule uses 8 steps. Choose Auto sigma schedule to try other step counts.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Turboの固定シグマスケジュールは8ステップです。別のステップ数を試すには自動シグマスケジュールを選んでください。</translation>
+    </message>
+    <message id="diffusion.ui.number.of.denoising.steps">
+      <source>Number of denoising steps.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ノイズ除去のステップ数。</translation>
+    </message>
+    <message id="diffusion.ui.enter.steps.1.descending.values.ending.in">
+      <source>Enter steps + 1 descending values ending in zero. Available with a custom sigma schedule.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ステップ数＋1個の値を降順に入力し、最後を0にしてください。カスタムシグマスケジュールで使用できます。</translation>
+    </message>
+    <message id="diffusion.ui.controls.how.noise.levels.are.spaced.available">
+      <source>Controls how noise levels are spaced. Available with the auto sigma schedule.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ノイズレベルの間隔を調整します。自動シグマスケジュールで使用できます。</translation>
+    </message>
+    <message id="diffusion.ui.flow.shift.does.not.apply.to.this">
+      <source>Flow shift does not apply to this model.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>このモデルにフローシフトは適用されません。</translation>
+    </message>
+    <message id="diffusion.ui.adjusts.the.flow.schedule.available.with.the">
+      <source>Adjusts the flow schedule. Available with the auto sigma schedule. Auto uses the model default (%1).</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>フロースケジュールを調整します。自動シグマスケジュールで使用でき、自動はモデルの既定値（%1）を使います。</translation>
+    </message>
+    <message id="diffusion.ui.controls.added.sampler.noise.available.for.samplers">
+      <source>Controls added sampler noise. Available for samplers that use eta.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>サンプラーが追加するノイズを調整します。etaを使うサンプラーで使用できます。</translation>
+    </message>
+    <message id="diffusion.ui.available.when.approximate.cache.is.enabled">
+      <source>Available when Approximate cache is enabled.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>近似キャッシュが有効な場合に使用できます。</translation>
+    </message>
+    <message id="diffusion.ui.checkpoint">
+      <source>Checkpoint</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>チェックポイント</translation>
+    </message>
+    <message id="diffusion.ui.diffusion.weights">
+      <source>Diffusion weights</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>拡散モデルの重み</translation>
+    </message>
+    <message id="diffusion.ui.vae.override.optional">
+      <source>VAE override (optional)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>外部VAE（任意）</translation>
+    </message>
+    <message id="diffusion.ui.use.checkpoint.vae">
+      <source>Use checkpoint VAE</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>チェックポイントのVAEを使用</translation>
+    </message>
+    <message id="diffusion.ui.this.mode.is.unavailable.for.the.selected">
+      <source>This mode is unavailable for the selected model.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>選択したモデルではこのモードを使用できません。</translation>
+    </message>
+    <message id="diffusion.ui.1.width.and.height.must.be.multiples">
+      <source>%1: width and height must be multiples of %2.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1：幅と高さは%2の倍数にしてください。</translation>
+    </message>
+    <message id="diffusion.ui.auto.1">
+      <source>Auto (%1)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>自動 (%1)</translation>
+    </message>
+    <message id="diffusion.ui.auto.uses.the.selected.model.s.required">
+      <source>Auto uses the selected model's required multiple.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>自動は選択したモデルに必要な倍数を使います。</translation>
+    </message>
+    <message id="diffusion.ui.choose.where.weights.are.kept.available.when">
+      <source>Choose where weights are kept. Available when Keep weights in is manual.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>重みの保存先を選びます。重みの配置を手動にした場合に使用できます。</translation>
+    </message>
+    <message id="diffusion.ui.reuse.text.encoder.prefix.data.available.for">
+      <source>Reuse text-encoder prefix data. Available for Qwen models.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>テキストエンコーダーの接頭辞データを再利用します。Qwenモデルで使用できます。</translation>
+    </message>
+    <message id="diffusion.ui.for.image.editing.add.a.separate.vision">
+      <source>For image editing, add a separate vision projector only if the text encoder does not include vision weights.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>画像編集では、テキストエンコーダーに視覚の重みが含まれない場合にのみ別の視覚プロジェクターを追加してください。</translation>
+    </message>
+    <message id="diffusion.ui.this.model.does.not.need.a.separate">
+      <source>This model does not need a separate vision component.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>このモデルに別の視覚コンポーネントは不要です。</translation>
+    </message>
+    <message id="diffusion.ui.this.model.does.not.support.a.negative">
+      <source>This model does not support a negative prompt.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>このモデルはネガティブプロンプトに対応していません。</translation>
+    </message>
+    <message id="diffusion.ui.describe.what.to.avoid.requires.guidance.cfg">
+      <source>Describe what to avoid. Requires Guidance (CFG) above 1.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>避けたい内容を説明してください。ガイダンス（CFG）が1を超える場合に使えます。</translation>
+    </message>
+    <message id="diffusion.ui.describe.what.to.avoid.in.the.generated">
+      <source>Describe what to avoid in the generated image.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成画像で避けたい内容を説明してください。</translation>
+    </message>
+    <message id="diffusion.ui.no.configurations">
+      <source>No configurations</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>設定なし</translation>
+    </message>
+    <message id="diffusion.ui.select.configuration">
+      <source>Select configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>設定を選択</translation>
+    </message>
+    <message id="diffusion.ui.add.input.image">
+      <source>Add input image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>入力画像を追加</translation>
+    </message>
+    <message id="diffusion.ui.regions.image.1.2.3.4.px">
+      <source>Regions — Image%1 · %2 · %3 × %4 px</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>領域 — Image%1 · %2 · %3 × %4 px</translation>
+    </message>
+    <message id="diffusion.ui.prompt.preset">
+      <source>Prompt preset…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>プロンプトのプリセット…</translation>
+    </message>
+    <message id="diffusion.ui.previous.preview">
+      <source>Previous preview</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>前のプレビュー</translation>
+    </message>
+    <message id="diffusion.ui.next.preview">
+      <source>Next preview</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>次のプレビュー</translation>
+    </message>
+    <message id="diffusion.ui.fit.to.view">
+      <source>Fit to view</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>表示に合わせる</translation>
+    </message>
+    <message id="diffusion.ui.actual.pixels.1.1">
+      <source>Actual pixels (1:1)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>実際のピクセル (1:1)</translation>
+    </message>
+    <message id="diffusion.ui.close.preview">
+      <source>Close preview</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>プレビューを閉じる</translation>
+    </message>
+    <message id="diffusion.ui.drag.to.draw.or.move.shift.drag">
+      <source>Drag to draw or move · Shift-drag adds a region · Middle mouse pans</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ドラッグで描画・移動 · Shift＋ドラッグで領域を追加 · 中ボタンでパン</translation>
+    </message>
+    <message id="diffusion.ui.mouse.wheel.zooms.middle.mouse.pans">
+      <source>Mouse wheel zooms · Middle mouse pans</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ホイールでズーム · 中ボタンでパン</translation>
+    </message>
+    <message id="diffusion.ui.compare.with.layer">
+      <source>Compare with layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>レイヤーと比較</translation>
+    </message>
+    <message id="diffusion.ui.canvas.alignment">
+      <source>Canvas Alignment</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>キャンバス位置</translation>
+    </message>
+    <message id="diffusion.ui.center.alignment">
+      <source>Center Alignment</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>中央揃え</translation>
+    </message>
+    <message id="diffusion.ui.fit.to.result">
+      <source>Fit to Result</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>結果に合わせる</translation>
+    </message>
+    <message id="diffusion.ui.canvas.document.positions.and.scale.center.native">
+      <source>Canvas: document positions and scale. Center: native pixel sizes. Fit: proportional reference scaling.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>キャンバス：文書内の位置と倍率。中央：元のピクセルサイズ。結果に合わせる：縦横比を保って参照を拡大縮小。</translation>
+    </message>
+    <message id="diffusion.ui.stop.comparing">
+      <source>Stop comparing</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>比較を終了</translation>
+    </message>
+    <message id="diffusion.ui.search.layers">
+      <source>Search layers…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>レイヤーを検索…</translation>
+    </message>
+    <message id="diffusion.ui.no.matching.layers">
+      <source>No matching layers</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>一致するレイヤーなし</translation>
+    </message>
+    <message id="diffusion.ui.draw.the.destination.box.scene.is.fitted">
+      <source>Draw the destination box. Scene is fitted as a guide; coordinates belong to the output frame.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>移動先の枠を描いてください。シーンは大きさを合わせたガイドで、座標は出力画像に基づきます。</translation>
+    </message>
+    <message id="diffusion.ui.scene.is.fitted.as.a.guide.boxes">
+      <source>Scene is fitted as a guide · Boxes use output coordinates · Middle mouse pans</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>シーンは配置ガイド · 枠は出力座標を使用 · 中ボタンでパン</translation>
+    </message>
+    <message id="diffusion.ui.region.label">
+      <source>Region label</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>領域名</translation>
+    </message>
+    <message id="diffusion.ui.description.optional">
+      <source>Description (optional)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>説明（任意）</translation>
+    </message>
+    <message id="diffusion.ui.optional.semantic.guidance.sent.as.desc.the">
+      <source>Optional semantic guidance sent as desc. The region name is only an alias.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>任意の意味的なガイドをdescとして送ります。領域名は参照用の別名です。</translation>
+    </message>
+    <message id="diffusion.ui.remove.selected.region">
+      <source>Remove selected region</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>選択した領域を削除</translation>
+    </message>
+    <message id="diffusion.ui.destination">
+      <source>Destination</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>移動先</translation>
+    </message>
+    <message id="diffusion.ui.edit">
+      <source>Edit…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>編集…</translation>
+    </message>
+    <message id="diffusion.ui.target.location.no.object.description">
+      <source>Target location — no object description</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>配置先 — 物体の説明なし</translation>
+    </message>
+    <message id="diffusion.ui.none">
+      <source>None</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>なし</translation>
+    </message>
+    <message id="diffusion.ui.missing.target.choose.another">
+      <source>Missing target — choose another</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>移動先なし — 別の対象を選択</translation>
+    </message>
+    <message id="diffusion.ui.new.target">
+      <source>New target…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>新しい移動先…</translation>
+    </message>
+    <message id="diffusion.ui.mouse.wheel.zooms.middle.mouse.pans.browse">
+      <source>Mouse wheel zooms · Middle mouse pans · ← / → browse previews</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ホイールでズーム · 中ボタンでパン · ← / →でプレビューを切り替え</translation>
+    </message>
+    <message id="diffusion.ui.choose.an.output.scene.first">
+      <source>Choose an output scene first.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>先に出力シーンを選んでください。</translation>
+    </message>
+    <message id="diffusion.ui.destination.for.image.1.2">
+      <source>Destination for Image%1/%2</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Image%1/%2の移動先</translation>
+    </message>
+    <message id="diffusion.ui.ai.image.editor">
+      <source>AI Image Editor</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI画像エディター</translation>
+    </message>
+    <message id="diffusion.ui.close.ai.image.editor">
+      <source>Close AI Image Editor</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI画像エディターを閉じる</translation>
+    </message>
+    <message id="diffusion.ui.configuration">
+      <source>Configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>設定</translation>
+    </message>
+    <message id="diffusion.ui.edit.layer">
+      <source>Edit layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>レイヤーを編集</translation>
+    </message>
+    <message id="diffusion.ui.generative.fill">
+      <source>Generative Fill</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成塗りつぶし</translation>
+    </message>
+    <message id="diffusion.ui.add.configuration">
+      <source>Add configuration</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>設定を追加</translation>
+    </message>
+    <message id="diffusion.ui.model.files">
+      <source>Model files</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>モデルファイル</translation>
+    </message>
+    <message id="diffusion.ui.family">
+      <source>Family</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>系統</translation>
+    </message>
+    <message id="diffusion.ui.variant">
+      <source>Variant</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>種類</translation>
+    </message>
+    <message id="diffusion.ui.choose.file">
+      <source>Choose file</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ファイルを選択</translation>
+    </message>
+    <message id="diffusion.ui.choose.checkpoint">
+      <source>Choose checkpoint</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>チェックポイントを選択</translation>
+    </message>
+    <message id="diffusion.ui.choose.model.component">
+      <source>Choose model component</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>モデルのコンポーネントを選択</translation>
+    </message>
+    <message id="diffusion.ui.checkpoints.safetensors.all.files">
+      <source>Checkpoints (*.safetensors);;All files (*)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>チェックポイント (*.safetensors);;すべてのファイル (*)</translation>
+    </message>
+    <message id="diffusion.ui.models.gguf.safetensors.all.files">
+      <source>Models (*.gguf *.safetensors);;All files (*)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>モデル (*.gguf *.safetensors);;すべてのファイル (*)</translation>
+    </message>
+    <message id="diffusion.ui.text.encoder">
+      <source>Text encoder</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>テキストエンコーダー</translation>
+    </message>
+    <message id="diffusion.ui.vision.optional">
+      <source>Vision (optional)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>視覚コンポーネント（任意）</translation>
+    </message>
+    <message id="diffusion.ui.auto">
+      <source>Auto</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>自動</translation>
+    </message>
+    <message id="diffusion.ui.auto.prefers.an.available.cuda.worker.then">
+      <source>Auto prefers an available CUDA worker, then Vulkan. Explicit backends require the matching installed worker.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>自動は利用可能なCUDAワーカーを優先し、次にVulkanを選びます。バックエンドを指定するには対応ワーカーが必要です。</translation>
+    </message>
+    <message id="diffusion.ui.backend">
+      <source>Backend</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>バックエンド</translation>
+    </message>
+    <message id="diffusion.ui.save.custom.prompt.preset">
+      <source>Save custom prompt preset</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>カスタムプロンプトを保存</translation>
+    </message>
+    <message id="diffusion.ui.delete.custom.prompt.preset">
+      <source>Delete custom prompt preset</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>カスタムプロンプトを削除</translation>
+    </message>
+    <message id="diffusion.ui.describe.the.image.or.the.changes.you">
+      <source>Describe the image or the changes you want…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>画像や変更したい内容を説明…</translation>
+    </message>
+    <message id="diffusion.ui.negative.prompt">
+      <source>Negative prompt</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ネガティブプロンプト</translation>
+    </message>
+    <message id="diffusion.ui.describe.what.to.avoid">
+      <source>Describe what to avoid…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>避けたい内容を説明…</translation>
+    </message>
+    <message id="diffusion.ui.size">
+      <source>Size</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>サイズ</translation>
+    </message>
+    <message id="diffusion.ui.output.width.in.pixels">
+      <source>Output width in pixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>出力の幅（ピクセル）</translation>
+    </message>
+    <message id="diffusion.ui.output.height.in.pixels">
+      <source>Output height in pixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>出力の高さ（ピクセル）</translation>
+    </message>
+    <message id="diffusion.ui.match.layer.canvas.size">
+      <source>Match layer / canvas size</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>レイヤー / キャンバスのサイズに合わせる</translation>
+    </message>
+    <message id="diffusion.ui.match.selected.input.layer.size">
+      <source>Match selected input / layer size</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>選択した入力 / レイヤーのサイズに合わせる</translation>
+    </message>
+    <message id="diffusion.ui.match.the.selected.input.including.its.canvas">
+      <source>Match the selected input, including its canvas crop. With no input selected, use the active layer.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>キャンバスでの切り抜きを含め、選択した入力に合わせます。入力が未選択ならアクティブレイヤーを使います。</translation>
+    </message>
+    <message id="diffusion.ui.resolution.selector">
+      <source>Resolution Selector</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>解像度の選択</translation>
+    </message>
+    <message id="diffusion.ui.1.1.square">
+      <source>1:1 (Square)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>1:1（正方形）</translation>
+    </message>
+    <message id="diffusion.ui.2.3.portrait.photo">
+      <source>2:3 (Portrait Photo)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>2:3（縦位置の写真）</translation>
+    </message>
+    <message id="diffusion.ui.3.2.photo">
+      <source>3:2 (Photo)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>3:2（写真）</translation>
+    </message>
+    <message id="diffusion.ui.3.4.portrait.standard">
+      <source>3:4 (Portrait Standard)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>3:4（縦位置の標準）</translation>
+    </message>
+    <message id="diffusion.ui.4.3.standard">
+      <source>4:3 (Standard)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>4:3（標準）</translation>
+    </message>
+    <message id="diffusion.ui.9.16.portrait.widescreen">
+      <source>9:16 (Portrait Widescreen)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>9:16（縦長ワイド）</translation>
+    </message>
+    <message id="diffusion.ui.16.9.widescreen">
+      <source>16:9 (Widescreen)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>16:9（ワイド）</translation>
+    </message>
+    <message id="diffusion.ui.21.9.ultrawide">
+      <source>21:9 (Ultrawide)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>21:9（ウルトラワイド）</translation>
+    </message>
+    <message id="diffusion.ui.custom">
+      <source>Custom</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>カスタム</translation>
+    </message>
+    <message id="diffusion.ui.choose.a.ratio.to.calculate.the.output">
+      <source>Choose a ratio to calculate the output size. Custom keeps the current dimensions.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>比率を選ぶと出力サイズを計算します。カスタムは現在のサイズを保ちます。</translation>
+    </message>
+    <message id="diffusion.ui.aspect.ratio">
+      <source>Aspect Ratio</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>縦横比</translation>
+    </message>
+    <message id="diffusion.ui.approximate.pixel.count.1.0.mp.is">
+      <source>Approximate pixel count. 1.0 MP is 1024 × 1024 for Square. Rounding can change the total.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>おおよそのピクセル数。正方形の1.0 MPは1024 × 1024です。丸めで総数が変わる場合があります。</translation>
+    </message>
+    <message id="diffusion.ui.megapixels">
+      <source>Megapixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>メガピクセル</translation>
+    </message>
+    <message id="diffusion.ui.round.each.dimension.to.the.nearest.multiple">
+      <source>Round each dimension to the nearest multiple.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>各辺を最も近い倍数に丸めます。</translation>
+    </message>
+    <message id="diffusion.ui.multiple">
+      <source>Multiple</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>倍数</translation>
+    </message>
+    <message id="diffusion.ui.overrides">
+      <source>Overrides</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>一時設定</translation>
+    </message>
+    <message id="diffusion.ui.seed">
+      <source>Seed</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>シード</translation>
+    </message>
+    <message id="diffusion.ui.use.the.same.seed.to.reproduce.a">
+      <source>Use the same seed to reproduce a result.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>同じシードで結果を再現できます。</translation>
+    </message>
+    <message id="diffusion.ui.generate.a.random.seed">
+      <source>Generate a random seed</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ランダムシードを生成</translation>
+    </message>
+    <message id="diffusion.ui.generate.a.random.seed.random.mode.also">
+      <source>Generate a random seed. Random mode also chooses a new seed for each generation.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ランダムなシードを作ります。ランダムモードでは生成ごとにも新しいシードを選びます。</translation>
+    </message>
+    <message id="diffusion.ui.random">
+      <source>Random</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ランダム</translation>
+    </message>
+    <message id="diffusion.ui.fixed">
+      <source>Fixed</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>固定</translation>
+    </message>
+    <message id="diffusion.ui.increment">
+      <source>Increment</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>加算</translation>
+    </message>
+    <message id="diffusion.ui.random.new.seed.per.job.fixed.reuse">
+      <source>Random: new seed per job. Fixed: reuse the seed. Increment: advance it by the number of generated images.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ランダム：ジョブごとに新しいシード。固定：同じシードを再利用。加算：生成した画像の枚数だけ増やします。</translation>
+    </message>
+    <message id="diffusion.ui.input.images">
+      <source>Input images</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>入力画像</translation>
+    </message>
+    <message id="diffusion.ui.max.input.1.px">
+      <source>Max input: %1 px</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>最大入力：%1 px</translation>
+    </message>
+    <message id="diffusion.ui.limit.the.longest.side.of.input.images">
+      <source>Limit the longest side of input images after canvas cropping, keeping their proportions. Output size is separate.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>キャンバスでの切り抜き後、縦横比を保って入力画像の長辺を制限します。出力サイズは別の設定です。</translation>
+    </message>
+    <message id="diffusion.ui.current.layer.appearance">
+      <source>Current layer — appearance</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>現在のレイヤー — 表示結果</translation>
+    </message>
+    <message id="diffusion.ui.current.layer.raw.pixels">
+      <source>Current layer — raw pixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>現在のレイヤー — 元のピクセル</translation>
+    </message>
+    <message id="diffusion.ui.another.document.layer.appearance">
+      <source>Another document layer — appearance</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>他の文書のレイヤー — 表示結果</translation>
+    </message>
+    <message id="diffusion.ui.another.document.layer.raw.pixels">
+      <source>Another document layer — raw pixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>他の文書のレイヤー — 元のピクセル</translation>
+    </message>
+    <message id="diffusion.ui.rendered.visible.canvas">
+      <source>Rendered visible canvas</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>描画された可視キャンバス</translation>
+    </message>
+    <message id="diffusion.ui.image.file">
+      <source>Image file…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>画像ファイル…</translation>
+    </message>
+    <message id="diffusion.ui.output.scene">
+      <source>Output scene</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>出力シーン</translation>
+    </message>
+    <message id="diffusion.ui.use.scene.in.your.prompt.to.reference">
+      <source>Use &lt;Scene&gt; in your prompt to reference this image. It is the backdrop for destination boxes; input order and your instructions are not changed.</source>
+      <extracomment>Keep image/region/scene aliases inside angle brackets unchanged; they are prompt tokens, not translated names.</extracomment>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>プロンプトで&lt;Scene&gt;を使うとこの画像を参照できます。移動先の枠の背景になり、入力順や指示は変わりません。</translation>
+    </message>
+    <message id="diffusion.ui.choose.an.input.image.to.identify.objects">
+      <source>Choose an input image to identify objects, or Output layout to guide placement.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>物体を指定するには入力画像を、配置を指定するには出力レイアウトを選んでください。</translation>
+    </message>
+    <message id="diffusion.ui.edit.regions">
+      <source>Edit regions…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>領域を編集…</translation>
+    </message>
+    <message id="diffusion.ui.remove.regions.from.this.image.or.output">
+      <source>Remove regions from this image or output layout</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>この画像または出力レイアウトの領域を削除</translation>
+    </message>
+    <message id="diffusion.ui.extra.crop.guidance.experimental">
+      <source>Extra crop guidance (experimental)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>追加クロップガイド（実験的）</translation>
+    </message>
+    <message id="diffusion.ui.optional.vulkana.guidance.also.send.each.input">
+      <source>Optional Vulkana guidance: also send each input region as a cropped reference. Uses extra memory and reference slots. Leave off to use FLUX's native bounding-box format alone.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Vulkana独自の任意ガイド：入力領域を切り抜いた参照画像も送ります。メモリと参照枠を追加で使います。FLUXの標準バウンディングボックス形式だけを使う場合はオフにします。</translation>
+    </message>
+    <message id="diffusion.ui.advanced.generation">
+      <source>Advanced generation</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>高度な生成設定</translation>
+    </message>
+    <message id="diffusion.ui.steps">
+      <source>Steps</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ステップ数</translation>
+    </message>
+    <message id="diffusion.ui.guidance.cfg">
+      <source>Guidance (CFG)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ガイダンス (CFG)</translation>
+    </message>
+    <message id="diffusion.ui.sampler">
+      <source>Sampler</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>サンプラー</translation>
+    </message>
+    <message id="diffusion.ui.scheduler">
+      <source>Scheduler</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>スケジューラー</translation>
+    </message>
+    <message id="diffusion.ui.sigma.schedule">
+      <source>Sigma schedule</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>シグマスケジュール</translation>
+    </message>
+    <message id="diffusion.ui.custom.sigmas">
+      <source>Custom sigmas</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>カスタムシグマ</translation>
+    </message>
+    <message id="diffusion.ui.flow.shift">
+      <source>Flow shift</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>フローシフト</translation>
+    </message>
+    <message id="diffusion.ui.use.image.to.image.denoising">
+      <source>Use image-to-image denoising</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>画像からのノイズ除去</translation>
+    </message>
+    <message id="diffusion.ui.denoising.strength">
+      <source>Denoising strength</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ノイズ除去強度</translation>
+    </message>
+    <message id="diffusion.ui.images.per.job">
+      <source>Images per job</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ジョブあたりの画像数</translation>
+    </message>
+    <message id="diffusion.ui.vae.tiling">
+      <source>VAE tiling</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>VAEタイル処理</translation>
+    </message>
+    <message id="diffusion.ui.vae.tile.size">
+      <source>VAE tile size</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>VAEタイルサイズ</translation>
+    </message>
+    <message id="diffusion.ui.vae.tile.overlap">
+      <source>VAE tile overlap</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>VAEタイルの重なり</translation>
+    </message>
+    <message id="diffusion.ui.progress.previews">
+      <source>Progress previews</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成中のプレビュー</translation>
+    </message>
+    <message id="diffusion.ui.preview.every.n.steps">
+      <source>Preview every N steps</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Nステップごとにプレビュー</translation>
+    </message>
+    <message id="diffusion.ui.sampler.noise.eta">
+      <source>Sampler noise (eta)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>サンプラーノイズ (eta)</translation>
+    </message>
+    <message id="diffusion.ui.approximate.cache.experimental">
+      <source>Approximate cache (experimental)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>近似キャッシュ（実験的）</translation>
+    </message>
+    <message id="diffusion.ui.cache.reuse.threshold">
+      <source>Cache reuse threshold</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>キャッシュ再利用しきい値</translation>
+    </message>
+    <message id="diffusion.ui.cache.start.fraction">
+      <source>Cache start fraction</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>キャッシュ開始割合</translation>
+    </message>
+    <message id="diffusion.ui.cache.end.fraction">
+      <source>Cache end fraction</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>キャッシュ終了割合</translation>
+    </message>
+    <message id="diffusion.ui.restore.recommended.generation.settings">
+      <source>Restore recommended generation settings</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>推奨の生成設定に戻す</translation>
+    </message>
+    <message id="diffusion.ui.memory.and.performance">
+      <source>Memory and performance</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>メモリと性能</translation>
+    </message>
+    <message id="diffusion.ui.inference.device">
+      <source>Inference device</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>推論デバイス</translation>
+    </message>
+    <message id="diffusion.ui.vram.budget.gib">
+      <source>VRAM budget (GiB)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>VRAM予算 (GiB)</translation>
+    </message>
+    <message id="diffusion.ui.budget.for.managed.weights.workspaces.not.a">
+      <source>Budget for managed weights/workspaces, not a physical VRAM cap. Leave room for Vulkana and the desktop.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>管理対象の重みや作業領域の予算で、物理VRAMの上限ではありません。Vulkanaとデスクトップ用の空きを残してください。</translation>
+    </message>
+    <message id="diffusion.ui.cpu.threads">
+      <source>CPU threads</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>CPUスレッド数</translation>
+    </message>
+    <message id="diffusion.ui.keep.weights.in">
+      <source>Keep weights in</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>重みの保存先</translation>
+    </message>
+    <message id="diffusion.ui.text.encoder.weights">
+      <source>Text encoder weights</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>テキストエンコーダーの重み</translation>
+    </message>
+    <message id="diffusion.ui.vae.weights">
+      <source>VAE weights</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>VAEの重み</translation>
+    </message>
+    <message id="diffusion.ui.text.encoder.compute">
+      <source>Text encoder compute</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>テキストエンコーダーの計算</translation>
+    </message>
+    <message id="diffusion.ui.vae.compute">
+      <source>VAE compute</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>VAEの計算</translation>
+    </message>
+    <message id="diffusion.ui.flash.attention">
+      <source>Flash attention</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Flash Attention</translation>
+    </message>
+    <message id="diffusion.ui.direct.convolution">
+      <source>Direct convolution</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>直接畳み込み</translation>
+    </message>
+    <message id="diffusion.ui.sage.attention.experimental">
+      <source>Sage attention (experimental)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Sage Attention（実験的）</translation>
+    </message>
+    <message id="diffusion.ui.memory.mapped.loading">
+      <source>Memory mapped loading</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>メモリマップ読み込み</translation>
+    </message>
+    <message id="diffusion.ui.prefetch.weights">
+      <source>Prefetch weights</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>重みを先読み</translation>
+    </message>
+    <message id="diffusion.ui.segmented.computation">
+      <source>Segmented computation</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>分割計算</translation>
+    </message>
+    <message id="diffusion.ui.prepare.weights.at.load">
+      <source>Prepare weights at load</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>読み込み時に重みを準備</translation>
+    </message>
+    <message id="diffusion.ui.cached.prompts">
+      <source>Cached prompts</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>キャッシュするプロンプト数</translation>
+    </message>
+    <message id="diffusion.ui.qwen.prefix.cache">
+      <source>Qwen prefix cache</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Qwen接頭辞キャッシュ</translation>
+    </message>
+    <message id="diffusion.ui.prefix.cache.format">
+      <source>Prefix cache format</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>接頭辞キャッシュ形式</translation>
+    </message>
+    <message id="diffusion.ui.session">
+      <source>Session</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>セッション</translation>
+    </message>
+    <message id="diffusion.ui.loaded.models">
+      <source>Loaded models</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>読み込み済みモデル</translation>
+    </message>
+    <message id="diffusion.ui.no.models.loaded">
+      <source>No models loaded</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>モデル未読み込み</translation>
+    </message>
+    <message id="diffusion.ui.choose.model.files.and.enter.a.prompt">
+      <source>Choose model files and enter a prompt to begin.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>モデルファイルを選び、プロンプトを入力してください。</translation>
+    </message>
+    <message id="diffusion.ui.add.new.layer">
+      <source>Add new layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>新規レイヤーを追加</translation>
+    </message>
+    <message id="diffusion.ui.replace.selected.layer">
+      <source>Replace selected layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>選択レイヤーを置換</translation>
+    </message>
+    <message id="diffusion.ui.open.new.document">
+      <source>Open new document</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>新規ドキュメントとして開く</translation>
+    </message>
+    <message id="diffusion.ui.apply">
+      <source>Apply</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>適用</translation>
+    </message>
+    <message id="diffusion.ui.generate.again">
+      <source>Generate again</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>再生成</translation>
+    </message>
+    <message id="diffusion.ui.discard">
+      <source>Discard</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>破棄</translation>
+    </message>
+    <message id="diffusion.ui.image.details">
+      <source>Image details</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>画像の詳細</translation>
+    </message>
+    <message id="diffusion.ui.model">
+      <source>Model</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>モデル</translation>
+    </message>
+    <message id="diffusion.ui.resolution">
+      <source>Resolution</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>解像度</translation>
+    </message>
+    <message id="diffusion.ui.copy.seed">
+      <source>Copy seed</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>シードをコピー</translation>
+    </message>
+    <message id="diffusion.ui.generated">
+      <source>Generated</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成日時</translation>
+    </message>
+    <message id="diffusion.ui.save.prompt.preset">
+      <source>Save prompt preset</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>プロンプトをプリセット保存</translation>
+    </message>
+    <message id="diffusion.ui.prompt.preset.saved">
+      <source>Prompt preset saved.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>プロンプトのプリセットを保存しました。</translation>
+    </message>
+    <message id="diffusion.ui.choose.a.custom.preset.to.remove">
+      <source>Choose a custom preset to remove.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>削除するカスタムプリセットを選んでください。</translation>
+    </message>
+    <message id="diffusion.ui.images.and.region.guides.exceed.the.model">
+      <source>Images and region guides exceed the model's reference limit. Remove an image or region.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>画像と領域ガイドがモデルの参照上限を超えています。画像か領域を削除してください。</translation>
+    </message>
+    <message id="diffusion.ui.unload">
+      <source>Unload</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>解放</translation>
+    </message>
+    <message id="diffusion.ui.unload.this.configuration.and.its.components.to">
+      <source>Unload this configuration and its components to release memory. Generated images are kept.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>設定とそのコンポーネントを解放してメモリを空けます。生成画像は残ります。</translation>
+    </message>
+    <message id="diffusion.ui.this.model.generates.from.text.only.choose">
+      <source>This model generates from text only. Choose a compatible model to add input images.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>このモデルはテキストからの生成専用です。入力画像を追加するには対応モデルを選んでください。</translation>
+    </message>
+    <message id="diffusion.ui.this.model.accepts.1.references.in.total">
+      <source>This model accepts %1 references in total, including input images and region guides.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>このモデルは入力画像と領域ガイドを合わせて%1個の参照を受け付けます。</translation>
+    </message>
+    <message id="diffusion.ui.this.layer.is.outside.its.source.canvas">
+      <source>This layer is outside its source canvas. Restore or remove the input.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>このレイヤーは元のキャンバスの外にあります。入力を復元するか削除してください。</translation>
+    </message>
+    <message id="diffusion.ui.regions.outside.the.canvas.are.hidden.until">
+      <source>Regions outside the canvas are hidden until the full input is restored.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>キャンバス外の領域は入力全体を復元するまで表示されません。</translation>
+    </message>
+    <message id="diffusion.ui.output.layout.regions">
+      <source>Output layout regions</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>出力レイアウトの領域</translation>
+    </message>
+    <message id="diffusion.ui.regions.image.1.2">
+      <source>Regions — Image%1 · %2</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>領域 — Image%1 · %2</translation>
+    </message>
+    <message id="diffusion.ui.pending">
+      <source>Pending</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>処理中</translation>
+    </message>
+    <message id="diffusion.ui.live.draft.approximate.final.detail.appears.after">
+      <source>Live draft — approximate. Final detail appears after generation finishes.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>途中結果 — 概略です。最終的な細部は生成完了後に表示されます。</translation>
+    </message>
+    <message id="diffusion.ui.lora.strength.1.00.uses.its.full">
+      <source>LoRA strength. 1.00 uses its full effect; 0.00 has no effect.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA強度。1.00で完全な効果、0.00で効果なしです。</translation>
+    </message>
+    <message id="diffusion.ui.lora.strength">
+      <source>LoRA strength</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA強度</translation>
+    </message>
+    <message id="diffusion.ui.unnamed.lora">
+      <source>Unnamed LoRA</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>名前なしLoRA</translation>
+    </message>
+    <message id="diffusion.ui.loras.1.2.enabled">
+      <source>LoRAs (%1/%2 enabled)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA（%1/%2 有効）</translation>
+    </message>
+    <message id="diffusion.ui.enable.this.lora.for.generation">
+      <source>Enable this LoRA for generation</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成時にこのLoRAを使う</translation>
+    </message>
+    <message id="diffusion.ui.reset.loras.to.configuration.defaults">
+      <source>Reset LoRAs to configuration defaults</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRAを設定の既定値に戻す</translation>
+    </message>
+    <message id="diffusion.ui.choose.lora">
+      <source>Choose LoRA</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRAを選択</translation>
+    </message>
+    <message id="diffusion.ui.lora.models.safetensors.gguf.all.files">
+      <source>LoRA models (*.safetensors *.gguf);;All files (*)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRAモデル (*.safetensors *.gguf);;すべてのファイル (*)</translation>
+    </message>
+    <message id="diffusion.ui.lora.file">
+      <source>LoRA file…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRAファイル…</translation>
+    </message>
+    <message id="diffusion.ui.choose.lora.file">
+      <source>Choose LoRA file</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRAファイルを選択</translation>
+    </message>
+    <message id="diffusion.ui.remove.lora">
+      <source>Remove LoRA</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRAを削除</translation>
+    </message>
+    <message id="diffusion.ui.enabled.by.default">
+      <source>Enabled by default</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>既定で有効</translation>
+    </message>
+    <message id="diffusion.ui.lora.enabled.by.default">
+      <source>LoRA enabled by default</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRAを既定で有効</translation>
+    </message>
+    <message id="diffusion.ui.friendly.name">
+      <source>Friendly name</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>表示名</translation>
+    </message>
+    <message id="diffusion.ui.add.lora">
+      <source>Add LoRA</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRAを追加</translation>
+    </message>
+    <message id="diffusion.ui.loras.optional">
+      <source>LoRAs (optional)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA（任意）</translation>
+    </message>
+    <message id="diffusion.ui.generate.image">
+      <source>Generate Image…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>画像を生成…</translation>
+    </message>
+    <message id="diffusion.ui.edit.current.layer">
+      <source>Edit Current Layer…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>現在のレイヤーを編集…</translation>
+    </message>
+    <message id="diffusion.ui.generative.fill.2">
+      <source>Generative Fill…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成塗りつぶし…</translation>
+    </message>
+    <message id="diffusion.ui.ai.image.editor.2">
+      <source>AI Image Editor…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI画像エディター…</translation>
+    </message>
+    <message id="diffusion.ui.unloading.model">
+      <source>Unloading model…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>モデルを解放中…</translation>
+    </message>
+    <message id="diffusion.ui.variation.1">
+      <source>Variation %1</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>バリエーション %1</translation>
+    </message>
+    <message id="diffusion.ui.generation.done">
+      <source>Generation done</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成完了</translation>
+    </message>
+    <message id="diffusion.ui.ready.1.s.inspect.the.result.before">
+      <source>Ready · %1 s — inspect the result before applying.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>完了 · %1 s — 適用前に結果を確認してください。</translation>
+    </message>
+    <message id="diffusion.ui.generation.failed">
+      <source>Generation failed</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成に失敗</translation>
+    </message>
+    <message id="diffusion.ui.cancelled.previous.successful.variations.are.still.available">
+      <source>Cancelled. Previous successful variations are still available.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>キャンセルしました。以前の生成結果は引き続き使用できます。</translation>
+    </message>
+    <message id="diffusion.ui.generation.cancelled">
+      <source>Generation cancelled</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成をキャンセルしました</translation>
+    </message>
+    <message id="diffusion.ui.generate.again.to.restart.the.worker">
+      <source> Generate again to restart the worker.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation> 再生成するとワーカーが再起動します。</translation>
+    </message>
+    <message id="diffusion.ui.model.unloaded.generate.again.to.load.a">
+      <source>Model unloaded. Generate again to load a configuration.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>モデルを解放しました。再生成すると設定を読み込みます。</translation>
+    </message>
+    <message id="diffusion.ui.this.model.generates.from.text.only.choose.2">
+      <source>This model generates from text only. Choose an editing model to edit a layer or selection.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>このモデルはテキストからの生成専用です。レイヤーや選択範囲の編集には、編集対応モデルを選んでください。</translation>
+    </message>
+    <message id="diffusion.ui.select.a.raster.layer.to.start.an">
+      <source>Select a raster layer to start an editing session.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ラスターレイヤーを選択して編集を開始してください。</translation>
+    </message>
+    <message id="diffusion.ui.make.a.selection.before.using.generative.fill">
+      <source>Make a selection before using Generative Fill.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成塗りつぶしを使う前に選択範囲を作成してください。</translation>
+    </message>
+    <message id="diffusion.ui.target.visible.canvas">
+      <source>Target · visible canvas</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>対象 · 表示中のキャンバス</translation>
+    </message>
+    <message id="diffusion.ui.target.raw.layer.pixels">
+      <source>Target · raw layer pixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>対象 · レイヤーの元ピクセル</translation>
+    </message>
+    <message id="diffusion.ui.target.captured.you.can.keep.editing.changed">
+      <source>Target captured. You can keep editing; changed targets are checked before generation and Apply.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>対象を取得しました。編集を続けられます。生成・適用前に対象の変更を確認します。</translation>
+    </message>
+    <message id="diffusion.ui.add.an.input.image.before.generating.an">
+      <source>Add an input image before generating an edit.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>編集結果を生成する前に入力画像を追加してください。</translation>
+    </message>
+    <message id="diffusion.ui.select.a.raster.layer.and.a.selection">
+      <source>Select a raster layer and a selection for Generative Fill.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成塗りつぶしにはラスターレイヤーと選択範囲が必要です。</translation>
+    </message>
+    <message id="diffusion.ui.enter.a.prompt.before.generating">
+      <source>Enter a prompt before generating.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成前にプロンプトを入力してください。</translation>
+    </message>
+    <message id="diffusion.ui.preparing.inference">
+      <source>Preparing inference…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>推論を準備中…</translation>
+    </message>
+    <message id="diffusion.ui.preparing.generation">
+      <source>Preparing generation…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成を準備中…</translation>
+    </message>
+    <message id="diffusion.ui.update.the.inference.worker.to.use.loras">
+      <source>Update the inference worker to use LoRAs.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA を使うには推論ワーカーを更新してください。</translation>
+    </message>
+    <message id="diffusion.ui.generation.could.not.start">
+      <source>Generation could not start</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成を開始できませんでした</translation>
+    </message>
+    <message id="diffusion.ui.update.the.inference.worker.to.use.native">
+      <source>Update the inference worker to use native FLUX.3 image and region references.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>FLUX.3 固有の画像・領域参照を使うには推論ワーカーを更新してください。</translation>
+    </message>
+    <message id="diffusion.ui.update.the.inference.worker.to.use.the">
+      <source>Update the inference worker to use the input-size limit.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>入力サイズ制限を使うには推論ワーカーを更新してください。</translation>
+    </message>
+    <message id="diffusion.ui.update.the.inference.worker.to.use.region">
+      <source>Update the inference worker to use region descriptions, output scenes and linked destinations.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>領域の説明、出力シーン、移動先の関連付けを使うには推論ワーカーを更新してください。</translation>
+    </message>
+    <message id="diffusion.ui.the.installed.inference.worker.does.not.support">
+      <source>The installed inference worker does not support per-image regions. Update the worker before generating with input regions.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>この推論ワーカーは画像ごとの領域に対応していません。入力領域を使って生成する前に更新してください。</translation>
+    </message>
+    <message id="diffusion.ui.1.is.unavailable.the.installed.worker.provides">
+      <source>%1 is unavailable: the installed worker provides %2.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1 は使用できません。インストール済みのワーカーは %2 を提供します。</translation>
+    </message>
+    <message id="diffusion.ui.loading.the.selected.model">
+      <source>Loading the selected model…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>選択したモデルを読み込み中…</translation>
+    </message>
+    <message id="diffusion.ui.loading.ai.model">
+      <source>Loading AI model…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI モデルを読み込み中…</translation>
+    </message>
+    <message id="diffusion.ui.generating.you.can.inspect.previous.variations.while">
+      <source>Generating… You can inspect previous variations while this job runs.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成中… 実行中も以前の結果を確認できます。</translation>
+    </message>
+    <message id="diffusion.ui.the.generated.image.is.no.longer.available">
+      <source>The generated image is no longer available.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成画像は利用できなくなりました。</translation>
+    </message>
+    <message id="diffusion.ui.ai.image">
+      <source>AI image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI 画像</translation>
+    </message>
+    <message id="diffusion.ui.open.a.document.or.choose.create.new">
+      <source>Open a document or choose Create New Document.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ドキュメントを開くか「新規ドキュメントとして開く」を選んでください。</translation>
+    </message>
+    <message id="diffusion.ui.finish.the.current.document.interaction.before.applying">
+      <source>Finish the current document interaction before applying this result.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>現在のドキュメント操作を終了してから結果を適用してください。</translation>
+    </message>
+    <message id="diffusion.ui.select.a.raster.layer.to.replace">
+      <source>Select a raster layer to replace.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>置き換えるラスターレイヤーを選択してください。</translation>
+    </message>
+    <message id="diffusion.ui.ai.result.applied">
+      <source>AI result applied</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI の結果を適用しました</translation>
+    </message>
+    <message id="diffusion.ui.cancelling">
+      <source>Cancelling…</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>キャンセル中…</translation>
+    </message>
+    <message id="diffusion.ui.generation.cancelled.2">
+      <source>Generation cancelled.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成をキャンセルしました。</translation>
+    </message>
+    <message id="diffusion.ui.this.input.has.no.pixels.inside.its">
+      <source>This input has no pixels inside its canvas.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>この入力のキャンバス内にピクセルがありません。</translation>
+    </message>
+    <message id="diffusion.ui.select.an.input.image.or.a.layer">
+      <source>Select an input image or a layer first.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>先に入力画像またはレイヤーを選択してください。</translation>
+    </message>
+    <message id="diffusion.ui.select.an.image.layer.rather.than.a">
+      <source>Select an image layer rather than a container.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>コンテナーではなく画像レイヤーを選択してください。</translation>
+    </message>
+    <message id="diffusion.ui.the.selected.layer.has.no.visible.bounds">
+      <source>The selected layer has no visible bounds.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>選択したレイヤーに表示領域がありません。</translation>
+    </message>
+    <message id="diffusion.ui.add.reference.image">
+      <source>Add reference image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>参照画像を追加</translation>
+    </message>
+    <message id="diffusion.ui.images.png.jpg.jpeg.webp.bmp.tif">
+      <source>Images (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>画像 (*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff)</translation>
+    </message>
+    <message id="diffusion.ui.file">
+      <source>File</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ファイル</translation>
+    </message>
+    <message id="diffusion.ui.reference.layer">
+      <source>Reference layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>参照レイヤー</translation>
+    </message>
+    <message id="diffusion.ui.document.layer">
+      <source>Document / layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ドキュメント / レイヤー</translation>
+    </message>
+    <message id="diffusion.ui.open.a.document.before.adding.this.input">
+      <source>Open a document before adding this input.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>この入力を追加する前にドキュメントを開いてください。</translation>
+    </message>
+    <message id="diffusion.ui.visible.canvas">
+      <source>Visible canvas</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>表示中のキャンバス</translation>
+    </message>
+    <message id="diffusion.ui.select.a.layer.first">
+      <source>Select a layer first.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>先にレイヤーを選択してください。</translation>
+    </message>
+    <message id="diffusion.ui.raw.pixels">
+      <source>Raw pixels</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>元ピクセル</translation>
+    </message>
+    <message id="diffusion.ui.rendered.appearance.isolated.layer">
+      <source>Rendered appearance · isolated layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>描画結果 · 単独レイヤー</translation>
+    </message>
+    <message id="diffusion.ui.close.document">
+      <source>Close document?</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ドキュメントを閉じますか？</translation>
+    </message>
+    <message id="diffusion.ui.quit.vulkana">
+      <source>Quit Vulkana?</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Vulkana を終了しますか？</translation>
+    </message>
+    <message id="diffusion.ui.ai.generation.is.using.an.image.captured">
+      <source>AI generation is using an image captured from this document. Generation will continue if you close it. You can still add the result to another document or open it as a new document.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI はこのドキュメントから取得した画像を使って生成中です。閉じても生成は続きます。結果は別のドキュメントに追加するか、新規ドキュメントとして開けます。</translation>
+    </message>
+    <message id="diffusion.ui.ai.generation.is.still.running.quitting.vulkana">
+      <source>AI generation is still running. Quitting Vulkana will cancel it.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI はまだ生成中です。Vulkana を終了すると生成がキャンセルされます。</translation>
+    </message>
+    <message id="diffusion.ui.close.document.2">
+      <source>Close document</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ドキュメントを閉じる</translation>
+    </message>
+    <message id="diffusion.ui.quit">
+      <source>Quit</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>終了</translation>
+    </message>
+    <message id="diffusion.ui.view.latest.preview">
+      <source>View latest preview</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>最新のプレビューを表示</translation>
+    </message>
+    <message id="diffusion.ui.dismiss.notification">
+      <source>Dismiss notification</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>通知を閉じる</translation>
+    </message>
+    <message id="diffusion.ui.target">
+      <source> · Target</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation> · 対象</translation>
+    </message>
+    <message id="diffusion.ui.ai">
+      <source>AI</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI</translation>
+    </message>
+    <message id="diffusion.ui.loras">
+      <source>LoRAs</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA</translation>
+    </message>
+    <message id="diffusion.ui.delete.1">
+      <source>Delete “%1”?</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>「%1」を削除しますか？</translation>
+    </message>
+    <message id="diffusion.ui.show.1.in.generate">
+      <source>Show %1 in Generate</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>生成タブに%1を表示</translation>
+    </message>
+    <message id="diffusion.ui.1.override">
+      <source>%1 override</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1の一時変更</translation>
+    </message>
+    <message id="diffusion.ui.reset.1.to.configuration.default">
+      <source>Reset %1 to configuration default</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1を設定の初期値に戻す</translation>
+    </message>
+    <message id="diffusion.ui.1.copy">
+      <source>%1 copy</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1 のコピー</translation>
+    </message>
+    <message id="diffusion.ui.1.unavailable">
+      <source>%1 (unavailable)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1（利用不可）</translation>
+    </message>
+    <message id="diffusion.ui.ai.image.preview.1">
+      <source>AI image preview — %1</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>AI 画像プレビュー — %1</translation>
+    </message>
+    <message id="diffusion.ui.left.1.right.result.drag.the.divider">
+      <source>Left: %1 · Right: Result. Drag the divider to compare.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>左：%1 · 右：結果。仕切りをドラッグして比較できます。</translation>
+    </message>
+    <message id="diffusion.ui.edit.image">
+      <source> · Edit image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation> · 画像を編集</translation>
+    </message>
+    <message id="diffusion.ui.1.regions">
+      <source> · %1 regions</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation> · 領域 %1 個</translation>
+    </message>
+    <message id="diffusion.ui.cropped.to.the.source.canvas">
+      <source>
+Cropped to the source canvas.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>
+元のキャンバス範囲で切り抜き済み。</translation>
+    </message>
+    <message id="diffusion.ui.double.click.to.inspect.and.edit.this">
+      <source>
+Double-click to inspect and edit this image’s regions. Image numbers follow the list order.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>
+ダブルクリックで画像の領域を確認・編集できます。画像番号はリストの順序に従います。</translation>
+    </message>
+    <message id="diffusion.ui.seed.1">
+      <source> · Seed %1</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation> · シード %1</translation>
+    </message>
+    <message id="diffusion.ui.requested.1.2.px">
+      <source>
+Requested: %1 × %2 px</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>
+指定サイズ：%1 × %2 px</translation>
+    </message>
+    <message id="diffusion.ui.1.inference.worker.is.not.installed.choose">
+      <source>%1 inference worker is not installed. Choose an available backend.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1 推論ワーカーがインストールされていません。利用可能なバックエンドを選んでください。</translation>
+    </message>
+    <message id="diffusion.ui.disk">
+      <source>Disk</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>ディスク</translation>
+    </message>
+    <message id="diffusion.ui.manual">
+      <source>Manual</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>手動</translation>
+    </message>
+    <message id="diffusion.ui.on">
+      <source>On</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>オン</translation>
+    </message>
+    <message id="diffusion.ui.off">
+      <source>Off</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>オフ</translation>
+    </message>
+    <message id="diffusion.ui.disabled">
+      <source>Disabled</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>無効</translation>
+    </message>
+    <message id="diffusion.ui.generate.image.2">
+      <source>Generate image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>画像を生成</translation>
+    </message>
+    <message id="diffusion.ui.edit.image.2">
+      <source>Edit image</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>画像を編集</translation>
+    </message>
+    <message id="diffusion.ui.replace.background">
+      <source>Replace background</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>背景を置き換え</translation>
+    </message>
+    <message id="diffusion.ui.remove.background">
+      <source>Remove background</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>背景を削除</translation>
     </message>
   </context>
 </TS>

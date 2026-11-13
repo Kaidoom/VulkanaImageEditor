@@ -1,4 +1,5 @@
 #pragma once
+#include "imageeditor/ui/Localization.hpp"
 
 #include "imageeditor/ui/DiffusionPreview.hpp"
 #include <QImage>
@@ -129,7 +130,7 @@ public:
   void showLatestPreview();
   void setBusy(bool busy);
   bool isBusy() const;
-  void setStatus(const QString &text, bool error = false);
+  void setStatus(const i18n::Message &text, bool error = false);
   void setProgress(int step, int steps, double elapsedMs = 0);
   void setProgressPreview(QImage image);
   void setTargetCompatible(bool selected);

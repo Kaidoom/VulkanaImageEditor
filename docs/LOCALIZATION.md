@@ -101,8 +101,8 @@ English. ASCII numbers remain independent of the chosen UI locale.
 
 The 16-language lineup is translated and enabled in `localization/`:
 `en`, `fr`, `es`, `de`, `it`, `pt-BR`, `pl`, `tr`, `ru`, `uk`, `ar`, `hi`,
-`zh-Hans`, `zh-Hant`, `ja`, `ko`. The initial 1,731-message translation pass includes
-the appropriate plural forms. New messages may fall back to English until the
+`zh-Hans`, `zh-Hant`, `ja`, `ko`. The catalogs include the appropriate plural
+forms. New messages may fall back to English until the
 next translation pass; run `validate` for current coverage. All language metadata retains `reviewPending: true`;
 targeted corrections do not imply a complete review of a language.
 CMake installs enabled packs plus the test pseudo-pack.
@@ -184,13 +184,14 @@ for their distribution.
 
 ## Coverage and known remaining work
 
-The catalogs have **1,757 English entries**, with translations in all 15 other
-languages for every cataloged entry. It covers menus/tools, Properties, Adjustments/Effects,
+The catalogs cover menus/tools, Properties, Adjustments/Effects,
 layer/mask actions, preferences, shortcuts, update/feedback UI, Refine Selection,
 selection tools, undo presentation, and the primary save/import/export controls
 and prompts, project-file registration, canvas clipboard copying, screenshot
 capture/cropping, Performance preferences, mask copying, Pixel opacity (Fill),
-advanced effects blending, graphics initialization, layer info, and color reset.
+advanced effects blending, graphics initialization, layer info, color reset,
+Snapshot Timeline and GIF workflows, MCP preferences, Channel Groups and the AI
+Image Editor, including model configurations, LoRAs, regions and result previews.
 This is **not a claim of complete
 application-string coverage**.
 
@@ -212,7 +213,7 @@ merely to raise translation coverage, and never translate arbitrary user text.
 
 `python3 tools/localization.py inventory` reports directly authored untranslated
 UI calls. Validation rejects newly introduced direct strings beyond the reviewed
-`untranslated-baseline.json` (currently empty). This conservative guard is not
+`untranslated-baseline.json`. This conservative guard is not
 a C++ semantic analyzer: raw strings returned from services/helper functions
 still need code review. Do not expand the baseline to hide new user-facing text.
 
@@ -220,6 +221,12 @@ Where a service supplies a user-facing conversion reason, use stable codes and
 arguments and translate at the presentation boundary, rather than putting Qt
 into core or using translated strings as program decisions. Technical diagnostic
 details stay verbatim beneath a localized, actionable summary where needed.
+
+AI model names, sampler/scheduler identifiers, prompt presets and user prompts
+remain literal input data. Preserve aliases such as `<Image1>`,
+`<Image1/Region1>`, `<Region1>` and `<Scene>` when translating their surrounding
+instructions. Switching languages must not rewrite prompts, seeds, input images,
+configuration IDs or temporary generation overrides.
 
 ## Validation and contributor review
 

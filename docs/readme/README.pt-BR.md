@@ -15,6 +15,9 @@ com uma área de trabalho Qt e uma tela acelerada por Vulkan.
 - **Edição em camadas:** camadas raster, texto e formas editáveis; máscaras bitmap,
   pastas, grupos de máscaras de corte, seleção múltipla, modos de mesclagem,
   duplicação, mesclagem e rasterização explícita.
+- **Grupos de canais:** edite canais individuais como camadas em tons de cinza
+  para texturas com dados empacotados, com conversão sem perdas, pintura numérica,
+  retoque e ajustes. Consulte o [guia de grupos de canais](../CHANNEL_GROUPS.md).
 - **Pintura e retoque:** pincéis sensíveis à pressão, predefinições procedurais
   e texturizadas, borracha, preenchimento, desfoque local, carimbo de clonagem,
   pincel de recuperação e recuperação localizada automática.
@@ -25,6 +28,10 @@ com uma área de trabalho Qt e uma tela acelerada por Vulkan.
   aproximado usando o modelo offline incluído; melhore seleções e máscaras bitmap
   com Refinar seleção, prévias em tempo real e correções manuais. A seleção de
   objetos não exige baixar um modelo nem instalar Python.
+- **Edição local com IA:** gere imagens, edite camadas e preencha seleções usando
+  seus próprios modelos e o mecanismo CUDA opcional. Veja os resultados antes de
+  aplicá-los como alterações que podem ser desfeitas. Requer uma GPU NVIDIA
+  compatível; consulte [Vulkana Diffusion](../../DIFFUSION.md).
 - **Transformações:** mover, redimensionar, girar, espelhar e distorcer pelos
   cantos; transforme os limites da seleção ou os pixels selecionados, com encaixe
   e guias de alinhamento.
