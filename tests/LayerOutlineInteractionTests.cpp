@@ -11,6 +11,7 @@
 #include "imageeditor/ui/Theme.hpp"
 
 #include <QAction>
+#include <QAbstractButton>
 #include <QApplication>
 #include <QCheckBox>
 #include <QDoubleSpinBox>
@@ -63,10 +64,10 @@ bool waitFor(const std::function<bool()>& predicate, int timeout = 5000)
 }
 template<class Receiver>
 void mouse(Receiver& receiver, QEvent::Type type, QPointF position, Qt::MouseButton button,
-    Qt::MouseButtons buttons)
+    Qt::MouseButtons buttons, Qt::KeyboardModifiers modifiers = Qt::NoModifier)
 {
     QMouseEvent event(type, position, position, QPointF(receiver.mapToGlobal(position.toPoint())),
-        button, buttons, Qt::NoModifier);
+        button, buttons, modifiers);
     QCoreApplication::sendEvent(&receiver, &event);
 }
 void key(QObject* receiver, QEvent::Type type, int code, const QString& text = {})
@@ -393,6 +394,74 @@ void selectPair(Fixture& f, core::LayerId first, core::LayerId primary)
     CHECK(f.session().selectedLayers().size() == 2 && f.session().activeLayer() == primary);
 }
 
+void canvasClicksReducePanelMultiSelectionWithoutBreakingDrags(QVulkanInstance* instance = nullptr)
+{
+    Fixture f(instance); CHECK(f.valid()); if (!f.valid()) return;
+    const auto second = addCompanion(f), third = addCompanion(f);
+    CHECK(f.document().setLayerTransform(f.base, {.m00=.25, .m11=.25}));
+    CHECK(f.document().setLayerTransform(third, {.m02=40, .m12=55}));
+    CHECK(f.session().execute(std::make_unique<core::SetLayerOpacityCommand>(f.base, .5F)));
+    CHECK(f.session().undo()); f.publish(); f.document().markSaved();
+    const auto revision = f.document().revision(), pixels = f.surface().revision();
+    const auto depth = f.session().history().undoDepth(), redo = f.session().history().redoDepth();
+    const auto selectThree = [&] {
+        f.clickLayer(f.base); f.clickLayer(second, Qt::ControlModifier); f.clickLayer(third, Qt::ControlModifier);
+        CHECK(f.session().selectedLayers().size() == 3);
+    };
+    const std::array<std::pair<core::LayerId, core::Vec2d>,3> targets{{
+        {f.base,{20,20}}, {second,{80,60}}, {third,{45,60}}}};
+    for (const auto& [id, point] : targets) {
+        selectThree();
+        const auto press = f.logical(point);
+        mouse(*f.canvas, QEvent::MouseButtonPress, press, Qt::LeftButton, Qt::LeftButton);
+        CHECK(f.session().selectedLayers().size() == 3); // Could still become a group drag.
+        mouse(*f.canvas, QEvent::MouseMove, press + QPointF(1,0), Qt::NoButton, Qt::LeftButton);
+        mouse(*f.canvas, QEvent::MouseButtonRelease, press + QPointF(1,0), Qt::LeftButton, Qt::NoButton);
+        settle();
+        CHECK(f.session().selectedLayers() == std::vector<core::LayerId>{id});
+        CHECK(f.session().activeLayer() == id && f.view->selectionModel()->selectedIndexes().size() == 1);
+        CHECK(f.document().revision() == revision && !f.document().isModified());
+        CHECK(f.surface().revision() == pixels && f.session().history().undoDepth() == depth
+            && f.session().history().redoDepth() == redo);
+    }
+    selectThree(); f.clickCanvas({120,80}); // Transparent space inside the canvas.
+    CHECK(f.session().selectedLayers() == std::vector<core::LayerId>{third});
+    CHECK(!f.outlined() && f.document().revision() == revision);
+    selectThree();
+    const auto blank = f.logical({120,80});
+    mouse(*f.canvas,QEvent::MouseButtonPress,blank,Qt::LeftButton,Qt::LeftButton,Qt::ShiftModifier);
+    mouse(*f.canvas,QEvent::MouseButtonRelease,blank,Qt::LeftButton,Qt::NoButton,Qt::ShiftModifier);
+    CHECK(f.session().selectedLayers().size() == 3);
+    const auto press = f.logical({20,20});
+    mouse(*f.canvas,QEvent::MouseButtonPress,press,Qt::LeftButton,Qt::LeftButton);
+    key(f.canvas,QEvent::KeyPress,Qt::Key_Escape);
+    mouse(*f.canvas,QEvent::MouseButtonRelease,press,Qt::LeftButton,Qt::NoButton);
+    CHECK(f.session().selectedLayers().size() == 3 && f.document().revision() == revision);
+    auto* activeOnly = f.find<QAbstractButton>("MoveActiveLayerOnly");
+    auto* underMouse = f.find<QAbstractButton>("MoveSelectUnderMouse");
+    if (activeOnly && underMouse) {
+        activeOnly->click(); selectThree(); f.clickCanvas({20,20}); f.clickCanvas({120,80});
+        CHECK(f.session().selectedLayers().size() == 3);
+        underMouse->click();
+    }
+    selectThree();
+    const auto original = f.document().layer(f.base)->localToDocument;
+    const auto companionOriginal = f.document().layer(second)->localToDocument;
+    mouse(*f.canvas,QEvent::MouseButtonPress,press,Qt::LeftButton,Qt::LeftButton);
+    mouse(*f.canvas,QEvent::MouseMove,f.logical({40,30}),Qt::NoButton,Qt::LeftButton);
+    mouse(*f.canvas,QEvent::MouseButtonRelease,f.logical({40,30}),Qt::LeftButton,Qt::NoButton);
+    settle();
+    CHECK(f.session().selectedLayers().size() == 3 && f.session().history().undoDepth() == depth+1);
+    const auto moved = f.document().layer(f.base)->localToDocument;
+    const auto companionMoved = f.document().layer(second)->localToDocument;
+    CHECK(moved != original);
+    CHECK(near({moved.m02-original.m02,moved.m12-original.m12},
+        {companionMoved.m02-companionOriginal.m02,companionMoved.m12-companionOriginal.m12}));
+    CHECK(f.session().undo()); f.publish();
+    CHECK(f.document().layer(f.base)->localToDocument == original);
+    CHECK(f.session().selectedLayers().size() == 3 && f.surface().revision() == pixels);
+}
+
 void emptyLeftClicksKeepTheMostRecentlySelectedLayer()
 {
     Fixture f; CHECK(f.valid()); if (!f.valid()) return;
@@ -486,6 +555,9 @@ void collapsePreferenceAppliesRollsBackAndSurvivesRestart()
         const auto selection = f.session().layerSelectionState();
         f.clickCanvas({-8,20}); CHECK(f.session().layerSelectionState() == selection && !f.outlined());
         f.clickEmptyPanel(); CHECK(f.session().layerSelectionState() == selection && !f.outlined());
+        CHECK(f.document().setLayerTransform(f.base, {.m00=.25, .m11=.25})); f.publish();
+        selectPair(f, f.base, companion);
+        f.clickCanvas({120,80}); CHECK(f.session().layerSelectionState() == selection && !f.outlined());
     }
     {
         Fixture f(nullptr, true); CHECK(f.valid()); if (!f.valid()) return;
@@ -611,6 +683,7 @@ int nativeValidation()
     });
     if (!instance.create()) return EXIT_FAILURE;
     rasterOutlinesUseContentOrigin(&instance);
+    canvasClicksReducePanelMultiSelectionWithoutBreakingDrags(&instance);
     {
         Fixture f(&instance); CHECK(f.valid()); if (!f.valid()) return EXIT_FAILURE;
         CHECK(f.document().setLayerTransform(f.base, {.8,-.25,-12,.25,.8,8})); f.publish();
@@ -679,6 +752,7 @@ int main(int argc, char** argv)
     dismissalAndOOnlyRevealSelectedLayers();
     editableFieldsAndCanvasTextOwnO();
     selectedFramesFollowMovePreviewAndUndo();
+    canvasClicksReducePanelMultiSelectionWithoutBreakingDrags();
     emptyLeftClicksKeepTheMostRecentlySelectedLayer();
     emptyClicksRespectTransformsAndOwnedMoveGestures();
     collapsePreferenceAppliesRollsBackAndSurvivesRestart();

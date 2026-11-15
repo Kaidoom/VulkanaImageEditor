@@ -112,6 +112,7 @@ bool MainWindow::beginLayerMove(core::Vec2d position, Qt::KeyboardModifiers modi
         if (activeLayerMove_)
             return false; // Failed admission must not lose the retained edit.
     }
+    pendingMoveClickSelection_.reset();
     auto* document = session().document();
     if (!document || session().activeTool() != core::ToolId::Move)
         return false;
@@ -120,9 +121,7 @@ bool MainWindow::beginLayerMove(core::Vec2d position, Qt::KeyboardModifiers modi
         return false;
     }
     const auto hit = hitMoveLayer(position);
-    const auto extent = document->canvas().extent;
-    if (!hit && !moveActiveOnly_ && (position.x < 0 || position.y < 0
-        || position.x >= extent.width || position.y >= extent.height))
+    if (!hit && !moveActiveOnly_ && modifiers == Qt::NoModifier)
         collapseLayerSelectionOnEmptyClick();
     if (!hit) canvasWindow_->dismissLayerOutlines();
     const auto id = moveActiveOnly_ ? session().activeLayer() : hit;
@@ -135,14 +134,24 @@ bool MainWindow::beginLayerMove(core::Vec2d position, Qt::KeyboardModifiers modi
         if (!hit) canvasWindow_->dismissLayerOutlines();
         return false; // A toggle click never doubles as a geometry gesture.
     }
+    const bool deferSelection = !moveActiveOnly_ && modifiers == Qt::NoModifier
+        && session().isLayerSelected(*id) && session().selectedLayers().size() > 1;
     if (!session().isLayerSelected(*id))
         session().setActiveLayer(*id);
     else
         session().setLayerSelection(session().selectedLayers(), *id, session().selectionAnchor());
     canvasWindow_->setLayerOutlineTargets(document->expandedLayers(session().selectedLayers()), hit.has_value());
     auto move = std::make_unique<core::LayerTransformSession>(*document, session().selectedLayers());
-    if (!move->active() || !move->beginDrag(core::TransformHandle::Move, position))
+    if (!move->active() || !move->beginDrag(core::TransformHandle::Move, position)) {
+        if (deferSelection) {
+            session().setActiveLayer(*id);
+            synchronizeUi(false, false);
+        }
         return false;
+    }
+    // Preserve the set for a drag; a plain click selects just the hit layer
+    // once released, matching selection behavior in the Layers panel.
+    if (deferSelection) pendingMoveClickSelection_ = *id;
     synchronizeUi(false, false);
     activeLayerMove_ = std::move(move);
     queueSelectedLayerFocus();
@@ -245,6 +254,8 @@ void MainWindow::refreshMoveControls()
 void MainWindow::finishLayerMove(bool apply)
 {
     canvasWindow_->setSnapGuides({});
+    const auto clicked = pendingMoveClickSelection_;
+    pendingMoveClickSelection_.reset();
     if (!activeLayerMove_)
         return;
     const QScopedValueRollback guard(suppressMoveNumeric_, true);
@@ -302,6 +313,8 @@ void MainWindow::finishLayerMove(bool apply)
             return;
         }
     }
+    if (apply && clicked && session().isLayerSelected(*clicked))
+        session().setActiveLayer(*clicked);
     synchronizeUi(false, false);
 }
 

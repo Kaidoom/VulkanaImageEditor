@@ -857,6 +857,7 @@ private:
     core::ToolId toolBeforeCanvasResize_ {core::ToolId::Move};
     CropOptionsPage* canvasResizeOptionsPage_ {nullptr};
     std::unique_ptr<core::LayerTransformSession> activeLayerMove_;
+    std::optional<core::LayerId> pendingMoveClickSelection_;
     core::SnapOptions snappingOptions_;
     QAction* snappingAction_ {nullptr};
     QAction* snapCanvasAction_ {nullptr};
