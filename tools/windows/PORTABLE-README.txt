@@ -9,13 +9,14 @@ offline with their included models.
 Requires 64-bit Windows 11 and a working Vulkan-capable graphics driver.
 Graphics drivers and Windows system libraries are not included.
 
-Optional AI image generation/editing uses the included CUDA worker and your own
-local model files. It requires a compatible NVIDIA GPU, a current NVIDIA driver
-supporting CUDA 13.3, and a CPU with AVX2, FMA, F16C and BMI2. CUDA runtime libraries
-are included; the CUDA Toolkit is not required. Other editor features do not
-require this worker. Setup and supported models:
+AI image generation/editing uses the included Vulkan worker and your own local
+model files. It requires a compatible Vulkan GPU driver and a CPU with AVX2,
+FMA, F16C and BMI2. NVIDIA users can add a separate CUDA worker package in
+AI Image Editor > Configuration > Workers. Keep that extracted package together
+and select the extracted folder (or its bin folder) with Add worker.
+Setup and supported models:
 https://github.com/Kaidoom/VulkanaImageEditor/blob/main/DIFFUSION.md
-Worker licenses: share\vulkana-editor\diffusion\cuda.
+Bundled worker licenses: share\vulkana-editor\diffusion\vulkan.
 
 Preferences, custom brushes and recovery data stay in your Windows user profile,
 not beside the program. Replacing this folder does not reset those settings.

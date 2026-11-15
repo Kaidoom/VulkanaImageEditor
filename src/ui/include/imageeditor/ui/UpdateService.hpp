@@ -20,6 +20,7 @@ class QSaveFile;
 class QLockFile;
 
 namespace imageeditor::ui {
+class WorkerUpdates;
 
 struct UpdateRelease {
     QString version;
@@ -47,6 +48,13 @@ public:
     void download(const QString& destination);
     void downloadAppImage();
     void cancel();
+    void cancelTransfers();
+    WorkerUpdates* workerUpdates();
+    enum class ArchiveFormat { Zip, Xz };
+    // Reuse the bounded, atomic SHA-256 download path for optional worker
+    // archives. This never extracts, installs, registers or executes them.
+    void downloadArchive(const UpdateRelease&, qint64 expectedSize, ArchiveFormat, const QString& destination);
+    static bool trustedDownloadUrl(const QUrl&, const platform::ServiceConfig&, const QString& suffix);
     [[nodiscard]] State state() const { return state_; }
     [[nodiscard]] bool configured() const { return package_ != UpdatePackage::Unavailable && config_.enabled(); }
     [[nodiscard]] bool simulated() const { return simulated_; }
@@ -99,6 +107,9 @@ private:
     std::unique_ptr<QLockFile> updateLock_;
     quint64 originalDevice_ {}, originalInode_ {};
     qint64 originalSize_ {}, originalMtime_ {}, originalMtimeNsec_ {};
+    WorkerUpdates* workerUpdates_{};
+    qint64 archiveExpectedSize_{};
+    ArchiveFormat archiveFormat_ {ArchiveFormat::Zip};
 };
 
 } // namespace imageeditor::ui

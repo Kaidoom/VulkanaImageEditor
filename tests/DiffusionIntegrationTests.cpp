@@ -33,6 +33,7 @@
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QProgressBar>
 #include <QPointer>
 #include <QScrollArea>
 #include <QSettings>
@@ -349,6 +350,33 @@ private slots:
     panel->findChild<QDoubleSpinBox *>("Diffusion_guidance")->setValue(1.0);
     QVERIFY(!panel->request().contains("negativePrompt"));
     QCOMPARE(negative->toPlainText(), QString("Avoid text"));
+  }
+  void namedWorkerProgressAndBackgroundNotice() {
+    qputenv("VULKANA_TEST_DIFFUSION_PHASES","1");
+    const auto restore = qScopeGuard([] { qunsetenv("VULKANA_TEST_DIFFUSION_PHASES"); });
+    openMode("AIGenerateImageAction");
+    const auto revision = session().document()->revision();
+    generate("phases");
+    auto* status = child<QLabel>("DiffusionProgressStatus");
+    auto* worker = child<QLabel>("DiffusionProgressWorker");
+    auto* bar = child<QProgressBar>("DiffusionProgress");
+    QTRY_VERIFY_WITH_TIMEOUT(status->text().startsWith("Encoding prompt"),10000);
+    QVERIFY(worker->text().contains("Vulkan")); QCOMPARE(bar->maximum(),0);
+    QTest::qWait(75); QVERIFY(status->text().startsWith("Encoding prompt")); // stale event ignored
+    QTRY_VERIFY(status->text().startsWith("Generating image"));
+    QCOMPARE(bar->maximum(),2); QCOMPARE(bar->value(),1);
+    panel->onClose();
+    QTRY_VERIFY(status->text().startsWith("Decoding image"));
+    QCOMPARE(bar->maximum(),0);
+    auto* notice = child<QWidget>("DiffusionProgressNotification");
+    QVERIFY(notice && notice->isVisible());
+    bool found = false;
+    for (const auto* label : notice->findChildren<QLabel*>())
+      found |= label->text().contains("Decoding image") && label->text().contains("Vulkan");
+    QVERIFY(found);
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(),10000);
+    QVERIFY(worker->isHidden()); QCOMPARE(panel->results().size(),1);
+    QCOMPARE(session().document()->revision(),revision);
   }
   void livePreviewAppearsBesidePreviousResults() {
     openMode("AIGenerateImageAction");

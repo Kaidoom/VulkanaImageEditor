@@ -1,3 +1,5 @@
+#include "imageeditor/ui/DiffusionWorkers.hpp"
+#include "imageeditor/ui/UpdateService.hpp"
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/LayerCommands.hpp"
 #include "imageeditor/diffusion/ModelProfiles.h"
@@ -78,53 +80,7 @@ core::AffineTransform coreTransform(const QTransform &m) {
           .m21 = m.m23(),
           .m22 = m.m33()};
 }
-QString discoverWorker(const QString &backend) {
-  const auto find = [](const QString &name) {
-#ifdef Q_OS_WIN
-    const auto executableName = name + QStringLiteral(".exe");
-#else
-    const auto &executableName = name;
-#endif
-    const auto adjacent =
-        QDir(QCoreApplication::applicationDirPath()).filePath(executableName);
-    return QFileInfo(adjacent).isExecutable()
-               ? adjacent
-               : QStandardPaths::findExecutable(executableName);
-  };
-  const auto genericOverride = qEnvironmentVariable("VULKANA_DIFFUSION_WORKER");
-  if (!genericOverride.isEmpty())
-    return genericOverride; // Verified against the worker hello.
-  const auto variant = [&](const QString &name) {
-    const auto override = qEnvironmentVariable(
-        qPrintable("VULKANA_DIFFUSION_WORKER_" + name.toUpper()));
-    if (!override.isEmpty())
-      return override;
-    const auto installed = find("vulkana-diffusion-worker-" + name);
-    if (!installed.isEmpty())
-      return installed;
-#ifdef VULKANA_DEVELOPMENT_DIFFUSION_WORKER
-    if (name == "cuda") {
-      const QString development =
-          QString::fromUtf8(VULKANA_DEVELOPMENT_DIFFUSION_WORKER);
-      if (QFileInfo(development).isExecutable())
-        return development;
-    }
-#endif
-    return QString{};
-  };
-  if (backend == "auto") {
-    for (const auto &candidate : {QString("cuda"), QString("vulkan")}) {
-      const auto path = variant(candidate);
-      if (!path.isEmpty())
-        return path;
-    }
-  } else {
-    const auto path = variant(backend);
-    if (!path.isEmpty())
-      return path;
-  }
-  return find("vulkana-diffusion-worker");
-}
+
 } // namespace
 
 struct DiffusionWorkspace {
@@ -184,6 +140,10 @@ struct DiffusionWorkspace {
   }
   ~DiffusionWorkspace() { worker.reset(); }
 };
+
+void MainWindow::connectDiffusionWorkerUpdates() {
+  if (diffusion_ && updateService_) diffusion_->panel->setWorkerUpdates(updateService_->workerUpdates());
+}
 
 void MainWindow::createDiffusionActions(QMenu *editMenu) {
   auto state = std::make_shared<DiffusionWorkspace>();
@@ -364,11 +324,15 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
             if (job != diffusion_->generateId && job != diffusion_->loadId)
               return;
             if (event.value("event") == "progress") {
-              updateDiffusionNotice(i18n::text("diffusion.ui.generating"), event.value("step").toInt(),
-                                    event.value("steps").toInt());
-              diffusion_->panel->setProgress(
-                  event.value("step").toInt(), event.value("steps").toInt(),
-                  event.value("elapsedMs").toDouble());
+              auto progress = event;
+              // Older workers mix tensor and sampling counters. Keep them
+              // usable without claiming that every counter is image generation.
+              if (!progress.contains("stage"))
+                progress["stage"] = job == diffusion_->loadId ? "loading" : "processing";
+              const auto message = diffusion_->panel->setProgress(
+                  diffusion_->worker->hello().value("backend").toString(), progress);
+              updateDiffusionNotice(message, progress.value("step").toInt(),
+                                    progress.value("steps").toInt());
             }
             if (event.value("event") == "preview") {
               const QImage image(event.value("path").toString());
@@ -535,6 +499,7 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
 }
 
 void MainWindow::openDiffusion(int requested) {
+  ensureUpdateService();
   if (!diffusion_ || fileBusy_ || workspaceDialog_)
     return;
   auto &s = *diffusion_;
@@ -748,7 +713,7 @@ void MainWindow::generateDiffusion() {
     s.pendingBackend = s.panel->backend();
     s.pendingExecutable = s.panel->workerExecutable();
     if (s.pendingExecutable.isEmpty())
-      s.pendingExecutable = discoverWorker(s.pendingBackend);
+      s.pendingExecutable = discoverDiffusionWorker(s.pendingBackend);
     if (s.pendingExecutable.isEmpty())
       throw std::runtime_error(
           i18n::text("diffusion.ui.1.inference.worker.is.not.installed.choose").arg(i18n::ltrToken(s.pendingBackend.toUpper()))
@@ -834,13 +799,20 @@ void MainWindow::continueDiffusionJob() {
     updateDiffusionNotice(i18n::text("diffusion.ui.generation.failed"), 0, 0, true);
     return;
   }
+  // Device names are backend-local. A configuration saved with the other
+  // backend cannot reuse its ordinal; retain explicit same-backend validation.
+  auto resourceSettings = s.pendingConfiguration["settings"].toObject();
+  const auto device = resourceSettings["device"].toString();
+  if ((actualBackend == "vulkan" && device.startsWith("CUDA")) ||
+      (actualBackend == "cuda" && device.startsWith("Vulkan"))) {
+    resourceSettings.remove("device");
+    s.pendingConfiguration["settings"] = resourceSettings;
+  }
   if (s.pendingConfiguration != s.loadedConfiguration) {
-    s.panel->setStatus(i18n::text("diffusion.ui.loading.the.selected.model"));
-    updateDiffusionNotice(i18n::text("diffusion.ui.loading.ai.model"));
+    updateDiffusionNotice(s.panel->setProgress(actualBackend, {{"stage", "loading"}}));
     s.loadId = s.worker->request("load", s.pendingConfiguration);
   } else {
-    s.panel->setStatus(
-        i18n::text("diffusion.ui.generating.you.can.inspect.previous.variations.while"));
+    updateDiffusionNotice(s.panel->setProgress(actualBackend, {{"stage", "preparing"}}));
     s.generateId = s.worker->request("generate", s.pendingGeneration);
   }
 }

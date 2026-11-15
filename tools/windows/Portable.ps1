@@ -67,7 +67,7 @@ try {
     $crt = Join-Path $env:VCToolsRedistDir 'x64/Microsoft.VC145.CRT'
     $runtimeRoots = @($crt, "$BuildRoot/installed/x64-vulkana-windows/bin", "$QtRoot/bin")
     $workerDlls = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-    $workerManifestPath = "$scratch/share/vulkana-editor/diffusion/cuda/manifest.json"
+    $workerManifestPath = "$scratch/share/vulkana-editor/diffusion/vulkan/manifest.json"
     if (Test-Path -LiteralPath $workerManifestPath) {
         $workerManifest = Get-Content -LiteralPath $workerManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
         foreach ($file in $workerManifest.files) {
@@ -167,7 +167,7 @@ try {
     # The worker shares the application's CRT directory. Recheck after all
     # dependency copying so a replaced DLL cannot invalidate its manifest.
     # Reviewed application notices may have replaced the install-time merge.
-    if (Test-Path -LiteralPath "$scratch/share/vulkana-editor/diffusion/cuda/manifest.json") {
+    if (Test-Path -LiteralPath "$scratch/share/vulkana-editor/diffusion/vulkan/manifest.json") {
         $mergedNotices = Join-Path $BuildRoot ('diffusion-notices-' + [guid]::NewGuid().ToString('N'))
         try {
             Invoke-PortableCommand python @("$source/tools/diffusion/prepare_bundle.py", '--verify', $scratch,

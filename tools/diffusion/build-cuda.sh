@@ -56,7 +56,7 @@ for library in libcudart.so.13 libcublas.so.13 libcublasLt.so.13; do
 done
 python3 "$source_root/tools/diffusion/prepare_bundle.py" \
     --engine "$engine_dir" --build "$build_dir" --prefix "$scratch" \
-    --cuda-root "$cuda_root" --platform linux --minimum-glibc 2.39
+    --backend cuda --cuda-root "$cuda_root" --platform linux --minimum-glibc 2.39
 python3 "$source_root/tools/diffusion/prepare_bundle.py" --verify "$scratch"
 if [[ $tests == ON ]]; then
     # Test helpers run from the build tree; only this subprocess receives the

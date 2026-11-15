@@ -1,4 +1,5 @@
 #include "imageeditor/ui/MainWindow.hpp"
+#include "imageeditor/ui/DiffusionWorkers.hpp"
 #include "imageeditor/ui/McpController.hpp"
 #include "imageeditor/mcp/Integration.hpp"
 #include "imageeditor/ui/Localization.hpp"
@@ -120,6 +121,9 @@ int main(int argc, char* argv[])
         QStringLiteral("Exercise the desktop/Vulkan lifecycle and exit automatically."));
     QCommandLineOption coldCacheOption(QStringLiteral("cold-cache"),
         QStringLiteral("Bypass NVIDIA/Mesa shader disk caches for this launch without deleting them."));
+    QCommandLineOption cudaWorkerOption(QStringLiteral("cuda-worker"),
+        QStringLiteral("Use the adjacent CUDA worker for this session only. Use --cuda-worker=path to select an executable or extracted folder."),
+        QStringLiteral("path"));
     QCommandLineOption fpsOption(QStringLiteral("fps"),
         QStringLiteral("Show the actual Vulkan canvas frame rate in the status bar."));
     QCommandLineOption skipNewOption(QStringLiteral("skip-new-dialog"),
@@ -152,6 +156,7 @@ int main(int argc, char* argv[])
     parser.addOption(forceProjectPrompt);
     parser.addOption(smokeTestOption);
     parser.addOption(coldCacheOption);
+    parser.addOption(cudaWorkerOption);
     parser.addOption(fpsOption);
     parser.addOption(skipNewOption);
     parser.addOption(forceUpdateOption);
@@ -162,11 +167,31 @@ int main(int argc, char* argv[])
     parser.addOption(languagePackOption);
     parser.addPositionalArgument(QStringLiteral("document"),
         QStringLiteral("Optional projects or images; each opens in its own tab."), QStringLiteral("[document…]"));
-    parser.process(application);
+    auto arguments = application.arguments();
+    // An optional value uses '=' so a following document remains a document.
+    const auto adjacentCudaWorker = QDir(application.applicationDirPath()).filePath(
+        QStringLiteral("vulkana-diffusion-worker-cuda")
+#ifdef Q_OS_WIN
+        + QStringLiteral(".exe")
+#endif
+    );
+    for (int i = 1; i < arguments.size() && arguments[i] != "--"; ++i)
+        if (arguments[i] == "--cuda-worker") arguments[i] += '=' + adjacentCudaWorker;
+    parser.process(arguments);
     if (parser.isSet("mcp-bridge")) { qCritical() << "--mcp-bridge must be the first argument"; return EXIT_FAILURE; }
     if (parser.isSet(mcpSocketOption) && !parser.isSet(mcpOption)) {
         qCritical() << "--mcp-socket requires --mcp";
         return EXIT_FAILURE;
+    }
+    if (parser.isSet(cudaWorkerOption)) {
+        QString error;
+        const auto path = parser.value(cudaWorkerOption);
+        if (path.isEmpty() || !imageeditor::ui::setSessionCudaWorker(path, &error)) {
+            qCritical().noquote() << "--cuda-worker:" << (error.isEmpty() ? "Worker path cannot be empty." : error)
+                << "Use --cuda-worker=/path/to/worker-folder to choose another build.";
+            return EXIT_FAILURE;
+        }
+        qInfo().noquote() << "CUDA worker override for this session:" << imageeditor::ui::sessionCudaWorker();
     }
     if (parser.isSet(registerProjects) || parser.isSet(unregisterProjects)) {
         if (parser.isSet(registerProjects) && parser.isSet(unregisterProjects)) return EXIT_FAILURE;
@@ -193,6 +218,10 @@ int main(int argc, char* argv[])
             parser.isSet(restartOption) ? 15000 : 5000);
         if (result == imageeditor::platform::SingleInstance::Result::Forwarded) {
             qInfo() << "Launch forwarded to the running Vulkana instance.";
+            if (parser.isSet(cudaWorkerOption)) {
+                qWarning() << "--cuda-worker takes effect at startup. Close Vulkana, then launch with this flag again.";
+                return EXIT_FAILURE;
+            }
             if (parser.isSet(mcpOption)) {
                 qWarning() << "--mcp is a startup opt-in. Close the running Vulkana instance and restart with --mcp.";
                 return EXIT_FAILURE;

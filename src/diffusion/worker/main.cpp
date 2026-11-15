@@ -18,6 +18,7 @@
 #include <cmath>
 #include <condition_variable>
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -178,10 +179,11 @@ static void png(const fs::path& path, const sd_image_t& image)
 class Worker {
     FILE* protocol;
     fs::path root;
-    std::mutex outputMutex, stateMutex, logMutex, watchdogMutex;
+    std::mutex outputMutex, stateMutex, logMutex, watchdogMutex, progressMutex;
     std::condition_variable finished;
     std::thread job;
     std::atomic<bool> busy { false }, cancelled { false };
+    std::atomic<bool> loadingModel { false };
     sd_ctx_t* context = nullptr; // protected by stateMutex when accessed by the control thread
     Json loadedProfile, effectiveSettings, files;
     Json loadedModels = Json::array(); // Immutable snapshots, protected by stateMutex.
@@ -190,6 +192,8 @@ class Worker {
     bool oom = false, memoryLimited = false, missingVision = false, exited = false;
     std::string memoryError, modelCompatibilityError;
     Json engineTimings = Json::object();
+    Json stageProgress = Json::object(); // protected by progressMutex
+    bool loadingWeights = false;
     vulkana::diffusion::LoraReport loraReport;
     Clock::time_point jobStart, firstStep, lastStep;
     bool stepped = false;
@@ -207,6 +211,7 @@ public:
                 // Callbacks can arrive from engine pool threads. Do not take stateMutex here.
                 const std::string message = text ? text : "";
                 std::fputs(message.c_str(), stderr);
+                w.observeWeightProgress(message);
                 {
                     std::lock_guard lock(w.logMutex);
                     w.loraReport.observe(message);
@@ -262,22 +267,17 @@ public:
             },
             this);
         sd_set_progress_callback(
-            [](int step, int steps, float seconds, void* user) {
+            [](int step, int steps, float, void* user) {
                 auto& w = *static_cast<Worker*>(user);
-                if (!w.stepped) {
-                    w.firstStep = Clock::now();
-                    w.stepped = true;
-                }
-                w.lastStep = Clock::now();
                 // Reassert cancellation after the engine's per-generation reset.
                 if (w.cancelled.load()) {
                     std::lock_guard lock(w.stateMutex);
                     if (w.context)
                         sd_cancel_generation(w.context, SD_CANCEL_ALL);
                 }
-                w.send({ { "event", "progress" }, { "scope", "engineOperation" }, { "jobId", w.jobId },
-                    { "step", step }, { "steps", steps }, { "stepSeconds", seconds },
-                    { "elapsedMs", millis(w.jobStart) } });
+                // This legacy callback also reports tensor transfers and VAE
+                // tiles. Only report identified weight transfers; sampling has typed stages.
+                w.weightProgress(step, steps);
             },
             this);
         const auto n = sd_list_devices(nullptr, 0);
@@ -308,6 +308,52 @@ public:
         if (std::fwrite(line.data(), 1, line.size(), protocol) != line.size() || std::fflush(protocol) != 0)
             std::_Exit(2);
     }
+    void progress(const char* stage, const char* detail = "", const char* unit = "",
+        int64_t completed = 0, int64_t total = 0, int pass = 0) noexcept
+    {
+        // Engine callbacks must not throw, including while memory is scarce.
+        try {
+            std::lock_guard lock(progressMutex);
+            loadingWeights = false;
+            stageProgress = { { "event", "progress" }, { "scope", "stage" }, { "jobId", jobId },
+                { "stage", stage ? stage : "processing" }, { "detail", detail ? detail : "" },
+                { "unit", unit ? unit : "" }, { "step", completed }, { "steps", total },
+                { "samplePass", pass }, { "elapsedMs", millis(jobStart) } };
+            send(stageProgress);
+        } catch (...) { std::fputs("Could not report inference progress.\n", stderr); }
+    }
+    void weightProgress(int step, int steps) noexcept {
+        try {
+            std::lock_guard lock(progressMutex);
+            if (!loadingWeights && !loadingModel.load()) return;
+            send({ { "event", "progress" }, { "scope", "stage" }, { "jobId", jobId },
+                { "stage", loadingModel.load() ? "loading" : "loading_weights" },
+                { "unit", "tensors" }, { "step", step }, { "steps", steps },
+                { "elapsedMs", millis(jobStart) } });
+        } catch (...) { std::fputs("Could not report weight-loading progress.\n", stderr); }
+    }
+    void observeWeightProgress(const std::string& message) noexcept {
+        // The pinned engine exposes named generation stages, but lazy tensor
+        // transfers only have legacy counters. Recognize its loader boundaries
+        // so those counters can never masquerade as sampling steps or VAE tiles.
+        if (!message.starts_with("loading ")) return;
+        try {
+            static const std::regex begin(R"(^loading [0-9]+/[0-9]+ tensors from )");
+            std::lock_guard lock(progressMutex);
+            if (std::regex_search(message, begin)) {
+                loadingWeights = true;
+                send({ { "event", "progress" }, { "scope", "stage" }, { "jobId", jobId },
+                    { "stage", loadingModel.load() ? "loading" : "loading_weights" },
+                    { "step", 0 }, { "steps", 0 }, { "elapsedMs", millis(jobStart) } });
+            } else if (loadingWeights && message.starts_with("loading tensors completed, taking ")) {
+                loadingWeights = false;
+                if (!stageProgress.empty()) {
+                    stageProgress["elapsedMs"] = millis(jobStart);
+                    send(stageProgress);
+                }
+            }
+        } catch (...) { std::fputs("Could not report weight-loading stage.\n", stderr); }
+    }
     void fail(const std::string& id, const std::string& code, const std::string& message)
     {
         send({ { "id", id }, { "ok", false }, { "error", { { "code", code }, { "message", message } } } });
@@ -330,6 +376,7 @@ public:
         for (int i = 0; i < SCHEDULER_COUNT; ++i)
             schedulers.push_back(scheduler_to_str[i]);
         send({ { "samplers", samplers }, { "schedulers", schedulers }, { "event", "hello" },
+            { "generationStages", true },
             { "referenceSizeLimit", true },
             { "loraParameters", true },
             { "flux3NativeRegions", true },
@@ -451,6 +498,7 @@ public:
                 std::lock_guard lock(stateMutex);
                 jobId = id;
                 state = method == "load" ? "loading" : method == "generate" ? "generating" : "unloading";
+                loadingModel = method == "load";
                 cancelled = false;
                 busy = true;
             }
@@ -465,6 +513,11 @@ public:
                 engineTimings = Json::object();
             }
             jobStart = Clock::now();
+            {
+                std::lock_guard lock(progressMutex);
+                stageProgress = Json::object();
+                loadingWeights = false;
+            }
             stepped = false;
             jobDirectory.clear();
             stateEvent();
@@ -632,6 +685,7 @@ Json Worker::load(const Json& params)
     release();
     checkCancel();
     const auto start = Clock::now();
+    progress("loading", "weights");
     sd_ctx_t* fresh = new_sd_ctx(&options);
     if (!fresh) {
         std::lock_guard lock(logMutex);
@@ -683,6 +737,7 @@ Json Worker::generate(const Json& p)
             "spatial", "eta", "cacheMode", "cacheReuseThreshold", "cacheStart", "cacheEnd", "referenceMaxSize", "loras" });
     if (!context)
         throw Failure("model_not_loaded", "Load a model before generating");
+    progress("preparing", "inputs");
     struct LoraInput { std::string path, name; float strength; };
     std::vector<LoraInput> loraInputs;
     if (p.contains("loras")) {
@@ -987,6 +1042,17 @@ Json Worker::generate(const Json& p)
         loraReport.files.clear();
     }
     sd_image_generation_result_t* raw = nullptr;
+    sd_set_generation_progress_callback(context,
+        [](const sd_generation_progress_t* event, void* data) {
+            if (!event) return;
+            auto& w = *static_cast<Worker*>(data);
+            if (event->stage && std::strcmp(event->stage, "sampling") == 0) {
+                if (!w.stepped) { w.firstStep = Clock::now(); w.stepped = true; }
+                w.lastStep = Clock::now();
+            }
+            w.progress(event->stage, event->detail, event->unit,
+                event->completed, event->total, event->sample_pass);
+        }, this);
     const bool success = generate_image(context, &params, &raw);
     std::unique_ptr<sd_image_generation_result_t, decltype(&free_sd_image_generation_result)> result(
         raw, free_sd_image_generation_result);
@@ -1025,6 +1091,7 @@ Json Worker::generate(const Json& p)
             + "' could not be applied compatibly to this model. Check the LoRA's model family and file, or disable it. The model will reload on the next generation.");
     }
     const auto outputStart = Clock::now();
+    progress("saving");
     Json outputs = Json::array();
     for (int i = 0; i < result->count; ++i) {
         checkCancel();

@@ -1,3 +1,5 @@
+#include "imageeditor/ui/DiffusionWorkers.hpp"
+#include "imageeditor/ui/WorkerUpdates.hpp"
 #include "imageeditor/ui/DiffusionPanel.hpp"
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/DiffusionLoras.hpp"
@@ -490,6 +492,11 @@ struct DiffusionPanel::Impl {
   QWidget *configurationPage{};
   QDoubleSpinBox *seed{};
   QString workerOverride;
+  QMap<QString, QLabel *> workerStatuses;
+  QMap<QString, QPushButton *> workerButtons;
+  QPointer<WorkerUpdates> workerUpdates;
+  QToolButton* downloadWorker{};
+  QProgressBar* workerProgress{};
   QComboBox *seedMode{};
   QComboBox *outputScene{};
   QWidget *outputSceneRow{};
@@ -513,7 +520,7 @@ struct DiffusionPanel::Impl {
   bool editImageToImage{};
   bool referenceLimitShown{};
   bool hasExplicitStrength{}; // A saved or edited value takes precedence over mode defaults.
-  QLabel *status{}, *regionHint{}, *resultImage{}, *generationImage{};
+  QLabel *status{}, *regionHint{}, *resultImage{}, *generationImage{}, *progressWorker{};
   QWidget *resultDetails{};
   QLabel *resultConfig{}, *resultModel{}, *resultSize{}, *resultCreated{};
   QLineEdit *resultSeed{};
@@ -690,7 +697,7 @@ struct DiffusionPanel::Impl {
     if (!hasExplicitStrength) generation.remove("strength");
     return {{"configuration", q.configuration()}, {"generation", generation},
             {"editImageToImage", editImageToImage}, {"customSigmas", sigmas->toPlainText()},
-            {"backend", q.backend()}, {"exposedGeneration", exposedGeneration()}};
+            {"exposedGeneration", exposedGeneration()}};
   }
   void loadModel(const QString &id) {
     q.saveSettings();
@@ -718,7 +725,6 @@ struct DiffusionPanel::Impl {
         hasExplicitStrength = entry["generation"].toObject().contains("strength");
         sigmas->setPlainText(entry.value("customSigmas").toString());
         if (entry.contains("editImageToImage")) editImageToImage = entry["editImageToImage"].toBool();
-        if (entry.contains("backend")) select(backend, entry["backend"].toString());
         break;
       }
       updateCapabilities(false);
@@ -749,7 +755,6 @@ struct DiffusionPanel::Impl {
         editImageToImage = false;
         putControls(resource, defaultResources);
         putControls(sampling, defaultSampling);
-        select(backend, "auto");
         q.setConfiguration({{"profile", profiles->currentData().toString()}, {"files", QJsonObject{}}});
         updateCapabilities(true);
       }
@@ -1897,6 +1902,116 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   footerLayout->setContentsMargins(0, 0, 0, 0);
   footerLayout->setSpacing(6);
   outer->addWidget(footer);
+  auto sectionHeading = [](QVBoxLayout *configLayout, const i18n::Message &heading, const QString &name) {
+    auto *sectionHeader = new QHBoxLayout;
+    sectionHeader->setContentsMargins(4, 2, 4, 2);
+    sectionHeader->setSpacing(10);
+    auto *sectionHeading = i18n::make<QLabel>(heading);
+    sectionHeading->setStyleSheet("color: " + themeColor(ThemeColor::SecondaryText).name());
+    auto sectionFont = sectionHeading->font();
+    sectionFont.setPointSizeF(std::max(7., sectionFont.pointSizeF() - 1));
+    sectionHeading->setFont(sectionFont);
+    sectionHeader->addWidget(sectionHeading);
+    auto *sectionDivider = new QFrame;
+    sectionDivider->setObjectName(name + "Divider");
+    sectionDivider->setFixedHeight(1);
+    const auto border = themeColor(ThemeColor::Border);
+    sectionDivider->setStyleSheet(QString("border: none; background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0, "
+      "stop: 0 rgba(%1, %2, %3, 110), stop: 1 rgba(%1, %2, %3, 0));")
+      .arg(border.red()).arg(border.green()).arg(border.blue()));
+    sectionHeader->addWidget(sectionDivider, 1);
+    configLayout->addLayout(sectionHeader);
+  };
+  sectionHeading(configLayout, i18n::text("diffusion.ui.workers"), "DiffusionWorkers");
+  auto *workersForm = form(configLayout);
+  d->backend =
+      combo({i18n::text("diffusion.ui.auto"), "Vulkan", "CUDA"}, {"auto", "vulkan", "cuda"}, this);
+  d->backend->setObjectName("DiffusionBackend");
+  i18n::setToolTip(d->backend,
+      i18n::text("diffusion.ui.auto.prefers.an.available.cuda.worker.then"));
+  i18n::addRow(workersForm, i18n::text("diffusion.ui.backend"), d->backend);
+  for (const auto &name : {QString("vulkan"), QString("cuda")}) {
+    auto *row = new QHBoxLayout;
+    row->setContentsMargins(4, 0, 0, 0);
+    auto *label = new QLabel(name == "vulkan" ? "Vulkan" : "CUDA");
+    label->setMinimumWidth(65);
+    row->addWidget(label);
+    auto *status = new QLabel;
+    status->setObjectName("DiffusionWorkerStatus_" + name);
+    row->addWidget(status, 1);
+    d->workerStatuses[name] = status;
+    if (name == "cuda") {
+      d->downloadWorker = iconButton(ToolGlyph::Download, i18n::text("diffusion.workers.download"), this);
+      d->downloadWorker->setObjectName("DiffusionDownloadWorker_cuda");
+      row->addWidget(d->downloadWorker);
+      connect(d->downloadWorker, &QToolButton::clicked, this, [this] {
+        if (!d->workerUpdates || !d->workerUpdates->configured() || d->workerUpdates->downloading() || !d->workerUpdates->release()) return;
+        const auto release = *d->workerUpdates->release();
+        const auto suggested = QDir(QStandardPaths::writableLocation(QStandardPaths::DownloadLocation))
+            .filePath(QFileInfo(release.artifact.url.path()).fileName());
+        QFileDialog chooser(popupTopLevelOwner(this), i18n::text("diffusion.workers.save.archive"), suggested,
+            WorkerUpdates::hostPlatform() == "windows" ? i18n::text("about.dialog.zip.archives") : i18n::text("diffusion.workers.xz.archives"));
+        chooser.setObjectName("DiffusionWorkerSaveDialog");
+        chooser.setAcceptMode(QFileDialog::AcceptSave);
+        chooser.setDefaultSuffix(WorkerUpdates::hostPlatform() == "windows" ? "zip" : "tar.xz");
+        preparePopupOwnership(&chooser, this);
+        if (chooser.exec() == QDialog::Accepted && d->workerUpdates)
+          d->workerUpdates->download(chooser.selectedFiles().value(0));
+      });
+      auto *add = i18n::make<QPushButton>(toolGlyph(ToolGlyph::Folder), i18n::text("diffusion.ui.add.worker"));
+      add->setObjectName("DiffusionAddWorker_" + name);
+      row->addWidget(add);
+      d->workerButtons[name] = add;
+      connect(add, &QPushButton::clicked, this, [this, name] {
+        const auto current = diffusionWorkerLocation(name);
+        auto initial = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+        if (!current.executable.isEmpty()) initial = QFileInfo(current.executable).absolutePath();
+        else if (d->workerUpdates && !d->workerUpdates->downloadedPath().isEmpty())
+          initial = QFileInfo(d->workerUpdates->downloadedPath()).absolutePath();
+        QFileDialog chooser(popupTopLevelOwner(this), i18n::text("diffusion.ui.choose.worker"), initial);
+        chooser.setObjectName("DiffusionWorkerFolderDialog");
+        chooser.setFileMode(QFileDialog::Directory);
+        chooser.setOption(QFileDialog::ShowDirsOnly);
+        preparePopupOwnership(&chooser, this);
+        if (chooser.exec() != QDialog::Accepted) return;
+        const auto folder = chooser.selectedFiles().value(0);
+        if (folder.isEmpty()) return;
+        bool ambiguous = false;
+        const auto path = diffusionWorkerInFolder(name, folder, &ambiguous);
+        if (ambiguous) {
+          setStatus(i18n::text("diffusion.workers.folder.ambiguous"), true);
+          return;
+        }
+        if (!setDiffusionWorkerPath(name, path))
+          setStatus(i18n::text("diffusion.workers.folder.missing"), true);
+        else
+          setStatus(i18n::text("diffusion.workers.folder.added"));
+        refreshWorkers();
+      });
+    }
+    configLayout->addLayout(row);
+  }
+  d->workerProgress = new QProgressBar;
+  d->workerProgress->setObjectName("DiffusionWorkerDownloadProgress");
+  d->workerProgress->setTextVisible(false);
+  d->workerProgress->setFixedHeight(3);
+  d->workerProgress->setStyleSheet(QString("QProgressBar { min-height: 3px; max-height: 3px; border: none; background: %1; } QProgressBar::chunk { background: %2; }")
+      .arg(themeColor(ThemeColor::Border).name(), themeColor(ThemeColor::Accent).name()));
+  d->workerProgress->hide();
+  auto* workerProgressSlot = new QWidget;
+  workerProgressSlot->setObjectName("DiffusionWorkerDownloadSlot");
+  workerProgressSlot->setFixedHeight(3);
+  auto* workerProgressLayout = new QHBoxLayout(workerProgressSlot);
+  workerProgressLayout->setContentsMargins(0, 0, 0, 0);
+  workerProgressLayout->addWidget(d->workerProgress);
+  configLayout->addWidget(workerProgressSlot);
+  auto *workerTimer = new QTimer(this);
+  workerTimer->setInterval(1000);
+  connect(workerTimer, &QTimer::timeout, this, [this] { if (isVisible()) refreshWorkers(); });
+  workerTimer->start();
+  refreshWorkers();
+  configLayout->addSpacing(10);
+  sectionHeading(configLayout, i18n::text("diffusion.ui.configuration"), "DiffusionConfiguration");
   auto *top = new QHBoxLayout;
   d->mode = combo({i18n::text("diffusion.ui.generate"), i18n::text("diffusion.ui.edit.layer"), i18n::text("diffusion.ui.generative.fill")},
                   {"generate", "edit", "fill"}, content);
@@ -1969,12 +2084,6 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   }
   d->loras = std::make_unique<DiffusionLoras>(this);
   modelForm->addRow(d->loras->configurationSection());
-  d->backend =
-      combo({i18n::text("diffusion.ui.auto"), "Vulkan", "CUDA"}, {"auto", "vulkan", "cuda"}, this);
-  d->backend->setObjectName("DiffusionBackend");
-  i18n::setToolTip(d->backend,
-      i18n::text("diffusion.ui.auto.prefers.an.available.cuda.worker.then"));
-  i18n::addRow(modelForm, i18n::text("diffusion.ui.backend"), d->backend);
   auto *presetRow = new QHBoxLayout;
   d->presets = new ScrollSafe<QComboBox>;
   d->presets->setObjectName("DiffusionPresets");
@@ -2511,24 +2620,7 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   connect(weights, &QComboBox::currentIndexChanged, this, updatePlacement);
   updatePlacement();
   configLayout->addSpacing(10);
-  auto *sessionHeader = new QHBoxLayout;
-  sessionHeader->setContentsMargins(4, 2, 4, 2);
-  sessionHeader->setSpacing(10);
-  auto *sessionHeading = i18n::make<QLabel>(i18n::text("diffusion.ui.session"));
-  sessionHeading->setStyleSheet("color: " + themeColor(ThemeColor::SecondaryText).name());
-  auto sessionFont = sessionHeading->font();
-  sessionFont.setPointSizeF(std::max(7., sessionFont.pointSizeF() - 1));
-  sessionHeading->setFont(sessionFont);
-  sessionHeader->addWidget(sessionHeading);
-  auto *sessionDivider = new QFrame;
-  sessionDivider->setObjectName("DiffusionSessionDivider");
-  sessionDivider->setFixedHeight(1);
-  const auto border = themeColor(ThemeColor::Border);
-  sessionDivider->setStyleSheet(QString("border: none; background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0, "
-      "stop: 0 rgba(%1, %2, %3, 110), stop: 1 rgba(%1, %2, %3, 0));")
-      .arg(border.red()).arg(border.green()).arg(border.blue()));
-  sessionHeader->addWidget(sessionDivider, 1);
-  configLayout->addLayout(sessionHeader);
+  sectionHeading(configLayout, i18n::text("diffusion.ui.session"), "DiffusionSession");
   configLayout->addWidget(section(i18n::text("diffusion.ui.loaded.models"), "DiffusionLoadedModels",
                                  d->loadedModelsLayout, true));
   auto *empty = i18n::make<QLabel>(i18n::text("diffusion.ui.no.models.loaded"));
@@ -2549,12 +2641,19 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   d->generationImage = generationThumbnail;
   generationThumbnail->hide();
   layout->addWidget(generationThumbnail);
+  d->progressWorker = new QLabel;
+  d->progressWorker->setObjectName("DiffusionProgressWorker");
+  d->progressWorker->setWordWrap(true);
+  d->progressWorker->hide();
+  footerLayout->addWidget(d->progressWorker);
   d->progress = new QProgressBar;
   d->progress->setObjectName("DiffusionProgress");
   d->progress->setRange(0, 0);
   d->progress->setVisible(false);
+  i18n::setToolTip(d->progress, i18n::text("diffusion.progress.stage.hint"));
   footerLayout->addWidget(d->progress);
   d->status = i18n::make<QLabel>(i18n::text("diffusion.ui.choose.model.files.and.enter.a.prompt"));
+  d->status->setObjectName("DiffusionProgressStatus");
   d->status->setWordWrap(true);
   d->status->setTextInteractionFlags(Qt::TextSelectableByMouse);
   footerLayout->addWidget(d->status);
@@ -2790,17 +2889,24 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
     setStatus(error, true);
   d->rebuildPresets();
   QSettings settings;
+  select(d->backend, sessionCudaWorker().isEmpty() ? settings.value("diffusion/backend", "auto").toString() : "cuda");
   const auto stored = QJsonDocument::fromJson(
       settings.value("diffusion/modelConfigurations").toByteArray());
-  if (stored.isArray())
+  if (stored.isArray()) {
     d->modelConfigs = stored.array();
+    // Backend is application-wide; preserve the most recent global choice.
+    for (qsizetype i = 0; i < d->modelConfigs.size(); ++i) {
+      auto entry = d->modelConfigs[i].toObject();
+      entry.remove("backend");
+      d->modelConfigs[i] = entry;
+    }
+  }
   d->rebuildModels();
   select(d->models, settings.value("diffusion/modelId").toString());
   const auto savedConfig = QJsonDocument::fromJson(
       settings.value("diffusion/currentConfiguration").toByteArray());
   if (savedConfig.isObject())
     setConfiguration(savedConfig.object());
-  select(d->backend, settings.value("diffusion/backend", "auto").toString());
   const auto savedGeneration = QJsonDocument::fromJson(
       settings.value("diffusion/generation").toByteArray());
   if (savedGeneration.isObject()) {
@@ -2835,6 +2941,7 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
     if (d->updating) return;
     // Device IDs belong to a backend, so don't carry a CUDA ID into Vulkan.
     select(qobject_cast<QComboBox *>(d->resource["device"]), QString{});
+    setDevices({});
     saveSettings();
   });
   for (auto *edit : d->files)
@@ -2944,12 +3051,65 @@ bool DiffusionPanel::imageToImageEnabled() const {
   return (supportsMode(Mode::Fill) && mode() == Mode::Fill) ||
          (supportsMode(Mode::Edit) && mode() == Mode::Edit && d->editImageToImage);
 }
+void DiffusionPanel::setWorkerUpdates(WorkerUpdates* updates) {
+  if (d->workerUpdates == updates) return;
+  if (d->workerUpdates) d->workerUpdates->disconnect(this);
+  d->workerUpdates = updates;
+  if (updates) connect(updates, &WorkerUpdates::changed, this, &DiffusionPanel::refreshWorkers);
+  refreshWorkers();
+}
+void DiffusionPanel::refreshWorkers() {
+  const bool sessionOverride = !sessionCudaWorker().isEmpty();
+  for (auto it = d->workerStatuses.begin(); it != d->workerStatuses.end(); ++it) {
+    const auto worker = diffusionWorkerLocation(it.key());
+    i18n::setText(it.value(), worker.available ? i18n::text("diffusion.ui.worker.available") :
+        worker.executable.isEmpty() && it.key() != "vulkan" ? i18n::text("diffusion.ui.worker.not.added") : i18n::text("diffusion.ui.worker.missing"));
+    const auto style = "color: " + themeColor(worker.available ? ThemeColor::Accent : ThemeColor::SecondaryText).name();
+    if (it.value()->styleSheet() != style) it.value()->setStyleSheet(style);
+    if (auto* button = d->workerButtons.value(it.key())) {
+      i18n::setText(button, worker.available ? i18n::text("diffusion.workers.change") : i18n::text("diffusion.ui.add.worker"));
+      button->setEnabled(!d->busy && !sessionOverride);
+    }
+    if (it.key() == "vulkan") i18n::setToolTip(it.value(), i18n::text("diffusion.workers.vulkan.bundled"));
+    if (it.key() == "cuda" && sessionOverride) {
+      if (worker.available) i18n::setText(it.value(), i18n::text("diffusion.workers.session.available"));
+      i18n::setToolTip(it.value(), i18n::text("diffusion.workers.session.hint"));
+    }
+  }
+  const bool installed = diffusionWorkerLocation("cuda").available;
+  const auto installedVersion = installedDiffusionWorkerVersion("cuda");
+  const auto* updates = d->workerUpdates.data();
+  const bool downloading = updates && updates->downloading();
+  bool recommended = false;
+  if (updates && updates->release() && !installedVersion.isEmpty()) {
+    const auto& release = *updates->release();
+    recommended = UpdateService::isNewer(release.artifact.version, installedVersion).value_or(false)
+        || (release.pinned && release.artifact.version != installedVersion);
+  }
+  d->downloadWorker->setVisible(downloading || !installed || recommended);
+  d->downloadWorker->setEnabled(!d->busy && !sessionOverride && updates && updates->configured() && !updates->checking() && !downloading && updates->release().has_value());
+  i18n::Message tip = i18n::text("diffusion.workers.check.about");
+  if (!(updates ? updates->configured() : platform::ServiceConfig::load().enabled())) tip = i18n::text("update.service.updates.are.not.configured.for.this.build");
+  else if (downloading) tip = i18n::text("diffusion.workers.downloading");
+  else if (updates && updates->checking()) tip = i18n::text("diffusion.workers.checking");
+  else if (updates && !updates->error().isEmpty()) tip = updates->error();
+  else if (updates && updates->release()) tip = i18n::text("diffusion.workers.download.version").arg(i18n::ltrToken(updates->release()->artifact.version));
+  else if (updates && updates->checked()) tip = i18n::text("diffusion.workers.no.compatible");
+  i18n::setToolTip(d->downloadWorker, tip);
+  d->workerProgress->setVisible(downloading);
+  if (downloading) {
+    d->workerProgress->setRange(0, 1000);
+    d->workerProgress->setValue(updates->total() > 0 ? int(std::min(qint64(1000), updates->received() * 1000 / updates->total())) : 0);
+  }
+  d->backend->setEnabled(!d->busy && !sessionOverride);
+  if (sessionOverride) i18n::setToolTip(d->backend, i18n::text("diffusion.workers.session.hint"));
+}
 QString DiffusionPanel::workerExecutable() const { return d->workerOverride; }
 void DiffusionPanel::setWorkerExecutable(const QString &path) {
   d->workerOverride = path;
 }
 QString DiffusionPanel::backend() const {
-  return d->backend->currentData().toString();
+  return sessionCudaWorker().isEmpty() ? d->backend->currentData().toString() : "cuda";
 }
 QJsonObject DiffusionPanel::configuration() const {
   QJsonObject files;
@@ -3117,7 +3277,15 @@ void DiffusionPanel::setLoadedModels(const QJsonArray &models, bool canUnload) {
 }
 void DiffusionPanel::setDevices(const QJsonArray &devices) {
   auto *c = qobject_cast<QComboBox *>(d->resource["device"]);
-  const auto current = c->currentData().toString();
+  auto current = c->currentData().toString();
+  const auto reports = [&](const QString &prefix) {
+    return std::any_of(devices.begin(), devices.end(), [&](const QJsonValue &v) {
+      return v.toObject()["id"].toString().startsWith(prefix);
+    });
+  };
+  if ((current.startsWith("CUDA") && reports("Vulkan") && !reports("CUDA")) ||
+      (current.startsWith("Vulkan") && reports("CUDA") && !reports("Vulkan")))
+    current.clear();
   const QSignalBlocker b(c);
   c->clear();
   i18n::addItem(c, i18n::text("diffusion.ui.auto"), QString{});
@@ -3162,7 +3330,11 @@ void DiffusionPanel::setConfiguration(const QJsonObject &config,
   const auto files = config["files"].toObject();
   for (auto it = d->files.begin(); it != d->files.end(); ++it)
     it.value()->setText(files[it.key()].toString());
-  const auto resources = config["settings"].toObject();
+  auto resources = config["settings"].toObject();
+  const auto device = resources["device"].toString();
+  if ((backend() == "vulkan" && device.startsWith("CUDA")) ||
+      (backend() == "cuda" && device.startsWith("Vulkan")))
+    resources["device"] = QString{};
   putControls(d->resource, resources);
   const auto placements = resources["placements"].toObject();
   for (auto it = placements.begin(); it != placements.end(); ++it)
@@ -3473,10 +3645,13 @@ void DiffusionPanel::setBusy(bool busy) {
   if (busy != d->busy)
     d->draftPreview = {};
   d->busy = busy;
+  refreshWorkers();
   d->syncPending();
   d->progress->setVisible(busy);
-  if (busy)
+  if (busy) {
     d->progress->setRange(0, 0);
+    setProgress({}, {{"stage", "starting"}});
+  } else d->progressWorker->hide();
   d->refreshDisplayedPreview();
   if (onResultSelected)
     onResultSelected(selectedResultIndex());
@@ -3486,15 +3661,37 @@ void DiffusionPanel::setStatus(const i18n::Message &text, bool error) {
   i18n::setText(d->status, text);
   d->status->setStyleSheet(error ? "color: #e88a79;" : QString{});
 }
-void DiffusionPanel::setProgress(int step, int steps, double elapsed) {
-  if (steps > 0) {
-    d->progress->setRange(0, steps);
-    d->progress->setValue(step);
-  }
-  d->progress->setFormat(QString("%1 / %2 · %3 s")
-                             .arg(step)
-                             .arg(steps)
-                             .arg(elapsed / 1000., 0, 'f', 1));
+i18n::Message DiffusionPanel::setProgress(const QString &backend, const QJsonObject &event) {
+  const auto stage = event.value("stage").toString();
+  const auto detail = event.value("detail").toString();
+  QString key = "processing";
+  if (stage == "starting" || stage == "loading" || stage == "loading_weights" || stage == "sampling" || stage == "saving" ||
+      stage == "vae_encode" || stage == "vae_decode") key = stage;
+  else if (stage == "preparing") key = detail == "loras" ? "loras" : "preparing";
+  else if (stage == "conditioning")
+    key = detail == "negative_prompt" ? "negative" : detail == "image_condition" ? "references" : "prompt";
+  const auto title = i18n::text(("diffusion.progress." + key).toUtf8().constData());
+  const auto hint = i18n::text(("diffusion.progress." + key + ".hint").toUtf8().constData());
+  const QString worker = backend == "cuda" ? "CUDA" : backend == "vulkan" ? "Vulkan" : backend == "cpu" ? "CPU" : QString{};
+  const auto heading = worker.isEmpty() ? i18n::text("diffusion.ui.preparing.generation")
+      : i18n::text("diffusion.progress.worker").arg(i18n::ltrToken(worker));
+  i18n::setText(d->progressWorker, heading);
+  d->progressWorker->setVisible(d->busy);
+  setStatus(title + "\n" + hint);
+  const auto total = std::max(0, event.value("steps").toInt());
+  const auto step = std::clamp(event.value("step").toInt(), 0, total);
+  d->progress->setRange(0, total);
+  d->progress->setValue(step);
+  const bool sampling = stage == "sampling" && event.value("unit") == "steps";
+  auto format = sampling ? i18n::text("diffusion.progress.step.count")
+                         : i18n::text("diffusion.progress.current.percent");
+  const int pass = event.value("samplePass").toInt();
+  if (sampling && pass > 1)
+    format = i18n::text("diffusion.progress.pass").arg(pass) + " · " + format;
+  const double elapsed = std::max(0., event.value("elapsedMs").toDouble());
+  if (elapsed > 0) format = format + QString(" · %1 s").arg(elapsed / 1000., 0, 'f', 1);
+  d->progress->setFormat(format);
+  return worker.isEmpty() ? title : title + " · " + i18n::ltrToken(worker);
 }
 void DiffusionPanel::setProgressPreview(QImage image) {
   if (!d->busy || image.isNull())
@@ -3566,7 +3763,7 @@ void DiffusionPanel::saveSettings() {
   s.setValue(
       "diffusion/generation",
       QJsonDocument(controls(d->sampling)).toJson(QJsonDocument::Compact));
-  s.setValue("diffusion/backend", backend());
+  if (sessionCudaWorker().isEmpty()) s.setValue("diffusion/backend", backend());
   s.remove("diffusion/workerExecutable");
   s.setValue("diffusion/prompt", d->prompt->toPlainText());
   s.setValue("diffusion/negativePrompt", d->negative->toPlainText());

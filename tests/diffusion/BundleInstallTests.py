@@ -44,7 +44,7 @@ class BundleInstallTests(unittest.TestCase):
     def write_bundle(self, platform):
         if self.prefix.exists():
             shutil.rmtree(self.prefix)
-        self.data = {'schemaVersion': 1, 'backend': 'cuda', 'platform': platform,
+        self.data = {'schemaVersion': 1, 'backend': 'vulkan', 'platform': platform,
             'appVersion': bundle.app_version(),
             'engine': json.loads((ROOT / 'src/diffusion/engine-lock.json').read_text()),
             'build': {'cpuBaseline': 'avx2-fma-f16c-bmi2',
@@ -61,27 +61,26 @@ class BundleInstallTests(unittest.TestCase):
             struct.pack_into('<H', binary, 152, 0x20b)
             struct.pack_into('<I', binary, 212, 512)  # SizeOfHeaders.
             binary[392:397] = b'.text'
-            self.worker = 'bin/vulkana-diffusion-worker-cuda.exe'
-            libraries = ['bin/cudart64_13.dll', 'bin/cublas64_13.dll', 'bin/cublasLt64_13.dll']
+            self.worker = 'bin/vulkana-diffusion-worker-vulkan.exe'
+            libraries = ['bin/vcruntime140.dll']
         else:
             binary = bytearray(64)
             binary[:6] = b'\x7fELF\x02\x01'
             struct.pack_into('<H', binary, 18, 62)
-            self.worker = 'bin/vulkana-diffusion-worker-cuda'
-            libraries = ['lib/vulkana-diffusion/cuda/' + name for name in
-                ('libcudart.so.13', 'libcublas.so.13', 'libcublasLt.so.13')]
+            self.worker = 'bin/vulkana-diffusion-worker-vulkan'
+            libraries = ['lib/vulkana-diffusion/vulkan/libgomp.so.1']
         self.libraries = libraries
         for name in [self.worker, *libraries]:
             self.add(name, binary, 'binary')
         for name in ('THIRD-PARTY-NOTICES.txt', 'licenses/stable-diffusion-MIT.txt',
-                     'licenses/ggml-MIT.txt', 'licenses/CUDA-EULA.txt',
-                     'licenses/CUDA-cccl-LICENSE.txt'):
-            self.add(bundle.META + '/' + name, b'Fixture license text\n', 'notice')
+                     'licenses/ggml-MIT.txt', 'licenses/Vulkan-Headers.txt',
+                     'licenses/SPIRV-Headers.txt', 'licenses/Apache-2.0.txt'):
+            self.add('share/vulkana-editor/diffusion/vulkan' + '/' + name, b'Fixture license text\n', 'notice')
         if platform == 'windows':
-            self.add(bundle.META + '/licenses/Microsoft-Redist.txt', b'Fixture license text\n', 'notice')
+            self.add('share/vulkana-editor/diffusion/vulkan' + '/licenses/Microsoft-Redist.txt', b'Fixture license text\n', 'notice')
         notices = {'format': 1, 'version': bundle.app_version(), 'acknowledgements': [],
                    'components': [], 'texts': {}, 'notice_text_keys': []}
-        self.add(bundle.META + '/notices.json', json.dumps(notices).encode(), 'notice')
+        self.add('share/vulkana-editor/diffusion/vulkan' + '/notices.json', json.dumps(notices).encode(), 'notice')
         self.save_manifest()
 
     def add(self, name, content, kind):
@@ -93,7 +92,7 @@ class BundleInstallTests(unittest.TestCase):
         self.data['files'].append(bundle.record(self.prefix, name, kind))
 
     def save_manifest(self):
-        (self.prefix / bundle.MANIFEST).write_text(json.dumps(self.data), encoding='utf-8')
+        (self.prefix / 'share/vulkana-editor/diffusion/vulkan/manifest.json').write_text(json.dumps(self.data), encoding='utf-8')
 
     def run_cmake(self, *args, success=True):
         result = subprocess.run([CMAKE, *map(str, args)], text=True, encoding='utf-8',
@@ -117,8 +116,8 @@ class BundleInstallTests(unittest.TestCase):
         for entry in self.data['files']:
             self.assertEqual((self.destination / entry['path']).read_bytes(),
                              (self.prefix / entry['path']).read_bytes())
-        self.assertEqual((self.destination / bundle.MANIFEST).read_bytes(),
-                         (self.prefix / bundle.MANIFEST).read_bytes())
+        self.assertEqual((self.destination / 'share/vulkana-editor/diffusion/vulkan/manifest.json').read_bytes(),
+                         (self.prefix / 'share/vulkana-editor/diffusion/vulkan/manifest.json').read_bytes())
         self.assertTrue(os.access(self.destination / self.worker, os.X_OK))
         bundle.verify(self.destination)
 
@@ -132,7 +131,7 @@ class BundleInstallTests(unittest.TestCase):
 
     def test_changed_valid_manifest_requires_reconfigure(self):
         self.configure()
-        added = bundle.META + '/licenses/additional-attribution.txt'
+        added = 'share/vulkana-editor/diffusion/vulkan' + '/licenses/additional-attribution.txt'
         self.add(added, b'Additional attribution\n', 'notice')
         self.save_manifest()
         bundle.verify(self.prefix)  # A valid new payload still changes the install list.

@@ -102,6 +102,231 @@
       <translation>Camadas de ajuste não aceitam filtros ou efeitos. Selecione uma camada raster, de texto ou de forma.</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
+    <message id="diffusion.progress.worker">
+      <source>Generating using %1 worker</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.stage.hint">
+      <source>Progress describes the current stage, not the whole job. Some stages may repeat for separate images or model components.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.step.count">
+      <source>%v / %m steps</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.current.percent">
+      <source>Current stage: %p%</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.pass">
+      <source>Pass %1</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.starting">
+      <source>Starting worker…</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.starting.hint">
+      <source>Connecting to the inference worker.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.loading">
+      <source>Loading model…</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.loading.hint">
+      <source>Preparing model weights. Image generation has not started yet.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.preparing">
+      <source>Preparing generation…</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.preparing.hint">
+      <source>Preparing inputs and model resources.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.loras">
+      <source>Preparing LoRAs…</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.loras.hint">
+      <source>Loading the enabled LoRAs for this generation.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.prompt">
+      <source>Encoding prompt…</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.prompt.hint">
+      <source>Reading your prompt and reference images before generating.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.negative">
+      <source>Encoding negative prompt…</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.negative.hint">
+      <source>Preparing guidance for unwanted details.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.references">
+      <source>Encoding references…</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.references.hint">
+      <source>Preparing the image information used for generation.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.vae_encode">
+      <source>Encoding images…</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.vae_encode.hint">
+      <source>Converting input images into a form the model can use.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.sampling">
+      <source>Generating image…</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.sampling.hint">
+      <source>Creating the image, one sampling step at a time.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.vae_decode">
+      <source>Decoding image…</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.vae_decode.hint">
+      <source>Converting the generated result into full-resolution pixels.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.saving">
+      <source>Preparing preview…</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.saving.hint">
+      <source>Saving the result for preview and Apply.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.processing">
+      <source>Processing image…</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.processing.hint">
+      <source>This worker does not report individual generation stages.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.loading_weights">
+      <source>Loading model weights…</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.progress.loading_weights.hint">
+      <source>Moving the weights needed for this stage into memory.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.workers.session.available">
+      <source>Available (session override)</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.workers.session.hint">
+      <source>CUDA is selected by --cuda-worker for this session. Your saved worker and backend are unchanged.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.ui.workers">
+      <source>Workers</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.ui.add.worker">
+      <source>Add worker…</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.ui.choose.worker">
+      <source>Choose extracted worker folder</source>
+      <oldsource>Choose worker executable</oldsource>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.workers.folder.missing">
+      <source>No CUDA worker found. Select the extracted worker folder or its bin folder for this system.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.workers.folder.ambiguous">
+      <source>Several CUDA workers were found. Select one worker’s folder or its bin folder.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.workers.folder.added">
+      <source>CUDA worker added.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.ui.worker.available">
+      <source>Available</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.ui.worker.not.added">
+      <source>Not added</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.ui.worker.missing">
+      <source>Missing</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.workers.download.invalid">
+      <source>The worker download information or archive is invalid.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.workers.feed.invalid">
+      <source>Worker update information is invalid. Check for updates again in About.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.workers.check.failed">
+      <source>Could not check worker updates. Try again in About.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.workers.downloading">
+      <source>Downloading CUDA worker…</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.workers.download.saved">
+      <source>CUDA worker downloaded. Extract the archive, then choose Add worker or Change worker.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.workers.download">
+      <source>Download CUDA worker</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.workers.download.version">
+      <source>Download CUDA worker %1</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.workers.save.archive">
+      <source>Save CUDA worker archive</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.workers.xz.archives">
+      <source>XZ archives (*.tar.xz)</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.workers.change">
+      <source>Change worker…</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.workers.vulkan.bundled">
+      <source>Included with Vulkana. Vulkan worker updates are included in application updates.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.workers.check.about">
+      <source>Check for updates in About to find a compatible CUDA worker.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.workers.checking">
+      <source>Checking worker updates…</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="diffusion.workers.no.compatible">
+      <source>No compatible CUDA worker is available for this build.</source>
+      <translation type="unfinished" />
+    </message>
   </context>
   <context>
     <name>DialogButtons</name>
@@ -13340,8 +13565,9 @@ Preparação %3 · Finalização %4 · Total %5</translation>
       <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
     </message>
     <message id="diffusion.ui.ready.1.s.inspect.the.result.before">
-      <source>Ready · %1 s — inspect the result before applying.</source>
-      <translation>Pronto · %1 s — inspecione o resultado antes de aplicar.</translation>
+      <source>Generation done in %1 s.</source>
+      <oldsource>Ready · %1 s — inspect the result before applying.</oldsource>
+      <translation type="unfinished">Pronto · %1 s — inspecione o resultado antes de aplicar.</translation>
       <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
     </message>
     <message id="diffusion.ui.generation.failed">

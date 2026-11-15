@@ -599,6 +599,8 @@ private:
     bool fileBusy_ {false}, unsavedPromptEnabled_ {true};
     WorkspaceDialog* workspaceDialog_ {nullptr};
     UpdateService* updateService_ {nullptr};
+    UpdateService* ensureUpdateService(QNetworkAccessManager* transport = nullptr);
+    void connectDiffusionWorkerUpdates();
     FeedbackService* feedbackService_ {nullptr};
     QTimer* startupUiTimer_ {nullptr};
     bool startupNewDocumentPending_ {false}, startupUpdateNoticePending_ {false};

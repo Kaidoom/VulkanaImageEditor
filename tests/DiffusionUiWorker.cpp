@@ -36,7 +36,7 @@ int main(int argc, char** argv)
         send({ { "id", id }, { "ok", false },
             { "error", QJsonObject { { "code", code }, { "message", message } } } });
     };
-    send({ { "event", "hello" }, { "protocol", 1 }, { "backend", "test" },
+    send({ { "event", "hello" }, { "protocol", 1 }, { "backend", qEnvironmentVariableIsSet("VULKANA_TEST_DIFFUSION_PHASES") ? "vulkan" : "test" },
         { "referenceSizeLimit", true },
         { "loraParameters", true },
         { "flux3NativeRegions", !qEnvironmentVariableIsSet("VULKANA_TEST_DIFFUSION_SPATIAL_V1") },
@@ -160,7 +160,17 @@ int main(int argc, char** argv)
                 active = id;
                 stateEvent();
                 params = request.value("params").toObject();
-                send({ { "event", "progress" }, { "jobId", id }, { "step", 1 }, { "steps", 2 },
+                if (params.value("prompt") == "phases") {
+                    send({{"event","progress"},{"jobId",id},{"stage","conditioning"},{"detail","positive_prompt"}});
+                    for (const auto& phase : {QPair{250,"sampling"}, QPair{600,"vae_decode"}, QPair{900,"saving"}})
+                        QTimer::singleShot(phase.first, &app, [&, id, stage=phase.second] {
+                            if (active == id) send({{"event","progress"},{"jobId",id},{"stage",stage},
+                                {"unit","steps"},{"step",QString(stage)=="sampling"?1:0},{"steps",QString(stage)=="sampling"?2:0}});
+                        });
+                    QTimer::singleShot(50,&app,[&, id] {
+                        if (active == id) send({{"event","progress"},{"jobId","expired"},{"stage","vae_decode"}});
+                    });
+                } else send({ { "event", "progress" }, { "jobId", id }, { "step", 1 }, { "steps", 2 },
                     { "elapsedMs", 10 } });
                 QTimer::singleShot(50,&app,[&,id] {
                     if(active != id) return;
@@ -170,7 +180,7 @@ int main(int argc, char** argv)
                     const auto path=QDir(folder).filePath("preview.png"); draft.save(path);
                     send({{"event","preview"},{"jobId",id},{"path",path},{"width",16},{"height",16},{"step",1}});
                 });
-                job.start(params.value("prompt").toString() == "slow" ? 5000 : 180);
+                job.start(params.value("prompt").toString() == "slow" ? 5000 : params.value("prompt") == "phases" ? 1200 : 180);
             } else if (method == "cancel") {
                 const auto old = active;
                 active.clear();

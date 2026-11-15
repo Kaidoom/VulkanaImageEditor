@@ -5,6 +5,13 @@
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "TestServiceConfig.hpp"
+#include "imageeditor/ui/WorkerUpdates.hpp"
+#include <QLineEdit>
+#include "imageeditor/ui/DiffusionPanel.hpp"
+#include "imageeditor/ui/DiffusionWorkers.hpp"
+#include <QJsonArray>
+#include <QToolButton>
+#include <QSysInfo>
 #include "imageeditor/platform/ProjectIntegration.hpp"
 
 #include <QApplication>
@@ -124,12 +131,20 @@ private:
 class Network final : public QNetworkAccessManager {
 public:
     std::deque<Response> responses;
+    std::deque<Response> workerResponses;
+    QList<QNetworkRequest> workerRequests;
     QList<QNetworkRequest> requests;
     QPointer<QNetworkReply> last;
 protected:
     QNetworkReply* createRequest(Operation operation, const QNetworkRequest& request, QIODevice*) override
     {
         CHECK(operation == GetOperation);
+        if (request.url().path() == "/downloads/workers.json") {
+            workerRequests.push_back(request);
+            Response response{QByteArray("{\"schemaVersion\":1,\"workers\":[],\"pins\":[]}")};
+            if (!workerResponses.empty()) { response = std::move(workerResponses.front()); workerResponses.pop_front(); }
+            return new Reply(request, std::move(response), this);
+        }
         requests.push_back(request);
         CHECK(!responses.empty());
         Response response;
@@ -214,7 +229,7 @@ void serviceConfigurationTests()
         Network network;
         u::UpdateService service("0.2.1", nullptr, &network);
         CHECK(!service.configured()); service.check();
-        CHECK(network.requests.empty() && !service.busy());
+        CHECK(network.requests.empty() && network.workerRequests.empty() && !service.busy());
         QWidget owner;
         u::AboutDialog about(&owner, &network);
         CHECK(!about.findChild<QPushButton*>("AboutCheckUpdate")->isEnabled());
@@ -234,7 +249,7 @@ void serviceConfigurationTests()
         QTimer::singleShot(2000, &window, [&] { if (!newCanvas) { CHECK(false); window.close(); } });
         window.startStartupFlow(true, &network);
         CHECK(waitFor([&] { return newCanvas; }));
-        CHECK(network.requests.empty());
+        CHECK(network.requests.empty() && network.workerRequests.empty());
         CHECK(!QSettings().contains("updates/lastStartupAttemptUtcSeconds"));
         window.close();
     }
@@ -839,6 +854,8 @@ void liveCheck(bool download)
 }
 }
 
+#include "WorkerUpdateChecks.inc"
+
 int main(int argc, char** argv)
 {
     QCoreApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
@@ -860,6 +877,7 @@ int main(int argc, char** argv)
     u::applyEditorTheme(app);
     if (app.arguments().contains("--live-check") || app.arguments().contains("--live-download"))
         liveCheck(app.arguments().contains("--live-download"));
+    else if (app.arguments().contains("--live-workers")) liveWorkerCheck();
     else if (app.arguments().contains("--native-startup")) {
         if (QApplication::platformName() == "offscreen") return 1;
         TestServiceConfig services;
@@ -879,7 +897,7 @@ int main(int argc, char** argv)
         if (instance.isValid()) startupNonblockingNoticeTests(&instance);
         CHECK(validationMessages == 0);
     }
-    else { TestServiceConfig services; serviceConfigurationTests(); metadataTests(); stateAndDownloadTests(); dialogTests(); reopenedAboutLanguageTests();
+    else { TestServiceConfig services; workerMetadataTests(); workerDownloadTests(); workerPanelTests(); workerCheckIntegrationTests(); serviceConfigurationTests(); metadataTests(); stateAndDownloadTests(); dialogTests(); reopenedAboutLanguageTests();
 #ifdef Q_OS_LINUX
         appImageTests();
 #endif

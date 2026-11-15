@@ -14,6 +14,7 @@
 class QDialog;
 
 namespace imageeditor::ui {
+class WorkerUpdates;
 class DiffusionPanel final : public QWidget {
 public:
   enum class Mode { Generate, Edit, Fill };
@@ -83,6 +84,8 @@ public:
   QString workerExecutable()
       const; // Test/development override; not exposed or persisted.
   QString backend() const;
+  void refreshWorkers();
+  void setWorkerUpdates(WorkerUpdates*);
   bool imageToImageEnabled() const;
   void setWorkerExecutable(const QString &path);
   QJsonObject
@@ -131,7 +134,8 @@ public:
   void setBusy(bool busy);
   bool isBusy() const;
   void setStatus(const i18n::Message &text, bool error = false);
-  void setProgress(int step, int steps, double elapsedMs = 0);
+  // Updates the footer and returns the compact text for the background notice.
+  i18n::Message setProgress(const QString &backend, const QJsonObject &progress);
   void setProgressPreview(QImage image);
   void setTargetCompatible(bool selected);
   void setComparisonLayers(QVector<ComparisonLayer> layers);

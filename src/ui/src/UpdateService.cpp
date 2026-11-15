@@ -1,5 +1,6 @@
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/UpdateService.hpp"
+#include "imageeditor/ui/WorkerUpdates.hpp"
 
 #include <QFileInfo>
 #include <QFile>
@@ -154,6 +155,41 @@ std::optional<UpdateRelease> UpdateService::parseManifest(const QByteArray& byte
     return result;
 }
 
+bool UpdateService::trustedDownloadUrl(const QUrl& url, const platform::ServiceConfig& config, const QString& suffix)
+{
+    static const QRegularExpression filename("\\A[A-Za-z0-9][A-Za-z0-9._+-]*\\z");
+    return !config.origin.isEmpty() && url.isValid() && url.scheme() == "https"
+        && url.host() == config.origin.host() && url.port(443) == 443
+        && url.userInfo().isEmpty() && !url.hasQuery() && !url.hasFragment()
+        && url.path() == url.adjusted(QUrl::NormalizePathSegments).path()
+        && url.path().startsWith("/downloads/")
+        && filename.match(QFileInfo(url.path()).fileName()).hasMatch()
+        && url.path().endsWith(suffix);
+}
+
+WorkerUpdates* UpdateService::workerUpdates()
+{
+    if (!workerUpdates_) workerUpdates_ = new WorkerUpdates(currentVersion_, this, network_);
+    return workerUpdates_;
+}
+
+void UpdateService::downloadArchive(const UpdateRelease& release, qint64 expectedSize,
+                                    ArchiveFormat format, const QString& destination)
+{
+    if (busy() || simulated_ || state_ == State::RestartReady || destination.isEmpty()) return;
+    if (!configured() || package_ == UpdatePackage::AppImage || !validVersion(release.version)
+        || expectedSize <= 0 || expectedSize > qint64(4) * 1024 * 1024 * 1024
+        || !QRegularExpression("\\A[0-9a-fA-F]{64}\\z").match(QString::fromLatin1(release.sha256)).hasMatch()
+        || !trustedDownloadUrl(release.url, config_, format == ArchiveFormat::Zip ? ".zip" : ".tar.xz")) {
+        fail(i18n::text("diffusion.workers.download.invalid")); return;
+    }
+    release_ = release;
+    release_->sha256 = release_->sha256.toLower();
+    archiveExpectedSize_ = expectedSize;
+    archiveFormat_ = format;
+    beginDownload(destination);
+}
+
 void UpdateService::notify() { if (onChanged) onChanged(); }
 
 void UpdateService::stopTransfer()
@@ -185,10 +221,12 @@ void UpdateService::check(int timeoutMs)
 {
     if (simulated_) { simulateUpdate(); return; }
     if (!configured()) {
+        if (workerUpdates_ && config_.enabled() && validVersion(currentVersion_)) workerUpdates_->check(timeoutMs);
         fail(i18n::text("update.service.updates.are.not.configured.for.this.build"));
         return;
     }
     if (busy() || state_==State::RestartReady) return;
+    archiveExpectedSize_ = 0;
     checkTimeoutMs_ = std::clamp(timeoutMs, 1, 60000);
     release_.reset();
     downloadedPath_.clear();
@@ -199,6 +237,7 @@ void UpdateService::check(int timeoutMs)
     state_ = State::Checking;
     message_ = i18n::text("update.service.checking.for.updates");
     startRequest(manifestUrl(config_));
+    if (workerUpdates_) workerUpdates_->check(checkTimeoutMs_);
     notify();
 }
 
@@ -253,7 +292,8 @@ void UpdateService::beginDownload(const QString& destination)
     hash_.reset();
     header_.clear();
     state_ = State::Downloading;
-    message_ = i18n::text("update.service.downloading.vulkana.1").arg(i18n::ltrToken(release_->version));
+    message_ = archiveExpectedSize_ ? i18n::text("diffusion.workers.downloading")
+        : i18n::text("update.service.downloading.vulkana.1").arg(i18n::ltrToken(release_->version));
     startRequest(release_->url);
     notify();
 }
@@ -265,6 +305,12 @@ void UpdateService::cancel()
     state_ = release_ ? State::Available : State::Idle;
     message_ = i18n::text("update.service.cancelled.no.download.was.saved");
     notify();
+}
+
+void UpdateService::cancelTransfers()
+{
+    cancel();
+    if (workerUpdates_) workerUpdates_->stop();
 }
 
 void UpdateService::startRequest(const QUrl& url)
@@ -279,6 +325,7 @@ void UpdateService::startRequest(const QUrl& url)
     request.setAttribute(QNetworkRequest::CookieSaveControlAttribute, QNetworkRequest::Manual);
     request.setRawHeader("User-Agent", "Vulkana/" + currentVersion_.toUtf8());
     request.setRawHeader("Accept", state_ == State::Checking ? "application/json" : "application/octet-stream");
+    if (archiveExpectedSize_ && state_ == State::Downloading) request.setRawHeader("Accept-Encoding", "identity");
     request.setTransferTimeout(state_ == State::Checking ? std::min(30000, checkTimeoutMs_) : 30000);
     reply_ = network_->get(request);
     reply_->setReadBufferSize(chunkSize);
@@ -291,7 +338,7 @@ void UpdateService::startRequest(const QUrl& url)
             fail(i18n::text("update.service.the.server.returned.http.1.please.try.again").arg(http));
             return;
         }
-        const auto limit = state_ == State::Checking ? manifestLimit : packageLimit;
+        const auto limit = state_ == State::Checking ? manifestLimit : (archiveExpectedSize_ ? archiveExpectedSize_ : packageLimit);
         if (reply_->header(QNetworkRequest::ContentLengthHeader).toLongLong() > limit)
             fail(i18n::text("update.service.the.server.response.exceeds.the.download.size.limit"));
     });
@@ -309,7 +356,7 @@ void UpdateService::readAvailable()
         const auto bytes = reply_->read(chunkSize);
         if (bytes.isEmpty()) break;
         received_ += bytes.size();
-        if (received_ > (state_ == State::Checking ? manifestLimit : packageLimit)) {
+        if (received_ > (state_ == State::Checking ? manifestLimit : (archiveExpectedSize_ ? archiveExpectedSize_ : packageLimit))) {
             fail(i18n::text("update.service.the.server.response.exceeds.the.download.size.limit"));
             return;
         }
@@ -352,11 +399,15 @@ void UpdateService::finish()
             message_ = i18n::text("update.service.you.have.the.latest.version");
         }
     } else if (state_ == State::Downloading) {
-        if (received_ == 0 || hash_.result().toHex() != release_->sha256) {
+        if (received_ == 0 || (archiveExpectedSize_ && received_ != archiveExpectedSize_) || hash_.result().toHex() != release_->sha256) {
             fail(i18n::text("update.service.checksum.verification.failed.no.download.was.saved.please.try"));
             return;
         }
-        if (package_ == UpdatePackage::Deb) {
+        if (archiveExpectedSize_) {
+            const auto magic = archiveFormat_ == ArchiveFormat::Zip ? QByteArray("PK\x03\x04", 4) : QByteArray::fromHex("fd377a585a00");
+            if (!header_.startsWith(magic)) { fail(i18n::text("diffusion.workers.download.invalid")); return; }
+        }
+        if (!archiveExpectedSize_ && package_ == UpdatePackage::Deb) {
             // dpkg's ar format starts with the debian-binary member and 2.0\n.
             // Check its bounded header in addition to the whole-file SHA-256.
             const auto member = header_.mid(8, 16).trimmed();
@@ -370,7 +421,7 @@ void UpdateService::finish()
         }
         // Verify the bounded ZIP signature only. Archive entries are never opened
         // or extracted by the updater; SHA-256 covers the complete downloaded file.
-        if (package_ == UpdatePackage::WindowsPortable && header_.first(4) != QByteArray("PK\x03\x04", 4)) {
+        if (!archiveExpectedSize_ && package_ == UpdatePackage::WindowsPortable && header_.first(4) != QByteArray("PK\x03\x04", 4)) {
             fail(i18n::text("update.service.invalid.portable.zip"));
             return;
         }
@@ -398,7 +449,7 @@ void UpdateService::finish()
         downloadedPath_ = destination_;
         stopTransfer();
         state_ = package_==UpdatePackage::AppImage ? State::RestartReady : State::Downloaded;
-        message_ = package_==UpdatePackage::AppImage
+        message_ = archiveExpectedSize_ ? i18n::text("diffusion.workers.download.saved") : package_==UpdatePackage::AppImage
             ? i18n::text("update.service.appimage.replaced.and.sha.256.verified.restart.when.you")
             : package_==UpdatePackage::WindowsPortable
                 ? i18n::text("update.service.portable.zip.saved")

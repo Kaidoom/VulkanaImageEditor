@@ -7,6 +7,8 @@ add_library(imageeditor_ui STATIC
     src/FeedbackService.cpp
     src/ThirdPartyNoticesDialog.cpp
     src/UpdateService.cpp
+    src/WorkerUpdates.cpp
+    include/imageeditor/ui/WorkerUpdates.hpp
     src/AbsolutePositionSlider.cpp
     src/AdjustmentCodec.cpp
     src/SpatialFilterCodec.cpp
@@ -55,6 +57,7 @@ add_library(imageeditor_ui STATIC
     src/LayerListView.cpp
     src/LayerDrag.cpp
     src/DiffusionPanel.cpp
+    src/DiffusionWorkers.cpp
     src/DiffusionLoras.cpp
     src/DiffusionPreview.cpp
     src/DiffusionTransaction.cpp
@@ -210,9 +213,3 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 endif()
 target_link_libraries(imageeditor_ui PRIVATE ZLIB::ZLIB)
 target_link_libraries(imageeditor_ui PRIVATE imageeditor_project_preview)
-
-set(VULKANA_DIFFUSION_WORKER "" CACHE FILEPATH "Optional development diffusion worker executable")
-if(IMAGEEDITOR_DEVELOPMENT_RESOURCES AND VULKANA_DIFFUSION_WORKER)
-    target_compile_definitions(imageeditor_ui PRIVATE
-        VULKANA_DEVELOPMENT_DIFFUSION_WORKER="${VULKANA_DIFFUSION_WORKER}")
-endif()

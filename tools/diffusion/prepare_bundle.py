@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit an already staged CUDA worker and write its offline distribution inventory.
+"""Audit an already staged CUDA or Vulkan worker and write its offline distribution inventory.
 
 Build-time only; downloads nothing and never copies model weights. The resulting
 manifest checks integrity and provenance, not a signature or legal approval.
@@ -31,8 +31,8 @@ WINDOWS_SYSTEM = {'kernel32.dll', 'ntdll.dll', 'user32.dll', 'gdi32.dll', 'advap
                   'bcrypt.dll', 'bcryptprimitives.dll', 'crypt32.dll', 'ole32.dll',
                   'oleaut32.dll', 'shell32.dll', 'shlwapi.dll', 'setupapi.dll',
                   'version.dll', 'winmm.dll', 'ws2_32.dll', 'msvcrt.dll', 'ucrtbase.dll',
-                  'psapi.dll', 'dbghelp.dll', 'dxcore.dll', 'nvcuda.dll', 'nvapi64.dll'}
-LINUX_SYSTEM = {'libcuda.so.1', 'libstdc++.so.6', 'libgcc_s.so.1', 'libgomp.so.1',
+                  'psapi.dll', 'dbghelp.dll', 'dxcore.dll', 'nvcuda.dll', 'nvapi64.dll', 'vulkan-1.dll'}
+LINUX_SYSTEM = {'libvulkan.so.1', 'libcuda.so.1', 'libstdc++.so.6', 'libgcc_s.so.1', 'libgomp.so.1',
                 'libm.so.6', 'libc.so.6', 'libdl.so.2', 'libpthread.so.0', 'librt.so.1',
                 'ld-linux-x86-64.so.2'}
 REQUIRED_CPU_ON = ('GGML_AVX', 'GGML_AVX2', 'GGML_FMA', 'GGML_F16C', 'GGML_BMI2')
@@ -111,17 +111,18 @@ def compiler_identity(build):
     return result
 
 
-def check_build(cache):
-    if cache.get('CMAKE_BUILD_TYPE') != 'Release' or cache.get('SD_CUDA') != 'ON':
-        fail('A Release CUDA worker build is required')
+def check_build(cache, backend='cuda'):
+    if cache.get('CMAKE_BUILD_TYPE') != 'Release' or cache.get('SD_' + backend.upper()) != 'ON':
+        fail(f'A Release {backend} worker build is required')
     check_global_cpu_flags(cache)
     for option in REQUIRED_CPU_ON:
         if cache.get(option) != 'ON': fail(f'Release CPU baseline requires {option}=ON')
     for option in REQUIRED_CPU_OFF:
         if cache.get(option) != 'OFF': fail(f'Release CPU baseline requires {option}=OFF')
-    for option in ('SD_VULKAN', 'SD_BUILD_SHARED_LIBS', 'SD_BUILD_SHARED_GGML_LIB',
+    for option in (('SD_VULKAN' if backend == 'cuda' else 'SD_CUDA'), 'SD_BUILD_SHARED_LIBS', 'SD_BUILD_SHARED_GGML_LIB',
                    'SD_WEBP', 'SD_WEBM', 'GGML_RPC', 'GGML_OPENMP_FETCH'):
         if cache.get(option) not in ('OFF', None): fail(f'Unsupported release option: {option}')
+    if backend == 'vulkan': return []
     arch = set(cache.get('CMAKE_CUDA_ARCHITECTURES', '').split(';'))
     if arch not in ({'86-real', '89-real', '120-real', '90-virtual'},
                     {'86-real', '89-real', '120a-real', '90-virtual'}):
@@ -243,13 +244,13 @@ def check_windows_imports(prefix, files):
             fail(f'PE import inventory mismatch: {entry["path"]}')
 
 
-def inspect_elf(path, is_worker, minimum_glibc):
+def inspect_elf(path, is_worker, minimum_glibc, backend="cuda"):
     dynamic = run('readelf', '--dynamic', path)
     imports = sorted(set(re.findall(r'\(NEEDED\).*?\[([^\]]+)\]', dynamic)))
     paths = re.findall(r'\((RPATH|RUNPATH)\).*?\[([^\]]*)\]', dynamic)
-    if is_worker and paths not in ([('RPATH', '$ORIGIN/../lib/vulkana-diffusion/cuda')],
-                                  [('RPATH', '$ORIGIN/../lib/vulkana-diffusion/cuda:$ORIGIN/../lib')]):
-        fail('Worker must use the relative, transitive private CUDA RPATH')
+    if is_worker and paths not in ([('RPATH', f'$ORIGIN/../lib/vulkana-diffusion/{backend}')],
+                                  [('RPATH', f'$ORIGIN/../lib/vulkana-diffusion/{backend}:$ORIGIN/../lib')]):
+        fail('Worker must use the relative, transitive private worker RPATH')
     for _, search in paths:
         if any(value and not value.startswith('$ORIGIN') for value in search.split(':')):
             fail(f'Non-relocatable ELF search path in {path.name}')
@@ -276,19 +277,28 @@ def check_linux_imports(files):
                 fail(f'Missing bundled dependency {name} required by {entry["path"]}')
 
 
-def payload_allowed(name, platform):
+def payload_allowed(name, platform, backend='cuda'):
     p = PurePosixPath(name)
-    if platform == 'windows':
-        return p.parent == PurePosixPath('bin') and (p.name.lower() in WINDOWS_LIBS or
-                    p.name == 'vulkana-diffusion-worker-cuda.exe')
-    return (name == 'bin/vulkana-diffusion-worker-cuda' or
-            p.parent == PurePosixPath('lib/vulkana-diffusion/cuda') and p.name in LINUX_LIBS)
+    libraries = WINDOWS_LIBS if platform == 'windows' else LINUX_LIBS
+    if backend == 'vulkan': libraries = {v for v in libraries if v.lower() not in CUDA_NAMES}
+    worker = 'vulkana-diffusion-worker-' + backend + ('.exe' if platform == 'windows' else '')
+    folder = 'bin' if platform == 'windows' else 'lib/vulkana-diffusion/' + backend
+    return name == 'bin/' + worker or p.parent == PurePosixPath(folder) and p.name.lower() in {v.lower() for v in libraries}
 
 
-def metadata_allowed(name):
+def metadata_allowed(name, backend='cuda'):
+    meta = 'share/vulkana-editor/diffusion/' + backend
     p = PurePosixPath(name)
-    return name in (META + '/THIRD-PARTY-NOTICES.txt', META + '/notices.json') or (
-        p.parent == PurePosixPath(META + '/licenses') and p.suffix in ('.txt', '.md'))
+    return name in (meta + '/THIRD-PARTY-NOTICES.txt', meta + '/notices.json') or (
+        p.parent == PurePosixPath(meta + '/licenses') and p.suffix in ('.txt', '.md'))
+
+
+def manifest_path(prefix):
+    paths = [f'share/vulkana-editor/diffusion/{backend}/manifest.json'
+             for backend in ('vulkan', 'cuda')
+             if (prefix / f'share/vulkana-editor/diffusion/{backend}/manifest.json').exists()]
+    if len(paths) != 1: fail('Supply exactly one worker bundle (Vulkan or CUDA)')
+    return paths[0]
 
 
 def record(prefix, name, kind):
@@ -298,26 +308,31 @@ def record(prefix, name, kind):
 
 def verify(prefix):
     prefix = prefix.resolve()
-    data = json.loads(safe_file(prefix, MANIFEST).read_text(encoding='utf-8'))
-    if data.get('schemaVersion') != SCHEMA or data.get('backend') != 'cuda': fail('Unsupported worker manifest')
+    manifest = manifest_path(prefix)
+    meta = str(PurePosixPath(manifest).parent)
+    data = json.loads(safe_file(prefix, manifest).read_text(encoding='utf-8'))
+    backend = data.get('backend')
+    if data.get('schemaVersion') != SCHEMA or backend not in ('vulkan', 'cuda'): fail('Unsupported worker manifest')
+    if meta != 'share/vulkana-editor/diffusion/' + backend: fail('Worker manifest backend does not match its directory')
     platform = data.get('platform')
     if platform not in ('windows', 'linux'): fail('Unsupported worker platform')
     if data.get('appVersion') != app_version(): fail('Worker bundle version does not match Vulkana')
     lock = json.loads((ROOT / 'src/diffusion/engine-lock.json').read_text())
     if data.get('engine') != lock: fail('Worker bundle uses a different engine or patch baseline')
     if data.get('build', {}).get('cpuBaseline') != 'avx2-fma-f16c-bmi2': fail('Unsupported worker CPU baseline')
-    native = set(data.get('build', {}).get('cudaNativeImages', []))
-    if not {'86', '89'} <= native or not native.intersection({'120', '120a'}): fail('Missing native CUDA images')
-    if '90' not in data.get('build', {}).get('cudaPtxImages', []): fail('Missing generic forward-compatible PTX')
+    if backend == 'cuda':
+        native = set(data.get('build', {}).get('cudaNativeImages', []))
+        if not {'86', '89'} <= native or not native.intersection({'120', '120a'}): fail('Missing native CUDA images')
+        if '90' not in data.get('build', {}).get('cudaPtxImages', []): fail('Missing generic forward-compatible PTX')
     seen = set()
     for entry in data.get('files', []):
         name = entry.get('path', '')
         if name.casefold() in seen: fail(f'Duplicate bundle entry: {name}')
         seen.add(name.casefold())
         if entry.get('kind') == 'binary':
-            if not payload_allowed(name, platform): fail(f'Unexpected worker payload: {name}')
+            if not payload_allowed(name, platform, backend): fail(f'Unexpected worker payload: {name}')
         elif entry.get('kind') == 'notice':
-            if not metadata_allowed(name): fail(f'Unexpected notice path: {name}')
+            if not metadata_allowed(name, backend): fail(f'Unexpected notice path: {name}')
         else: fail(f'Unsupported bundle entry: {name}')
         path = safe_file(prefix, name)
         if path.stat().st_size != entry.get('size') or digest(path) != entry.get('sha256'):
@@ -327,27 +342,32 @@ def verify(prefix):
             if binary_kind(path) != expected: fail(f'Wrong platform: {name}')
             if platform == 'linux' and name.startswith('bin/') and not os.access(path, os.X_OK):
                 fail('Worker executable is not executable')
-    required = {'bin/vulkana-diffusion-worker-cuda' + ('.exe' if platform == 'windows' else ''),
-                META + '/THIRD-PARTY-NOTICES.txt', META + '/notices.json', META + '/licenses/stable-diffusion-MIT.txt',
-                META + '/licenses/ggml-MIT.txt', META + '/licenses/CUDA-cccl-LICENSE.txt'}
-    runtime_prefix = 'bin/' if platform == 'windows' else 'lib/vulkana-diffusion/cuda/'
-    required.update(runtime_prefix + v for v in
-                    (('cublas64_13.dll', 'cublasLt64_13.dll') if platform == 'windows'
-                     else ('libcudart.so.13', 'libcublas.so.13', 'libcublasLt.so.13')))
+    required = {'bin/vulkana-diffusion-worker-' + backend + ('.exe' if platform == 'windows' else ''),
+                meta + '/THIRD-PARTY-NOTICES.txt', meta + '/notices.json', meta + '/licenses/stable-diffusion-MIT.txt',
+                meta + '/licenses/ggml-MIT.txt'}
+    if backend == 'cuda':
+        required.add(meta + '/licenses/CUDA-cccl-LICENSE.txt')
+        runtime_prefix = 'bin/' if platform == 'windows' else 'lib/vulkana-diffusion/cuda/'
+        required.update(runtime_prefix + v for v in
+                        (('cublas64_13.dll', 'cublasLt64_13.dll') if platform == 'windows'
+                         else ('libcudart.so.13', 'libcublas.so.13', 'libcublasLt.so.13')))
+        cuda_eula = (meta + '/licenses/CUDA-EULA.txt').casefold()
+        cuda_components = {(meta + '/licenses/CUDA-' + c + '-LICENSE.txt').casefold()
+                           for c in ('cuda_cudart', 'libcublas')}
+        if cuda_eula not in seen and not cuda_components <= seen: fail('CUDA runtime licensing texts are missing')
+    else:
+        required.update(meta + '/licenses/' + v for v in
+                        ('Vulkan-Headers.txt', 'SPIRV-Headers.txt', 'Apache-2.0.txt'))
     if not {v.casefold() for v in required} <= seen: fail('Worker or required runtime/notices are missing from manifest')
-    cuda_eula = (META + '/licenses/CUDA-EULA.txt').casefold()
-    cuda_components = {(META + '/licenses/CUDA-' + c + '-LICENSE.txt').casefold()
-                       for c in ('cuda_cudart', 'libcublas')}
-    if cuda_eula not in seen and not cuda_components <= seen: fail('CUDA runtime licensing texts are missing')
-    if platform == 'windows' and (META + '/licenses/Microsoft-Redist.txt').casefold() not in seen:
+    if platform == 'windows' and (meta + '/licenses/Microsoft-Redist.txt').casefold() not in seen:
         fail('Microsoft runtime redistribution notice is missing')
     if platform == 'windows': check_windows_imports(prefix, data['files'])
     else: check_linux_imports(data['files'])
-    for directory in (prefix / META, prefix / 'lib/vulkana-diffusion/cuda'):
+    for directory in (prefix / meta, prefix / ('lib/vulkana-diffusion/' + backend)):
         if directory.exists():
             for path in bundle_files(prefix, directory):
                 name = path.relative_to(prefix).as_posix()
-                if name != MANIFEST and name.casefold() not in seen:
+                if name != manifest and name.casefold() not in seen:
                     fail(f'Untracked worker bundle file: {name}')
     return data
 
@@ -371,7 +391,7 @@ def legal_comments(path):
     return '\n\n'.join(dict.fromkeys(result)) + '\n'
 
 
-def notices(engine, cuda, msvc_license, platform):
+def notices(engine, cuda, msvc_license, platform, backend="cuda", vulkan_headers=None, spirv_license=None):
     files = {
         'stable-diffusion-MIT.txt': engine / 'LICENSE', 'ggml-MIT.txt': engine / 'ggml/LICENSE',
         'CUTLASS-BSD.txt': engine / 'thirdparty/cutlass/LICENSE.txt',
@@ -385,28 +405,50 @@ def notices(engine, cuda, msvc_license, platform):
         'GCC-runtime-exception.txt': ROOT / 'res/notices/licenses/GCC-exception-3.1.txt'}
     if platform == 'windows':
         files = {k: v for k, v in files.items() if not k.startswith('GCC-')}
+    if backend == 'vulkan':
+        files.pop('CUTLASS-BSD.txt')
+        files.pop('SageAttention-Apache-2.0.txt')
+        files['SPIRV-Headers.txt'] = spirv_license
+        files['Apache-2.0.txt'] = ROOT / 'res/notices/licenses/Apache-2.0.txt'
     out = {name: read_text(path) for name, path in files.items()}
+    if backend == 'vulkan':
+        # Preserve the attribution of the SDK headers actually used by this build.
+        attributions = set()
+        for path in (vulkan_headers / 'vulkan').glob('*'):
+            if not path.is_file(): continue
+            for line in read_text(path).splitlines()[:60]:
+                if 'Copyright' in line or 'SPDX-License-Identifier' in line: attributions.add(line.strip('/ *'))
+        if not attributions: fail('Vulkan SDK header attributions are missing')
+        out['Vulkan-Headers.txt'] = '\n'.join(sorted(attributions)) + '\nSee Apache-2.0.txt for the full license.\n'
+        for include in (vulkan_headers, spirv_license.parent / 'include', spirv_license.parent.parent / 'include'):
+            header = include / 'spirv/unified1/spirv.hpp'
+            if header.is_file():
+                authors = [line.strip('/ *') for line in read_text(header).splitlines()[:60] if 'Copyright' in line]
+                if authors: out['SPIRV-Headers.txt'] += '\nHeader attribution:\n' + '\n'.join(authors) + '\n'
+                break
+
     for name in ('stb_image.h', 'stb_image_resize.h', 'stb_image_write.h', 'miniz.h'):
         out[name + '-licenses.txt'] = legal_comments(engine / 'thirdparty' / name)
     # Keep embedded contributors' attributions as well as the library's MIT text.
     json_header = read_text(engine / 'thirdparty/json.hpp')
     authors = sorted(set(re.findall(r'SPDX-FileCopyrightText: (.*)', json_header)))
     out['nlohmann-json-attributions.txt'] = '\n'.join(authors) + '\n'
-    eula = cuda / 'EULA.txt'
-    if not eula.is_file(): eula = cuda / 'LICENSE'
-    if eula.is_file(): out['CUDA-EULA.txt'] = read_text(eula)
-    for component in ('cuda_cudart', 'libcublas', 'cccl', 'cuda_crt'):
-        path = cuda / 'licenses' / component / 'LICENSE'
-        if path.is_file(): out[f'CUDA-{component}-LICENSE.txt'] = read_text(path)
-    if 'CUDA-cccl-LICENSE.txt' not in out:
-        # Some Linux SDK layouts omit the standalone CCCL notice. These two
-        # CUDA 13.3 header versions have the same upstream license collection.
-        headers = [cuda / 'include/cccl', cuda / 'targets/x86_64-linux/include/cccl']
-        header = next((p / 'thrust/version.h' for p in headers if (p / 'thrust/version.h').is_file()), None)
-        if not header or not re.search(r'#define THRUST_VERSION (300301|300304)\b', read_text(header)):
-            fail('Supply the selected CUDA SDK CCCL license collection under licenses/cccl/LICENSE')
-        out['CUDA-cccl-LICENSE.txt'] = read_text(ROOT / 'tools/diffusion/licenses/CCCL-LICENSE.txt')
-    if not any(name.startswith('CUDA-') for name in out): fail('CUDA SDK licensing texts are missing')
+    if backend == 'cuda':
+        eula = cuda / 'EULA.txt'
+        if not eula.is_file(): eula = cuda / 'LICENSE'
+        if eula.is_file(): out['CUDA-EULA.txt'] = read_text(eula)
+        for component in ('cuda_cudart', 'libcublas', 'cccl', 'cuda_crt'):
+            path = cuda / 'licenses' / component / 'LICENSE'
+            if path.is_file(): out[f'CUDA-{component}-LICENSE.txt'] = read_text(path)
+        if 'CUDA-cccl-LICENSE.txt' not in out:
+            # Some Linux SDK layouts omit the standalone CCCL notice. These two
+            # CUDA 13.3 header versions have the same upstream license collection.
+            headers = [cuda / 'include/cccl', cuda / 'targets/x86_64-linux/include/cccl']
+            header = next((p / 'thrust/version.h' for p in headers if (p / 'thrust/version.h').is_file()), None)
+            if not header or not re.search(r'#define THRUST_VERSION (300301|300304)\b', read_text(header)):
+                fail('Supply the selected CUDA SDK CCCL license collection under licenses/cccl/LICENSE')
+            out['CUDA-cccl-LICENSE.txt'] = read_text(ROOT / 'tools/diffusion/licenses/CCCL-LICENSE.txt')
+        if not any(name.startswith('CUDA-') for name in out): fail('CUDA SDK licensing texts are missing')
     if msvc_license:
         out['Microsoft-Redist.txt'] = read_text(msvc_license)
     return out
@@ -423,7 +465,10 @@ def sdk_original(cuda, basename):
 
 
 def prepare(args):
-    prefix, engine, cuda, build = (p.resolve() for p in (args.prefix, args.engine, args.cuda_root, args.build))
+    prefix, engine, build = (p.resolve() for p in (args.prefix, args.engine, args.build))
+    backend = args.backend
+    cuda = args.cuda_root.resolve() if args.cuda_root else None
+    meta = 'share/vulkana-editor/diffusion/' + backend
     lock = json.loads((ROOT / 'src/diffusion/engine-lock.json').read_text())
     if run('git', '-C', engine, 'rev-parse', 'HEAD').strip() != lock['engine']['revision']: fail('Wrong engine revision')
     for name, revision in lock['dependencies'].items():
@@ -433,26 +478,28 @@ def prepare(args):
         if digest(path) != patch['sha256']: fail('Recorded patch checksum mismatch')
         run('git', '-C', engine, 'apply', '--reverse', '--check', path)
     cache = read_cache(build / 'CMakeCache.txt')
-    arch = check_build(cache)
+    arch = check_build(cache, backend)
     if args.platform == 'linux' and (not args.minimum_glibc or not re.fullmatch(r'\d+\.\d+', args.minimum_glibc)):
         fail('--minimum-glibc is required')
-    exe = 'bin/vulkana-diffusion-worker-cuda' + ('.exe' if args.platform == 'windows' else '')
+    exe = 'bin/vulkana-diffusion-worker-' + backend + ('.exe' if args.platform == 'windows' else '')
     executable = safe_file(prefix, exe)
-    cuobjdump = cuda / 'bin' / ('cuobjdump.exe' if args.platform == 'windows' else 'cuobjdump')
-    native = sorted(set(re.findall(r'\.sm_([0-9]+a?)\.cubin', run(cuobjdump, '--list-elf', executable))))
-    ptx = sorted(set(re.findall(r'\.sm_([0-9]+a?)\.ptx', run(cuobjdump, '--list-ptx', executable))))
-    if not {'86', '89'} <= set(native) or not set(native).intersection({'120', '120a'}) or '90' not in ptx:
-        fail('Worker binary does not contain the required CUDA native/PTX images')
+    native, ptx = [], []
+    if backend == 'cuda':
+        cuobjdump = cuda / 'bin' / ('cuobjdump.exe' if args.platform == 'windows' else 'cuobjdump')
+        native = sorted(set(re.findall(r'\.sm_([0-9]+a?)\.cubin', run(cuobjdump, '--list-elf', executable))))
+        ptx = sorted(set(re.findall(r'\.sm_([0-9]+a?)\.ptx', run(cuobjdump, '--list-ptx', executable))))
+        if not {'86', '89'} <= set(native) or not set(native).intersection({'120', '120a'}) or '90' not in ptx:
+            fail('Worker binary does not contain the required CUDA native/PTX images')
     files = []
     for path in sorted(bundle_files(prefix)):
         name = path.relative_to(prefix).as_posix()
-        if name.startswith(META + '/'): continue
-        if not payload_allowed(name, args.platform): fail(f'Unexpected staged file: {name}')
+        if name.startswith(meta + '/'): continue
+        if not payload_allowed(name, args.platform, backend): fail(f'Unexpected staged file: {name}')
         binary_kind(path)
         entry = record(prefix, name, 'binary')
         if args.platform == 'windows': entry['imports'] = pe_imports(path)
         else:
-            entry['imports'], entry['requiredSymbolVersions'] = inspect_elf(path, name == exe, args.minimum_glibc)
+            entry['imports'], entry['requiredSymbolVersions'] = inspect_elf(path, name == exe, args.minimum_glibc, backend)
         if path.name.casefold() in CUDA_NAMES:
             if digest(sdk_original(cuda, path.name)) != entry['sha256']:
                 fail(f'CUDA runtime differs from the original SDK file: {name}')
@@ -462,24 +509,27 @@ def prepare(args):
     if args.platform == 'windows': check_windows_imports(prefix, files)
     else: check_linux_imports(files)
     versions = {}
-    if (cuda / 'version.json').is_file():
-        versions = {k: v.get('version') for k, v in json.loads((cuda / 'version.json').read_text()).items() if isinstance(v, dict)}
-    elif args.cuda_manifest:
-        source = json.loads(args.cuda_manifest.read_text())
-        versions = {k: v['version'] for k, v in source.items() if isinstance(v, dict) and 'version' in v}
-        versions['cuda'] = source.get('release_label')
-    nvcc = cuda / 'bin' / ('nvcc.exe' if args.platform == 'windows' else 'nvcc')
-    nvcc_version = re.search(r'\bV(\d+\.\d+\.\d+)', run(nvcc, '--version'))
-    if not nvcc_version or not nvcc_version[1].startswith('13.3.'): fail('Release inventory currently supports CUDA 13.3')
-    legal = notices(engine, cuda, args.msvc_license, args.platform)
-    metadata = prefix / META
+    compiler_version = ''
+    if backend == 'cuda':
+        if (cuda / 'version.json').is_file():
+            versions = {k: v.get('version') for k, v in json.loads((cuda / 'version.json').read_text()).items() if isinstance(v, dict)}
+        elif args.cuda_manifest:
+            source = json.loads(args.cuda_manifest.read_text())
+            versions = {k: v['version'] for k, v in source.items() if isinstance(v, dict) and 'version' in v}
+            versions['cuda'] = source.get('release_label')
+        nvcc = cuda / 'bin' / ('nvcc.exe' if args.platform == 'windows' else 'nvcc')
+        nvcc_version = re.search(r'\bV(\d+\.\d+\.\d+)', run(nvcc, '--version'))
+        if not nvcc_version or not nvcc_version[1].startswith('13.3.'): fail('Release inventory currently supports CUDA 13.3')
+        compiler_version = nvcc_version[1]
+    legal = notices(engine, cuda, args.msvc_license, args.platform, backend, args.vulkan_headers, args.spirv_license)
+    metadata = prefix / meta
     if metadata.exists(): fail('Worker metadata already exists; stage into a new prefix or use --verify')
     (metadata / 'licenses').mkdir(parents=True)
-    text = ('Vulkana Diffusion CUDA worker — third-party notices\n\n'
+    text = (f'Vulkana Diffusion {backend.upper()} worker — third-party notices\n\n'
             'Vulkana and the inference engine are open source. Bundled third-party\n'
             'runtime components retain their own terms; Vulkana\'s MIT license does not\n'
-            'relicense these files. CUDA runtimes are supplied for use with Vulkana.\n'
-            'The NVIDIA graphics driver and all model weights are supplied by the user.\n\n'
+            'relicense these files.\n'
+            'The graphics driver and all model weights are supplied by the user.\n\n'
             'Engine: ' + lock['engine']['url'] + ' at ' + lock['engine']['revision'] + '\n'
             'Recorded downstream patches: ' + ', '.join(p['path'] for p in lock['patches']) + '\n\n')
     for name, content in sorted(legal.items()):
@@ -488,10 +538,12 @@ def prepare(args):
         files.append(record(prefix, path.relative_to(prefix).as_posix(), 'notice'))
         text += '\n--- ' + name + ' ---\n\n' + content + '\n'
     (metadata / 'THIRD-PARTY-NOTICES.txt').write_text(text, encoding='utf-8')
-    files.append(record(prefix, META + '/THIRD-PARTY-NOTICES.txt', 'notice'))
+    files.append(record(prefix, meta + '/THIRD-PARTY-NOTICES.txt', 'notice'))
     requirements = {'cpu': 'x86-64 with AVX2, FMA, F16C and BMI2',
         'nvidiaDriver': 'CUDA 13 compatible driver (R580+ for native code; PTX JIT requires a driver supporting this toolkit)',
         'driverReference': 'https://docs.nvidia.com/cuda/archive/13.3.1/cuda-toolkit-release-notes/'}
+    if backend == 'vulkan':
+        requirements = {'cpu': 'x86-64 with AVX2, FMA, F16C and BMI2', 'graphics': 'Vulkan 1.3 loader and a compatible GPU driver'}
     if args.platform == 'linux':
         requirements['minimumGlibc'] = args.minimum_glibc
         requirements['systemLibraries'] = sorted({name for entry in files for name in entry.get('imports', []) if name in LINUX_SYSTEM})
@@ -500,23 +552,30 @@ def prepare(args):
             for name, value in entry.get('requiredSymbolVersions', {}).items():
                 old = requirements['requiredSymbolVersions'].get(name, '0')
                 if version_tuple(value) > version_tuple(old): requirements['requiredSymbolVersions'][name] = value
-    app_notices = make_app_notices(legal, lock, args.platform, versions, nvcc_version[1])
+    app_notices = make_app_notices(legal, lock, args.platform, versions, compiler_version, backend)
     (metadata / 'notices.json').write_text(json.dumps(app_notices, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
-    files.append(record(prefix, META + '/notices.json', 'notice'))
-    data = {'schemaVersion': SCHEMA, 'appVersion': app_version(), 'backend': 'cuda',
+    files.append(record(prefix, meta + '/notices.json', 'notice'))
+    data = {'schemaVersion': SCHEMA, 'appVersion': app_version(), 'backend': backend,
         'platform': args.platform, 'engine': lock,
         'build': {'configuration': 'Release', 'cpuBaseline': 'avx2-fma-f16c-bmi2',
             'cudaArchitectures': arch, 'cudaNativeImages': native, 'cudaPtxImages': ptx,
-            'cudaCompilerVersion': nvcc_version[1], 'cudaComponents': versions,
+            'cudaCompilerVersion': compiler_version, 'cudaComponents': versions,
             'cxxCompiler': compiler_identity(build),
             'globalCpuTargetFlags': check_global_cpu_flags(cache)},
         'runtimeRequirements': requirements, 'files': sorted(files, key=lambda e: e['path'])}
-    (prefix / MANIFEST).write_text(json.dumps(data, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    if backend == 'vulkan':
+        data['build'] = {key: value for key, value in data['build'].items() if not key.startswith('cuda')}
+        compiler = args.shader_compiler or Path(cache['Vulkan_GLSLC_EXECUTABLE'])
+        data['build']['shaderCompiler'] = {'sha256': digest(compiler), 'version': run(compiler, '--version').strip()}
+        header = read_text(args.vulkan_headers / 'vulkan/vulkan_core.h')
+        version = re.search(r'^#define VK_HEADER_VERSION (\d+)$', header, re.M)
+        if version: data['build']['vulkanHeaderVersion'] = int(version[1])
+    (prefix / (meta + '/manifest.json')).write_text(json.dumps(data, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
     return verify(prefix)
 
 
-def make_app_notices(legal, lock, platform, versions, compiler):
-    prefix = 'diffusion-cuda-'
+def make_app_notices(legal, lock, platform, versions, compiler, backend='cuda'):
+    prefix = 'diffusion-' + backend + '-'
     components = []
 
     def component(name, version, license_name, keys, scope):
@@ -526,21 +585,27 @@ def make_app_notices(legal, lock, platform, versions, compiler):
             'texts': [prefix + key for key in keys]})
 
     component('Vulkana Diffusion / stable-diffusion.cpp', lock['engine']['revision'], 'MIT',
-              ['stable-diffusion-MIT.txt'], 'Compiled into the optional CUDA worker; downstream engine patches are recorded in its manifest.')
+              ['stable-diffusion-MIT.txt'], 'Compiled into the native inference worker; downstream engine patches are recorded in its manifest.')
     component('Vulkana Diffusion / GGML', lock['dependencies']['ggml'], 'MIT',
               ['ggml-MIT.txt'], 'Tensor computation library compiled into the worker.')
-    component('Vulkana Diffusion / CUTLASS', lock['dependencies']['thirdparty/cutlass'], 'BSD-3-Clause',
-              ['CUTLASS-BSD.txt'], 'CUDA kernel templates compiled into the worker.')
-    component('Vulkana Diffusion / SageAttention', 'Engine-pinned sources', 'Apache-2.0',
-              ['SageAttention-Apache-2.0.txt'], 'Optional attention kernels compiled into the worker.')
+    if backend == 'cuda':
+        component('Vulkana Diffusion / CUTLASS', lock['dependencies']['thirdparty/cutlass'], 'BSD-3-Clause',
+                  ['CUTLASS-BSD.txt'], 'CUDA kernel templates compiled into the worker.')
+        component('Vulkana Diffusion / SageAttention', 'Engine-pinned sources', 'Apache-2.0',
+                  ['SageAttention-Apache-2.0.txt'], 'Optional attention kernels compiled into the worker.')
     utilities = [key for key in legal if key.startswith(('stb_', 'miniz.', 'darts-', 'Oniguruma-', 'utf8proc-', 'nlohmann-', 'zip-'))]
     component('Vulkana Diffusion / image and tokenizer utilities', 'Engine-pinned sources',
               'MIT, BSD and Unicode licenses; see component texts', utilities,
               'Image I/O, archive parsing, JSON and tokenization code compiled into the worker.')
-    component('Vulkana Diffusion / NVIDIA CUDA runtimes', versions.get('cuda') or compiler,
-              'NVIDIA CUDA Toolkit EULA and incorporated third-party terms',
-              [key for key in legal if key.startswith('CUDA-')],
-              'Compiled CUDA support headers and redistributed runtime/cuBLAS components for use by Vulkana. The graphics driver is supplied by the user.')
+    if backend == 'cuda':
+        component('Vulkana Diffusion / NVIDIA CUDA runtimes', versions.get('cuda') or compiler,
+                  'NVIDIA CUDA Toolkit EULA and incorporated third-party terms',
+                  [key for key in legal if key.startswith('CUDA-')],
+                  'Compiled CUDA support headers and redistributed runtime/cuBLAS components for use by Vulkana. The graphics driver is supplied by the user.')
+    else:
+        component('Vulkana Diffusion / Khronos Vulkan and SPIR-V headers', 'Build-selected SDK headers',
+                  'Apache-2.0 and MIT', ['Vulkan-Headers.txt', 'Apache-2.0.txt', 'SPIRV-Headers.txt'],
+                  'Compiled API headers; the Vulkan loader and graphics driver are supplied by the host.')
     if platform == 'windows':
         component('Vulkana Diffusion / Microsoft Visual C++ runtime', 'Build-selected REDIST files; hashes in worker manifest',
                   'Microsoft Visual Studio redistribution terms', ['Microsoft-Redist.txt'],
@@ -551,24 +616,25 @@ def make_app_notices(legal, lock, platform, versions, compiler):
                   ['GCC-GPL-3.0.txt', 'GCC-runtime-exception.txt'],
                   'Runtime/header code used by the worker. Separate runtime libraries are system dependencies unless included by the enclosing application package.')
     texts = {prefix + name: content for name, content in legal.items()}
-    return {'format': 1, 'profile': 'diffusion-cuda', 'version': app_version(),
-            'acknowledgements': ['Vulkana Diffusion: the optional native worker includes open-source inference code and CUDA runtime components under their own terms. Model weights and the NVIDIA driver are not included.'],
+    return {'format': 1, 'profile': 'diffusion-' + backend, 'version': app_version(),
+            'acknowledgements': ['Vulkana Diffusion: the native worker includes inference code and runtime components under their own terms. Model weights and graphics drivers are not included.'],
             'components': components, 'texts': texts, 'notice_text_keys': sorted(texts)}
 
 
 def merge_notices(base, prefix, output):
-    verify(prefix)
+    verified = verify(prefix)
+    meta = 'share/vulkana-editor/diffusion/' + verified['backend']
     if base.resolve() == output.resolve(): fail('Merged notices must use a separate output directory')
     data = json.loads((base / 'notices.json').read_text(encoding='utf-8'))
-    worker = json.loads((prefix / META / 'notices.json').read_text(encoding='utf-8'))
+    worker = json.loads((prefix / meta / 'notices.json').read_text(encoding='utf-8'))
     if data.get('format') != 1 or data.get('version') != app_version(): fail('Base notice catalog does not match Vulkana')
     data['components'] = [c for c in data['components'] if not c.get('vulkana_diffusion_component')] + worker['components']
-    data['texts'] = {k: v for k, v in data['texts'].items() if not k.startswith('diffusion-cuda-')}
+    data['texts'] = {k: v for k, v in data['texts'].items() if not k.startswith(('diffusion-cuda-', 'diffusion-vulkan-'))}
     data['texts'].update(worker['texts'])
     # Downstream inventories may also contain build/audit records. Preserve
     # their existing reader projection rather than publishing every raw text.
     data['notice_text_keys'] = sorted({k for k in data.get('notice_text_keys', data['texts'])
-                                      if not k.startswith('diffusion-cuda-')} | set(worker['notice_text_keys']))
+                                      if not k.startswith(('diffusion-cuda-', 'diffusion-vulkan-'))} | set(worker['notice_text_keys']))
     data['acknowledgements'] = [a for a in data['acknowledgements'] if not a.startswith('Vulkana Diffusion:')] + worker['acknowledgements']
     encoded = json.dumps(data, indent=2, ensure_ascii=False) + '\n'
     if len(encoded.encode('utf-8')) > 16 * 1024 * 1024: fail('Merged notices exceed the application reader limit')
@@ -589,7 +655,7 @@ def merge_notices(base, prefix, output):
     # Preserve the enclosing package's source-access and library replacement records.
     for name in ('SOURCES.json', 'SOURCE-SHA256SUMS', 'LIBRARY-REPLACEMENT.txt'):
         if (base / name).is_file(): (output / name).write_bytes((base / name).read_bytes())
-    print('Merged CUDA worker notices into', output)
+    print('Merged worker notices into', output)
 
 
 def main():
@@ -597,8 +663,9 @@ def main():
     parser.add_argument('--verify', type=Path, metavar='PREFIX')
     parser.add_argument('--merge-notices', type=Path, metavar='BASE_DIRECTORY')
     parser.add_argument('--output', type=Path)
-    for name in ('engine', 'build', 'prefix', 'cuda-root', 'cuda-manifest', 'msvc-license'):
+    for name in ('engine', 'build', 'prefix', 'cuda-root', 'cuda-manifest', 'msvc-license', 'vulkan-headers', 'spirv-license', 'shader-compiler'):
         parser.add_argument('--' + name, type=Path)
+    parser.add_argument('--backend', choices=('vulkan', 'cuda'), default='vulkan')
     parser.add_argument('--platform', choices=('linux', 'windows'))
     parser.add_argument('--minimum-glibc')
     args = parser.parse_args()
@@ -611,10 +678,13 @@ def main():
         if args.verify:
             data = verify(args.verify)
         else:
-            if not all((args.engine, args.build, args.prefix, args.cuda_root, args.platform)):
-                parser.error('prepare requires --engine, --build, --prefix, --cuda-root and --platform')
+            if not all((args.engine, args.build, args.prefix, args.platform)):
+                parser.error('prepare requires --engine, --build, --prefix and --platform')
+            if args.backend == 'cuda' and not args.cuda_root: parser.error('CUDA requires --cuda-root')
+            if args.backend == 'vulkan' and not all((args.vulkan_headers, args.spirv_license)):
+                parser.error('Vulkan requires --vulkan-headers INCLUDE_DIRECTORY and --spirv-license FILE')
             data = prepare(args)
-        print(f'Validated {data["platform"]} CUDA worker bundle: {len(data["files"])} files, Vulkana {data["appVersion"]}')
+        print(f'Validated {data["platform"]} {data["backend"]} worker bundle: {len(data["files"])} files, Vulkana {data["appVersion"]}')
     except (ValueError, OSError, KeyError, json.JSONDecodeError) as error:
         parser.exit(1, f'Diffusion bundle: {error}\n')
 

@@ -1,6 +1,8 @@
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/UpdateService.hpp"
+#include "imageeditor/ui/WorkerUpdates.hpp"
+#include <QStatusBar>
 #include "imageeditor/ui/WorkspaceDialog.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/TextController.hpp"
@@ -23,6 +25,22 @@
 #include <QVBoxLayout>
 
 namespace imageeditor::ui {
+UpdateService* MainWindow::ensureUpdateService(QNetworkAccessManager* transport)
+{
+    if (!updateService_) {
+        updateService_ = new UpdateService(QCoreApplication::applicationVersion(), this, transport);
+        auto* workers = updateService_->workerUpdates();
+        connect(workers, &WorkerUpdates::downloadFinished, this, [this](const QString&) {
+            statusBar()->showMessage(i18n::text("diffusion.workers.download.saved"), 8000);
+        });
+        connect(workers, &WorkerUpdates::downloadFailed, this, [this](const QString& message) {
+            statusBar()->showMessage(message, 8000);
+        });
+    }
+    connectDiffusionWorkerUpdates();
+    return updateService_;
+}
+
 void MainWindow::startStartupFlow(bool showNewDocument, QNetworkAccessManager* transport, bool testUpdate)
 {
     if (startupUiTimer_) return;
@@ -45,9 +63,9 @@ void MainWindow::startStartupFlow(bool showNewDocument, QNetworkAccessManager* t
     if (!testUpdate && !platform::ServiceConfig::load().enabled()) {
         return;
     }
-    // One bounded, asynchronous request per launch, independent of old versions'
+    // Bounded asynchronous app/worker checks per launch, independent of old versions'
     // saved timestamps. Offline startup remains silent and responsive.
-    if (!updateService_) updateService_ = new UpdateService(QCoreApplication::applicationVersion(), this, transport);
+    ensureUpdateService(transport);
     startupUpdateCheckPending_ = true;
     updateService_->onChanged = [this] {
         if (!startupUpdateCheckPending_ || updateService_->busy()) return;

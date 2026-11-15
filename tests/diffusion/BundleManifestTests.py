@@ -61,6 +61,27 @@ class ManifestTests(unittest.TestCase):
     def save(self):
         (self.prefix / bundle.MANIFEST).write_text(json.dumps(self.data))
 
+    def test_vulkan_policy_excludes_cuda_runtime_and_accepts_host_loader(self):
+        self.assertTrue(bundle.payload_allowed('bin/vulkana-diffusion-worker-vulkan', 'linux', 'vulkan'))
+        self.assertTrue(bundle.payload_allowed('bin/vulkana-diffusion-worker-vulkan.exe', 'windows', 'vulkan'))
+        self.assertFalse(bundle.payload_allowed('bin/cublasLt64_13.dll', 'windows', 'vulkan'))
+        self.assertFalse(bundle.payload_allowed('lib/vulkana-diffusion/vulkan/libcudart.so.13', 'linux', 'vulkan'))
+        bundle.check_linux_imports([{'kind': 'binary', 'path': 'bin/vulkana-diffusion-worker-vulkan',
+                                    'imports': ['libvulkan.so.1', 'libgomp.so.1']}])
+        with self.assertRaisesRegex(ValueError, 'Missing bundled dependency'):
+            bundle.check_linux_imports([{'kind': 'binary', 'path': 'bin/vulkana-diffusion-worker-vulkan',
+                                        'imports': ['libcublas.so.13']}])
+
+    def test_vulkan_private_rpath(self):
+        dynamic = ' (NEEDED) Shared library: [libvulkan.so.1]\n' + \
+                  ' (RPATH) Library rpath: [$ORIGIN/../lib/vulkana-diffusion/vulkan:$ORIGIN/../lib]\n'
+        with patch.object(bundle, 'run', side_effect=[dynamic, '']):
+            imports, _ = bundle.inspect_elf(Path('worker'), True, '2.39', 'vulkan')
+        self.assertEqual(imports, ['libvulkan.so.1'])
+        with patch.object(bundle, 'run', return_value=dynamic.replace('vulkan:', 'cuda:')):
+            with self.assertRaisesRegex(ValueError, 'RPATH'):
+                bundle.inspect_elf(Path('worker'), True, '2.39', 'vulkan')
+
     def test_standalone_and_merged_app_prefix(self):
         bundle.verify(self.prefix)
         (self.prefix / 'bin/imageeditor').write_bytes(b'other application')

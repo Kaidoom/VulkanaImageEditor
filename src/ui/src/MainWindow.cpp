@@ -1157,7 +1157,7 @@ MainWindow::~MainWindow()
     if(navigatorPanel_)navigatorPanel_->shutdown();
     shutdownBackgroundRemoval();
     shutdownRefinements();
-    if (updateService_) { updateService_->onChanged = {}; updateService_->cancel(); }
+    if (updateService_) { updateService_->onChanged = {}; updateService_->cancelTransfers(); }
     canvasWindow_->onDocumentPresentationChanged={};
     if(pixelPreview_)pixelPreview_->onReady={};
     pixelPreview_.reset();
@@ -1838,7 +1838,7 @@ void MainWindow::closeEvent(QCloseEvent* event)
         startupUpdateCheckPending_ = false;
         dismissStartupUpdateNotice();
         if (startupUiTimer_) startupUiTimer_->stop();
-        if (updateService_) { updateService_->onChanged = {}; updateService_->cancel(); }
+        if (updateService_) { updateService_->onChanged = {}; updateService_->cancelTransfers(); }
         if (workspaceDialog_) workspaceDialog_->reject();
     }
 }
@@ -2099,7 +2099,7 @@ void MainWindow::showAbout()
     dismissStartupUpdateNotice();
     WorkspaceDialog presenter(*workspace_, *this);
     if (startupUiTimer_) startupUiTimer_->stop();
-    if (!updateService_) updateService_ = new UpdateService(QCoreApplication::applicationVersion(), this);
+    ensureUpdateService();
     AboutDialog dialog(&presenter, nullptr, UpdateService::buildPackage(), {}, updateService_);
     QString restartPath;
     dialog.onRestartRequested = [&](const QString& path) { restartPath = path; };

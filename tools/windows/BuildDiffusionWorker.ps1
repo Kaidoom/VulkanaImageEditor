@@ -1,9 +1,12 @@
 #Requires -Version 5.1
-# Build an optional CUDA worker and stage its redistributable runtime closure.
+# Build a Vulkan or optional CUDA worker and stage its redistributable runtime closure.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$EngineDirectory,
-    [Parameter(Mandatory)][string]$CudaRoot,
+    [ValidateSet('vulkan', 'cuda')][string]$Backend = 'vulkan',
+    [string]$CudaRoot,
+    [string]$VulkanRoot = $env:VULKAN_SDK,
+    [string]$SpirvLicense,
     [Parameter(Mandatory)][string]$BuildDirectory,
     [Parameter(Mandatory)][string]$Destination,
     [string]$CudaManifest,
@@ -24,38 +27,54 @@ if (!$env:VCToolsRedistDir -or !$env:VCToolsInstallDir) {
 }
 $source = (Resolve-Path "$PSScriptRoot/../..").Path
 $engine = (Resolve-Path -LiteralPath $EngineDirectory).Path
-$cuda = (Resolve-Path -LiteralPath $CudaRoot).Path
+$cuda = $null
+$vulkan = $null
+if ($Backend -eq 'cuda') {
+    if (!$CudaRoot) { throw 'CUDA workers require -CudaRoot.' }
+    $cuda = (Resolve-Path -LiteralPath $CudaRoot).Path
+} else {
+    if (!$VulkanRoot -or !$SpirvLicense) { throw 'Vulkan workers require -VulkanRoot and -SpirvLicense.' }
+    $vulkan = (Resolve-Path -LiteralPath $VulkanRoot).Path
+    $SpirvLicense = (Resolve-Path -LiteralPath $SpirvLicense).Path
+    $env:VULKAN_SDK = $vulkan
+}
 $build = [IO.Path]::GetFullPath($BuildDirectory)
 $destinationPath = [IO.Path]::GetFullPath($Destination)
 if (Test-Path -LiteralPath $destinationPath) { throw 'Destination already exists. Choose a new worker bundle folder.' }
 if (!(Test-Path -LiteralPath (Split-Path $destinationPath -Parent) -PathType Container)) {
     throw 'Destination parent must already exist.'
 }
-if (!(Test-Path -LiteralPath "$cuda/bin/nvcc.exe")) { throw 'CudaRoot must contain bin/nvcc.exe.' }
-$env:CUDA_PATH = $cuda
-$env:PATH = "$cuda/bin;$env:PATH"
+if ($Backend -eq 'cuda') {
+    if (!(Test-Path -LiteralPath "$cuda/bin/nvcc.exe")) { throw 'CudaRoot must contain bin/nvcc.exe.' }
+    $env:CUDA_PATH = $cuda
+    $env:PATH = "$cuda/bin;$env:PATH"
+} else { $env:PATH = "$vulkan/Bin;$env:PATH" }
 function Invoke-WorkerCommand([string]$Program, [string[]]$Arguments) {
     & $Program @Arguments
     if ($LASTEXITCODE -ne 0) { throw "$Program failed with exit code $LASTEXITCODE" }
 }
 $testFlag = if ($Tests) { 'ON' } else { 'OFF' }
-# Native cubins for RTX 30/40/50, plus generic Hopper PTX for forward JIT.
-# Blackwell's architecture-specific PTX is not a forward-compatible fallback.
-Invoke-WorkerCommand cmake @('-S', "$source/src/diffusion/worker", '-B', $build, '-G', 'Ninja',
+$backendFlags = if ($Backend -eq 'cuda') {
+    @('-DSD_CUDA=ON', '-DSD_VULKAN=OFF',
+      '-DCMAKE_CUDA_ARCHITECTURES=86-real;89-real;120a-real;90-virtual',
+      "-DCUDAToolkit_ROOT=$cuda", "-DCMAKE_CUDA_COMPILER=$cuda/bin/nvcc.exe")
+} else {
+    @('-DSD_CUDA=OFF', '-DSD_VULKAN=ON', "-DVULKANA_SPIRV_INCLUDE_DIR=$vulkan/Include")
+}
+Invoke-WorkerCommand cmake (@('-S', "$source/src/diffusion/worker", '-B', $build, '-G', 'Ninja',
     '-DCMAKE_BUILD_TYPE=Release', "-DVULKANA_DIFFUSION_ENGINE_DIR=$engine", '-DVULKANA_DIFFUSION_RELEASE=ON',
-    '-DSD_CUDA=ON', '-DSD_VULKAN=OFF', '-DSD_BUILD_SHARED_LIBS=OFF', '-DGGML_BACKEND_DL=OFF',
-    '-DGGML_NATIVE=OFF', '-DGGML_CPU_ALL_VARIANTS=OFF',
-    '-DCMAKE_CUDA_ARCHITECTURES=86-real;89-real;120a-real;90-virtual',
-    "-DCUDAToolkit_ROOT=$cuda", "-DCMAKE_CUDA_COMPILER=$cuda/bin/nvcc.exe", "-DBUILD_TESTING=$testFlag")
+    '-DSD_BUILD_SHARED_LIBS=OFF', '-DGGML_BACKEND_DL=OFF',
+    '-DGGML_NATIVE=OFF', '-DGGML_CPU_ALL_VARIANTS=OFF', "-DBUILD_TESTING=$testFlag") + $backendFlags)
 Invoke-WorkerCommand cmake @('--build', $build, '--parallel', "$Jobs")
 
-$worker = @("$build/vulkana-diffusion-worker-cuda.exe", "$build/bin/vulkana-diffusion-worker-cuda.exe",
+$worker = @("$build/vulkana-diffusion-worker-$Backend.exe", "$build/bin/vulkana-diffusion-worker-$Backend.exe",
     "$build/vulkana-diffusion-worker.exe", "$build/bin/vulkana-diffusion-worker.exe") |
     Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
-if (!$worker) { throw 'The CUDA worker executable was not produced.' }
+if (!$worker) { throw 'The worker executable was not produced.' }
 $crt = Join-Path $env:VCToolsRedistDir 'x64/Microsoft.VC145.CRT'
 $openmp = Join-Path $env:VCToolsRedistDir 'x64/Microsoft.VC145.OpenMP'
-$runtimeRoots = @("$cuda/bin/x64", "$cuda/bin", $crt, $openmp)
+$runtimeRoots = @($crt, $openmp)
+if ($Backend -eq 'cuda') { $runtimeRoots = @("$cuda/bin/x64", "$cuda/bin") + $runtimeRoots }
 $vsRoot = (Get-Item $env:VCToolsInstallDir).Parent.Parent.Parent.Parent.FullName
 $msvcLicense = Join-Path $vsRoot 'Licenses/1033/Redist.txt'
 if (!(Test-Path -LiteralPath $msvcLicense)) { throw 'The Visual Studio redistributable license is missing.' }
@@ -63,10 +82,10 @@ if (!(Test-Path -LiteralPath $msvcLicense)) { throw 'The Visual Studio redistrib
 $scratch = Join-Path (Split-Path $destinationPath -Parent) ('diffusion-worker-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path "$scratch/bin" | Out-Null
 try {
-    Copy-Item -LiteralPath $worker -Destination "$scratch/bin/vulkana-diffusion-worker-cuda.exe"
+    Copy-Item -LiteralPath $worker -Destination "$scratch/bin/vulkana-diffusion-worker-$Backend.exe"
     $pending = [Collections.Generic.Queue[string]]::new()
     $visited = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-    $pending.Enqueue("$scratch/bin/vulkana-diffusion-worker-cuda.exe")
+    $pending.Enqueue("$scratch/bin/vulkana-diffusion-worker-$Backend.exe")
     while ($pending.Count) {
         $file = $pending.Dequeue()
         if (!$visited.Add($file)) { continue }
@@ -94,7 +113,9 @@ try {
         }
     }
     $arguments = @("$source/tools/diffusion/prepare_bundle.py", '--engine', $engine, '--build', $build,
-        '--prefix', $scratch, '--cuda-root', $cuda, '--platform', 'windows', '--msvc-license', $msvcLicense)
+        '--prefix', $scratch, '--backend', $Backend, '--platform', 'windows', '--msvc-license', $msvcLicense)
+    if ($Backend -eq 'cuda') { $arguments += @('--cuda-root', $cuda) }
+    else { $arguments += @('--vulkan-headers', "$vulkan/Include", '--spirv-license', $SpirvLicense, '--shader-compiler', "$vulkan/Bin/glslc.exe") }
     if ($CudaManifest) { $arguments += @('--cuda-manifest', (Resolve-Path -LiteralPath $CudaManifest).Path) }
     Invoke-WorkerCommand $Python $arguments
     Invoke-WorkerCommand $Python @("$source/tools/diffusion/prepare_bundle.py", '--verify', $scratch)

@@ -1,6 +1,6 @@
 # Vulkana Diffusion
 
-Vulkana Diffusion is a local AI image editor powered by an isolated native worker, with CUDA builds for Linux and Windows. Models are supplied by the user; Vulkana does not download or bundle weights.
+Vulkana Diffusion is a local AI image editor powered by an isolated native worker, with a bundled Vulkan backend and an optional CUDA worker for NVIDIA GPUs. Models are supplied by the user; Vulkana does not download or bundle weights.
 
 ## AI Image Editor
 
@@ -15,9 +15,21 @@ The AI panel temporarily occupies the right dock’s content area and shares its
 
 Generation uses immutable input snapshots and never locks canvas editing. Closing the panel leaves the job running. The Generate button changes to Cancel while a job runs; progress and status remain in the panel footer. When the panel is closed, a dismissible progress or completion card offers a magnifier that opens the latest expanded preview directly, without changing tabs. Progress and completion notifications stay hidden while the AI panel is open. Closing a source document asks for confirmation; the job can continue without it. Quitting Vulkana asks before cancelling an active job. Results never modify a document before Apply.
 
-Select **Auto**, **Vulkan** or **CUDA** in Configuration. Auto prefers an installed CUDA worker, then Vulkan; explicit choices are checked against the worker's reported backend. An unavailable backend produces a clear error rather than running a different backend silently. CUDA workers are validated on Linux and Windows; Vulkan still requires a separate worker build and validation. Worker paths are discovered from the installation or development overrides and are not an editable UI setting.
+Generation status identifies the active CUDA, Vulkan or CPU worker. Stage labels and short hints distinguish model loading, prompt/image preparation, sampling, decoding and preview preparation. The bar measures the current stage; only sampling displays a step count. Unknown-length stages use an activity indicator, and lazy weight loading is shown separately before resuming the interrupted stage. Detailed stages require an updated worker; older workers retain a generic processing display.
 
-Choose a **Family**, then a **Variant** where available. Qwen 2.1 Image offers Base and Turbo; Flux Klein offers Flux 2 base/distilled and Flux 3 base/distilled. Families with one choice hide Variant. Click the **+** button beside the configuration dropdown and enter a unique name, then select the model files. The dropdown is disabled until a configuration exists. Edits to files, sampling, backend, performance settings and LoRA defaults save automatically. Multiple configurations may use the same variant. The compact buttons beside the configuration dropdown duplicate the setup under a new name or delete it after confirmation. Name and confirmation cards are centered over the AI panel and block interaction until dismissed. The separate **Session → Loaded models** section shows the worker’s resident models; unloading them does not delete a configuration. Existing saved profile IDs remain compatible. Choose a device from the worker's device list. These are inference device IDs, independent of the canvas renderer's Vulkan IDs.
+The **Workers** section at the top of Configuration lists Vulkan and CUDA availability. Backend selection is global: switching model configurations does not change it. **Auto** prefers a manually added CUDA worker, then the bundled Vulkan worker. Explicit choices must match the worker's reported backend. Vulkan is maintained with the application and has no separate download or override control in this panel.
+
+CUDA update information is fetched asynchronously alongside the application update check at startup and when checking again in About. A successful recommendation is cached for the session, so opening the AI panel does not make another request. Worker-feed failures do not delay startup or prevent the app update result from appearing. Builds without the private service configuration have online checks and downloads disabled; manually adding a worker still works offline.
+
+When CUDA is missing, the compact download icon beside **Add worker…** becomes available once a compatible package is found. For an added worker, it appears only for a newer compatible release or an explicit server rollback pin. Version detection uses `worker.json` from the extracted package; bare custom executables without this metadata remain usable but cannot be compared for updates. The feed selects by platform, architecture, protocol and Vulkana compatibility, with applicable pins taking precedence over the newest eligible version.
+
+Choose a save location to download the archive. A thin progress bar appears beneath Workers while the download button is disabled. Closing the AI panel leaves the download running; closing the main window cancels it and discards the partial file. The archive is saved atomically only after its exact size, SHA-256 and format header have been verified. Downloads are never extracted, executed or registered automatically.
+
+Extract the complete package into a permanent folder and keep its executable and companion libraries together. Choose **Add worker…** (or **Change worker…** for an existing CUDA worker), then select the extracted package folder or its `bin` folder. Vulkana detects the worker automatically, including inside one extra enclosing extraction folder. If several packages are found, select the specific package folder. Vulkana remembers that location without copying the package. A missing executable is marked **Missing** and can be located again. Worker configuration controls are disabled during generation. File presence is checked before launch; runtime and protocol errors are reported when the worker starts.
+
+To test a different CUDA worker for one session, close Vulkana and launch `imageeditor --cuda-worker=/path/to/worker-folder`. The path can also identify the `bin` folder or executable. The bare `--cuda-worker` flag uses `vulkana-diffusion-worker-cuda` (`.exe` on Windows) beside the editor executable. This forces CUDA for the session and takes precedence over saved paths and developer environment overrides. The worker must still pass the normal backend and protocol checks. Missing workers produce an error; another build is never substituted. The Workers section identifies the session override and disables worker/backend changes until the next normal launch. Saved worker paths and backend preferences are unchanged.
+
+Choose a **Family**, then a **Variant** where available. Qwen 2.1 Image offers Base and Turbo; Flux Klein offers Flux 2 base/distilled and Flux 3 base/distilled. Families with one choice hide Variant. Click the **+** button beside the configuration dropdown and enter a unique name, then select the model files. The dropdown is disabled until a configuration exists. Edits to files, sampling, performance settings and LoRA defaults save automatically. Multiple configurations may use the same variant. The compact buttons beside the configuration dropdown duplicate the setup under a new name or delete it after confirmation. Name and confirmation cards are centered over the AI panel and block interaction until dismissed. The separate **Session → Loaded models** section shows the worker’s resident models; unloading them does not delete a configuration. Existing saved profile IDs remain compatible. Choose a device from the worker's device list. These are inference device IDs, independent of the canvas renderer's Vulkan IDs.
 
 Use the small toggle beside an **Advanced generation** setting to expose it in **Generate → Overrides**, below Resolution Selector. Exposure choices are saved with the configuration. Overrides are temporary values kept separately for each configuration during the session; switching configurations or generation modes preserves them. Each reset button restores that setting's current configuration default. Hiding an override restores its default too. New or duplicated configurations start with their saved defaults, and restarting the editor clears temporary overrides. Model and sampling constraints still apply; Qwen Turbo's fixed eight-step sigma schedule requires switching Sigma Schedule to Auto when trying other step counts.
 
@@ -157,64 +169,62 @@ ctest --test-dir build/diffusion-worker --output-on-failure
 
 Choose a host compiler supported by the installed CUDA toolkit. The example targets RTX 40-series development hardware; it is not a multi-generation release binary. Tests use Python's standard library, but neither the worker nor the host client requires Python at runtime. Set `BUILD_TESTING=OFF` to omit worker tests and their Python dependency.
 
-On Windows, use an x64 Visual Studio developer shell with a compatible CUDA Toolkit and the same CMake options. Set `CMAKE_CUDA_ARCHITECTURES` for the intended GPU; `86-real` targets RTX 30-series hardware. For a development installation, place the executable beside `imageeditor.exe` as `vulkana-diffusion-worker-cuda.exe`, with its required CUDA, MSVC and OpenMP runtime DLLs. Run Windows UI tests from an interactive desktop session so native focus and pointer handling are available.
+On Windows, use an x64 Visual Studio developer shell with a compatible CUDA Toolkit and the same CMake options. Set `CMAKE_CUDA_ARCHITECTURES` for the intended GPU; `86-real` targets RTX 30-series hardware. For a development installation, keep the CUDA executable with its required CUDA, MSVC and OpenMP runtime DLLs, then add it in the Workers section. Run Windows UI tests from an interactive desktop session so native focus and pointer handling are available.
 
-### Distributable CUDA workers
+### Distributable workers
 
-The release worker helpers build the pinned source and assemble a separate, verified worker directory. They download no source or models. Use CUDA 13.3, a supported C++ compiler, CMake, Ninja, Git and Python for these build steps. Python and the CUDA Toolkit are not runtime dependencies.
+Release editor packages bundle **Vulkan**. CUDA is a separate download that users can add in Configuration → Workers. The helpers build the pinned source into a verified directory, without downloading source or model weights. Python is a build/audit dependency only.
 
-Linux x86-64:
+For Linux Vulkan, install a recent Vulkan SDK including `glslc`, SPIR-V headers, CMake, Ninja and a C++ compiler. Build in an environment with glibc 2.39 or older:
+
+```sh
+tools/diffusion/build-vulkan.sh \
+  --engine /path/to/stable-diffusion.cpp --build /path/to/vulkan-build \
+  --destination /path/to/vulkan-bundle --spirv-license /path/to/SPIRV-Headers/LICENSE \
+  --vulkan-headers /path/to/sdk/include --spirv-headers /path/to/spirv/include \
+  --jobs 4 --tests
+```
+
+The helper checks the binary's actual symbol requirements. Shader features are detected at build time, so use a Vulkan SDK compatible with the pinned engine. The Vulkan loader and graphics driver come from the host or the enclosing application's reviewed runtime inventory.
+
+For the separate Linux CUDA package, use CUDA 13.3 and a supported host compiler:
 
 ```sh
 tools/diffusion/build-cuda.sh \
   --engine /path/to/stable-diffusion.cpp --cuda /path/to/cuda \
-  --build /path/to/worker-build --destination /path/to/worker-bundle \
+  --build /path/to/cuda-build --destination /path/to/cuda-bundle \
   --jobs 4 --tests
 ```
 
-Build in an environment with glibc 2.39 or older and a CUDA-supported compiler. The helper rejects a worker requiring newer glibc symbols. It copies the SDK's CUDA runtime, cuBLAS and cuBLASLt files unchanged into a private library directory. The NVIDIA driver, glibc and ordinary C++/OpenMP system runtimes remain host dependencies; an AppImage may supply reviewed C++ runtimes through its existing dependency inventory.
+The CUDA helper copies the SDK's runtime, cuBLAS and cuBLASLt unchanged into a private library directory. The NVIDIA driver is supplied by the user. Both backends use an AVX2/FMA/F16C/BMI2 CPU baseline; native CUDA images cover RTX 30/40/50 (`sm_86`, `sm_89`, `sm_120a`), with generic `compute_90` PTX for forward JIT. The audit checks actual embedded images. Driver requirements are recorded in the worker manifest. [CUDA driver compatibility](https://docs.nvidia.com/cuda/archive/13.3.1/cuda-toolkit-release-notes/#cuda-driver).
 
-Windows x64, from a Visual Studio developer PowerShell session:
+On Windows, run `BuildDiffusionWorker.ps1` from an x64 Visual Studio developer PowerShell session. Vulkan is the default:
 
 ```powershell
 .\tools\windows\BuildDiffusionWorker.ps1 `
-  -EngineDirectory C:\path\to\stable-diffusion.cpp -CudaRoot C:\path\to\cuda `
-  -BuildDirectory C:\path\to\worker-build -Destination C:\path\to\worker-bundle `
+  -EngineDirectory C:\path\to\stable-diffusion.cpp `
+  -VulkanRoot C:\path\to\VulkanSDK -SpirvLicense C:\path\to\SPIRV-Headers\LICENSE `
+  -BuildDirectory C:\path\to\vulkan-build -Destination C:\path\to\vulkan-bundle `
   -Jobs 4 -Tests
 ```
 
-The Windows helper includes the required CUDA, MSVC C++ and OpenMP DLLs from their SDK redistribution directories. For a CUDA installation assembled from NVIDIA component archives, pass the matching redistribution JSON using `-CudaManifest`. The destination must be new. Omit `--tests` or `-Tests` to build without running the worker tests; real generation tests still require separately supplied models.
+For CUDA, use `-Backend cuda -CudaRoot C:\path\to\cuda` instead of the Vulkan SDK arguments. `-CudaManifest` accepts NVIDIA's redistribution JSON when using component archives. The helper includes required MSVC/OpenMP DLLs and, for CUDA, its runtime DLLs from their SDK redistribution directories. Each destination must be new; keep backend build directories separate. Omit `--tests` or `-Tests` to build without tests. Generation tests require user-supplied models.
 
-The release CPU baseline is AVX2, FMA, F16C and BMI2. Native CUDA images cover RTX 30, 40 and 50 series (`sm_86`, `sm_89`, `sm_120a`); generic `compute_90` PTX provides a forward-JIT path. The payload audit checks the actual embedded CUDA images, not only the CMake setting. A current NVIDIA driver supporting CUDA 13.3 is recommended. R580 is the CUDA 13 minor-compatibility floor for native code; newer toolkit features and PTX JIT can require a newer driver. [NVIDIA driver compatibility](https://docs.nvidia.com/cuda/archive/13.3.1/cuda-toolkit-release-notes/#cuda-driver).
-
-To include a prepared worker in an editor installation, configure the editor with:
+Include the verified **Vulkan** bundle in RPM, DEB, AppImage or portable staging with:
 
 ```sh
-cmake -S . -B build/release -DVULKANA_DIFFUSION_BUNDLE=/path/to/worker-bundle
+cmake -S . -B build/release -DVULKANA_DIFFUSION_BUNDLE=/path/to/vulkan-bundle
 ```
 
-Normal build and install commands then include that payload. Windows portable assembly accepts `-DiffusionBundle C:\path\to\worker-bundle`. The editor remains buildable without this optional input. CUDA inference requires a supported NVIDIA GPU; the editor's Vulkan renderer remains independent. A Vulkan inference worker is not included in this release configuration.
+Windows portable assembly also accepts `-DiffusionBundle C:\path\to\vulkan-bundle`. Installation rejects CUDA as an editor payload and revalidates file hashes before copying. Worker notices are merged into About. Ordinary source builds remain independent of inference SDKs and can omit the bundle input.
 
-Each worker bundle contains `share/vulkana-editor/diffusion/cuda/manifest.json`, third-party notices and license texts. The manifest records the engine and patch revisions, GPU images, CPU baseline, CUDA versions and file hashes. Installation verifies the inventory again; the worker notices are merged into the editor's About/license inventory. Distributors can check an existing payload with:
+Each worker bundle contains `share/vulkana-editor/diffusion/<backend>/manifest.json`, notices and license texts. The inventory records engine and patch revisions, CPU baseline, runtime requirements and file hashes; CUDA also records GPU targets and SDK versions. Verify either backend with:
 
 ```sh
 python3 tools/diffusion/prepare_bundle.py --verify /path/to/worker-bundle
 ```
 
-The integrity inventory is not a cryptographic signature. CUDA runtime files retain NVIDIA's distribution terms and must remain unmodified; the helpers compare them with the selected SDK originals. No driver libraries, compiler tools or model weights are bundled. [CUDA redistribution terms](https://docs.nvidia.com/cuda/archive/13.3.1/eula/index.html#distribution-requirements), [redistributable components](https://docs.nvidia.com/cuda/archive/13.3.1/eula/index.html#attachment-a).
-
-For a small GPU, start at 512 × 512, put text-encoder and VAE computation on CPU, and retain automatic weight placement. A 2.75 GiB managed VRAM budget has been validated for FLUX.3 Klein Q3 generation and reference editing on a 4 GiB GPU with sufficient system RAM. Larger images and additional references need separate capacity testing. The budget does not include every driver or desktop allocation.
-
-The real-inference smoke executable accepts an absolute worker path, a dedicated private work directory, a load-parameters JSON file, and a generate-parameters JSON file:
-
-```sh
-build/diffusion-host/imageeditor_diffusion_worker_smoke \
-  /absolute/path/to/vulkana-diffusion-worker \
-  /absolute/path/to/private-results \
-  /absolute/path/to/load.json /absolute/path/to/generate.json
-```
-
-It checks warm jobs, previews, host event-loop responsiveness, cancellation, recovery, output independence, unload and restart. It writes results into the supplied work directory and reports JSON on stdout. Model files are only read. It is deliberately excluded from automatic tests.
+The integrity inventory is not a signature. Preserve CUDA runtime bytes and accompanying terms when distributing the separate package; the helper compares them with SDK originals. No drivers, compiler tools or model weights are bundled. [CUDA redistribution terms](https://docs.nvidia.com/cuda/archive/13.3.1/eula/index.html#distribution-requirements).
 
 ## Client and worker lifecycle
 
@@ -250,7 +260,9 @@ Terminal responses are `{"id":"...","ok":true,"result":{...}}` or `{"id":"...","
 
 `status` responses and `state` events include `loadedModels`, an array of resident contexts with their `contextGeneration`, `profile`, `files`, `backend` and `effectiveSettings`. The array is empty when unloaded and currently contains at most one entry. Consumers must scope context identities to the worker process, since generation counters restart with a new worker. Loading failures may retain the previous context or leave none, so use reported state rather than assuming the requested configuration became resident.
 
-Events report `state`, `progress`, `preview`, or a fatal protocol error. Progress has `scope:"engineOperation"`: counters may restart between tensor loading and sampling and are not a single overall job percentage. Preview events carry `jobId`, `path`, `step`, `width` and `height`. Previews are approximate latent projections; final images use the VAE. The client ignores expired previews after cancellation and checks that output paths remain within its work directory.
+Events report `state`, `progress`, `preview`, or a fatal protocol error. Workers advertising `generationStages:true` report progress with `scope:"stage"`, `stage`, `detail`, `unit`, `step`, `steps`, `samplePass`, and `elapsedMs`. Named stages cover loading weights, preparing inputs/LoRAs, prompt conditioning, image encoding, sampling, image decoding, and saving previews. Generation stages come from the engine's context-local progress API; the legacy counter callback is used only for identified weight-loading operations. Lazy weight transfers interrupt and then resume the current stage; their boundaries are matched against the pinned engine’s loader messages, without exposing file paths. Unidentified legacy counters, including VAE tile counters, are ignored during generation. Sampling counts are actual sampling steps, including separate passes. Other stages without a known total use an activity indicator. Counters describe the current operation, not an overall job percentage, and stages may repeat or be skipped when cached. The panel and background card identify the actual worker backend from its handshake. Older workers remain supported with a generic processing label rather than guessing whether their mixed counters mean loading or sampling.
+
+Preview events carry `jobId`, `path`, `step`, `width` and `height`. Previews are approximate latent projections; final images use the VAE. The client ignores expired previews after cancellation and checks that output paths remain within its work directory.
 
 Generated PNGs are independently owned files under `job-<id>/`. Result objects include `images[].path`, dimensions/channels, engine generation metadata, profile, effective resource settings, context generation number and timings. Timings distinguish model construction, engine execution and PNG output; `engineStagesMs` provides conditioning/encoding/sampling/decoding durations reported by the pinned engine. Lazy weight preparation also contributes to the first generation's time. Cooperative cancellation removes that job's partial outputs. Forced process termination can leave partial files; the caller owns cleanup of its private work directory.
 
@@ -371,4 +383,4 @@ Run the deterministic host and UI tests with `ctest --test-dir build/release -R 
 
 Document transactions stay in the editor; the worker receives immutable files and returns independent images. Input capture and Apply compositing use the editor thread, so unusually large images can pause briefly during those steps. Inference and model loading remain asynchronous.
 
-Linux CUDA and Windows CUDA inference have been validated. Windows model testing currently covers FLUX.3 Klein GGUF generation and reference editing; other families and Vulkan inference require further validation. Worker bundle validation covers runtime payload integrity, source and patch provenance, CPU/GPU build targets, and license inventory preservation. A build containing RTX 50 code does not establish hardware testing on RTX 50. Release validation should exercise staged workers with a clean runtime search path, then verify their discovery and operation from the final application packages. Model weights are supplied separately by the user.
+Validate inference for each target platform, backend and model family. Worker bundle validation covers runtime payload integrity, source and patch provenance, CPU/GPU build targets, and license inventory preservation. A build containing RTX 50 code does not establish hardware testing on RTX 50. Release validation should exercise staged workers with a clean runtime search path, then verify their discovery and operation from the final application packages. Model weights are supplied separately by the user.

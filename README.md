@@ -26,9 +26,9 @@ with native Windows builds, a Qt workspace and Vulkan-accelerated canvas.
   Refine Selection, live previews and manual corrections. No model download or
   Python installation is needed to use Object Selection.
 - **Local AI image editing:** generate images, edit layers and fill selections
-  using your own models and the optional CUDA worker. Preview results before
-  applying them as undoable edits. Requires a supported NVIDIA GPU; see
-  [Vulkana Diffusion](DIFFUSION.md).
+  using your own models with Vulkan or an optional CUDA worker. Preview results before
+  applying them as undoable edits. See [Vulkana Diffusion](DIFFUSION.md) for
+  setup and GPU requirements.
 - **Transforms:** move, scale, rotate, flip and corner distortion; transform
   selection boundaries or selected pixels, with snapping and alignment guides.
 - **Non-destructive adjustments:** per-layer corrections and masked adjustment

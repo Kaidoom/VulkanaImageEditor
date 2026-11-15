@@ -62,6 +62,7 @@ class ProtocolTests(unittest.TestCase):
                 return result
 
     def test_discovery_and_lifecycle(self):
+        self.assertTrue(self.hello["generationStages"])
         self.assertTrue(self.hello["devices"])
         self.assertIn("euler", self.hello["samplers"])
         self.assertTrue(any(p["id"] == "qwen-image-2.1-turbo" for p in self.hello["profiles"]))

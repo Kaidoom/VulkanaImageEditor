@@ -1,6 +1,9 @@
 #include "imageeditor/diffusion/ModelProfiles.h"
 #include "imageeditor/diffusion/Resolution.h"
 #include "imageeditor/ui/DiffusionPanel.hpp"
+#include "imageeditor/ui/DiffusionWorkers.hpp"
+#include <QFile>
+#include <QScopeGuard>
 #include "imageeditor/ui/DiffusionPreview.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include <QApplication>
@@ -18,6 +21,7 @@
 #include <QMenu>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QProgressBar>
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QSettings>
@@ -45,6 +49,202 @@ private slots:
         *qobject_cast<QApplication *>(QCoreApplication::instance()));
   }
   void init() { QSettings().clear(); i18n::Localization::instance().setLanguage("en"); }
+  void cudaSessionOverrideDoesNotChangeSavedPreferences() {
+    const auto previous = sessionCudaWorker();
+    const auto generic = qgetenv("VULKANA_DIFFUSION_WORKER");
+    const auto cuda = qgetenv("VULKANA_DIFFUSION_WORKER_CUDA");
+    const auto restore = qScopeGuard([&] {
+      setSessionCudaWorker(previous);
+      if (generic.isNull()) qunsetenv("VULKANA_DIFFUSION_WORKER"); else qputenv("VULKANA_DIFFUSION_WORKER",generic);
+      if (cuda.isNull()) qunsetenv("VULKANA_DIFFUSION_WORKER_CUDA"); else qputenv("VULKANA_DIFFUSION_WORKER_CUDA",cuda);
+    });
+    QTemporaryDir package;
+    QVERIFY(QDir().mkpath(package.filePath("bin")));
+    const auto executable = package.filePath("bin/vulkana-diffusion-worker-cuda"
+#ifdef Q_OS_WIN
+        ".exe"
+#endif
+    );
+    QFile file(executable); QVERIFY(file.open(QIODevice::WriteOnly)); file.write("fixture"); file.close();
+    QVERIFY(file.setPermissions(QFile::ReadOwner|QFile::WriteOwner|QFile::ExeOwner));
+    QSettings().setValue("diffusion/backend","vulkan");
+    QSettings().setValue("diffusion/workers/cuda","saved-worker");
+    qputenv("VULKANA_DIFFUSION_WORKER","other-generic-worker");
+    qputenv("VULKANA_DIFFUSION_WORKER_CUDA","other-cuda-worker");
+    QString error;
+    QVERIFY(setSessionCudaWorker(package.path(), &error)); QVERIFY(error.isEmpty());
+    QCOMPARE(sessionCudaWorker(),executable);
+    QCOMPARE(diffusionWorkerLocation("cuda").executable,executable);
+    QCOMPARE(discoverDiffusionWorker("auto"),executable);
+    QVERIFY(setSessionCudaWorker(package.filePath("bin"), &error));
+    QVERIFY(setSessionCudaWorker(executable, &error));
+    QVERIFY(!setSessionCudaWorker(package.filePath("missing"), &error));
+    QVERIFY(!error.isEmpty()); QCOMPARE(sessionCudaWorker(),executable);
+    {
+      DiffusionPanel panel;
+      QCOMPARE(panel.backend(),QString("cuda"));
+      auto* backend=panel.findChild<QComboBox*>("DiffusionBackend");
+      QCOMPARE(backend->currentData().toString(),QString("cuda")); QVERIFY(!backend->isEnabled());
+      QVERIFY(panel.findChild<QLabel*>("DiffusionWorkerStatus_cuda")->text().contains("session override"));
+      QVERIFY(!panel.findChild<QPushButton*>("DiffusionAddWorker_cuda")->isEnabled());
+      panel.setBusy(true); panel.setBusy(false); QVERIFY(!backend->isEnabled());
+      panel.saveSettings();
+    }
+    QCOMPARE(QSettings().value("diffusion/backend").toString(),QString("vulkan"));
+    QCOMPARE(QSettings().value("diffusion/workers/cuda").toString(),QString("saved-worker"));
+    QVERIFY(QFile::remove(executable));
+    QVERIFY(discoverDiffusionWorker("auto").isEmpty()); // No fallback to another build.
+    QVERIFY(setSessionCudaWorker({})); QVERIFY(sessionCudaWorker().isEmpty());
+    DiffusionPanel restored;
+    QCOMPARE(restored.backend(),QString("vulkan"));
+    QVERIFY(restored.findChild<QComboBox*>("DiffusionBackend")->isEnabled());
+  }
+  void generationProgressNamesStagesAndResetsCounters() {
+    DiffusionPanel panel; panel.resize(480,760); panel.show(); panel.setBusy(true);
+    auto* worker = panel.findChild<QLabel*>("DiffusionProgressWorker");
+    auto* status = panel.findChild<QLabel*>("DiffusionProgressStatus");
+    auto* bar = panel.findChild<QProgressBar*>("DiffusionProgress");
+    QVERIFY(worker && status && bar);
+    panel.setProgress("cuda", {{"stage","loading"},{"step",90},{"steps",100}});
+    QVERIFY(worker->text().contains("CUDA"));
+    QVERIFY(status->text().startsWith("Loading model"));
+    QVERIFY(status->text().contains("has not started"));
+    QCOMPARE(bar->maximum(),100); QCOMPARE(bar->value(),90);
+    panel.setProgress("cuda", {{"stage","conditioning"},{"detail","positive_prompt"}});
+    QVERIFY(status->text().startsWith("Encoding prompt"));
+    QCOMPARE(bar->maximum(),0); // Loading progress must not carry into encoding.
+    panel.setProgress("vulkan", {{"stage","sampling"},{"unit","steps"},{"step",3},{"steps",8},{"samplePass",2}});
+    QVERIFY(worker->text().contains("Vulkan"));
+    QVERIFY(status->text().startsWith("Generating image"));
+    QCOMPARE(bar->maximum(),8); QCOMPARE(bar->value(),3);
+    QVERIFY(bar->text().contains("Pass 2")); QVERIFY(bar->text().contains("3 / 8 steps"));
+    panel.setProgress("vulkan", {{"stage","loading_weights"},{"step",3},{"steps",359},{"unit","tensors"}});
+    QVERIFY(status->text().startsWith("Loading model weights"));
+    QVERIFY(!bar->text().contains("steps")); QCOMPARE(bar->maximum(),359);
+    panel.setProgress("vulkan", {{"stage","vae_decode"}});
+    QVERIFY(status->text().startsWith("Decoding image")); QCOMPARE(bar->maximum(),0);
+    panel.setProgress("vulkan", {{"stage","processing"},{"step",2},{"steps",7}});
+    QVERIFY(status->text().contains("does not report"));
+    QVERIFY(!bar->text().contains("steps"));
+    panel.setProgress("vulkan", {{"stage","saving"}});
+    QVERIFY(status->text().startsWith("Preparing preview"));
+    if (const auto capture = qEnvironmentVariable("VULKANA_DIFFUSION_PROGRESS_CAPTURE"); !capture.isEmpty()) {
+      QTest::qWait(30); QVERIFY(panel.grab().save(capture));
+    }
+    panel.setBusy(false); QVERIFY(worker->isHidden()); QVERIFY(bar->isHidden());
+  }
+  void workerFolderDetection() {
+    QTemporaryDir extracted;
+    const auto filename = QString("vulkana-diffusion-worker-cuda")
+#ifdef Q_OS_WIN
+        + ".exe"
+#endif
+        ;
+    const auto package = extracted.filePath("CUDA package");
+    const auto bin = QDir(package).filePath("bin");
+    QVERIFY(QDir().mkpath(bin));
+    const auto path = QDir(bin).filePath(filename);
+    QFile file(path); QVERIFY(file.open(QIODevice::WriteOnly)); file.write("fixture"); file.close();
+    QVERIFY(file.setPermissions(QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner));
+    bool ambiguous = true;
+    QCOMPARE(diffusionWorkerInFolder("cuda", package, &ambiguous), path);
+    QVERIFY(!ambiguous);
+    QCOMPARE(diffusionWorkerInFolder("cuda", bin), path);
+    QCOMPARE(diffusionWorkerInFolder("cuda", extracted.path()), path);
+    QVERIFY(diffusionWorkerInFolder("cuda", path).isEmpty());
+    QVERIFY(diffusionWorkerInFolder("vulkan", package).isEmpty());
+    QVERIFY(diffusionWorkerInFolder("cuda", extracted.filePath("missing")).isEmpty());
+#ifndef Q_OS_WIN
+    QVERIFY(file.setPermissions(QFile::ReadOwner | QFile::WriteOwner));
+    QVERIFY(diffusionWorkerInFolder("cuda", package).isEmpty());
+    QVERIFY(file.setPermissions(QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner));
+#endif
+    const auto second = extracted.filePath("another version/bin");
+    QVERIFY(QDir().mkpath(second));
+    QVERIFY(QFile::copy(path, QDir(second).filePath(filename)));
+    QVERIFY(diffusionWorkerInFolder("cuda", extracted.path(), &ambiguous).isEmpty());
+    QVERIFY(ambiguous);
+    QCOMPARE(diffusionWorkerInFolder("cuda", package, &ambiguous), path);
+    QVERIFY(!ambiguous);
+    // Folder inspection cannot silently register a worker.
+    QVERIFY(!QSettings().contains("diffusion/workers/cuda"));
+  }
+  void workersAreGlobalAndMissingFilesRecover() {
+    const auto oldCuda = qgetenv("VULKANA_DIFFUSION_WORKER_CUDA");
+    const auto oldVulkan = qgetenv("VULKANA_DIFFUSION_WORKER_VULKAN");
+    const auto oldGeneric = qgetenv("VULKANA_DIFFUSION_WORKER");
+    const auto oldPath = qgetenv("PATH");
+    const auto restore = qScopeGuard([&] {
+      const auto reset = [](const char *key, const QByteArray &value) {
+        if (value.isNull()) qunsetenv(key); else qputenv(key, value);
+      };
+      reset("VULKANA_DIFFUSION_WORKER_CUDA", oldCuda);
+      reset("VULKANA_DIFFUSION_WORKER_VULKAN", oldVulkan);
+      reset("VULKANA_DIFFUSION_WORKER", oldGeneric);
+      reset("PATH", oldPath);
+    });
+    qunsetenv("VULKANA_DIFFUSION_WORKER_CUDA");
+    qunsetenv("VULKANA_DIFFUSION_WORKER");
+    QTemporaryDir workers;
+    const auto path = workers.filePath("vulkana-diffusion-worker-cuda.exe");
+    const auto writeWorker = [&] {
+      QFile f(path); QVERIFY(f.open(QIODevice::WriteOnly)); f.write("fixture"); f.close();
+      QVERIFY(f.setPermissions(QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner));
+    };
+    writeWorker();
+    qputenv("PATH", workers.path().toUtf8());
+    // Merely having CUDA on PATH must not opt the user into this worker.
+    QVERIFY(!diffusionWorkerLocation("cuda").available);
+    qputenv("VULKANA_DIFFUSION_WORKER_VULKAN", path.toUtf8());
+    QCOMPARE(discoverDiffusionWorker("auto"), path);
+    DiffusionPanel panel;
+    panel.resize(480, 760); panel.show();
+    auto *cuda = panel.findChild<QLabel *>("DiffusionWorkerStatus_cuda");
+    auto *add = panel.findChild<QPushButton *>("DiffusionAddWorker_cuda");
+    QVERIFY(cuda && add);
+    QCOMPARE(cuda->text(), QString("Not added"));
+    QVERIFY(!add->isHidden());
+    QVERIFY(!setDiffusionWorkerPath("cuda", workers.path()));
+    QVERIFY(setDiffusionWorkerPath("cuda", path));
+    panel.refreshWorkers();
+    QCOMPARE(cuda->text(), QString("Available"));
+    QVERIFY(!add->isHidden());
+    QCOMPARE(add->text(), QString("Change worker…"));
+    auto *backend = panel.findChild<QComboBox *>("DiffusionBackend");
+    backend->setCurrentIndex(backend->findData("cuda"));
+    panel.setBusy(true); QVERIFY(!backend->isEnabled()); panel.setBusy(false);
+    QVERIFY(QFile::remove(path));
+    QTRY_COMPARE(cuda->text(), QString("Missing"));
+    QVERIFY(!add->isHidden());
+    QVERIFY(discoverDiffusionWorker("cuda").isEmpty());
+    QCOMPARE(QSettings().value("diffusion/workers/cuda").toString(), path);
+    writeWorker();
+    QTRY_COMPARE(cuda->text(), QString("Available"));
+    DiffusionPanel restored;
+    QCOMPARE(restored.backend(), QString("cuda"));
+    QCOMPARE(discoverDiffusionWorker(restored.backend()), path);
+    QVERIFY(panel.findChild<QFrame *>("DiffusionWorkersDivider"));
+    QVERIFY(panel.findChild<QFrame *>("DiffusionConfigurationDivider"));
+  }
+  void backendSwitchDoesNotReuseAnotherBackendsDeviceOrdinal() {
+    QSettings().setValue("diffusion/backend", "vulkan");
+    DiffusionPanel panel;
+    const QJsonObject config{{"profile", "flux3-image-klein-distilled"},
+                            {"settings", QJsonObject{{"device", "CUDA0"}}}};
+    panel.setConfiguration(config);
+    QVERIFY(!panel.configuration()["settings"].toObject().contains("device"));
+    auto *backend = panel.findChild<QComboBox *>("DiffusionBackend");
+    backend->setCurrentIndex(backend->findData("auto"));
+    panel.setConfiguration(config);
+    QCOMPARE(panel.configuration()["settings"].toObject()["device"].toString(), QString("CUDA0"));
+    panel.setDevices({QJsonObject{{"id", "Vulkan0"}, {"name", "Vulkan GPU"}}});
+    QVERIFY(!panel.configuration()["settings"].toObject().contains("device"));
+    // An unavailable ID from the same backend remains visible for validation.
+    panel.setConfiguration({{"profile", "flux3-image-klein-distilled"},
+                           {"settings", QJsonObject{{"device", "Vulkan9"}}}});
+    panel.setDevices({QJsonObject{{"id", "Vulkan0"}, {"name", "Vulkan GPU"}}});
+    QCOMPARE(panel.configuration()["settings"].toObject()["device"].toString(), QString("Vulkan9"));
+  }
   void languageSwitchPreservesEditableGenerationState() {
     auto &locale = i18n::Localization::instance();
     DiffusionPanel panel;
@@ -1725,7 +1925,7 @@ private slots:
     models->setCurrentIndex(models->findData("B"));
     QCOMPARE(stored("A")["configuration"].toObject()["files"].toObject()["diffusion"].toString(), QString("/models/updated-a.gguf"));
     QCOMPARE(weights->text(), QString("/models/first.gguf"));
-    QCOMPARE(panel.backend(), QString("vulkan"));
+    QCOMPARE(panel.backend(), QString("auto"));
     weights->setText("/models/updated-b.gguf");
     auto *threads = panel.findChild<QDoubleSpinBox *>("Diffusion_threads");
     QVERIFY(threads);
@@ -1734,7 +1934,8 @@ private slots:
     panel.findChild<QComboBox *>("DiffusionBackend")->setCurrentIndex(2);
     QTRY_COMPARE(stored("B")["configuration"].toObject()["settings"].toObject()["threads"].toInt(), 6);
     QTRY_COMPARE(stored("B")["generation"].toObject()["steps"].toInt(), 23);
-    QCOMPARE(stored("B")["backend"].toString(), QString("cuda"));
+    QVERIFY(!stored("B").contains("backend"));
+    QCOMPARE(QSettings().value("diffusion/backend").toString(), QString("cuda"));
     panel.findChild<QToolButton *>("DiffusionLoraAdd")->click();
     QTRY_VERIFY(panel.findChild<QLineEdit *>("DiffusionLoraPath"));
     panel.findChild<QLineEdit *>("DiffusionLoraPath")->setText("/models/style.safetensors");
@@ -1742,7 +1943,8 @@ private slots:
     QTRY_COMPARE(stored("B")["configuration"].toObject()["loras"].toArray()[0].toObject()["path"].toString(), QString("/models/style.safetensors"));
     models->setCurrentIndex(models->findData("A"));
     QCOMPARE(weights->text(), QString("/models/updated-a.gguf"));
-    QCOMPARE(panel.backend(), QString("auto"));
+    QCOMPARE(panel.backend(), QString("cuda"));
+    QVERIFY(!stored("A").contains("backend"));
     QVERIFY(panel.configuration()["loras"].toArray().isEmpty());
     models->setCurrentIndex(models->findData("B"));
     QCOMPARE(weights->text(), QString("/models/updated-b.gguf"));
