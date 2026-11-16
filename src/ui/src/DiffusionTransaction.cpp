@@ -1,3 +1,4 @@
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/ui/DiffusionTransaction.hpp"
 #include "imageeditor/ui/QtRasterImageLoader.hpp"
 #include "imageeditor/core/ColorMath.hpp"
@@ -121,7 +122,7 @@ private:
     {
         const auto* layer = doc.layer(id_);
         const auto* raster = layer ? std::get_if<core::RasterLayer>(&layer->payload) : nullptr;
-        return raster && raster->surface == expected && layer->localToDocument == transform_
+        return raster && !core::isMirroredLayer(*layer) && raster->surface == expected && layer->localToDocument == transform_
             && layer->rasterOrigin == origin_ && layer->rasterEffectFrame == frame_;
     }
     const core::Document* owner_;
@@ -315,6 +316,8 @@ std::unique_ptr<core::Command> diffusionReplaceCommand(const core::Document& doc
 {
     try {
         if (!diffusionTargetCurrent(doc, target, error)) return {};
+        if (core::isMirroredLayer(*doc.layer(target.layerId)))
+            throw std::invalid_argument("Mirrored layers are read-only. Promote to a full layer or add the result as a new layer.");
         const auto pixels = diffusionResolvedPixels(target, generated, documentSpace, useSelection);
         if (pixels == target.originalPixels)
             throw std::invalid_argument("The AI result does not change this raster layer. For a fill outside its bounds, choose Add as New Layer.");

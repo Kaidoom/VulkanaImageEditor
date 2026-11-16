@@ -185,10 +185,12 @@ void CanvasWindow::setCanvasColors(core::Rgba8 background, core::Rgba8 light, co
 
 void CanvasWindow::setDocument(core::DocumentSnapshot document, bool fitToView)
 {
+    if (fitToView || (guideDrag_ && guideDrag_->before != document.guides)) cancelGuideInput();
     if (document.documentRevision != scene_.document.documentRevision) setSnapGuides({});
     if (fitToView) { cancelMeasureInput(); regularMeasurement_.reset(); temporaryMeasurement_.reset(); }
     if(onPrepareDocumentSnapshot)onPrepareDocumentSnapshot(document);
     scene_.document = std::move(document);
+    refreshGuidePreview();
     if(onDocumentPresentationChanged)onDocumentPresentationChanged(scene_.document);
     refreshCapturedAdjustmentRegion();
     refreshLayerOutlines();
@@ -205,6 +207,7 @@ void CanvasWindow::setDocument(core::DocumentSnapshot document, bool fitToView)
 void CanvasWindow::setActiveTool(core::ToolId tool)
 {
     if (tool != scene_.activeTool) {
+        cancelGuideInput();
         setSnapGuides({});
         cancelMeasureInput();
         setTemporaryMeasure(false);
@@ -219,6 +222,8 @@ void CanvasWindow::setActiveTool(core::ToolId tool)
         stopBrushInput(true);
     }
     scene_.activeTool = tool;
+    if (tool == core::ToolId::Guides) {guidePlacement_ = true;guidePlacementBlockedAt_.reset();}
+    refreshGuidePreview();
     refreshLayerOutlines();
     refreshMeasurement();
     refreshColorSample();
@@ -731,6 +736,13 @@ void CanvasWindow::mousePressEvent(QMouseEvent* event)
     completedGestureButtons_ &= event->buttons() & ~Qt::MouseButtons(event->button());
     if(completedGestureButtons_ != Qt::NoButton) { event->accept(); return; }
     suppressFinishContextMenu_=false;
+    if (scene_.activeTool==core::ToolId::Guides && event->button()==Qt::RightButton && !panning_ && !measureActive() && !scene_.repairProcessing) {
+        if (guideDragging()) {suppressFinishContextMenu_=true;event->accept();return;}
+        scene_.cursorLogical={event->position().x(),event->position().y()};scene_.cursorInside=true;
+        refreshGuidePreview();beginGuideInput(event->position(),Qt::RightButton);
+        completedGestureButtons_=event->buttons() | Qt::RightButton;
+        suppressFinishContextMenu_=true;event->accept();return;
+    }
     if (event->button() == Qt::RightButton && measureActive() && !panning_) {
         clearMeasurement();
         // Share the existing completion-release/context-menu guard. A held
@@ -748,7 +760,7 @@ void CanvasWindow::mousePressEvent(QMouseEvent* event)
     selectionModifiers_ = event->modifiers();
     // A gesture owns its mode until its initiating button is released. An
     // extra button must not steal sampling capture or start a paint stroke.
-    if (picking_ || transforming_ || selecting_ || panning_ || brushing_ || shaping_ || measuring_) {
+    if (picking_ || transforming_ || selecting_ || panning_ || brushing_ || shaping_ || measuring_ || guideDragging()) {
         event->accept();
         return;
     }
@@ -774,6 +786,7 @@ void CanvasWindow::mousePressEvent(QMouseEvent* event)
             }
         }
         panning_ = true;
+        refreshGuidePreview();
         panButton_ = event->button();
         refreshColorSample();
         setCursor(Qt::ClosedHandCursor);
@@ -783,6 +796,9 @@ void CanvasWindow::mousePressEvent(QMouseEvent* event)
     // A background repair owns edits, but not navigation. Pan is handled
     // above, and wheel zoom keeps its ordinary route.
     if (scene_.repairProcessing) { event->accept(); return; }
+    if (event->button()==Qt::LeftButton && scene_.activeTool==core::ToolId::Guides && !measureActive()) {
+        refreshGuidePreview();beginGuideInput(event->position(),Qt::LeftButton);event->accept();return;
+    }
     if (event->button() == Qt::LeftButton)
         notifyOutsideDocumentPress(event->position());
     if (event->button() == Qt::LeftButton && measureActive()) {
@@ -867,6 +883,8 @@ void CanvasWindow::mouseMoveEvent(QMouseEvent* event)
         lastPointerPosition_ = event->position();
     } else if (measuring_) {
         moveMeasureInput(event->position(), event->modifiers());
+    } else if (scene_.activeTool==core::ToolId::Guides) {
+        moveGuideInput(event->position(), event->modifiers());
     } else if (selectingText_) {
         if (onTextDragged)
             onTextDragged(documentPositionForLogical(event->position()));
@@ -882,6 +900,7 @@ void CanvasWindow::mouseMoveEvent(QMouseEvent* event)
             stopBrushInput(true);
         }
     }
+    refreshGuidePreview();
     updateTransformHover();
     refreshColorSample();
     if (picking_) {
@@ -896,6 +915,10 @@ void CanvasWindow::mouseReleaseEvent(QMouseEvent* event)
     if(completedGestureButtons_.testFlag(event->button())) {
         completedGestureButtons_.setFlag(event->button(),false);
         event->accept(); return;
+    }
+    if (guideDragging() && event->button()==Qt::LeftButton) {
+        scene_.cursorLogical={event->position().x(),event->position().y()};
+        moveGuideInput(event->position(), event->modifiers());finishGuideInput(false);event->accept();return;
     }
     if (measuring_ && event->button() == Qt::LeftButton) {
         scene_.cursorLogical = {event->position().x(), event->position().y()};
@@ -994,6 +1017,15 @@ void CanvasWindow::mouseDoubleClickEvent(QMouseEvent* event)
 
 void CanvasWindow::wheelEvent(QWheelEvent* event)
 {
+    if (scene_.activeTool==core::ToolId::Guides && !panning_ && !spaceHeld_ && !measureActive()) {
+        if (!guideDragging()) {
+            guideWheelRemainder_+=event->angleDelta().y()!=0?event->angleDelta().y():event->pixelDelta().y();
+            const int steps=guideWheelRemainder_/120;guideWheelRemainder_%=120;
+            if (steps) {setGuideOptions(guideOrientation_,unsigned(std::clamp(int(guideCount_)+steps,1,1000)));
+                if(onGuideCountChanged)onGuideCountChanged(guideCount_);}
+        }
+        event->accept();return;
+    }
     if (transforming_ || selecting_ || shaping_) { event->accept(); return; }
     if (scene_.document.canvas.extent.empty() || event->angleDelta().y() == 0) {
         QWindow::wheelEvent(event);
@@ -1013,7 +1045,7 @@ void CanvasWindow::wheelEvent(QWheelEvent* event)
 
 void CanvasWindow::tabletEvent(QTabletEvent* event)
 {
-    if(scene_.activeTool==core::ToolId::Shape || measureActive()
+    if(scene_.activeTool==core::ToolId::Shape || scene_.activeTool==core::ToolId::Guides || measureActive()
         || completedGestureButtons_ != Qt::NoButton) {
         // Reuse the same latched capture and pan/handle precedence for tablets.
         const auto type=event->type()==QEvent::TabletPress?QEvent::MouseButtonPress:
@@ -1108,6 +1140,12 @@ void CanvasWindow::tabletEvent(QTabletEvent* event)
 
 void CanvasWindow::keyPressEvent(QKeyEvent* event)
 {
+    if (guideDragging() && event->key()==Qt::Key_Control && !event->isAutoRepeat()) {
+        updateGuideModifiers(event->modifiers() | Qt::ControlModifier);event->accept();return;
+    }
+    if (scene_.activeTool==core::ToolId::Guides && !measureActive() && event->key()==Qt::Key_Escape) {
+        cancelGuideInput(true);event->accept();return;
+    }
     if (event->key() == Qt::Key_Escape && measureActive()) {
         if (!event->isAutoRepeat()) {
             if (measuring_) cancelMeasureInput(); else clearMeasurement();
@@ -1147,6 +1185,9 @@ void CanvasWindow::keyPressEvent(QKeyEvent* event)
 
 void CanvasWindow::keyReleaseEvent(QKeyEvent* event)
 {
+    if (guideDragging() && event->key()==Qt::Key_Control && !event->isAutoRepeat()) {
+        updateGuideModifiers(event->modifiers() & ~Qt::ControlModifier);event->accept();return;
+    }
     if (event->key() == Qt::Key_Alt && !event->isAutoRepeat()) {
         setTemporaryEyedropper(false);
         event->accept();
@@ -1165,8 +1206,10 @@ void CanvasWindow::setSpacePanHeld(bool held)
     if (spaceHeld_ == held)
         return;
     spaceHeld_ = held;
+    refreshGuidePreview();
     refreshColorSample();
     updateCursorForTool();
+    scheduleFrame();
 }
 
 void CanvasWindow::cancelPanInput()
@@ -1179,6 +1222,7 @@ void CanvasWindow::cancelPanInput()
 
 void CanvasWindow::focusOutEvent(QFocusEvent* event)
 {
+    cancelGuideInput();
     cancelMeasureInput();
     setTemporaryMeasure(false);
     cancelShapeInput();
@@ -1210,6 +1254,7 @@ bool CanvasWindow::event(QEvent* event)
         || event->type() == QEvent::TouchCancel) {
         completedGestureButtons_={};
         suppressFinishContextMenu_=false;
+        cancelGuideInput();
         cancelMeasureInput();
         setTemporaryMeasure(false);
         cancelShapeInput();
@@ -1230,6 +1275,7 @@ bool CanvasWindow::event(QEvent* event)
     } else if (event->type() == QEvent::PlatformSurface) {
         const auto* surfaceEvent = static_cast<QPlatformSurfaceEvent*>(event);
         if (surfaceEvent->surfaceEventType() == QPlatformSurfaceEvent::SurfaceAboutToBeDestroyed) {
+            cancelGuideInput();
             cancelMeasureInput();
             setTemporaryMeasure(false);
             cancelShapeInput();
@@ -1291,10 +1337,12 @@ bool CanvasWindow::event(QEvent* event)
         temporaryEyedropper_ = QGuiApplication::keyboardModifiers().testFlag(Qt::AltModifier);
         if (measureActive()) refreshMeasurement();
         refreshColorSample();
+        refreshGuidePreview();
         updateTransformHover();
         scheduleFrame();
-    } else if (event->type() == QEvent::Leave && !panning_ && !brushing_ && !picking_ && !measuring_) {
+    } else if (event->type() == QEvent::Leave && !panning_ && !brushing_ && !picking_ && !measuring_ && !guideDragging()) {
         scene_.cursorInside = false;
+        refreshGuidePreview();
         updateTransformHover();
         scheduleFrame();
     }
@@ -1390,6 +1438,7 @@ void CanvasWindow::stopPanning()
         setMouseGrabEnabled(false);
         explicitPanGrab_ = false;
     }
+    refreshGuidePreview();
     updateCursorForTool();
 }
 
@@ -1554,6 +1603,8 @@ void CanvasWindow::updateCursorForTool()
     } else if (measureActive()) {
         setCursor(measuring_ ? Qt::ClosedHandCursor
             : measureEndpointAt(scene_.cursorLogical) >= 0 ? Qt::OpenHandCursor : Qt::CrossCursor);
+    } else if (scene_.activeTool==core::ToolId::Guides) {
+        setCursor(guideDragging()?Qt::ClosedHandCursor:scene_.highlightedGuide?Qt::OpenHandCursor:Qt::CrossCursor);
     } else if (transforming_ && !scene_.transformOverlay) {
         setCursor(Qt::ClosedHandCursor);
     } else if (scene_.transformOverlay) {
@@ -1624,6 +1675,7 @@ void CanvasWindow::updateCursorForTool()
 
 void CanvasWindow::publishZoom()
 {
+    refreshGuidePreview();
     if (onZoomChanged) {
         onZoomChanged(scene_.viewport.zoom());
     }

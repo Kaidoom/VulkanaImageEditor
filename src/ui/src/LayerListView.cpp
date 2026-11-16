@@ -257,7 +257,10 @@ QString LayerListView::blendModeIndicatorText(const QModelIndex& index) const
     const auto data = index.data(LayerListModel::BlendModeRole);
     if (!data.isValid()) return {};
     const auto mode = core::BlendMode(data.toUInt());
-    return mode != core::BlendMode::Normal && core::isValidBlendMode(mode) ? blendModeNames_[unsigned(mode)] : QString{};
+    QStringList labels;
+    if (index.data(LayerListModel::MirroredRole).toBool()) labels.append(i18n::text("layers.mirror.label"));
+    if (mode != core::BlendMode::Normal && core::isValidBlendMode(mode)) labels.append(blendModeNames_[unsigned(mode)]);
+    return labels.join(QStringLiteral(" · "));
 }
 
 QRect LayerListView::blendModeIndicatorRect(const QModelIndex& index) const

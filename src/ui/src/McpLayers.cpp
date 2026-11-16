@@ -1,3 +1,4 @@
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/ui/McpController.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/QtShapeRenderService.hpp"
@@ -29,6 +30,9 @@ namespace {
 namespace c = core;
 using namespace mcpdetail;
 QString text(std::string_view s) { return QString::fromUtf8(s.data(), qsizetype(s.size())); }
+void requireEditableContent(const c::Layer& layer) {
+    require(!c::isMirroredLayer(layer), "Mirrored layers are read-only. Promote to a full layer before editing content, masks, adjustments or filters.");
+}
 QJsonArray blendIds()
 {
     QJsonArray values;
@@ -535,16 +539,33 @@ struct LayerStyleState {
     float opacity, fillOpacity;
     c::BlendMode blendMode;
     c::LayerEffectState effects;
+    std::optional<c::LayerMirror> mirror;
     static LayerStyleState read(const c::Layer& layer)
-    { return {layer.visible, layer.opacity, layer.fillOpacity, layer.blendMode, layer.effects}; }
+    { return {layer.visible, layer.opacity, layer.fillOpacity, layer.blendMode, layer.effects, layer.mirror}; }
     bool valid() const noexcept {
         return std::isfinite(opacity) && opacity >= 0 && opacity <= 1
             && std::isfinite(fillOpacity) && fillOpacity >= 0 && fillOpacity <= 1
             && c::isValidBlendMode(blendMode) && (!effects || c::validLayerEffects(*effects));
     }
-    friend bool operator==(const LayerStyleState& a, const LayerStyleState& b) noexcept {
-        return a.visible == b.visible && a.opacity == b.opacity && a.fillOpacity == b.fillOpacity
+    friend bool operator==(const LayerStyleState& a, const LayerStyleState& b) {
+        if (a.visible != b.visible || a.mirror != b.mirror) return false;
+        if (!a.mirror) return a.opacity == b.opacity && a.fillOpacity == b.fillOpacity
             && a.blendMode == b.blendMode && c::equivalentLayerEffects(a.effects,b.effects);
+        // Inherited values may legitimately follow a source update. Validate
+        // only canonical overrides so undo does not mistake that for an edit.
+        const auto& mirror = *a.mirror;
+        if ((mirror.opacityOverride && a.opacity != b.opacity)
+            || (mirror.fillOpacityOverride && a.fillOpacity != b.fillOpacity)
+            || (mirror.blendModeOverride && a.blendMode != b.blendMode)) return false;
+        if (c::equivalentLayerEffects(a.effects,b.effects)) return true;
+        static const c::LayerEffectStack empty;
+        const auto& first = a.effects ? *a.effects : empty;
+        const auto& second = b.effects ? *b.effects : empty;
+        if ((mirror.pixelAlphaShapesEffectsOverride && first.pixelAlphaShapesEffects != second.pixelAlphaShapesEffects)
+            || (mirror.maskEffectsAfterRenderingOverride && first.maskEffectsAfterRendering != second.maskEffectsAfterRendering)) return false;
+        for (std::size_t i=0; i<c::layerEffectCount; ++i)
+            if (mirror.effects[i] == c::MirrorEffectMode::Override && first.items[i] != second.items[i]) return false;
+        return true;
     }
 };
 struct LayerStyleChange { c::LayerId id; LayerStyleState before, after; };
@@ -562,26 +583,29 @@ public:
 private:
     bool publish(c::Document& document, bool reverse) {
         if (changes_.empty()) return false;
-        // Complete admission before the first mutation. These setters and
-        // immutable effect-state comparisons allocate nothing and service no
-        // events, so no caller can observe or interrupt a partially styled set.
+        // Complete admission and prepare detached replacements before the one
+        // atomic publication. Mirror resolution may allocate; individual live
+        // setters cannot guarantee an all-or-none batch under memory pressure.
+        std::vector<c::Layer> prepared;
+        std::vector<c::LayerId> ids;
+        prepared.reserve(changes_.size()); ids.reserve(changes_.size());
         for (const auto& change : changes_) {
             const auto* layer = document.layer(change.id);
             const auto& expected = reverse ? change.after : change.before;
             const auto& next = reverse ? change.before : change.after;
             if (!layer || !expected.valid() || !next.valid() || LayerStyleState::read(*layer) != expected
                 || (std::holds_alternative<c::AdjustmentLayer>(layer->payload) && next.effects)) return false;
+            auto copy = *layer;
+            copy.visible = next.visible; copy.opacity = next.opacity; copy.fillOpacity = next.fillOpacity;
+            copy.blendMode = next.blendMode; copy.effects = next.effects; copy.mirror = next.mirror;
+            if (!c::equivalentLayerEffects(expected.effects,next.effects) || expected.mirror != next.mirror) {
+                ++copy.effectRevision;
+                copy.effectCache.reset();
+            }
+            prepared.push_back(std::move(copy)); ids.push_back(change.id);
         }
-        for (const auto& change : changes_) {
-            const auto& before = reverse ? change.after : change.before;
-            const auto& after = reverse ? change.before : change.after;
-            if (before.visible != after.visible) (void)document.setLayerVisibility(change.id,after.visible);
-            if (before.opacity != after.opacity) (void)document.setLayerOpacity(change.id,after.opacity);
-            if (before.fillOpacity != after.fillOpacity) (void)document.setLayerFillOpacity(change.id,after.fillOpacity);
-            if (before.blendMode != after.blendMode) (void)document.setLayerBlendMode(change.id,after.blendMode);
-            if (!c::equivalentLayerEffects(before.effects,after.effects)) (void)document.setLayerEffects(change.id,after.effects);
-        }
-        return true;
+        const auto tree = document.tree();
+        return document.replaceStructure(tree, tree, ids, prepared);
     }
     std::vector<LayerStyleChange> changes_;
 };
@@ -609,6 +633,7 @@ PreparedProperties preparePropertyUpdates(const c::Document& document, const QJs
             seen.push_back(target);
             const auto* item = document.layer(target);
             require(item, "Expected an existing editable text or shape layer ID");
+            requireEditableContent(*item);
             require(args.contains("text") != args.contains("shape"), "Specify exactly one of text or shape");
             c::EditableLayerContent before, after;
             if (args.contains("text")) {
@@ -762,6 +787,7 @@ void McpController::registerLayerTools()
             const auto values = selectedIds(document(), args, false);
             const bool mask = args["target"] == "mask";
             require(!mask || (values.size() == 1 && document().layer(values[0]) && document().layer(values[0])->mask), "Mask editing requires exactly one layer with a mask");
+            if (mask) requireEditableContent(*document().layer(values[0]));
             const auto before = session().layerSelectionState();
             const bool beforeMask = session().editingLayerMask();
             session().setLayerSelection(values, values.back(), values.back()); session().setEditingLayerMask(mask);
@@ -859,6 +885,7 @@ void McpController::registerLayerTools()
                 const auto& item = layer(args); const auto* value = std::get_if<c::TextLayer>(&item.payload);
                 target = item.id;
                 require(value,"Layer is not editable text");
+                requireEditableContent(item);
                 const auto next = editText(*value,args["properties"].toObject());
                 if (wantsGeometry(args)) { auto candidate=item;candidate.payload=next;geometry=layerGeometryData(candidate); }
                 if (next == *value) return {};
@@ -877,6 +904,7 @@ void McpController::registerLayerTools()
                 const auto& item=layer(args);const auto* value=std::get_if<c::ShapeLayer>(&item.payload);
                 target = item.id;
                 require(value,"Layer is not an editable shape");
+                requireEditableContent(item);
                 const auto next=editShape(*value,args["properties"].toObject());
                 if(wantsGeometry(args)){auto candidate=item;candidate.payload=next;geometry=layerGeometryData(candidate);}
                 if(next==*value)return {};
@@ -900,7 +928,7 @@ void McpController::registerLayerTools()
     add("vulkana_layer_mask", "Add a reveal-all/hide-all mask, capture the current selection, remove/invert an existing mask, or set enabled state. Existing masks are never replaced implicitly. from_selection preserves active selection and document coordinates. One undoable action.",
         {{"layerId", identifier()}, {"operation", choice({"reveal_all", "hide_all", "from_selection", "remove", "invert", "enable", "disable"})}}, {"layerId", "operation"}, Access::Document,
         [this](const QJsonObject& args) {
-            const auto& item = layer(args); const auto operation = args["operation"].toString(); const auto before = item.mask; c::LayerMaskState after;
+            const auto& item = layer(args); requireEditableContent(item); const auto operation = args["operation"].toString(); const auto before = item.mask; c::LayerMaskState after;
             if (operation == "remove") require(bool(before), "Layer has no mask");
             else if (operation == "invert" || operation == "enable" || operation == "disable") {
                 require(bool(before), "Layer has no mask"); auto mask = std::make_shared<c::LayerMask>(*before);
@@ -972,6 +1000,11 @@ void McpController::registerLayerTools()
                 if (args.contains("opacity")) after.opacity = float(args["opacity"].toDouble());
                 if (args.contains("fillOpacity")) after.fillOpacity = float(args["fillOpacity"].toDouble());
                 if (args.contains("blendMode")) after.blendMode = *c::blendModeFromId(args["blendMode"].toString().toStdString());
+                if (after.mirror) {
+                    if (before.opacity != after.opacity) after.mirror->opacityOverride = true;
+                    if (before.fillOpacity != after.fillOpacity) after.mirror->fillOpacityOverride = true;
+                    if (before.blendMode != after.blendMode) after.mirror->blendModeOverride = true;
+                }
                 if (withEffect) {
                     auto effects = before.effects ? std::make_shared<c::LayerEffectStack>(*before.effects)
                         : std::make_shared<c::LayerEffectStack>();
@@ -979,7 +1012,16 @@ void McpController::registerLayerTools()
                     if (!patch.contains("enabled")) effect.enabled = true;
                     patchEffect(effect,patch);
                     require(c::validLayerEffects(*effects), "Invalid effect parameters or unsorted gradient stops; no target was changed");
-                    after.effects = std::move(effects);
+                    if (after.mirror) {
+                        const auto* source = document().layer(after.mirror->source);
+                        require(source, "The mirrored layer source is unavailable; no target was changed");
+                        auto candidate = *document().layer(target);
+                        candidate.mirror = after.mirror;
+                        candidate.mirror = c::mirrorEffectOverrides(candidate,*source,effects);
+                        candidate.effects = std::move(effects);
+                        after.effects = c::resolvedMirroredLayer(candidate,*source).effects;
+                        after.mirror = candidate.mirror;
+                    } else after.effects = std::move(effects);
                 }
                 require(before.valid() && after.valid(), "Layer style contains unsupported values; no target was changed");
                 if (before != after) { changes.push_back({target,before,std::move(after)}); changedIds.append(id(target)); }
@@ -1014,7 +1056,7 @@ void McpController::registerLayerTools()
         [](const QJsonObject&) { QJsonArray values; const auto items = detail::encodeAdjustments(c::AdjustmentStack{}, 1)["items"].toArray(); for (const auto type : c::allAdjustmentTypes) values.append(QJsonObject{{"type", text(c::adjustmentIdentifier(type))}, {"name", text(c::adjustmentName(type))}, {"schema", object(adjustmentProperties(type))}, {"defaults", items[int(type)].toObject()["parameters"]}}); return QJsonObject{{"adjustments", values}}; });
     add("vulkana_adjustment_set", "Enable or patch one adjustment without replacing other adjustments or captured masks. Optional enabled defaults true. Arrays replace the entire specified array; omitted parameters retain current values.",
         {{"layerId", identifier()}, {"type", choice(adjustmentTypes)}, {"parameters", parameterUnion(adjustmentVariants)}, {"enabled", boolean()}}, {"layerId", "type", "parameters"}, Access::Document,
-        [this](const QJsonObject& args) { const auto& item = layer(args); const auto type = *c::adjustmentFromIdentifier(args["type"].toString().toStdString()); const auto patch = args["parameters"].toObject(); validatePatch(adjustmentProperties(type), patch);
+        [this](const QJsonObject& args) { const auto& item = layer(args); requireEditableContent(item); const auto type = *c::adjustmentFromIdentifier(args["type"].toString().toStdString()); const auto patch = args["parameters"].toObject(); validatePatch(adjustmentProperties(type), patch);
             const auto before = item.adjustments ? *item.adjustments : c::AdjustmentStack{}; auto encoded = detail::encodeAdjustments(before, item.id); auto entries = encoded["items"].toArray();
             for (qsizetype i = 0; i < entries.size(); ++i) { auto entry = entries[i].toObject(); entry.remove("mask"); if (i == int(type)) { auto parameters = entry["parameters"].toObject(); for (auto it = patch.begin(); it != patch.end(); ++it) parameters[it.key()] = it.value(); entry["parameters"] = parameters; entry["enabled"] = args["enabled"].toBool(true); } entries[i] = entry; }
             encoded["items"] = entries; auto next = detail::decodeAdjustments(encoded, item.id).stack;
@@ -1025,7 +1067,7 @@ void McpController::registerLayerTools()
             });
             return result(execute(std::make_unique<c::SetLayerAdjustmentsCommand>(item.id, item.adjustments, next))); });
     add("vulkana_adjustment_remove", "Disable one adjustment, retaining its parameters and captured mask.", {{"layerId", identifier()}, {"type", choice(adjustmentTypes)}}, {"layerId", "type"}, Access::Document,
-        [this](const QJsonObject& args) { const auto& item = layer(args); auto next = std::make_shared<c::AdjustmentStack>(item.adjustments ? *item.adjustments : c::AdjustmentStack{}); next->items[std::size_t(*c::adjustmentFromIdentifier(args["type"].toString().toStdString()))].enabled = false; return result(execute(std::make_unique<c::SetLayerAdjustmentsCommand>(item.id, item.adjustments, next))); });
+        [this](const QJsonObject& args) { const auto& item = layer(args); requireEditableContent(item); auto next = std::make_shared<c::AdjustmentStack>(item.adjustments ? *item.adjustments : c::AdjustmentStack{}); next->items[std::size_t(*c::adjustmentFromIdentifier(args["type"].toString().toStdString()))].enabled = false; return result(execute(std::make_unique<c::SetLayerAdjustmentsCommand>(item.id, item.adjustments, next))); });
     add("vulkana_adjustment_scope", "Choose whether an adjustment layer affects all lower content or lower content in its current group. Does not apply to raster/text/shape layers.",
         {{"layerId", identifier()}, {"scope", choice({"all_below", "this_group"})}}, {"layerId", "scope"}, Access::Document,
         [this](const QJsonObject& args) { const auto& item = layer(args); const auto* value = std::get_if<c::AdjustmentLayer>(&item.payload); require(value, "Layer is not an adjustment layer");
@@ -1034,7 +1076,7 @@ void McpController::registerLayerTools()
         [](const QJsonObject&) { QJsonArray values; const auto items = detail::encodeSpatialFilters(c::SpatialFilterStack{}, 1)["items"].toArray(); for (const auto type : c::allSpatialFilterTypes) values.append(QJsonObject{{"type", text(c::spatialFilterIdentifier(type))}, {"name", text(c::spatialFilterName(type))}, {"schema", object(filterProperties(type))}, {"defaults", items[int(type)].toObject()["parameters"]}}); return QJsonObject{{"filters", values}}; });
     add("vulkana_filter_set", "Enable or patch one spatial filter without replacing other filters or captured masks. enabled defaults true; preserveAlpha is optional. Filters are unavailable on adjustment layers.",
         {{"layerId", identifier()}, {"type", choice(filterTypes)}, {"parameters", parameterUnion(filterVariants)}, {"enabled", boolean()}, {"preserveAlpha", boolean()}}, {"layerId", "type", "parameters"}, Access::Document,
-        [this](const QJsonObject& args) { const auto& item = layer(args); require(!std::holds_alternative<c::AdjustmentLayer>(item.payload), "Adjustment layers cannot have spatial filters"); const auto type = *c::spatialFilterFromIdentifier(args["type"].toString().toStdString()); const auto patch = args["parameters"].toObject(); validatePatch(filterProperties(type), patch);
+        [this](const QJsonObject& args) { const auto& item = layer(args); requireEditableContent(item); require(!std::holds_alternative<c::AdjustmentLayer>(item.payload), "Adjustment layers cannot have spatial filters"); const auto type = *c::spatialFilterFromIdentifier(args["type"].toString().toStdString()); const auto patch = args["parameters"].toObject(); validatePatch(filterProperties(type), patch);
             const auto before = item.filters ? *item.filters : c::SpatialFilterStack{}; auto encoded = detail::encodeSpatialFilters(before, item.id); auto entries = encoded["items"].toArray();
             for (qsizetype i = 0; i < entries.size(); ++i) { auto entry = entries[i].toObject(); entry.remove("mask"); if (i == int(type)) { auto parameters = entry["parameters"].toObject(); for (auto it = patch.begin(); it != patch.end(); ++it) parameters[it.key()] = it.value(); entry["parameters"] = parameters; entry["enabled"] = args["enabled"].toBool(true); if (args.contains("preserveAlpha")) entry["preserveAlpha"] = args["preserveAlpha"]; } entries[i] = entry; }
             encoded["items"] = entries; auto next = detail::decodeSpatialFilters(encoded, item.id).stack; for (std::size_t i = 0; i < c::spatialFilterCount; ++i) next->items[i].mask = before.items[i].mask;
@@ -1046,6 +1088,6 @@ void McpController::registerLayerTools()
             const bool applied = execute(std::make_unique<c::SetLayerFiltersCommand>(item.id, item.filters, next));
             require(applied, "Filters are not valid over this layer's transformed geometry"); return result(applied); });
     add("vulkana_filter_remove", "Disable one spatial filter, retaining its parameters and captured mask.", {{"layerId", identifier()}, {"type", choice(filterTypes)}}, {"layerId", "type"}, Access::Document,
-        [this](const QJsonObject& args) { const auto& item = layer(args); auto next = std::make_shared<c::SpatialFilterStack>(item.filters ? *item.filters : c::SpatialFilterStack{}); next->items[std::size_t(*c::spatialFilterFromIdentifier(args["type"].toString().toStdString()))].enabled = false; return result(execute(std::make_unique<c::SetLayerFiltersCommand>(item.id, item.filters, next))); });
+        [this](const QJsonObject& args) { const auto& item = layer(args); requireEditableContent(item); auto next = std::make_shared<c::SpatialFilterStack>(item.filters ? *item.filters : c::SpatialFilterStack{}); next->items[std::size_t(*c::spatialFilterFromIdentifier(args["type"].toString().toStdString()))].enabled = false; return result(execute(std::make_unique<c::SetLayerFiltersCommand>(item.id, item.filters, next))); });
 }
 } // namespace imageeditor::ui

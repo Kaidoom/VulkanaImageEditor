@@ -1,4 +1,5 @@
 #include "imageeditor/ui/Localization.hpp"
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/core/LayerStructureCommands.hpp"
 #include "imageeditor/core/LayerCommands.hpp"
 #include "imageeditor/core/ChannelGroups.hpp"
@@ -68,6 +69,7 @@ namespace {
 void MainWindow::createLayerOrganizationActions()
 {
     createLayerMaskActions();
+    createLayerEffectClipboardActions();
     createChannelGroupActions();
     const auto action = [&](i18n::Message name, QString object, ToolGlyph glyph, const auto& callback) {
         auto* a = i18n::make<QAction>(toolGlyph(glyph), std::move(name), this);
@@ -331,7 +333,7 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
     if (id && (!session().isLayerSelected(*id) || session().activeLayer() != id))
         selectLayerFromRow(layerModel_->rowForLayer(*id), Qt::NoModifier, true);
     if(maskThumbnail || contentThumbnail) {
-        session().setEditingLayerMask(maskThumbnail);
+        session().setEditingLayerMask(maskThumbnail && !core::isMirroredLayer(*layer));
         synchronizeUi(false,false);
     }
     LayerItemMenu menu(layerList_);
@@ -425,6 +427,22 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
                 this, [this, id] { dissolveLayerItem(*id); });
         }
     }
+    if (layer && core::canMirrorLayer(*layer)) {
+        menu.addSeparator();
+        refreshMirroredLayerActions();
+        for (std::size_t i = 0; i < mirrorActions_.size(); ++i) {
+            if (i != 0 && !core::isMirroredLayer(*layer)) continue;
+            auto* source = mirrorActions_[i];
+            auto* action = menu.addAction(source->icon(), source->text());
+            action->setObjectName(source->objectName());
+            action->setEnabled(source->isEnabled());
+            connect(action, &QAction::triggered, &menu, [this, source, menuInstance, menuSelection] {
+                if (activeDocumentId() == menuInstance && session().layerSelectionState() == menuSelection)
+                    source->trigger();
+            });
+        }
+        menu.addSeparator();
+    }
     menu.addAction(duplicateLayersAction_);
     menu.addAction(deleteLayerAction_);
     menu.addSeparator();
@@ -434,6 +452,21 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
     menu.addAction(clippingGroupAction_);
     menu.addAction(mergeLayersAction_);
     menu.addAction(rasterizeLayersAction_);
+    if (layer && !scalar && !core::isPackedDataLayer(*layer)
+        && !std::holds_alternative<core::AdjustmentLayer>(layer->payload)) {
+        menu.addSeparator();
+        refreshLayerEffectClipboardActions();
+        for (auto* source : {copyLayerEffectsAction_, pasteLayerEffectsAction_}) {
+            auto* action = menu.addAction(source->icon(), source->text());
+            action->setObjectName(source->objectName());
+            action->setToolTip(source->toolTip());
+            action->setEnabled(source->isEnabled());
+            connect(action, &QAction::triggered, &menu, [this, source, menuInstance, menuSelection] {
+                if (activeDocumentId() == menuInstance && session().layerSelectionState() == menuSelection)
+                    source->trigger();
+            });
+        }
+    }
     menu.addSeparator();
     // The general layer menu creates masks; existing-mask operations belong
     // to the mask thumbnail's context menu (and remain in the top menu).

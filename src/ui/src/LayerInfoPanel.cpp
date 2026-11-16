@@ -1,3 +1,4 @@
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/ui/LayerInfoPanel.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/core/ChannelGroups.hpp"
@@ -121,7 +122,7 @@ void LayerInfoPanel::setLayer(const core::Layer* layer, const core::LayerContain
     }
     target_ = id;
     text_->setVisible(layer && std::holds_alternative<core::TextLayer>(layer->payload));
-    text_->setEnabled(layer && std::holds_alternative<core::TextLayer>(layer->payload));
+    text_->setEnabled(layer && !core::isMirroredLayer(*layer) && std::holds_alternative<core::TextLayer>(layer->payload));
     transform_->setVisible(bool(layer) || groupBounds.has_value());
     if (!layer) {
         if (container) {

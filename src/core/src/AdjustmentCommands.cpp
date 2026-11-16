@@ -1,3 +1,4 @@
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/core/AdjustmentCommands.hpp"
 
 namespace imageeditor::core {
@@ -26,7 +27,7 @@ std::size_t SetLayerAdjustmentsCommand::memoryCost() const noexcept
 AdjustmentEditTransaction::AdjustmentEditTransaction(Document& document, LayerId id)
     : document_(document), id_(id), contentState_(document.contentState())
 {
-    if (const auto* layer = document.layer(id)) {
+    if (const auto* layer = document.layer(id); layer && !isMirroredLayer(*layer)) {
         before_ = after_ = layer->adjustments;
         revision_ = layer->adjustmentRevision;
         active_ = true;
@@ -36,7 +37,7 @@ AdjustmentEditTransaction::~AdjustmentEditTransaction() { (void)cancel(); }
 bool AdjustmentEditTransaction::ownsPreview() const noexcept
 {
     const auto* layer = document_.layer(id_);
-    return active_ && layer && layer->adjustmentRevision == revision_
+    return active_ && layer && !isMirroredLayer(*layer) && layer->adjustmentRevision == revision_
         && equivalentAdjustments(layer->adjustments, after_);
 }
 bool AdjustmentEditTransaction::update(AdjustmentState state)

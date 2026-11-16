@@ -1,6 +1,8 @@
 #include "imageeditor/core/LayerStructureCommands.hpp"
 #include "imageeditor/core/RichText.hpp"
 #include "imageeditor/core/ChannelGroups.hpp"
+#include "imageeditor/core/MirroredLayers.hpp"
+#include <unordered_map>
 #include <stdexcept>
 #include <functional>
 
@@ -8,14 +10,25 @@ namespace imageeditor::core {
 LayerTransfer captureLayerTransfer(const Document& source, std::span<const LayerId> selection)
 {
     LayerTransfer result;
+    std::unordered_map<LayerId,LayerId> copiedIds;
     const auto roots = source.tree().normalize(selection);
+    const auto leaves = source.expandedLayers(roots);
     std::size_t bytes = 0;
-    for (auto id : source.expandedLayers(roots)) {
-        bytes += retainedLayerMemory(*source.layer(id));
+    for (auto id : leaves) {
+        const auto& layer=*source.layer(id);
+        bytes += retainedLayerMemory(layer);
+        // A mirror copied without its source becomes a real, independent image.
+        // Admit that materialized storage before allocating it below.
+        if (layer.mirror && std::ranges::find(leaves,layer.mirror->source)==leaves.end())
+            if (const auto* raster=std::get_if<RasterLayer>(&layer.payload)) {
+                const auto e=raster->surface->extent();
+                bytes+=std::size_t(e.width)*e.height*4;
+            }
         if (bytes > 256ULL * 1024 * 1024) throw std::length_error("Layer transfer exceeds the 256 MiB history budget");
     }
     std::function<LayerId(LayerId, bool)> clone = [&](LayerId id, bool root) {
         auto next = makeLayerId();
+        copiedIds[id]=next;
         if (const auto* folder = source.tree().container(id)) {
             auto copy = *folder; copy.id = next;
             if (root) copy.visible = source.isEffectivelyVisible(id);
@@ -28,7 +41,7 @@ LayerTransfer captureLayerTransfer(const Document& source, std::span<const Layer
             auto copy = *source.layer(id); copy.id = next;
             if (root) copy.visible = source.isEffectivelyVisible(id);
             copy.renderCache.reset(); copy.filterCache.reset(); copy.effectCache.reset();
-            if (auto* raster = std::get_if<RasterLayer>(&copy.payload)) {
+            if (auto* raster = std::get_if<RasterLayer>(&copy.payload); raster && !copy.mirror) {
                 if (!raster->surface) throw std::invalid_argument("Layer transfer has no source pixels");
                 if (const auto scalar = std::dynamic_pointer_cast<ScalarRasterSurface>(raster->surface)) {
                     raster->surface = scalar->clone();
@@ -44,6 +57,11 @@ LayerTransfer captureLayerTransfer(const Document& source, std::span<const Layer
         return next;
     };
     for (auto root : roots) result.tree.roots.push_back(clone(root, true));
+    for (auto& layer:result.layers) if (layer.mirror) {
+        const auto source=copiedIds.find(layer.mirror->source);
+        if (source!=copiedIds.end()) layer.mirror->source=source->second;
+        else layer=promotedMirroredLayer(layer);
+    }
     return result;
 }
 std::unique_ptr<LayerStructureCommand> insertLayerTransfer(const Document& destination, LayerTransfer transfer,
@@ -93,8 +111,10 @@ std::unique_ptr<LayerStructureCommand> duplicateLayerItems(const Document& doc, 
     }
     auto tree = doc.tree();
     std::vector<Layer> added;
+    std::unordered_map<LayerId,LayerId> copiedIds;
     std::function<LayerId(LayerId, bool)> clone = [&](LayerId id, bool root) {
         const auto newId = makeLayerId();
+        copiedIds[id]=newId;
         if (const auto* source = doc.tree().container(id)) {
             auto copy = *source;
             copy.id = newId;
@@ -109,7 +129,7 @@ std::unique_ptr<LayerStructureCommand> duplicateLayerItems(const Document& doc, 
             copy.id = newId;
             if (root) copy.name += " copy";
             copy.renderCache.reset(); copy.filterCache.reset(); copy.effectCache.reset();
-            if (auto* raster = std::get_if<RasterLayer>(&copy.payload)) {
+            if (auto* raster = std::get_if<RasterLayer>(&copy.payload); raster && !copy.mirror) {
                 if (!raster->surface) throw std::invalid_argument("Raster layer has no pixels");
                 if (const auto scalar = std::dynamic_pointer_cast<ScalarRasterSurface>(raster->surface)) {
                     raster->surface = scalar->clone();
@@ -139,6 +159,10 @@ std::unique_ptr<LayerStructureCommand> duplicateLayerItems(const Document& doc, 
     for (const auto& l : doc.layers()) allLeaves.push_back(l.id);
     for (const auto& l : added) allLeaves.push_back(l.id);
     (void)tree.orderedLeaves(allLeaves); // Counts, depth and membership before commit.
+    for (auto& layer:added) if (layer.mirror) {
+        const auto source=copiedIds.find(layer.mirror->source);
+        if (source!=copiedIds.end()) layer.mirror->source=source->second;
+    }
     return std::make_unique<LayerStructureCommand>("Duplicate layers", doc, std::move(tree),
         std::vector<LayerId>{}, std::move(added), state, std::move(after));
 }
@@ -150,7 +174,7 @@ std::size_t retainedLayerMemory(const Layer& l) noexcept
     result += spatialFilterMemoryCost(l.filters);
     result += layerEffectMemoryCost(l.effects);
     if(l.mask)result += sizeof(LayerMask)+l.mask->coverage->memoryCost();
-    if (const auto* r = std::get_if<RasterLayer>(&l.payload); r && r->surface)
+    if (const auto* r = std::get_if<RasterLayer>(&l.payload); r && r->surface && !l.mirror)
         result += r->surface->memoryCost();
     if (const auto* t = std::get_if<TextLayer>(&l.payload))
         result += textMemoryCost(*t);
@@ -171,6 +195,17 @@ LayerStructureCommand::LayerStructureCommand(std::string label, const Document& 
     , afterSelection_(std::move(afterSelection))
     , forwardVisibility_(std::move(retainedLeafVisibility))
 {
+    // Deleting or changing the kind of a source preserves surviving mirrors
+    // as independent layers. Keep their linked originals in the same history
+    // entry so undo restores both the source and the original relationships.
+    for (const auto& layer:doc.layers()) if (layer.mirror
+        && std::ranges::find(removedIds_,layer.id)==removedIds_.end()
+        && std::ranges::find(removedIds_,layer.mirror->source)!=removedIds_.end()) {
+        const auto replacement=std::ranges::find(added_,layer.mirror->source,&Layer::id);
+        if (replacement!=added_.end() && canMirrorLayer(*replacement)) continue;
+        removedIds_.push_back(layer.id);
+        added_.push_back(promotedMirroredLayer(layer));
+    }
     for (const auto& update : forwardVisibility_)
         reverseVisibility_.push_back({ update.id, update.after, update.before });
     for (auto id : removedIds_) {

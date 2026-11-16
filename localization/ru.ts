@@ -14039,4 +14039,125 @@ Requested: %1 × %2 px</source>
       <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
     </message>
   </context>
+  <context>
+    <name>LayerEffectClipboard</name>
+    <message id="layer.effects.copy">
+      <source>Copy Effects</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layer.effects.paste">
+      <source>Paste Effects</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layer.effects.paste.hint">
+      <source>Replace this layer’s effects with the copied effects.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layer.effects.copy.done">
+      <source>Effects copied.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layer.effects.paste.invalid">
+      <source>The copied effects could not be read.</source>
+      <translation type="unfinished" />
+    </message>
+  </context>
+  <context>
+    <name>Guides</name>
+    <message id="guides.tool">
+      <source>Guides</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="guides.horizontal">
+      <source>Horizontal</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="guides.vertical">
+      <source>Vertical</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="guides.count">
+      <source>Count: </source>
+      <translation type="unfinished" />
+    </message>
+    <message id="guides.count.hint">
+      <source>Number of guides. Use the mouse wheel over the canvas to adjust it.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="guides.show">
+      <source>Show guides</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="guides.clear">
+      <source>Clear guides</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="guides.key.click">
+      <source>Left click</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="guides.key.drag">
+      <source>Drag</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="guides.key.right">
+      <source>Right click</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="guides.key.wheel">
+      <source>Mouse wheel</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="guides.hint.place">
+      <source>Place guides</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="guides.hint.move">
+      <source>Move a guide</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="guides.hint.remove">
+      <source>Remove a guide</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="guides.hint.count">
+      <source>Change guide count</source>
+      <translation type="unfinished" />
+    </message>
+  </context>
+  <context>
+    <name>MirroredLayers</name>
+    <message id="layers.mirror.create">
+      <source>Create mirrored layer</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layers.mirror.promote">
+      <source>Promote to full layer</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layers.mirror.sync">
+      <source>Sync with source</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layers.mirror.select.source">
+      <source>Select source</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layers.mirror.label">
+      <source>Mirrored</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layers.mirror.read.only">
+      <source>Mirrored layers are read-only. Promote to a full layer to edit the content.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layers.mirror.link.opacity">
+      <source>Link layer opacity to the source</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layers.mirror.link.fill">
+      <source>Link pixel opacity to the source</source>
+      <translation type="unfinished" />
+    </message>
+  </context>
 </TS>

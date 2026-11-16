@@ -1,3 +1,4 @@
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/ColorDialog.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
@@ -14,7 +15,7 @@ void MainWindow::formatLayerInfoText(core::LayerId id, core::TextStylePatch patc
     if (!settleForFileOperation() || documentId != activeDocumentId() || session().activeLayer() != id)
         return;
     const auto* layer = session().document()->layer(id);
-    const auto* text = layer ? std::get_if<core::TextLayer>(&layer->payload) : nullptr;
+    const auto* text = layer && !core::isMirroredLayer(*layer) ? std::get_if<core::TextLayer>(&layer->payload) : nullptr;
     if (!text)
         return;
     try {
@@ -49,7 +50,7 @@ void MainWindow::chooseLayerInfoTextColor(core::LayerId id)
     if (!settleForFileOperation())
         return;
     const auto* layer = session().document()->layer(id);
-    const auto* text = layer ? std::get_if<core::TextLayer>(&layer->payload) : nullptr;
+    const auto* text = layer && !core::isMirroredLayer(*layer) ? std::get_if<core::TextLayer>(&layer->payload) : nullptr;
     if (!text)
         return;
     const auto source = core::textStyleAt(*text, 0).color;

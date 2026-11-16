@@ -1,3 +1,4 @@
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/core/SelectionCommands.hpp"
@@ -134,21 +135,23 @@ void MainWindow::refreshLayerMaskActions() {
   const bool available = layer && !core::isScalarLayer(*layer) && !core::isPackedDataLayer(*layer) && !fileBusy_ && !refinement_ && !workspaceDialog_ && !activeFill_ &&
                          !activeBrushStroke_ && !layerTransform_ &&
                          !selectionTransform_ && !layerCrop_;
-  maskActions_[0]->setEnabled(available && !layer->mask);
+  const bool writable = available && !core::isMirroredLayer(*layer);
+  maskActions_[0]->setEnabled(writable && !layer->mask);
   maskActions_[1]->setEnabled(
-      available && !layer->mask && session().document()->selection() &&
+      writable && !layer->mask && session().document()->selection() &&
       !session().document()->selection()->bounds().empty());
   for (size_t i = 2; i < maskActions_.size(); ++i)
-    maskActions_[i]->setEnabled(available && layer->mask);
+    maskActions_[i]->setEnabled(writable && layer->mask);
+  maskActions_[5]->setEnabled(available && layer->mask);
   i18n::setText(maskActions_[3], layer && layer->mask && !layer->mask->enabled
                                ? i18n::text("main.window.layer.masks.enable.layer.mask")
                                : i18n::text("main.window.layer.masks.disable.layer.mask"));
-  maskActions_[4]->setEnabled(available && layer->mask && layer->mask->enabled);
+  maskActions_[4]->setEnabled(writable && layer->mask && layer->mask->enabled);
   if(layer && std::holds_alternative<core::AdjustmentLayer>(layer->payload))maskActions_[4]->setEnabled(false);
   maskActions_[7]->setEnabled(available&&layer->mask&&core::validLayerMask(layer->mask)&&layer->localToDocument.inverted().has_value());
   const bool targets=available&&!session().selectedLayers().empty()
       &&std::all_of(session().selectedLayers().begin(),session().selectedLayers().end(),[this](auto id){
-        const auto* target=session().document()->layer(id);return target&&target->localToDocument.inverted().has_value();
+        const auto* target=session().document()->layer(id);return target&&!core::isMirroredLayer(*target)&&target->localToDocument.inverted().has_value();
       });
   maskActions_[8]->setEnabled(targets&&layerMaskClipboardAvailable_);
   if (addMaskButton_)
@@ -165,6 +168,10 @@ void MainWindow::setLayerEditingTarget(int row, bool mask) {
   selectLayerFromRow(row, Qt::NoModifier);
   if (session().activeLayer() != id)
     return;
+  const auto* layer = session().document()->layer(*id);
+  if (mask && layer && core::isMirroredLayer(*layer)) {
+    statusBar()->showMessage(i18n::text("layers.mirror.read.only"), 4000); return;
+  }
   session().setEditingLayerMask(mask);
   synchronizeUi(false, false);
   statusBar()->showMessage(session().editingLayerMask()
@@ -178,7 +185,7 @@ void MainWindow::addLayerMask(bool requireSelection) {
     return;
   auto &doc = *session().document();
   const auto *layer = doc.layer(*session().activeLayer());
-  if (!layer || layer->mask)
+  if (!layer || core::isMirroredLayer(*layer) || layer->mask)
     return;
   const bool fromSelection = doc.selection() && !doc.selection()->bounds().empty();
   if (requireSelection && !fromSelection)

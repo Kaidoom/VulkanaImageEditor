@@ -1,4 +1,7 @@
+#include "imageeditor/ui/MirrorCodec.hpp"
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/ui/ProjectFile.hpp"
+#include "imageeditor/ui/GuideCodec.hpp"
 #include "imageeditor/project/ProjectArchive.hpp"
 #include "imageeditor/project/ProjectPreview.hpp"
 #include "imageeditor/ui/FlattenedDocument.hpp"
@@ -252,6 +255,7 @@ namespace {
     {
         QJsonArray layers;
         bool containsShapes = false;
+        bool containsMirrors = false;
         bool containsArcs = false;
         bool containsShapeStrokeV2 = false;
         bool containsLabels = false;
@@ -302,7 +306,11 @@ namespace {
                 containsProjective=true;
                 o["transform"]=QJsonArray{t.m00,t.m01,t.m02,t.m10,t.m11,t.m12,t.m20,t.m21,t.m22};
             }
-            if (const auto* raster = std::get_if<core::RasterLayer>(&layer.payload)) {
+            if (layer.mirror) {
+                containsMirrors = true;
+                o["type"] = "mirror";
+                o["mirror"] = encodeLayerMirror(*layer.mirror);
+            } else if (const auto* raster = std::get_if<core::RasterLayer>(&layer.payload)) {
                 require(bool(raster->surface), "Raster layer has no surface");
                 const auto e = raster->surface->extent();
                 const auto kind = raster->surface->dataKind();
@@ -335,15 +343,18 @@ namespace {
             }
             require(layer.colorLabel <= uint8_t(core::ColorLabel::Purple), "Invalid layer color label");
             auto saved = overlayJson(oldLayers[layer.id], o).toObject();
-            if (const auto* shape = std::get_if<core::ShapeLayer>(&layer.payload); shape && shape->kind != core::ShapeKind::Arc) {
+            if (const auto* shape = std::get_if<core::ShapeLayer>(&layer.payload); !layer.mirror && shape && shape->kind != core::ShapeKind::Arc) {
                 // Owned arc geometry must not survive conversion as opaque
                 // descriptor metadata on another shape kind.
                 auto descriptor = saved["shape"].toObject();
                 descriptor.remove("startAngle"); descriptor.remove("sweepAngle");
                 saved["shape"] = descriptor;
             }
+            if (layer.mirror) {
+                for (const auto* key : {"raster","text","shape","adjustmentLayer"}) saved.remove(key);
+            } else saved.remove("mirror");
             saved.remove("layerMask");
-            if (layer.mask) {
+            if (layer.mask && !layer.mirror) {
                 require(core::validLayerMask(layer.mask), "Invalid layer mask");
                 containsLayerMasks = true;
                 const auto& m = *layer.mask;
@@ -356,7 +367,7 @@ namespace {
                     {"transform",QJsonArray{a.m00,a.m01,a.m02,a.m10,a.m11,a.m12,a.m20,a.m21,a.m22}}};
             }
             saved.remove("rasterLocalFrame");
-            if(std::holds_alternative<core::RasterLayer>(layer.payload)&&(layer.rasterOrigin!=core::Vec2d{}||layer.rasterEffectFrame)) {
+            if(!layer.mirror && std::holds_alternative<core::RasterLayer>(layer.payload)&&(layer.rasterOrigin!=core::Vec2d{}||layer.rasterEffectFrame)) {
                 containsRasterFrame=true;
                 QJsonObject frame{{"origin",QJsonArray{layer.rasterOrigin.x,layer.rasterOrigin.y}}};
                 if(layer.rasterEffectFrame){const auto r=*layer.rasterEffectFrame;frame["effectReference"]=QJsonArray{r.x,r.y,r.width,r.height};}
@@ -365,7 +376,7 @@ namespace {
             // Cropping is owned geometry, not opaque metadata. Clearing it
             // must reveal the full source without reviving a prior crop.
             saved.remove("crop");
-            if (layer.crop) {
+            if (layer.crop && !layer.mirror) {
                 require(core::validLayerCrop(*layer.crop), "Invalid layer crop; project was not saved");
                 const auto& crop = *layer.crop;
                 saved["crop"] = QJsonObject { { "version", 1 }, { "x", crop.x }, { "y", crop.y },
@@ -394,11 +405,11 @@ namespace {
                 containsBevel|=layer.effects->items[7]!=core::defaultLayerEffect(core::LayerEffectType::BevelEmboss);
                 containsMultiStopGradient |= !layer.effects->items[std::size_t(core::LayerEffectType::GradientOverlay)].gradientStops.empty();
             }
-            if(layer.filters) {
+            if(layer.filters && !layer.mirror) {
                 saved["spatialFilters"]=detail::encodeSpatialFilters(*layer.filters,layer.id);
                 containsSpatialFilters=true;
             }
-            if (layer.adjustments) {
+            if (layer.adjustments && !layer.mirror) {
                 saved["adjustments"] = detail::encodeAdjustments(*layer.adjustments, layer.id);
                 containsAdjustments = true;
             }
@@ -474,7 +485,16 @@ namespace {
             result["required"] = required;
         }
         if(containsBlendV3) {auto required=result["required"].toArray();required.append("blend-modes-v3");result["required"]=required;}
+        if (containsMirrors) {
+            auto required=result["required"].toArray();required.append("mirrored-layer-v1");result["required"]=required;
+        }
         result["layers"] = layers;
+        result.remove("guides");
+        if (doc.guides() != core::DocumentGuides{}) {
+            result["guides"] = encodeDocumentGuides(doc.guides());
+            auto required = result["required"].toArray();
+            required.append("document-guides-v1"); result["required"] = required;
+        }
         // Timeline data is owned, not opaque metadata. Removing frames must
         // never resurrect captures from the manifest used to open the project.
         result.remove("snapshotTimeline");
@@ -560,6 +580,7 @@ namespace {
     }
     struct LayerPlan {
         core::Layer layer;
+        std::optional<core::LayerMirror> mirror;
         core::Extent2u extent;
         QString path;
         core::RasterDataKind dataKind {core::RasterDataKind::Color};
@@ -575,6 +596,7 @@ namespace {
     };
     struct Plan {
         core::CanvasSpec canvas;
+        core::DocumentGuides guides;
         bool hasLastSelection {false};
         std::vector<LayerPlan> layers;
         core::LayerTree tree;
@@ -582,6 +604,7 @@ namespace {
         std::vector<SnapshotFramePlan> frames;
         core::SnapshotFrameId nextFrameId {2};
         quint64 snapshotBytes {0}, snapshotDecodeBytes {0};
+        quint64 mirrorTypedBytes {0};
     };
     core::LayerTree decodeHierarchy(const QJsonValue& value, std::span<const core::LayerId> leaves)
     {
@@ -661,7 +684,7 @@ namespace {
                     || capability == "selection-recall-v1" || capability == "layer-effects-v1" || capability == "bevel-emboss-v1" || capability == "projective-transform-v1" || capability == "raster-local-frame-v1" || capability == "layer-mask-v1"
                     || capability == "encoded-srgb-compositing-v1" || capability == "layer-fill-opacity-v1"
                     || capability == "layer-effects-advanced-blending-v1" || capability == "multi-stop-gradient-v1"
-                    || capability == "snapshot-timeline-v1" || capability == "scalar-raster-v1"
+                    || capability == "snapshot-timeline-v1" || capability == "mirrored-layer-v1" || capability == "document-guides-v1" || capability == "scalar-raster-v1"
                     || capability == "packed-data-v1" || capability == "channel-group-v1",
                 "Project requires unsupported capabilities");
         require(o["canvas"].isObject() && o["layers"].isArray(), "Missing canvas or layers");
@@ -670,6 +693,10 @@ namespace {
                 && (!canvas.contains("pixelFormat") || canvas["pixelFormat"] == "rgba8-straight"),
             "Unsupported document color pipeline");
         Plan result;
+        if (o.contains("guides")) {
+            require(required.contains("document-guides-v1"), "Undeclared document guides");
+            result.guides = decodeDocumentGuides(o["guides"]);
+        } else require(!required.contains("document-guides-v1"), "Missing required document guides");
         result.canvas = { extent(canvas), number(canvas.value("ppi").isUndefined() ? QJsonValue(96) : canvas["ppi"], 1, 1200, "Invalid canvas resolution") };
         const auto compositing = canvas.value("compositingSpace");
         require(compositing.isUndefined() || compositing == "linear-srgb" || compositing == "encoded-srgb",
@@ -868,7 +895,13 @@ namespace {
                         "Missing, duplicate or incorrectly sized adjustment-mask payload");
                 }
             }
-            if (l["type"] == "raster") {
+            if (l["type"] == "mirror") {
+                require(required.contains("mirrored-layer-v1"), "Undeclared mirrored layer");
+                require(!l.contains("layerMask") && !l.contains("crop") && !l.contains("rasterLocalFrame")
+                    && !l.contains("adjustments") && !l.contains("spatialFilters"), "Mirrored content must inherit from its source");
+                p.mirror=decodeLayerMirror(l["mirror"]);
+                p.layer.payload=core::RasterLayer{std::make_shared<core::ContiguousRasterSurface>(core::Extent2u{1,1})};
+            } else if (l["type"] == "raster") {
                 require(l["raster"].isObject(), "Missing raster descriptor");
                 const auto r = l["raster"].toObject();
                 p.extent = extent(r);
@@ -940,7 +973,35 @@ namespace {
                 p.layer.payload = std::move(shape);
             } else
                 throw std::runtime_error("Unsupported layer type; project was not opened");
+            require(l["type"] == "mirror" || !l.contains("mirror"), "Mirror descriptor on an independent layer");
             result.layers.push_back(std::move(p));
+        }
+        // Validate source references before decoding any image payload, without
+        // allocating mirror copies or depending on storage that is not loaded yet.
+        for (const auto& layer:result.layers) if (layer.mirror) {
+            const auto* current=&layer;
+            for (std::size_t depth=0;current->mirror;++depth) {
+                require(depth<result.layers.size(), "Cyclic mirrored-layer source graph");
+                const auto source=std::ranges::find_if(result.layers,[&](const LayerPlan& candidate){
+                    return candidate.layer.id==current->mirror->source;
+                });
+                require(source!=result.layers.end() && source->layer.id!=layer.layer.id
+                    && source->dataKind==core::RasterDataKind::Color
+                    && !std::holds_alternative<core::AdjustmentLayer>(source->layer.payload), "Invalid mirrored-layer source");
+                current=&*source;
+            }
+            if (!current->path.isEmpty()) {
+                // A mirror owns its transform, but inherits the source's full
+                // raster geometry. Apply the same horizon check as a raster
+                // descriptor, including chains whose source appears later.
+                require(layer.layer.localToDocument.validOver({current->layer.rasterOrigin.x,
+                    current->layer.rasterOrigin.y, double(current->extent.width), double(current->extent.height)}),
+                    "Projective horizon crosses mirrored raster content");
+            } else if (const auto* text=std::get_if<core::TextLayer>(&current->layer.payload)) {
+                result.mirrorTypedBytes=checkedBytes(result.mirrorTypedBytes,core::textMemoryCost(*text));
+            } else if (const auto* shape=std::get_if<core::ShapeLayer>(&current->layer.payload)) {
+                result.mirrorTypedBytes=checkedBytes(result.mirrorTypedBytes,core::shapeMemoryCost(*shape));
+            }
         }
         if (o.contains("hierarchy")) {
             require(required.contains("hierarchy-v1"), "Hierarchy requires declared hierarchy-v1 capability");
@@ -999,8 +1060,12 @@ ProjectLoadResult loadProject(const QString& path, ProjectProgress callback, Pro
         // new resident pixels, mask decoding, upload staging and driver backing.
         // Do not apply this admission to the save-time streaming CRC pass.
         const auto twicePixels = checkedBytes(plan.bytes, plan.bytes);
+        // Raster mirrors share their source storage. Typed mirrors retain value
+        // copies, so a small manifest can still expand substantially on load.
+        // Admit resolved values plus a temporary copy before graph publication.
+        const auto mirrorCopies = checkedBytes(plan.mirrorTypedBytes, plan.mirrorTypedBytes);
         const auto estimate = checkedBytes(checkedBytes(checkedBytes(twicePixels, twicePixels),
-            checkedBytes(plan.snapshotBytes, plan.snapshotDecodeBytes)), 64ULL * 1024 * 1024);
+            checkedBytes(plan.snapshotBytes, plan.snapshotDecodeBytes)), checkedBytes(64ULL * 1024 * 1024,mirrorCopies));
         const auto allowance = limits.workingBytes ? limits.workingBytes : platform::availableWorkingMemoryBytes();
         if (estimate > allowance)
             throw std::runtime_error(QStringLiteral(
@@ -1080,8 +1145,17 @@ ProjectLoadResult loadProject(const QString& path, ProjectProgress callback, Pro
             }
             require(doc->insertLayer(doc->layers().size(), std::move(p.layer)), "Cannot restore layer");
         }
-        require(doc->tree() == plan.tree || doc->replaceStructure(doc->tree(), std::move(plan.tree)),
-            "Cannot restore layer hierarchy");
+        std::vector<core::LayerId> mirrorIds;
+        std::vector<core::Layer> mirrors;
+        for (const auto& layer:plan.layers) if (layer.mirror) {
+            auto restored=*doc->layer(layer.layer.id);
+            restored.mirror=layer.mirror;
+            mirrorIds.push_back(restored.id);mirrors.push_back(std::move(restored));
+        }
+        require((doc->tree() == plan.tree && mirrors.empty())
+                || doc->replaceStructure(doc->tree(), std::move(plan.tree),mirrorIds,mirrors),
+            "Cannot restore layer hierarchy or mirrored layers");
+        doc->resolveMirrors();
         if (!plan.frames.empty()) {
             core::SnapshotTimelineState timeline;
             timeline.frames.clear();
@@ -1109,6 +1183,8 @@ ProjectLoadResult loadProject(const QString& path, ProjectProgress callback, Pro
                     || doc->setSnapshotTimeline(doc->snapshotTimeline(), std::move(timeline)),
                 "Cannot restore snapshot timeline");
         }
+        if (plan.guides != doc->guides())
+            require(doc->setGuides(doc->guides(),plan.guides), "Cannot restore document guides");
         zip.finish();
         progress.tick();
         doc->markSaved();
@@ -1154,13 +1230,14 @@ ProjectIoResult saveProject(const QString& path, const core::Document& doc, cons
             expected.emplace("selections/last.r8",Entry{0,n,0}); bytes+=n;
         }
         for (const auto& layer : doc.layers())
-            if (const auto* r = std::get_if<core::RasterLayer>(&layer.payload)) {
+            if (const auto* r = std::get_if<core::RasterLayer>(&layer.payload); r && !layer.mirror) {
                 const auto e = r->surface->extent();
                 const auto n = quint64(e.width) * e.height * r->surface->nativeBytesPerPixel();
                 expected.emplace(rasterPath(layer.id, r->surface->dataKind()), Entry { 0, n, 0 });
                 bytes += n;
             }
         for (const auto& layer : doc.layers()) {
+            if (layer.mirror) continue;
             if (layer.mask) {
                 const auto e=layer.mask->coverage->extent();const auto n=quint64(e.width)*e.height;
                 expected.emplace(QStringLiteral("layer-masks/%1.r8").arg(layer.id),Entry{0,n,0});bytes+=n;
@@ -1175,6 +1252,7 @@ ProjectIoResult saveProject(const QString& path, const core::Document& doc, cons
             }
         }
         for(const auto& layer:doc.layers()) {
+            if (layer.mirror) continue;
             if(!layer.filters)continue;
             for(const auto& filter:layer.filters->items) {
                 if(!filter.mask)continue;
@@ -1251,7 +1329,7 @@ ProjectIoResult saveProject(const QString& path, const core::Document& doc, cons
                 },progress);
             }
             for (const auto& layer : doc.layers())
-                if (const auto* r = std::get_if<core::RasterLayer>(&layer.payload)) {
+                if (const auto* r = std::get_if<core::RasterLayer>(&layer.payload); r && !layer.mirror) {
                     const auto e = r->surface->extent();
                     const size_t stride = size_t(e.width) * r->surface->nativeBytesPerPixel();
                     const auto rows = std::max<size_t>(1, chunkSize / stride);
@@ -1264,6 +1342,7 @@ ProjectIoResult saveProject(const QString& path, const core::Document& doc, cons
                     } }, progress);
                 }
             for (const auto& layer : doc.layers()) {
+            if (layer.mirror) continue;
                 if (layer.mask) {
                     const auto& coverage=*layer.mask->coverage;
                     const auto e=coverage.extent();const auto rows=std::max<size_t>(1,chunkSize/e.width);
@@ -1298,6 +1377,7 @@ ProjectIoResult saveProject(const QString& path, const core::Document& doc, cons
                 }
             }
             for(const auto& layer:doc.layers()) {
+            if (layer.mirror) continue;
                 if(!layer.filters)continue;
                 for(const auto& filter:layer.filters->items) {
                     if(!filter.mask)continue;

@@ -1,3 +1,4 @@
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/ui/BackgroundRemoval.hpp"
 #include "imageeditor/ui/BackgroundRemovalMask.hpp"
 #include "imageeditor/ui/BackgroundRemovalPanel.hpp"
@@ -92,7 +93,7 @@ struct BackgroundRemovalWorkspace {
             return false;
         const auto* layer = doc->layer(target);
         const auto* raster = layer ? std::get_if<core::RasterLayer>(&layer->payload) : nullptr;
-        return raster && raster->surface && (source.rgba.isNull()
+        return raster && !core::isMirroredLayer(*layer) && raster->surface && (source.rgba.isNull()
             || (raster->surface->id() == source.sourceId && raster->surface->revision() == source.sourceRevision));
     }
 };
@@ -113,7 +114,7 @@ void MainWindow::refreshBackgroundRemovalAction()
     const auto* doc = session().document();
     const auto* layer = doc && session().activeLayer() ? doc->layer(*session().activeLayer()) : nullptr;
     const auto* raster = layer ? std::get_if<core::RasterLayer>(&layer->payload) : nullptr;
-    const bool compatible = raster && raster->surface && !core::isScalarLayer(*layer) && !core::isPackedDataLayer(*layer)
+    const bool compatible = raster && raster->surface && !core::isMirroredLayer(*layer) && !core::isScalarLayer(*layer) && !core::isPackedDataLayer(*layer)
         && (!layer->mask || layer->mask->enabled);
     removeBackgroundAction_->setEnabled(compatible && session().selectedLayers().size() == 1
         && !fileBusy_ && !workspaceDialog_ && !refinement_ && !backgroundRemoval_

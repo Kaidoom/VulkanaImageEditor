@@ -1,3 +1,4 @@
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/LayerCrop.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
@@ -126,6 +127,9 @@ bool MainWindow::beginCloneStroke(const core::NormalizedPointerSample& sample)
     auto* doc = session().document();
     const auto target = session().activeLayer();
     const auto* layer = doc && target ? doc->layer(*target) : nullptr;
+    if (layer && core::isMirroredLayer(*layer)) {
+        statusBar()->showMessage(i18n::text("layers.mirror.read.only"), 4000); return false;
+    }
     if (!layer || !std::holds_alternative<core::RasterLayer>(layer->payload)) {
         statusBar()->showMessage(
             i18n::text("main.window.cloning.cloning.writes.to.raster.layers.select.or.create.a"), 5000);

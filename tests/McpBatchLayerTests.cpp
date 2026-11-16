@@ -2,6 +2,7 @@
 #include "imageeditor/ui/McpController.hpp"
 #include "imageeditor/ui/ProjectFile.hpp"
 #include "imageeditor/core/ColorSampler.hpp"
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "NativeGraphicsStartup.hpp"
 #include <QApplication>
 #include <QJsonDocument>
@@ -347,6 +348,50 @@ void bulkStyleRejectsBeforeEditing()
     f.request("vulkana_layers_style",{{"layerIds",QJsonArray{created[0],folder}},{"visible",false}},true);
     CHECK(f.doc().revision()==groupedRevision && f.doc().layer(created[0].toString().toULongLong())->visible);
 }
+void mirroredStyleBatchPreservesInheritanceAndAtomicUndo()
+{
+    Fixture f;
+    const auto sourceText = f.batch({pixel("Mirror source")})["layerIds"].toArray()[0].toString();
+    const auto sourceId = sourceText.toULongLong();
+    f.request("vulkana_effect_set",{{"layerId",sourceText},{"type","stroke"},
+        {"parameters",QJsonObject{{"size",6},{"enabled",true}}}});
+    f.session().setActiveLayer(sourceId);
+    CHECK(f.session().execute(c::createMirroredLayer(f.doc(),f.session().layerSelectionState())));
+    const auto mirrorId = *f.session().activeLayer();
+    const auto mirrorText = QString::number(mirrorId);
+    const auto originalLink = f.doc().layer(mirrorId)->mirror;
+    const auto depth = f.session().history().undoDepth();
+    const auto selected = f.session().layerSelectionState();
+    const QJsonObject patch{{"layerIds",QJsonArray{sourceText,mirrorText}}, {"opacity",.4}, {"fillOpacity",.6},
+        {"blendMode","screen"}, {"effect",QJsonObject{{"type","stroke"},{"parameters",QJsonObject{{"size",3}}}}}};
+    CHECK(f.request("vulkana_layers_style",patch)["changed"].toBool());
+    const auto* mirror = f.doc().layer(mirrorId);
+    CHECK(mirror->mirror->opacityOverride && mirror->mirror->fillOpacityOverride && mirror->mirror->blendModeOverride);
+    CHECK(mirror->mirror->effects[0] == c::MirrorEffectMode::Override && mirror->effects->items[0].size == 3);
+    CHECK(f.session().history().undoDepth() == depth+1 && f.session().layerSelectionState() == selected);
+    CHECK(!f.request("vulkana_layers_style",patch)["changed"].toBool());
+    // Stale later target prevents undo from partially restoring the source.
+    CHECK(f.doc().setLayerOpacity(mirrorId,.9F));
+    CHECK(!f.session().undo());
+    CHECK(f.doc().layer(sourceId)->opacity == .4F && f.doc().layer(mirrorId)->opacity == .9F);
+    CHECK(f.doc().setLayerOpacity(mirrorId,.4F));
+    CHECK(f.session().undo());
+    CHECK(f.doc().layer(mirrorId)->mirror == originalLink);
+    CHECK(f.doc().layer(sourceId)->opacity == 1 && f.doc().layer(mirrorId)->opacity == 1);
+    CHECK(f.doc().layer(mirrorId)->effects->items[0].size == 6);
+    CHECK(f.session().redo());
+    mirror = f.doc().layer(mirrorId);
+    CHECK(mirror->mirror->effects[0] == c::MirrorEffectMode::Override && mirror->effects->items[0].size == 3);
+    // Disabling a custom effect resumes inheritance even if the source is on.
+    CHECK(f.request("vulkana_layers_style",{{"layerIds",QJsonArray{mirrorText}},
+        {"effect",QJsonObject{{"type","stroke"},{"parameters",QJsonObject{{"enabled",false}}}}}})["changed"].toBool());
+    mirror = f.doc().layer(mirrorId);
+    CHECK(mirror->mirror->effects[0] == c::MirrorEffectMode::Inherit && mirror->effects->items[0].enabled);
+    CHECK(f.session().undo());
+    CHECK(f.doc().layer(mirrorId)->mirror->effects[0] == c::MirrorEffectMode::Override);
+    CHECK(f.session().redo());
+    CHECK(f.doc().layer(mirrorId)->mirror->effects[0] == c::MirrorEffectMode::Inherit);
+}
 void effectStateEquality()
 {
     const auto defaults=std::make_shared<c::LayerEffectStack>();
@@ -363,6 +408,7 @@ int main(int argc, char** argv)
     QSettings::setDefaultFormat(QSettings::IniFormat); QSettings::setPath(QSettings::IniFormat,QSettings::UserScope,settings.path());
     mixedCreationIsOneUndo(); parentAndIndexAreSequential(); rejectionPreservesDocumentAndRedo();
     nativeLimitsAndArcIdempotence(); bulkStyleIsAtomicAndLightweight(); bulkStyleRejectsBeforeEditing(); effectStateEquality();
+    mirroredStyleBatchPreservesInheritanceAndAtomicUndo();
     hierarchicalCreationAndForwardReferences(); hierarchyFailuresDoNotPublish(); hierarchyIndicesAndCompactResponses();
     std::cout << "MCP layer batching: " << failures << " failures\n";
     return failures ? 1 : 0;

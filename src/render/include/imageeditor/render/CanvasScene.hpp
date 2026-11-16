@@ -79,6 +79,9 @@ struct CanvasScene {
     core::RectI pointerTooltipArea; // Unobscured workspace area in logical pixels; empty uses viewport.
     std::optional<core::MeasurementLine> measurement;
     core::SnapGuides snapGuides;
+    bool documentGuidesVisible {true};
+    std::vector<core::DocumentGuide> guidePreview;
+    std::optional<std::uint64_t> highlightedGuide, draggedGuide;
     bool measureActive {false};
     bool cursorInside {false};
     bool eyedropperActive {false};

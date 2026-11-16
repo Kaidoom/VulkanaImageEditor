@@ -116,6 +116,7 @@ private:
     std::array<Page, core::adjustmentCount> pages_;
     bool updating_ {false}, editing_ {false}, hasSelection_ {false}, finishing_ {false};
     bool scalarValues_ {false};
+    bool mirrorReadOnly_ {false};
     int savedLevelsChannel_ {0}, savedCurvesChannel_ {0}, savedCategory_ {0};
     std::array<int,3> savedNavigation_ {};
     core::AdjustmentType editingType_ {core::AdjustmentType::Exposure};

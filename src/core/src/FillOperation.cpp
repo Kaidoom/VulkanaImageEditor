@@ -1,3 +1,4 @@
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/core/FillOperation.hpp"
 #include "imageeditor/core/ColorMath.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
@@ -16,6 +17,8 @@ FillOperation::FillOperation(Document& document, LayerId layer, FillOptions opti
         const auto* target = document.layer(layer);
         if (!target || !std::holds_alternative<RasterLayer>(target->payload))
             throw std::invalid_argument("Fill requires a raster layer");
+        if (isMirroredLayer(*target))
+            throw std::invalid_argument("Mirrored layers are read-only. Promote to a full layer before editing content.");
         surface_ = std::get<RasterLayer>(target->payload).surface;
         mapping_ = intrinsicTransform(*target);
         const auto inverse = mapping_.inverted();

@@ -1,4 +1,5 @@
 #include "imageeditor/core/LayerCommands.hpp"
+#include "imageeditor/core/MirroredLayers.hpp"
 
 #include "imageeditor/core/Document.hpp"
 #include "imageeditor/core/RichText.hpp"
@@ -162,13 +163,19 @@ bool SetLayerOpacityCommand::apply(Document& document)
     }
     if (!before_) {
         before_ = target->opacity;
+        beforeMirror_ = target->mirror;
     }
-    return document.setLayerOpacity(layerId_, after_);
+    const bool changed=document.setLayerOpacity(layerId_, after_);
+    if (afterMirror_) return document.setLayerMirrorState(layerId_,afterMirror_) || changed;
+    if (changed) afterMirror_=document.layer(layerId_)->mirror;
+    return changed;
 }
 
 bool SetLayerOpacityCommand::undo(Document& document)
 {
-    return before_.has_value() && document.setLayerOpacity(layerId_, *before_);
+    if (!before_) return false;
+    const bool changed=document.setLayerOpacity(layerId_, *before_);
+    return (beforeMirror_ && document.setLayerMirrorState(layerId_,beforeMirror_)) || changed;
 }
 
 bool SetLayerOpacityCommand::mergeWith(const Command& other)
@@ -179,6 +186,7 @@ bool SetLayerOpacityCommand::mergeWith(const Command& other)
         return false;
     }
     after_ = opacityCommand->after_;
+    afterMirror_ = opacityCommand->afterMirror_;
     return true;
 }
 
@@ -190,18 +198,24 @@ bool SetLayerFillOpacityCommand::apply(Document& document)
     const auto* layer = document.layer(id_);
     if (!layer || !std::isfinite(after_)) return false;
     after_ = std::clamp(after_, 0.0F, 1.0F);
-    if (!before_) before_ = layer->fillOpacity;
-    return document.setLayerFillOpacity(id_, after_);
+    if (!before_) { before_ = layer->fillOpacity; beforeMirror_=layer->mirror; }
+    const bool changed=document.setLayerFillOpacity(id_, after_);
+    if (afterMirror_) return document.setLayerMirrorState(id_,afterMirror_) || changed;
+    if (changed) afterMirror_=document.layer(id_)->mirror;
+    return changed;
 }
 bool SetLayerFillOpacityCommand::undo(Document& document)
 {
-    return before_ && document.setLayerFillOpacity(id_, *before_);
+    if (!before_) return false;
+    const bool changed=document.setLayerFillOpacity(id_, *before_);
+    return (beforeMirror_ && document.setLayerMirrorState(id_,beforeMirror_)) || changed;
 }
 bool SetLayerFillOpacityCommand::mergeWith(const Command& other)
 {
     const auto* next = dynamic_cast<const SetLayerFillOpacityCommand*>(&other);
     if (!next || !mergeKey_ || next->mergeKey_ != mergeKey_ || next->id_ != id_ || next->after_ == before_) return false;
     after_ = next->after_;
+    afterMirror_ = next->afterMirror_;
     return true;
 }
 
@@ -209,12 +223,19 @@ bool SetLayerBlendModeCommand::apply(Document& document)
 {
     const auto* target = document.layer(layerId_);
     if (!target || !isValidBlendMode(after_)) return false;
-    if (!before_) before_ = target->blendMode;
-    return document.setLayerBlendMode(layerId_, after_);
+    if (!before_) { before_ = target->blendMode; beforeMirror_=target->mirror; }
+    const bool changed=document.setLayerBlendMode(layerId_, after_);
+    if (afterMirror_) return document.setLayerMirrorState(layerId_,afterMirror_) || changed;
+    if (changed) afterMirror_=document.layer(layerId_)->mirror;
+    return changed;
 }
 
 bool SetLayerBlendModeCommand::undo(Document& document)
-{ return before_ && document.setLayerBlendMode(layerId_, *before_); }
+{
+    if (!before_) return false;
+    const bool changed=document.setLayerBlendMode(layerId_, *before_);
+    return (beforeMirror_ && document.setLayerMirrorState(layerId_,beforeMirror_)) || changed;
+}
 
 AddLayerCommand::AddLayerCommand(Layer layer, std::size_t index, std::optional<LayerId> previousActive)
     : layer_(std::move(layer))
@@ -262,6 +283,15 @@ bool RemoveLayerCommand::apply(Document& document)
     if (document.layers().size() <= 1) {
         return false;
     }
+    if (!mirroredRemoval_ && std::ranges::any_of(document.layers(),[&](const Layer& layer){
+            return layer.mirror && layer.mirror->source==layerId_;})) {
+        auto tree=document.tree(); const auto placement=tree.placement(layerId_);
+        if (!placement) return false;
+        auto* siblings=tree.children(placement->parent);
+        siblings->erase(siblings->begin()+std::ptrdiff_t(placement->index));
+        mirroredRemoval_=std::make_unique<LayerStructureCommand>("Delete layer",document,std::move(tree),std::vector<LayerId>{layerId_});
+    }
+    if (mirroredRemoval_) return mirroredRemoval_->apply(document);
     auto removed = document.takeLayer(layerId_);
     if (!removed) {
         return false;
@@ -279,11 +309,13 @@ bool RemoveLayerCommand::apply(Document& document)
 
 bool RemoveLayerCommand::undo(Document& document)
 {
+    if (mirroredRemoval_) return mirroredRemoval_->undo(document);
     return removedLayer_.has_value() && placement_ && document.insertLayerAt(*placement_, *removedLayer_);
 }
 
 std::size_t RemoveLayerCommand::memoryCost() const noexcept
 {
+    if (mirroredRemoval_) return saturatingAdd(sizeof(*this),mirroredRemoval_->memoryCost());
     return removedLayer_
         ? saturatingAdd(sizeof(*this), retainedLayerCost(*removedLayer_))
         : sizeof(*this);

@@ -133,6 +133,7 @@ QString activeToolName(core::ToolId tool)
     case core::ToolId::Transform: return "transform";
     case core::ToolId::Shape: return "shape";
     case core::ToolId::Measure: return "measure";
+    case core::ToolId::Guides: return "guides";
     case core::ToolId::SelectByColor: return "color_select";
     case core::ToolId::Crop: return "crop";
     case core::ToolId::SmartSelect: return "smart_select";

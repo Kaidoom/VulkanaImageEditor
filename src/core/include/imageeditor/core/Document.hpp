@@ -6,6 +6,7 @@
 #include "imageeditor/core/SelectionEvidence.hpp"
 #include "imageeditor/core/CompositingSpace.hpp"
 #include "imageeditor/core/SnapshotTimeline.hpp"
+#include "imageeditor/core/DocumentGuides.hpp"
 
 #include <cstddef>
 #include <optional>
@@ -64,6 +65,7 @@ struct DocumentSnapshot {
     SelectionState selection;
     Revision selectionRevision {0};
     LayerTree tree;
+    DocumentGuides guides;
 };
 
 struct RemovedLayer {
@@ -102,7 +104,7 @@ public:
     // History and retractable edit branches alone advance/restore these IDs.
     void advanceContentState() noexcept;
     void restoreContentState(std::uint64_t state) noexcept { contentState_ = state; }
-    [[nodiscard]] const std::vector<Layer>& layers() const noexcept { return layers_; }
+    [[nodiscard]] const std::vector<Layer>& layers() const { resolveMirrors(); return layers_; }
     // Materialized leaf traversal of tree(), shared by all content consumers.
     [[nodiscard]] const LayerTree& tree() const noexcept { return tree_; }
     [[nodiscard]] bool containsItem(LayerId id) const noexcept { return containsLayer(id) || tree_.container(id); }
@@ -131,6 +133,12 @@ public:
     [[nodiscard]] const Layer* layer(LayerId id) const noexcept;
     [[nodiscard]] Layer* layer(LayerId id) noexcept;
     [[nodiscard]] bool containsLayer(LayerId id) const noexcept;
+    // Resolve inherited fields transactionally. Explicit readers such as save
+    // and rendering must propagate allocation/invalid-link errors, never stale data.
+    void resolveMirrors() const;
+    bool setLayerMirrorState(LayerId, std::optional<LayerMirror>);
+    // Restore appearance and inheritance together for history/live-edit rollback.
+    bool restoreMirrorAppearance(LayerId, const Layer&);
 
     bool insertLayer(std::size_t index, Layer layer);
     [[nodiscard]] std::optional<RemovedLayer> takeLayer(LayerId id);
@@ -143,7 +151,7 @@ public:
     bool setLayerAdjustments(LayerId id, AdjustmentState);
     bool setAdjustmentScope(LayerId, AdjustmentScope);
     bool setLayerFilters(LayerId id, SpatialFilterState);
-    bool setLayerEffects(LayerId id, LayerEffectState);
+    bool setLayerEffects(LayerId id, LayerEffectState, bool overrideAll = false);
     bool setLayerCrop(LayerId, std::optional<LayerCrop>);
     bool setLayerMask(LayerId, LayerMaskState);
     bool renameLayer(LayerId id, std::string name);
@@ -173,22 +181,29 @@ public:
     // Guarded publication keeps stale UI/history operations from replacing a
     // newer timeline. It never changes live layers, selections or canvas size.
     bool setSnapshotTimeline(const SnapshotTimelineState& expected, SnapshotTimelineState replacement);
+    [[nodiscard]] const DocumentGuides& guides() const noexcept { return guides_; }
+    bool setGuides(const DocumentGuides& expected, DocumentGuides replacement);
 
     [[nodiscard]] DocumentSnapshot snapshot() const;
 
 private:
+    [[nodiscard]] Layer* rawLayer(LayerId) noexcept;
+    [[nodiscard]] const Layer* rawLayer(LayerId) const noexcept;
     void touch() noexcept { ++revision_; }
 
     CanvasSpec canvas_;
     Revision revision_ {1};
     std::uint64_t contentState_ {0}, savedState_ {0};
-    std::vector<Layer> layers_;
+    mutable std::vector<Layer> layers_;
+    mutable Revision mirrorsResolvedRevision_ {};
+    std::size_t mirroredLayerCount_ {};
     LayerTree tree_;
     SelectionState selection_;
     SelectionState lastSelection_; // Last completed mask, never an interaction preview.
     SelectionEvidenceState selectionEvidence_;
     Revision selectionRevision_ {1};
     SnapshotTimelineState snapshotTimeline_;
+    DocumentGuides guides_;
 };
 
 } // namespace imageeditor::core

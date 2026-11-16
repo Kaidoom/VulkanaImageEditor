@@ -2,6 +2,7 @@
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/core/LayerMaskEdit.hpp"
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/core/LayerStructureCommands.hpp"
 #include "imageeditor/core/SelectionCommands.hpp"
 #include "imageeditor/core/SelectionRefinement.hpp"
@@ -435,7 +436,7 @@ void MainWindow::refreshRefinementActions() {
                      shortcutGestureIdle(true);
   refineSelectionAction_->setEnabled(ready && doc->selection() &&
                                      !doc->selection()->bounds().empty());
-  refineMaskAction_->setEnabled(ready && layer && layer->mask);
+  refineMaskAction_->setEnabled(ready && layer && !core::isMirroredLayer(*layer) && layer->mask);
 }
 void MainWindow::beginRefinement(bool mask) {
   if (refinement_ || fileBusy_ || workspaceDialog_ || !session().document() ||
@@ -445,6 +446,7 @@ void MainWindow::beginRefinement(bool mask) {
   const auto *layer =
       session().activeLayer() ? doc->layer(*session().activeLayer()) : nullptr;
   if (layer && (core::isScalarLayer(*layer) || core::isPackedDataLayer(*layer))) return;
+  if (mask && layer && core::isMirroredLayer(*layer)) return;
   if (mask ? (!layer || !layer->mask)
            : (!doc->selection() || doc->selection()->bounds().empty()))
     return;
@@ -584,7 +586,7 @@ void MainWindow::beginRefinement(bool mask) {
     r->output->setMinimumContentsLength(8);
     r->output->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
     i18n::addItem(r->output, i18n::text("main.window.refinement.selection"));
-    if (layer) {
+    if (layer && !core::isMirroredLayer(*layer)) {
       i18n::addItem(r->output, layer->mask
               ? i18n::text("main.window.refinement.replace.layer.mask.1")
                     .arg(QString::fromStdString(layer->name))
@@ -830,6 +832,7 @@ void MainWindow::advanceRefinement() {
         if (source == 1) {
           core::Document single(reference.canvas());
           auto l = *reference.layer(target);
+          l.mirror.reset();
           l.visible = true;
           l.opacity = 1;
           l.fillOpacity = 1;

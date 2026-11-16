@@ -43,6 +43,7 @@ add_library(imageeditor_render STATIC
     src/CanvasWindow.cpp
     src/GraphicsDeviceProbe.cpp
     src/CanvasMeasure.cpp
+    src/CanvasGuides.cpp
     src/CanvasSelection.cpp
     src/CanvasLayerOutlines.cpp
     src/PointerTooltip.cpp

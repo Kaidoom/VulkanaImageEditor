@@ -86,6 +86,7 @@ const QList<ShortcutDefinition>& shortcutDefinitions()
         add("ToolAction_text", i18n::text("editor.shortcuts.text"), i18n::text("editor.shortcuts.tools"), "T");
         add("ToolAction_shape", i18n::text("editor.shortcuts.shape"), i18n::text("editor.shortcuts.tools"), "U");
         add("ToolAction_measure", i18n::text("editor.shortcuts.measure.tool"), i18n::text("editor.shortcuts.tools"), "Shift+R");
+        add("ToolAction_guides",i18n::text("guides.tool"),i18n::text("editor.shortcuts.tools"));
         add("TemporaryMeasureAction", i18n::text("editor.shortcuts.temporary.measure.hold"), i18n::text("editor.shortcuts.tools"), "R", CanvasKeys, false, true);
         add("ToolAction_eyedropper", i18n::text("editor.shortcuts.eyedropper"), i18n::text("editor.shortcuts.tools"), "I");
         add("DecreaseBrushSizeAction", i18n::text("editor.shortcuts.decrease.brush.tool.size"), i18n::text("editor.shortcuts.tools"), "[", EditorKeys, true);

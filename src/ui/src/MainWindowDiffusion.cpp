@@ -1,3 +1,4 @@
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/ui/DiffusionWorkers.hpp"
 #include "imageeditor/ui/UpdateService.hpp"
 #include "imageeditor/ui/Localization.hpp"
@@ -986,7 +987,7 @@ void MainWindow::refreshDiffusion() {
                           ? doc->layer(*session().activeLayer())
                           : nullptr;
   const bool selected =
-      layer && std::holds_alternative<core::RasterLayer>(layer->payload) &&
+      layer && !core::isMirroredLayer(*layer) && std::holds_alternative<core::RasterLayer>(layer->payload) &&
       std::get<core::RasterLayer>(layer->payload).surface &&
       std::get<core::RasterLayer>(layer->payload).surface->dataKind() == core::RasterDataKind::Color;
   s.panel->setTargetCompatible(selected);

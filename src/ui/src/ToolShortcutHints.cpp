@@ -118,6 +118,11 @@ void ToolShortcutHints::rebuild()
     } else if (tool_ == T::Measure) {
         command("TemporaryMeasureAction");
         add("Shift", i18n::text("properties.shortcuts.constrain"));
+    } else if (tool_ == T::Guides) {
+        add(i18n::text("guides.key.click"),i18n::text("guides.hint.place"));
+        add(i18n::text("guides.key.drag"),i18n::text("guides.hint.move"));
+        add(i18n::text("guides.key.right"),i18n::text("guides.hint.remove"));
+        add(i18n::text("guides.key.wheel"),i18n::text("guides.hint.count"));
     }
     if (scalarTarget_) {
         command("CopyScalarChannelAction"); command("CutScalarChannelAction"); command("PasteImageAsLayerAction");

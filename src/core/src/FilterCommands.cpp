@@ -1,3 +1,4 @@
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/core/FilterCommands.hpp"
 
 namespace imageeditor::core {
@@ -26,7 +27,7 @@ std::size_t SetLayerFiltersCommand::memoryCost() const noexcept
 FilterEditTransaction::FilterEditTransaction(Document& document, LayerId id)
     : document_(document), id_(id), contentState_(document.contentState())
 {
-    if (const auto* layer = document.layer(id)) {
+    if (const auto* layer = document.layer(id); layer && !isMirroredLayer(*layer)) {
         before_ = after_ = layer->filters;
         revision_ = layer->filterRevision;
         active_ = true;
@@ -36,7 +37,7 @@ FilterEditTransaction::~FilterEditTransaction() { (void)cancel(); }
 bool FilterEditTransaction::ownsPreview() const noexcept
 {
     const auto* layer = document_.layer(id_);
-    return active_ && layer && layer->filterRevision == revision_
+    return active_ && layer && !isMirroredLayer(*layer) && layer->filterRevision == revision_
         && equivalentSpatialFilters(layer->filters, after_);
 }
 bool FilterEditTransaction::update(SpatialFilterState state)

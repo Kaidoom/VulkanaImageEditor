@@ -6,7 +6,7 @@
 namespace imageeditor::core {
 
 struct SnapOptions {
-    bool enabled {true}, canvas {true}, layers {true};
+    bool enabled {true}, canvas {true}, layers {true}, guides {true};
     // Qt logical pixels per document pixel, not framebuffer/device pixels.
     double logicalScale {1};
     bool bypass {false};
@@ -14,7 +14,7 @@ struct SnapOptions {
 };
 struct SnapGuide {
     Vec2d a, b;
-    LayerId target {0}; // Zero identifies the canvas.
+    LayerId target {0}; // Zero identifies the canvas or a document guide.
     friend bool operator==(const SnapGuide&, const SnapGuide&) = default;
 };
 using SnapGuides = std::array<std::optional<SnapGuide>, 2>;
@@ -45,9 +45,10 @@ public:
 private:
     struct Anchor {
         double coordinate;
-        unsigned kind; // 0=min edge, 1=center, 2=max edge.
+        unsigned kind; // 0=min edge, 1=center, 2=max edge, 3=document guide.
         LayerId id;
         DocumentBounds bounds;
+        bool guide {false};
     };
     struct Alignment { std::size_t target; unsigned movingAnchor; };
     void rebuild(const Document&);

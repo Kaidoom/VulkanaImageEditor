@@ -1,3 +1,4 @@
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/AdjustmentsPanel.hpp"
@@ -76,7 +77,7 @@ bool MainWindow::beginAdjustmentEdit(core::AdjustmentType type)
 {
     if(fileBusy_||!session().document()||!session().activeLayer())return false;
     if (const auto* target = session().document()->layer(*session().activeLayer())) {
-        if (core::isPackedDataLayer(*target)) return false;
+        if (core::isMirroredLayer(*target) || core::isPackedDataLayer(*target)) return false;
         if (core::isScalarLayer(*target) && type != core::AdjustmentType::Levels
             && type != core::AdjustmentType::Curves && type != core::AdjustmentType::Invert) return false;
     }

@@ -438,6 +438,10 @@ private:
     void deleteActiveLayer();
     void duplicateLayerItems();
     void createLayerOrganizationActions();
+    void createMirroredLayerActions();
+    void refreshMirroredLayerActions();
+    void changeMirroredLayer(int operation);
+    void syncMirroredOpacity();
     void createChannelGroupActions();
     void refreshChannelGroupControls();
     void convertSelectedChannelGroup(bool recombine);
@@ -467,6 +471,10 @@ private:
     void pasteLayerMask();
     void setLayerEditingTarget(int row, bool mask);
     void refreshLayerMaskActions();
+    void createLayerEffectClipboardActions();
+    void refreshLayerEffectClipboardActions();
+    void copyLayerEffects();
+    void pasteLayerEffects();
     bool confirmLayerChange(const QString& title,const QString& question);
     bool commitLayerStructure(const i18n::Message&, core::LayerTree,
         std::vector<core::LayerId> removed, std::vector<core::Layer> added,
@@ -488,6 +496,15 @@ private:
     void queueSelectedLayerFocus();
     void updateLayerControls();
     void createMeasureControls();
+    void createGuideControls();
+    void createGuideActions(QMenu*);
+    void refreshGuideActions();
+    ToolOptionsNumber* guideCountControl_ {nullptr};
+    QToolButton* clearGuidesButton_ {nullptr};
+    core::BoundsSnapping guideSnapping_;
+    QAction* showGuidesAction_ {nullptr};
+    QAction* clearGuidesAction_ {nullptr};
+    QAction* snapGuidesAction_ {nullptr};
     void refreshMeasureBounds();
     void refreshSelectionStatus();
     void refreshRulerView();
@@ -907,6 +924,8 @@ private:
     QComboBox* blendModeCombo_ {nullptr};
     CompactValueControl* opacitySlider_ {nullptr};
     QToolButton* opacityModeButton_ {nullptr};
+    QToolButton* opacityLinkButton_ {nullptr};
+    std::array<QAction*, 4> mirrorActions_ {};
     bool pixelOpacityMode_ {false}; // Panel inspection state, not document history.
     bool publishingOpacity_ {false};
     QPushButton* deleteLayerButton_ {nullptr};
@@ -914,6 +933,9 @@ private:
     QPushButton* effectsButton_ {nullptr};
     std::array<QAction*,9> maskActions_ {};
     bool layerMaskClipboardAvailable_{};
+    QAction* copyLayerEffectsAction_ {nullptr};
+    QAction* pasteLayerEffectsAction_ {nullptr};
+    bool layerEffectsClipboardAvailable_{};
     PropertiesPanel* propertiesPanel_ {nullptr};
     ToolOptionsBar* toolOptionsBar_ {nullptr};
     ToolOptionsButton* editTextButton_ {nullptr};

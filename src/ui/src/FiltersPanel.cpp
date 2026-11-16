@@ -1,3 +1,4 @@
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/ui/LocalizedNames.hpp"
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/FiltersPanel.hpp"
@@ -228,7 +229,7 @@ void FiltersPanel::finishEditing(bool commit)
 }
 void FiltersPanel::setTarget(const core::Layer* layer,bool hasSelection)
 {
-    if (layer && core::isPackedDataLayer(*layer)) layer = nullptr;
+    if (layer && (core::isMirroredLayer(*layer) || core::isPackedDataLayer(*layer))) layer = nullptr;
     const bool scalar = layer && core::isScalarLayer(*layer);
     const bool leavingScalar = scalarValues_ && !scalar;
     if (scalar && !scalarValues_) savedType_ = navigation_->currentIndex();

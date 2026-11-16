@@ -1,3 +1,4 @@
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/ui/LocalizedNames.hpp"
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
@@ -515,6 +516,7 @@ QString toolName(core::ToolId tool)
     case core::ToolId::Text: return i18n::text("main.window.text");
     case core::ToolId::Shape: return i18n::text("main.window.shape");
     case core::ToolId::Measure: return i18n::text("main.window.measure");
+    case core::ToolId::Guides: return i18n::text("guides.tool");
     case core::ToolId::SelectByColor: return i18n::text("main.window.select.by.color");
     case core::ToolId::SmartSelect: return i18n::text("main.window.smart.select");
     case core::ToolId::Transform: return i18n::text("main.window.transform");
@@ -615,6 +617,7 @@ MainWindow::MainWindow(
     createToolRail();
     createDocks();
     createMeasureControls();
+    createGuideControls();
     createColorSelectionHelp();
     createSmartSelectionHelp();
     createShapeControls();
@@ -1631,6 +1634,13 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
         }
         event->accept(); return true;
     }
+    if (ourTarget && !editing && !blocked && key->key()==Qt::Key_Escape
+        && session().activeTool()==core::ToolId::Guides) {
+        if (event->type()==QEvent::KeyPress && !key->isAutoRepeat()) {
+            canvasWindow_->cancelGuideInput(true);pointerRouter_->cancelCapture();
+        }
+        event->accept();return true;
+    }
     if (ourTarget && !editing && !blocked && key->key() == Qt::Key_Escape
         && (shapeCreation_ || anchoredLassoActive())) {
         if (event->type() == QEvent::KeyPress && !key->isAutoRepeat()) {
@@ -1670,6 +1680,14 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
         if (selectionGesture_ && selectionGesture_->moving)
             moveSelectionGesture(selectionGesture_->pointer);
         event->accept(); return true;
+    }
+    if (ourTarget && !editing && !blocked && canvasWindow_->guideDragging() && key->key()==Qt::Key_Control) {
+        if (event->type()!=QEvent::ShortcutOverride && !key->isAutoRepeat()) {
+            auto modifiers=key->modifiers();
+            modifiers.setFlag(Qt::ControlModifier,event->type()==QEvent::KeyPress);
+            canvasWindow_->updateGuideModifiers(modifiers);
+        }
+        event->accept();return true;
     }
     if (ourTarget && (activeLayerMove_ || shapeResize_) && !editing && !blocked
         && event->type() == QEvent::KeyPress && key->key() == Qt::Key_Escape) {
@@ -1880,6 +1898,7 @@ void MainWindow::dropEvent(QDropEvent* event)
 void MainWindow::createActions()
 {
     createLayerOrganizationActions();
+    createMirroredLayerActions();
     createSelectionActions();
     transformAction_ = i18n::make<QAction>(i18n::text("main.window.transform.layer"), this);
     transformAction_->setObjectName(QStringLiteral("LayerTransformAction"));
@@ -1921,7 +1940,7 @@ void MainWindow::createActions()
         if(layerCrop_){stepCropHistory(false);return;}
         if (selectionTransform_) { stepSelectionTransformHistory(false); return; }
         if (layerTransform_) { stepTransformHistory(false); return; }
-        if (shapeCreation_ || shapeEdit_ || shapeResize_ || activeFill_ || activeBrushStroke_ || activeSpotHealStroke_ || spotHealBusyForActiveDocument() || activeCloneStroke_ || activeLocalBlurStroke_ || activeLayerMove_ || selectionGesture_ || selectionRotation_ || colorSelectionEditing_ || smartInteractionActive()) {
+        if (shapeCreation_ || shapeEdit_ || shapeResize_ || activeFill_ || activeBrushStroke_ || activeSpotHealStroke_ || spotHealBusyForActiveDocument() || activeCloneStroke_ || activeLocalBlurStroke_ || activeLayerMove_ || selectionGesture_ || selectionRotation_ || colorSelectionEditing_ || smartInteractionActive() || canvasWindow_->guideDragging()) {
             cancelPendingEdits();
             return;
         }
@@ -1955,7 +1974,7 @@ void MainWindow::createActions()
         if(layerCrop_){stepCropHistory(true);return;}
         if (selectionTransform_) { stepSelectionTransformHistory(true); return; }
         if (layerTransform_) { stepTransformHistory(true); return; }
-        if (shapeCreation_ || shapeEdit_ || shapeResize_ || activeFill_ || activeBrushStroke_ || activeSpotHealStroke_ || spotHealBusyForActiveDocument() || activeCloneStroke_ || activeLocalBlurStroke_ || activeLayerMove_ || selectionGesture_ || selectionRotation_ || colorSelectionEditing_ || smartInteractionActive()) {
+        if (shapeCreation_ || shapeEdit_ || shapeResize_ || activeFill_ || activeBrushStroke_ || activeSpotHealStroke_ || spotHealBusyForActiveDocument() || activeCloneStroke_ || activeLocalBlurStroke_ || activeLayerMove_ || selectionGesture_ || selectionRotation_ || colorSelectionEditing_ || smartInteractionActive() || canvasWindow_->guideDragging()) {
             cancelPendingEdits();
             return;
         }
@@ -2270,10 +2289,12 @@ void MainWindow::createMenus()
     snapTargets->setIcon(toolGlyph(ToolGlyph::Snapping));
     snapCanvasAction_ = i18n::addAction(snapTargets, toolGlyph(ToolGlyph::ShapeRectangle), i18n::text("main.window.canvas"));
     snapLayersAction_ = i18n::addAction(snapTargets, toolGlyph(ToolGlyph::MergedVisible), i18n::text("main.window.layers"));
+    snapGuidesAction_ = i18n::addAction(snapTargets,toolGlyph(ToolGlyph::Guides),i18n::text("guides.tool"));
+    snapGuidesAction_->setObjectName("SnapGuidesAction");
     snapCanvasAction_->setObjectName(QStringLiteral("SnapCanvasAction"));
     snapLayersAction_->setObjectName(QStringLiteral("SnapLayersAction"));
-    const std::array snapActions {snappingAction_, snapCanvasAction_, snapLayersAction_};
-    const std::array snapKeys {QStringLiteral("view/snapping/enabled"), QStringLiteral("view/snapping/canvas"), QStringLiteral("view/snapping/layers")};
+    const std::array snapActions {snappingAction_, snapCanvasAction_, snapLayersAction_, snapGuidesAction_};
+    const std::array snapKeys {QStringLiteral("view/snapping/enabled"), QStringLiteral("view/snapping/canvas"), QStringLiteral("view/snapping/layers"),QStringLiteral("view/snapping/guides")};
     for (std::size_t i = 0; i < snapActions.size(); ++i) {
         snapActions[i]->setCheckable(true);
         snapActions[i]->setChecked(!persistWindowState_ || QSettings().value(snapKeys[i], true).toBool());
@@ -2282,6 +2303,7 @@ void MainWindow::createMenus()
         snappingOptions_.enabled = snappingAction_->isChecked();
         snappingOptions_.canvas = snapCanvasAction_->isChecked();
         snappingOptions_.layers = snapLayersAction_->isChecked();
+        snappingOptions_.guides = snapGuidesAction_->isChecked();
         snapTargets->setEnabled(snappingOptions_.enabled);
         if (persistWindowState_) {
             QSettings settings;
@@ -2289,11 +2311,13 @@ void MainWindow::createMenus()
         }
         // Re-evaluate from the stored raw pointer, even without a mouse move.
         canvasWindow_->updateTransformModifiers(canvasWindow_->pointerModifiers());
+        canvasWindow_->updateGuideModifiers(canvasWindow_->pointerModifiers());
         if (selectionGesture_ && selectionGesture_->moving)
             moveSelectionGesture(selectionGesture_->pointer);
     };
     for (auto* action : snapActions) connect(action, &QAction::toggled, this, updateSnapping);
     updateSnapping();
+    createGuideActions(viewMenu);
     viewMenu->addSeparator();
     pixelPreview_=std::make_unique<PixelPreview>();
     pixelPreviewAction_=i18n::addAction(viewMenu, toolGlyph(ToolGlyph::Pixels), i18n::text("main.window.pixel.preview"));
@@ -2567,6 +2591,8 @@ void MainWindow::createToolRail()
     auto* measure = toolAction(core::ToolId::Measure, i18n::text("main.window.measure"), QStringLiteral("measure"), QKeySequence(QStringLiteral("Shift+R")));
     measure->setAutoRepeat(false);
     i18n::setToolTip(measure, i18n::text("main.window.measure.shift.r.hold.r.for.temporary.measurement"));
+    auto* guides = toolAction(core::ToolId::Guides,i18n::text("guides.tool"),QStringLiteral("guides"),{});
+    i18n::setToolTip(guides, i18n::text("guides.tool"));
     toolAction(core::ToolId::Eyedropper, i18n::text("main.window.eyedropper"), QStringLiteral("eyedropper"), QKeySequence(QStringLiteral("I")));
     railColors_ = new ColorSelector(ColorSelector::Presentation::Compact, toolRail_);
     railColors_->onColorsChanged = [this](core::EditorColors colors) { setColors(colors); };
@@ -2663,8 +2689,18 @@ void MainWindow::createDocks()
     opacityModeButton_->setFixedSize(28,30);
     opacityModeButton_->setCheckable(true);
     opacityModeButton_->setFocusPolicy(Qt::NoFocus);
+    opacityLinkButton_ = new QToolButton;
+    opacityLinkButton_->setObjectName(QStringLiteral("LayerOpacityLink"));
+    opacityLinkButton_->setIcon(toolGlyph(ToolGlyph::Link));
+    opacityLinkButton_->setIconSize({16,16});
+    opacityLinkButton_->setFixedSize(24,30);
+    opacityLinkButton_->setCheckable(true);
+    opacityLinkButton_->setFocusPolicy(Qt::NoFocus);
+    opacityLinkButton_->hide();
     opacityRow->addWidget(opacitySlider_,1);
+    opacityRow->addWidget(opacityLinkButton_);
     opacityRow->addWidget(opacityModeButton_);
+    connect(opacityLinkButton_, &QToolButton::clicked, this, &MainWindow::syncMirroredOpacity);
     layerControlsLayout->addLayout(opacityRow);
     connect(opacityModeButton_, &QToolButton::clicked, this, [this] {
         opacitySlider_->finishEditing();
@@ -4575,7 +4611,8 @@ void MainWindow::setActiveTool(core::ToolId tool)
 {
     if (refinement_) return;
     if (const auto found = toolActionMap_.find(tool); found != toolActionMap_.end()
-        && found->second->property("channelDisabled").toBool()) return;
+        && found->second->property("channelDisabled").toBool()
+        && !(tool == core::ToolId::Brush && activeDocument_ && activeDocument_->refinement)) return;
     if(tool==core::ToolId::Crop && !layerCrop_ && !startingCrop_){
         beginLayerCrop();
         if(!layerCrop_){
@@ -4615,6 +4652,7 @@ void MainWindow::setActiveTool(core::ToolId tool)
     canvasWindow_->setLayerOutlineTargets(session().document()
         ? session().document()->expandedLayers(session().selectedLayers()) : std::vector<core::LayerId>{});
     canvasWindow_->setActiveTool(tool);
+    if (tool==core::ToolId::Guides && showGuidesAction_) showGuidesAction_->setChecked(true);
     const auto found = toolActionMap_.find(tool == core::ToolId::Transform ? core::ToolId::Move : tool);
     if (found != toolActionMap_.end()) {
         found->second->setChecked(true);
@@ -4754,6 +4792,7 @@ void MainWindow::updateLayerControls()
         opacitySlider_->setValue(active ? static_cast<int>(std::lround((pixelOpacityMode_?active->fillOpacity:active->opacity) * 100.0F)) : 100);
     opacityModeButton_->setEnabled(active != nullptr && !scalar && !fileBusy_);
     opacityModeButton_->setChecked(pixelOpacityMode_);
+    refreshMirroredLayerActions();
     i18n::setToolTip(opacityModeButton_,i18n::text(pixelOpacityMode_?"layer.opacity.switch.layer":"layer.opacity.switch.pixel"));
     i18n::setAccessibleName(opacityModeButton_,i18n::text("layer.opacity.switch"));
     const auto* container = session().document() && session().activeLayer()
@@ -4779,8 +4818,11 @@ void MainWindow::updateLayerControls()
 
 void MainWindow::updateActionState()
 {
+    refreshGuideActions();
     if (refinement_) return;
     refreshLayerMaskActions();
+    refreshLayerEffectClipboardActions();
+    refreshMirroredLayerActions();
     refreshCloningControls();
     refreshShapeControls();
     refreshShapeOverlay();
@@ -4809,7 +4851,7 @@ void MainWindow::updateActionState()
         if(containsFolder)transformAction_->setEnabled(false);
         else if(session().activeLayer() && !layer)transformAction_->setEnabled(!session().document()->expandedLayers(items).empty());
     }
-    editTextButton_->setEnabled(layer && std::holds_alternative<core::TextLayer>(layer->payload));
+    editTextButton_->setEnabled(layer && !core::isMirroredLayer(*layer) && std::holds_alternative<core::TextLayer>(layer->payload));
     i18n::setText(undoAction_, history.canUndo()
         ? i18n::text("main.window.undo.1").arg(i18n::Localization::instance().historyText(history.undoLabel()))
         : QStringLiteral("Undo"));
@@ -4832,8 +4874,9 @@ void MainWindow::updateActionState()
     transformAction_->setChecked(layerTransform_ || selectionTransform_.has_value());
     transformSelectionAction_->setEnabled(hasActiveSelection && !session().document()->selection()->bounds().empty()
         && !fileBusy_ && !layerTransform_ && !selectionTransform_ && !layerCrop_);
-    transformPixelsAction_->setEnabled(transformSelectionAction_->isEnabled()&&!session().editingLayerMask());
-    const bool canFill = layer && (session().editingLayerMask()||std::holds_alternative<core::RasterLayer>(layer->payload))
+    transformPixelsAction_->setEnabled(transformSelectionAction_->isEnabled()&&!session().editingLayerMask()
+        && layer && !core::isMirroredLayer(*layer));
+    const bool canFill = layer && !core::isMirroredLayer(*layer) && (session().editingLayerMask()||std::holds_alternative<core::RasterLayer>(layer->payload))
         && layer->localToDocument.inverted() && !layerTransform_ && !selectionTransform_ && !activeFill_;
     for (auto* fill : fillActions_) fill->setEnabled(canFill);
     if (activeFill_) { undoAction_->setEnabled(true); redoAction_->setEnabled(false); transformAction_->setEnabled(false); }
@@ -4874,6 +4917,13 @@ void MainWindow::updateActionState()
         ? activeContainer->kind==core::ContainerKind::ClippingMaskGroup ? i18n::text("main.window.convert.to.ordinary.group") : i18n::text("main.window.convert.to.clipping.mask.group")
         : i18n::text("main.window.add.to.clipping.mask.group"));
     rasterizeLayersAction_->setEnabled(groupLayersAction_->isEnabled());
+    if (session().document()) {
+        const auto ids = session().document()->expandedLayers(session().selectedLayers());
+        if (std::ranges::any_of(ids, [this](auto id) {
+                const auto* item = session().document()->layer(id);
+                return item && core::isMirroredLayer(*item);
+            })) rasterizeLayersAction_->setEnabled(false);
+    }
     duplicateLayersAction_->setEnabled(groupLayersAction_->isEnabled());
     ungroupLayersAction_->setEnabled(activeContainer && core::isGroup(activeContainer->kind) && !fileBusy_);
     for (std::size_t i = 0; i < layerVisibilityActions_.size(); ++i)
@@ -4922,7 +4972,7 @@ void MainWindow::mutateRasterForUploadProbe()
         return;
     }
     auto* layer = session().document()->layer(*session().activeLayer());
-    if (!layer || !std::holds_alternative<core::RasterLayer>(layer->payload)) {
+    if (!layer || core::isMirroredLayer(*layer) || !std::holds_alternative<core::RasterLayer>(layer->payload)) {
         return;
     }
     auto& raster = std::get<core::RasterLayer>(layer->payload);
@@ -4962,6 +5012,11 @@ void MainWindow::mutateRasterForUploadProbe()
 
 bool MainWindow::beginBrushStroke(const core::NormalizedPointerSample& sample)
 {
+    if (const auto* layer = session().document() && session().activeLayer()
+            ? session().document()->layer(*session().activeLayer()) : nullptr; layer && core::isMirroredLayer(*layer)) {
+        statusBar()->showMessage(i18n::text("layers.mirror.read.only"), 4000);
+        return false;
+    }
     if(session().editingLayerMask()&&session().activeTool()!=core::ToolId::Brush&&session().activeTool()!=core::ToolId::Eraser) {
         statusBar()->showMessage(i18n::text("main.window.use.brush.eraser.or.fill.on.a.layer.mask"),4000);return false;
     }
@@ -5199,6 +5254,7 @@ QAction* MainWindow::toolAction(core::ToolId tool, const i18n::Message& name,
     const QString& iconName, const QKeySequence& shortcut)
 {
     auto* action = new QAction(tool==core::ToolId::Measure ? toolGlyph(ToolGlyph::Measure)
+        : tool==core::ToolId::Guides ? toolGlyph(ToolGlyph::Guides)
         : tool==core::ToolId::Crop ? toolGlyph(ToolGlyph::Crop)
         : tool==core::ToolId::SelectByColor ? toolGlyph(ToolGlyph::SelectByColor)
         : tool==core::ToolId::SmartSelect ? toolGlyph(ToolGlyph::QuickSelection)

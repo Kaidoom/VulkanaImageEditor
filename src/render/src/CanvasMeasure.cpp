@@ -6,7 +6,7 @@ namespace imageeditor::render {
 bool CanvasWindow::pointerGestureActive() const noexcept
 {
     return brushing_ || picking_ || panning_ || transforming_ || selecting_ || selectingText_
-        || shaping_ || shapeConstruction_ || selectionConstruction_ || measuring_
+        || shaping_ || shapeConstruction_ || selectionConstruction_ || measuring_ || guideDragging()
         || completedGestureButtons_ != Qt::NoButton;
 }
 bool CanvasWindow::measureActive() const noexcept
@@ -22,6 +22,7 @@ bool CanvasWindow::setTemporaryMeasure(bool held)
     temporaryMeasurement_.reset();
     if (held) cancelColorSampling();
     refreshMeasurement();
+    refreshGuidePreview();
     refreshColorSample();
     updateCursorForTool();
     if (onTemporaryMeasureChanged) onTemporaryMeasureChanged(held);

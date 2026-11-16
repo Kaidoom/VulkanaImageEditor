@@ -1,3 +1,4 @@
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/ui/LocalizedNames.hpp"
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/AdjustmentsPanel.hpp"
@@ -401,6 +402,7 @@ void AdjustmentsPanel::setTarget(const core::Layer* layer,bool hasSelection,cons
     document_=document;documentInstance_=instance;
     target_=next;hasSelection_=hasSelection;
     scalarValues_ = scalar;
+    mirrorReadOnly_ = layer && core::isMirroredLayer(*layer);
     working_=layer&&layer->adjustments?*layer->adjustments:core::AdjustmentStack{};
     i18n::setText(targetLabel_, layer?i18n::text("adjustments.panel.1.primary.layer").arg(QString::fromStdString(layer->name)):i18n::text("adjustments.panel.select.a.raster.text.or.shape.layer"));
     targetLabel_->setToolTip(layer?QString::fromStdString(layer->name):QString());
@@ -410,9 +412,11 @@ void AdjustmentsPanel::setTarget(const core::Layer* layer,bool hasSelection,cons
     if(adjustment)i18n::setText(scopeLabel_, adjustment->scope==core::AdjustmentScope::ThisGroup&&placement&&placement->parent
         ?i18n::text("adjustments.panel.this.group.lower.content.including.nested.groups.this.group")
         :i18n::text("adjustments.panel.all.below.accumulated.content.in.the.current.compositing.domain"));
-    filtersPanel_->setTarget(adjustment || packed ? nullptr : layer,hasSelection);
+    filtersPanel_->setTarget(adjustment || packed || mirrorReadOnly_ ? nullptr : layer,hasSelection);
     effectsPanel_->setTarget(adjustment || scalar || packed ? nullptr : layer);
-    tabs_->setTabEnabled(1, !scalar); tabs_->setTabEnabled(3,!adjustment && !packed);tabs_->setTabEnabled(4,!adjustment && !scalar && !packed);
+    tabs_->setTabEnabled(0, !mirrorReadOnly_); tabs_->setTabEnabled(2, !mirrorReadOnly_);
+    tabs_->setTabEnabled(1, !scalar && !mirrorReadOnly_); tabs_->setTabEnabled(3,!adjustment && !packed && !mirrorReadOnly_);tabs_->setTabEnabled(4,!adjustment && !scalar && !packed);
+    if (mirrorReadOnly_) tabs_->setCurrentIndex(4);
     for (auto* box : navigation_) {
         auto* model = qobject_cast<QStandardItemModel*>(box->model());
         for (int i = 0; i < box->count(); ++i)
@@ -439,17 +443,21 @@ void AdjustmentsPanel::setTarget(const core::Layer* layer,bool hasSelection,cons
     i18n::setText(invertExplanation_, scalar ? i18n::text("channels.invert.hint")
         : i18n::text("adjustments.panel.invert.unassociated.srgb.color.channels.while.keeping.alpha.unchanged"));
     if(adjustment && tabs_->currentIndex()>2)tabs_->setCurrentIndex(0);
-    tabs_->setEnabled(layer && !packed);resetAll_->setEnabled(layer && !packed);compare_->setEnabled(layer && !packed);
+    tabs_->setEnabled(layer && !packed);resetAll_->setEnabled(layer && !packed && !mirrorReadOnly_);compare_->setEnabled(layer && !packed);
     if (packed) i18n::setText(targetLabel_, i18n::text("channels.convert.to.edit"));
-    refreshCategoryHints();refresh();
+    refreshCategoryHints();
+    refresh();
 }
 void AdjustmentsPanel::refreshCategoryHints()
 {
     const auto hint = !tabs_->isEnabled() ? i18n::text("adjustments.panel.select.a.raster.text.or.shape.layer")
+        : mirrorReadOnly_ ? i18n::text("layers.mirror.read.only")
         : !tabs_->isTabEnabled(3) ? i18n::text("adjustments.panel.operator.no.filters.effects") : i18n::Message{};
     for (int tab : {3, 4}) tabs_->setTabToolTip(tab,
-        scalarValues_ && tab == 4 ? i18n::text("channels.effects.unavailable") : hint);
-    tabs_->setTabToolTip(1, scalarValues_ ? i18n::text("channels.color.adjustments.unavailable") : i18n::Message{});
+        scalarValues_ && tab == 4 ? i18n::text("channels.effects.unavailable")
+            : tabs_->isEnabled() && tabs_->isTabEnabled(tab) ? i18n::Message{} : hint);
+    for (int tab : {0,1,2}) tabs_->setTabToolTip(tab, mirrorReadOnly_ ? i18n::text("layers.mirror.read.only")
+        : scalarValues_ && tab == 1 ? i18n::text("channels.color.adjustments.unavailable") : i18n::Message{});
     for (auto* box : {levelsChannel_, curvesChannel_}) if (box) {
         const QSignalBlocker block(box);
         box->setItemText(0, i18n::text(scalarValues_ ? "channels.value" : "adjustments.panel.composite.rgb"));
@@ -465,10 +473,10 @@ void AdjustmentsPanel::refresh()
     const QScopedValueRollback guard(updating_,true);
     for(std::size_t i=0;i<pages_.size();++i){
         auto& page=pages_[i];const auto& adjustment=working_.items[i];
-        const bool supported = !scalarValues_ || scalarType(Type(i));
+        const bool supported = !mirrorReadOnly_ && (!scalarValues_ || scalarType(Type(i)));
         page.widget->setEnabled(supported); page.enabled->setEnabled(target_.has_value() && supported);
         page.enabled->setChecked(adjustment.enabled);page.scope->setCurrentIndex(adjustment.mask?1:0);
-        page.capture->setEnabled(target_&&hasSelection_);
+        page.capture->setEnabled(target_&&hasSelection_&&!mirrorReadOnly_);
         i18n::setText(page.maskStatus, adjustment.mask
             ? (adjustment.mask->coverage->bounds().empty()?i18n::text("adjustments.panel.captured.empty.mask.affects.no.pixels"):i18n::text("adjustments.panel.owned.mask.follows.this.layer"))
             :i18n::text("adjustments.panel.all.source.pixels.selection.is.not.implicit"));

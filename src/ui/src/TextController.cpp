@@ -1,3 +1,4 @@
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/TextController.hpp"
 #include "imageeditor/core/ColorSampler.hpp"
@@ -432,7 +433,9 @@ bool TextController::press(core::Vec2d p, Qt::KeyboardModifiers modifiers, bool 
     const core::Layer* hit = nullptr;
     for (auto it = doc->layers().rbegin(); it != doc->layers().rend(); ++it)
         if (doc->isEffectivelyVisible(it->id) && core::hitTextBounds(*it, p) && core::clippingVisibility(*doc,it->id,p)>0) {
-            hit = &*it;
+            // A mirror is not an invitation to edit an overlapping source
+            // underneath it. Text mode may create fresh content here instead.
+            hit = core::isMirroredLayer(*it) ? nullptr : &*it;
             break;
         }
     if (doubleClick && session_->activeTool() == core::ToolId::Move && !hit)
@@ -488,7 +491,7 @@ bool TextController::editLayer(core::LayerId id)
 {
     auto* doc = session_->document();
     const auto* layer = doc ? doc->layer(id) : nullptr;
-    if (!layer || !std::holds_alternative<core::TextLayer>(layer->payload))
+    if (!layer || core::isMirroredLayer(*layer) || !std::holds_alternative<core::TextLayer>(layer->payload))
         return false;
     if (active() && id_ == id) {
         family_->finishSearch(true);

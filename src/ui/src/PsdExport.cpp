@@ -101,6 +101,7 @@ bool externalStyles(const core::Layer &l) {
 std::shared_ptr<core::Document> structureCopy(const core::Document &source) {
   auto d = std::make_shared<core::Document>(source.canvas());
   for (auto l : source.layers()) {
+    l.mirror.reset();
     l.renderCache.reset();
     l.filterCache.reset();
     l.effectCache.reset();

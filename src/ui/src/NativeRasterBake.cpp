@@ -1,3 +1,4 @@
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/ui/NativeRasterBake.hpp"
 #include "imageeditor/core/SpatialFilters.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
@@ -75,6 +76,9 @@ RasterizeResult prepareRasterizeLayers(const core::Document& doc,const core::Lay
 {
     try {
         const auto roots=onlyLayer?std::vector<core::LayerId>{*onlyLayer}:doc.tree().normalize(selection.ids);
+        for (const auto id : doc.expandedLayers(roots))
+            if (const auto* layer = doc.layer(id); layer && core::isMirroredLayer(*layer))
+                throw std::runtime_error("Promote mirrored layers to full layers before rasterizing them.");
         std::vector<core::LayerId> ids,groups;
         for(auto root:roots) {
             const auto* c=doc.tree().container(root);

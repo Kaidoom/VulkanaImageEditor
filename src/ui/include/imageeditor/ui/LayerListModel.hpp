@@ -27,6 +27,7 @@ public:
     static constexpr int ActiveEffectsRole = Qt::UserRole + 10;
     static constexpr int BlendModeRole = Qt::UserRole + 11;
     static constexpr int ContainerRole = Qt::UserRole + 12;
+    static constexpr int MirroredRole = Qt::UserRole + 13;
     explicit LayerListModel(QObject* parent = nullptr);
 
     void setSession(core::EditorSession* session);

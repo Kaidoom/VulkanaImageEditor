@@ -1,3 +1,4 @@
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/LayerCommands.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
@@ -277,13 +278,13 @@ std::optional<core::LayerId> MainWindow::hitShape(core::Vec2d p, bool activeOnly
     };
     if (activeOnly) {
         const auto* layer = session().activeLayer() ? session().document()->layer(*session().activeLayer()) : nullptr;
-        return layer && hit(*layer) ? std::optional(layer->id) : std::nullopt;
+        return layer && !core::isMirroredLayer(*layer) && hit(*layer) ? std::optional(layer->id) : std::nullopt;
     }
     const auto& layers = session().document()->layers();
     const auto content = core::hitTestRasterLayer(*session().document(), p);
     for (auto i = layers.rbegin(); i != layers.rend(); ++i) {
         if (hit(*i) && core::clippingVisibility(*session().document(),i->id,p)>0)
-            return i->id;
+            return core::isMirroredLayer(*i) ? std::nullopt : std::optional(i->id);
         if (content == i->id && !std::holds_alternative<core::ShapeLayer>(i->payload))
             return { };
     }
@@ -312,7 +313,7 @@ bool MainWindow::beginShapeManipulation(core::TransformHandle handle, core::Vec2
         return false;
     shapeOptionsPage_->finishNumericInput();
     auto* layer = session().document()->layer(*session().activeLayer());
-    if (!layer || !std::holds_alternative<core::ShapeLayer>(layer->payload) || !session().document()->isEffectivelyVisible(layer->id) || layer->opacity <= 0)
+    if (!layer || core::isMirroredLayer(*layer) || !std::holds_alternative<core::ShapeLayer>(layer->payload) || !session().document()->isEffectivelyVisible(layer->id) || layer->opacity <= 0)
         return false;
     if (handle >= core::TransformHandle::TopLeft && handle <= core::TransformHandle::Left) {
         try {
@@ -569,7 +570,7 @@ void MainWindow::refreshShapeControls()
     if (!shapeOptionsPage_)
         return;
     const auto* layer = session().document() && session().activeLayer() ? session().document()->layer(*session().activeLayer()) : nullptr;
-    const auto* shape = layer ? std::get_if<core::ShapeLayer>(&layer->payload) : nullptr;
+    const auto* shape = layer && !core::isMirroredLayer(*layer) ? std::get_if<core::ShapeLayer>(&layer->payload) : nullptr;
     // Creation mode is editor state. Selecting a layer (including through undo)
     // updates editable properties, never the user's next-creation choice.
     auto defaults = shapeDefaults_;
@@ -592,7 +593,7 @@ void MainWindow::refreshShapeOverlay()
     if (session().activeTool() != core::ToolId::Shape)
         return;
     const auto* layer = session().document() && session().activeLayer() ? session().document()->layer(*session().activeLayer()) : nullptr;
-    if (shapeCreation_ || !layer || !session().document()->isEffectivelyVisible(layer->id) || layer->opacity <= 0 || !std::holds_alternative<core::ShapeLayer>(layer->payload)) {
+    if (shapeCreation_ || !layer || core::isMirroredLayer(*layer) || !session().document()->isEffectivelyVisible(layer->id) || layer->opacity <= 0 || !std::holds_alternative<core::ShapeLayer>(layer->payload)) {
         canvasWindow_->setTransformOverlay({ });
         return;
     }
@@ -759,7 +760,7 @@ void MainWindow::changeShape(const core::ShapeLayer& shape)
         return;
     auto* doc = session().document();
     auto* layer = doc && session().activeLayer() ? doc->layer(*session().activeLayer()) : nullptr;
-    const auto* current = layer ? std::get_if<core::ShapeLayer>(&layer->payload) : nullptr;
+    const auto* current = layer && !core::isMirroredLayer(*layer) ? std::get_if<core::ShapeLayer>(&layer->payload) : nullptr;
     if (!current) {
         shapeDefaults_ = shape;
         return;
@@ -814,7 +815,7 @@ void MainWindow::chooseShapeColor(bool fill)
     finishShapeEdit(true);
     const auto target = session().activeLayer();
     const auto* layer = session().document() && target ? session().document()->layer(*target) : nullptr;
-    const auto* data = layer ? std::get_if<core::ShapeLayer>(&layer->payload) : nullptr;
+    const auto* data = layer && !core::isMirroredLayer(*layer) ? std::get_if<core::ShapeLayer>(&layer->payload) : nullptr;
     auto shape = data ? *data : shapeDefaults_;
     if (!data) {
         shape.kind = shapeMode_;

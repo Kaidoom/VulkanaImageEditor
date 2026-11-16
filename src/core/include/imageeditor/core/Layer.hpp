@@ -28,6 +28,15 @@ using LayerId = std::uint64_t;
 // Loader reserves IDs only after the entire project has been validated.
 void reserveLayerId(LayerId id);
 
+enum class MirrorEffectMode : std::uint8_t { Inherit, Override, Disabled };
+struct LayerMirror {
+    LayerId source {};
+    bool opacityOverride {}, fillOpacityOverride {}, blendModeOverride {};
+    bool pixelAlphaShapesEffectsOverride {}, maskEffectsAfterRenderingOverride {};
+    std::array<MirrorEffectMode, layerEffectCount> effects {};
+    friend bool operator==(const LayerMirror&, const LayerMirror&) = default;
+};
+
 struct FontDescriptor {
     std::string family;
     std::string style;
@@ -97,6 +106,9 @@ struct Layer {
     LayerId id {0};
     std::string name;
     std::uint8_t colorLabel {0}; // Palette index; zero means no organizational label.
+    // Linked layers retain ordinary resolved fields for existing consumers.
+    // Inherited fields are disposable; source identity and overrides are canonical.
+    std::optional<LayerMirror> mirror;
     bool visible {true};
     float opacity {1.0F};
     float fillOpacity {1.0F}; // Content only; never changes source alpha or effect geometry.

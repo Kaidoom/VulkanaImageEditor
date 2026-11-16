@@ -49,6 +49,10 @@ QPixmap rasterizedGlyph(ToolGlyph glyph, const QColor& ink, const QSize& size, q
         p.setBrush(ink); p.setPen(Qt::NoPen);
         p.drawRoundedRect(QRectF(5,3,5,18),1,1);
         p.drawRoundedRect(QRectF(14,3,5,18),1,1);
+    } else if (glyph == ToolGlyph::Link) {
+        p.translate(12,12); p.rotate(-40);
+        p.drawRoundedRect(QRectF(-10,-4,12,8),4,4);
+        p.drawRoundedRect(QRectF(-2,-4,12,8),4,4);
     } else if (glyph == ToolGlyph::OpacityMode) {
         p.drawLine(4,7,20,7); p.drawPolyline(QPolygonF{{16,3},{20,7},{16,11}});
         p.drawLine(4,17,20,17); p.drawPolyline(QPolygonF{{8,13},{4,17},{8,21}});
@@ -566,6 +570,10 @@ QPixmap rasterizedGlyph(ToolGlyph glyph, const QColor& ink, const QSize& size, q
             p.setBrush(ink);
             p.drawEllipse(QPointF(12, 18), 2, 2);
         }
+    } else if (glyph == ToolGlyph::Guides) {
+        p.setPen(QPen(ink,1.4,Qt::DashLine));
+        p.drawLine(QPointF(3,8),QPointF(21,8));p.drawLine(QPointF(15,3),QPointF(15,21));
+        p.setPen(QPen(ink,1.2));p.drawRect(QRectF(4,4,16,16));
     } else if (glyph == ToolGlyph::Measure) {
         // Original diagonal ruler: a slim measuring edge with three clear
         // graduations, vector-rendered through the shared DPR-aware cache.

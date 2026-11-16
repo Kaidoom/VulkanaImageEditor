@@ -1,3 +1,4 @@
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/core/LayerMaskEdit.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include <functional>
@@ -150,7 +151,7 @@ LayerMaskEdit::LayerMaskEdit(Document &owner, LayerId id, std::string label)
     : owner_(owner), id_(id), selection_(owner.selection()),
       label_(std::move(label)), proxy_(owner.canvas()) {
   const auto *layer = owner.layer(id);
-  if (!layer || !layer->mask || !validLayerMask(layer->mask))
+  if (!layer || isMirroredLayer(*layer) || !layer->mask || !validLayerMask(layer->mask))
     throw std::invalid_argument("Layer has no editable mask");
   before_ = current_ = layer->mask;
   transform_ = layer->localToDocument;
@@ -172,7 +173,7 @@ LayerMaskEdit::LayerMaskEdit(Document &owner, LayerId id, std::string label)
 LayerMaskEdit::~LayerMaskEdit() { cancel(); }
 bool LayerMaskEdit::valid() const noexcept {
   const auto *layer = owner_.layer(id_);
-  return !finished_ && layer && layer->mask == current_ &&
+  return !finished_ && layer && !isMirroredLayer(*layer) && layer->mask == current_ &&
          layer->localToDocument == transform_ &&
          owner_.selection() == selection_;
 }

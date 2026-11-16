@@ -109,6 +109,17 @@ public:
     [[nodiscard]] bool finishContextMenuSuppressed() const noexcept { return suppressFinishContextMenu_; }
     void updateTransformModifiers(Qt::KeyboardModifiers modifiers);
     void setSnapGuides(core::SnapGuides);
+    void setGuideOptions(core::GuideOrientation, unsigned count);
+    void setDocumentGuidesVisible(bool);
+    [[nodiscard]] unsigned guideCount() const noexcept { return guideCount_; }
+    [[nodiscard]] core::GuideOrientation guideOrientation() const noexcept { return guideOrientation_; }
+    [[nodiscard]] bool guideDragging() const noexcept { return guideDrag_.has_value(); }
+    void cancelGuideInput(bool cancelPlacement = false);
+    void updateGuideModifiers(Qt::KeyboardModifiers);
+    std::function<bool(const core::DocumentGuides&, core::DocumentGuides, const char*)> onGuidesChanged;
+    std::function<void(unsigned)> onGuideCountChanged;
+    std::function<void(const core::DocumentGuide&)> onGuideDragBegan;
+    std::function<core::HandleSnapResult(const core::DocumentGuide&, Qt::KeyboardModifiers)> onGuideDragged;
     void cancelTransformInput();
     enum class ShapePress { Ignore, Create, Move };
     std::function<ShapePress(core::Vec2d, Qt::KeyboardModifiers)> onShapePressed;
@@ -239,6 +250,23 @@ protected:
     bool event(QEvent* event) override;
 
 private:
+    void refreshGuidePreview();
+    void beginGuideInput(QPointF, Qt::MouseButton);
+    void moveGuideInput(QPointF, Qt::KeyboardModifiers);
+    void finishGuideInput(bool cancel);
+    [[nodiscard]] std::optional<std::uint64_t> guideAt(QPointF) const;
+    core::GuideOrientation guideOrientation_ {core::GuideOrientation::Horizontal};
+    unsigned guideCount_ {1};
+    bool guidePlacement_ {true}, explicitGuideGrab_ {false};
+    int guideWheelRemainder_ {};
+    std::optional<QPointF> guidePlacementBlockedAt_;
+    struct GuideDrag {
+        core::DocumentGuides before;
+        core::DocumentGuide guide;
+        double grabOffset {}, initialPosition {};
+        bool moved {false};
+    };
+    std::optional<GuideDrag> guideDrag_;
     bool externalShortcutRouting_ {false};
     Qt::MouseButtons completedGestureButtons_ {};
     bool suppressFinishContextMenu_ {false};

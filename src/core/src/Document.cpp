@@ -1,5 +1,6 @@
 #include "imageeditor/core/Document.hpp"
 #include "imageeditor/core/ChannelGroups.hpp"
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/core/LayerCrop.hpp"
 #include <atomic>
 #include "imageeditor/core/RichText.hpp"
@@ -24,6 +25,7 @@ bool Document::setAdjustmentScope(LayerId id, AdjustmentScope scope)
 bool Document::setLayerMask(LayerId id,LayerMaskState state)
 {
     auto* target=layer(id);
+    if (target && target->mirror) return false;
     if (target && (isScalarLayer(*target) || isPackedDataLayer(*target))) return false;
     if (!target || !validLayerMask(state) || target->mask==state) return false;
     target->mask=std::move(state);
@@ -73,14 +75,22 @@ bool Document::setSnapshotTimeline(const SnapshotTimelineState& expected, Snapsh
     return true;
 }
 
-const Layer* Document::layer(LayerId id) const noexcept
+bool Document::setGuides(const DocumentGuides& expected, DocumentGuides replacement)
+{
+    if (guides_ != expected || guides_ == replacement || !validDocumentGuides(replacement)) return false;
+    guides_ = std::move(replacement);
+    touch();
+    return true;
+}
+
+const Layer* Document::rawLayer(LayerId id) const noexcept
 {
     const auto found = std::find_if(layers_.begin(), layers_.end(),
         [id](const Layer& candidate) { return candidate.id == id; });
     return found == layers_.end() ? nullptr : &*found;
 }
 
-Layer* Document::layer(LayerId id) noexcept
+Layer* Document::rawLayer(LayerId id) noexcept
 {
     const auto found = std::find_if(layers_.begin(), layers_.end(),
         [id](const Layer& candidate) { return candidate.id == id; });
@@ -89,7 +99,73 @@ Layer* Document::layer(LayerId id) noexcept
 
 bool Document::containsLayer(LayerId id) const noexcept
 {
-    return layer(id) != nullptr;
+    return rawLayer(id) != nullptr;
+}
+
+const Layer* Document::layer(LayerId id) const noexcept
+{
+    const auto* found = rawLayer(id);
+    if (found && found->mirror) {
+        try { resolveMirrors(); }
+        catch (...) { return nullptr; } // Unavailable view, never stale editable pixels.
+    }
+    return found;
+}
+Layer* Document::layer(LayerId id) noexcept
+{ return const_cast<Layer*>(std::as_const(*this).layer(id)); }
+
+void Document::resolveMirrors() const
+{
+    if (mirrorsResolvedRevision_ == revision_) return;
+    if (!mirroredLayerCount_) { mirrorsResolvedRevision_ = revision_; return; }
+    if (!validMirrorStructure(layers_)) throw std::invalid_argument("Invalid mirrored-layer source graph");
+    std::vector<std::pair<std::size_t,Layer>> prepared;
+    prepared.reserve(std::ranges::count_if(layers_, [](const Layer& l){return l.mirror.has_value();}));
+    std::vector<unsigned char> visited(layers_.size());
+    const auto resolve = [&](auto&& self, std::size_t index) -> const Layer& {
+        if (visited[index]) {
+            for (const auto& [at, value] : prepared) if (at == index) return value;
+            return layers_[index];
+        }
+        visited[index] = 1;
+        const auto& value = layers_[index];
+        if (!value.mirror) return value;
+        const auto it = std::ranges::find(layers_,value.mirror->source,&Layer::id);
+        const auto& source = self(self, std::size_t(it-layers_.begin()));
+        if (!mirrorNeedsResolution(value,source)) return value;
+        prepared.emplace_back(index,resolvedMirroredLayer(value,source));
+        return prepared.back().second;
+    };
+    for (std::size_t i=0;i<layers_.size();++i) (void)resolve(resolve,i);
+    static_assert(std::is_nothrow_move_assignable_v<Layer>);
+    for (auto& [index,value] : prepared) layers_[index] = std::move(value);
+    mirrorsResolvedRevision_ = revision_;
+}
+
+bool Document::setLayerMirrorState(LayerId id, std::optional<LayerMirror> mirror)
+{
+    auto* target = rawLayer(id);
+    // This is an appearance-history operation. Creation/promotion and changing
+    // source ownership must go through an atomic structure command.
+    if (!target || !target->mirror || !mirror || target->mirror->source!=mirror->source
+        || target->mirror == mirror) return false;
+    const auto before = target->mirror;
+    target->mirror = mirror;
+    if (!validMirrorStructure(layers_)) { target->mirror = before; return false; }
+    mirroredLayerCount_ = std::size_t(std::ranges::count_if(layers_,[](const Layer& l){return l.mirror.has_value();}));
+    touch();
+    return true;
+}
+
+bool Document::restoreMirrorAppearance(LayerId id, const Layer& state)
+{
+    auto* target=layer(id);
+    if (!target || !target->mirror || !state.mirror || target->mirror->source != state.mirror->source) return false;
+    if (target->mirror == state.mirror && target->opacity == state.opacity && target->fillOpacity == state.fillOpacity
+        && target->blendMode == state.blendMode && equivalentLayerEffects(target->effects,state.effects)) return false;
+    target->opacity=state.opacity; target->fillOpacity=state.fillOpacity; target->blendMode=state.blendMode;
+    target->effects=state.effects; target->mirror=state.mirror; ++target->effectRevision;
+    touch(); return true;
 }
 
 std::vector<LayerId> Document::expandedLayers(std::span<const LayerId> input) const
@@ -163,6 +239,7 @@ bool Document::replaceStructure(const LayerTree& expected, LayerTree replacement
     std::span<const LayerId> removed, std::span<const Layer> added,
     std::span<const ItemVisibilityUpdate> retainedLeafVisibility)
 {
+    resolveMirrors();
     if (tree_ != expected || (replacement == tree_ && removed.empty() && added.empty())) return false;
     for (std::size_t i = 0; i < retainedLeafVisibility.size(); ++i) {
         const auto& update = retainedLeafVisibility[i];
@@ -212,10 +289,11 @@ bool Document::replaceStructure(const LayerTree& expected, LayerTree replacement
         for (const auto& update : retainedLeafVisibility)
             if (update.id == id) prepared.back().visible = update.after;
     }
-    if (!validChannelStructure(replacement, prepared)) return false;
+    if (!validChannelStructure(replacement, prepared) || !validMirrorStructure(prepared)) return false;
     // All validation, allocations, and authoritative text copies precede
     // publication. Pixels/caches are shared; no renderer sees a half-edit.
     layers_.swap(prepared);
+    mirroredLayerCount_ = std::size_t(std::ranges::count_if(layers_,[](const Layer& l){return l.mirror.has_value();}));
     std::swap(tree_, replacement);
     touch();
     return true;
@@ -252,6 +330,7 @@ bool Document::insertLayer(std::size_t index, Layer insertedLayer)
 
 std::optional<RemovedLayer> Document::takeLayer(LayerId id)
 {
+    resolveMirrors();
     if (channelGroupForLayer(*this, id)) return {};
     const auto found = std::find_if(layers_.begin(), layers_.end(),
         [id](const Layer& candidate) { return candidate.id == id; });
@@ -306,6 +385,7 @@ bool Document::setLayerOpacity(LayerId id, float opacity)
         return false;
     }
     target->opacity = opacity;
+    if (target->mirror) target->mirror->opacityOverride = true;
     touch();
     return true;
 }
@@ -316,6 +396,7 @@ bool Document::setLayerBlendMode(LayerId id, BlendMode mode)
     if (target && (isScalarLayer(*target) || isPackedDataLayer(*target))) return false;
     if (!target || !isValidBlendMode(mode) || target->blendMode == mode) return false;
     target->blendMode = mode;
+    if (target->mirror) target->mirror->blendModeOverride = true;
     touch();
     return true;
 }
@@ -328,6 +409,7 @@ bool Document::setLayerFillOpacity(LayerId id, float opacity)
     opacity = std::clamp(opacity, 0.0F, 1.0F);
     if (target->fillOpacity == opacity) return false;
     target->fillOpacity = opacity;
+    if (target->mirror) target->mirror->fillOpacityOverride = true;
     touch();
     return true;
 }
@@ -335,6 +417,7 @@ bool Document::setLayerFillOpacity(LayerId id, float opacity)
 bool Document::setLayerAdjustments(LayerId id, AdjustmentState state)
 {
     auto* target = layer(id);
+    if (target && target->mirror) return false;
     if (target && (isPackedDataLayer(*target) || (isScalarLayer(*target) && !scalarAdjustmentsSupported(state)))) return false;
     if (!target || (state && !validAdjustments(*state))
         || equivalentAdjustments(target->adjustments, state)) return false;
@@ -347,6 +430,7 @@ bool Document::setLayerAdjustments(LayerId id, AdjustmentState state)
 bool Document::setLayerFilters(LayerId id, SpatialFilterState state)
 {
     auto* target = layer(id);
+    if (target && target->mirror) return false;
     if(target && std::holds_alternative<AdjustmentLayer>(target->payload))return false;
     if (target && (isPackedDataLayer(*target) || (isScalarLayer(*target) && !scalarFiltersSupported(state)))) return false;
     if (!target || (state && !validSpatialFilters(*state))
@@ -367,6 +451,7 @@ bool Document::renameLayer(LayerId id, std::string name)
 bool Document::setLayerCrop(LayerId id, std::optional<LayerCrop> crop)
 {
     auto* target=layer(id);
+    if (target && target->mirror) return false;
     if(target && std::holds_alternative<AdjustmentLayer>(target->payload))return false;
     if(target && (isScalarLayer(*target) || isPackedDataLayer(*target)))return false;
     if(!target || target->crop==crop || (crop && !validLayerCrop(*crop)))return false;
@@ -466,6 +551,7 @@ bool Document::setLayerTransform(LayerId id, const AffineTransform& transform)
 bool Document::setLayerRasterStorage(LayerId id,std::shared_ptr<RasterSurface> surface,Vec2d origin,std::optional<RectD> frame)
 {
     auto* target=layer(id);
+    if (target && target->mirror) return false;
     if(!target||!std::holds_alternative<RasterLayer>(target->payload)||!surface||surface->extent().empty()
         ||!std::isfinite(origin.x)||!std::isfinite(origin.y)||std::floor(origin.x)!=origin.x||std::floor(origin.y)!=origin.y)return false;
     const auto& previous = std::get<RasterLayer>(target->payload).surface;
@@ -503,7 +589,7 @@ bool Document::setLayerContents(std::vector<LayerContentUpdate> updates)
     for (std::size_t i = 0; i < updates.size(); ++i) {
         auto& update = updates[i];
         const auto* target = layer(update.id);
-        if (!target || update.before.index() != update.after.index()) return false;
+        if (!target || target->mirror || update.before.index() != update.after.index()) return false;
         for (std::size_t j = 0; j < i; ++j) if (updates[j].id == update.id) return false;
         const bool matches = std::visit([&](const auto& before) {
             const auto* current = std::get_if<std::decay_t<decltype(before)>>(&target->payload);
@@ -533,6 +619,7 @@ bool Document::setLayerContents(std::vector<LayerContentUpdate> updates)
 bool Document::setLayerText(LayerId id, TextLayer text)
 {
     auto* target = layer(id);
+    if (target && target->mirror) return false;
     auto* old = target ? std::get_if<TextLayer>(&target->payload) : nullptr;
     if (!old) return false;
     text = normalizedText(std::move(text));
@@ -547,6 +634,7 @@ bool Document::setLayerText(LayerId id, TextLayer text)
 bool Document::setLayerShape(LayerId id, ShapeLayer shape)
 {
     auto* target = layer(id);
+    if (target && target->mirror) return false;
     auto* old = target ? std::get_if<ShapeLayer>(&target->payload) : nullptr;
     if (!old || !validShape(shape) || *old == shape) return false;
     *old = std::move(shape);
@@ -559,6 +647,7 @@ bool Document::setLayerShape(LayerId id, ShapeLayer shape)
 bool Document::setLayerShapeGeometry(LayerId id, ShapeLayer shape, const AffineTransform& transform)
 {
     auto* target = layer(id);
+    if (target && target->mirror) return false;
     auto* old = target ? std::get_if<ShapeLayer>(&target->payload) : nullptr;
     if (!old || !validShape(shape) || !transform.inverted()
         || (*old == shape && target->localToDocument == transform)) return false;
@@ -576,6 +665,7 @@ bool Document::setLayerShapeGeometry(LayerId id, ShapeLayer shape, const AffineT
 
 DocumentSnapshot Document::snapshot() const
 {
+    resolveMirrors();
     DocumentSnapshot result {
         .documentRevision = revision_,
         .canvas = canvas_,
@@ -583,6 +673,7 @@ DocumentSnapshot Document::snapshot() const
         .selection = selection_,
         .selectionRevision = selectionRevision_,
         .tree = tree_,
+        .guides = guides_,
     };
     result.layersBottomToTop.reserve(layers_.size());
     for (const auto& source : layers_) {

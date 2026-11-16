@@ -49,7 +49,9 @@ public:
         if (!source)
             throw std::invalid_argument(
                 "A clone reference layer has no prepared image. Display the layer and try again.");
-        auto [entry, inserted] = surfaces_.try_emplace(source.get());
+        // Read-only mirrored wrappers retain their source's surface identity.
+        // Freeze their common pixels once, even when several layers sample it.
+        auto [entry, inserted] = surfaces_.try_emplace(source->id());
         if (inserted) {
             const auto extent = source->extent();
             if (extent.empty() || extent.width > std::uint32_t(std::numeric_limits<std::int32_t>::max())
@@ -138,7 +140,7 @@ private:
     std::size_t limit_, bytes_ { 0 };
     std::function<bool()> cancelled_;
     std::span<const SampleCacheOverride> prepared_;
-    std::unordered_map<const RasterSurface*, std::shared_ptr<RasterSurface>> surfaces_;
+    std::unordered_map<SurfaceId, std::shared_ptr<RasterSurface>> surfaces_;
 };
 
 bool validGeometry(const Layer& layer)

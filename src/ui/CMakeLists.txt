@@ -13,6 +13,8 @@ add_library(imageeditor_ui STATIC
     src/AdjustmentCodec.cpp
     src/SpatialFilterCodec.cpp
     src/LayerEffectCodec.cpp
+    src/LayerEffectClipboard.cpp
+    src/MainWindowLayerEffectsClipboard.cpp
     src/AdjustmentCurveEditor.cpp
     src/GradientStopEditor.cpp
     src/AdjustmentHistograms.cpp
@@ -77,7 +79,10 @@ add_library(imageeditor_ui STATIC
     src/CropOptionsPage.cpp
     src/MainWindowAdjustments.cpp
     src/MainWindowMeasure.cpp
+    src/MainWindowGuides.cpp
+    src/GuideCodec.cpp
     src/MainWindowLayerOrganization.cpp
+    src/MainWindowMirroredLayers.cpp
     src/MainWindowLayerMasks.cpp
     src/MainWindowFiles.cpp
     src/MainWindowUpdates.cpp
@@ -95,6 +100,7 @@ add_library(imageeditor_ui STATIC
     src/ScreenshotDialog.cpp
     include/imageeditor/ui/ScreenshotDialog.hpp
     src/MainWindowScreenshot.cpp
+    src/MirrorCodec.cpp
     src/ProjectFile.cpp
     src/RecentFiles.cpp
     src/RulerStrip.cpp

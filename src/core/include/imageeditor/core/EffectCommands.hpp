@@ -3,11 +3,15 @@
 #include "imageeditor/core/Document.hpp"
 #include "imageeditor/core/History.hpp"
 namespace imageeditor::core {
+// Derive effect-only inheritance changes for a mirrored layer. The caller can
+// resolve a detached candidate before atomic publication of a multi-layer edit.
+[[nodiscard]] LayerMirror mirrorEffectOverrides(const Layer&, const Layer& source,
+                                                const LayerEffectState&, bool overrideAll = false);
 class SetLayerEffectsCommand final : public Command {
 public:
   SetLayerEffectsCommand(LayerId id, LayerEffectState before,
-                         LayerEffectState after)
-      : id_(id), before_(std::move(before)), after_(std::move(after)) {}
+                         LayerEffectState after, bool overrideAll = false)
+      : id_(id), before_(std::move(before)), after_(std::move(after)), overrideAll_(overrideAll) {}
   bool apply(Document &) override;
   bool undo(Document &) override;
   bool canAdoptApplied(const Document &) const noexcept override;
@@ -17,8 +21,11 @@ public:
   }
 
 private:
+  friend class EffectEditTransaction;
   LayerId id_;
   LayerEffectState before_, after_;
+  std::optional<LayerMirror> beforeMirror_, afterMirror_;
+  bool overrideAll_{}, captured_{};
 };
 class EffectEditTransaction {
 public:
@@ -37,6 +44,7 @@ private:
   Document &document_;
   LayerId id_;
   LayerEffectState before_, after_;
+  std::optional<LayerMirror> beforeMirror_, afterMirror_;
   Revision revision_{};
   std::uint64_t contentState_{};
   bool active_{};

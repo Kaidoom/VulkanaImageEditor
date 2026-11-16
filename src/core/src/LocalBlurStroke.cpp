@@ -1,4 +1,5 @@
 #include "imageeditor/core/LocalBlurStroke.hpp"
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/core/ScalarRasterSurface.hpp"
 
@@ -27,6 +28,10 @@ LocalBlurStroke::LocalBlurStroke(Document& document, LayerId target, BrushSettin
         [this](Vec2d p) { return filteredSample(p); }, "Local Blur stroke")
 {
     const auto* layer = document.layer(target);
+    if (layer && isMirroredLayer(*layer)) {
+        diagnostic_ = "Mirrored layers are read-only. Promote to a full layer before editing content.";
+        return;
+    }
     const auto* raster = layer ? std::get_if<RasterLayer>(&layer->payload) : nullptr;
     if (raster && raster->surface) {
         surface_ = raster->surface->id();
@@ -46,7 +51,7 @@ bool LocalBlurStroke::targetMatches() const noexcept
 {
     const auto* layer = document_.layer(target_);
     const auto* raster = layer ? std::get_if<RasterLayer>(&layer->payload) : nullptr;
-    return document_.revision() == revision_ && raster && raster->surface
+    return layer && !isMirroredLayer(*layer) && document_.revision() == revision_ && raster && raster->surface
         && raster->surface->id() == surface_ && raster->surface->revision() == surfaceRevision_
         && intrinsicTransform(*layer) == localToDocument_;
 }
@@ -189,6 +194,7 @@ PremultipliedColor LocalBlurStroke::filteredSample(Vec2d p)
 
 bool LocalBlurStroke::begin(const NormalizedPointerSample& sample, const std::function<bool()>& cancelled)
 {
+    if (!diagnostic_.empty()) return false;
     cancelled_ = cancelled;
     try {
         if (!capture() || !brush_.begin(sample)) { cancel(); return false; }

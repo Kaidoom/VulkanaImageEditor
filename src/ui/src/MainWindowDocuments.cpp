@@ -558,6 +558,7 @@ MainWindow::DocumentMemory MainWindow::documentMemory() const
     DocumentMemory result;
     std::unordered_set<core::SurfaceId> sources, derived;
     std::unordered_set<const core::SelectionMask*> masks;
+    std::unordered_set<const core::LayerEffectCache*> effects;
     std::unordered_set<const core::SnapshotImage*> snapshots;
     std::unordered_set<const void*> scalarAllocations;
     const auto bytes=[&](const auto& s) -> std::uint64_t {
@@ -577,7 +578,8 @@ MainWindow::DocumentMemory MainWindow::documentMemory() const
                 result.sourceBytes+=bytes(raster->surface);
             for(const auto& surface:{layer.renderCache?layer.renderCache->surface:nullptr,layer.filterCache?layer.filterCache->surface:nullptr})
                 if(surface&&derived.insert(surface->id()).second)result.derivedBytes+=bytes(surface);
-            if(layer.effectCache)result.derivedBytes+=layer.effectCache->bevelMemoryCost();
+            if(layer.effectCache && effects.insert(layer.effectCache.get()).second)
+                result.derivedBytes+=layer.effectCache->bevelMemoryCost();
             if(layer.effectCache)for(const auto& mask:layer.effectCache->masks)
                 if(mask&&mask->coverage&&masks.insert(mask->coverage.get()).second)result.derivedBytes+=mask->coverage->memoryCost();
         }

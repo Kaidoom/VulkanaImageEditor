@@ -1,5 +1,7 @@
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
+#include <unordered_set>
 #include "imageeditor/ui/FiltersPanel.hpp"
 #include "imageeditor/ui/EffectsPanel.hpp"
 #include "imageeditor/ui/AdjustmentsPanel.hpp"
@@ -112,7 +114,7 @@ bool MainWindow::beginFilterEdit(core::SpatialFilterType type)
 {
     if(fileBusy_||!session().document()||!session().activeLayer())return false;
     if (const auto* target = session().document()->layer(*session().activeLayer())) {
-        if (core::isPackedDataLayer(*target)) return false;
+        if (core::isMirroredLayer(*target) || core::isPackedDataLayer(*target)) return false;
         if (core::isScalarLayer(*target) && type != core::SpatialFilterType::Gaussian) return false;
     }
     if(const auto* l=session().document()->layer(*session().activeLayer());l&&std::holds_alternative<core::AdjustmentLayer>(l->payload))return false;
@@ -184,7 +186,7 @@ void MainWindow::refreshFiltersPanel()
 {
     if(!filtersPanel_)return;
     const auto* layer=session().document()&&session().activeLayer()?session().document()->layer(*session().activeLayer()):nullptr;
-    filtersPanel_->setTarget(layer&&std::holds_alternative<core::AdjustmentLayer>(layer->payload)?nullptr:layer,session().document()&&bool(session().document()->selection()));scheduleFilterPreparation();
+    filtersPanel_->setTarget(layer&&(core::isMirroredLayer(*layer)||std::holds_alternative<core::AdjustmentLayer>(layer->payload))?nullptr:layer,session().document()&&bool(session().document()->selection()));scheduleFilterPreparation();
 }
 void MainWindow::scheduleFilterPreparation()
 {
@@ -217,10 +219,13 @@ void MainWindow::advanceFilterPreparation()
                 bool published=job->result&&core::publishLayerSpatialFilters(*session().document(),job->key.id,job->result);
                 if(job->effects) {
                     std::size_t bytes=0;
+                    std::unordered_set<const core::LayerEffectCache*> effects;
+                    std::unordered_set<const core::SelectionMask*> masks;
                     for(const auto& other:session().document()->layers()) {
                         const auto cache=other.id==job->key.id?job->effects:other.effectCache;
-                        if(cache)bytes+=cache->bevelMemoryCost();
-                        if(cache)for(const auto& mask:cache->masks)if(mask)bytes+=mask->coverage->memoryCost();
+                        if(cache && effects.insert(cache.get()).second)bytes+=cache->bevelMemoryCost();
+                        if(cache)for(const auto& mask:cache->masks)
+                            if(mask && masks.insert(mask->coverage.get()).second)bytes+=mask->coverage->memoryCost();
                     }
                     if(bytes>384ULL*1024*1024)throw std::length_error("Document effect masks exceed the 384 MiB cache budget");
                     auto* target=session().document()->layer(job->key.id);

@@ -9359,4 +9359,81 @@ Requested: %1 × %2 px</source>
       <source>Remove background</source>
     </message>
   </context>
+  <context>
+    <name>LayerEffectClipboard</name>
+    <message id="layer.effects.copy">
+      <source>Copy Effects</source>
+    </message>
+    <message id="layer.effects.paste">
+      <source>Paste Effects</source>
+    </message>
+    <message id="layer.effects.paste.hint">
+      <source>Replace this layer’s effects with the copied effects.</source>
+    </message>
+    <message id="layer.effects.copy.done">
+      <source>Effects copied.</source>
+    </message>
+    <message id="layer.effects.paste.invalid">
+      <source>The copied effects could not be read.</source>
+    </message>
+  </context>
+  <context>
+    <name>Guides</name>
+    <message id="guides.tool">
+      <source>Guides</source>
+    </message>
+    <message id="guides.horizontal">
+      <source>Horizontal</source>
+    </message>
+    <message id="guides.vertical">
+      <source>Vertical</source>
+    </message>
+    <message id="guides.count">
+      <source>Count: </source>
+    </message>
+    <message id="guides.count.hint">
+      <source>Number of guides. Use the mouse wheel over the canvas to adjust it.</source>
+    </message>
+    <message id="guides.show">
+      <source>Show guides</source>
+    </message>
+    <message id="guides.clear">
+      <source>Clear guides</source>
+    </message>
+    <message id="guides.key.click">
+      <source>Left click</source>
+    </message>
+    <message id="guides.key.drag">
+      <source>Drag</source>
+    </message>
+    <message id="guides.key.right">
+      <source>Right click</source>
+    </message>
+    <message id="guides.key.wheel">
+      <source>Mouse wheel</source>
+    </message>
+    <message id="guides.hint.place">
+      <source>Place guides</source>
+    </message>
+    <message id="guides.hint.move">
+      <source>Move a guide</source>
+    </message>
+    <message id="guides.hint.remove">
+      <source>Remove a guide</source>
+    </message>
+    <message id="guides.hint.count">
+      <source>Change guide count</source>
+    </message>
+  </context>
+  <context>
+    <name>MirroredLayers</name>
+    <message id="layers.mirror.create"><source>Create mirrored layer</source></message>
+    <message id="layers.mirror.promote"><source>Promote to full layer</source></message>
+    <message id="layers.mirror.sync"><source>Sync with source</source></message>
+    <message id="layers.mirror.select.source"><source>Select source</source></message>
+    <message id="layers.mirror.label"><source>Mirrored</source></message>
+    <message id="layers.mirror.read.only"><source>Mirrored layers are read-only. Promote to a full layer to edit the content.</source></message>
+    <message id="layers.mirror.link.opacity"><source>Link layer opacity to the source</source></message>
+    <message id="layers.mirror.link.fill"><source>Link pixel opacity to the source</source></message>
+  </context>
 </TS>

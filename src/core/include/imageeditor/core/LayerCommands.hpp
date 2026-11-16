@@ -65,6 +65,7 @@ private:
     float after_;
     std::uint64_t mergeKey_ {0};
     std::optional<float> before_;
+    std::optional<LayerMirror> beforeMirror_, afterMirror_;
 };
 
 class SetLayerBlendModeCommand final : public Command {
@@ -78,6 +79,7 @@ private:
     LayerId layerId_;
     BlendMode after_;
     std::optional<BlendMode> before_;
+    std::optional<LayerMirror> beforeMirror_, afterMirror_;
 };
 
 class SetLayerFillOpacityCommand final : public Command {
@@ -94,6 +96,7 @@ private:
     float after_;
     std::uint64_t mergeKey_;
     std::optional<float> before_;
+    std::optional<LayerMirror> beforeMirror_, afterMirror_;
 };
 
 class AddLayerCommand final : public Command {
@@ -128,6 +131,7 @@ private:
     std::optional<Layer> removedLayer_;
     std::optional<ItemPlacement> placement_;
     std::size_t index_ {0};
+    std::unique_ptr<Command> mirroredRemoval_;
 };
 
 class MoveLayerCommand final : public Command {

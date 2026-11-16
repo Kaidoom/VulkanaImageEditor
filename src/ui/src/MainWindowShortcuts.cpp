@@ -135,7 +135,8 @@ bool MainWindow::shortcutGestureIdle(bool allowMenuCapture, const QWidget* allow
         && !spotHealJob_ && !activeFill_ && !layerCrop_ && !activeLayerMove_ && !shapeResize_ && !shapeEdit_
         && !shapeCreation_ && !selectionGesture_ && !selectionRasterizer_ && !selectionRotation_
         && !colorSelectionEditing_ && !smartInteractionActive() && !adjustmentEdit_ && !filterEdit_ && !effectEdit_
-        && !canvasWindow_->transformDragging() && !canvasWindow_->panDragging() && !canvasWindow_->measureDragging();
+        && !canvasWindow_->transformDragging() && !canvasWindow_->panDragging() && !canvasWindow_->measureDragging()
+        && !canvasWindow_->guideDragging();
 }
 bool MainWindow::routePanelKeyboard(QObject* watched, QEvent* event)
 {

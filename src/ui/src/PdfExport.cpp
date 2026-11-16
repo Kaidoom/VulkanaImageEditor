@@ -128,6 +128,7 @@ core::Document pageDocument(const PdfExportSnapshot &snapshot,
     if (contains(ids, source.id)) {
       core::Layer layer;
       layer = source;
+      layer.mirror.reset();
       layer.visible = true;
       require(result.insertLayer(result.layers().size(), std::move(layer)),
               "Invalid PDF export layer");
@@ -145,6 +146,7 @@ core::Document pageDocument(const PdfExportSnapshot &snapshot,
     const bool scopeBoundary=adjustment && adjustment->scope==core::AdjustmentScope::ThisGroup;
     if(requiredBase || scopeBoundary) {
       auto hidden=source;
+      hidden.mirror.reset();
       if(const auto* group=core::channelGroupForLayer(*snapshot.document,source.id)) {
         // Channel visibility belongs to the packed container, never its slots.
         hidden.visible=true;hiddenChannelGroups.insert(group->id);
@@ -536,6 +538,8 @@ PdfExportSnapshot capturePdfExport(const core::Document &document,
   for (const auto &original : document.layers()) {
     core::Layer frozenLayer;
     frozenLayer = original;
+    // Export owns resolved content, independent of the live mirror/source link.
+    frozenLayer.mirror.reset();
     auto *layer = &frozenLayer;
     layer->renderCache.reset();
     layer->filterCache.reset();

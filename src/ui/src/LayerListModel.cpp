@@ -320,6 +320,8 @@ QVariant LayerListModel::data(const QModelIndex& index, int role) const
         return c && core::isExpandable(c->kind);
     case ContainerRole:
         return c != nullptr;
+    case MirroredRole:
+        return l && l->mirror.has_value();
     case Qt::UserRole + 4:
         return expanded(*id);
     case Qt::UserRole + 5:

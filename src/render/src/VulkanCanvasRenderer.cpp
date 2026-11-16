@@ -1006,14 +1006,15 @@ void VulkanCanvasRenderer::recordCanvasPass(
             static_cast<std::uint32_t>(sizeof(push)), &push);
         vkCmdDraw(commandBuffer, 3, 1, 0, 0);
     }
-    const auto overlayLine = [&](core::Vec2d from, core::Vec2d to, bool alignment) {
+    const auto overlayLine = [&](core::Vec2d from, core::Vec2d to, bool alignment,
+                                 std::optional<core::Rgba8> color = {}) {
         const auto a = mapping.documentToFramebuffer(from);
         const auto b = mapping.documentToFramebuffer(to);
         const auto scale = mapping.logicalViewportToFramebuffer({1, 1});
         const std::array<std::array<float, 4>, 3> push {{
             {float(a.x), float(a.y), float(b.x), float(b.y)},
             {float(scale.x), float(scale.y), alignment ? 1.0F : 0.0F, 0},
-            linearTheme(scene.overlayAccent)}};
+            linearTheme(color.value_or(scene.overlayAccent))}};
         // Small/axis-aligned measurements need not shade the whole workspace.
         // Clip only to the framebuffer, never to document content bounds.
         const auto padding = (alignment ? 3 : 7) * std::max(scale.x, scale.y);
@@ -1039,8 +1040,26 @@ void VulkanCanvasRenderer::recordCanvasPass(
         overlayLine(scene.measurement ? scene.measurement->a : sourcePoint,
             scene.measurement ? scene.measurement->b : sourcePoint, false);
     }
+    const bool guideSnapping = scene.draggedGuide && std::ranges::any_of(scene.snapGuides,
+        [](const auto& guide) { return guide.has_value(); });
+    const core::Rgba8 guideSnapColor {90, 220, 190, 255};
     for (const auto& guide : scene.snapGuides)
-        if (guide) overlayLine(guide->a, guide->b, true);
+        if (guide) overlayLine(guide->a, guide->b, true,
+            guideSnapping ? guideSnapColor : scene.overlayAccent);
+    if (scene.documentGuidesVisible) {
+        const auto drawGuide = [&](const core::DocumentGuide& guide, bool emphasized) {
+            auto color=scene.overlayAccent; color.alpha=emphasized?255:115;
+            if (guideSnapping && scene.draggedGuide==guide.id) color=guideSnapColor;
+            const auto extent=scene.document.canvas.extent;
+            if (guide.orientation==core::GuideOrientation::Horizontal)
+                overlayLine({0,guide.position},{double(extent.width),guide.position},true,color);
+            else overlayLine({guide.position,0},{guide.position,double(extent.height)},true,color);
+        };
+        for (const auto& guide : scene.document.guides.items)
+            if (!scene.draggedGuide || *scene.draggedGuide!=guide.id)
+                drawGuide(guide,scene.highlightedGuide==guide.id);
+        for (const auto& guide : scene.guidePreview) drawGuide(guide,true);
+    }
     if (!layerScissor.empty() && !scene.textQuads.empty()) {
         const VkRect2D clipped {{layerScissor.x, layerScissor.y},
             {layerScissor.width, layerScissor.height}};

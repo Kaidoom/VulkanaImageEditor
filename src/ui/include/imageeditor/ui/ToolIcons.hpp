@@ -6,7 +6,7 @@
 namespace imageeditor::ui {
 enum class ToolGlyph {
     Replace, Add, Subtract, Intersect, Transform, SelectionAdjustments, MergedVisible, ActiveLayer,
-    FillSelection, FillContiguous, UnderMouse, Measure, LassoFreehand, LassoPolygonal, LassoMagnetic,
+    FillSelection, FillContiguous, UnderMouse, Measure, Guides, LassoFreehand, LassoPolygonal, LassoMagnetic,
     SelectRectangle, SelectEllipse, ShapeRectangle, ShapeRoundedRectangle,
     ShapeEllipse, ShapeTriangle, ShapeLine, ShapePolygon, ShapeArc, ShapeFill, ShapeStroke, Folder, Group, ClippingGroup, LayerRaster,
     SelectByColor, Crop, ShowSource, Chamfer, ResetCrop, AspectLock, FlipHorizontal, FlipVertical,
@@ -18,7 +18,7 @@ enum class ToolGlyph {
     Deselect, Invert, Pixels, Snapping, FitCanvas, ZoomActual, Palette, Swatches,
     Panels, DockLeft, DockRight, DockTop, DockBottom, History, Visible, Hidden, Camera, Play, Pause, Loop,
     EffectStroke, EffectDropShadow, EffectInnerShadow, EffectOuterGlow, EffectInnerGlow,
-    EffectColorOverlay, EffectGradientOverlay, EffectBevel, OpacityMode
+    EffectColorOverlay, EffectGradientOverlay, EffectBevel, OpacityMode, Link
 };
 // Original code-native glyphs, rendered and cached at the requested size/DPR.
 QIcon toolGlyph(ToolGlyph glyph);

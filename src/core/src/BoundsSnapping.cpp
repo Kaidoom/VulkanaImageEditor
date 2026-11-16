@@ -53,6 +53,11 @@ void BoundsSnapping::rebuild(const Document& document)
                 anchors_[axis].push_back({coordinate(bounds, axis, kind), kind, id, bounds});
     };
     add(0, {{0, 0}, {double(document.canvas().extent.width), double(document.canvas().extent.height)}});
+    for (const auto& guide : document.guides().items) {
+        const unsigned axis = guide.orientation == GuideOrientation::Vertical ? 0 : 1;
+        const DocumentBounds bounds{{0,0},{double(document.canvas().extent.width),double(document.canvas().extent.height)}};
+        anchors_[axis].push_back({guide.position, 3, 0, bounds, true});
+    }
     std::unordered_map<LayerId, const Layer*> layers;
     std::unordered_map<LayerId, const LayerContainer*> containers;
     for (const auto& layer : document.layers()) layers.emplace(layer.id, &layer);
@@ -112,8 +117,8 @@ SnapResult BoundsSnapping::resolve(const Document& document, Vec2d raw, const Sn
         if (!(axis == 0 ? options.allowX : options.allowY)) { active_[axis].reset(); continue; }
         const double delta = axis == 0 ? raw.x : raw.y;
         const auto available = [&](const Anchor& a, unsigned mover) {
-            return (a.id == 0 ? options.canvas : options.layers)
-                && ((a.kind == 1) == (mover == 1)); // Centers to centers; either edge to either edge.
+            return a.guide ? options.guides : (a.id == 0 ? options.canvas : options.layers)
+                && ((a.kind == 1) == (mover == 1)); // Guides attract both edges and centers.
         };
         const auto correction = [&](const Alignment& alignment) {
             return anchors_[axis][alignment.target].coordinate
@@ -174,7 +179,7 @@ HandleSnapResult BoundsSnapping::resolveHandle(const Document& document, Vec2d p
     if ((!options.allowX && std::abs(direction.x) > 1e-9)
         || (!options.allowY && std::abs(direction.y) > 1e-9)) { active_ = {}; return result; }
     const double capture = capturePixels / options.logicalScale, release = releasePixels / options.logicalScale;
-    const auto available = [&](const Anchor& a) { return a.id == 0 ? options.canvas : options.layers; };
+    const auto available = [&](const Anchor& a) { return a.guide ? options.guides : a.id == 0 ? options.canvas : options.layers; };
     const auto distance = [&](unsigned axis, std::size_t target) {
         return (anchors_[axis][target].coordinate - (axis == 0 ? point.x : point.y))
             / (axis == 0 ? direction.x : direction.y);

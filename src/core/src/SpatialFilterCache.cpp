@@ -6,6 +6,7 @@
 #include <array>
 #include <cmath>
 #include <stdexcept>
+#include <unordered_set>
 
 namespace imageeditor::core {
 namespace {
@@ -268,9 +269,11 @@ bool publishLayerSpatialFilters(Document& document,LayerId id,std::shared_ptr<co
     auto candidate=*layer;candidate.filterCache=cache;
     if(!layerSpatialFilterCacheValid(candidate))return false;
     std::uint64_t bytes=cache->surface->allocatedPixelBytes();
+    std::unordered_set<SurfaceId> counted{cache->surface->id()};
     for(const auto& other:document.layers()) {
         if(other.id==id || !layerSpatialFilterCacheValid(other))continue;
-        bytes+=other.filterCache->surface->allocatedPixelBytes();
+        if(counted.insert(other.filterCache->surface->id()).second)
+            bytes+=other.filterCache->surface->allocatedPixelBytes();
     }
     require(bytes<=768ULL*1024*1024,"Document spatial-filter caches exceed the 768 MiB cache budget");
     for(const auto& other:document.layers())

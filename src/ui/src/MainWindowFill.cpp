@@ -1,3 +1,4 @@
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
@@ -134,6 +135,9 @@ void MainWindow::startFill(bool background, bool selectionOnly, core::Vec2d seed
         || selectionTransform_)
         return;
     const auto* target = session().document()->layer(*session().activeLayer());
+    if (target && core::isMirroredLayer(*target)) {
+        statusBar()->showMessage(i18n::text("layers.mirror.read.only"), 4000); return;
+    }
     if (!session().editingLayerMask()&&eraseSelection && (!target
         || !std::holds_alternative<core::RasterLayer>(target->payload))) return;
     cancelPendingEdits();
