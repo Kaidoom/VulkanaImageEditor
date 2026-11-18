@@ -512,6 +512,46 @@ void canvasShiftSelectionAndGroupMoveShareThePanelSelection()
     CHECK(near(f.geometry(f.upperId).m02, upper.m02 + 5));
 }
 
+void moveToolIgnoresClickJitterAndKeepsTheGrabPoint()
+{
+    RasterFixture f;
+    CHECK(f.valid()); if (!f.valid()) return;
+    const auto& session = f.window.editorSession();
+    auto* undo = actionWithShortcut(f.window, QKeySequence::Undo);
+    auto* snapping = f.window.findChild<QAction*>("SnappingAction");
+    CHECK(undo && snapping); if (!undo || !snapping) return;
+    snapping->setChecked(false);
+    const auto original = f.geometry(f.lowerId);
+    const auto threshold = QApplication::startDragDistance();
+    const auto depth = session.history().undoDepth();
+    for (const double zoom : {.75, 3.0}) {
+        const auto anchor = logicalPoint(f, {32, 40});
+        f.canvas->setZoomAt(zoom, anchor);
+        const auto press = logicalPoint(f, {32, 40});
+        const auto fine = press + QPointF(1, 0);
+        const auto jitter = press + QPointF(threshold * .5, threshold * .25);
+        const auto crossed = press + QPointF(threshold + 1, 0);
+        const auto redoDepth = session.history().redoDepth();
+        const auto revision = session.document()->revision();
+        sendMouse(*f.canvas, QEvent::MouseButtonPress, press, Qt::LeftButton, Qt::LeftButton);
+        CHECK(session.activeLayer() == f.lowerId);
+        sendMouse(*f.canvas, QEvent::MouseMove, jitter, Qt::NoButton, Qt::LeftButton);
+        sendMouse(*f.canvas, QEvent::MouseButtonRelease, jitter, Qt::LeftButton, Qt::NoButton);
+        CHECK(f.geometry(f.lowerId) == original && session.document()->revision() == revision);
+        CHECK(session.history().undoDepth() == depth && session.history().redoDepth() == redoDepth);
+
+        sendMouse(*f.canvas, QEvent::MouseButtonPress, press, Qt::LeftButton, Qt::LeftButton);
+        sendMouse(*f.canvas, QEvent::MouseMove, crossed, Qt::NoButton, Qt::LeftButton);
+        CHECK(near(f.geometry(f.lowerId).m02, original.m02 + (threshold + 1) / zoom));
+        sendMouse(*f.canvas, QEvent::MouseMove, fine, Qt::NoButton, Qt::LeftButton);
+        sendMouse(*f.canvas, QEvent::MouseButtonRelease, fine, Qt::LeftButton, Qt::NoButton);
+        CHECK(near(f.geometry(f.lowerId).m02, original.m02 + 1 / zoom));
+        CHECK(session.history().undoDepth() == depth + 1);
+        undo->trigger();
+        CHECK(f.geometry(f.lowerId) == original);
+    }
+}
+
 void altDragDuplicatesOnceAndMovesCopiesWithAtomicHistory()
 {
     RasterFixture f; CHECK(f.valid()); if (!f.valid()) return;
@@ -650,7 +690,9 @@ void movementSnappingModifiersPreferencesAndGuideCleanup()
     const auto& s=f.window.editorSession(); const auto original=f.geometry(f.upperId);
     const auto depth=s.history().undoDepth(), content=s.document()->contentState();
     const auto start=logicalPoint(f,{96,40}), close=start+QPointF(4,3);
+    const auto crossed=start+QPointF(QApplication::startDragDistance()+1,0);
     sendMouse(*f.canvas,QEvent::MouseButtonPress,start,Qt::LeftButton,Qt::LeftButton);
+    sendMouse(*f.canvas,QEvent::MouseMove,crossed,Qt::NoButton,Qt::LeftButton);
     sendMouse(*f.canvas,QEvent::MouseMove,close,Qt::NoButton,Qt::LeftButton);
     CHECK(sameTransform(f.geometry(f.upperId),original));
     CHECK(f.canvas->scene().snapGuides[0] && f.canvas->scene().snapGuides[1]);
@@ -683,6 +725,7 @@ void movementSnappingModifiersPreferencesAndGuideCleanup()
     sendMouse(*f.canvas,QEvent::MouseButtonRelease,mid,Qt::LeftButton,Qt::NoButton);
     // A cross-panel release owns the same drag and always removes guides.
     sendMouse(*f.canvas,QEvent::MouseButtonPress,start,Qt::LeftButton,Qt::LeftButton);
+    sendMouse(*f.canvas,QEvent::MouseMove,crossed,Qt::NoButton,Qt::LeftButton);
     sendMouse(*f.canvas,QEvent::MouseMove,close,Qt::NoButton,Qt::LeftButton);
     CHECK(f.canvas->scene().snapGuides[0]);
     const auto local=panel->mapFromGlobal(f.canvas->mapToGlobal(close.toPoint()));
@@ -3829,6 +3872,7 @@ int main(int argc, char** argv)
     movePendingTextFinishesBeforeToolbarAndLayerListTargetChanges();
     ordinaryMoveSelectsRenderedLayerAndCreatesOnlyOneDragCommand();
     ordinaryMoveRecoversOffCanvasLayersAndRetainsGroupSelection();
+    moveToolIgnoresClickJitterAndKeepsTheGrabPoint();
     altDragDuplicatesOnceAndMovesCopiesWithAtomicHistory();
     altDragMixedSelectionSupportsCrossPanelReleaseAndFocusCancellation();
     movementSnappingModifiersPreferencesAndGuideCleanup();

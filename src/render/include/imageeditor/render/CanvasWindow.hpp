@@ -113,6 +113,7 @@ public:
     void setPointerSizeTooltip(core::Extent2d size);
     [[nodiscard]] std::array<core::Vec2d, 8> logicalTransformHandles() const;
     [[nodiscard]] bool transformDragging() const noexcept { return transforming_; }
+    [[nodiscard]] bool layerMoveThresholdReached(QPointF logicalPosition) const;
     // The shell's selection menu must not consume the context event belonging
     // to a right-click that just completed an explicit canvas operation.
     [[nodiscard]] bool finishContextMenuSuppressed() const noexcept { return suppressFinishContextMenu_; }
@@ -386,6 +387,7 @@ private:
     bool picking_ {false};
     bool explicitPickerGrab_ {false};
     bool transforming_ {false};
+    std::optional<QPointF> pendingLayerMovePress_;
     bool distorting_ {false}; // Latched at corner press, never changed mid-gesture.
     bool explicitTransformGrab_ {false};
     core::Rgba8 workingColor_;

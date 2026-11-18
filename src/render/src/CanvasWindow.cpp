@@ -20,6 +20,7 @@
 #include <QPointingDevice>
 #include <QResizeEvent>
 #include <QScreen>
+#include <QStyleHints>
 #include <QTabletEvent>
 #include <QWheelEvent>
 #include <QUrl>
@@ -366,6 +367,8 @@ void CanvasWindow::beginTransformInput(QPointF position, std::optional<core::Tra
         && selectionModifiers_.testFlag(Qt::ControlModifier) && hit>=core::TransformHandle::TopLeft
         && hit<=core::TransformHandle::Left && int(hit)%2==0;
     if (transforming_) {
+        if (scene_.activeTool == core::ToolId::Move && hit == core::TransformHandle::Move)
+            pendingLayerMovePress_ = position;
         scene_.transformHighlight = hit;
         updateTransformTooltip();
         if (!platformProvidesImplicitPointerGrab())
@@ -375,9 +378,18 @@ void CanvasWindow::beginTransformInput(QPointF position, std::optional<core::Tra
     scheduleFrame();
 }
 
+bool CanvasWindow::layerMoveThresholdReached(QPointF logicalPosition) const
+{
+    return !pendingLayerMovePress_ || (logicalPosition - *pendingLayerMovePress_).manhattanLength()
+        >= QGuiApplication::styleHints()->startDragDistance();
+}
+
 void CanvasWindow::moveTransformInput(QPointF position, Qt::KeyboardModifiers modifiers)
 {
     selectionModifiers_ = modifiers;
+    if (!layerMoveThresholdReached(position)) return;
+    // Latch once. Returning near the grab point must allow fine positioning.
+    pendingLayerMovePress_.reset();
     const auto hit = scene_.transformHighlight;
     distorting_ = transforming_ && scene_.activeTool == core::ToolId::Transform
         && modifiers.testFlag(Qt::ControlModifier) && hit >= core::TransformHandle::TopLeft
@@ -405,6 +417,7 @@ void CanvasWindow::finishTransformInput(bool cancel)
 {
     if (!transforming_) return;
     transforming_ = false;
+    pendingLayerMovePress_.reset();
     distorting_ = false;
     setSnapGuides({});
     setPointerTooltip({});

@@ -275,7 +275,8 @@ bool MainWindow::routeDocumentDrag(QObject* watched, QEvent* event)
     const QRect stripRect(documentTabs_->mapToGlobal(QPoint{}), documentTabs_->size());
     if (event->type() == QEvent::MouseMove && activeLayerMove_ && activeLayerMove_->dragging()) {
         const auto* mouse = static_cast<QMouseEvent*>(event);
-        if (mouse->buttons().testFlag(Qt::LeftButton) && stripRect.contains(mouse->globalPosition().toPoint())) {
+        if (mouse->buttons().testFlag(Qt::LeftButton) && stripRect.contains(mouse->globalPosition().toPoint())
+            && canvasWindow_->layerMoveThresholdReached(canvasWindow_->mapFromGlobal(mouse->globalPosition()))) {
             canvasWindow_->cancelTransformInput();
             finishLayerMove(false);
             pointerRouter_->cancelCapture();

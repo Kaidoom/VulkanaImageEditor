@@ -839,18 +839,8 @@ MainWindow::MainWindow(
             setSelectionTransformValues(*values);
             return true;
         }
-        if (pendingMoveClickSelection_) {
-            const auto delta = position - moveTransferGrab_;
-            if ((std::abs(delta.x) + std::abs(delta.y)) * canvasWindow_->zoom() < QApplication::startDragDistance())
-                return true; // Pointer jitter remains a click, without moving the selected set.
-            pendingMoveClickSelection_.reset();
-        }
-        if (duplicateMove_ && !duplicateMove_->command) {
-            const auto delta = position - duplicateMove_->press;
-            if ((std::abs(delta.x) + std::abs(delta.y)) * canvasWindow_->zoom() < QApplication::startDragDistance())
-                return true; // Click/jitter: neither duplicate nor move the originals.
-            if (!prepareDuplicateMove()) return false;
-        }
+        pendingMoveClickSelection_.reset();
+        if (duplicateMove_ && !duplicateMove_->command && !prepareDuplicateMove()) return false;
         auto* edit = layerTransform_ ? layerTransform_.get() : activeLayerMove_.get();
         const bool ratio=layerTransform_ && transformOptionsPage_->aspectLocked();
         auto snapping = snappingOptions_;
