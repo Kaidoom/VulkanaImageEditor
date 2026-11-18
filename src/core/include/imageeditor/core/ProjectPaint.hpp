@@ -23,6 +23,8 @@ bool hasProjectPaint(const Layer&);
 std::unique_ptr<Command> makeProjectPaintCommand(
     const Document&, LayerId, ProjectPaintState after, std::string label);
 std::unique_ptr<Command> makeProjectPaintClearCommand(const Document&, LayerId, bool useSelection);
+std::unique_ptr<Command> makeProjectPaintClearCommand(const Document&, LayerId, SelectionState coverage,
+    std::string label);
 
 class ProjectPaintEdit final {
 public:

@@ -368,14 +368,19 @@ std::unique_ptr<Command> makeProjectPaintCommand(
 }
 std::unique_ptr<Command> makeProjectPaintClearCommand(const Document& doc, LayerId id, bool useSelection)
 {
+    const auto selection = useSelection ? doc.selection() : nullptr;
+    return makeProjectPaintClearCommand(doc, id, selection, selection ? "Clear selected project paint" : "Clear paint overlay");
+}
+
+std::unique_ptr<Command> makeProjectPaintClearCommand(const Document& doc, LayerId id, SelectionState selection, std::string label)
+{
     const auto* layer = doc.layer(id);
     const auto surface = linkedSurface(layer);
     const auto paint = projectPaintState(surface);
     if (!paint)
         return { };
-    const auto selection = useSelection ? doc.selection() : nullptr;
     if (!selection)
-        return makeProjectPaintCommand(doc, id, { }, "Clear paint overlay");
+        return makeProjectPaintCommand(doc, id, { }, std::move(label));
     auto next = std::make_shared<ProjectPaint>(*paint);
     const auto transform = intrinsicTransform(*layer);
     auto crop = layer->crop;
@@ -411,7 +416,7 @@ std::unique_ptr<Command> makeProjectPaintClearCommand(const Document& doc, Layer
         else
             next->tiles[key] = std::move(edited);
     }
-    return makeProjectPaintCommand(doc, id, std::move(next), "Clear selected project paint");
+    return makeProjectPaintCommand(doc, id, std::move(next), std::move(label));
 }
 
 ProjectPaintEdit::ProjectPaintEdit(Document& owner, LayerId id, std::string label)

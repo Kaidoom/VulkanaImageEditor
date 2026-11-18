@@ -14220,6 +14220,34 @@ Demandé : %1 × %2 px</translation>
       <source>Mirrored</source>
       <translation type="unfinished" />
     </message>
+    <message id="layers.cleanup.transparency">
+      <source>Clean Up Transparency</source>
+      <translation>Nettoyer la transparence</translation>
+    </message>
+    <message id="layers.cleanup.delete.inverted">
+      <source>Delete Inverted</source>
+      <translation>Effacer la sélection inversée</translation>
+    </message>
+    <message id="layers.cleanup.trim">
+      <source>Trim to Canvas Bounds</source>
+      <translation>Rogner aux limites du canevas</translation>
+    </message>
+    <message id="layers.cleanup.threshold">
+      <source>Clear pixels with alpha at or below this value (0–255)</source>
+      <translation>Effacer les pixels dont l’alpha est inférieur ou égal à cette valeur (0–255)</translation>
+    </message>
+    <message id="layers.cleanup.decrease.threshold">
+      <source>Decrease threshold</source>
+      <translation>Diminuer le seuil</translation>
+    </message>
+    <message id="layers.cleanup.increase.threshold">
+      <source>Increase threshold</source>
+      <translation>Augmenter le seuil</translation>
+    </message>
+    <message id="layers.cleanup.no.pixels">
+      <source>No pixels to clear.</source>
+      <translation>Aucun pixel à effacer.</translation>
+    </message>
     <message id="project.paint.label">
       <source>Paint overlay</source>
       <translation>Surcouche de peinture</translation>

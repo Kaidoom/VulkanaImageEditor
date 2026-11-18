@@ -14166,6 +14166,34 @@ Requested: %1 × %2 px</source>
       <source>Mirrored</source>
       <translation type="unfinished" />
     </message>
+    <message id="layers.cleanup.transparency">
+      <source>Clean Up Transparency</source>
+      <translation>투명도 정리</translation>
+    </message>
+    <message id="layers.cleanup.delete.inverted">
+      <source>Delete Inverted</source>
+      <translation>반전된 선택 영역 지우기</translation>
+    </message>
+    <message id="layers.cleanup.trim">
+      <source>Trim to Canvas Bounds</source>
+      <translation>캔버스 경계에 맞춰 자르기</translation>
+    </message>
+    <message id="layers.cleanup.threshold">
+      <source>Clear pixels with alpha at or below this value (0–255)</source>
+      <translation>알파 값이 다음 값 이하인 픽셀 지우기(0–255)</translation>
+    </message>
+    <message id="layers.cleanup.decrease.threshold">
+      <source>Decrease threshold</source>
+      <translation>임계값 낮추기</translation>
+    </message>
+    <message id="layers.cleanup.increase.threshold">
+      <source>Increase threshold</source>
+      <translation>임계값 높이기</translation>
+    </message>
+    <message id="layers.cleanup.no.pixels">
+      <source>No pixels to clear.</source>
+      <translation>지울 픽셀이 없습니다.</translation>
+    </message>
     <message id="project.paint.label">
       <source>Paint overlay</source>
       <translation>페인트 오버레이</translation>

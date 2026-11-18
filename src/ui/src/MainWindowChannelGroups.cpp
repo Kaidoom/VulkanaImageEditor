@@ -208,7 +208,7 @@ void MainWindow::copyScalarChannel(bool cut)
         QApplication::clipboard()->setMimeData(mime.release());
         if (cut && activeDocument_ == owner && !owner->closed && session().activeLayer() == target
             && session().document()->revision() == revision && session().document()->selection() == selection)
-            startFill(false, true, {}, true);
+            startFill(false, true, {}, PixelErase::Selection);
         else statusBar()->showMessage(i18n::text("channels.clipboard.copied"), 3000);
     } catch (const std::exception& error) { statusBar()->showMessage(QString::fromUtf8(error.what()), 6000); }
 }

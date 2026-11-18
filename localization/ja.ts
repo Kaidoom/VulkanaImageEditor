@@ -14166,6 +14166,34 @@ Requested: %1 × %2 px</source>
       <source>Mirrored</source>
       <translation type="unfinished" />
     </message>
+    <message id="layers.cleanup.transparency">
+      <source>Clean Up Transparency</source>
+      <translation>透明度のクリーンアップ</translation>
+    </message>
+    <message id="layers.cleanup.delete.inverted">
+      <source>Delete Inverted</source>
+      <translation>反転した選択範囲を消去</translation>
+    </message>
+    <message id="layers.cleanup.trim">
+      <source>Trim to Canvas Bounds</source>
+      <translation>キャンバスの境界で切り抜く</translation>
+    </message>
+    <message id="layers.cleanup.threshold">
+      <source>Clear pixels with alpha at or below this value (0–255)</source>
+      <translation>アルファ値が次の値以下のピクセルを消去（0～255）</translation>
+    </message>
+    <message id="layers.cleanup.decrease.threshold">
+      <source>Decrease threshold</source>
+      <translation>しきい値を下げる</translation>
+    </message>
+    <message id="layers.cleanup.increase.threshold">
+      <source>Increase threshold</source>
+      <translation>しきい値を上げる</translation>
+    </message>
+    <message id="layers.cleanup.no.pixels">
+      <source>No pixels to clear.</source>
+      <translation>消去するピクセルはありません。</translation>
+    </message>
     <message id="project.paint.label">
       <source>Paint overlay</source>
       <translation>描画オーバーレイ</translation>

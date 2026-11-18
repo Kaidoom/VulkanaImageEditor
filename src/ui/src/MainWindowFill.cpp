@@ -130,11 +130,11 @@ void MainWindow::createEyedropperControls()
     row->addStretch();
     toolOptionsBar_->registerToolPage(core::ToolId::Eyedropper, i18n::text("main.window.fill.eyedropper"), page);
 }
-void MainWindow::clearProjectPaint(core::LayerId id, bool useSelection)
+void MainWindow::clearProjectPaint(core::LayerId id, core::SelectionState coverage, std::string label)
 {
     if (fileBusy_ || workspaceDialog_ || !session().document() || !settleForFileOperation()) return;
     try {
-        auto command = core::makeProjectPaintClearCommand(*session().document(), id, useSelection);
+        auto command = core::makeProjectPaintClearCommand(*session().document(), id, std::move(coverage), std::move(label));
         if (command && session().execute(std::move(command))) {
             fileState().untouched = false;
             synchronizeUi(false, false);
@@ -144,14 +144,23 @@ void MainWindow::clearProjectPaint(core::LayerId id, bool useSelection)
     }
 }
 
-void MainWindow::startFill(bool background, bool selectionOnly, core::Vec2d seed, bool eraseSelection)
+void MainWindow::startFill(bool background, bool selectionOnly, core::Vec2d seed, PixelErase erase)
 {
     if (activeFill_ || !session().document() || !session().activeLayer() || layerTransform_
         || selectionTransform_)
         return;
     const auto* target = session().document()->layer(*session().activeLayer());
+    const bool eraseSelection = erase != PixelErase::None;
+    const auto selected = session().document()->selection();
+    core::SelectionState inverse;
+    if (erase == PixelErase::Inverted) {
+        if (!selected || selected->bounds().empty()) return;
+        try { inverse = selected->inverted(); }
+        catch (const std::exception& e) { statusBar()->showMessage(QString::fromUtf8(e.what()), 4500); return; }
+    }
     if (target && target->projectSource && !session().editingLayerMask() && eraseSelection) {
-        clearProjectPaint(target->id, true);
+        clearProjectPaint(target->id, inverse ? inverse : selected,
+            inverse ? "Delete Inverted" : selected ? "Clear selected project paint" : "Clear paint overlay");
         return;
     }
     if (target && target->mirror) {
@@ -168,11 +177,11 @@ void MainWindow::startFill(bool background, bool selectionOnly, core::Vec2d seed
     options.eraseSelection = eraseSelection;
     const bool mask=session().editingLayerMask();options.coverageValues=mask;
     if(mask) {
-        try {activeMaskEdit_=std::make_unique<core::LayerMaskEdit>(*session().document(),*session().activeLayer(),"Fill layer mask");}
+        try {activeMaskEdit_=std::make_unique<core::LayerMaskEdit>(*session().document(),*session().activeLayer(),inverse ? "Delete Inverted" : "Fill layer mask");}
         catch(const std::exception& e){statusBar()->showMessage(QString::fromUtf8(e.what()),4500);return;}
     }
     activeFill_
-        = std::make_unique<core::FillOperation>(mask?activeMaskEdit_->proxy():*session().document(), *session().activeLayer(), options);
+        = std::make_unique<core::FillOperation>(mask?activeMaskEdit_->proxy():*session().document(), *session().activeLayer(), options, std::move(inverse));
     if (!fillProgress_) {
         fillProgress_ = new QWidget(this);
         fillProgress_->setObjectName(QStringLiteral("FillProgress"));
@@ -215,7 +224,7 @@ void MainWindow::advanceFill()
     if (state == core::FillState::Ready)
         result = activeFill_->commit(activeMaskEdit_?activeMaskEdit_->provisionalHistory():session().history());
     const auto error = QString::fromUtf8(activeFill_->error());
-    const auto label = QString::fromUtf8(activeFill_->label());
+    const auto label = i18n::Localization::instance().historyText(activeFill_->label());
     activeFill_.reset();
     if(activeMaskEdit_) {
         if(result==core::RasterEditCommitResult::Committed||result==core::RasterEditCommitResult::NoChanges)

@@ -57,6 +57,9 @@ const QList<ShortcutDefinition>& shortcutDefinitions()
         add("GroupLayersAction", i18n::text("editor.shortcuts.group.selected"), i18n::text("editor.shortcuts.layers"));
         add("UngroupLayersAction", i18n::text("editor.shortcuts.ungroup"), i18n::text("editor.shortcuts.layers"));
         add("MergeLayersAction", i18n::text("editor.shortcuts.merge.selected"), i18n::text("editor.shortcuts.layers"));
+        add("CleanTransparencyAction", i18n::text("layers.cleanup.transparency"), i18n::text("editor.shortcuts.layers"));
+        add("DeleteInvertedAction", i18n::text("layers.cleanup.delete.inverted"), i18n::text("editor.shortcuts.layers"));
+        add("TrimLayersToCanvasAction", i18n::text("layers.cleanup.trim"), i18n::text("editor.shortcuts.layers"));
         add("RasterizeLayersAction", i18n::text("editor.shortcuts.rasterize.layers"), i18n::text("editor.shortcuts.layers"));
         add("HideSelectedLayersAction", i18n::text("editor.shortcuts.hide.selected"), i18n::text("editor.shortcuts.layers"), "H");
         add("ShowSelectedLayersAction", i18n::text("editor.shortcuts.reveal.selected"), i18n::text("editor.shortcuts.layers"), "Alt+H");

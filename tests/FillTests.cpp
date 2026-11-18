@@ -1,5 +1,6 @@
 #include "imageeditor/core/FillOperation.hpp"
 #include "imageeditor/core/LayerCommands.hpp"
+#include "imageeditor/core/LayerPixelCleanup.hpp"
 #include "imageeditor/core/ProjectLayer.hpp"
 #include "imageeditor/core/ProjectPaint.hpp"
 #include "imageeditor/core/SelectionCommands.hpp"
@@ -676,10 +677,71 @@ void eraseSelectionCoverageAndHistory()
     FillOperation clearCancelled(f.document, f.layer, {.eraseSelection = true});
     clearCancelled.step(4096); clearCancelled.cancel();
     CHECK(bytes(*f.surface) == original && f.history.redoDepth() == 1);
+
+    // Delete Inverted uses the same coverage and crop/transform rules as three
+    // manual actions, but keeps the original soft selection throughout.
+    const auto inverse = mask->inverted();
+    CHECK(f.document.setSelection(inverse));
+    execute(f, {.eraseSelection = true});
+    const auto manual = bytes(*f.surface);
+    CHECK(f.history.undo(f.document));
+    CHECK(f.document.setSelection(mask));
+    FillOperation inverted(f.document, f.layer, {.eraseSelection = true}, inverse);
+    CHECK(finish(inverted) == FillState::Ready && inverted.commit(f.history) == RasterEditCommitResult::Committed);
+    CHECK(bytes(*f.surface) == manual && f.document.selection() == mask);
+    CHECK(f.history.undo(f.document) && bytes(*f.surface) == original && f.document.selection() == mask);
+}
+
+void batchLayerPixelCleanup()
+{
+    constexpr Extent2u extent{160, 90};
+    Document doc({{80, 64}});
+    History history;
+    const Rgba8 faint{99,22,10,4}, solid{111,55,70,255}, edge{13,7,21,5};
+    auto a = std::make_shared<ContiguousRasterSurface>(extent, solid);
+    auto b = std::make_shared<ContiguousRasterSurface>(extent, solid);
+    setPixel(*a,1,1,faint); setPixel(*a,75,30,edge); setPixel(*b,100,20,faint);
+    auto first = Layer::raster("First", a), second = Layer::raster("Second", b);
+    first.localToDocument = {1,0,-18,0,1,-11};
+    second.localToDocument = {0,-1,66,1,0,-7};
+    second.rasterOrigin = {3,-4};
+    CHECK(doc.insertLayer(0, first) && doc.insertLayer(1, second));
+    const LayerSelectionState selected{{first.id,second.id},first.id,first.id};
+    const auto selection = SelectionMask::rectangle(doc.canvas().extent,{10,8,12,15},128);
+    CHECK(doc.setSelection(selection));
+    auto source = [&](LayerId id) { return std::get<RasterLayer>(doc.layer(id)->payload).surface; };
+    CHECK(history.execute(doc,makeLayerPixelCleanupCommand(doc,selected,LayerPixelCleanup::RemoveLowAlpha)));
+    CHECK(pixel(*source(first.id),1,1) == (Rgba8{99,22,10,0}));
+    CHECK(pixel(*source(first.id),75,30) == edge && pixel(*source(second.id),100,20).alpha == 0);
+    CHECK(!makeLayerPixelCleanupCommand(doc,selected,LayerPixelCleanup::RemoveLowAlpha));
+    CHECK(history.undoDepth()==1 && history.undo(doc) && source(first.id)==a && source(second.id)==b);
+    CHECK(history.redo(doc) && pixel(*source(first.id),1,1).alpha==0);
+    CHECK(history.undo(doc));
+    int calls = 0;
+    CHECK(!makeLayerPixelCleanupCommand(doc,selected,LayerPixelCleanup::TrimToCanvas,4,[&] { return ++calls < 3; }));
+    CHECK(calls==3 && history.canRedo() && source(first.id)==a && source(second.id)==b);
+    CHECK(history.execute(doc,makeLayerPixelCleanupCommand(doc,selected,LayerPixelCleanup::TrimToCanvas)));
+    for (const auto& layer : {first,second}) {
+        const auto cleaned = source(layer.id);
+        const auto original = std::get<RasterLayer>(layer.payload).surface;
+        for (int y=0; y<int(extent.height); ++y) for (int x=0; x<int(extent.width); ++x) {
+            const auto p=layer.localToDocument.map({x+.5+layer.rasterOrigin.x,y+.5+layer.rasterOrigin.y});
+            auto expected=pixel(*original,x,y);
+            if (p.x<0 || p.x>=80 || p.y<0 || p.y>=64) expected.alpha=0;
+            CHECK(pixel(*cleaned,x,y)==expected);
+        }
+    }
+    CHECK(doc.selection()==selection && history.undoDepth()==1);
+    CHECK(history.undo(doc) && source(first.id)==a && source(second.id)==b);
+    const auto text=Layer::text("Text",{});
+    CHECK(doc.insertLayer(2,text));
+    const LayerSelectionState mixed{{first.id,text.id},first.id,first.id};
+    CHECK(!canCleanLayerPixels(doc,mixed.ids) && !makeLayerPixelCleanupCommand(doc,mixed,LayerPixelCleanup::TrimToCanvas));
 }
 
 int main()
 {
+    batchLayerPixelCleanup();
     linkedBucketUsesSourceAndOverlayBoundaries();
     eraseSelectionCoverageAndHistory();
     solidSelectionAndCompositing();

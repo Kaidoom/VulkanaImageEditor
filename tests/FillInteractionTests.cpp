@@ -15,6 +15,9 @@
 #include <QDoubleSpinBox>
 #include <QElapsedTimer>
 #include <QImage>
+#include <QDialog>
+#include <QSpinBox>
+#include <QDialogButtonBox>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMouseEvent>
@@ -329,6 +332,69 @@ void keyboardEraseAndNudges(Fixture& f)
     const auto moved = f.document().layer(secondId)->localToDocument;
     CHECK(std::abs(moved.m02-translated.m02)<1e-8 && std::abs(moved.m00-translated.m00)<1e-8);
     f.undo(); CHECK(f.document().layer(secondId)->localToDocument == secondMatrix);
+}
+
+void layerPixelMenuUtilities(Fixture& f)
+{
+    QImage image(64,48,QImage::Format_RGBA8888);
+    image.fill(QColor(80,120,160,255));
+    for (int x=4; x<=7; ++x) image.setPixelColor(x,2,QColor(80,120,160,x));
+    f.open(image);
+    auto& session = const_cast<core::EditorSession&>(f.window.editorSession());
+    const auto id = f.layer().id;
+    CHECK(session.document()->setLayerTransform(id,{1,0,-12,0,1,0}));
+    CHECK(!f.action("DeleteInvertedAction")->isEnabled());
+    f.rectangle({20,8},{40,20});
+    const auto mask = f.document().selection();
+    const auto original = f.pixels();
+    const auto depth = f.history().undoDepth();
+    CHECK(mask && f.action("DeleteInvertedAction")->isEnabled());
+    f.trigger("DeleteInvertedAction"); f.waitIdle();
+    CHECK(f.history().undoDepth()==depth+1 && f.document().selection()==mask);
+    CHECK(f.pixel(0,30).alpha==255 && f.pixel(35,12).alpha==255 && f.pixel(60,24).alpha==0);
+    f.undo(); CHECK(f.pixels()==original && f.document().selection()==mask);
+    f.trigger("TrimLayersToCanvasAction");
+    CHECK(f.pixel(11,30).alpha==0 && f.pixel(12,30).alpha==255 && f.pixel(60,24).alpha==255);
+    CHECK(f.document().selection()==mask);
+    f.undo(); CHECK(f.pixels()==original);
+
+    // Exercise the app-owned card through the native host's keyboard route.
+    QTimer::singleShot(0, &f.window, [&] {
+        auto* dialog=f.window.findChild<QDialog*>("CleanTransparencyDialog");
+        CHECK(dialog && !dialog->isWindow());
+        if (!dialog) return;
+        auto* spin=dialog->findChild<QSpinBox*>();
+        auto* down=dialog->findChild<QPushButton*>("DecreaseCleanupThreshold");
+        auto* up=dialog->findChild<QPushButton*>("IncreaseCleanupThreshold");
+        auto* edit=spin ? spin->findChild<QLineEdit*>() : nullptr;
+        auto* actions=dialog->findChild<QDialogButtonBox*>();
+        CHECK(edit && down && up && actions);
+        if (!edit || !down || !up || !actions) {dialog->reject();return;}
+        CHECK(spin->value()==4 && spin->buttonSymbols()==QAbstractSpinBox::NoButtons);
+        CHECK(spin->geometry().center().y()==up->geometry().center().y());
+        CHECK(spin->width()<dialog->width()/2 && down->geometry().right()<up->geometry().left());
+        QTest::mouseClick(up,Qt::LeftButton);
+        CHECK(spin->value()==5);
+        QTest::mouseClick(down,Qt::LeftButton);
+        CHECK(spin->value()==4);
+        spin->setValue(0); CHECK(!down->isEnabled() && up->isEnabled());
+        spin->setValue(255); CHECK(down->isEnabled() && !up->isEnabled());
+        QTest::mouseClick(edit,Qt::LeftButton);
+        QTest::keyClick(f.window.windowHandle(),Qt::Key_A,Qt::ControlModifier);
+        QTest::keyClick(f.window.windowHandle(),Qt::Key_6);
+        CHECK(spin->value()==6);
+        QTest::mouseClick(actions->button(QDialogButtonBox::Ok),Qt::LeftButton);
+    });
+    f.trigger("CleanTransparencyAction");
+    CHECK(f.pixel(4,2).alpha==0 && f.pixel(6,2).alpha==0 && f.pixel(7,2).alpha==7);
+    CHECK(f.document().selection()==mask);
+    f.undo(); CHECK(f.pixels()==original);
+    QTimer::singleShot(0, &f.window, [&] {
+        auto* dialog=f.window.findChild<QDialog*>("CleanTransparencyDialog");
+        if (dialog) dialog->reject();
+    });
+    f.trigger("CleanTransparencyAction");
+    CHECK(f.history().undoDepth()==depth && f.history().canRedo() && f.pixels()==original);
 }
 
 void controlsAreCachedAndDocumentingTheImplementedTools()
@@ -938,6 +1004,7 @@ int nativeFillValidation()
         }));
         CHECK(f.canvas->rendererStats().fullUploads == stats.fullUploads);
         keyboardEraseAndNudges(f);
+        layerPixelMenuUtilities(f);
         f.window.logRendererDiagnostics();
     }
     CHECK(warnings == 0 && errors == 0);
@@ -991,7 +1058,7 @@ int main(int argc, char** argv)
         toolbarReviewSheet(preview);
         return failures ? EXIT_FAILURE : EXIT_SUCCESS;
     }
-    { Fixture f; CHECK(f.valid()); if (f.valid()) keyboardEraseAndNudges(f); }
+    { Fixture f; CHECK(f.valid()); if (f.valid()) { keyboardEraseAndNudges(f); layerPixelMenuUtilities(f); } }
     controlsAreCachedAndDocumentingTheImplementedTools();
     selectionFillPreservesHolesMaskGeometryAndOneHistoryStep();
     canvasFillsUseTheHighlightedColorWithoutSeparateSourceControls();

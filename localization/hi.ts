@@ -14167,6 +14167,34 @@ Requested: %1 × %2 px</source>
       <source>Mirrored</source>
       <translation type="unfinished" />
     </message>
+    <message id="layers.cleanup.transparency">
+      <source>Clean Up Transparency</source>
+      <translation>पारदर्शिता साफ़ करें</translation>
+    </message>
+    <message id="layers.cleanup.delete.inverted">
+      <source>Delete Inverted</source>
+      <translation>उलटा चयन मिटाएँ</translation>
+    </message>
+    <message id="layers.cleanup.trim">
+      <source>Trim to Canvas Bounds</source>
+      <translation>कैनवास की सीमाओं तक काटें</translation>
+    </message>
+    <message id="layers.cleanup.threshold">
+      <source>Clear pixels with alpha at or below this value (0–255)</source>
+      <translation>इस मान के बराबर या इससे कम अल्फ़ा वाले पिक्सेल मिटाएँ (0–255)</translation>
+    </message>
+    <message id="layers.cleanup.decrease.threshold">
+      <source>Decrease threshold</source>
+      <translation>सीमा मान घटाएँ</translation>
+    </message>
+    <message id="layers.cleanup.increase.threshold">
+      <source>Increase threshold</source>
+      <translation>सीमा मान बढ़ाएँ</translation>
+    </message>
+    <message id="layers.cleanup.no.pixels">
+      <source>No pixels to clear.</source>
+      <translation>मिटाने के लिए कोई पिक्सेल नहीं है।</translation>
+    </message>
     <message id="project.paint.label">
       <source>Paint overlay</source>
       <translation>पेंट ओवरले</translation>

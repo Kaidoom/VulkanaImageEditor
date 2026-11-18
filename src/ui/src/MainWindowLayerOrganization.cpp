@@ -440,7 +440,7 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
             [this, id = *id] { const auto path = chooseProjectLayerPath(); if (!path.isEmpty()) relinkProjectLayer(id, path); })->setObjectName("RelinkProjectLayerAction");
         auto* clearPaint = menu.addAction(toolGlyph(ToolGlyph::Trash), i18n::text("project.paint.clear"), this,
             [this, id = *id, menuInstance] {
-                if (activeDocumentId() == menuInstance) clearProjectPaint(id, false);
+                if (activeDocumentId() == menuInstance) clearProjectPaint(id);
             });
         clearPaint->setObjectName(QStringLiteral("ClearProjectPaintAction"));
         clearPaint->setEnabled(core::hasProjectPaint(*layer));

@@ -44,6 +44,7 @@ add_library(imageeditor_core STATIC
     src/EditorSession.cpp
     src/EllipseCoverageRasterizer.cpp
     src/FillOperation.cpp
+    src/LayerPixelCleanup.cpp
     src/FreehandSelectionPath.cpp
     src/AnchoredLassoPath.cpp
     src/LiveWire.cpp

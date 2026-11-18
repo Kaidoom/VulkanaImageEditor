@@ -27,7 +27,7 @@ struct FillStats {
 // runs on the document owner thread; UI yields between steps (no pixel races).
 class FillOperation final {
 public:
-    FillOperation(Document& document, LayerId layer, FillOptions options);
+    FillOperation(Document& document, LayerId layer, FillOptions options, SelectionState invertedEraseMask = {});
     ~FillOperation();
     FillState step(std::size_t pixelBudget = 65536);
     RasterEditCommitResult commit(History& history);
@@ -36,7 +36,7 @@ public:
     [[nodiscard]] const FillStats& stats() const noexcept { return stats_; }
     [[nodiscard]] std::string_view error() const noexcept { return error_; }
     [[nodiscard]] std::string_view label() const noexcept
-    { return options_.eraseSelection ? (selection_ ? "Erase selection" : "Clear layer") : "Fill"; }
+    { return selection_ != originalSelection_ ? "Delete Inverted" : options_.eraseSelection ? (selection_ ? "Erase selection" : "Clear layer") : "Fill"; }
 
 private:
     bool eligible(int x, int y) const;
@@ -49,7 +49,7 @@ private:
     Extent2u canvas_, extent_;
     RectI workBounds_;
     AffineTransform mapping_;
-    SelectionState selection_;
+    SelectionState originalSelection_, selection_;
     std::unique_ptr<ProjectPaintEdit> projectPaint_;
     std::shared_ptr<const RasterSurface> matchSurface_;
     std::shared_ptr<RasterSurface> surface_;

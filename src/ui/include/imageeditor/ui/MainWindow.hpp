@@ -347,8 +347,12 @@ private:
     std::optional<core::LayerId> hitShape(core::Vec2d, bool activeOnly = false) const;
     std::optional<core::LayerId> hitMoveLayer(core::Vec2d) const;
     bool shapeLayerHit(const core::Layer&, core::Vec2d) const;
-    void clearProjectPaint(core::LayerId id, bool useSelection);
-    void startFill(bool background, bool selectionOnly, core::Vec2d seed = {}, bool eraseSelection = false);
+    void clearProjectPaint(core::LayerId id, core::SelectionState coverage = {}, std::string label = "Clear paint overlay");
+    enum class PixelErase { None, Selection, Inverted };
+    void createLayerPixelActions(QMenu*);
+    void refreshLayerPixelActions();
+    void cleanLayerPixels(bool trimToCanvas);
+    void startFill(bool background, bool selectionOnly, core::Vec2d seed = {}, PixelErase erase = PixelErase::None);
     void nudgeTarget(core::Vec2d delta, bool layersOnly = false);
     void advanceFill();
     void cancelFill();
@@ -705,6 +709,9 @@ private:
     core::FillOptions fillOptions_;
     std::unique_ptr<core::FillOperation> activeFill_;
     std::array<QAction*,2> fillActions_ {};
+    QAction* cleanTransparencyAction_ {};
+    QAction* trimToCanvasAction_ {};
+    QAction* deleteInvertedAction_ {};
     QWidget* fillProgress_ {nullptr};
     QTimer* fillTimer_ {nullptr};
     struct SelectionGesture {

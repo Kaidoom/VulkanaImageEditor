@@ -9437,6 +9437,13 @@ Requested: %1 × %2 px</source>
     <message id="layers.mirror.sync"><source>Sync with source</source></message>
     <message id="layers.mirror.select.source"><source>Select source</source></message>
     <message id="layers.mirror.label"><source>Mirrored</source></message>
+    <message id="layers.cleanup.transparency"><source>Clean Up Transparency</source></message>
+    <message id="layers.cleanup.delete.inverted"><source>Delete Inverted</source></message>
+    <message id="layers.cleanup.trim"><source>Trim to Canvas Bounds</source></message>
+    <message id="layers.cleanup.threshold"><source>Clear pixels with alpha at or below this value (0–255)</source></message>
+    <message id="layers.cleanup.decrease.threshold"><source>Decrease threshold</source></message>
+    <message id="layers.cleanup.increase.threshold"><source>Increase threshold</source></message>
+    <message id="layers.cleanup.no.pixels"><source>No pixels to clear.</source></message>
     <message id="project.paint.label"><source>Paint overlay</source></message>
     <message id="project.paint.clear"><source>Clear Paint Overlay</source></message>
     <message id="project.layer.add"><source>Add Project as Layer…</source></message>

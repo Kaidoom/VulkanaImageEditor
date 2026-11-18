@@ -49,6 +49,12 @@ content and do not affect document history. Existing settings are preserved.
   With no pixel selection, Delete removes the selected layers. Shift+Delete always
   clears content, using the selection if present. The layer trash button removes
   the selected layers even when there is a pixel selection.
+- **Layers → Delete Inverted** clears the area outside a pixel selection on the active layer
+  or mask, within the canvas. It keeps the original selection, including soft edges.
+- **Layers → Clean Up Transparency…** clears pixels at or below the chosen alpha
+  on the selected editable raster layers. The default is 4 on a scale of 0–255.
+  **Layers → Trim to Canvas Bounds** clears pixels whose centers fall outside the canvas.
+  Both commands cover the full layer regardless of the pixel selection and undo in one step.
 - Plain Enter in text inserts a newline. Finish text is its own configurable
   command (default Ctrl+Enter). Standard character editing, selection, clipboard,
   and navigation keys stay local to text; conflicting text-command assignments

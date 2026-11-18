@@ -2250,6 +2250,7 @@ void MainWindow::createMenus()
     layerMenu->addAction(inspectChannelAlphaAction_);
     fileMenu->insertAction(quitAction, findChild<QAction*>(QStringLiteral("OpenDataTextureAction")));
     fileMenu->insertAction(quitAction, exportChannelDataAction_);
+    createLayerPixelActions(layerMenu);
     createBackgroundRemovalAction(layerMenu);
     auto* maskMenu=i18n::addMenu(layerMenu,i18n::text("main.window.layer.mask"));
     maskMenu->setIcon(toolGlyph(ToolGlyph::LayerMask));
@@ -4948,6 +4949,7 @@ void MainWindow::updateActionState()
                 : i18n::text("main.window.a.document.must.keep.at.least.one.layer"));
     }
     refreshChannelGroupControls();
+    refreshLayerPixelActions();
 }
 
 void MainWindow::updateStatusText()

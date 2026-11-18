@@ -6,14 +6,17 @@
 #include <stdexcept>
 
 namespace imageeditor::core {
-FillOperation::FillOperation(Document& document, LayerId layer, FillOptions options)
+FillOperation::FillOperation(Document& document, LayerId layer, FillOptions options, SelectionState invertedEraseMask)
     : document_(document)
     , layer_(layer)
     , options_(options)
     , canvas_(document.canvas().extent)
-    , selection_(document.selection())
+    , originalSelection_(document.selection())
+    , selection_(invertedEraseMask ? std::move(invertedEraseMask) : originalSelection_)
 {
     try {
+        if (selection_ != originalSelection_ && (!options.eraseSelection || !originalSelection_ || selection_->extent() != canvas_))
+            throw std::invalid_argument("Delete Inverted requires an active pixel selection");
         const auto* target = document.layer(layer);
         if (!target || !std::holds_alternative<RasterLayer>(target->payload))
             throw std::invalid_argument("Fill requires a raster layer");
@@ -73,7 +76,7 @@ FillOperation::FillOperation(Document& document, LayerId layer, FillOptions opti
         workBounds_
             = { l / 64 * 64, t / 64 * 64, std::max(0, r - l / 64 * 64), std::max(0, b - t / 64 * 64) };
         transaction_ = std::make_unique<RasterEditTransaction>(*destination, layer, std::string(label()),
-            RasterEditTransactionOptions{.ignoreCrop=clearLayer,.coverageValues=options_.coverageValues});
+            RasterEditTransactionOptions{.selectionMask=selection_.get(),.ignoreCrop=clearLayer,.coverageValues=options_.coverageValues});
         state_ = FillState::Ready;
         if ((!options_.eraseSelection && (!options_.color.alpha || options_.opacity == 0)) || workBounds_.empty()
             || (selection_ && selection_->bounds().empty()))
@@ -122,7 +125,7 @@ bool FillOperation::targetValid() const
     const auto* layer = (projectPaint_ ? projectPaint_->proxy() : document_).layer(layer_);
     return transaction_ && transaction_->targetAvailable() && layer && std::holds_alternative<RasterLayer>(layer->payload)
         && std::get<RasterLayer>(layer->payload).surface == surface_ && intrinsicTransform(*layer) == mapping_
-        && document_.canvas().extent == canvas_ && document_.selection() == selection_
+        && document_.canvas().extent == canvas_ && document_.selection() == originalSelection_
         && surface_->revision() == expectedRevision_;
 }
 Rgba8 FillOperation::source(int x, int y)

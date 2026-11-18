@@ -75,7 +75,7 @@ void MainWindow::initializeShortcuts()
         if (!action) {
             action = i18n::make<QAction>(d.label, this); action->setObjectName(d.id);
             if (d.id == "ErasePixelsAction") connect(action, &QAction::triggered, this, [this] {
-                if (shortcutGestureIdle()) startFill(false, true, {}, true);
+                if (shortcutGestureIdle()) startFill(false, true, {}, PixelErase::Selection);
             });
             else if (d.id == "FinishOperationAction") connect(action, &QAction::triggered, this, [this] { finishCanvasOperation(); });
             else if (d.id == "RemovePointAction") connect(action, &QAction::triggered, this, [this] {
