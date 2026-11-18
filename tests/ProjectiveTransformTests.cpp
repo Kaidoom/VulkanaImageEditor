@@ -130,8 +130,44 @@ void projectedResizeFollowsTheForwardHandleTrajectory()
         }
     }
 }
+void consecutiveNudgesOnInsetPerspectiveContent()
+{
+    Document document({{256, 256}, 96});
+    const Extent2u extent{48, 36};
+    auto layer = Layer::raster("Perspective", std::make_shared<ContiguousRasterSurface>(
+        extent, Rgba8{40, 50, 60, 255}));
+    layer.crop = LayerCrop{3, 2, 40, 30};
+    const ProjectiveTransform original{1.4, 0.2, 83, 0.3, 1.1, 67, 0.002, 0.001, 1};
+    layer.localToDocument = original;
+    const auto id = layer.id;
+    CHECK(document.insertLayer(0, std::move(layer)));
+    const auto corners = transformHandles(original, extent);
+    History history;
+    for (int step = 1; step <= 100; ++step) {
+        LayerTransformSession move(document, id);
+        CHECK(move.beginDrag(TransformHandle::Move, {}));
+        CHECK(move.dragTo({1, -1}, {}, false));
+        move.endDrag();
+        const auto committed = move.commit(history);
+        CHECK(committed == TransformCommitResult::Committed);
+        if (committed != TransformCommitResult::Committed)
+            return;
+        const auto handles = transformHandles(document.layer(id)->localToDocument, extent);
+        for (size_t i = 0; i < corners.size(); ++i)
+            CHECK(close(handles[i], corners[i] + Vec2d{double(step), -double(step)}));
+    }
+    const auto final = document.layer(id)->localToDocument;
+    for (int i = 0; i < 100; ++i)
+        CHECK(history.undo(document));
+    CHECK(document.layer(id)->localToDocument == original);
+    for (int i = 0; i < 100; ++i)
+        CHECK(history.redo(document));
+    CHECK(document.layer(id)->localToDocument == final);
+}
+
 int main()
 {
+    consecutiveNudgesOnInsetPerspectiveContent();
     resizingDoesNotInverseProjectThePointerAcrossAHorizon();
     projectedResizeFollowsTheForwardHandleTrajectory();
     visibleEdgeHandlesAfterDistortion();

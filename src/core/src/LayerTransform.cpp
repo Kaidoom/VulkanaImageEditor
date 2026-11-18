@@ -342,7 +342,7 @@ LayerTransformSession::LayerTransformSession(Document& document, std::span<const
         const auto bounds=interactionBounds;
         geometryExtent_={bounds.width,bounds.height};
         original_=composeAffine(original_,{1,0,bounds.x,0,1,bounds.y});
-        reframed_=true;
+        frameLocalOrigin_ = {bounds.x, bounds.y};
     }
     if (grouped()) {
         geometryExtent_ = { std::max(maximum.x - minimum.x, 1.0e-6), std::max(maximum.y - minimum.y, 1.0e-6) };
@@ -387,16 +387,30 @@ bool LayerTransformSession::targetAvailable() const noexcept
             && document_->layer(t.id)->localToDocument == t.current;
     });
 }
+AffineTransform LayerTransformSession::targetTransform(
+    const AffineTransform& frame, const LayerTransformTarget& target) const
+{
+    if (frame == original_)
+        return target.original; // Undo and cancel restore the exact entry matrix.
+    if (grouped()) {
+        // A group frame starts as a translation to its document-space bounds.
+        const auto delta = composeTransform(frame, {1, 0, -original_.m02, 0, 1, -original_.m12});
+        return composeTransform(delta, target.original);
+    }
+    // The frame differs from layer-local coordinates by just this offset.
+    // Going through the inverse homography reintroduces an arbitrary scale
+    // factor on every move, eventually underflowing a valid perspective map.
+    if (frameLocalOrigin_ == Vec2d{})
+        return frame;
+    return composeTransform(frame, {1, 0, -frameLocalOrigin_.x, 0, 1, -frameLocalOrigin_.y});
+}
 bool LayerTransformSession::setFrame(const AffineTransform& frame)
 {
     if (!targetAvailable())
         return false;
     updates_.clear();
-    const auto delta = composeAffine(frame, *original_.inverted());
     for (const auto& t : targets_) {
-        // Keep single-target math and exact entry bits intact.
-        const auto matrix = frame == original_ ? t.original : (grouped()||reframed_) ? composeAffine(delta, t.original)
-                                                                        : frame;
+        const auto matrix = targetTransform(frame, t);
         const auto& layer=*document_->layer(t.id);
         if (!matrix.inverted() || (!matrix.isAffine() && !matrix.validOver(
                 transformEvaluationSupport(intrinsicLocalBounds(layer),layer.filters,layer.effects))))
@@ -627,12 +641,8 @@ bool LayerTransformSession::completeAction()
     actionFrames_.reserve(next + 1);
     std::vector<LayerTransformUpdate> changes;
     changes.reserve(targets_.size());
-    const auto beforeDelta = composeAffine(actionStart_, *original_.inverted());
     for (const auto& t : targets_)
-        changes.push_back({ t.id,
-            actionStart_ == original_ ? t.original : (grouped()||reframed_) ? composeAffine(beforeDelta, t.original)
-                                                               : actionStart_,
-            t.current });
+        changes.push_back({t.id, targetTransform(actionStart_, t), t.current});
     std::unique_ptr<Command> command = std::make_unique<TransformCommand>(targets_, std::move(changes));
     if (!pendingHistory_.adoptApplied(*document_, command))
         return false;

@@ -1302,6 +1302,27 @@ void advancedEffectBlendingPersistence()
     }
 }
 
+void recoverScaledPerspectiveLayer()
+{
+    Fixture f;
+    auto manifest = baseManifest();
+    auto required = manifest["required"].toArray();
+    required.append("projective-transform-v1");
+    manifest["required"] = required;
+    const c::ProjectiveTransform expected{1.2, 0.1, 2, 0.2, 1.1, 1, 0.01, 0.02, 1};
+    for (int exponent : {-790, 790}) {
+        QJsonArray matrix;
+        for (double v : {expected.m00, expected.m01, expected.m02, expected.m10, expected.m11,
+                         expected.m12, expected.m20, expected.m21, expected.m22})
+            matrix.append(std::scalbn(v, exponent));
+        editLayer(manifest, [&](QJsonObject& layer) { layer["transform"] = matrix; });
+        const auto loaded = f.load(manifest);
+        CHECK(loaded);
+        if (loaded)
+            CHECK(loaded.document->layers().front().localToDocument == expected);
+    }
+}
+
 int main(int argc, char** argv)
 {
     qputenv("TZ", "UTC");
@@ -1332,6 +1353,7 @@ int main(int argc, char** argv)
         savedPreviewsAreOptionalBoundedAndFresh();
         multiStopGradientPersistence();
         advancedEffectBlendingPersistence();
+        recoverScaledPerspectiveLayer();
         frozenFixtureDefaultsAndZipVariants();
         rememberedSelectionRoundTrip();
         exactRasterAndRichTextRoundTrip();

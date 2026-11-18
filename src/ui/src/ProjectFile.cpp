@@ -57,6 +57,28 @@ namespace {
         require(value.isDouble() && std::isfinite(d) && d >= low && d <= high, message);
         return d;
     }
+    core::AffineTransform layerTransform(const QJsonArray& values)
+    {
+        std::array<double, 9> a{0, 0, 0, 0, 0, 0, 0, 0, 1};
+        for (qsizetype i = 0; i < values.size(); ++i) {
+            a[size_t(i)] = values[i].toDouble(std::numeric_limits<double>::quiet_NaN());
+            require(std::isfinite(a[size_t(i)]), "Invalid transform coefficient");
+        }
+        // Older moves on perspective layers could repeatedly shrink or grow
+        // the entire matrix. A common power of two preserves its mapping and
+        // restores a usable numeric range without rounding ordinary saves.
+        const double scale = std::max({std::abs(a[6]), std::abs(a[7]), std::abs(a[8])});
+        if (scale > 0 && (scale < 0x1p-16 || scale > 0x1p16)) {
+            const int exponent = std::ilogb(scale);
+            for (double& value : a)
+                value = std::scalbn(value, -exponent);
+        }
+        for (double value : a)
+            require(std::abs(value) <= 1e12, "Invalid transform coefficient");
+        core::AffineTransform result{a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8]};
+        require(result.inverted().has_value(), "Singular or invalid layer transform");
+        return result;
+    }
     quint64 integer(const QJsonValue& v, quint64 low, quint64 high, const char* message)
     {
         const auto d = number(v, double(low), double(high), message);
@@ -863,11 +885,7 @@ namespace {
             if (l.contains("transform")) {
                 const auto t = l["transform"].toArray();
                 require(t.size() == 6 || (t.size()==9 && required.contains("projective-transform-v1")), "Invalid or undeclared projective transform");
-                std::array<double, 9> a {0,0,0,0,0,0,0,0,1};
-                for (int i = 0; i < t.size(); ++i)
-                    a[size_t(i)] = number(t[i], -1e12, 1e12, "Invalid transform coefficient");
-                p.layer.localToDocument = { a[0], a[1], a[2], a[3], a[4], a[5],a[6],a[7],a[8] };
-                require(p.layer.localToDocument.inverted().has_value(), "Singular or invalid layer transform");
+                p.layer.localToDocument = layerTransform(t);
             }
             if(l.contains("layerEffects")) {
                 require(required.contains("layer-effects-v1")&&l["layerEffects"].isObject(),"Invalid layer-effects capability or descriptor");

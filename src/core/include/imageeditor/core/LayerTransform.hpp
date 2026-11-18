@@ -134,6 +134,7 @@ public:
     void cancel();
 
 private:
+    AffineTransform targetTransform(const AffineTransform& frame, const LayerTransformTarget& target) const;
     bool setFrame(const AffineTransform& frame);
     bool restoreSurvivingTargets();
     void synchronizeTargets();
@@ -147,7 +148,7 @@ private:
     std::vector<ContainerMembership> memberships_;
     std::vector<LayerTransformUpdate> updates_;
     bool active_ { false };
-    bool reframed_ {false}; // A crop frame has an offset from the stable source origin.
+    Vec2d frameLocalOrigin_; // Single-layer interaction bounds can start inside the source raster.
     AffineTransform original_, current_, dragStart_, actionStart_;
     TransformValues values_, dragValues_, actionStartValues_;
     // Pending actions must not be evicted before whole-session cancellation.
