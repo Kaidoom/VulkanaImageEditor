@@ -949,6 +949,10 @@ void VulkanCanvasRenderer::recordCanvasPass(
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
     const auto canvasPush = canvasPushConstants(scene, frame.extent);
+    const auto symmetry=scene.brushSymmetryPlacement.value_or(scene.document.brushSymmetry);
+    const bool showSymmetry=scene.brushSymmetryContextEnabled && !scene.measureActive
+        && (scene.activeTool==core::ToolId::Brush || scene.activeTool==core::ToolId::Eraser)
+        && symmetry.enabled && symmetry.center;
     const auto linearTheme = [](core::Rgba8 c) { return std::array<float, 4> {
         static_cast<float>(core::srgbToLinear(c.red)), static_cast<float>(core::srgbToLinear(c.green)),
         static_cast<float>(core::srgbToLinear(c.blue)), 1.0F}; };
@@ -980,6 +984,34 @@ void VulkanCanvasRenderer::recordCanvasPass(
         static_cast<std::uint32_t>(sizeof(canvasPush)), &canvasPush);
     vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 
+    if (showSymmetry && canvasPush.cursorAndFlags[3]>.5F && !scene.brushSymmetryPlacement) {
+        const auto primary=scene.constrainedBrushPosition.value_or(mapping.logicalViewportToDocument(scene.cursorLogical));
+        const auto mirrored=core::reflectedBrushPoint(primary,symmetry);
+        const auto point=mapping.documentToFramebuffer(mirrored);
+        const auto original=mapping.documentToFramebuffer(primary);
+        // Do not brighten the cursor twice when both centers coincide.
+        if (std::hypot(point.x-original.x,point.y-original.y)>.5) {
+            auto ghost=canvasPush;
+            ghost.cursorAndFlags[0]=float(point.x);ghost.cursorAndFlags[1]=float(point.y);
+            ghost.cursorStyle[2]=symmetry.axis==core::BrushSymmetryAxis::Vertical
+                ? float(std::numbers::pi)-ghost.cursorStyle[2] : -ghost.cursorStyle[2];
+            ghost.pickerStyle[3]=.45F;
+            const auto radius=double(std::max(ghost.cursorAndFlags[2],ghost.cursorStyle[0]))+3;
+            const int left=int(std::clamp(std::floor(point.x-radius),0.,double(frame.extent.width)));
+            const int right=int(std::clamp(std::ceil(point.x+radius),0.,double(frame.extent.width)));
+            const int top=int(std::clamp(std::floor(point.y-radius),0.,double(frame.extent.height)));
+            const int bottom=int(std::clamp(std::ceil(point.y+radius),0.,double(frame.extent.height)));
+            if (right>left && bottom>top) {
+                const VkRect2D area{{left,top},{std::uint32_t(right-left),std::uint32_t(bottom-top)}};
+                vkCmdSetScissor(commandBuffer,0,1,&area);
+                vkCmdPushConstants(commandBuffer,pipelineLayout_,VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT,
+                    0,static_cast<std::uint32_t>(sizeof(ghost)),&ghost);
+                vkCmdDraw(commandBuffer,3,1,0,0);
+                vkCmdSetScissor(commandBuffer,0,1,&scissor);
+            }
+        }
+    }
+
     if (scene.transformOverlay) {
         const auto& overlay = *scene.transformOverlay;
         const auto handles = overlay.frameHandles();
@@ -1007,14 +1039,16 @@ void VulkanCanvasRenderer::recordCanvasPass(
         vkCmdDraw(commandBuffer, 3, 1, 0, 0);
     }
     const auto overlayLine = [&](core::Vec2d from, core::Vec2d to, bool alignment,
-                                 std::optional<core::Rgba8> color = {}) {
+                                 std::optional<core::Rgba8> color = {}, float opacity = 1.F) {
         const auto a = mapping.documentToFramebuffer(from);
         const auto b = mapping.documentToFramebuffer(to);
         const auto scale = mapping.logicalViewportToFramebuffer({1, 1});
+        auto accent=linearTheme(color.value_or(scene.overlayAccent));
+        accent[3]=opacity;
         const std::array<std::array<float, 4>, 3> push {{
             {float(a.x), float(a.y), float(b.x), float(b.y)},
             {float(scale.x), float(scale.y), alignment ? 1.0F : 0.0F, 0},
-            linearTheme(color.value_or(scene.overlayAccent))}};
+            accent}};
         // Small/axis-aligned measurements need not shade the whole workspace.
         // Clip only to the framebuffer, never to document content bounds.
         const auto padding = (alignment ? 3 : 7) * std::max(scale.x, scale.y);
@@ -1033,6 +1067,17 @@ void VulkanCanvasRenderer::recordCanvasPass(
             vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
         }
     };
+    if (showSymmetry) {
+        const auto center=*symmetry.center;
+        const auto extent=scene.document.canvas.extent;
+        const auto opacity=scene.brushSymmetryPlacement ? .8F : .35F;
+        const auto color=scene.brushSymmetryPlacement && std::ranges::any_of(scene.snapGuides,
+            [](const auto& guide){return guide.has_value();}) ? core::Rgba8{90,220,190,255} : scene.overlayAccent;
+        if (symmetry.axis==core::BrushSymmetryAxis::Vertical)
+            overlayLine({center.x,0},{center.x,double(extent.height)},true,color,opacity);
+        else overlayLine({0,center.y},{double(extent.width),center.y},true,color,opacity);
+        overlayLine(center,center,false,color,scene.brushSymmetryPlacement ? 1.F : .7F);
+    }
     if (scene.measurement || (scene.activeTool==core::ToolId::Cloning && scene.cloneSourceAnchor)) {
         const auto sourcePoint=scene.cloneSourceOffset && scene.cursorInside
             ?scene.constrainedBrushPosition.value_or(mapping.logicalViewportToDocument(scene.cursorLogical))+*scene.cloneSourceOffset
@@ -1040,7 +1085,7 @@ void VulkanCanvasRenderer::recordCanvasPass(
         overlayLine(scene.measurement ? scene.measurement->a : sourcePoint,
             scene.measurement ? scene.measurement->b : sourcePoint, false);
     }
-    const bool guideSnapping = scene.draggedGuide && std::ranges::any_of(scene.snapGuides,
+    const bool guideSnapping = (scene.draggedGuide || scene.brushSymmetryPlacement) && std::ranges::any_of(scene.snapGuides,
         [](const auto& guide) { return guide.has_value(); });
     const core::Rgba8 guideSnapColor {90, 220, 190, 255};
     for (const auto& guide : scene.snapGuides)
@@ -1126,7 +1171,7 @@ VulkanCanvasRenderer::CanvasPushConstants VulkanCanvasRenderer::canvasPushConsta
         [](double value) { return static_cast<float>(value); });
 
     const bool quick=scene.activeTool==core::ToolId::SmartSelect && scene.quickSelectionCursor;
-    const bool brushCursor = scene.cursorInside && !scene.eyedropperActive && !scene.measureActive
+    const bool brushCursor = scene.cursorInside && !scene.brushSymmetryPlacement && !scene.eyedropperActive && !scene.measureActive
         && (scene.activeTool == core::ToolId::Brush || scene.activeTool == core::ToolId::Eraser
             || scene.activeTool == core::ToolId::Cloning || scene.activeTool==core::ToolId::LocalBlur || quick);
     const auto cursor = brushCursor && !quick && scene.constrainedBrushPosition

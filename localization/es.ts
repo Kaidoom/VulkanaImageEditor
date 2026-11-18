@@ -14113,4 +14113,39 @@ Solicitado: %1 × %2 px</translation>
       <translation type="unfinished" />
     </message>
   </context>
+  <context>
+    <name>BrushSymmetry</name>
+    <message id="brush.symmetry.title">
+      <source>Brush Symmetry</source>
+      <translation type="unfinished">Brush Symmetry</translation>
+    </message>
+    <message id="brush.symmetry.hint">
+      <source>Toggle brush symmetry. Use the menu to choose an axis or reposition the target.</source>
+      <translation type="unfinished">Toggle brush symmetry. Use the menu to choose an axis or reposition the target.</translation>
+    </message>
+    <message id="brush.symmetry.placing">
+      <source>Click or drag to place the symmetry target. Esc cancels.</source>
+      <translation type="unfinished">Click or drag to place the symmetry target. Esc cancels.</translation>
+    </message>
+    <message id="brush.symmetry.vertical">
+      <source>Vertical — mirror left/right</source>
+      <translation type="unfinished">Vertical — mirror left/right</translation>
+    </message>
+    <message id="brush.symmetry.horizontal">
+      <source>Horizontal — mirror top/bottom</source>
+      <translation type="unfinished">Horizontal — mirror top/bottom</translation>
+    </message>
+    <message id="brush.symmetry.reposition">
+      <source>Reposition target</source>
+      <translation type="unfinished">Reposition target</translation>
+    </message>
+    <message id="brush.symmetry.short">
+      <source>Symmetry</source>
+      <translation type="unfinished">Symmetry</translation>
+    </message>
+    <message id="brush.symmetry.options">
+      <source>Symmetry options</source>
+      <translation type="unfinished">Symmetry options</translation>
+    </message>
+  </context>
 </TS>

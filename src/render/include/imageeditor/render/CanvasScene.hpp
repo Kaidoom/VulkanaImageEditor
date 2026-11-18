@@ -82,6 +82,8 @@ struct CanvasScene {
     bool documentGuidesVisible {true};
     std::vector<core::DocumentGuide> guidePreview;
     std::optional<std::uint64_t> highlightedGuide, draggedGuide;
+    std::optional<core::BrushSymmetry> brushSymmetryPlacement; // Provisional, never document pixels.
+    bool brushSymmetryContextEnabled {true};
     bool measureActive {false};
     bool cursorInside {false};
     bool eyedropperActive {false};

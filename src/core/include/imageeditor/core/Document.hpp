@@ -7,6 +7,7 @@
 #include "imageeditor/core/CompositingSpace.hpp"
 #include "imageeditor/core/SnapshotTimeline.hpp"
 #include "imageeditor/core/DocumentGuides.hpp"
+#include "imageeditor/core/BrushSymmetry.hpp"
 
 #include <cstddef>
 #include <optional>
@@ -66,6 +67,7 @@ struct DocumentSnapshot {
     Revision selectionRevision {0};
     LayerTree tree;
     DocumentGuides guides;
+    BrushSymmetry brushSymmetry;
 };
 
 struct RemovedLayer {
@@ -183,6 +185,8 @@ public:
     bool setSnapshotTimeline(const SnapshotTimelineState& expected, SnapshotTimelineState replacement);
     [[nodiscard]] const DocumentGuides& guides() const noexcept { return guides_; }
     bool setGuides(const DocumentGuides& expected, DocumentGuides replacement);
+    [[nodiscard]] const BrushSymmetry& brushSymmetry() const noexcept { return brushSymmetry_; }
+    bool setBrushSymmetry(const BrushSymmetry& expected, BrushSymmetry replacement);
 
     [[nodiscard]] DocumentSnapshot snapshot() const;
 
@@ -204,6 +208,7 @@ private:
     Revision selectionRevision_ {1};
     SnapshotTimelineState snapshotTimeline_;
     DocumentGuides guides_;
+    BrushSymmetry brushSymmetry_;
 };
 
 } // namespace imageeditor::core

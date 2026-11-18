@@ -71,6 +71,15 @@ public:
     // (including text-density refreshes) cannot accidentally erase a tool draft.
     std::function<void(core::DocumentSnapshot&)> onPrepareDocumentSnapshot;
     void setActiveTool(core::ToolId tool);
+    void beginBrushSymmetryPlacement();
+    void setBrushSymmetryContextEnabled(bool);
+    void cancelBrushSymmetryPlacement();
+    void updateBrushSymmetryModifiers(Qt::KeyboardModifiers);
+    std::function<void()> onBrushSymmetryPlacementBegan;
+    std::function<core::SnapResult(core::Vec2d, Qt::KeyboardModifiers)> onBrushSymmetryTargetMoved;
+    [[nodiscard]] bool brushSymmetryPlacementActive() const noexcept { return scene_.brushSymmetryPlacement.has_value(); }
+    std::function<void(core::BrushSymmetry)> onBrushSymmetryPlaced;
+    std::function<void()> onBrushSymmetryPlacementEnded;
     void setCropPreviewLayer(std::optional<core::LayerId> layer)
     {if(scene_.cropPreviewLayer!=layer){scene_.cropPreviewLayer=layer;scheduleFrame();}}
     void setBrushCursor(const core::BrushSettings& settings);
@@ -250,6 +259,9 @@ protected:
     bool event(QEvent* event) override;
 
 private:
+    void moveBrushSymmetryPlacement(QPointF, Qt::KeyboardModifiers);
+    void finishBrushSymmetryPlacement(bool cancel);
+    bool symmetryTargetDragging_ {false}, explicitSymmetryGrab_ {false};
     void refreshGuidePreview();
     void beginGuideInput(QPointF, Qt::MouseButton);
     void moveGuideInput(QPointF, Qt::KeyboardModifiers);

@@ -24,6 +24,7 @@ endif()
 
 include(ScalarTests.cmake)
 include(MirroredLayersTests.cmake)
+include(BrushSymmetryTests.cmake)
 include(DiffusionTests.cmake)
 include(BackgroundRemovalTests.cmake)
 include(SnapshotTimelineTests.cmake)

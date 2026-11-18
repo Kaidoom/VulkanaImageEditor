@@ -74,6 +74,7 @@ bool MainWindow::runTransformAction(const std::function<bool()>& action)
 }
 void MainWindow::cancelPendingEdits()
 {
+    canvasWindow_->cancelBrushSymmetryPlacement();
     canvasWindow_->cancelGuideInput();
     layerAlphaSelection_.reset();
     // Refinement is tab-owned; only Apply, Cancel or a confirmed lifecycle

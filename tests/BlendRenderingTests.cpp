@@ -1584,15 +1584,61 @@ void channelRendering(OffscreenCanvas& gpu)
     scene.document=doc.snapshot();verify(doc,scene,gpu.render(scene),"numeric Gaussian refresh after painting");
 }
 
+void brushSymmetryOverlays(OffscreenCanvas& gpu)
+{
+    c::Document doc({{96,80}});
+    doc.insertLayer(0,c::Layer::raster("Background",std::make_shared<c::ContiguousRasterSurface>(
+        c::Extent2u{96,80},c::Rgba8{32,32,32,255})));
+    auto scene=sceneFor(doc);
+    scene.activeTool=c::ToolId::Brush;scene.cursorInside=true;scene.cursorLogical={20,20};
+    scene.brushSizeDocument=16;scene.brushTipAspectRatio=.5;scene.brushTipAngleDegrees=25;
+    const auto ordinary=gpu.render(scene);const auto stats=gpu.stats();
+    scene.document.brushSymmetry={true,c::BrushSymmetryAxis::Vertical,c::Vec2d{48,40}};
+    const auto vertical=gpu.render(scene);
+    const auto differences=[](const QImage& a,const QImage& b,QRect area) {
+        int result=0;
+        for(int y=area.top();y<=area.bottom();++y)for(int x=area.left();x<=area.right();++x)
+            result+=a.pixel(x,y)!=b.pixel(x,y);
+        return result;
+    };
+    check(differences(ordinary,vertical,{65,9,23,23})>10,"vertical symmetry draws reflected cursor at expected point");
+    check(differences(ordinary,vertical,{9,9,23,23})==0,"ghost cursor leaves primary cursor unchanged");
+    scene.document.brushSymmetry.axis=c::BrushSymmetryAxis::Horizontal;
+    const auto horizontal=gpu.render(scene);
+    check(differences(ordinary,horizontal,{9,49,23,23})>10,"horizontal symmetry draws reflected cursor at expected point");
+    check(differences(ordinary,horizontal,{65,9,23,23})==0,"old-axis cursor disappears");
+    scene.brushSymmetryContextEnabled=false;
+    check(gpu.render(scene)==ordinary,"temporary brush workflows suppress symmetry overlays");
+    scene.brushSymmetryContextEnabled=true;
+    scene.document.brushSymmetry.axis=c::BrushSymmetryAxis::Vertical;
+    scene.brushSymmetryPlacement=scene.document.brushSymmetry;
+    const auto placing=gpu.render(scene);
+    scene.cursorInside=false;const auto withoutCursor=gpu.render(scene);
+    check(placing==withoutCursor,"placement hides paint cursors, retaining target and axis");
+    scene.snapGuides[0]=c::SnapGuide{{48,0},{48,80},0};
+    const auto snapped=gpu.render(scene);
+    const auto indicator=snapped.pixelColor(48,15);
+    check(indicator.green()>indicator.red(),"snapped symmetry target and alignment line use mint indicator");
+    scene.snapGuides={};
+    scene.brushSymmetryPlacement.reset();scene.activeTool=c::ToolId::Move;
+    const auto hidden=gpu.render(scene);
+    scene.document.brushSymmetry={};
+    check(gpu.render(scene)==hidden,"symmetry overlay appears only in the brush workflow");
+    const auto after=gpu.stats();
+    check(after.uploadedBytes==stats.uploadedBytes && after.compositionPasses==stats.compositionPasses,
+        "symmetry overlays reuse composition and raster uploads");
+}
+
 int main(int argc, char** argv)
 {
     bool validation = false, benchmark = false, adjustments = false, crop = false, filters = false,effects=false,masks=false,clipping=false,adjustmentLayers=false,encoded=false;
     QString psdFixture;
-    bool fillOpacity=false,channels=false;
+    bool fillOpacity=false,channels=false,symmetry=false;
     for (int i = 1; i < argc; ++i) {
         if (std::string_view(argv[i]) == "--validation") validation = true;
         if (std::string_view(argv[i]) == "--fill-opacity") fillOpacity = true;
         if (std::string_view(argv[i]) == "--channels") channels = true;
+        if (std::string_view(argv[i]) == "--brush-symmetry") symmetry = true;
         if (std::string_view(argv[i]) == "--encoded-compositing") encoded = true;
         if (std::string_view(argv[i]) == "--compare-psd"&&i+1<argc)psdFixture=QString::fromLocal8Bit(argv[++i]);
         if (std::string_view(argv[i]) == "--linear-target") linearTestTarget = true;
@@ -1620,7 +1666,8 @@ int main(int argc, char** argv)
             Review review(effects?c::layerEffectCount:filters?c::spatialFilterCount:adjustments?c::adjustmentCount+2:c::allBlendModes.size());
             {
                 OffscreenCanvas gpu(validation);
-                if(channels)channelRendering(gpu);
+                if(symmetry)brushSymmetryOverlays(gpu);
+                else if(channels)channelRendering(gpu);
                 else if(fillOpacity)fillOpacityRendering(gpu);
                 else if(encoded) {
                     transparentStylesPreserveBackdrop(gpu);
@@ -1662,6 +1709,7 @@ int main(int argc, char** argv)
     }
     if (failures) std::cerr << failures << " blend-rendering checks failed\n";
     else if (benchmark) std::cout << "Optional 4K/5K blend benchmark and cache/upload assertions passed\n";
+    else if(symmetry) std::cout << "Vulkan brush symmetry: reflected cursors, placement, tool/context isolation and cache reuse passed\n";
     else if(masks) std::cout << "Vulkan layer masks: CPU agreement, fractional/projective coverage, styles, disable, source upload and idle reuse passed\n";
     else if(filters) std::cout << "Vulkan spatial filters: padded cache, CPU agreement, crop, blending, comparison and texture reuse passed\n";
     else if(crop) std::cout << "Vulkan layer crop: typed sources, alpha edges, zoom/DPR, preview and texture reuse passed\n";

@@ -497,6 +497,10 @@ private:
     void updateLayerControls();
     void createMeasureControls();
     void createGuideControls();
+    void createBrushSymmetryControls();
+    void refreshBrushSymmetryControls();
+    void changeBrushSymmetry(const core::BrushSymmetry&);
+    core::BoundsSnapping brushSymmetrySnapping_;
     void createGuideActions(QMenu*);
     void refreshGuideActions();
     ToolOptionsNumber* guideCountControl_ {nullptr};

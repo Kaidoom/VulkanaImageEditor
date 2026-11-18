@@ -22,5 +22,5 @@ void main() {
     float alpha=1.0-smoothstep(alignment?1.0:1.25,alignment?1.6:1.9,d);
     if(alpha<=0.0) discard;
     vec3 rgb=mix(vec3(.008),pc.accent.rgb,1.0-smoothstep(.35,.85,d));
-    outColor=vec4(rgb,alpha*pc.accent.a);
+    outColor=vec4(rgb*pc.accent.a,alpha*pc.accent.a);
 }

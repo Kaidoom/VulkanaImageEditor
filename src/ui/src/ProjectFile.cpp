@@ -2,6 +2,7 @@
 #include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/ui/ProjectFile.hpp"
 #include "imageeditor/ui/GuideCodec.hpp"
+#include "imageeditor/ui/BrushSymmetryCodec.hpp"
 #include "imageeditor/project/ProjectArchive.hpp"
 #include "imageeditor/project/ProjectPreview.hpp"
 #include "imageeditor/ui/FlattenedDocument.hpp"
@@ -495,6 +496,12 @@ namespace {
             auto required = result["required"].toArray();
             required.append("document-guides-v1"); result["required"] = required;
         }
+        result.remove("brushSymmetry");
+        if (doc.brushSymmetry() != core::BrushSymmetry{}) {
+            result["brushSymmetry"] = encodeBrushSymmetry(doc.brushSymmetry());
+            auto required = result["required"].toArray();
+            required.append("brush-symmetry-v1"); result["required"] = required;
+        }
         // Timeline data is owned, not opaque metadata. Removing frames must
         // never resurrect captures from the manifest used to open the project.
         result.remove("snapshotTimeline");
@@ -597,6 +604,7 @@ namespace {
     struct Plan {
         core::CanvasSpec canvas;
         core::DocumentGuides guides;
+        core::BrushSymmetry brushSymmetry;
         bool hasLastSelection {false};
         std::vector<LayerPlan> layers;
         core::LayerTree tree;
@@ -684,7 +692,7 @@ namespace {
                     || capability == "selection-recall-v1" || capability == "layer-effects-v1" || capability == "bevel-emboss-v1" || capability == "projective-transform-v1" || capability == "raster-local-frame-v1" || capability == "layer-mask-v1"
                     || capability == "encoded-srgb-compositing-v1" || capability == "layer-fill-opacity-v1"
                     || capability == "layer-effects-advanced-blending-v1" || capability == "multi-stop-gradient-v1"
-                    || capability == "snapshot-timeline-v1" || capability == "mirrored-layer-v1" || capability == "document-guides-v1" || capability == "scalar-raster-v1"
+                    || capability == "snapshot-timeline-v1" || capability == "mirrored-layer-v1" || capability == "document-guides-v1" || capability == "brush-symmetry-v1" || capability == "scalar-raster-v1"
                     || capability == "packed-data-v1" || capability == "channel-group-v1",
                 "Project requires unsupported capabilities");
         require(o["canvas"].isObject() && o["layers"].isArray(), "Missing canvas or layers");
@@ -697,6 +705,10 @@ namespace {
             require(required.contains("document-guides-v1"), "Undeclared document guides");
             result.guides = decodeDocumentGuides(o["guides"]);
         } else require(!required.contains("document-guides-v1"), "Missing required document guides");
+        if (o.contains("brushSymmetry")) {
+            require(required.contains("brush-symmetry-v1"), "Undeclared brush symmetry");
+            result.brushSymmetry = decodeBrushSymmetry(o["brushSymmetry"]);
+        } else require(!required.contains("brush-symmetry-v1"), "Missing required brush symmetry");
         result.canvas = { extent(canvas), number(canvas.value("ppi").isUndefined() ? QJsonValue(96) : canvas["ppi"], 1, 1200, "Invalid canvas resolution") };
         const auto compositing = canvas.value("compositingSpace");
         require(compositing.isUndefined() || compositing == "linear-srgb" || compositing == "encoded-srgb",
@@ -1185,6 +1197,8 @@ ProjectLoadResult loadProject(const QString& path, ProjectProgress callback, Pro
         }
         if (plan.guides != doc->guides())
             require(doc->setGuides(doc->guides(),plan.guides), "Cannot restore document guides");
+        if (plan.brushSymmetry != doc->brushSymmetry())
+            require(doc->setBrushSymmetry(doc->brushSymmetry(),plan.brushSymmetry), "Cannot restore brush symmetry");
         zip.finish();
         progress.tick();
         doc->markSaved();

@@ -185,6 +185,8 @@ void CanvasWindow::setCanvasColors(core::Rgba8 background, core::Rgba8 light, co
 
 void CanvasWindow::setDocument(core::DocumentSnapshot document, bool fitToView)
 {
+    if (fitToView || (brushSymmetryPlacementActive()
+        && document.brushSymmetry!=scene_.document.brushSymmetry)) cancelBrushSymmetryPlacement();
     if (fitToView || (guideDrag_ && guideDrag_->before != document.guides)) cancelGuideInput();
     if (document.documentRevision != scene_.document.documentRevision) setSnapGuides({});
     if (fitToView) { cancelMeasureInput(); regularMeasurement_.reset(); temporaryMeasurement_.reset(); }
@@ -207,6 +209,7 @@ void CanvasWindow::setDocument(core::DocumentSnapshot document, bool fitToView)
 void CanvasWindow::setActiveTool(core::ToolId tool)
 {
     if (tool != scene_.activeTool) {
+        cancelBrushSymmetryPlacement();
         cancelGuideInput();
         setSnapGuides({});
         cancelMeasureInput();
@@ -500,7 +503,7 @@ void CanvasWindow::refreshColorSample()
 {
     const bool temporaryPickerTool = scene_.activeTool == core::ToolId::Brush
         || scene_.activeTool == core::ToolId::Eraser || scene_.activeTool == core::ToolId::Fill;
-    scene_.eyedropperActive = !measureActive() && !brushing_ && !panning_ && !spaceHeld_
+    scene_.eyedropperActive = !brushSymmetryPlacementActive() && !measureActive() && !brushing_ && !panning_ && !spaceHeld_
         && (scene_.activeTool == core::ToolId::Eyedropper || picking_
             || (temporaryPickerTool && temporaryEyedropper_));
     scene_.eyedropperSampleValid = false;
@@ -736,6 +739,11 @@ void CanvasWindow::mousePressEvent(QMouseEvent* event)
     completedGestureButtons_ &= event->buttons() & ~Qt::MouseButtons(event->button());
     if(completedGestureButtons_ != Qt::NoButton) { event->accept(); return; }
     suppressFinishContextMenu_=false;
+    if (brushSymmetryPlacementActive() && event->button()==Qt::RightButton) {
+        cancelBrushSymmetryPlacement();
+        completedGestureButtons_ |= event->buttons() | Qt::RightButton;
+        suppressFinishContextMenu_=true;event->accept();return;
+    }
     if (scene_.activeTool==core::ToolId::Guides && event->button()==Qt::RightButton && !panning_ && !measureActive() && !scene_.repairProcessing) {
         if (guideDragging()) {suppressFinishContextMenu_=true;event->accept();return;}
         scene_.cursorLogical={event->position().x(),event->position().y()};scene_.cursorInside=true;
@@ -760,7 +768,7 @@ void CanvasWindow::mousePressEvent(QMouseEvent* event)
     selectionModifiers_ = event->modifiers();
     // A gesture owns its mode until its initiating button is released. An
     // extra button must not steal sampling capture or start a paint stroke.
-    if (picking_ || transforming_ || selecting_ || panning_ || brushing_ || shaping_ || measuring_ || guideDragging()) {
+    if (picking_ || transforming_ || selecting_ || panning_ || brushing_ || shaping_ || measuring_ || guideDragging() || symmetryTargetDragging_) {
         event->accept();
         return;
     }
@@ -796,6 +804,12 @@ void CanvasWindow::mousePressEvent(QMouseEvent* event)
     // A background repair owns edits, but not navigation. Pan is handled
     // above, and wheel zoom keeps its ordinary route.
     if (scene_.repairProcessing) { event->accept(); return; }
+    if (event->button()==Qt::LeftButton && brushSymmetryPlacementActive() && !measureActive()) {
+        moveBrushSymmetryPlacement(event->position(),event->modifiers());
+        symmetryTargetDragging_=true;
+        if (!platformProvidesImplicitPointerGrab()) explicitSymmetryGrab_=setMouseGrabEnabled(true);
+        event->accept();return;
+    }
     if (event->button()==Qt::LeftButton && scene_.activeTool==core::ToolId::Guides && !measureActive()) {
         refreshGuidePreview();beginGuideInput(event->position(),Qt::LeftButton);event->accept();return;
     }
@@ -883,6 +897,8 @@ void CanvasWindow::mouseMoveEvent(QMouseEvent* event)
         lastPointerPosition_ = event->position();
     } else if (measuring_) {
         moveMeasureInput(event->position(), event->modifiers());
+    } else if (brushSymmetryPlacementActive()) {
+        moveBrushSymmetryPlacement(event->position(),event->modifiers());
     } else if (scene_.activeTool==core::ToolId::Guides) {
         moveGuideInput(event->position(), event->modifiers());
     } else if (selectingText_) {
@@ -915,6 +931,12 @@ void CanvasWindow::mouseReleaseEvent(QMouseEvent* event)
     if(completedGestureButtons_.testFlag(event->button())) {
         completedGestureButtons_.setFlag(event->button(),false);
         event->accept(); return;
+    }
+    if (symmetryTargetDragging_ && event->button()==Qt::LeftButton) {
+        scene_.cursorLogical={event->position().x(),event->position().y()};
+        selectionModifiers_=event->modifiers();
+        moveBrushSymmetryPlacement(event->position(),event->modifiers());finishBrushSymmetryPlacement(false);
+        event->accept();return;
     }
     if (guideDragging() && event->button()==Qt::LeftButton) {
         scene_.cursorLogical={event->position().x(),event->position().y()};
@@ -983,6 +1005,7 @@ void CanvasWindow::mouseReleaseEvent(QMouseEvent* event)
 
 void CanvasWindow::mouseDoubleClickEvent(QMouseEvent* event)
 {
+    if (brushSymmetryPlacementActive()) { mousePressEvent(event); return; }
     if (event->button() == Qt::LeftButton && measureActive()) {
         mousePressEvent(event);
         return;
@@ -1046,7 +1069,7 @@ void CanvasWindow::wheelEvent(QWheelEvent* event)
 void CanvasWindow::tabletEvent(QTabletEvent* event)
 {
     if(scene_.activeTool==core::ToolId::Shape || scene_.activeTool==core::ToolId::Guides || measureActive()
-        || completedGestureButtons_ != Qt::NoButton) {
+        || brushSymmetryPlacementActive() || completedGestureButtons_ != Qt::NoButton) {
         // Reuse the same latched capture and pan/handle precedence for tablets.
         const auto type=event->type()==QEvent::TabletPress?QEvent::MouseButtonPress:
             event->type()==QEvent::TabletRelease?QEvent::MouseButtonRelease:QEvent::MouseMove;
@@ -1140,6 +1163,12 @@ void CanvasWindow::tabletEvent(QTabletEvent* event)
 
 void CanvasWindow::keyPressEvent(QKeyEvent* event)
 {
+    if (brushSymmetryPlacementActive() && event->key()==Qt::Key_Control && !event->isAutoRepeat()) {
+        updateBrushSymmetryModifiers(event->modifiers() | Qt::ControlModifier);event->accept();return;
+    }
+    if (brushSymmetryPlacementActive() && event->key()==Qt::Key_Escape) {
+        cancelBrushSymmetryPlacement();event->accept();return;
+    }
     if (guideDragging() && event->key()==Qt::Key_Control && !event->isAutoRepeat()) {
         updateGuideModifiers(event->modifiers() | Qt::ControlModifier);event->accept();return;
     }
@@ -1185,6 +1214,9 @@ void CanvasWindow::keyPressEvent(QKeyEvent* event)
 
 void CanvasWindow::keyReleaseEvent(QKeyEvent* event)
 {
+    if (brushSymmetryPlacementActive() && event->key()==Qt::Key_Control && !event->isAutoRepeat()) {
+        updateBrushSymmetryModifiers(event->modifiers() & ~Qt::ControlModifier);event->accept();return;
+    }
     if (guideDragging() && event->key()==Qt::Key_Control && !event->isAutoRepeat()) {
         updateGuideModifiers(event->modifiers() & ~Qt::ControlModifier);event->accept();return;
     }
@@ -1222,6 +1254,7 @@ void CanvasWindow::cancelPanInput()
 
 void CanvasWindow::focusOutEvent(QFocusEvent* event)
 {
+    cancelBrushSymmetryPlacement();
     cancelGuideInput();
     cancelMeasureInput();
     setTemporaryMeasure(false);
@@ -1254,6 +1287,7 @@ bool CanvasWindow::event(QEvent* event)
         || event->type() == QEvent::TouchCancel) {
         completedGestureButtons_={};
         suppressFinishContextMenu_=false;
+        cancelBrushSymmetryPlacement();
         cancelGuideInput();
         cancelMeasureInput();
         setTemporaryMeasure(false);
@@ -1275,6 +1309,7 @@ bool CanvasWindow::event(QEvent* event)
     } else if (event->type() == QEvent::PlatformSurface) {
         const auto* surfaceEvent = static_cast<QPlatformSurfaceEvent*>(event);
         if (surfaceEvent->surfaceEventType() == QPlatformSurfaceEvent::SurfaceAboutToBeDestroyed) {
+            cancelBrushSymmetryPlacement();
             cancelGuideInput();
             cancelMeasureInput();
             setTemporaryMeasure(false);
@@ -1592,6 +1627,7 @@ const QCursor& CanvasWindow::fillCursor()
 
 void CanvasWindow::updateCursorForTool()
 {
+    if (brushSymmetryPlacementActive() && !panning_ && !measureActive()) {setCursor(Qt::CrossCursor);return;}
     if (panning_) {
         setCursor(Qt::ClosedHandCursor);
     } else if(shaping_ || shapeConstruction_) {

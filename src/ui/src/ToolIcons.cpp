@@ -49,6 +49,10 @@ QPixmap rasterizedGlyph(ToolGlyph glyph, const QColor& ink, const QSize& size, q
         p.setBrush(ink); p.setPen(Qt::NoPen);
         p.drawRoundedRect(QRectF(5,3,5,18),1,1);
         p.drawRoundedRect(QRectF(14,3,5,18),1,1);
+    } else if (glyph == ToolGlyph::BrushSymmetry) {
+        p.drawLine(12, 3, 12, 21);
+        p.drawPolygon(QPolygonF{{3,6},{9,10},{9,17},{3,20}});
+        p.drawPolygon(QPolygonF{{21,6},{15,10},{15,17},{21,20}});
     } else if (glyph == ToolGlyph::Link) {
         p.translate(12,12); p.rotate(-40);
         p.drawRoundedRect(QRectF(-10,-4,12,8),4,4);

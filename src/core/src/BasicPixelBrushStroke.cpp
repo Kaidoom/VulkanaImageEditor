@@ -48,10 +48,10 @@ BasicPixelBrushStroke::BasicPixelBrushStroke(Document& document, LayerId layerId
     BrushSettings settings, std::unique_ptr<IBrushEngine> engine,
     std::unique_ptr<IBrushTip> tip, std::unique_ptr<IBrushGrain> grain,
     const IBrushAssetResolver* assetResolver,
-    RasterEditTransactionOptions transactionOptions, BrushExecutionOptions executionOptions)
+    RasterEditTransactionOptions transactionOptions, BrushExecutionOptions executionOptions, BrushSymmetry symmetry)
     : BasicPixelBrushStroke(document, layerId, std::move(settings),
           BrushCompositeMode::Paint, std::move(engine), std::move(tip),
-          std::move(grain), assetResolver, transactionOptions, {}, {}, false, {}, executionOptions)
+          std::move(grain), assetResolver, transactionOptions, {}, {}, false, {}, executionOptions, std::move(symmetry))
 {
 }
 
@@ -63,7 +63,7 @@ BasicPixelBrushStroke::BasicPixelBrushStroke(Document& document, LayerId layerId
     RasterEditTransactionOptions transactionOptions,
     std::function<PremultipliedColor(Vec2d)> sampledColor,
     std::string_view historyLabel, bool deferSampledWrites,
-    std::function<void(const BrushDab&)> dabObserver, BrushExecutionOptions executionOptions)
+    std::function<void(const BrushDab&)> dabObserver, BrushExecutionOptions executionOptions, BrushSymmetry symmetry)
     : document_(&document)
     , layerId_(layerId)
     , settings_(settings)
@@ -77,7 +77,10 @@ BasicPixelBrushStroke::BasicPixelBrushStroke(Document& document, LayerId layerId
     , canvasExtent_(document.canvas().extent)
     , tileSize_(transactionOptions.journalTileSize)
     , executionOptions_(executionOptions)
+    , symmetry_(std::move(symmetry))
 {
+    if (!validBrushSymmetry(symmetry_)) return;
+    if (sampledColor_ || compositeMode_ == BrushCompositeMode::FilterColor) symmetry_.enabled=false;
     if (!assetResolver) {
         assetResolver = &builtinBrushAssetResolver();
     }
@@ -224,7 +227,42 @@ void BasicPixelBrushStroke::emitDab(const BrushDab& dab)
         failure_=BrushStrokeFailure::RasterWorkLimitExceeded;
         throw RasterWorkLimit {};
     }
-    auto bounds = localDabBounds(preparedBounds);
+    const auto bounds = admitDabBounds(localDabBounds(preparedBounds));
+    RectI mirrorBounds;
+    if (symmetry_.enabled) {
+        auto reflected = preparedBounds;
+        if (symmetry_.axis == BrushSymmetryAxis::Vertical) {
+            reflected.left=2*symmetry_.center->x-preparedBounds.right;
+            reflected.right=2*symmetry_.center->x-preparedBounds.left;
+        } else {
+            reflected.top=2*symmetry_.center->y-preparedBounds.bottom;
+            reflected.bottom=2*symmetry_.center->y-preparedBounds.top;
+        }
+        mirrorBounds=admitDabBounds(localDabBounds(reflected));
+    }
+    // Admit both footprints before preparing grain or allocating stroke tiles.
+    if (bounds.empty() && mirrorBounds.empty()) return;
+    grain_->prepareDab(dab, documentPixelFootprint_);
+    rasterizeDab(dab, bounds);
+    // Separate work rectangles avoid retaining all pixels between distant
+    // marks. Their overlap is evaluated only once for this paired dab.
+    if (symmetry_.enabled) rasterizeDab(dab, mirrorBounds, bounds);
+}
+
+double BasicPixelBrushStroke::dabCoverage(Vec2d point) const noexcept
+{
+    const auto coverage = [&](Vec2d p) {
+        const auto tip=tip_->coverage(p);
+        return tip>0 ? std::clamp(tip*grain_->modulation(p),0.0,1.0) : 0.0;
+    };
+    const auto original=coverage(point);
+    // Reflect the complete prepared tip and its grain, not just the center or
+    // an ellipse angle. Asymmetric bitmap tips therefore mirror faithfully.
+    return symmetry_.enabled ? std::max(original,coverage(reflectedBrushPoint(point,symmetry_))) : original;
+}
+
+RectI BasicPixelBrushStroke::admitDabBounds(RectI bounds)
+{
     if (!allowGrowth_) bounds = bounds.clippedTo(surfaceBounds());
     bounds = transaction_->clipToCrop(bounds);
     const auto candidates=std::uint64_t(bounds.width)*std::uint64_t(bounds.height);
@@ -234,13 +272,20 @@ void BasicPixelBrushStroke::emitDab(const BrushDab& dab)
         failure_=BrushStrokeFailure::RasterWorkLimitExceeded;
         throw RasterWorkLimit {};
     }
+    return bounds;
+}
+
+void BasicPixelBrushStroke::rasterizeDab(const BrushDab& dab, RectI bounds, RectI alreadyVisited)
+{
+    const auto candidates=std::uint64_t(bounds.width)*std::uint64_t(bounds.height);
     if (bounds.empty()) {
         return;
     }
-    grain_->prepareDab(dab, documentPixelFootprint_);
-    if (candidates >= 16'384 && emitParallelDab(dab, bounds)) return;
+    if (candidates >= 16'384 && emitParallelDab(dab, bounds, alreadyVisited)) return;
     for (std::int32_t localY = bounds.y; localY < bounds.bottom(); ++localY) {
         for (std::int32_t localX = bounds.x; localX < bounds.right(); ++localX) {
+            if(localX>=alreadyVisited.x && localX<alreadyVisited.right()
+                && localY>=alreadyVisited.y && localY<alreadyVisited.bottom())continue;
             if(!transaction_->cropAllows(localX,localY))continue;
             const auto documentCenter = localToDocument_.map(
                 {static_cast<double>(localX) + 0.5,
@@ -255,11 +300,7 @@ void BasicPixelBrushStroke::emitDab(const BrushDab& dab)
             // transaction. Zero coverage must not allocate/copy journal tiles.
             if (transaction_->hasSelection() && transaction_->selectionCoverageAtDocumentPoint(documentCenter) == 0)
                 continue;
-            const auto tipCoverage = tip_->coverage(documentCenter);
-            // Rotated/textured tip bounds include empty pixels. Grain cannot
-            // add coverage there, so don't sample it outside the actual tip.
-            if (tipCoverage <= 0.0) continue;
-            const auto coverage = std::clamp(tipCoverage * grain_->modulation(documentCenter), 0.0, 1.0);
+            const auto coverage = dabCoverage(documentCenter);
             if (coverage <= 0.0) {
                 continue;
             }
@@ -271,7 +312,7 @@ void BasicPixelBrushStroke::emitDab(const BrushDab& dab)
     }
 }
 
-bool BasicPixelBrushStroke::emitParallelDab(const BrushDab& dab, RectI bounds)
+bool BasicPixelBrushStroke::emitParallelDab(const BrushDab& dab, RectI bounds, RectI alreadyVisited)
 {
     if (executionOptions_.workers == 1 || sampledColor_ || deferSampledWrites_
         || !tip_->supportsConcurrentSampling() || !grain_->supportsConcurrentSampling()
@@ -302,15 +343,15 @@ bool BasicPixelBrushStroke::emitParallelDab(const BrushDab& dab, RectI bounds)
                 for (int x = work.region.x; x < work.region.right(); ++x) {
                     auto& coverage = coverageScratch_[std::size_t(y - bounds.y) * std::size_t(bounds.width) + std::size_t(x - bounds.x)];
                     coverage = 0;
+                    if (x>=alreadyVisited.x && x<alreadyVisited.right()
+                        && y>=alreadyVisited.y && y<alreadyVisited.bottom()) continue;
                     if (!transaction_->cropAllows(x, y)) continue;
                     const auto point = localToDocument_.map({double(x) + .5, double(y) + .5});
                     ++work.evaluatedPixels;
                     if (point.x < 0 || point.y < 0 || point.x >= double(canvasExtent_.width)
                         || point.y >= double(canvasExtent_.height)) continue;
                     if (transaction_->hasSelection() && !transaction_->selectionCoverageAtDocumentPoint(point)) continue;
-                    const auto tip = tip_->coverage(point);
-                    if (tip <= 0) continue;
-                    coverage = std::clamp(tip * grain_->modulation(point), 0.0, 1.0);
+                    coverage = dabCoverage(point);
                     work.hasCoverage |= coverage > 0;
                 }
         }

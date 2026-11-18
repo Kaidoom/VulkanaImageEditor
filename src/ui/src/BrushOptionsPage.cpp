@@ -6,8 +6,10 @@
 #include "imageeditor/ui/ToolOptionsButton.hpp"
 
 #include <QAction>
+#include <QActionGroup>
 #include <QGridLayout>
 #include <QHBoxLayout>
+#include <QMenu>
 #include <QScopedValueRollback>
 #include <QSignalBlocker>
 #include <QToolButton>
@@ -89,6 +91,65 @@ BrushOptionsPage::BrushOptionsPage(QWidget* parent)
     controlsLayout->addWidget(angleControl_);
     controlsLayout->addWidget(directionButton_);
     layout->addWidget(controls, 0, 1, Qt::AlignCenter);
+    auto* symmetryControls = new QWidget(this);
+    symmetryControls->setObjectName("BrushSymmetryControls");
+    symmetryControls->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
+    auto* symmetryRow = new QHBoxLayout(symmetryControls);
+    symmetryRow->setContentsMargins(0, 0, 0, 0);
+    symmetryRow->setSpacing(2);
+    symmetryButton_ = new ToolOptionsButton("BrushSymmetryButton", i18n::text("brush.symmetry.short"),
+        i18n::text("brush.symmetry.hint"), ToolOptionsButton::Kind::Toggle, symmetryControls);
+    symmetryButton_->setIcon(toolGlyph(ToolGlyph::BrushSymmetry));
+    symmetryButton_->setIconSize({18,18});
+    symmetryButton_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    i18n::setAccessibleName(symmetryButton_, i18n::text("brush.symmetry.title"));
+    symmetryOptionsButton_ = new ToolOptionsButton("BrushSymmetryOptionsButton", i18n::text("brush.symmetry.options"),
+        i18n::text("brush.symmetry.options"), ToolOptionsButton::Kind::Action, symmetryControls,
+        ToolOptionsButton::Presentation::Icon);
+    symmetryOptionsButton_->setFixedSize(30,30);
+    symmetryOptionsButton_->setArrowType(Qt::DownArrow);
+    symmetryOptionsButton_->setPopupMode(QToolButton::InstantPopup);
+    // The centered arrow is the whole control; suppress Qt's second corner
+    // menu indicator while retaining the shared toolbar button appearance.
+    symmetryOptionsButton_->setStyleSheet("QToolButton::menu-indicator { image: none; }");
+    symmetryRow->addWidget(symmetryButton_);
+    symmetryRow->addWidget(symmetryOptionsButton_);
+    auto* symmetryMenu = new QMenu(symmetryOptionsButton_);
+    symmetryMenu->setObjectName("BrushSymmetryMenu");
+    auto* symmetryAxes = new QActionGroup(symmetryMenu);
+    symmetryVertical_ = i18n::addAction(symmetryMenu, i18n::text("brush.symmetry.vertical"));
+    symmetryHorizontal_ = i18n::addAction(symmetryMenu, i18n::text("brush.symmetry.horizontal"));
+    symmetryVertical_->setObjectName("BrushSymmetryVerticalAction");
+    symmetryHorizontal_->setObjectName("BrushSymmetryHorizontalAction");
+    for (auto* action : {symmetryVertical_, symmetryHorizontal_}) {
+        action->setCheckable(true);
+        symmetryAxes->addAction(action);
+    }
+    symmetryVertical_->setChecked(true);
+    symmetryMenu->addSeparator();
+    symmetryReposition_ = i18n::addAction(symmetryMenu, toolGlyph(ToolGlyph::UnderMouse),
+        i18n::text("brush.symmetry.reposition"));
+    symmetryReposition_->setObjectName("BrushSymmetryRepositionAction");
+    symmetryOptionsButton_->setMenu(symmetryMenu);
+    connect(symmetryMenu, &QMenu::aboutToShow, this, [this] {
+        if (onSymmetryMenuOpened) onSymmetryMenuOpened();
+    });
+    connect(symmetryMenu, &QMenu::aboutToHide, this, [this] {
+        if (onSymmetryMenuClosed) onSymmetryMenuClosed();
+    });
+    layout->addWidget(symmetryControls, 0, 2, Qt::AlignLeft | Qt::AlignVCenter);
+    connect(symmetryButton_, &QToolButton::clicked, this, [this](bool enabled) {
+        if (onSymmetryToggled) onSymmetryToggled(enabled);
+    });
+    connect(symmetryVertical_, &QAction::triggered, this, [this] {
+        if (onSymmetryAxisChanged) onSymmetryAxisChanged(core::BrushSymmetryAxis::Vertical);
+    });
+    connect(symmetryHorizontal_, &QAction::triggered, this, [this] {
+        if (onSymmetryAxisChanged) onSymmetryAxisChanged(core::BrushSymmetryAxis::Horizontal);
+    });
+    connect(symmetryReposition_, &QAction::triggered, this, [this] {
+        if (onSymmetryReposition) onSymmetryReposition();
+    });
 
     connect(sizeControl_, &QDoubleSpinBox::valueChanged, this,
         [this] { publishBrushSettings(sizeControl_); });
@@ -111,6 +172,20 @@ BrushOptionsPage::BrushOptionsPage(QWidget* parent)
 void BrushOptionsPage::setEraserAction(QAction* action)
 {
     eraserButton_->setDefaultAction(action);
+}
+
+void BrushOptionsPage::setSymmetry(const core::BrushSymmetry& symmetry, bool available, bool placing)
+{
+    const QSignalBlocker buttonBlock(symmetryButton_), verticalBlock(symmetryVertical_), horizontalBlock(symmetryHorizontal_);
+    symmetryButton_->setEnabled(available);
+    symmetryOptionsButton_->setEnabled(available);
+    symmetryButton_->setChecked(symmetry.enabled || placing);
+    symmetryVertical_->setChecked(symmetry.axis == core::BrushSymmetryAxis::Vertical);
+    symmetryHorizontal_->setChecked(symmetry.axis == core::BrushSymmetryAxis::Horizontal);
+    symmetryVertical_->setEnabled(available);
+    symmetryHorizontal_->setEnabled(available);
+    symmetryReposition_->setEnabled(available);
+    i18n::setToolTip(symmetryButton_, i18n::text(placing ? "brush.symmetry.placing" : "brush.symmetry.hint"));
 }
 
 void BrushOptionsPage::setBrushSettings(const core::BrushSettings& settings)

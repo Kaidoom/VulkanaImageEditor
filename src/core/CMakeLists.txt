@@ -37,6 +37,7 @@ add_library(imageeditor_core STATIC
     src/ScalarClipboard.cpp
     src/Document.cpp
     src/DocumentGuides.cpp
+    src/BrushSymmetry.cpp
     src/DocumentCommands.cpp
     src/SnapshotTimeline.cpp
     src/EditorSession.cpp

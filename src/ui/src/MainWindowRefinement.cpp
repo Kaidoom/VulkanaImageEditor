@@ -1180,6 +1180,7 @@ void MainWindow::resumeRefinement() {
   r->oldPanelsSuppressed = workspace_->panelsSuppressed();
   setActiveTool(core::ToolId::Brush);
   refinement_ = r;
+  refreshBrushSymmetryControls();
   for (auto *child : workspace_->panelOverlay()->findChildren<QWidget *>(
            QString{}, Qt::FindDirectChildrenOnly)) {
     if (child->objectName() == "RefineSelectionWorkspace")

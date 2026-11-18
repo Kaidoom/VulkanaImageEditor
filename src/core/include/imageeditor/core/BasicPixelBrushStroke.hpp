@@ -5,6 +5,7 @@
 #include "imageeditor/core/BrushTip.hpp"
 #include "imageeditor/core/RasterEditTransaction.hpp"
 #include "imageeditor/core/BlendCompositing.hpp"
+#include "imageeditor/core/BrushSymmetry.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -68,7 +69,7 @@ public:
         std::unique_ptr<IBrushGrain> grain = {},
         const IBrushAssetResolver* assetResolver = nullptr,
         RasterEditTransactionOptions transactionOptions = {},
-        BrushExecutionOptions executionOptions = {});
+        BrushExecutionOptions executionOptions = {}, BrushSymmetry symmetry = {});
     BasicPixelBrushStroke(Document& document, LayerId layerId,
         BrushSettings settings, BrushCompositeMode compositeMode,
         std::unique_ptr<IBrushEngine> engine =
@@ -80,7 +81,7 @@ public:
         std::function<PremultipliedColor(Vec2d)> sampledColor = {},
         std::string_view historyLabel = {}, bool deferSampledWrites = false,
         std::function<void(const BrushDab&)> dabObserver = {},
-        BrushExecutionOptions executionOptions = {});
+        BrushExecutionOptions executionOptions = {}, BrushSymmetry symmetry = {});
     ~BasicPixelBrushStroke();
 
     BasicPixelBrushStroke(const BasicPixelBrushStroke&) = delete;
@@ -146,7 +147,10 @@ private:
     using TileKey = std::pair<std::int32_t, std::int32_t>;
 
     void emitDab(const BrushDab& dab) override;
-    bool emitParallelDab(const BrushDab&, RectI bounds);
+    [[nodiscard]] RectI admitDabBounds(RectI);
+    void rasterizeDab(const BrushDab&, RectI bounds, RectI alreadyVisited = {});
+    bool emitParallelDab(const BrushDab&, RectI bounds, RectI alreadyVisited);
+    [[nodiscard]] double dabCoverage(Vec2d point) const noexcept;
     [[nodiscard]] StrokeTile* ensureTile(std::int32_t localX, std::int32_t localY);
     [[nodiscard]] RectI localDabBounds(
         const BrushTipBounds& bounds) const noexcept;
@@ -187,6 +191,7 @@ private:
     DirtySet lastDirty_;
     BrushStrokeStats stats_;
     BrushExecutionOptions executionOptions_;
+    BrushSymmetry symmetry_; // Pinned when the stroke is created, including mask proxies.
     std::vector<double> coverageScratch_;
     std::vector<DabTileWork> dabTileWork_;
     std::optional<double> lastResolvedTipAngleDegrees_;

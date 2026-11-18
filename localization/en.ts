@@ -9436,4 +9436,31 @@ Requested: %1 × %2 px</source>
     <message id="layers.mirror.link.opacity"><source>Link layer opacity to the source</source></message>
     <message id="layers.mirror.link.fill"><source>Link pixel opacity to the source</source></message>
   </context>
+  <context>
+    <name>BrushSymmetry</name>
+    <message id="brush.symmetry.title">
+      <source>Brush Symmetry</source>
+    </message>
+    <message id="brush.symmetry.hint">
+      <source>Toggle brush symmetry. Use the menu to choose an axis or reposition the target.</source>
+    </message>
+    <message id="brush.symmetry.placing">
+      <source>Click or drag to place the symmetry target. Esc cancels.</source>
+    </message>
+    <message id="brush.symmetry.vertical">
+      <source>Vertical — mirror left/right</source>
+    </message>
+    <message id="brush.symmetry.horizontal">
+      <source>Horizontal — mirror top/bottom</source>
+    </message>
+    <message id="brush.symmetry.reposition">
+      <source>Reposition target</source>
+    </message>
+    <message id="brush.symmetry.short">
+      <source>Symmetry</source>
+    </message>
+    <message id="brush.symmetry.options">
+      <source>Symmetry options</source>
+    </message>
+  </context>
 </TS>

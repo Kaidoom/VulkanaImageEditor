@@ -81,6 +81,8 @@ add_library(imageeditor_ui STATIC
     src/MainWindowMeasure.cpp
     src/MainWindowGuides.cpp
     src/GuideCodec.cpp
+    src/BrushSymmetryCodec.cpp
+    src/MainWindowBrushSymmetry.cpp
     src/MainWindowLayerOrganization.cpp
     src/MainWindowMirroredLayers.cpp
     src/MainWindowLayerMasks.cpp

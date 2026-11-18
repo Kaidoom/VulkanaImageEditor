@@ -618,6 +618,7 @@ MainWindow::MainWindow(
     createDocks();
     createMeasureControls();
     createGuideControls();
+    createBrushSymmetryControls();
     createColorSelectionHelp();
     createSmartSelectionHelp();
     createShapeControls();
@@ -1225,6 +1226,10 @@ MainWindow::~MainWindow()
     canvasWindow_->onBrushStrokeMoved = {};
     canvasWindow_->onBrushStrokeEnded = {};
     canvasWindow_->onBrushStrokeCancelled = {};
+    canvasWindow_->onBrushSymmetryPlaced = {};
+    canvasWindow_->onBrushSymmetryPlacementEnded = {};
+    canvasWindow_->onBrushSymmetryPlacementBegan = {};
+    canvasWindow_->onBrushSymmetryTargetMoved = {};
     canvasWindow_->onCloneSourcePicked = {};
     canvasWindow_->onTextPressed = {};
     canvasWindow_->onTextDragged = {};
@@ -1641,6 +1646,13 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
         }
         event->accept();return true;
     }
+    if (ourTarget && !editing && !blocked && key->key()==Qt::Key_Escape
+        && canvasWindow_->brushSymmetryPlacementActive()) {
+        if (event->type()==QEvent::KeyPress && !key->isAutoRepeat()) {
+            canvasWindow_->cancelBrushSymmetryPlacement();pointerRouter_->cancelCapture();
+        }
+        event->accept();return true;
+    }
     if (ourTarget && !editing && !blocked && key->key() == Qt::Key_Escape
         && (shapeCreation_ || anchoredLassoActive())) {
         if (event->type() == QEvent::KeyPress && !key->isAutoRepeat()) {
@@ -1680,6 +1692,12 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
         if (selectionGesture_ && selectionGesture_->moving)
             moveSelectionGesture(selectionGesture_->pointer);
         event->accept(); return true;
+    }
+    if (ourTarget && !editing && !blocked && canvasWindow_->brushSymmetryPlacementActive() && key->key()==Qt::Key_Control) {
+        auto modifiers=key->modifiers();
+        modifiers.setFlag(Qt::ControlModifier,event->type()==QEvent::KeyPress);
+        canvasWindow_->updateBrushSymmetryModifiers(modifiers);
+        event->accept();return true;
     }
     if (ourTarget && !editing && !blocked && canvasWindow_->guideDragging() && key->key()==Qt::Key_Control) {
         if (event->type()!=QEvent::ShortcutOverride && !key->isAutoRepeat()) {
@@ -2312,6 +2330,7 @@ void MainWindow::createMenus()
         // Re-evaluate from the stored raw pointer, even without a mouse move.
         canvasWindow_->updateTransformModifiers(canvasWindow_->pointerModifiers());
         canvasWindow_->updateGuideModifiers(canvasWindow_->pointerModifiers());
+        canvasWindow_->updateBrushSymmetryModifiers(canvasWindow_->pointerModifiers());
         if (selectionGesture_ && selectionGesture_->moving)
             moveSelectionGesture(selectionGesture_->pointer);
     };
@@ -4819,6 +4838,7 @@ void MainWindow::updateLayerControls()
 void MainWindow::updateActionState()
 {
     refreshGuideActions();
+    refreshBrushSymmetryControls();
     if (refinement_) return;
     refreshLayerMaskActions();
     refreshLayerEffectClipboardActions();
@@ -5057,7 +5077,9 @@ bool MainWindow::beginBrushStroke(const core::NormalizedPointerSample& sample)
             : core::BrushCompositeMode::Paint,
         std::make_unique<core::BasicPixelBrushEngine>(),
         std::unique_ptr<core::IBrushTip> {},
-        std::unique_ptr<core::IBrushGrain> {}, brushAssets_.get(),transactionOptions);
+        std::unique_ptr<core::IBrushGrain> {}, brushAssets_.get(),transactionOptions,
+        std::function<core::PremultipliedColor(core::Vec2d)> {}, std::string_view {}, false,
+        std::function<void(const core::BrushDab&)> {}, core::BrushExecutionOptions {}, session().document()->brushSymmetry());
     const auto rasterGeometryRevision=session().document()->revision();
     if (!activeBrushStroke_->valid() || !activeBrushStroke_->begin(sample)) {
         const bool limited=activeBrushStroke_->failure()==core::BrushStrokeFailure::RasterWorkLimitExceeded;

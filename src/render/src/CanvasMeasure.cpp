@@ -6,7 +6,7 @@ namespace imageeditor::render {
 bool CanvasWindow::pointerGestureActive() const noexcept
 {
     return brushing_ || picking_ || panning_ || transforming_ || selecting_ || selectingText_
-        || shaping_ || shapeConstruction_ || selectionConstruction_ || measuring_ || guideDragging()
+        || shaping_ || shapeConstruction_ || selectionConstruction_ || measuring_ || guideDragging() || symmetryTargetDragging_
         || completedGestureButtons_ != Qt::NoButton;
 }
 bool CanvasWindow::measureActive() const noexcept

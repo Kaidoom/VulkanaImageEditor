@@ -83,6 +83,15 @@ bool Document::setGuides(const DocumentGuides& expected, DocumentGuides replacem
     return true;
 }
 
+bool Document::setBrushSymmetry(const BrushSymmetry& expected, BrushSymmetry replacement)
+{
+    if (brushSymmetry_ != expected || brushSymmetry_ == replacement || !validBrushSymmetry(replacement))
+        return false;
+    brushSymmetry_ = replacement;
+    touch();
+    return true;
+}
+
 const Layer* Document::rawLayer(LayerId id) const noexcept
 {
     const auto found = std::find_if(layers_.begin(), layers_.end(),
@@ -674,6 +683,7 @@ DocumentSnapshot Document::snapshot() const
         .selectionRevision = selectionRevision_,
         .tree = tree_,
         .guides = guides_,
+        .brushSymmetry = brushSymmetry_,
     };
     result.layersBottomToTop.reserve(layers_.size());
     for (const auto& source : layers_) {

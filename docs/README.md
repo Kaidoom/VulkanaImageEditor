@@ -24,6 +24,7 @@ The guides below describe the architecture, behavior and algorithms.
 - [Adjustments](ADJUSTMENT_ALGORITHMS.md): color/alpha equations and masks.
 - [Adjustment layers](ADJUSTMENT_LAYERS.md): lower-stack operators, scope and exchange.
 - [Layer effects](LAYER_EFFECTS_V1.md): style order, bounds and compositing.
+- [Brush Symmetry](BRUSH_SYMMETRY.md): target placement, reflected painting, erase mode and masks.
 - [Mirrored layers, effect copying and guides](MIRRORED_LAYERS_AND_GUIDES.md): linked content, appearance overrides and canvas guide placement.
 - [Clipping groups](CLIPPING_GROUPS.md): structural membership, alpha math and baking.
 - [Spatial filters](SPATIAL_FILTER_PIPELINE.md) and [kernels](spatial-filter-kernels.md).

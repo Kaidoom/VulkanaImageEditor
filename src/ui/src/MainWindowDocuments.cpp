@@ -385,6 +385,9 @@ bool MainWindow::settleForDocumentSwitch()
     // gate. Its input shield still blocks editor gestures and UI actions.
     const bool startupGate=graphicsStartupPending_&&workspaceDialog_==graphicsStartupPresenter_;
     if (fileBusy_ || (workspaceDialog_&&!startupGate) || cloneProcessing_ || localBlurProcessing_) return false;
+    // An idle symmetry target is provisional to the current document, even
+    // when a tab switch preserves view state and does not transfer focus.
+    canvasWindow_->cancelBrushSymmetryPlacement();
     if (refinement_) return true; // Suspended only once a switch will actually occur.
     finishLayerRename();
     opacitySlider_->finishEditing();

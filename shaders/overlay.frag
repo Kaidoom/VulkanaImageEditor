@@ -71,6 +71,8 @@ void main()
         discard;
     }
     float alpha = outerWhite ? 0.94 : outerDark ? 0.78 : 0.50;
+    // Optional ghost cursor opacity; zero preserves the ordinary cursor.
+    if (pc.pickerStyle.w > 0.0) alpha *= pc.pickerStyle.w;
     vec3 color = outerWhite ? vec3(0.96, 0.97, 1.0)
         : outerDark ? vec3(0.03, 0.035, 0.045)
         : vec3(0.58, 0.66, 1.0);
