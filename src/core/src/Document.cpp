@@ -194,7 +194,10 @@ LayerId Document::canvasTarget(LayerId leaf) const noexcept
     while (p && p->parent) {
         const auto* c = tree_.container(p->parent);
         if (!c) break;
-        if (isGroup(c->kind)) result = c->id;
+        // Clipping determines which child pixels are visible. The visible
+        // child is still a Move target, like a layer inside a folder.
+        if (c->kind == ContainerKind::Group || c->kind == ContainerKind::ChannelGroup)
+            result = c->id;
         p = tree_.placement(c->id);
     }
     return result;

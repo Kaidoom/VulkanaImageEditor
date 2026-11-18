@@ -9,6 +9,7 @@
 #include "imageeditor/ui/NativeRasterBake.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/LayerListModel.hpp"
+#include "imageeditor/render/CanvasWindow.hpp"
 #include <QAction>
 #include <QSettings>
 #include <QListView>
@@ -129,6 +130,27 @@ int main(int argc,char** argv)
         if(model){CHECK(model->rowForLayer(bottom)>=0);CHECK(model->index(model->rowForLayer(bottom)).data(u::LayerListModel::ClippingBaseRole).toBool());}
         window.findChild<QAction*>("ClippingGroupAction")->trigger();CHECK(document->tree().container(id)->kind==c::ContainerKind::Group);
         window.findChild<QAction*>("ClippingGroupAction")->trigger();CHECK(document->tree().container(id)->kind==c::ContainerKind::ClippingMaskGroup);
+        window.findChild<QAction*>("ToolAction_move")->trigger();
+        imageeditor::render::CanvasWindow* canvas = nullptr;
+        for (auto* w : QGuiApplication::allWindows())
+            if (auto* candidate = dynamic_cast<imageeditor::render::CanvasWindow*>(w)) canvas = candidate;
+        CHECK(canvas);
+        if (canvas) {
+            const auto original = document->layer(top.id)->localToDocument;
+            const auto baseTransform = document->layer(bottom)->localToDocument;
+            CHECK(canvas->onTransformBegan(c::TransformHandle::Move, {3.5, 3.5}));
+            CHECK(session.activeLayer() == top.id);
+            CHECK(canvas->onTransformMoved({5.5, 3.5}, {.control = true}));
+            canvas->onTransformEnded();
+            CHECK(document->layer(top.id)->localToDocument.m02 == original.m02 + 2);
+            CHECK(document->layer(bottom)->localToDocument == baseTransform);
+            CHECK(!c::hitTestRasterLayer(*document, {9.5, 3.5})); // Member extends past its base.
+            CHECK(canvas->onTransformBegan(c::TransformHandle::Move, {.5, 3.5}));
+            CHECK(session.activeLayer() == bottom); // Exposed base pixels.
+            canvas->onTransformEnded();
+            window.findChild<QAction*>("UndoAction")->trigger();
+            CHECK(document->layer(top.id)->localToDocument == original);
+        }
     }
     std::cout<<"Clipping group failures: "<<failures<<'\n';return failures?1:0;
 }

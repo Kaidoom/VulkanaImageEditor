@@ -627,9 +627,12 @@ void textCreationOverGroup(QVulkanInstance* instance, const QString& path)
     const auto extent = document.canvas().extent;
     const core::Vec2d point {extent.width * .5, extent.height * .5};
     const auto hit = core::hitTestRasterLayer(document, point);
-    const auto group = hit ? document.canvasTarget(*hit) : 0;
-    CHECK(document.tree().container(group));
-    if (!document.tree().container(group)) return;
+    const auto placement = hit ? document.tree().placement(*hit) : std::nullopt;
+    const auto group = placement ? placement->parent : 0;
+    const auto* container = document.tree().container(group);
+    CHECK(container);
+    if (!container) return;
+    const auto moveTarget = container->kind == core::ContainerKind::ClippingMaskGroup ? *hit : group;
     const auto initialTree = document.tree();
     const auto initialLayers = document.layers().size();
     auto action = [&](const char* shortcut) {
@@ -646,10 +649,11 @@ void textCreationOverGroup(QVulkanInstance* instance, const QString& path)
         mouse(canvas, type, {p.x, p.y}, Qt::LeftButton, Qt::LeftButton);
         mouse(canvas, QEvent::MouseButtonRelease, {p.x, p.y}, Qt::LeftButton, {});
     };
-    // Move still treats the group as a unit, including on a double-click.
+    // A normal group is picked as a unit; a clipping group exposes its image.
     action("V");
+    click();
     click(QEvent::MouseButtonDblClick);
-    CHECK(!editor->active() && session.activeLayer() == group);
+    CHECK(!editor->active() && session.activeLayer() == moveTarget);
     for (const auto selected : {document.layers().front().id, group}) {
         session.setActiveLayer(selected);
         action("T");
