@@ -207,11 +207,92 @@ void application(QVulkanInstance* instance)
     if (list) {
         QTest::mouseClick(list->viewport(), Qt::LeftButton, {}, list->visualRect(list->model()->index(0, 0)).center()); settle();
         const auto selected = session.activeLayer();
+        const auto startLayer = session.document()->layer(*selected)->localToDocument;
         const auto history = session.history().undoDepth();
         key(window.windowHandle(), Qt::Key_Down);
-        CHECK(session.activeLayer() != selected); CHECK(session.history().undoDepth() == history);
-        // A rebound nudge is canvas-context only, even when native keys enter via the host.
-        key(window.windowHandle(), Qt::Key_F7); CHECK(session.history().undoDepth() == history);
+        CHECK(session.activeLayer() == selected);
+        CHECK(session.document()->layer(*selected)->localToDocument.m12 == startLayer.m12 + 1);
+        CHECK(session.history().undoDepth() == history + 1);
+        key(list, Qt::Key_Up, Qt::ShiftModifier); // Direct QWidget and native host routes agree.
+        CHECK(session.activeLayer() == selected);
+        CHECK(session.document()->layer(*selected)->localToDocument.m12 == startLayer.m12 - 9);
+        key(window.windowHandle(),Qt::Key_F10,Qt::ControlModifier);
+        key(window.windowHandle(),Qt::Key_F10,Qt::ControlModifier);
+        CHECK(session.document()->layer(*selected)->localToDocument == startLayer);
+        // Rebound nudges work from Layers, and an unbound arrow never selects a row.
+        key(window.windowHandle(), Qt::Key_F7);
+        CHECK(session.history().undoDepth() == history + 1);
+        CHECK(session.document()->layer(*selected)->localToDocument.m02 == startLayer.m02 + 1);
+        key(window.windowHandle(),Qt::Key_Right);
+        CHECK(session.activeLayer() == selected && session.history().undoDepth() == history + 1);
+        key(window.windowHandle(),Qt::Key_F10,Qt::ControlModifier);
+
+        // Inline rename retains caret navigation, not layer movement.
+        key(window.windowHandle(),Qt::Key_F2);
+        auto* rename=list->renameEditor();CHECK(rename);
+        if(rename) {
+            rename->setCursorPosition(1);
+            key(window.windowHandle(),Qt::Key_Right);CHECK(rename->cursorPosition()==2);
+            key(window.windowHandle(),Qt::Key_Left);CHECK(rename->cursorPosition()==1);
+            CHECK(session.document()->layer(*selected)->localToDocument==startLayer);
+            key(window.windowHandle(),Qt::Key_Escape);
+        }
+        QTest::mouseClick(list->viewport(),Qt::LeftButton,{},list->visualRect(list->model()->index(0,0)).center());settle();
+        QTest::mouseClick(list->viewport(),Qt::LeftButton,Qt::ControlModifier,list->visualRect(list->model()->index(1,0)).center());settle();
+        const auto multiple=session.selectedLayers();CHECK(multiple.size()==2);
+        std::vector<c::AffineTransform> transforms;
+        for(auto id:multiple)transforms.push_back(session.document()->layer(id)->localToDocument);
+        key(window.windowHandle(),Qt::Key_Left,Qt::ShiftModifier);
+        CHECK(session.selectedLayers()==multiple);
+        for(std::size_t i=0;i<multiple.size();++i)
+            CHECK(session.document()->layer(multiple[i])->localToDocument.m02==transforms[i].m02-10);
+        key(window.windowHandle(),Qt::Key_F10,Qt::ControlModifier);
+        action("GroupLayersAction")->trigger();settle();
+        const auto group=session.activeLayer();CHECK(group && session.document()->tree().container(*group));
+        QTest::mouseClick(list->viewport(),Qt::LeftButton,{},list->visualRect(list->model()->index(0,0)).center());settle();
+        key(window.windowHandle(),Qt::Key_F7);
+        CHECK(session.activeLayer()==group);
+        for(std::size_t i=0;i<multiple.size();++i)
+            CHECK(session.document()->layer(multiple[i])->localToDocument.m02==transforms[i].m02+1);
+        key(window.windowHandle(),Qt::Key_F10,Qt::ControlModifier); // Group nudge.
+        key(window.windowHandle(),Qt::Key_F10,Qt::ControlModifier); // Group creation.
+        QTest::mouseClick(list->viewport(),Qt::LeftButton,{},list->visualRect(list->model()->index(0,0)).center());settle();
+
+        // Selection tools still move the chosen layer while Layers owns focus.
+        // The pixel selection itself remains exactly where it was.
+        action("ToolAction_marquee")->trigger();action("SelectAllAction")->trigger();settle();
+        QTest::mouseClick(list->viewport(),Qt::LeftButton,{},list->visualRect(list->model()->index(0,0)).center());settle();
+        const auto mask=session.document()->selection();const auto layerId=*session.activeLayer();
+        const auto beforeSelectNudge=session.document()->layer(layerId)->localToDocument;
+        key(window.windowHandle(),Qt::Key_Down);
+        CHECK(session.activeLayer()==layerId && session.document()->selection()==mask);
+        CHECK(session.document()->layer(layerId)->localToDocument.m12==beforeSelectNudge.m12+1);
+        key(window.windowHandle(),Qt::Key_F10,Qt::ControlModifier);
+        action("DeselectAction")->trigger();action("ToolAction_move")->trigger();settle();
+
+        // A folder does not transform, but arrows must not unexpectedly fold it.
+        action("NewLayerFolderAction")->trigger();settle();
+        const auto folder=session.activeLayer();CHECK(folder && session.document()->tree().container(*folder));
+        int folderRow=-1;
+        for(int row=0;row<list->model()->rowCount();++row)
+            if(list->model()->index(row,0).data(Qt::UserRole).toULongLong()==*folder)folderRow=row;
+        CHECK(folderRow>=0);
+        QTest::mouseClick(list->viewport(),Qt::LeftButton,{},list->visualRect(list->model()->index(folderRow,0)).center());settle();
+        const auto expanded=list->currentIndex().data(Qt::UserRole+4).toBool();
+        const auto folderHistory=session.history().undoDepth();
+        key(window.windowHandle(),Qt::Key_Left);
+        CHECK(session.activeLayer()==folder && list->currentIndex().data(Qt::UserRole+4).toBool()==expanded);
+        CHECK(session.history().undoDepth()==folderHistory);
+        key(window.windowHandle(),Qt::Key_F10,Qt::ControlModifier);
+
+        // Other tools retain explicit Layers keyboard navigation.
+        action("ToolAction_brush")->trigger();settle();
+        QTest::mouseClick(list->viewport(),Qt::LeftButton,{},list->visualRect(list->model()->index(0,0)).center());settle();
+        const auto brushSelected=session.activeLayer();const auto brushHistory=session.history().undoDepth();
+        key(window.windowHandle(),Qt::Key_Down);
+        CHECK(session.activeLayer()!=brushSelected && session.history().undoDepth()==brushHistory);
+        key(window.windowHandle(),Qt::Key_F7);CHECK(session.history().undoDepth()==brushHistory);
+        action("ToolAction_move")->trigger();
         const auto p = canvas->scene().viewport.documentToViewport({32, 24}, {64, 48}, canvas->scene().logicalViewport);
         QTest::mouseClick(canvas, Qt::LeftButton, {}, QPoint(int(p.x), int(p.y))); settle();
         const auto beforeNudge = session.history().undoDepth();

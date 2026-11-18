@@ -24,12 +24,16 @@ content and do not affect document history. Existing settings are preserved.
 
 - Meaningful focused controls get first use of their editing/navigation keys:
   text fields type/edit text, dropdowns use arrows/Enter, sliders/spin controls
-  step, and Layers arrows navigate rows or expand/collapse containers.
+  step. In the Layers panel, Move and selection tools give nudge shortcuts priority:
+  arrows move the selected layers, including groups and multiple selections,
+  and Shift uses the configured larger step. Renaming still uses arrows for text
+  editing. With other tools, Layers arrows navigate rows or expand/collapse containers.
 - Completing an adjustment keeps the clicked slider/curve focused. This only
   reserves local editing keys, not every shortcut: global commands still work,
   and Save/Save as also finish pending numeric entry before saving.
 - Clicking canvas returns ownership to canvas movement. Nudges move layers or
-  pixel-selection masks by 1 document pixel; Shift uses the General preference
+  pixel-selection masks by 1 document pixel; selecting a row in Layers targets
+  the selected layers instead of a pixel-selection mask. Shift uses the General preference
   (default 10 px). One binding per direction covers both contexts.
 - Ctrl+T remains one contextual command for layers and selection boundaries.
   Shift+T independently starts **Transform Selected Pixels** on the primary raster;

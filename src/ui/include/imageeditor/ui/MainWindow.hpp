@@ -343,7 +343,7 @@ private:
     std::optional<core::LayerId> hitMoveLayer(core::Vec2d) const;
     bool shapeLayerHit(const core::Layer&, core::Vec2d) const;
     void startFill(bool background, bool selectionOnly, core::Vec2d seed = {}, bool eraseSelection = false);
-    void nudgeTarget(core::Vec2d delta);
+    void nudgeTarget(core::Vec2d delta, bool layersOnly = false);
     void advanceFill();
     void cancelFill();
     bool beginSelectionGesture(core::Vec2d, Qt::KeyboardModifiers);

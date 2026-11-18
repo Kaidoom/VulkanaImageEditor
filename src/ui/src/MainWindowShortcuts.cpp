@@ -50,6 +50,11 @@ bool navigationKey(const QKeyEvent& key)
     default: return false;
     }
 }
+bool arrowKey(const QKeyEvent& key)
+{
+    return key.key()==Qt::Key_Left || key.key()==Qt::Key_Right
+        || key.key()==Qt::Key_Up || key.key()==Qt::Key_Down;
+}
 bool typingWidget(QWidget* widget)
 {
     if (auto* line = qobject_cast<QLineEdit*>(widget)) return !line->isReadOnly();
@@ -150,7 +155,9 @@ bool MainWindow::routePanelKeyboard(QObject* watched, QEvent* event)
         canvasContainer_->setFocus(Qt::MouseFocusReason);
     } else if ((press || event->type() == QEvent::FocusIn) && qobject_cast<QWidget*>(watched)) {
         auto* target = inputOwner(static_cast<QWidget*>(watched));
-        if (target && keyboardPanelTarget_ != target) {
+        const bool reclaimFocus = press && target && !target->hasFocus()
+            && !target->isAncestorOf(QApplication::focusWidget());
+        if (target && (keyboardPanelTarget_ != target || reclaimFocus)) {
             keyboardPanelTarget_ = target;
             if (press && !qobject_cast<QAbstractButton*>(target)) {
                 // Keep native Vulkan input routed to the meaningful QWidget
@@ -213,19 +220,22 @@ bool MainWindow::routeEditorShortcut(QObject* watched, QEvent* event)
     }
     const bool curve = dynamic_cast<AdjustmentCurveEditor*>(owner);
     const bool layers = owner == layerList_;
+    const bool layerNudging = layers && (session().activeTool()==core::ToolId::Move
+        || core::isSelectionTool(session().activeTool()));
     const bool control = owner && !curve && !layers;
     // Timeline frame deletion belongs to the list, even if an editor action
     // has been rebound to Delete. It must never delete or paint a live layer.
     if (owner && owner->objectName() == QStringLiteral("SnapshotTimelineFrames")
         && key->key() == Qt::Key_Delete && key->modifiers() == Qt::NoModifier) return false;
     // Native widget navigation is fixed, not an accidental editor shortcut.
-    if ((layers || control) && navigationKey(*key)) return false;
+    if ((layers || control) && navigationKey(*key) && !(layerNudging && arrowKey(*key))) return false;
     unsigned context = curve ? CurveKeys : layers ? LayerListKeys : control ? ControlKeys
         : (textController_ && textController_->active()) ? TextKeys
         : (layerTransform_ || selectionTransform_ || layerCrop_ || canvasResize_) ? TransformKeys
         : (shapeCreation_ || anchoredLassoActive() || selectionGesture_) ? ConstructionKeys
         : (activeBrushStroke_ || activeCloneStroke_ || activeLocalBlurStroke_ || activeSpotHealStroke_) ? StrokeKeys : CanvasKeys;
     for (const auto& d : shortcutDefinitions()) {
+        if (layers && d.id.startsWith("Nudge") && !layerNudging) continue;
         const bool gestureShift = d.id.startsWith("Nudge")
             || (context == ConstructionKeys && (d.id == "FinishOperationAction" || d.id == "RemovePointAction"));
         if (!(d.contexts & context) || !shortcutMatches(shortcuts_, d.id, *key, gestureShift)) continue;
@@ -235,7 +245,7 @@ bool MainWindow::routeEditorShortcut(QObject* watched, QEvent* event)
             if (shortcutGestureIdle() && session().document()) {
                 const double step = key->modifiers().testFlag(Qt::ShiftModifier) ? shiftNudgePixels_ : 1;
                 nudgeTarget({d.id == "NudgeLeftAction" ? -step : d.id == "NudgeRightAction" ? step : 0,
-                    d.id == "NudgeUpAction" ? -step : d.id == "NudgeDownAction" ? step : 0});
+                    d.id == "NudgeUpAction" ? -step : d.id == "NudgeDownAction" ? step : 0}, layerNudging);
             }
         } else if (d.id == "TemporaryMeasureAction") {
             measureAccessHeld_ = true; measureAccessKey_ = key->key();
@@ -245,6 +255,9 @@ bool MainWindow::routeEditorShortcut(QObject* watched, QEvent* event)
         } else if (auto* action = shortcutActions_.value(d.id); action && action->isEnabled()) action->trigger();
         return true;
     }
+    // An unbound arrow must not unexpectedly select another row or collapse
+    // its group. A replacement editor binding above still takes precedence.
+    if (layerNudging && arrowKey(*key)) { event->accept(); return true; }
     return false;
 }
 }

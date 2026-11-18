@@ -14,11 +14,11 @@
 #include <stdexcept>
 
 namespace imageeditor::ui {
-void MainWindow::nudgeTarget(core::Vec2d delta)
+void MainWindow::nudgeTarget(core::Vec2d delta, bool layersOnly)
 {
     auto* document = session().document();
     if (!document) return;
-    if (!core::isSelectionTool(session().activeTool()) && session().activeLayer())
+    if ((layersOnly || !core::isSelectionTool(session().activeTool())) && session().activeLayer())
         if (const auto* target = document->layer(*session().activeLayer()); target && core::isScalarLayer(*target)) return;
     (void)runTransformAction([&] {
         if (canvasResize_) {
@@ -38,7 +38,7 @@ void MainWindow::nudgeTarget(core::Vec2d delta)
             if (layerTransform_->setValues(values)) layerTransform_->completeAction();
             refreshLayerTransform();
             updateActionState();
-        } else if (core::isSelectionTool(session().activeTool())) {
+        } else if (!layersOnly && core::isSelectionTool(session().activeTool())) {
             const auto selection = document->selection();
             if (!selection || selection->bounds().empty()) return false;
             // Uses the ordinary selection command, which also invalidates

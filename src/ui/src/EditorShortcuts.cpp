@@ -45,10 +45,10 @@ const QList<ShortcutDefinition>& shortcutDefinitions()
         add("FinishOperationAction", i18n::text("editor.shortcuts.apply.finish.canvas.operation"), i18n::text("editor.shortcuts.editing.operations"), "Return", TransformKeys | ConstructionKeys);
         add("RemovePointAction", i18n::text("editor.shortcuts.remove.point.last.anchor"), i18n::text("editor.shortcuts.editing.operations"), "Backspace", ConstructionKeys | CurveKeys);
         add("FinishTextAction", i18n::text("editor.shortcuts.finish.text.editing"), i18n::text("editor.shortcuts.editing.operations"), "Ctrl+Return", TextKeys);
-        add("NudgeLeftAction", i18n::text("editor.shortcuts.nudge.layers.selection.left"), i18n::text("editor.shortcuts.editing.operations"), "Left", CanvasKeys | TransformKeys, true);
-        add("NudgeRightAction", i18n::text("editor.shortcuts.nudge.layers.selection.right"), i18n::text("editor.shortcuts.editing.operations"), "Right", CanvasKeys | TransformKeys, true);
-        add("NudgeUpAction", i18n::text("editor.shortcuts.nudge.layers.selection.up"), i18n::text("editor.shortcuts.editing.operations"), "Up", CanvasKeys | TransformKeys, true);
-        add("NudgeDownAction", i18n::text("editor.shortcuts.nudge.layers.selection.down"), i18n::text("editor.shortcuts.editing.operations"), "Down", CanvasKeys | TransformKeys, true);
+        add("NudgeLeftAction", i18n::text("editor.shortcuts.nudge.layers.selection.left"), i18n::text("editor.shortcuts.editing.operations"), "Left", CanvasKeys | TransformKeys | LayerListKeys, true);
+        add("NudgeRightAction", i18n::text("editor.shortcuts.nudge.layers.selection.right"), i18n::text("editor.shortcuts.editing.operations"), "Right", CanvasKeys | TransformKeys | LayerListKeys, true);
+        add("NudgeUpAction", i18n::text("editor.shortcuts.nudge.layers.selection.up"), i18n::text("editor.shortcuts.editing.operations"), "Up", CanvasKeys | TransformKeys | LayerListKeys, true);
+        add("NudgeDownAction", i18n::text("editor.shortcuts.nudge.layers.selection.down"), i18n::text("editor.shortcuts.editing.operations"), "Down", CanvasKeys | TransformKeys | LayerListKeys, true);
         add("NewRasterLayerAction", i18n::text("editor.shortcuts.new.raster.layer"), i18n::text("editor.shortcuts.layers"), "Ctrl+Shift+N");
         add("DeleteSelectedLayersAction", i18n::text("editor.shortcuts.delete.selected.layers"), i18n::text("editor.shortcuts.layers"), "Shift+Delete");
         add("DuplicateLayersAction", i18n::text("editor.shortcuts.duplicate.selected.layers"), i18n::text("editor.shortcuts.layers"), "Shift+D");
