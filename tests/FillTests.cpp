@@ -1,5 +1,7 @@
 #include "imageeditor/core/FillOperation.hpp"
 #include "imageeditor/core/LayerCommands.hpp"
+#include "imageeditor/core/ProjectLayer.hpp"
+#include "imageeditor/core/ProjectPaint.hpp"
 #include "imageeditor/core/SelectionCommands.hpp"
 
 #include <array>
@@ -570,6 +572,64 @@ void smallAreasDoNotScanTheLayer()
 }
 }
 
+void linkedBucketUsesSourceAndOverlayBoundaries()
+{
+    const Extent2u extent{192, 64};
+    const Rgba8 paper{240, 240, 240, 255}, ink{0, 0, 0, 255}, red{250, 25, 10, 255};
+    Document doc({extent});
+    History history;
+    const auto base = std::make_shared<ContiguousRasterSurface>(extent, paper);
+    std::vector<Rgba8> line(extent.height, ink);
+    base->replaceRgba8({130, 0, 1, int(extent.height)}, std::as_bytes(std::span(line)), 4);
+    auto layer = Layer::raster("Placed image", base);
+    auto link = std::make_shared<ProjectLayerSource>();
+    link->path = "Source.vulkana";
+    layer.projectSource = link;
+    const auto id = layer.id;
+    CHECK(doc.insertLayer(0, std::move(layer)));
+    auto combined = [&] { return std::get<RasterLayer>(doc.layer(id)->payload).surface; };
+    // Two boundaries of the same enclosure: one in the source, one painted locally.
+    {
+        ProjectPaintEdit stroke(doc, id, "Brush stroke");
+        auto overlay = std::get<RasterLayer>(stroke.proxy().layer(id)->payload).surface;
+        overlay->replaceRgba8({12, 0, 1, int(extent.height)}, std::as_bytes(std::span(line)), 4);
+        CHECK(stroke.commit(history) == RasterEditCommitResult::Committed);
+    }
+    const auto before = combined();
+    const FillOptions options{.mode = FillMode::Contiguous, .color = red, .opacity = .5,
+        .tolerance = 0, .seed = {80.5, 20.5}};
+    FillOperation fill(doc, id, options);
+    CHECK(finish(fill) == FillState::Ready && fill.commit(history) == RasterEditCommitResult::Committed);
+    const auto paint = projectPaintState(combined());
+    CHECK(paint && paint->tiles.size() == 3);
+    if (paint) {
+        const auto& tile = *paint->tiles.at({1, 0});
+        CHECK(tile[20*64+16] == Rgba8({250,25,10,128})); // Fill opacity, independent of opaque source.
+    }
+    CHECK(pixel(*combined(), 12, 20) == ink && pixel(*combined(), 130, 20) == ink);
+    CHECK(pixel(*combined(), 5, 20) == paper && pixel(*combined(), 150, 20) == paper);
+    CHECK(pixel(*combined(), 80, 20) != paper && pixel(*base, 80, 20) == paper);
+    CHECK(history.undoDepth() == 2 && history.undo(doc) && combined() == before);
+    {
+        FillOperation cancelled(doc, id, options);
+        while (cancelled.state() == FillState::Discovering) cancelled.step();
+        CHECK(cancelled.step(4096) == FillState::Applying && combined() != before);
+        cancelled.cancel();
+        CHECK(combined() == before && history.canRedo());
+    }
+    CHECK(history.redo(doc));
+    const auto selection = SelectionMask::rectangle(extent, {80,20,1,1}, 128);
+    CHECK(doc.setSelection(selection));
+    FillOperation selected(doc, id, {.color = ink});
+    CHECK(finish(selected) == FillState::Ready && selected.commit(history) == RasterEditCommitResult::Committed);
+    CHECK(pixel(*combined(), 80, 20) != pixel(*combined(), 81, 20));
+    CHECK(pixel(*base, 80, 20) == paper && doc.selection() == selection);
+    const auto filled = combined();
+    CHECK(history.execute(doc, makeProjectPaintClearCommand(doc, id, false)));
+    CHECK(combined() == projectBasePixels(filled) && pixel(*combined(), 80, 20) == paper);
+    CHECK(history.undo(doc) && combined() == filled);
+}
+
 void eraseSelectionCoverageAndHistory()
 {
     Fixture f({32, 24}, {80, 120, 160, 200});
@@ -620,6 +680,7 @@ void eraseSelectionCoverageAndHistory()
 
 int main()
 {
+    linkedBucketUsesSourceAndOverlayBoundaries();
     eraseSelectionCoverageAndHistory();
     solidSelectionAndCompositing();
     transparencyAndNoops();

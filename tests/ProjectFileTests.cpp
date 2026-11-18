@@ -1,5 +1,6 @@
 #include "imageeditor/core/Document.hpp"
 #include "imageeditor/core/ProjectLayer.hpp"
+#include "imageeditor/core/ProjectPaint.hpp"
 #include "imageeditor/core/RichText.hpp"
 #include "imageeditor/ui/ProjectFile.hpp"
 #include "imageeditor/ui/FlattenedDocument.hpp"
@@ -1364,6 +1365,7 @@ void projectLayerFallbackStorage()
     CHECK(loaded);
     if (!loaded) return;
     CHECK(loaded.metadata["required"].toArray().contains("project-layer-v1"));
+    CHECK(!loaded.metadata["required"].toArray().contains("project-paint-v1"));
     const auto records = loaded.metadata["layers"].toArray();
     CHECK(records.size() == 2);
     const auto record = records[0].toObject();
@@ -1410,6 +1412,106 @@ void projectLayerFallbackStorage()
     reject("project appearance digest mismatch", loaded.metadata, other);
 }
 
+void projectLayerPaintStorage()
+{
+    Fixture f;
+    c::Document doc({{3, 2}});
+    const auto bytes = referencePixels();
+    const auto first = reinterpret_cast<const std::byte*>(bytes.constData());
+    const auto base = c::readOnlyProjectSurface(std::make_shared<c::ContiguousRasterSurface>(
+        c::Extent2u{3, 2}, std::vector<std::byte>(first, first + bytes.size())));
+    const auto source = std::make_shared<c::ProjectLayerSource>();
+    source->path = f.path("offline.vulkana").toStdString();
+    auto paint = std::make_shared<c::ProjectPaint>();
+    // Keep previously painted coordinates after a linked source shrinks. The
+    // 17th tile also exercises a record spanning archive decompression chunks.
+    for (int x = 0; x < 17; ++x) {
+        auto tile = std::make_shared<c::ProjectPaint::Tile>();
+        (*tile)[0] = c::Rgba8{12, 60, quint8(x), 255};
+        (*tile)[3] = c::Rgba8{18, 20, 22, 89};
+        paint->tiles.emplace(std::pair{x, 0}, std::move(tile));
+    }
+    auto painted = c::Layer::raster("Painted", c::withProjectPaint(base, paint));
+    painted.projectSource = source;
+    auto clean = c::Layer::raster("Clean", base);
+    clean.projectSource = source;
+    CHECK(doc.insertLayer(0, clean));
+    CHECK(doc.insertLayer(1, painted)); // A previously written base cannot skip this placement's paint.
+    const auto file = f.path("painted.vulkana");
+    CHECK(u::saveProject(file, doc));
+    auto loaded = u::loadProject(file);
+    CHECK(loaded);
+    if (!loaded) return;
+    CHECK(loaded.metadata["required"].toArray().contains("project-paint-v1"));
+    const auto records = loaded.metadata["layers"].toArray();
+    const auto record = records[1].toObject();
+    const auto descriptor = record["projectPaint"].toObject();
+    CHECK(descriptor["tileCount"] == 17);
+    CHECK(!records[0].toObject().contains("projectPaint"));
+    const auto appearance = record["raster"].toObject()["path"].toString();
+    CHECK(records[0].toObject()["raster"].toObject()["path"] == appearance);
+    const auto linked = std::get<c::RasterLayer>(loaded.document->layer(painted.id)->payload).surface;
+    const auto unpainted = std::get<c::RasterLayer>(loaded.document->layer(clean.id)->payload).surface;
+    const auto state = c::projectPaintState(linked);
+    CHECK(state && state->tiles.size() == paint->tiles.size());
+    CHECK(c::projectBasePixels(linked) == unpainted && !c::projectPaintState(unpainted));
+    if (!state || state->tiles.size() != paint->tiles.size()) return;
+    for (const auto& [pos, tile] : paint->tiles)
+        CHECK(*state->tiles.at(pos) == *tile);
+    std::array<c::Rgba8, 1> pixel;
+    linked->copyRgba8({0, 0, 1, 1}, std::as_writable_bytes(std::span(pixel)), 4);
+    CHECK((pixel[0] == c::Rgba8{12, 60, 0, 255}));
+
+    const auto paintPath = descriptor["path"].toString();
+    QByteArray tileBytes;
+    {
+        QFile archive(file);
+        CHECK(archive.open(QIODevice::ReadOnly));
+        imageeditor::project::Archive zip(archive, false);
+        const auto entries = imageeditor::project::entries(zip);
+        CHECK(entries.size() == 3); // One source fallback, one sparse overlay and the manifest.
+        imageeditor::project::Progress progress{};
+        imageeditor::project::readEntry(zip, entries.at(paintPath),
+            [&](const char* data, int n) { tileBytes.append(data, n); }, progress);
+    }
+    auto reject = [&](const QString& label, const QJsonObject& manifest, const QByteArray& payload) {
+        f.reject(label, makeZip({{"manifest.json", QJsonDocument(manifest).toJson()},
+            {appearance.toUtf8(), bytes}, {paintPath.toUtf8(), payload}}));
+    };
+    auto malformed = loaded.metadata;
+    malformed["required"] = QJsonArray{"rgba8", "rich-text-v1", "project-layer-v1"};
+    reject("undeclared project paint", malformed, tileBytes);
+    malformed = loaded.metadata;
+    auto malformedRecords = records;
+    auto orphaned = record;
+    orphaned.remove("projectSource");
+    malformedRecords[1] = orphaned;
+    malformed["layers"] = malformedRecords;
+    reject("paint without a linked source", malformed, tileBytes);
+    reject("short project paint payload", loaded.metadata, tileBytes.chopped(1));
+    auto invalidTiles = tileBytes;
+    invalidTiles.replace(4 + sizeof(c::ProjectPaint::Tile), 4, tileBytes.first(4));
+    reject("duplicate project paint coordinate", loaded.metadata, invalidTiles);
+    invalidTiles = tileBytes;
+    invalidTiles[1] = char(2); // Tile 512 starts at x = 32768.
+    reject("out-of-range project paint coordinate", loaded.metadata, invalidTiles);
+    CHECK(!u::loadProject(file, {}, {64ULL * 1024 * 1024 + 1024}));
+
+    // Clearing the overlay followed by a resave with the previous manifest
+    // must remove the descriptor, member and required capability.
+    auto cleared = painted;
+    std::get<c::RasterLayer>(cleared.payload).surface = base;
+    CHECK(doc.replaceStructure(doc.tree(), doc.tree(), std::span(&painted.id, 1), std::span(&cleared, 1)));
+    CHECK(u::saveProject(file, doc, loaded.metadata));
+    const auto reopened = u::loadProject(file);
+    CHECK(reopened);
+    if (reopened) {
+        CHECK(!reopened.metadata["layers"].toArray()[1].toObject().contains("projectPaint"));
+        CHECK(!reopened.metadata["required"].toArray().contains("project-paint-v1"));
+        CHECK(!c::projectPaintState(std::get<c::RasterLayer>(reopened.document->layer(painted.id)->payload).surface));
+    }
+}
+
 int main(int argc, char** argv)
 {
     qputenv("TZ", "UTC");
@@ -1442,6 +1544,7 @@ int main(int argc, char** argv)
         advancedEffectBlendingPersistence();
         recoverScaledPerspectiveLayer();
         projectLayerFallbackStorage();
+        projectLayerPaintStorage();
         frozenFixtureDefaultsAndZipVariants();
         rememberedSelectionRoundTrip();
         exactRasterAndRichTextRoundTrip();

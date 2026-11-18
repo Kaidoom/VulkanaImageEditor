@@ -6,6 +6,8 @@
 #include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/core/LayerMask.hpp"
 #include "imageeditor/core/RegionalRasterSurface.hpp"
+#include "imageeditor/core/ProjectPaint.hpp"
+#include "imageeditor/ui/ProjectFile.hpp"
 #include "NativeGraphicsStartup.hpp"
 #include <QApplication>
 #include <QImage>
@@ -314,6 +316,59 @@ void batchPaintingIsAtomicAndOneUndo()
     CHECK(f.session().redo()); CHECK(f.sample(40,20).red == 255);
 }
 
+void linkedProjectBrushTargetsPlacementPaint()
+{
+    Fixture f;
+    const c::Extent2u size{96,96};
+    const c::Rgba8 background{36,73,91,255}, red{255,0,0,255}, blue{0,0,255,255};
+    c::Document source({size, 72});
+    CHECK(source.insertLayer(0, c::Layer::raster("Base", std::make_shared<c::ContiguousRasterSurface>(size, background))));
+    const auto path = f.files.filePath("Source.vulkana");
+    CHECK(u::saveProject(path, source));
+    CHECK(f.window.addProjectLayer(path));
+    f.target = f.session().activeLayer().value();
+    const auto before = f.session().history().undoDepth();
+    auto green = f.stroke({point(24,24)}, "#00ff00", 10);
+    CHECK(f.call("vulkana_brush_stroke", green)["changed"].toBool());
+    CHECK(f.sample(24,24) == (c::Rgba8{0,255,0,255}));
+    CHECK(f.session().undo());
+    auto erase = green; erase["mode"] = "erase";
+    CHECK(!f.call("vulkana_brush_stroke", erase)["changed"].toBool());
+    auto fill = f.targetArgs(); fill["color"] = "#ff0000";
+    fill["mode"] = "contiguous"; fill["seed"] = coordinate(24,24);
+    CHECK(f.call("vulkana_fill", fill)["changed"].toBool());
+    CHECK(f.sample(24,24) == red && f.session().undo() && f.sample(24,24) == background);
+    CHECK(f.session().history().canRedo() && !c::hasProjectPaint(*f.document().layer(f.target)));
+
+    auto batch = f.targetArgs();
+    auto first = f.stroke({point(12,20),point(75,20)}, "#ff0000"); first.remove("layerId");
+    auto second = f.stroke({point(12,40),point(75,40)}, "#0000ff"); second.remove("layerId");
+    auto tooLong = second;
+    tooLong["points"] = QJsonArray{point(.5,40.5),point(20000,40.5)};
+    tooLong["size"] = .25; tooLong["spacing"] = 1;
+    batch["strokes"] = QJsonArray{first, tooLong};
+    f.call("vulkana_brush_strokes", batch, false);
+    CHECK(f.sample(40,20) == background && !c::hasProjectPaint(*f.document().layer(f.target)));
+    CHECK(f.session().history().undoDepth() == before && f.session().history().canRedo());
+    batch["strokes"] = QJsonArray{first, second};
+    CHECK(f.call("vulkana_brush_strokes", batch)["changed"].toBool());
+    CHECK(f.session().history().undoDepth() == before + 1);
+    CHECK(f.sample(40,20) == red && f.sample(40,40) == blue && f.sample(80,80) == background);
+    CHECK(f.session().undo() && f.sample(40,20) == background && f.sample(40,40) == background);
+    CHECK(f.session().redo() && f.sample(40,20) == red && f.sample(40,40) == blue);
+    erase["points"] = QJsonArray{point(40,20)};
+    CHECK(f.call("vulkana_brush_stroke", erase)["changed"].toBool());
+    CHECK(f.sample(40,20) == background && f.sample(40,40) == blue);
+    CHECK(f.session().undo() && f.sample(40,20) == red);
+    CHECK(f.document().setLayerTransform(f.target, {1,0,16,0,1,12}));
+    f.call("vulkana_selection", {{"shape","rectangle"},{"from",coordinate(16,12)},{"to",coordinate(19,15)}});
+    CHECK(f.call("vulkana_brush_stroke", f.stroke({point(17,13)}, "#0000ff", 20))["changed"].toBool());
+    const auto* placement = f.document().layer(f.target);
+    CHECK(std::get<c::RasterLayer>(placement->payload).surface->extent() == size);
+    CHECK(placement->rasterOrigin == (c::Vec2d{}));
+    CHECK(f.sample(17,13) == blue && f.sample(20,13) == background && f.sample(15,13).alpha == 0);
+}
+
 void maskBatchPreservesPixelsAndSelection()
 {
     Fixture f;
@@ -522,6 +577,7 @@ int main(int argc, char** argv)
     brushIsUndoableAndValidatesFirst();
     transformedBrushHonorsSelectionAndMask();
     batchPaintingIsAtomicAndOneUndo();
+    linkedProjectBrushTargetsPlacementPaint();
     maskBatchPreservesPixelsAndSelection();
     batchBaseSurvivesEarlierHistoryAndRepeatedBatches();
     tinyBatchAccountsForTilesAndNetNoOp();

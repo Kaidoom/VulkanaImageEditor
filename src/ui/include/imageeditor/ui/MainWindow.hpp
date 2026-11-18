@@ -70,7 +70,7 @@ class QMenu;
 class QNetworkAccessManager;
 class QTabBar;
 class QMimeData;
-namespace imageeditor::core { enum class VisibilityOperation; }
+namespace imageeditor::core { enum class VisibilityOperation; class ProjectPaintEdit; }
 
 namespace imageeditor::render {
 class CanvasWindow;
@@ -347,6 +347,7 @@ private:
     std::optional<core::LayerId> hitShape(core::Vec2d, bool activeOnly = false) const;
     std::optional<core::LayerId> hitMoveLayer(core::Vec2d) const;
     bool shapeLayerHit(const core::Layer&, core::Vec2d) const;
+    void clearProjectPaint(core::LayerId id, bool useSelection);
     void startFill(bool background, bool selectionOnly, core::Vec2d seed = {}, bool eraseSelection = false);
     void nudgeTarget(core::Vec2d delta, bool layersOnly = false);
     void advanceFill();
@@ -868,6 +869,7 @@ private:
     BrushPresetStore brushPresetStore_;
     std::vector<core::BrushPresetRecord> brushPresets_;
     std::unique_ptr<core::LayerMaskEdit> activeMaskEdit_;
+    std::unique_ptr<core::ProjectPaintEdit> activeProjectPaint_;
     std::unique_ptr<core::BasicPixelBrushStroke> activeBrushStroke_;
     std::unique_ptr<core::CloneStroke> activeCloneStroke_;
     std::optional<core::CloneAnchor> cloneAnchor_;

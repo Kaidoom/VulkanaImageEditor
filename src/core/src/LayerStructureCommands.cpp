@@ -1,5 +1,6 @@
 #include "imageeditor/core/LayerStructureCommands.hpp"
 #include "imageeditor/core/RichText.hpp"
+#include "imageeditor/core/ProjectPaint.hpp"
 #include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/core/MirroredLayers.hpp"
 #include <unordered_map>
@@ -13,8 +14,11 @@ namespace {
 std::size_t repeatedProjectBytes(const Layer& layer, std::unordered_set<SurfaceId>& seen)
 {
     const auto* raster = std::get_if<RasterLayer>(&layer.payload);
-    if (layer.projectSource && raster && raster->surface && !seen.insert(raster->surface->id()).second)
-        return raster->surface->memoryCost();
+    if (!layer.projectSource || !raster || !raster->surface) return 0;
+    const auto base = projectBasePixels(raster->surface);
+    if (!seen.insert(raster->surface->id()).second) return raster->surface->memoryCost();
+    // Independently painted placements still share their source allocation.
+    if (base != raster->surface && !seen.insert(base->id()).second) return base->memoryCost();
     return 0;
 }
 }

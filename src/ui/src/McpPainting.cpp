@@ -10,6 +10,7 @@
 #include "imageeditor/core/LayerMaskEdit.hpp"
 #include "imageeditor/core/LayerStructureCommands.hpp"
 #include "imageeditor/core/PolygonCoverageRasterizer.hpp"
+#include "imageeditor/core/ProjectPaint.hpp"
 #include "imageeditor/core/SelectionCommands.hpp"
 #include "McpToolHelpers.hpp"
 
@@ -93,7 +94,6 @@ QJsonObject brushSettings(const core::BrushSettings& value)
 void paintTarget(const core::Layer& value, bool mask)
 {
     require(!core::isMirroredLayer(value), "Mirrored layers are read-only. Promote to a full layer before painting content or masks.");
-    require(mask || !value.projectSource, core::readOnlyPixelsReason(value));
     require(bool(value.localToDocument.inverted()), "Layer transform is not invertible");
     if (mask) require(bool(value.mask), "Layer has no mask; add one explicitly before painting it");
     else require(std::holds_alternative<core::RasterLayer>(value.payload), "Pixel painting requires a raster layer");
@@ -158,11 +158,14 @@ struct StrokeResult {
     core::BrushStrokeStats stats;
 };
 StrokeResult paintStroke(core::Document& document, core::History& history, core::LayerId id,
-    bool mask, const PreparedStroke& prepared, BrushAssetLibrary& assets, BrushRequestBudget* request = nullptr)
+    bool mask, const PreparedStroke& prepared, BrushAssetLibrary& assets, BrushRequestBudget* request = nullptr,
+    bool fixedExtent = false)
 {
     std::unique_ptr<core::LayerMaskEdit> maskEdit;
     if (mask) maskEdit = std::make_unique<core::LayerMaskEdit>(document, id, "Paint layer mask");
-    core::RasterEditTransactionOptions options; options.coverageValues = mask;
+    core::RasterEditTransactionOptions options;
+    options.coverageValues = mask;
+    options.fixedExtent = fixedExtent;
     core::BasicPixelBrushStroke stroke(mask ? maskEdit->proxy() : document, id, prepared.settings,
         mask ? core::BrushCompositeMode::MaskCoverage : prepared.erase ? core::BrushCompositeMode::Erase : core::BrushCompositeMode::Paint,
         std::make_unique<BoundedBrushEngine>(request), std::unique_ptr<core::IBrushTip>{},
@@ -369,16 +372,27 @@ void McpController::registerPaintingTools()
     auto singleStroke = strokeProperties();
     singleStroke.insert("layerId", identifier());
     singleStroke.insert("target", choice({"pixels", "mask"}, "Default pixels."));
-    add("vulkana_brush_stroke", "Paint one undoable stroke using Vulkana's brush engine. Coordinates are document pixels, not viewport pixels. Honors selection, layer transforms and crop. Pixel target requires raster; mask target requires an existing mask. Erasing a mask paints black. Preserves active layer, tool and brush settings. Paths over 4096 points, 65536 dabs or five seconds fail with rollback.", singleStroke,
+    add("vulkana_brush_stroke", "Paint one undoable stroke using Vulkana's brush engine. Coordinates are document pixels, not viewport pixels. Honors selection, layer transforms and crop. On a linked project layer, pixel strokes paint or erase its local overlay. Mask target requires an existing mask. Erasing a mask paints black. Preserves active layer, tool and brush settings. Paths over 4096 points, 65536 dabs or five seconds fail with rollback.", singleStroke,
         {"layerId", "points"}, Access::Document, [this](const QJsonObject& args) {
             const auto& target = layer(args);
             const bool mask = args.value("target").toString("pixels") == "mask";
             paintTarget(target, mask);
             const auto prepared = prepareStroke(args, mask, session().foregroundColor(), window_.brushPresets_, *window_.brushAssets_);
-            const auto painted = paintStroke(document(), session().history(), target.id, mask, prepared, *window_.brushAssets_);
+            const auto targetId = target.id;
+            std::unique_ptr<core::ProjectPaintEdit> overlay;
+            if (!mask && target.projectSource)
+                overlay = std::make_unique<core::ProjectPaintEdit>(document(), targetId, prepared.erase ? "Erase project paint" : "Paint project layer");
+            auto painted = paintStroke(overlay ? overlay->proxy() : document(), overlay ? overlay->provisionalHistory() : session().history(),
+                targetId, mask, prepared, *window_.brushAssets_, nullptr, bool(overlay));
+            if (overlay) {
+                const auto committed = overlay->commit(session().history());
+                require(committed == core::RasterEditCommitResult::Committed || committed == core::RasterEditCommitResult::NoChanges,
+                    "Could not commit project paint");
+                painted.changed = committed == core::RasterEditCommitResult::Committed;
+            }
             if (painted.changed) changed(false);
             auto data = result(painted.changed);
-            data.insert("layerId", id(target.id));
+            data.insert("layerId", id(targetId));
             data.insert("dabs", double(painted.stats.emittedDabs));
             data.insert("changedPixels", double(painted.stats.changedPixels));
             return data;
@@ -412,25 +426,35 @@ void McpController::registerPaintingTools()
             stagedLayer->renderCache.reset(); stagedLayer->filterCache.reset(); stagedLayer->effectCache.reset();
             std::shared_ptr<core::RegionalRasterSurface> pixels;
             std::shared_ptr<core::RasterSurface> originalPixels;
-            if (!mask) {
+            std::unique_ptr<core::ProjectPaintEdit> overlay;
+            if (!mask && target.projectSource) {
+                overlay = std::make_unique<core::ProjectPaintEdit>(staged, targetId, "Paint strokes");
+            } else if (!mask) {
                 originalPixels = std::get<core::RasterLayer>(target.payload).surface;
                 pixels = std::make_shared<core::RegionalRasterSurface>(originalPixels, target.rasterOrigin);
                 require(staged.setLayerRasterStorage(targetId, pixels, target.rasterOrigin, target.rasterEffectFrame), "Could not prepare batch raster storage");
             }
             core::History provisional;
+            auto& strokeDocument = overlay ? overlay->proxy() : staged;
+            auto& strokeHistory = overlay ? overlay->provisionalHistory() : provisional;
             BrushRequestBudget budget;
             std::uint64_t dabs = 0, changedPixels = 0;
             bool any = false;
             for (std::size_t i=0; i<strokes.size(); ++i) {
                 try {
-                    const auto painted = paintStroke(staged, provisional, targetId, mask, strokes[i], *window_.brushAssets_, &budget);
+                    const auto painted = paintStroke(strokeDocument, strokeHistory, targetId, mask, strokes[i], *window_.brushAssets_, &budget, bool(overlay));
                     any |= painted.changed; dabs += painted.stats.emittedDabs; changedPixels += painted.stats.changedPixels;
-                    provisional.clear(); // Final pixels/mask own the result; retain no per-stroke undo journals.
+                    strokeHistory.clear(); // Final pixels/mask own the result; retain no per-stroke undo journals.
                 } catch (const std::exception& error) {
                     throw std::runtime_error(QStringLiteral("arguments.strokes[%1]: %2; the entire batch was discarded").arg(i).arg(QString::fromUtf8(error.what())).toStdString());
                 }
             }
-            if (any) {
+            if (overlay) {
+                const auto committed = overlay->commit(provisional);
+                require(committed == core::RasterEditCommitResult::Committed || committed == core::RasterEditCommitResult::NoChanges,
+                    "Could not prepare project paint batch; the entire batch was discarded");
+                any = committed == core::RasterEditCommitResult::Committed;
+            } else if (any) {
                 const auto& final = *staged.layer(targetId);
                 if (mask) any = !core::equivalentLayerMasks(target.mask, final.mask);
                 else {
@@ -447,6 +471,8 @@ void McpController::registerPaintingTools()
                 std::unique_ptr<core::Command> command;
                 if (mask) command = std::make_unique<core::LayerMaskCommand>(targetId, target.mask,
                     staged.layer(targetId)->mask, "Paint strokes");
+                else if (overlay) command = core::makeProjectPaintCommand(document(), targetId,
+                    core::projectPaintState(std::get<core::RasterLayer>(staged.layer(targetId)->payload).surface), "Paint strokes");
                 else command = std::make_unique<BrushBatchCommand>(document(), *staged.layer(targetId), session().layerSelectionState(), pixels);
                 require(execute(std::move(command)), "Could not publish brush batch; no pixels were committed");
             }
@@ -455,7 +481,7 @@ void McpController::registerPaintingTools()
             return data;
         });
 
-    add("vulkana_fill", "Fill a raster layer or existing mask in one undoable operation. mode=selection fills active selection, or all layer pixels when unrestricted; mode=contiguous flood-fills from seed with tolerance. Honors transforms/crop/selection. Keeps editor tool settings. Work over five seconds rolls back.",
+    add("vulkana_fill", "Fill a raster layer or existing mask in one undoable operation. mode=selection fills active selection, or all layer pixels when unrestricted; mode=contiguous flood-fills from seed with tolerance. On a linked project layer, a pixel fill samples the source plus existing paint and writes to the placement's paint overlay. Honors transforms/crop/selection. Keeps editor tool settings. Work over five seconds rolls back.",
         {{"layerId", identifier()}, {"target", choice({"pixels", "mask"})},
             {"mode", choice({"selection", "contiguous"})}, {"color", colorSchema()},
             {"opacity", number(0, 1)}, {"tolerance", integer(0, 255)}, {"seed", pointSchema()}},

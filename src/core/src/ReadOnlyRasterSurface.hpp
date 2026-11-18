@@ -4,7 +4,7 @@
 #include <stdexcept>
 #include <utility>
 namespace imageeditor::core {
-class ReadOnlyRasterSurface final : public RasterSurface {
+class ReadOnlyRasterSurface : public RasterSurface {
 public:
     explicit ReadOnlyRasterSurface(std::shared_ptr<const RasterSurface> source) : source_(std::move(source))
     { if (!source_) throw std::invalid_argument("Missing read-only raster source"); }

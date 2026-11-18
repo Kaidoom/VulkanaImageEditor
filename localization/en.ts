@@ -9437,6 +9437,8 @@ Requested: %1 × %2 px</source>
     <message id="layers.mirror.sync"><source>Sync with source</source></message>
     <message id="layers.mirror.select.source"><source>Select source</source></message>
     <message id="layers.mirror.label"><source>Mirrored</source></message>
+    <message id="project.paint.label"><source>Paint overlay</source></message>
+    <message id="project.paint.clear"><source>Clear Paint Overlay</source></message>
     <message id="project.layer.add"><source>Add Project as Layer…</source></message>
     <message id="project.layer.open"><source>Open Source Project</source></message>
     <message id="project.layer.relink"><source>Relink Project Layer…</source></message>

@@ -14106,6 +14106,14 @@ Richiesto: %1 × %2 px</translation>
       <source>Mirrored</source>
       <translation type="unfinished" />
     </message>
+    <message id="project.paint.label">
+      <source>Paint overlay</source>
+      <translation>Sovrapposizione di pittura</translation>
+    </message>
+    <message id="project.paint.clear">
+      <source>Clear Paint Overlay</source>
+      <translation>Cancella la sovrapposizione di pittura</translation>
+    </message>
     <message id="project.layer.add">
       <source>Add Project as Layer…</source>
       <translation type="unfinished" />

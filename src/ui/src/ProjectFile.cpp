@@ -10,6 +10,7 @@
 #include "imageeditor/platform/AtomicFile.hpp"
 #include "LayerEffectCodec.hpp"
 #include "ProjectLayerCodec.hpp"
+#include "ProjectPaintCodec.hpp"
 #include "AdjustmentCodec.hpp"
 #include "SpatialFilterCodec.hpp"
 #include "imageeditor/core/RichText.hpp"
@@ -283,6 +284,7 @@ namespace {
         bool containsShapes = false;
         bool containsMirrors = false;
         std::map<core::SurfaceId, QString> projectAppearances;
+        bool containsProjectPaint = false;
         bool containsArcs = false;
         bool containsShapeStrokeV2 = false;
         bool containsLabels = false;
@@ -348,9 +350,15 @@ namespace {
                 QString payloadPath;
                 if (layer.projectSource) {
                     o["projectSource"] = detail::encodeProjectSource(*layer.projectSource, destination);
-                    auto [appearance, inserted] = projectAppearances.try_emplace(raster->surface->id());
-                    if (inserted) appearance->second = detail::projectAppearancePath(*raster->surface);
+                    const auto base = core::projectBasePixels(raster->surface);
+                    auto [appearance, inserted] = projectAppearances.try_emplace(base->id());
+                    if (inserted) appearance->second = detail::projectAppearancePath(*base);
                     payloadPath = appearance->second;
+                    if (const auto paint = core::projectPaintState(raster->surface)) {
+                        containsProjectPaint = true;
+                        o["projectPaint"] = QJsonObject{{"version", 1}, {"tileSize", core::ProjectPaint::tileSide},
+                            {"tileCount", qint64(paint->tiles.size())}, {"path", detail::projectPaintPath(layer.id)}};
+                    }
                 } else {
                     payloadPath = rasterPath(layer.id, kind);
                 }
@@ -393,6 +401,7 @@ namespace {
                 for (const auto* key : {"raster","text","shape","adjustmentLayer"}) saved.remove(key);
             } else saved.remove("mirror");
             if (!layer.projectSource) saved.remove("projectSource");
+            if (!o.contains("projectPaint")) saved.remove("projectPaint");
             saved.remove("layerMask");
             if (layer.mask && !layer.mirror) {
                 require(core::validLayerMask(layer.mask), "Invalid layer mask");
@@ -528,6 +537,7 @@ namespace {
         if (!projectAppearances.empty()) {
             auto required = result["required"].toArray();
             required.append("project-layer-v1");
+            if (containsProjectPaint) required.append("project-paint-v1");
             result["required"] = required;
         }
         if (containsMirrors) {
@@ -635,6 +645,7 @@ namespace {
         core::Extent2u extent;
         QString path;
         core::RasterDataKind dataKind {core::RasterDataKind::Color};
+        QString paintPath;
         QString maskPath;
         detail::AdjustmentPlan adjustments;
         detail::SpatialFilterPlan filters;
@@ -737,7 +748,8 @@ namespace {
                     || capability == "encoded-srgb-compositing-v1" || capability == "layer-fill-opacity-v1"
                     || capability == "layer-effects-advanced-blending-v1" || capability == "multi-stop-gradient-v1"
                     || capability == "snapshot-timeline-v1" || capability == "mirrored-layer-v1" || capability == "document-guides-v1" || capability == "brush-symmetry-v1" || capability == "scalar-raster-v1"
-                    || capability == "packed-data-v1" || capability == "channel-group-v1" || capability == "project-layer-v1",
+                    || capability == "packed-data-v1" || capability == "channel-group-v1"
+                    || capability == "project-layer-v1" || capability == "project-paint-v1",
                 "Project requires unsupported capabilities");
         require(o["canvas"].isObject() && o["layers"].isArray(), "Missing canvas or layers");
         const auto canvas = o["canvas"].toObject();
@@ -830,6 +842,19 @@ namespace {
                 require(l["type"] == "raster" && required.contains("project-layer-v1"),
                     "Invalid or undeclared project layer source");
                 p.layer.projectSource = detail::decodeProjectSource(l["projectSource"], parentDirectory, linkPathBytes);
+            }
+            if (l.contains("projectPaint")) {
+                const auto paint = l["projectPaint"].toObject();
+                require(p.layer.projectSource && required.contains("project-paint-v1") && paint["version"] == 1
+                        && paint["tileSize"] == core::ProjectPaint::tileSide, "Invalid or undeclared project layer paint");
+                const auto count = integer(paint["tileCount"], 1, projectPayloadLimit / detail::paintRecordSize,
+                    "Invalid project paint tile count");
+                p.paintPath = detail::projectPaintPath(p.layer.id);
+                require(paint["path"] == p.paintPath && used.insert(p.paintPath).second, "Invalid project paint path");
+                const auto entry = files.find(p.paintPath);
+                const auto size = count * detail::paintRecordSize;
+                require(entry != files.end() && entry->second.bytes == size, "Missing or incorrectly sized project paint");
+                result.bytes = checkedBytes(result.bytes, size);
             }
             if (l.contains("layerMask")) {
                 const auto m = l["layerMask"].toObject();
@@ -1224,6 +1249,10 @@ ProjectLoadResult loadProject(const QString& path, ProjectProgress callback, Pro
                 for (const auto& run : text->runs)
                     checkFont(run.style);
             }
+            if (!p.paintPath.isEmpty()) {
+                auto& raster = std::get<core::RasterLayer>(p.layer.payload);
+                raster.surface = core::withProjectPaint(raster.surface, detail::readProjectPaint(zip, files.at(p.paintPath), progress));
+            }
             require(doc->insertLayer(doc->layers().size(), std::move(p.layer)), "Cannot restore layer");
         }
         std::vector<core::LayerId> mirrorIds;
@@ -1320,6 +1349,13 @@ ProjectIoResult saveProject(const QString& path, const core::Document& doc, cons
                 const auto n = quint64(e.width) * e.height * r->surface->nativeBytesPerPixel();
                 if (expected.emplace(rasterPaths.at(layer.id), Entry{0, n, 0}).second)
                     bytes = checkedBytes(bytes, n);
+                if (layer.projectSource) {
+                    if (const auto paint = core::projectPaintState(r->surface)) {
+                        const auto size = quint64(paint->tiles.size()) * detail::paintRecordSize;
+                        expected.emplace(detail::projectPaintPath(layer.id), Entry{0, size, 0});
+                        bytes = checkedBytes(bytes, size);
+                    }
+                }
             }
         for (const auto& layer : doc.layers()) {
             if (layer.mirror) continue;
@@ -1415,15 +1451,21 @@ ProjectIoResult saveProject(const QString& path, const core::Document& doc, cons
             for (const auto& layer : doc.layers())
                 if (const auto* r = std::get_if<core::RasterLayer>(&layer.payload); r && !layer.mirror) {
                     const auto& name = rasterPaths.at(layer.id);
+                    auto surface = r->surface;
+                    if (layer.projectSource) {
+                        if (const auto paint = core::projectPaintState(surface))
+                            detail::writeProjectPaint(zip, detail::projectPaintPath(layer.id), *paint, progress);
+                        surface = core::projectBasePixels(surface);
+                    }
                     if (zip.writtenCrc.contains(name)) continue;
-                    const auto e = r->surface->extent();
-                    const size_t stride = size_t(e.width) * r->surface->nativeBytesPerPixel();
+                    const auto e = surface->extent();
+                    const size_t stride = size_t(e.width) * surface->nativeBytesPerPixel();
                     const auto rows = std::max<size_t>(1, chunkSize / stride);
                     std::vector<std::byte> buffer(rows * stride);
                     writeEntry(zip, name, quint64(e.height) * stride, [&](const auto& write) {
                     for (uint32_t y = 0; y < e.height;) {
                         const auto h = uint32_t(std::min<size_t>(rows,e.height-y));
-                        r->surface->copyNative({0,int32_t(y),int32_t(e.width),int32_t(h)},buffer,stride);
+                        surface->copyNative({0,int32_t(y),int32_t(e.width),int32_t(h)},buffer,stride);
                         write(reinterpret_cast<const char*>(buffer.data()),int(h*stride)); y += h;
                     } }, progress);
                 }

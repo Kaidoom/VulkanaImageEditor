@@ -155,6 +155,8 @@ public:
     bool setLayerFilters(LayerId id, SpatialFilterState);
     bool setLayerEffects(LayerId id, LayerEffectState, bool overrideAll = false);
     bool setLayerCrop(LayerId, std::optional<LayerCrop>);
+    bool setProjectPaintSurface(LayerId, const std::shared_ptr<RasterSurface>& expected,
+        const std::shared_ptr<RasterSurface>& replacement) noexcept;
     bool setLayerMask(LayerId, LayerMaskState);
     bool renameLayer(LayerId id, std::string name);
     bool setLayerTransform(LayerId id, const AffineTransform& transform);

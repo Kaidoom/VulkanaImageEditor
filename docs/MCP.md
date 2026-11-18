@@ -430,6 +430,8 @@ Use catalogs instead of assuming that every effect accepts the same fields or un
 
 Strokes use Vulkana's real brush engine, including presets, pressure, transforms, crop and pixel selection. Pixel painting requires a raster layer; mask painting requires an existing mask and preserves original pixels. Erasing a mask paints black. Stroke/fill operations preserve the user's layer selection, active tool and brush settings. The default brush is hard round; color defaults to the active foreground slot unless explicitly supplied.
 
+On a linked project layer, single and batched pixel strokes edit the placement's local paint. Erasing those strokes reveals the linked image underneath. Use the placement's layer mask to hide areas of the linked image. Pixel fills write to the same overlay. Contiguous fills match colors in the linked image together with existing placement paint.
+
 Preset inspection never loads runtime masks. A supported preset with
 `status:load_on_use` can be selected immediately; the stroke prepares it on demand.
 Missing or invalid asset data is reported as `available:false` with a reason.

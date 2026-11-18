@@ -1,3 +1,4 @@
+#include "imageeditor/core/ProjectPaint.hpp"
 #include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/ui/LocalizedNames.hpp"
 #include "imageeditor/ui/Localization.hpp"
@@ -4887,7 +4888,7 @@ void MainWindow::updateActionState()
         && !fileBusy_ && !layerTransform_ && !selectionTransform_ && !layerCrop_);
     transformPixelsAction_->setEnabled(transformSelectionAction_->isEnabled()&&!session().editingLayerMask()
         && layer && !core::layerPixelsReadOnly(*layer));
-    const bool canFill = layer && !core::isMirroredLayer(*layer) && (session().editingLayerMask() || (!layer->projectSource && std::holds_alternative<core::RasterLayer>(layer->payload)))
+    const bool canFill = layer && !core::isMirroredLayer(*layer) && (session().editingLayerMask() || std::holds_alternative<core::RasterLayer>(layer->payload))
         && layer->localToDocument.inverted() && !layerTransform_ && !selectionTransform_ && !activeFill_;
     for (auto* fill : fillActions_) fill->setEnabled(canFill);
     if (activeFill_) { undoAction_->setEnabled(true); redoAction_->setEnabled(false); transformAction_->setEnabled(false); }
@@ -5024,8 +5025,8 @@ void MainWindow::mutateRasterForUploadProbe()
 bool MainWindow::beginBrushStroke(const core::NormalizedPointerSample& sample)
 {
     if (const auto* layer = session().document() && session().activeLayer()
-            ? session().document()->layer(*session().activeLayer()) : nullptr; layer && (layer->mirror || (layer->projectSource && !session().editingLayerMask()))) {
-        statusBar()->showMessage(i18n::text(layer->projectSource ? "layers.project.read.only" : "layers.mirror.read.only"), 4000);
+            ? session().document()->layer(*session().activeLayer()) : nullptr; layer && layer->mirror) {
+        statusBar()->showMessage(i18n::text("layers.mirror.read.only"), 4000);
         return false;
     }
     if(session().editingLayerMask()&&session().activeTool()!=core::ToolId::Brush&&session().activeTool()!=core::ToolId::Eraser) {
@@ -5056,26 +5057,39 @@ bool MainWindow::beginBrushStroke(const core::NormalizedPointerSample& sample)
         statusBar()->showMessage(unavailable, 4500);
         return false;
     }
-    if(mask) {
-        try {activeMaskEdit_=std::make_unique<core::LayerMaskEdit>(*session().document(),layer->id,"Paint layer mask");}
-        catch(const std::exception& e){statusBar()->showMessage(QString::fromUtf8(e.what()),4500);return false;}
+    core::RasterEditTransactionOptions transactionOptions;
+    transactionOptions.coverageValues = mask;
+    auto* paintDocument = session().document();
+    try {
+        if (mask) {
+            activeMaskEdit_ = std::make_unique<core::LayerMaskEdit>(*paintDocument, layer->id, "Paint layer mask");
+            paintDocument = &activeMaskEdit_->proxy();
+        } else if (layer->projectSource) {
+            activeProjectPaint_ = std::make_unique<core::ProjectPaintEdit>(*paintDocument, layer->id,
+                activeTool == core::ToolId::Eraser ? "Eraser stroke" : "Brush stroke");
+            paintDocument = &activeProjectPaint_->proxy();
+            transactionOptions.fixedExtent = true;
+        }
+        const auto mode = mask ? core::BrushCompositeMode::MaskCoverage
+            : activeTool == core::ToolId::Eraser ? core::BrushCompositeMode::Erase : core::BrushCompositeMode::Paint;
+        activeBrushStroke_ = std::make_unique<core::BasicPixelBrushStroke>(
+            *paintDocument, layer->id, std::move(strokeSettings), mode,
+            std::make_unique<core::BasicPixelBrushEngine>(), std::unique_ptr<core::IBrushTip> {},
+            std::unique_ptr<core::IBrushGrain> {}, brushAssets_.get(), transactionOptions,
+            std::function<core::PremultipliedColor(core::Vec2d)> {}, std::string_view {}, false,
+            std::function<void(const core::BrushDab&)> {}, core::BrushExecutionOptions {}, session().document()->brushSymmetry());
+    } catch (const std::exception& e) {
+        activeMaskEdit_.reset();
+        activeProjectPaint_.reset();
+        statusBar()->showMessage(QString::fromUtf8(e.what()), 4500);
+        return false;
     }
-    core::RasterEditTransactionOptions transactionOptions;transactionOptions.coverageValues=mask;
-    activeBrushStroke_ = std::make_unique<core::BasicPixelBrushStroke>(
-        mask?activeMaskEdit_->proxy():*session().document(), *session().activeLayer(), std::move(strokeSettings),
-        mask?core::BrushCompositeMode::MaskCoverage:activeTool == core::ToolId::Eraser
-            ? core::BrushCompositeMode::Erase
-            : core::BrushCompositeMode::Paint,
-        std::make_unique<core::BasicPixelBrushEngine>(),
-        std::unique_ptr<core::IBrushTip> {},
-        std::unique_ptr<core::IBrushGrain> {}, brushAssets_.get(),transactionOptions,
-        std::function<core::PremultipliedColor(core::Vec2d)> {}, std::string_view {}, false,
-        std::function<void(const core::BrushDab&)> {}, core::BrushExecutionOptions {}, session().document()->brushSymmetry());
     const auto rasterGeometryRevision=session().document()->revision();
     if (!activeBrushStroke_->valid() || !activeBrushStroke_->begin(sample)) {
         const bool limited=activeBrushStroke_->failure()==core::BrushStrokeFailure::RasterWorkLimitExceeded;
         activeBrushStroke_.reset();
         activeMaskEdit_.reset();
+        activeProjectPaint_.reset();
         statusBar()->showMessage(limited
             ? i18n::text("main.window.stroke.cancelled.too.many.source.pixels.at.this.layer")
             : i18n::text("main.window.unable.to.begin.brush.stroke"), limited ? 6500 : 2500);
@@ -5085,7 +5099,7 @@ bool MainWindow::beginBrushStroke(const core::NormalizedPointerSample& sample)
         canvasWindow_->setResolvedBrushCursorAngle(*angle);
     }
     canvasWindow_->setConstrainedBrushPosition(activeBrushStroke_->constrainedPosition());
-    if(activeMaskEdit_ || session().document()->revision()!=rasterGeometryRevision)
+    if(activeMaskEdit_ || activeProjectPaint_ || session().document()->revision()!=rasterGeometryRevision)
         canvasWindow_->setDocument(session().document()->snapshot(),false);
     canvasWindow_->scheduleFrame();
     return true;
@@ -5119,7 +5133,10 @@ bool MainWindow::endBrushStroke(const core::NormalizedPointerSample& sample)
     if (!activeBrushStroke_) {
         return false;
     }
-    auto result = activeBrushStroke_->end(sample, activeMaskEdit_?activeMaskEdit_->provisionalHistory():session().history());
+    auto* history = &session().history();
+    if (activeMaskEdit_) history = &activeMaskEdit_->provisionalHistory();
+    if (activeProjectPaint_) history = &activeProjectPaint_->provisionalHistory();
+    auto result = activeBrushStroke_->end(sample, *history);
     if (const auto angle = activeBrushStroke_->lastResolvedTipAngleDegrees()) {
         canvasWindow_->setResolvedBrushCursorAngle(*angle);
     }
@@ -5127,11 +5144,12 @@ bool MainWindow::endBrushStroke(const core::NormalizedPointerSample& sample)
     const auto stats = activeBrushStroke_->stats();
     const bool limited=activeBrushStroke_->failure()==core::BrushStrokeFailure::RasterWorkLimitExceeded;
     activeBrushStroke_.reset();
-    if(activeMaskEdit_) {
-        if(result==core::RasterEditCommitResult::Committed||result==core::RasterEditCommitResult::NoChanges)
-            result=activeMaskEdit_->commit(session().history());
+    if (activeMaskEdit_ || activeProjectPaint_) {
+        if (result == core::RasterEditCommitResult::Committed || result == core::RasterEditCommitResult::NoChanges)
+            result = activeMaskEdit_ ? activeMaskEdit_->commit(session().history()) : activeProjectPaint_->commit(session().history());
         activeMaskEdit_.reset();
-        canvasWindow_->setDocument(session().document()->snapshot(),false);
+        activeProjectPaint_.reset();
+        canvasWindow_->setDocument(session().document()->snapshot(), false);
     }
     if (result == core::RasterEditCommitResult::Committed) {
         fileState().untouched = false;
@@ -5166,6 +5184,7 @@ void MainWindow::cancelActiveBrushStroke(bool preserveCompletedRepair)
     activeBrushStroke_->cancel();
     activeBrushStroke_.reset();
     activeMaskEdit_.reset();
+    activeProjectPaint_.reset();
     if (session().document()) {
         canvasWindow_->setDocument(session().document()->snapshot(), false);
     }

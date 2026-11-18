@@ -1,3 +1,4 @@
+#include "imageeditor/core/ProjectPaint.hpp"
 #include "imageeditor/core/ProjectLayer.hpp"
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/MirroredLayers.hpp"
@@ -437,6 +438,12 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
             [this, id = *id] { refreshProjectLayer(id); });
         menu.addAction(toolGlyph(ToolGlyph::Link), i18n::text("project.layer.relink"), this,
             [this, id = *id] { const auto path = chooseProjectLayerPath(); if (!path.isEmpty()) relinkProjectLayer(id, path); })->setObjectName("RelinkProjectLayerAction");
+        auto* clearPaint = menu.addAction(toolGlyph(ToolGlyph::Trash), i18n::text("project.paint.clear"), this,
+            [this, id = *id, menuInstance] {
+                if (activeDocumentId() == menuInstance) clearProjectPaint(id, false);
+            });
+        clearPaint->setObjectName(QStringLiteral("ClearProjectPaintAction"));
+        clearPaint->setEnabled(core::hasProjectPaint(*layer));
         menu.addAction(toolGlyph(ToolGlyph::LayerRaster), i18n::text("project.layer.convert"), this,
             [this, id = *id] { convertProjectLayerToRaster(id); });
     }

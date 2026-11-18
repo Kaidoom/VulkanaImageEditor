@@ -1,6 +1,7 @@
 #include "imageeditor/core/FillOperation.hpp"
 #include "imageeditor/core/ColorMath.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
+#include "imageeditor/core/ProjectPaint.hpp"
 #include <cstring>
 #include <stdexcept>
 
@@ -16,7 +17,15 @@ FillOperation::FillOperation(Document& document, LayerId layer, FillOptions opti
         const auto* target = document.layer(layer);
         if (!target || !std::holds_alternative<RasterLayer>(target->payload))
             throw std::invalid_argument("Fill requires a raster layer");
-        if (layerPixelsReadOnly(*target))
+        auto* destination = &document;
+        // Match against the original placement, including paint already on it.
+        // Composite the fill into the transparent overlay in the same local grid.
+        matchSurface_ = std::get<RasterLayer>(target->payload).surface;
+        if (target->projectSource && !options.eraseSelection) {
+            projectPaint_ = std::make_unique<ProjectPaintEdit>(document, layer, std::string(label()));
+            destination = &projectPaint_->proxy();
+            target = destination->layer(layer);
+        } else if (layerPixelsReadOnly(*target))
             throw std::invalid_argument(readOnlyPixelsReason(*target));
         surface_ = std::get<RasterLayer>(target->payload).surface;
         mapping_ = intrinsicTransform(*target);
@@ -63,7 +72,7 @@ FillOperation::FillOperation(Document& document, LayerId layer, FillOptions opti
         // clipping still happens below; small selections do not scan a 5K layer.
         workBounds_
             = { l / 64 * 64, t / 64 * 64, std::max(0, r - l / 64 * 64), std::max(0, b - t / 64 * 64) };
-        transaction_ = std::make_unique<RasterEditTransaction>(document, layer, std::string(label()),
+        transaction_ = std::make_unique<RasterEditTransaction>(*destination, layer, std::string(label()),
             RasterEditTransactionOptions{.ignoreCrop=clearLayer,.coverageValues=options_.coverageValues});
         state_ = FillState::Ready;
         if ((!options_.eraseSelection && (!options_.color.alpha || options_.opacity == 0)) || workBounds_.empty()
@@ -109,7 +118,8 @@ bool FillOperation::eligible(int x, int y) const
 }
 bool FillOperation::targetValid() const
 {
-    const auto* layer = document_.layer(layer_);
+    if (projectPaint_ && !projectPaint_->valid()) return false;
+    const auto* layer = (projectPaint_ ? projectPaint_->proxy() : document_).layer(layer_);
     return transaction_ && transaction_->targetAvailable() && layer && std::holds_alternative<RasterLayer>(layer->payload)
         && std::get<RasterLayer>(layer->payload).surface == surface_ && intrinsicTransform(*layer) == mapping_
         && document_.canvas().extent == canvas_ && document_.selection() == selection_
@@ -120,7 +130,7 @@ Rgba8 FillOperation::source(int x, int y)
     auto& row = rows_[std::size_t(y) % rows_.size()];
     if (row.y != y) {
         row.bytes.resize(std::size_t(extent_.width) * 4);
-        surface_->copyRgba8({ 0, y, int(extent_.width), 1 }, row.bytes, row.bytes.size());
+        matchSurface_->copyRgba8({ 0, y, int(extent_.width), 1 }, row.bytes, row.bytes.size());
         row.y = y;
     }
     const auto* p = row.bytes.data() + std::size_t(x) * 4;
@@ -231,8 +241,7 @@ FillState FillOperation::step(std::size_t budget)
             state_ = FillState::Ready;
     } catch (const std::exception& e) {
         error_ = e.what();
-        if (transaction_)
-            transaction_->cancel();
+        cancel();
         state_ = FillState::Failed;
     }
     return state_;
@@ -246,12 +255,18 @@ RasterEditCommitResult FillOperation::commit(History& history)
         return RasterEditCommitResult::TargetUnavailable;
     }
     try {
-        const auto result = transaction_->commit(history);
+        auto result = transaction_->commit(projectPaint_ ? projectPaint_->provisionalHistory() : history);
+        if (projectPaint_) {
+            if (result == RasterEditCommitResult::Committed || result == RasterEditCommitResult::NoChanges)
+                result = projectPaint_->commit(history);
+            else
+                projectPaint_->cancel();
+        }
         state_ = FillState::Finished;
         return result;
     } catch (const std::exception& e) {
         error_ = e.what();
-        transaction_->cancel();
+        cancel();
         state_ = FillState::Failed;
         return RasterEditCommitResult::HistoryRejected;
     }
@@ -260,6 +275,8 @@ void FillOperation::cancel() noexcept
 {
     if (transaction_)
         transaction_->cancel();
+    if (projectPaint_)
+        projectPaint_->cancel();
     if (state_ != FillState::Finished && state_ != FillState::Failed)
         state_ = FillState::Cancelled;
 }

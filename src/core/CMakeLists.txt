@@ -53,6 +53,7 @@ add_library(imageeditor_core STATIC
     src/Layer.cpp
     src/LayerMask.cpp
     src/LayerMaskEdit.cpp
+    src/ProjectPaint.cpp
     src/LayerCrop.cpp
     src/LayerCropSession.cpp
     src/LayerTree.cpp

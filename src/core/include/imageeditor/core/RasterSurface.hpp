@@ -74,7 +74,7 @@ public:
 
     // Strict alpha > 0, independent of visibility, masks and storage padding.
     // Only dirty tiles are rescanned; unchanged geometry queries read no pixels.
-    [[nodiscard]] RectI contentBounds() const;
+    [[nodiscard]] virtual RectI contentBounds() const;
 
     virtual void copyRgba8(RectI region, std::span<std::byte> destination,
         std::size_t destinationStride) const = 0;

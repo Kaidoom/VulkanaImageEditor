@@ -1,4 +1,4 @@
-#include "imageeditor/core/ProjectLayer.hpp"
+#include "imageeditor/core/ProjectPaint.hpp"
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/LayerListModel.hpp"
 #include "imageeditor/ui/LayerTransferMimeData.hpp"
@@ -339,6 +339,8 @@ QVariant LayerListModel::data(const QModelIndex& index, int role) const
         return c != nullptr;
     case ProjectSourceRole:
         return l && l->projectSource ? QString::fromStdString(l->projectSource->path) : QString{};
+    case ProjectPaintRole:
+        return l && core::hasProjectPaint(*l);
     case ProjectSourceMissingRole:
         if (l && l->projectSource) {
             const auto found = missingProjectFiles_.find(l->projectSource->path);

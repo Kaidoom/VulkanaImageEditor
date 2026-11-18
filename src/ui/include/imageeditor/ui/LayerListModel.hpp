@@ -30,6 +30,7 @@ public:
     static constexpr int MirroredRole = Qt::UserRole + 13;
     static constexpr int ProjectSourceRole = Qt::UserRole + 14;
     static constexpr int ProjectSourceMissingRole = Qt::UserRole + 15;
+    static constexpr int ProjectPaintRole = Qt::UserRole + 16;
     explicit LayerListModel(QObject* parent = nullptr);
 
     void setSession(core::EditorSession* session);

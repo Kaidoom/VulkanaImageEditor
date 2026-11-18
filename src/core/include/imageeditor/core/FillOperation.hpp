@@ -4,6 +4,7 @@
 #include <array>
 
 namespace imageeditor::core {
+class ProjectPaintEdit;
 enum class FillMode { SelectionOrLayer, Contiguous };
 struct FillOptions {
     FillMode mode { FillMode::SelectionOrLayer };
@@ -49,6 +50,8 @@ private:
     RectI workBounds_;
     AffineTransform mapping_;
     SelectionState selection_;
+    std::unique_ptr<ProjectPaintEdit> projectPaint_;
+    std::shared_ptr<const RasterSurface> matchSurface_;
     std::shared_ptr<RasterSurface> surface_;
     Revision expectedRevision_ { 0 };
     std::unique_ptr<RegionFinder> region_;

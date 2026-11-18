@@ -114,7 +114,8 @@ BasicPixelBrushStroke::BasicPixelBrushStroke(Document& document, LayerId layerId
     documentPixelFootprint_ = std::max(
         1.0e-6, localToDocument_.isAffine()?maximumTransformScale(localToDocument_):localToDocument_.maximumScaleOver({0,0,double(surfaceExtent_.width),double(surfaceExtent_.height)}));
     // Repair/filter/mask producers have their own bounded reference contracts.
-    allowGrowth_ = compositeMode_ == BrushCompositeMode::Paint && !sampledColor_ && !transactionOptions.coverageValues;
+    allowGrowth_ = compositeMode_ == BrushCompositeMode::Paint && !sampledColor_
+        && !transactionOptions.coverageValues && !transactionOptions.fixedExtent;
     transactionOptions.allowGrowth = allowGrowth_;
     transaction_ = std::make_unique<RasterEditTransaction>(
         document, layerId,

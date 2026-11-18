@@ -42,9 +42,12 @@ namespace {
             const auto* editor = view->renameEditor();
             return editor && editor->property("layerId") == index.data(Qt::UserRole);
         }
-        unsigned visibleEffects(const QModelIndex& index) const {
+        unsigned visibleIndicators(const QModelIndex& index) const {
             const auto* view = static_cast<const LayerListView*>(parent());
-            return !view->layerInfoVisible() || renaming(index) ? 0 : index.data(LayerListModel::ActiveEffectsRole).toUInt();
+            if (!view->layerInfoVisible() || renaming(index)) return 0;
+            auto indicators = index.data(LayerListModel::ActiveEffectsRole).toUInt();
+            if (index.data(LayerListModel::ProjectPaintRole).toBool()) indicators |= 1U << core::layerEffectCount;
+            return indicators;
         }
         QFont infoFont(const QStyleOptionViewItem& option) const {
             auto font = option.font;
@@ -69,16 +72,15 @@ namespace {
             const int width = std::min(available, metrics.horizontalAdvance(text) + 2);
             return {right - width + 1, option.rect.top() + 5, width, metrics.height()};
         }
-        QRect effectRect(const QRect& row, const QRect& thumbnail, unsigned effects, core::LayerEffectType type) const {
-            const auto i = unsigned(type);
-            if (i >= core::layerEffectCount || !(effects & (1U << i))) return {};
+        QRect indicatorRect(const QRect& row, const QRect& thumbnail, unsigned indicators, std::size_t i) const {
+            if (i > core::layerEffectCount || !(indicators & (1U << i))) return {};
             // Inset the footer from the highlight's lower edge. Narrow masked
             // rows use tighter spacing as well as smaller glyphs to stay clear
             // of the mask thumbnail at this higher footer position.
-            const int firstX = row.right() - 23 - (std::popcount(effects) - 1) * 16;
+            const int firstX = row.right() - 23 - (std::popcount(indicators) - 1) * 16;
             const int size = firstX <= thumbnail.right() ? 10 : 14;
             const int spacing = size == 10 ? 11 : 16;
-            const int following = std::popcount(effects >> (i + 1));
+            const int following = std::popcount(indicators >> (i + 1));
             return {row.right() - 9 - size - following * spacing, row.bottom() - 7 - size, size, size};
         }
         void initStyleOption(QStyleOptionViewItem* option,const QModelIndex& index) const override {
@@ -99,15 +101,20 @@ namespace {
                     QToolTip::showText(event->globalPos(),layers->blendModeIndicatorText(index),view->viewport(),blend);
                     return true;
                 }
-                const auto effects = visibleEffects(index);
+                const auto indicators = visibleIndicators(index);
                 const auto thumbnail = decorationRect(option,index);
                 for (std::size_t i=0; i<core::layerEffectCount; ++i) {
                     const auto type = core::LayerEffectType(i);
-                    const auto rect = effectRect(option.rect,thumbnail,effects,type);
+                    const auto rect = indicatorRect(option.rect,thumbnail,indicators,i);
                     if (rect.contains(event->pos())) {
                         QToolTip::showText(event->globalPos(),i18n::effectName(type),view->viewport(),rect);
                         return true;
                     }
+                }
+                const auto paint = indicatorRect(option.rect, thumbnail, indicators, core::layerEffectCount);
+                if (paint.contains(event->pos())) {
+                    QToolTip::showText(event->globalPos(), i18n::text("project.paint.label"), view->viewport(), paint);
+                    return true;
                 }
             }
             if(event->type()==QEvent::ToolTip && decorationRect(option,index).contains(event->pos())) {
@@ -199,12 +206,14 @@ namespace {
             auto ink = themeColor(ThemeColor::SecondaryText);
             if (hidden) ink.setAlphaF(ink.alphaF() * .64F);
             painter->setClipRect(option.rect,Qt::IntersectClip);
-            const auto effects = visibleEffects(index);
-            const auto thumbnail = effects ? decorationRect(option,index) : QRect{};
+            const auto indicators = visibleIndicators(index);
+            const auto thumbnail = indicators ? decorationRect(option,index) : QRect{};
             for (std::size_t i=0; i<glyphs.size(); ++i) {
-                const auto rect = effectRect(option.rect,thumbnail,effects,core::LayerEffectType(i));
+                const auto rect = indicatorRect(option.rect,thumbnail,indicators,i);
                 if (!rect.isEmpty()) toolGlyph(glyphs[i],ink).paint(painter,rect);
             }
+            const auto paint = indicatorRect(option.rect, thumbnail, indicators, core::layerEffectCount);
+            if (!paint.isEmpty()) themedIcon(QStringLiteral(":/icons/brush.svg"), ink).paint(painter, paint);
             // Header and footer are passive overlays; neither consumes rename
             // space or changes the row's selection/drag/thumbnail hit targets.
             const auto blend = blendRect(option,index);
@@ -283,7 +292,7 @@ QRect LayerListView::effectIndicatorRect(const QModelIndex& index, core::LayerEf
 {
     const auto* delegate = static_cast<LayerRowDelegate*>(itemDelegate());
     QStyleOptionViewItem option; initViewItemOption(&option); option.rect=visualRect(index);
-    return delegate->effectRect(option.rect,delegate->decorationRect(option,index),delegate->visibleEffects(index),type);
+    return delegate->indicatorRect(option.rect,delegate->decorationRect(option,index),delegate->visibleIndicators(index),unsigned(type));
 }
 
 void LayerListView::setModel(QAbstractItemModel* next)

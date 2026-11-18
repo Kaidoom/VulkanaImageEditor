@@ -1,3 +1,4 @@
+#include "imageeditor/core/ProjectPaint.hpp"
 #include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
@@ -129,14 +130,32 @@ void MainWindow::createEyedropperControls()
     row->addStretch();
     toolOptionsBar_->registerToolPage(core::ToolId::Eyedropper, i18n::text("main.window.fill.eyedropper"), page);
 }
+void MainWindow::clearProjectPaint(core::LayerId id, bool useSelection)
+{
+    if (fileBusy_ || workspaceDialog_ || !session().document() || !settleForFileOperation()) return;
+    try {
+        auto command = core::makeProjectPaintClearCommand(*session().document(), id, useSelection);
+        if (command && session().execute(std::move(command))) {
+            fileState().untouched = false;
+            synchronizeUi(false, false);
+        }
+    } catch (const std::exception& e) {
+        statusBar()->showMessage(QString::fromUtf8(e.what()), 4500);
+    }
+}
+
 void MainWindow::startFill(bool background, bool selectionOnly, core::Vec2d seed, bool eraseSelection)
 {
     if (activeFill_ || !session().document() || !session().activeLayer() || layerTransform_
         || selectionTransform_)
         return;
     const auto* target = session().document()->layer(*session().activeLayer());
-    if (target && (target->mirror || (target->projectSource && !session().editingLayerMask()))) {
-        statusBar()->showMessage(i18n::text(target->projectSource ? "layers.project.read.only" : "layers.mirror.read.only"), 4000); return;
+    if (target && target->projectSource && !session().editingLayerMask() && eraseSelection) {
+        clearProjectPaint(target->id, true);
+        return;
+    }
+    if (target && target->mirror) {
+        statusBar()->showMessage(i18n::text("layers.mirror.read.only"), 4000); return;
     }
     if (!session().editingLayerMask()&&eraseSelection && (!target
         || !std::holds_alternative<core::RasterLayer>(target->payload))) return;
@@ -179,11 +198,13 @@ void MainWindow::advanceFill()
     if (!activeFill_)
         return;
     const auto before = activeFill_->stats().writeBatches;
+    const auto revision = session().document()->revision();
     // <=64K pixel chunks. Surface updates remain on its owning GUI thread;
     // between chunks the event loop can present frames, move panels or cancel.
     auto state = activeFill_->step();
     if (activeFill_->stats().writeBatches != before) {
-        if(activeMaskEdit_)canvasWindow_->setDocument(session().document()->snapshot(),false);
+        if (activeMaskEdit_ || session().document()->revision() != revision)
+            canvasWindow_->setDocument(session().document()->snapshot(), false);
         canvasWindow_->scheduleFrame();
     }
     if (state == core::FillState::Discovering || state == core::FillState::Applying) {
@@ -215,9 +236,13 @@ void MainWindow::cancelFill()
     if (!activeFill_)
         return;
     fillTimer_->stop();
+    const auto* doc = session().document();
+    const auto revision = doc ? doc->revision() : 0;
     activeFill_->cancel();
     activeFill_.reset();
-    if(activeMaskEdit_) {activeMaskEdit_.reset();canvasWindow_->setDocument(session().document()->snapshot(),false);}
+    activeMaskEdit_.reset();
+    if (doc && doc->revision() != revision)
+        canvasWindow_->setDocument(doc->snapshot(), false);
     if (fillProgress_)
         fillProgress_->hide();
     canvasWindow_->scheduleFrame();

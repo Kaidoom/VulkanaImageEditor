@@ -108,10 +108,7 @@ void MainWindow::refreshChannelGroupControls()
         const bool mirrorContent = mirrored && (tool == core::ToolId::Brush || tool == core::ToolId::Eraser
             || tool == core::ToolId::Fill || tool == core::ToolId::Cloning || tool == core::ToolId::LocalBlur
             || tool == core::ToolId::Crop) && !(tool == core::ToolId::Brush && activeDocument_->refinement);
-        const bool paintsMaskOrPixels = tool == core::ToolId::Brush || tool == core::ToolId::Eraser || tool == core::ToolId::Fill;
-        const bool projectContent = project && ((paintsMaskOrPixels && !session().editingLayerMask())
-            || tool == core::ToolId::Cloning || tool == core::ToolId::LocalBlur)
-            && !(tool == core::ToolId::Brush && activeDocument_->refinement);
+        const bool projectContent = project && (tool == core::ToolId::Cloning || tool == core::ToolId::LocalBlur);
         if (((scalar || packed) && !allowed) || mirrorContent || projectContent) {
             if (!action->property("channelDisabled").toBool()) {
                 action->setProperty("channelWasEnabled", action->isEnabled());
@@ -154,7 +151,7 @@ void MainWindow::refreshChannelGroupControls()
         if (swatchesPanel_) swatchesPanel_->setGradientEnabled(false);
     }
     if (auto* action = findChild<QAction*>("ErasePixelsAction"))
-        action->setEnabled(!packed && !mirrored && (!project || session().editingLayerMask()) && doc && !fileBusy_ && !workspaceDialog_);
+        action->setEnabled(!packed && !mirrored && doc && !fileBusy_ && !workspaceDialog_);
     for (auto type : core::allSpatialFilterTypes) if (auto* action = findChild<QAction*>(QStringLiteral("FilterAction_%1").arg(int(type))))
         action->setEnabled(available && !mirrored && !packed && (!scalar || type == core::SpatialFilterType::Gaussian));
     if (adjustmentsPanel_) adjustmentsPanel_->setEnabled(!packed);

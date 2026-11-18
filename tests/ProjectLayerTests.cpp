@@ -2,6 +2,7 @@
 #include "imageeditor/core/LayerMaskEdit.hpp"
 #include "imageeditor/core/LayerStructureCommands.hpp"
 #include "imageeditor/core/ProjectLayer.hpp"
+#include "imageeditor/core/ProjectPaint.hpp"
 #include "imageeditor/core/SelectionCommands.hpp"
 #include "imageeditor/core/LayerTransform.hpp"
 #include "imageeditor/ui/ImageExport.hpp"
@@ -21,6 +22,8 @@
 #include <QSettings>
 #include <QTimer>
 #include <QMenu>
+#include <QMouseEvent>
+#include <QKeyEvent>
 #include <QTabBar>
 #include <QVulkanInstance>
 #include <QStandardPaths>
@@ -101,6 +104,48 @@ QImage exportedPng(const u::MainWindow& window)
     const auto image = QImage::fromData(encoded.bytes, "PNG").convertToFormat(QImage::Format_RGBA8888);
     REQUIRE(!image.isNull());
     return image;
+}
+
+void sparseOverlayKeepsSnapshotsAndTransforms()
+{
+    constexpr c::Extent2u extent{260, 130};
+    c::Document doc({extent, 96});
+    c::History history;
+    auto layer = c::Layer::raster("Linked", std::make_shared<c::ContiguousRasterSurface>(extent, c::Rgba8{8,7,6,0}));
+    auto source = std::make_shared<c::ProjectLayerSource>();
+    source->path = "Source.vulkana";
+    layer.projectSource = source;
+    layer.localToDocument.m02 = 10;
+    const auto id = layer.id;
+    REQUIRE(doc.insertLayer(0, std::move(layer)));
+    auto pixels = [&] { return std::get<c::RasterLayer>(doc.layer(id)->payload).surface; };
+    auto read = [](const c::RasterSurface& surface, int x) {
+        std::array<c::Rgba8, 1> value{};
+        surface.copyNative({x, 2, 1, 1}, std::as_writable_bytes(std::span(value)), 4);
+        return value.front();
+    };
+    const auto base = pixels();
+    c::ProjectPaintEdit edit(doc, id, "Brush stroke");
+    const auto writer = std::get<c::RasterLayer>(edit.proxy().layer(id)->payload).surface;
+    const std::array ink{c::Rgba8{32,17,13,128}};
+    REQUIRE(!writer->replaceRgba8({2,2,1,1},std::as_bytes(std::span(ink)),4).empty());
+    const auto first = pixels();
+    REQUIRE(!writer->replaceRgba8({80,2,1,1},std::as_bytes(std::span(ink)),4).empty());
+    const auto second = pixels();
+    REQUIRE(!writer->replaceRgba8({145,2,1,1},std::as_bytes(std::span(ink)),4).empty());
+    const auto all = pixels();
+    const auto dirty = all->dirtySince(first->revision());
+    REQUIRE(first->id() == all->id() && !dirty.empty() && !dirty.fullRefresh);
+    REQUIRE(read(*first,80) == (c::Rgba8{8,7,6,0}) && read(*second,80) == ink.front());
+    REQUIRE(all->contentBounds() == (c::RectI{2,2,144,1}));
+    REQUIRE(c::projectPaintState(all)->tiles.size() == 3 && c::projectBasePixels(all) == base);
+    REQUIRE(edit.commit(history) == c::RasterEditCommitResult::Committed);
+    REQUIRE(history.undo(doc) && pixels() == base && history.redo(doc) && pixels() == all);
+    REQUIRE(doc.setSelection(c::SelectionMask::rectangle(extent,{90,2,1,1},128)));
+    REQUIRE(history.execute(doc,c::makeProjectPaintClearCommand(doc,id,true)));
+    REQUIRE(read(*pixels(),80) == (c::Rgba8{32,17,13,64}) && read(*pixels(),2) == ink.front());
+    REQUIRE(read(*all,80) == ink.front() && read(*base,80) == (c::Rgba8{8,7,6,0}));
+    REQUIRE(history.undo(doc) && pixels() == all);
 }
 
 void linkedProjectWorkflow(const QTemporaryDir& dir)
@@ -284,6 +329,172 @@ void linkedPixelsAndPlacementMasks(const QTemporaryDir& dir)
     REQUIRE(doc.layer(id)->mask->coverage->coverageAtDocumentPixel(0, 0) == 255);
 }
 
+void paintOnProjectPlacement(const QTemporaryDir& dir, QVulkanInstance* vulkan)
+{
+    const auto parentPath = dir.filePath("Painted parent.vulkana");
+    const auto sourcePath = dir.filePath("Paint source.vulkana");
+    const c::Extent2u extent{128, 128};
+    const auto saveSolid = [](const QString& path, c::Extent2u size, c::Rgba8 color) {
+        c::Document doc({size, 72});
+        REQUIRE(doc.insertLayer(0, c::Layer::raster("Base", std::make_shared<c::ContiguousRasterSurface>(size, color))));
+        REQUIRE(u::saveProject(path, doc));
+    };
+    saveSolid(parentPath, extent, {});
+    saveSolid(sourcePath, extent, alternateColor);
+    u::MainWindow window(vulkan, false, false);
+    window.setUnsavedPromptEnabled(false);
+    window.resize(1200, 800);
+    window.show();
+    REQUIRE(imageeditor::test::waitForGraphicsStartup(window));
+    REQUIRE(window.openImageFromPath(parentPath));
+    REQUIRE(window.addProjectLayer(sourcePath));
+    const auto first = session(window).activeLayer().value();
+    REQUIRE(window.addProjectLayer(sourcePath));
+    const auto id = session(window).activeLayer().value();
+    const auto original = surface(window, first);
+    REQUIRE(surface(window, id) == original);
+    auto* view = dynamic_cast<u::LayerListView*>(window.findChild<QListView*>("LayerList"));
+    REQUIRE(view);
+    auto* model = dynamic_cast<u::LayerListModel*>(view->model());
+    REQUIRE(model);
+    const auto row = [&] { return model->index(model->rowForLayer(id), 0); };
+    const auto clearActionEnabled = [&](bool run) {
+        bool found = false, enabled = false;
+        QTimer::singleShot(0, &window, [&] {
+            for (auto* menu : window.findChildren<QMenu*>()) if (menu->isVisible()) {
+                for (auto* action : menu->actions()) if (action->objectName() == "ClearProjectPaintAction") {
+                    found = true;
+                    enabled = action->isEnabled();
+                    if (run && enabled) action->trigger();
+                    break;
+                }
+                menu->close();
+            }
+        });
+        view->customContextMenuRequested(view->visualRect(row()).center());
+        REQUIRE(found);
+        return enabled;
+    };
+    REQUIRE(!row().data(u::LayerListModel::ProjectPaintRole).toBool() && !clearActionEnabled(false));
+    imageeditor::render::CanvasWindow* canvas = nullptr;
+    for (auto* win : QGuiApplication::allWindows())
+        if (auto* candidate = dynamic_cast<imageeditor::render::CanvasWindow*>(win)) canvas = candidate;
+    REQUIRE(canvas);
+    const auto action = [&](const char* name) {
+        auto* value = window.findChild<QAction*>(name);
+        REQUIRE(value && value->isEnabled());
+        value->trigger();
+        QApplication::processEvents();
+    };
+    const auto mouse = [&](QEvent::Type type, c::Vec2d documentPoint, Qt::MouseButton button, Qt::MouseButtons buttons) {
+        const auto& scene = canvas->scene();
+        const auto p = scene.viewport.documentToViewport(documentPoint, {128, 128}, scene.logicalViewport);
+        const QPointF local(p.x, p.y);
+        QMouseEvent event(type, local, local, QPointF(canvas->mapToGlobal(local.toPoint())), button, buttons, {});
+        QCoreApplication::sendEvent(canvas, &event);
+        QApplication::processEvents();
+    };
+    const c::Vec2d mark{84.5, 92.5}, other{32.5, 32.5};
+    const auto click = [&](c::Vec2d point) {
+        mouse(QEvent::MouseMove, point, Qt::NoButton, Qt::NoButton);
+        mouse(QEvent::MouseButtonPress, point, Qt::LeftButton, Qt::LeftButton);
+        mouse(QEvent::MouseButtonRelease, point, Qt::LeftButton, Qt::NoButton);
+    };
+
+    session(window).setForegroundColor(detailColor);
+    action("ToolAction_brush");
+    const auto depth = session(window).history().undoDepth();
+    click(mark);
+    REQUIRE(session(window).history().undoDepth() == depth + 1);
+    REQUIRE(c::hasProjectPaint(layer(window, id)) && !c::hasProjectPaint(layer(window, first)));
+    REQUIRE(row().data(u::LayerListModel::ProjectPaintRole).toBool());
+    const auto painted = pixel(window, id, 84, 92);
+    REQUIRE(painted != alternateColor && pixel(window, first, 84, 92) == alternateColor);
+    action("ToolAction_fill");
+    auto* contiguous = window.findChild<QAbstractButton*>("FillModeContiguous");
+    REQUIRE(contiguous && contiguous->isEnabled());
+    contiguous->click();
+    const c::Rgba8 fillColor{255, 0, 0, 255};
+    session(window).setForegroundColor(fillColor);
+    click(mark);
+    REQUIRE(QTest::qWaitFor([&] { return session(window).history().undoDepth() == depth + 2; }));
+    REQUIRE(pixel(window, id, 84, 92) == fillColor && pixel(window, id, 32, 32) == alternateColor);
+    REQUIRE(pixel(window, first, 84, 92) == alternateColor);
+    action("UndoAction");
+    REQUIRE(pixel(window, id, 84, 92) == painted);
+    session(window).setForegroundColor(detailColor);
+    action("ToolAction_brush");
+    action("UndoAction");
+    REQUIRE(!c::hasProjectPaint(layer(window, id)));
+    action("RedoAction");
+    REQUIRE(pixel(window, id, 84, 92) == painted);
+    mouse(QEvent::MouseButtonPress, other, Qt::LeftButton, Qt::LeftButton);
+    REQUIRE(pixel(window, id, 32, 32) != alternateColor);
+    QKeyEvent escape(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+    QCoreApplication::sendEvent(window.windowHandle(), &escape);
+    mouse(QEvent::MouseButtonRelease, other, Qt::LeftButton, Qt::NoButton);
+    REQUIRE(pixel(window, id, 32, 32) == alternateColor && session(window).history().undoDepth() == depth + 1);
+
+    action("ToolAction_eraser");
+    click(mark);
+    REQUIRE(pixel(window, id, 84, 92) == alternateColor);
+    action("UndoAction");
+    REQUIRE(pixel(window, id, 84, 92) == painted);
+    const auto selection = c::SelectionMask::rectangle(extent, {84, 92, 1, 1}, 128);
+    REQUIRE(session(window).execute(std::make_unique<c::SetSelectionCommand>(selection)));
+    action("ErasePixelsAction");
+    const auto faded = pixel(window, id, 84, 92);
+    REQUIRE(faded != painted && faded != alternateColor && faded.alpha == 255);
+    REQUIRE(session(window).document()->selection() == selection);
+    action("UndoAction");
+    REQUIRE(pixel(window, id, 84, 92) == painted);
+    REQUIRE(clearActionEnabled(true));
+    REQUIRE(!row().data(u::LayerListModel::ProjectPaintRole).toBool() && session(window).document()->selection() == selection);
+    action("UndoAction");
+    REQUIRE(pixel(window, id, 84, 92) == painted);
+    action("UndoAction");
+    REQUIRE(!session(window).document()->selection());
+    action("ErasePixelsAction");
+    REQUIRE(!c::hasProjectPaint(layer(window, id)) && pixel(window, id, 84, 92) == alternateColor);
+    action("UndoAction");
+    action("AddLayerMaskAction");
+    REQUIRE(session(window).editingLayerMask());
+    click(mark);
+    REQUIRE(c::layerMaskCoverage(layer(window, id).mask, mark) < .01f);
+    REQUIRE(pixel(window, id, 84, 92) == painted);
+    action("UndoAction");
+    REQUIRE(c::layerMaskCoverage(layer(window, id).mask, mark) == 1.f);
+
+    // Source updates change pixels beneath this placement's local paint. A
+    // smaller source temporarily clips the mark without discarding its tile.
+    saveSolid(sourcePath, {40, 40}, baseColor);
+    REQUIRE(window.refreshProjectLayer(id));
+    REQUIRE(surface(window, id)->extent() == (c::Extent2u{40, 40}));
+    REQUIRE(c::hasProjectPaint(layer(window, id)) && pixel(window, id, 0, 0) == baseColor);
+    REQUIRE(window.saveDocument());
+    saveSolid(sourcePath, extent, baseColor);
+    u::MainWindow reopened(nullptr, false, false);
+    reopened.setUnsavedPromptEnabled(false);
+    REQUIRE(reopened.openImageFromPath(parentPath));
+    REQUIRE(reopened.refreshProjectLayer(id));
+    REQUIRE(pixel(reopened, id, 84, 92) == painted && pixel(reopened, id, 0, 0) == baseColor);
+    REQUIRE(!c::hasProjectPaint(layer(reopened, first)));
+    const auto visible = exportedPng(reopened);
+    REQUIRE(visible.pixelColor(84, 92) == QColor(painted.red, painted.green, painted.blue, painted.alpha));
+    REQUIRE(reopened.saveDocument());
+    const auto loaded = u::loadProject(parentPath);
+    REQUIRE(loaded && c::hasProjectPaint(*loaded.document->layer(id)) && !c::hasProjectPaint(*loaded.document->layer(first)));
+    const auto fromDisk = std::get<c::RasterLayer>(loaded.document->layer(id)->payload).surface;
+    std::array<c::Rgba8, 1> restored{};
+    fromDisk->copyRgba8({84, 92, 1, 1}, std::as_writable_bytes(std::span(restored)), 4);
+    REQUIRE(restored.front() == painted);
+    REQUIRE(reopened.convertProjectLayerToRaster(id) && !layer(reopened, id).projectSource);
+    REQUIRE(pixel(reopened, id, 84, 92) == painted);
+    REQUIRE(exportedPng(reopened) == visible);
+    REQUIRE(session(reopened).undo());
+    REQUIRE(layer(reopened, id).projectSource && c::hasProjectPaint(layer(reopened, id)));
+}
+
 void thumbnailWorkflow(QVulkanInstance& vulkan, const QTemporaryDir& dir)
 {
     const auto parentPath = dir.filePath("Parent.vulkana");
@@ -465,10 +676,13 @@ int main(int argc, char** argv)
             vulkan.setApiVersion(QVersionNumber(1, 2));
             REQUIRE(vulkan.create());
             thumbnailWorkflow(vulkan, dir);
+            paintOnProjectPlacement(dir, &vulkan);
             std::cout << "Project Layer Wayland thumbnail, tab and context interactions passed\n";
             return 0;
         }
+        sparseOverlayKeepsSnapshotsAndTransforms();
         linkedPixelsAndPlacementMasks(dir);
+        paintOnProjectPlacement(dir, nullptr);
         linkedProjectWorkflow(dir);
         savedSourceCanCloseBeforeParentIsActivated(dir);
         rejectIndirectCycleBetweenClosedProjects(dir);

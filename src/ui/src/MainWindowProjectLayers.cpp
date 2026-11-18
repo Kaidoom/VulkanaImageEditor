@@ -5,6 +5,7 @@
 #include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/core/LayerStructureCommands.hpp"
 #include "imageeditor/core/ProjectLayer.hpp"
+#include "imageeditor/core/ProjectPaint.hpp"
 #include "imageeditor/ui/PixelPreview.hpp"
 #include "imageeditor/ui/NativeRasterBake.hpp"
 #include "imageeditor/ui/ProjectFile.hpp"
@@ -171,13 +172,16 @@ public:
             if (!layer.projectSource || (only ? layer.id != *only : projectPathKey(QString::fromStdString(layer.projectSource->path)) != QString::fromStdString(appearance.source->path)))
                 continue;
             const auto& old = std::get<core::RasterLayer>(layer.payload).surface;
-            auto [match, inserted] = equal.try_emplace(old->id(), false);
-            if (inserted) match->second = samePixels(old, appearance.pixels);
+            const auto base = core::projectBasePixels(old);
+            auto [match, inserted] = equal.try_emplace(base->id(), false);
+            if (inserted) match->second = samePixels(base, appearance.pixels);
             if (match->second && layer.projectSource->path == appearance.source->path
                 && layer.projectSource->dependencies == appearance.source->dependencies) continue;
             auto next = layer;
             next.projectSource = appearance.source;
-            next.payload = core::RasterLayer{appearance.pixels};
+            next.payload = core::RasterLayer{core::withProjectPaint(appearance.pixels, core::projectPaintState(old))};
+            next.filterCache.reset();
+            next.effectCache.reset();
             changes.push_back(std::move(next));
         }
         if (!changes.empty())
@@ -228,7 +232,8 @@ private:
         for (const auto& layer : parent.session.document()->layers()) {
             if (!layer.projectSource || layer.projectSource->path != source->path) continue;
             const auto& old = std::get<core::RasterLayer>(layer.payload).surface;
-            if (samePixels(old, pixels)) { pixels = old; break; }
+            const auto base = core::projectBasePixels(old);
+            if (samePixels(base, pixels)) { pixels = base; break; }
         }
         if (open) {
             open->lastProjectAppearance = pixels;
