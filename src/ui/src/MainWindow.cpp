@@ -81,7 +81,6 @@
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QImage>
-#include <QImageReader>
 #include <QInputEvent>
 #include <QItemSelectionModel>
 #include <QKeySequence>
@@ -488,18 +487,6 @@ private:
     QElapsedTimer sampleClock_;
     std::uint64_t lastFrameCount_ {0};
 };
-
-QString supportedImageFilter()
-{
-    QStringList patterns {QStringLiteral("*.pdf"),QStringLiteral("*.PDF"),QStringLiteral("*.psd"),QStringLiteral("*.PSD"),QStringLiteral("*.psb"),QStringLiteral("*.PSB")};
-    for (const auto& format : QImageReader::supportedImageFormats()) {
-        const auto extension = QString::fromLatin1(format);
-        patterns << QStringLiteral("*.") + extension << QStringLiteral("*.") + extension.toUpper();
-    }
-    patterns.removeDuplicates();
-    patterns.sort();
-    return i18n::text("main.window.images.and.pdf.1.all.files").arg(patterns.join(QChar(' ')));
-}
 
 QString toolName(core::ToolId tool)
 {
@@ -2246,6 +2233,14 @@ void MainWindow::createMenus()
     newAdjustmentLayerAction_->setObjectName(QStringLiteral("NewAdjustmentLayerAction"));
     connect(newAdjustmentLayerAction_,&QAction::triggered,this,&MainWindow::addAdjustmentLayer);
     layerMenu->addAction(newAdjustmentLayerAction_);
+    auto* addProject = i18n::addAction(layerMenu, toolGlyph(ToolGlyph::Link), i18n::text("project.layer.add"), this, [this] {
+        const auto path = chooseProjectLayerPath();
+        if (!path.isEmpty()) addProjectLayer(path);
+    });
+    addProject->setObjectName("AddProjectLayerAction");
+    connect(layerMenu, &QMenu::aboutToShow, this, [this, addProject] {
+        addProject->setEnabled(activeDocument_ && session().document() && !fileBusy_);
+    });
     layerMenu->addAction(newFolderAction_);layerMenu->addAction(renameLayerAction_);
     layerMenu->addSeparator();layerMenu->addAction(groupLayersAction_);layerMenu->addAction(ungroupLayersAction_);
     layerMenu->addSeparator();layerMenu->addAction(mergeLayersAction_);
@@ -2738,6 +2733,9 @@ void MainWindow::createDocks()
     layerList_->setSelectionMode(QAbstractItemView::ExtendedSelection);
     static_cast<LayerListView*>(layerList_)->onRowSelectionRequested = [this](int row,Qt::KeyboardModifiers modifiers) {
         selectLayerFromRow(row,modifiers);
+    };
+    static_cast<LayerListView*>(layerList_)->onOpenProjectSource = [this](int row) {
+        if (auto id = layerModel_->layerIdAt(row)) openProjectLayer(*id);
     };
     static_cast<LayerListView*>(layerList_)->onAlphaSelectionRequested = [this](int row) {
         loadLayerAlphaSelection(row);
@@ -3401,7 +3399,8 @@ void MainWindow::openImage()
 void MainWindow::importImageAsLayer()
 {
     const auto filePath = QFileDialog::getOpenFileName(this,
-        i18n::text("main.window.import.image.as.layer"), openDocumentDirectory(), supportedImageFilter());
+        i18n::text("main.window.import.as.layer"), openDocumentDirectory(),
+        documentOpenFilter() + QStringLiteral(";;") + i18n::text("files.filter.all"));
     if (!filePath.isEmpty()) {
         importImageAsLayerFromPath(filePath);
     }
@@ -3416,6 +3415,8 @@ bool MainWindow::importImageAsLayerFromPath(const QString& filePath)
 {
     if (fileBusy_) return false;
     if (refinement_ && !guardRefinement(activeDocumentId())) return false;
+    if (QFileInfo(filePath).suffix().compare(QStringLiteral("vulkana"), Qt::CaseInsensitive) == 0)
+        return session().document() ? addProjectLayer(filePath) : openImageFromPath(filePath);
     if (isPdfFile(filePath)) return importPdfFromPath(filePath,true);
     if (isPsdFile(filePath)) return importPsdFromPath(filePath,true);
     cancelPendingEdits();
@@ -4885,8 +4886,8 @@ void MainWindow::updateActionState()
     transformSelectionAction_->setEnabled(hasActiveSelection && !session().document()->selection()->bounds().empty()
         && !fileBusy_ && !layerTransform_ && !selectionTransform_ && !layerCrop_);
     transformPixelsAction_->setEnabled(transformSelectionAction_->isEnabled()&&!session().editingLayerMask()
-        && layer && !core::isMirroredLayer(*layer));
-    const bool canFill = layer && !core::isMirroredLayer(*layer) && (session().editingLayerMask()||std::holds_alternative<core::RasterLayer>(layer->payload))
+        && layer && !core::layerPixelsReadOnly(*layer));
+    const bool canFill = layer && !core::isMirroredLayer(*layer) && (session().editingLayerMask() || (!layer->projectSource && std::holds_alternative<core::RasterLayer>(layer->payload)))
         && layer->localToDocument.inverted() && !layerTransform_ && !selectionTransform_ && !activeFill_;
     for (auto* fill : fillActions_) fill->setEnabled(canFill);
     if (activeFill_) { undoAction_->setEnabled(true); redoAction_->setEnabled(false); transformAction_->setEnabled(false); }
@@ -4982,7 +4983,7 @@ void MainWindow::mutateRasterForUploadProbe()
         return;
     }
     auto* layer = session().document()->layer(*session().activeLayer());
-    if (!layer || core::isMirroredLayer(*layer) || !std::holds_alternative<core::RasterLayer>(layer->payload)) {
+    if (!layer || core::layerPixelsReadOnly(*layer) || !std::holds_alternative<core::RasterLayer>(layer->payload)) {
         return;
     }
     auto& raster = std::get<core::RasterLayer>(layer->payload);
@@ -5023,8 +5024,8 @@ void MainWindow::mutateRasterForUploadProbe()
 bool MainWindow::beginBrushStroke(const core::NormalizedPointerSample& sample)
 {
     if (const auto* layer = session().document() && session().activeLayer()
-            ? session().document()->layer(*session().activeLayer()) : nullptr; layer && core::isMirroredLayer(*layer)) {
-        statusBar()->showMessage(i18n::text("layers.mirror.read.only"), 4000);
+            ? session().document()->layer(*session().activeLayer()) : nullptr; layer && (layer->mirror || (layer->projectSource && !session().editingLayerMask()))) {
+        statusBar()->showMessage(i18n::text(layer->projectSource ? "layers.project.read.only" : "layers.mirror.read.only"), 4000);
         return false;
     }
     if(session().editingLayerMask()&&session().activeTool()!=core::ToolId::Brush&&session().activeTool()!=core::ToolId::Eraser) {

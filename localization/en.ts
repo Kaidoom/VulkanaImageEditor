@@ -2536,6 +2536,7 @@ Alt-click sets a new source. Changing the destination keeps this anchor.</source
       <source>%1 FPS</source>
       <extracomment>MainWindow presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
     </message>
+    <message id="files.filter.all"><source>All files (*)</source></message>
     <message id="main.window.images.and.pdf.1.all.files">
       <source>Images and PDF (%1);;All files (*)</source>
       <extracomment>MainWindow presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
@@ -5457,6 +5458,10 @@ Wheel · Zoom; {{FitCanvasAction}} · Fit; {{ActualSizeAction}} · 100%</source>
     <message id="psd.export.panel.use.the.recommended.conversion.for.this.group">
       <source>Use the recommended conversion for this group.</source>
       <extracomment>PsdExportPanel presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
+    </message>
+    <message id="psd.export.panel.project.layer.appearance">
+      <source>PSD stores the Project Layer as pixels. The source link stays in the Vulkana project.</source>
+      <extracomment>Layer conversion details for a linked Vulkana project.</extracomment>
     </message>
     <message id="psd.export.panel.keep.this.layer.editable.where.possible.otherwise.export.it">
       <source>Keep this layer editable where possible; otherwise export it as pixels.</source>
@@ -9432,6 +9437,19 @@ Requested: %1 × %2 px</source>
     <message id="layers.mirror.sync"><source>Sync with source</source></message>
     <message id="layers.mirror.select.source"><source>Select source</source></message>
     <message id="layers.mirror.label"><source>Mirrored</source></message>
+    <message id="project.layer.add"><source>Add Project as Layer…</source></message>
+    <message id="project.layer.open"><source>Open Source Project</source></message>
+    <message id="project.layer.relink"><source>Relink Project Layer…</source></message>
+    <message id="project.layer.refresh"><source>Refresh Project Layer</source></message>
+    <message id="project.layer.convert"><source>Convert to Raster Layer</source></message>
+    <message id="project.layer.choose"><source>Choose a source project</source></message>
+    <message id="project.layer.filter"><source>Vulkana projects (*.vulkana)</source></message>
+    <message id="project.layer.rendering"><source>Rendering project layer…</source></message>
+    <message id="project.layer.missing"><source>Source project missing. Relink the project layer to open its source.</source></message>
+    <message id="layers.project.label"><source>Project Layer</source></message>
+    <message id="layers.project.missing.label"><source>Project Layer · File missing</source></message>
+    <message id="layers.project.missing.hint"><source>Source file missing. The saved appearance is available. Use Relink to choose its new location.</source></message>
+    <message id="layers.project.read.only"><source>Project layer pixels are linked. Edit the source project or convert the layer to raster.</source></message>
     <message id="layers.mirror.read.only"><source>Mirrored layers are read-only. Promote to a full layer to edit the content.</source></message>
     <message id="layers.mirror.link.opacity"><source>Link layer opacity to the source</source></message>
     <message id="layers.mirror.link.fill"><source>Link pixel opacity to the source</source></message>

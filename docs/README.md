@@ -9,6 +9,7 @@ The guides below describe the architecture, behavior and algorithms.
   rendering, transactions and resource lifetime.
 - [Coordinates](COORDINATE_SYSTEM.md): pixel grids, transforms and input mapping.
 - [Project format](VULKANA_FORMAT.md): persistence, limits and compatibility.
+- [Project layers](PROJECT_LAYERS.md) explains how to place, update and relink a project inside another document.
 - [Document tabs](DOCUMENT_TABS.md): ownership, activation and cross-tab copying.
 - [Refine Selection](REFINE_SELECTION.md): guided edges, coverage controls, mask output and session safety.
 - [Smart Selection](SMART_SELECTION.md): brush-local regions, bundled offline object selection and quality checks.

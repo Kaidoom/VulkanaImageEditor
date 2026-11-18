@@ -93,6 +93,7 @@ QJsonObject brushSettings(const core::BrushSettings& value)
 void paintTarget(const core::Layer& value, bool mask)
 {
     require(!core::isMirroredLayer(value), "Mirrored layers are read-only. Promote to a full layer before painting content or masks.");
+    require(mask || !value.projectSource, core::readOnlyPixelsReason(value));
     require(bool(value.localToDocument.inverted()), "Layer transform is not invertible");
     if (mask) require(bool(value.mask), "Layer has no mask; add one explicitly before painting it");
     else require(std::holds_alternative<core::RasterLayer>(value.payload), "Pixel painting requires a raster layer");

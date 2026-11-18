@@ -359,6 +359,8 @@ QJsonObject McpController::state(bool includeLayers) const
                 {"opacity", layer.opacity}, {"fillOpacity", layer.fillOpacity}, {"width", double(size.width)}, {"height", double(size.height)},
                 {"transform", QJsonArray{m.m00, m.m01, m.m02, m.m10, m.m11, m.m12, m.m20, m.m21, m.m22}}, {"hasMask", bool(layer.mask)}};
             if (const auto* raster = std::get_if<core::RasterLayer>(&layer.payload); raster && raster->surface) {
+                if (layer.projectSource) entry["projectLayer"] = true;
+                if (core::layerPixelsReadOnly(layer)) entry["pixelsReadOnly"] = true;
                 const auto kind = raster->surface->dataKind();
                 entry["dataKind"] = kind == core::RasterDataKind::Scalar ? "scalar" : kind == core::RasterDataKind::PackedData ? "packed_data" : "color";
                 entry["pixelFormat"] = kind == core::RasterDataKind::Scalar ? "r8" : "rgba8";

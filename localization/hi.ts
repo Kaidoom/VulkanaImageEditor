@@ -3753,6 +3753,7 @@ Alt+क्लिक नया स्रोत चुनता है। लक�
       <translation>%1 FPS</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
+    <message id="files.filter.all"><source>All files (*)</source><translation>सभी फ़ाइलें (*)</translation></message>
     <message id="main.window.images.and.pdf.1.all.files">
       <source>Images and PDF (%1);;All files (*)</source>
       <extracomment>MainWindow presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
@@ -8176,6 +8177,11 @@ Escape · रद्द
       <extracomment>PsdExportPanel presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
       <translation>इस समूह के लिए सुझाया रूपांतरण लें।</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+    </message>
+    <message id="psd.export.panel.project.layer.appearance">
+      <source>PSD stores the Project Layer as pixels. The source link stays in the Vulkana project.</source>
+      <extracomment>Layer conversion details for a linked Vulkana project.</extracomment>
+      <translation type="unfinished" />
     </message>
     <message id="psd.export.panel.keep.this.layer.editable.where.possible.otherwise.export.it">
       <source>Keep this layer editable where possible; otherwise export it as pixels.</source>
@@ -14159,6 +14165,58 @@ Requested: %1 × %2 px</source>
     </message>
     <message id="layers.mirror.label">
       <source>Mirrored</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="project.layer.add">
+      <source>Add Project as Layer…</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="project.layer.open">
+      <source>Open Source Project</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="project.layer.relink">
+      <source>Relink Project Layer…</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="project.layer.refresh">
+      <source>Refresh Project Layer</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="project.layer.convert">
+      <source>Convert to Raster Layer</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="project.layer.choose">
+      <source>Choose a source project</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="project.layer.filter">
+      <source>Vulkana projects (*.vulkana)</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="project.layer.rendering">
+      <source>Rendering project layer…</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="project.layer.missing">
+      <source>Source project missing. Relink the project layer to open its source.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layers.project.label">
+      <source>Project Layer</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layers.project.missing.label">
+      <source>Project Layer · File missing</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layers.project.missing.hint">
+      <source>Source file missing. The saved appearance is available. Use Relink to choose its new location.</source>
+      <translation type="unfinished" />
+    </message>
+    <message id="layers.project.read.only">
+      <source>Project layer pixels are linked. Edit the source project or convert the layer to raster.</source>
       <translation type="unfinished" />
     </message>
     <message id="layers.mirror.read.only">

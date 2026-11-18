@@ -1,3 +1,4 @@
+#include "imageeditor/core/ProjectLayer.hpp"
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/LayerListModel.hpp"
 #include "imageeditor/ui/LayerTransferMimeData.hpp"
@@ -5,9 +6,11 @@
 #include "imageeditor/core/ColorMath.hpp"
 #include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
+#include "imageeditor/core/ProjectLayer.hpp"
 #include "imageeditor/ui/ToolIcons.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include <QMimeData>
+#include <QFileInfo>
 #include <QApplication>
 #include <QIconEngine>
 #include <QPainter>
@@ -104,6 +107,14 @@ void LayerListModel::rebuildRows()
     selectedAncestorFolders_ = selectedAncestorFolders();
     if (!session_ || !session_->document())
         return;
+    // Refresh source status with the Layers model. Painting a badge and
+    // querying its tooltip only consult this map.
+    missingProjectFiles_.clear();
+    for (const auto& layer : session_->document()->layers()) {
+        if (!layer.projectSource) continue;
+        auto [entry, first] = missingProjectFiles_.try_emplace(layer.projectSource->path);
+        if (first) entry->second = !QFileInfo(QString::fromStdString(entry->first)).isFile();
+    }
     const auto& tree = session_->document()->tree();
     const auto visit = [&](auto&& self, const auto& ids, int depth) -> void {
         for (auto it = ids.rbegin(); it != ids.rend(); ++it) {
@@ -300,6 +311,12 @@ QVariant LayerListModel::data(const QModelIndex& index, int role) const
         return layerThumbnail(*l);
     }
     case Qt::ToolTipRole:
+        if (l && l->projectSource) {
+            QString hint = QString::fromStdString(l->projectSource->path);
+            if (data(index, ProjectSourceMissingRole).toBool())
+                hint += QStringLiteral("\n") + i18n::text("layers.project.missing.hint");
+            return hint;
+        }
         if (c && c->kind == core::ContainerKind::ChannelGroup)
             return i18n::text("channels.group.hint");
         if (l && core::isScalarLayer(*l))
@@ -320,6 +337,14 @@ QVariant LayerListModel::data(const QModelIndex& index, int role) const
         return c && core::isExpandable(c->kind);
     case ContainerRole:
         return c != nullptr;
+    case ProjectSourceRole:
+        return l && l->projectSource ? QString::fromStdString(l->projectSource->path) : QString{};
+    case ProjectSourceMissingRole:
+        if (l && l->projectSource) {
+            const auto found = missingProjectFiles_.find(l->projectSource->path);
+            return found != missingProjectFiles_.end() && found->second;
+        }
+        return false;
     case MirroredRole:
         return l && l->mirror.has_value();
     case Qt::UserRole + 4:

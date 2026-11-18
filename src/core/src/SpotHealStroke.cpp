@@ -1,4 +1,3 @@
-#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/core/SpotHealStroke.hpp"
 
 #include "imageeditor/core/LayerGeometry.hpp"
@@ -106,7 +105,7 @@ struct SpotHealWork {
 std::string spotHealTargetDiagnostic(const Document& document, LayerId target, CloneSampleSource source)
 {
     const auto* layer = document.layer(target);
-    if (layer && isMirroredLayer(*layer)) return "Mirrored layers are read-only. Promote to a full layer before editing content.";
+    if (layer && layerPixelsReadOnly(*layer)) return readOnlyPixelsReason(*layer);
     const auto* raster = layer ? std::get_if<RasterLayer>(&layer->payload) : nullptr;
     if (!raster || !raster->surface) return "Spot Heal needs a raster destination; text and shapes remain editable.";
     if(raster->surface->dataKind()==RasterDataKind::Scalar && source!=CloneSampleSource::SourceLayer)
@@ -164,7 +163,7 @@ bool SpotHealStroke::targetMatches() const noexcept
 {
     const auto* layer = document_.layer(target_);
     const auto* raster = layer ? std::get_if<RasterLayer>(&layer->payload) : nullptr;
-    return layer && !isMirroredLayer(*layer) && document_.revision() == revision_ && raster && raster->surface && raster->surface->id() == surface_
+    return layer && !layerPixelsReadOnly(*layer) && document_.revision() == revision_ && raster && raster->surface && raster->surface->id() == surface_
         && raster->surface->revision() == surfaceRevision_ && intrinsicTransform(*layer) == localToDocument_
         && std::all_of(sourceRevisions_.begin(), sourceRevisions_.end(), [](const auto& source) { return source.first->revision() == source.second; });
 }

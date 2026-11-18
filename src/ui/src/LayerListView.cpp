@@ -258,6 +258,9 @@ QString LayerListView::blendModeIndicatorText(const QModelIndex& index) const
     if (!data.isValid()) return {};
     const auto mode = core::BlendMode(data.toUInt());
     QStringList labels;
+    if (!index.data(LayerListModel::ProjectSourceRole).toString().isEmpty())
+        labels.append(i18n::text(index.data(LayerListModel::ProjectSourceMissingRole).toBool()
+            ? "layers.project.missing.label" : "layers.project.label"));
     if (index.data(LayerListModel::MirroredRole).toBool()) labels.append(i18n::text("layers.mirror.label"));
     if (mode != core::BlendMode::Normal && core::isValidBlendMode(mode)) labels.append(blendModeNames_[unsigned(mode)]);
     return labels.join(QStringLiteral(" · "));
@@ -553,6 +556,16 @@ void LayerListView::mouseDoubleClickEvent(QMouseEvent* event)
     // it as another independent eye activation so rapid hide/show never drops
     // the second click.
     if (beginVisibilityGesture(event)) {
+        return;
+    }
+    const auto index = indexAt(event->position().toPoint());
+    const bool onMask = index.data(LayerListModel::HasMaskRole).toBool()
+        && thumbnailRect(index, true).contains(event->position().toPoint());
+    if (event->button() == Qt::LeftButton && event->modifiers() == Qt::NoModifier
+        && onOpenProjectSource && !onMask && !index.data(LayerListModel::ProjectSourceRole).toString().isEmpty()) {
+        deferredSingleIndex_ = QPersistentModelIndex{};
+        onOpenProjectSource(index.row());
+        event->accept();
         return;
     }
     QListView::mouseDoubleClickEvent(event);

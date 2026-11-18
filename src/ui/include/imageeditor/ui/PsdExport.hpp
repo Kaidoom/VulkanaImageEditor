@@ -32,6 +32,7 @@ struct PsdExportEntry {
   QStringList reasons, fonts;
   bool editable{true}, pixels{true}, attention{false}, container{false};
   PsdExportAction action{PsdExportAction::Editable};
+  bool projectLayer{false};
 };
 struct PsdExportPlan {
   std::uint64_t instanceId{};

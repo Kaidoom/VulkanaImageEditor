@@ -1,5 +1,4 @@
 #include "imageeditor/core/LocalBlurStroke.hpp"
-#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/core/ScalarRasterSurface.hpp"
 
@@ -28,8 +27,8 @@ LocalBlurStroke::LocalBlurStroke(Document& document, LayerId target, BrushSettin
         [this](Vec2d p) { return filteredSample(p); }, "Local Blur stroke")
 {
     const auto* layer = document.layer(target);
-    if (layer && isMirroredLayer(*layer)) {
-        diagnostic_ = "Mirrored layers are read-only. Promote to a full layer before editing content.";
+    if (layer && layerPixelsReadOnly(*layer)) {
+        diagnostic_ = readOnlyPixelsReason(*layer);
         return;
     }
     const auto* raster = layer ? std::get_if<RasterLayer>(&layer->payload) : nullptr;
@@ -51,7 +50,7 @@ bool LocalBlurStroke::targetMatches() const noexcept
 {
     const auto* layer = document_.layer(target_);
     const auto* raster = layer ? std::get_if<RasterLayer>(&layer->payload) : nullptr;
-    return layer && !isMirroredLayer(*layer) && document_.revision() == revision_ && raster && raster->surface
+    return layer && !layerPixelsReadOnly(*layer) && document_.revision() == revision_ && raster && raster->surface
         && raster->surface->id() == surface_ && raster->surface->revision() == surfaceRevision_
         && intrinsicTransform(*layer) == localToDocument_;
 }

@@ -150,6 +150,7 @@ QRect bounds(core::Vec2d origin, QSize size) {
 core::Layer pixelLayer(const core::Layer &original,
                        const FlattenedDocumentResult &r) {
   auto l = original;
+  l.projectSource.reset();
   std::vector<std::byte> bytes(size_t(r.image.width()) *
                                size_t(r.image.height()) * 4);
   for (int y = 0; y < r.image.height(); ++y)
@@ -385,6 +386,7 @@ PsdExportSnapshot capturePsdExport(const core::Document &d, std::uint64_t id,
   auto copy = structureCopy(d);
   for (auto &original : d.layers())
     if (auto r = std::get_if<core::RasterLayer>(&original.payload)) {
+      if (original.projectSource) continue; // Already frozen and shared across placements.
       auto &frozen = surfaces.at(r->surface->id());
       if (!frozen) {
         auto e = r->surface->extent();
@@ -455,6 +457,11 @@ PsdExportPlan planPsdExport(const PsdExportSnapshot &s,
         } else {
           auto &l = *d.layer(*it);
           e.name = QString::fromStdString(l.name);
+          if (l.projectSource) {
+            e.projectLayer = true;
+            e.attention = true;
+            e.reasons << "PSD stores the Project Layer as pixels. The source link stays in the Vulkana project.";
+          }
           e.kind = std::holds_alternative<core::TextLayer>(l.payload) ? PsdContentKind::Text
               : std::holds_alternative<core::AdjustmentLayer>(l.payload) ? PsdContentKind::Adjustment
               : std::holds_alternative<core::ShapeLayer>(l.payload) ? PsdContentKind::Shape : PsdContentKind::Raster;

@@ -1,4 +1,3 @@
-#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/core/RasterEditTransaction.hpp"
 #include "imageeditor/core/ColorMath.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
@@ -53,7 +52,7 @@ const RasterSurface* rasterSurfaceForLayer(const Document& document,
     LayerId layerId, SurfaceId expectedSurfaceId, Extent2u expectedExtent) noexcept
 {
     const auto* layer = document.layer(layerId);
-    if (!layer || isMirroredLayer(*layer) || !std::holds_alternative<RasterLayer>(layer->payload)) {
+    if (!layer || layerPixelsReadOnly(*layer) || !std::holds_alternative<RasterLayer>(layer->payload)) {
         return nullptr;
     }
     const auto& raster = std::get<RasterLayer>(layer->payload);
@@ -243,7 +242,7 @@ RasterEditTransaction::RasterEditTransaction(Document& document, LayerId layerId
         throw std::invalid_argument("Raster journal tile size must be between 1 and 1024");
     }
     auto* layer = document.layer(layerId_);
-    if (!layer || isMirroredLayer(*layer) || !std::holds_alternative<RasterLayer>(layer->payload)) {
+    if (!layer || layerPixelsReadOnly(*layer) || !std::holds_alternative<RasterLayer>(layer->payload)) {
         return;
     }
     auto& raster = std::get<RasterLayer>(layer->payload);

@@ -60,7 +60,9 @@ bool LayerViaCopyCommand::apply(Document& document)
     if(filteredSource&&!bakeFill)filteredSource->fillOpacity=1;
     std::shared_ptr<RasterSurface> surface;
     auto transform = source->localToDocument;
-    if (!selection) {
+    if (!selection && source->projectSource) {
+        surface = raster->surface;
+    } else if (!selection) {
         std::vector<std::byte> bytes(std::size_t(extent.width) * extent.height * 4);
         raster->surface->copyRgba8({0,0,int(extent.width),int(extent.height)}, bytes, std::size_t(extent.width) * 4);
         surface = std::make_shared<ContiguousRasterSurface>(extent, std::move(bytes));
@@ -125,7 +127,7 @@ bool LayerViaCopyCommand::apply(Document& document)
     }
     auto layer = Layer::raster(source->name + " copy", std::move(surface));
     layer.localToDocument = transform;
-    if(!selection)layer.mask=source->mask;
+    if (!selection) { layer.mask = source->mask; layer.projectSource = source->projectSource; }
     else if(source->mask&&!source->mask->enabled) {
         auto mask=std::make_shared<LayerMask>(*source->mask);
         mask->localToMask=composeTransform(mask->localToMask,composeTransform(*source->localToDocument.inverted(),transform));

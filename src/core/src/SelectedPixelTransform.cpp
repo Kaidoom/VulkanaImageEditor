@@ -1,5 +1,4 @@
 #include "imageeditor/core/SelectedPixelTransform.hpp"
-#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/core/BoundedParallel.hpp"
 #include "imageeditor/core/CoverageResampler.hpp"
 #include "imageeditor/core/LayerCrop.hpp"
@@ -142,8 +141,8 @@ SelectedPixelTransformSession::SelectedPixelTransformSession(Document &document,
       budget_(budget)
 {
     const auto *layer = document.layer(id);
-    if (layer && isMirroredLayer(*layer))
-        throw std::invalid_argument("Mirrored layer pixels are read-only. Transform the whole layer or promote it before editing pixels.");
+    if (layer && layerPixelsReadOnly(*layer))
+        throw std::invalid_argument(readOnlyPixelsReason(*layer));
     const auto *raster = layer ? std::get_if<RasterLayer>(&layer->payload) : nullptr;
     if (!raster || !raster->surface)
         throw std::invalid_argument("Transform Selected Pixels requires a raster layer. Use Rasterize "
@@ -220,7 +219,7 @@ bool SelectedPixelTransformSession::targetAvailable() const noexcept
 {
     const auto *l = document_->layer(layer_);
     const auto *r = l ? std::get_if<RasterLayer>(&l->payload) : nullptr;
-    return active_ && l && !isMirroredLayer(*l) && r && (r->surface == source_ || r->surface == working_) &&
+    return active_ && l && !layerPixelsReadOnly(*l) && r && (r->surface == source_ || r->surface == working_) &&
            source_->revision() == sourceRevision_ && working_->revision() == workingRevision_ &&
            l->rasterOrigin == expectedOrigin_ && l->rasterEffectFrame == expectedEffectFrame_ &&
            document_->contentState() == expectedContentState_ &&

@@ -61,6 +61,7 @@ void MainWindow::refreshChannelGroupControls()
     const auto* container = doc && id ? doc->tree().container(*id) : nullptr;
     const bool scalar = layer && core::isScalarLayer(*layer);
     const bool mirrored = layer && core::isMirroredLayer(*layer);
+    const bool project = layer && layer->projectSource;
     const bool packed = layer && core::isPackedDataLayer(*layer);
     const bool group = container && container->kind == core::ContainerKind::ChannelGroup;
     const bool data = scalar || group || (layer && core::isPackedDataLayer(*layer));
@@ -107,13 +108,17 @@ void MainWindow::refreshChannelGroupControls()
         const bool mirrorContent = mirrored && (tool == core::ToolId::Brush || tool == core::ToolId::Eraser
             || tool == core::ToolId::Fill || tool == core::ToolId::Cloning || tool == core::ToolId::LocalBlur
             || tool == core::ToolId::Crop) && !(tool == core::ToolId::Brush && activeDocument_->refinement);
-        if (((scalar || packed) && !allowed) || mirrorContent) {
+        const bool paintsMaskOrPixels = tool == core::ToolId::Brush || tool == core::ToolId::Eraser || tool == core::ToolId::Fill;
+        const bool projectContent = project && ((paintsMaskOrPixels && !session().editingLayerMask())
+            || tool == core::ToolId::Cloning || tool == core::ToolId::LocalBlur)
+            && !(tool == core::ToolId::Brush && activeDocument_->refinement);
+        if (((scalar || packed) && !allowed) || mirrorContent || projectContent) {
             if (!action->property("channelDisabled").toBool()) {
                 action->setProperty("channelWasEnabled", action->isEnabled());
                 action->setProperty("channelToolTip", action->toolTip());
             }
             i18n::setToolTip(action, action->property("channelToolTip").toString() + QStringLiteral("\n")
-                + i18n::text(mirrorContent ? "layers.mirror.read.only" : packed ? "channels.convert.to.edit" : "channels.operation.unavailable"));
+                + i18n::text(projectContent ? "layers.project.read.only" : mirrorContent ? "layers.mirror.read.only" : packed ? "channels.convert.to.edit" : "channels.operation.unavailable"));
             action->setProperty("channelDisabled", true); action->setEnabled(false);
         } else if (action->property("channelDisabled").toBool()) {
             action->setProperty("channelDisabled", false);
@@ -149,14 +154,14 @@ void MainWindow::refreshChannelGroupControls()
         if (swatchesPanel_) swatchesPanel_->setGradientEnabled(false);
     }
     if (auto* action = findChild<QAction*>("ErasePixelsAction"))
-        action->setEnabled(!packed && !mirrored && doc && !fileBusy_ && !workspaceDialog_);
+        action->setEnabled(!packed && !mirrored && (!project || session().editingLayerMask()) && doc && !fileBusy_ && !workspaceDialog_);
     for (auto type : core::allSpatialFilterTypes) if (auto* action = findChild<QAction*>(QStringLiteral("FilterAction_%1").arg(int(type))))
         action->setEnabled(available && !mirrored && !packed && (!scalar || type == core::SpatialFilterType::Gaussian));
     if (adjustmentsPanel_) adjustmentsPanel_->setEnabled(!packed);
-    if (scalar || packed || mirrored) {
+    if (scalar || packed || mirrored || project) {
         const auto active = toolActionMap_.find(session().activeTool());
         if (active != toolActionMap_.end() && active->second->property("channelDisabled").toBool())
-            setActiveTool(packed || mirrored ? core::ToolId::Move : core::ToolId::Brush);
+            setActiveTool(packed || mirrored || project ? core::ToolId::Move : core::ToolId::Brush);
     }
 }
 

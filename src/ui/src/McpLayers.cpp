@@ -720,6 +720,8 @@ void McpController::registerLayerTools()
             else if (const auto* value = std::get_if<c::AdjustmentLayer>(&item.payload)) { data["type"] = "adjustment"; data["scope"] = value->scope == c::AdjustmentScope::ThisGroup ? "this_group" : "all_below"; }
             else data["type"] = "raster";
             if (const auto* raster = std::get_if<c::RasterLayer>(&item.payload); raster && raster->surface) {
+                if (item.projectSource) data["projectLayer"] = true;
+                if (c::layerPixelsReadOnly(item)) data["pixelsReadOnly"] = true;
                 const auto kind = raster->surface->dataKind();
                 data["dataKind"] = kind == c::RasterDataKind::Scalar ? "scalar" : kind == c::RasterDataKind::PackedData ? "packed_data" : "color";
                 data["pixelFormat"] = kind == c::RasterDataKind::Scalar ? "r8" : "rgba8";

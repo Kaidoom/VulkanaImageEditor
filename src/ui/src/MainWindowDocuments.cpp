@@ -18,6 +18,7 @@
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
+#include "imageeditor/core/ProjectLayer.hpp"
 #include "imageeditor/core/LayerStructureCommands.hpp"
 #include "imageeditor/core/SpatialFilterCache.hpp"
 #include "imageeditor/core/ScalarRasterSurface.hpp"
@@ -211,6 +212,11 @@ bool MainWindow::receiveLayerTransfer(const QMimeData* data, std::optional<core:
         }
     }
     try {
+        for (const auto& layer : transfer->content.layers) {
+            if (layer.projectSource && !canLinkProject(fileState().projectPath,
+                    QString::fromStdString(layer.projectSource->path), layer.projectSource->dependencies))
+                throw std::invalid_argument("Copying this project layer would create a circular link.");
+        }
         transfer->consumed = true;
         auto command = core::insertLayerTransfer(document, std::move(transfer->content), *placement,
             session().layerSelectionState(), point ? *point - transfer->anchor : core::Vec2d{});
@@ -422,6 +428,7 @@ bool MainWindow::settleForDocumentSwitch()
 }
 bool MainWindow::activateDocument(DocumentInstanceId id)
 {
+    if (fileBusy_) return false;
     if (activeDocumentId() == id) return true;
     auto found = std::ranges::find_if(documents_, [id](const auto& context) { return context->id == id; });
     if (found == documents_.end() || switchingDocument_ || !settleForDocumentSwitch()) return false;
@@ -454,6 +461,12 @@ bool MainWindow::activateDocument(DocumentInstanceId id)
     refreshSpotHealOwnership();
     canvasWindow_->dismissLayerOutlines();
     refreshDocumentTabs(); updateDocumentResources();
+    // Linked source rendering services UI events. Present this tab's saved
+    // view and cached appearance before it can paint or accept a progress card.
+    const auto priorRevision = session().document()->revision();
+    refreshOpenProjectLayers(*activeDocument_);
+    if (session().document()->revision() != priorRevision)
+        synchronizeUi(true, false);
     resumeRefinement();
     return true;
 }
@@ -523,10 +536,12 @@ bool MainWindow::closeDocument(DocumentInstanceId id)
             return false;
         }
     }
+    closing->discardingProjectEdits = closing->session.document()->isModified();
+    projectSourceLeaving(*closing, closing->discardingProjectEdits);
     if (closing == activeDocument_) {
         if (documents_.size() > 1) {
             auto next = documents_[index + 1 < documents_.size() ? index + 1 : index - 1];
-            if (!activateDocument(next->id)) return false;
+            if (!activateDocument(next->id)) { closing->discardingProjectEdits = false; return false; }
         } else showEmptyWorkspace();
     }
     closing->closed = true; ++closing->cancellationGeneration;

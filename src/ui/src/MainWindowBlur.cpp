@@ -58,8 +58,8 @@ bool MainWindow::beginLocalBlurStroke(const core::NormalizedPointerSample& sampl
     auto* document = session().document();
     const auto target = session().activeLayer();
     const auto* layer = document && target ? document->layer(*target) : nullptr;
-    if (layer && core::isMirroredLayer(*layer)) {
-        statusBar()->showMessage(i18n::text("layers.mirror.read.only"), 4000); return false;
+    if (layer && core::layerPixelsReadOnly(*layer)) {
+        statusBar()->showMessage(i18n::text(layer->projectSource ? "layers.project.read.only" : "layers.mirror.read.only"), 4000); return false;
     }
     if (!layer || !std::holds_alternative<core::RasterLayer>(layer->payload)) {
         statusBar()->showMessage(i18n::text("main.window.blur.local.blur.edits.raster.source.colors.select.a.raster"), 4500);

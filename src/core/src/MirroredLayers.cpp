@@ -1,3 +1,5 @@
+#include "ReadOnlyRasterSurface.hpp"
+#include "imageeditor/core/ProjectLayer.hpp"
 #include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/core/SpatialFilterCache.hpp"
@@ -6,28 +8,9 @@
 
 namespace imageeditor::core {
 namespace {
-class MirroredSurface final : public RasterSurface {
-public:
-    explicit MirroredSurface(std::shared_ptr<const RasterSurface> source) : source_(std::move(source)) {}
-    const auto& source() const noexcept { return source_; }
-    SurfaceId id() const noexcept override { return source_->id(); }
-    Extent2u extent() const noexcept override { return source_->extent(); }
-    Revision revision() const noexcept override { return source_->revision(); }
-    DirtySet dirtySince(Revision r) const override { return source_->dirtySince(r); }
-    RasterDataKind dataKind() const noexcept override { return source_->dataKind(); }
-    std::size_t nativeBytesPerPixel() const noexcept override { return source_->nativeBytesPerPixel(); }
-    std::size_t allocatedPixelBytes() const noexcept override { return source_->allocatedPixelBytes(); }
-    std::size_t memoryCost() const noexcept override { return source_->memoryCost(); }
-    void copyRgba8(RectI r,std::span<std::byte> out,std::size_t stride) const override { source_->copyRgba8(r,out,stride); }
-    void copyNative(RectI r,std::span<std::byte> out,std::size_t stride) const override { source_->copyNative(r,out,stride); }
-    DirtySet replaceRgba8Batch(std::span<const RasterPatch>) override { throw std::logic_error("Mirrored layer pixels are read-only. Promote the layer before editing."); }
-    DirtySet swapRgba8Batch(std::span<MutableRasterPatch>) override { throw std::logic_error("Mirrored layer pixels are read-only. Promote the layer before editing."); }
-private:
-    std::shared_ptr<const RasterSurface> source_;
-};
 std::shared_ptr<const RasterSurface> underlying(std::shared_ptr<const RasterSurface> surface)
 {
-    while (const auto wrapper=std::dynamic_pointer_cast<const MirroredSurface>(surface)) surface=wrapper->source();
+    while (const auto wrapper=std::dynamic_pointer_cast<const ReadOnlyRasterSurface>(surface)) surface=wrapper->source();
     return surface;
 }
 const LayerEffectStack& effectStack(const LayerEffectState& state)
@@ -39,7 +22,7 @@ bool contentMatches(const Layer& mirror,const Layer& source)
 {
     if (mirror.payload.index()!=source.payload.index()) return false;
     if (const auto* raster=std::get_if<RasterLayer>(&source.payload)) {
-        const auto wrapper=std::dynamic_pointer_cast<MirroredSurface>(std::get<RasterLayer>(mirror.payload).surface);
+        const auto wrapper=std::dynamic_pointer_cast<ReadOnlyRasterSurface>(std::get<RasterLayer>(mirror.payload).surface);
         return wrapper && wrapper->source()==underlying(raster->surface);
     }
     if (const auto* text=std::get_if<TextLayer>(&source.payload))
@@ -81,7 +64,7 @@ LayerEffectState inheritedEffects(const Layer& mirror,const Layer& source)
 
 bool canMirrorLayer(const Layer& layer) noexcept
 {
-    if (std::holds_alternative<AdjustmentLayer>(layer.payload)) return false;
+    if (layer.projectSource || std::holds_alternative<AdjustmentLayer>(layer.payload)) return false;
     const auto* raster=std::get_if<RasterLayer>(&layer.payload);
     return std::holds_alternative<TextLayer>(layer.payload) || std::holds_alternative<ShapeLayer>(layer.payload)
         || (raster && raster->surface && raster->surface->dataKind()==RasterDataKind::Color);
@@ -122,8 +105,8 @@ Layer resolvedMirroredLayer(const Layer& mirror,const Layer& source)
     if (const auto* raster=std::get_if<RasterLayer>(&source.payload)) {
         const auto base=underlying(raster->surface);
         const auto* current=std::get_if<RasterLayer>(&result.payload);
-        const auto wrapper=current?std::dynamic_pointer_cast<MirroredSurface>(current->surface):nullptr;
-        if (!wrapper || wrapper->source()!=base) result.payload=RasterLayer{std::make_shared<MirroredSurface>(base)};
+        const auto wrapper=current?std::dynamic_pointer_cast<ReadOnlyRasterSurface>(current->surface):nullptr;
+        if (!wrapper || wrapper->source()!=base) result.payload=RasterLayer{std::make_shared<ReadOnlyRasterSurface>(base)};
     } else result.payload=source.payload;
     result.textRevision=source.textRevision; result.shapeRevision=source.shapeRevision;
     result.rasterOrigin=source.rasterOrigin; result.rasterEffectFrame=source.rasterEffectFrame;
@@ -152,12 +135,8 @@ Layer resolvedMirroredLayer(const Layer& mirror,const Layer& source)
 Layer promotedMirroredLayer(const Layer& layer)
 {
     Layer result=layer;
-    if (auto* raster=std::get_if<RasterLayer>(&result.payload)) {
-        const auto size=raster->surface->extent();
-        std::vector<std::byte> bytes(std::size_t(size.width)*size.height*4);
-        raster->surface->copyRgba8({0,0,int(size.width),int(size.height)},bytes,std::size_t(size.width)*4);
-        raster->surface=std::make_shared<ContiguousRasterSurface>(size,std::move(bytes),raster->surface->dataKind());
-    }
+    if (auto* raster = std::get_if<RasterLayer>(&result.payload))
+        raster->surface = copyColorRaster(*raster->surface);
     result.mirror.reset(); result.filterCache.reset();result.effectCache.reset();
     return result;
 }

@@ -136,6 +136,11 @@ public:
     bool activateDocument(DocumentInstanceId);
     bool closeDocument(DocumentInstanceId);
     bool openImageFromPath(const QString& filePath);
+    bool addProjectLayer(const QString& path);
+    bool openProjectLayer(core::LayerId);
+    bool relinkProjectLayer(core::LayerId, const QString& path);
+    bool refreshProjectLayer(core::LayerId);
+    bool convertProjectLayerToRaster(core::LayerId);
     // User-scoped single-instance IPC: activate and defer file opening until
     // transactions/dialogs are safe. Relative paths are resolved by the sender.
     void receiveExternalLaunch(const QStringList& files);
@@ -437,6 +442,13 @@ private:
     void addAdjustmentLayer();
     void deleteActiveLayer();
     void duplicateLayerItems();
+    friend class ProjectLayerResolver;
+    bool canLinkProject(const QString& parentPath, const QString& sourcePath,
+        const std::vector<std::string>& capturedDependencies) const;
+    bool updateProjectLayer(const QString& path, std::optional<core::LayerId> target, bool allPlacements);
+    bool refreshOpenProjectLayers(DocumentContext&);
+    void projectSourceLeaving(const DocumentContext&, bool revertToDisk);
+    QString chooseProjectLayerPath();
     void createLayerOrganizationActions();
     void createMirroredLayerActions();
     void refreshMirroredLayerActions();
@@ -578,6 +590,12 @@ private:
     DocumentContext& fileState() noexcept { return activeDocument_ ? *activeDocument_ : emptyDocument_; }
     const DocumentContext& fileState() const noexcept { return activeDocument_ ? *activeDocument_ : emptyDocument_; }
     std::vector<std::shared_ptr<DocumentContext>> documents_;
+    struct CachedDiskProject {
+        qint64 size{}, modified{};
+        std::weak_ptr<const core::ProjectLayerSource> source;
+        std::weak_ptr<core::RasterSurface> pixels;
+    };
+    std::map<QString, CachedDiskProject> diskProjects_;
     std::shared_ptr<DocumentContext> activeDocument_;
     DocumentContext emptyDocument_;
     QTabBar* documentTabs_ {nullptr};

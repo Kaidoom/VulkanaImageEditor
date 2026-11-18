@@ -1,6 +1,7 @@
 #include "imageeditor/core/Document.hpp"
 #include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/core/MirroredLayers.hpp"
+#include "imageeditor/core/ProjectLayer.hpp"
 #include "imageeditor/core/LayerCrop.hpp"
 #include <atomic>
 #include "imageeditor/core/RichText.hpp"
@@ -296,6 +297,14 @@ bool Document::replaceStructure(const LayerTree& expected, LayerTree replacement
         const auto it=std::ranges::find(added, id, &Layer::id);
         if (it != added.end()) {
             prepared.push_back(*it);
+            if (prepared.back().projectSource) {
+                auto& linked = prepared.back();
+                auto* raster = std::get_if<RasterLayer>(&linked.payload);
+                if (linked.mirror || linked.projectSource->path.empty() || !raster || !raster->surface
+                    || raster->surface->dataKind() != RasterDataKind::Color)
+                    return false;
+                raster->surface = readOnlyProjectSurface(raster->surface);
+            }
             if (auto* text=std::get_if<TextLayer>(&prepared.back().payload)) *text=normalizedText(std::move(*text));
         } else prepared.push_back(*layer(id));
         for (const auto& update : retainedLeafVisibility)
@@ -563,7 +572,7 @@ bool Document::setLayerTransform(LayerId id, const AffineTransform& transform)
 bool Document::setLayerRasterStorage(LayerId id,std::shared_ptr<RasterSurface> surface,Vec2d origin,std::optional<RectD> frame)
 {
     auto* target=layer(id);
-    if (target && target->mirror) return false;
+    if (target && layerPixelsReadOnly(*target)) return false;
     if(!target||!std::holds_alternative<RasterLayer>(target->payload)||!surface||surface->extent().empty()
         ||!std::isfinite(origin.x)||!std::isfinite(origin.y)||std::floor(origin.x)!=origin.x||std::floor(origin.y)!=origin.y)return false;
     const auto& previous = std::get<RasterLayer>(target->payload).surface;

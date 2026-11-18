@@ -27,6 +27,7 @@ private:
     LayerTree before_, after_;
     std::vector<LayerId> removedIds_, addedIds_;
     std::vector<Layer> removed_, added_;
+    std::size_t repeatedProjectPixelBytes_{};
     std::optional<LayerSelectionState> beforeSelection_, afterSelection_;
     std::vector<ItemVisibilityUpdate> forwardVisibility_, reverseVisibility_;
 };

@@ -672,6 +672,7 @@ void MainWindow::exportImage(bool again)
     }
     if (!settleForFileOperation())
         return;
+    if (!refreshOpenProjectLayers(*activeDocument_)) return;
     const auto& document = *session().document();
     const auto dataTarget = [&](core::LayerId id) {
         if (const auto* layer = document.layer(id)) return core::isScalarLayer(*layer) || core::isPackedDataLayer(*layer);

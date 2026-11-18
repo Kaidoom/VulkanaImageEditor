@@ -1,4 +1,5 @@
 #include "imageeditor/ui/PixelPreview.hpp"
+#include "imageeditor/platform/AvailableMemory.hpp"
 #include "imageeditor/ui/NativeRasterBake.hpp"
 #include "imageeditor/core/RichText.hpp"
 #include "imageeditor/core/SpatialFilterCache.hpp"
@@ -140,7 +141,7 @@ void PixelPreview::request(const core::DocumentSnapshot& snapshot)
             if(onReady)onReady(cached->second.pixels,{});
             return;
         }
-        if(!state_->timer.isActive())state_->timer.start(state_->job?20:70);
+        if(!state_->timer.isActive())state_->timer.start(state_->job ? 20 : state_->purpose == Purpose::ProjectLayer ? 0 : 70);
         if(replaced && onReady)onReady({},{});
     }catch(const std::exception& e){
         ++state_->generation;state_->pending.reset();if(state_->job)state_->job->cancel=true;
@@ -189,7 +190,12 @@ void PixelPreview::advance()
                 else {const auto e=r->surface->extent();bytes+=std::uint64_t(e.width)*e.height*4;}
             }
         }
-        if(bytes>inputBudget)throw std::runtime_error("Pixel Preview exceeds the frozen-source budget (256 MiB)");
+        if (state_->purpose == Purpose::ProjectLayer) {
+            const auto extent = input.snapshot.canvas.extent;
+            const auto outputBytes = std::uint64_t(extent.width) * extent.height * 4;
+            if (bytes + 3 * outputBytes > platform::availableWorkingMemoryBytes())
+                throw std::runtime_error("Insufficient memory to render the linked project. Its saved appearance was kept.");
+        } else if(bytes>inputBudget)throw std::runtime_error("Pixel Preview exceeds the frozen-source budget (256 MiB)");
         std::erase_if(state_->sources,[&](const auto& entry){return !live.contains(entry.first);});
         auto job=std::make_shared<State::Job>();job->generation=state_->generation;
         job->document=std::make_unique<core::Document>(input.snapshot.canvas);

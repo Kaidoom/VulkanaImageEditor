@@ -57,7 +57,8 @@ void MainWindow::refreshSelectionStatus()
         QString name, type;
         if (const auto* layer = document->layer(selected.front())) {
             name = QString::fromStdString(layer->name);
-            type = std::holds_alternative<core::RasterLayer>(layer->payload) ? QStringLiteral("Raster")
+            type = layer->projectSource ? i18n::text("layers.project.label")
+                : std::holds_alternative<core::RasterLayer>(layer->payload) ? QStringLiteral("Raster")
                 : std::holds_alternative<core::TextLayer>(layer->payload) ? QStringLiteral("Text") : QStringLiteral("Shape");
         } else if (const auto* container = document->tree().container(selected.front())) {
             name = QString::fromStdString(container->name);

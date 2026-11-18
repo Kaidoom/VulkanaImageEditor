@@ -1,3 +1,4 @@
+#include "imageeditor/core/ProjectLayer.hpp"
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/core/LayerStructureCommands.hpp"
@@ -426,6 +427,18 @@ void MainWindow::showLayerItemMenu(const QPoint& point)
                                                                                                        : i18n::text("main.window.layer.organization.remove.folder.keep.contents"),
                 this, [this, id] { dissolveLayerItem(*id); });
         }
+    }
+    if (layer && layer->projectSource) {
+        const auto source = QString::fromStdString(layer->projectSource->path);
+        menu.addSeparator();
+        menu.addAction(toolGlyph(ToolGlyph::ShowSource), i18n::text("project.layer.open"), this,
+            [this, id = *id] { openProjectLayer(id); })->setToolTip(source);
+        menu.addAction(toolGlyph(ToolGlyph::Refresh), i18n::text("project.layer.refresh"), this,
+            [this, id = *id] { refreshProjectLayer(id); });
+        menu.addAction(toolGlyph(ToolGlyph::Link), i18n::text("project.layer.relink"), this,
+            [this, id = *id] { const auto path = chooseProjectLayerPath(); if (!path.isEmpty()) relinkProjectLayer(id, path); })->setObjectName("RelinkProjectLayerAction");
+        menu.addAction(toolGlyph(ToolGlyph::LayerRaster), i18n::text("project.layer.convert"), this,
+            [this, id = *id] { convertProjectLayerToRaster(id); });
     }
     if (layer && core::canMirrorLayer(*layer)) {
         menu.addSeparator();

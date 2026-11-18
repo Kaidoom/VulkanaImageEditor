@@ -7,6 +7,8 @@
 #include <QJsonObject>
 #include <QString>
 #include <atomic>
+#include <map>
+#include <set>
 
 namespace imageeditor::ui {
 using DocumentInstanceId = std::uint64_t;
@@ -33,6 +35,13 @@ struct DocumentContext final {
     std::shared_ptr<RefinementWorkspace> refinement;
     std::uint64_t cancellationGeneration {0};
     std::uint64_t lastActivated {0};
+    // Observe a source once per committed state, even if its parent later
+    // undoes an automatic refresh. History remains navigable across tabs.
+    std::map<QString, std::pair<DocumentInstanceId, std::uint64_t>> observedProjectSources;
+    std::set<QString> projectSourcesToReload;
+    bool discardingProjectEdits{};
+    std::weak_ptr<core::RasterSurface> lastProjectAppearance;
+    std::uint64_t lastProjectAppearanceState{};
 private:
     inline static std::atomic<DocumentInstanceId> nextId {1};
 };

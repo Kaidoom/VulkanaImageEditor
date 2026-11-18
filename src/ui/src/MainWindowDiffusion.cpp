@@ -987,7 +987,7 @@ void MainWindow::refreshDiffusion() {
                           ? doc->layer(*session().activeLayer())
                           : nullptr;
   const bool selected =
-      layer && !core::isMirroredLayer(*layer) && std::holds_alternative<core::RasterLayer>(layer->payload) &&
+      layer && !core::layerPixelsReadOnly(*layer) && std::holds_alternative<core::RasterLayer>(layer->payload) &&
       std::get<core::RasterLayer>(layer->payload).surface &&
       std::get<core::RasterLayer>(layer->payload).surface->dataKind() == core::RasterDataKind::Color;
   s.panel->setTargetCompatible(selected);

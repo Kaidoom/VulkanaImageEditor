@@ -1,4 +1,3 @@
-#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/core/BasicPixelBrushStroke.hpp"
 #include "imageeditor/core/ColorMath.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
@@ -91,7 +90,7 @@ BasicPixelBrushStroke::BasicPixelBrushStroke(Document& document, LayerId layerId
         grain_ = assetResolver->createGrain(settings_.grain);
     }
     auto* layer = document.layer(layerId);
-    if (!layer || isMirroredLayer(*layer) || !engine_ || !tip_ || !grain_
+    if (!layer || layerPixelsReadOnly(*layer) || !engine_ || !tip_ || !grain_
         || !std::holds_alternative<RasterLayer>(layer->payload)) {
         return;
     }

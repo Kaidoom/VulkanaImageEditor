@@ -146,8 +146,11 @@ bool MainWindow::restartAfterUpdate(const QString& path,
 QString MainWindow::documentOpenFilter()
 {
     QStringList suffixes;
-    for (const auto& format : QImageReader::supportedImageFormats())
-        suffixes.append(QStringLiteral("*.%1").arg(QString::fromLatin1(format)));
+    for (const auto& format : QImageReader::supportedImageFormats()) {
+        const auto pattern = QStringLiteral("*.%1").arg(QString::fromLatin1(format));
+        suffixes << pattern << pattern.toUpper();
+    }
+    suffixes.removeDuplicates();
     return i18n::text("main.window.files.projects.images.pdf.and.psd.vulkana.pdf.pdf.psd")
         .arg(suffixes.join(' '));
 }
@@ -283,6 +286,7 @@ bool MainWindow::saveDocument(bool saveAs)
     }
     if (!settleForFileOperation())
         return false;
+    if (!refreshOpenProjectLayers(*activeDocument_)) return false;
     path = QFileInfo(path).absoluteFilePath();
     // Optional project UI metadata, never content/history. Capture only live
     // folder IDs; deleted-folder tombstones remain useful for in-session Undo.
@@ -353,6 +357,8 @@ bool MainWindow::saveDocument(bool saveAs)
             reportFileError(i18n::text("main.window.files.could.not.save.1.the.previous.file.was.not").arg(path, result.error));
         return false;
     }
+    if (QFileInfo(fileState().projectPath) != QFileInfo(path))
+        projectSourceLeaving(fileState(), true); // Save As leaves existing links pointing at their original file.
     fileState().projectPath = path;
     fileState().metadata = std::move(metadata);
     fileState().displayName = QFileInfo(path).fileName();

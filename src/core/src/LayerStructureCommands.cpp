@@ -3,20 +3,33 @@
 #include "imageeditor/core/ChannelGroups.hpp"
 #include "imageeditor/core/MirroredLayers.hpp"
 #include <unordered_map>
+#include <unordered_set>
 #include <stdexcept>
 #include <functional>
 
 namespace imageeditor::core {
+namespace {
+// Multiple placements of a linked project retain the same immutable image.
+std::size_t repeatedProjectBytes(const Layer& layer, std::unordered_set<SurfaceId>& seen)
+{
+    const auto* raster = std::get_if<RasterLayer>(&layer.payload);
+    if (layer.projectSource && raster && raster->surface && !seen.insert(raster->surface->id()).second)
+        return raster->surface->memoryCost();
+    return 0;
+}
+}
+
 LayerTransfer captureLayerTransfer(const Document& source, std::span<const LayerId> selection)
 {
     LayerTransfer result;
     std::unordered_map<LayerId,LayerId> copiedIds;
     const auto roots = source.tree().normalize(selection);
     const auto leaves = source.expandedLayers(roots);
+    std::unordered_set<SurfaceId> projectSurfaces;
     std::size_t bytes = 0;
     for (auto id : leaves) {
         const auto& layer=*source.layer(id);
-        bytes += retainedLayerMemory(layer);
+        bytes += retainedLayerMemory(layer) - repeatedProjectBytes(layer, projectSurfaces);
         // A mirror copied without its source becomes a real, independent image.
         // Admit that materialized storage before allocating it below.
         if (layer.mirror && std::ranges::find(leaves,layer.mirror->source)==leaves.end())
@@ -41,7 +54,7 @@ LayerTransfer captureLayerTransfer(const Document& source, std::span<const Layer
             auto copy = *source.layer(id); copy.id = next;
             if (root) copy.visible = source.isEffectivelyVisible(id);
             copy.renderCache.reset(); copy.filterCache.reset(); copy.effectCache.reset();
-            if (auto* raster = std::get_if<RasterLayer>(&copy.payload); raster && !copy.mirror) {
+            if (auto* raster = std::get_if<RasterLayer>(&copy.payload); raster && !layerPixelsReadOnly(copy)) {
                 if (!raster->surface) throw std::invalid_argument("Layer transfer has no source pixels");
                 if (const auto scalar = std::dynamic_pointer_cast<ScalarRasterSurface>(raster->surface)) {
                     raster->surface = scalar->clone();
@@ -103,9 +116,11 @@ std::unique_ptr<LayerStructureCommand> duplicateLayerItems(const Document& doc, 
         throw std::invalid_argument("Duplicate the Channel Group to preserve channel roles.");
     if (ids.empty()) return {};
     const auto leaves = doc.expandedLayers(ids);
+    std::unordered_set<SurfaceId> projectSurfaces;
     std::size_t bytes = 0;
     for (auto id : leaves) {
-        bytes += retainedLayerMemory(*doc.layer(id));
+        const auto& layer = *doc.layer(id);
+        bytes += retainedLayerMemory(layer) - repeatedProjectBytes(layer, projectSurfaces);
         if (bytes > 256ULL * 1024 * 1024)
             throw std::length_error("Duplication exceeds the 256 MiB history budget");
     }
@@ -129,7 +144,7 @@ std::unique_ptr<LayerStructureCommand> duplicateLayerItems(const Document& doc, 
             copy.id = newId;
             if (root) copy.name += " copy";
             copy.renderCache.reset(); copy.filterCache.reset(); copy.effectCache.reset();
-            if (auto* raster = std::get_if<RasterLayer>(&copy.payload); raster && !copy.mirror) {
+            if (auto* raster = std::get_if<RasterLayer>(&copy.payload); raster && !layerPixelsReadOnly(copy)) {
                 if (!raster->surface) throw std::invalid_argument("Raster layer has no pixels");
                 if (const auto scalar = std::dynamic_pointer_cast<ScalarRasterSurface>(raster->surface)) {
                     raster->surface = scalar->clone();
@@ -208,16 +223,19 @@ LayerStructureCommand::LayerStructureCommand(std::string label, const Document& 
     }
     for (const auto& update : forwardVisibility_)
         reverseVisibility_.push_back({ update.id, update.after, update.before });
+    std::unordered_set<SurfaceId> projectSurfaces;
     for (auto id : removedIds_) {
         const auto* l = doc.layer(id);
         if (!l)
             throw std::invalid_argument("Structural edit target disappeared");
+        repeatedProjectPixelBytes_ += repeatedProjectBytes(*l, projectSurfaces);
         removed_.push_back(*l);
         removed_.back().renderCache.reset(); // Disposable, not retained by history.
         removed_.back().filterCache.reset();
         removed_.back().effectCache.reset();
     }
     for (auto& l : added_) {
+        repeatedProjectPixelBytes_ += repeatedProjectBytes(l, projectSurfaces);
         addedIds_.push_back(l.id);
         l.renderCache.reset();
         l.filterCache.reset();
@@ -257,6 +275,7 @@ std::size_t LayerStructureCommand::memoryCost() const noexcept
         result += retainedLayerMemory(l) - sizeof(Layer);
     for (const auto& l : added_)
         result += retainedLayerMemory(l) - sizeof(Layer);
+    result -= repeatedProjectPixelBytes_;
     if (beforeSelection_)
         result += beforeSelection_->ids.capacity() * sizeof(LayerId);
     if (afterSelection_)

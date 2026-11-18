@@ -79,6 +79,7 @@ bool canConvertToChannelGroup(const Document& document, LayerId id, std::string*
     const auto* layer = document.layer(id);
     if (!layer || !pixels(*layer) || isScalarLayer(*layer))
         return reject("Select a raster layer to convert to channels.");
+    if (layer->projectSource) return reject(readOnlyPixelsReason(*layer));
     if (!neutralDataProperties(*layer))
         return reject("Channel conversion requires a raster without masks, crops, blending or active adjustments, filters and effects. Bake its appearance first if desired.");
     if (channelGroupForLayer(document, id)) return reject("This layer already belongs to a Channel Group.");

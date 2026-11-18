@@ -9,6 +9,7 @@
 #include "imageeditor/platform/AvailableMemory.hpp"
 #include "imageeditor/platform/AtomicFile.hpp"
 #include "LayerEffectCodec.hpp"
+#include "ProjectLayerCodec.hpp"
 #include "AdjustmentCodec.hpp"
 #include "SpatialFilterCodec.hpp"
 #include "imageeditor/core/RichText.hpp"
@@ -274,11 +275,14 @@ namespace {
         require(core::validShape(shape), "Invalid shape geometry or style");
         return shape;
     }
-    QJsonObject makeManifest(const core::Document& doc, const QJsonObject& metadata)
+    using RasterPaths = std::map<core::LayerId, QString>;
+    QJsonObject makeManifest(const core::Document& doc, const QJsonObject& metadata,
+        const QFileInfo& destination, RasterPaths& rasterPaths)
     {
         QJsonArray layers;
         bool containsShapes = false;
         bool containsMirrors = false;
+        std::map<core::SurfaceId, QString> projectAppearances;
         bool containsArcs = false;
         bool containsShapeStrokeV2 = false;
         bool containsLabels = false;
@@ -329,6 +333,8 @@ namespace {
                 containsProjective=true;
                 o["transform"]=QJsonArray{t.m00,t.m01,t.m02,t.m10,t.m11,t.m12,t.m20,t.m21,t.m22};
             }
+            require(!layer.projectSource || (!layer.mirror && std::holds_alternative<core::RasterLayer>(layer.payload)),
+                "Invalid linked project layer");
             if (layer.mirror) {
                 containsMirrors = true;
                 o["type"] = "mirror";
@@ -339,9 +345,19 @@ namespace {
                 const auto kind = raster->surface->dataKind();
                 containsScalars |= kind == core::RasterDataKind::Scalar;
                 containsPackedData |= kind == core::RasterDataKind::PackedData;
+                QString payloadPath;
+                if (layer.projectSource) {
+                    o["projectSource"] = detail::encodeProjectSource(*layer.projectSource, destination);
+                    auto [appearance, inserted] = projectAppearances.try_emplace(raster->surface->id());
+                    if (inserted) appearance->second = detail::projectAppearancePath(*raster->surface);
+                    payloadPath = appearance->second;
+                } else {
+                    payloadPath = rasterPath(layer.id, kind);
+                }
+                rasterPaths.emplace(layer.id, payloadPath);
                 o["type"] = "raster";
                 o["raster"] = QJsonObject { { "width", int(e.width) }, { "height", int(e.height) },
-                    { "path", rasterPath(layer.id, kind) },
+                    { "path", payloadPath },
                     { "format", kind == core::RasterDataKind::Scalar ? "r8" : "rgba8" },
                     { "interpretation", kind == core::RasterDataKind::Scalar ? "scalar"
                         : kind == core::RasterDataKind::PackedData ? "packed-data" : "color" } };
@@ -376,6 +392,7 @@ namespace {
             if (layer.mirror) {
                 for (const auto* key : {"raster","text","shape","adjustmentLayer"}) saved.remove(key);
             } else saved.remove("mirror");
+            if (!layer.projectSource) saved.remove("projectSource");
             saved.remove("layerMask");
             if (layer.mask && !layer.mirror) {
                 require(core::validLayerMask(layer.mask), "Invalid layer mask");
@@ -508,6 +525,11 @@ namespace {
             result["required"] = required;
         }
         if(containsBlendV3) {auto required=result["required"].toArray();required.append("blend-modes-v3");result["required"]=required;}
+        if (!projectAppearances.empty()) {
+            auto required = result["required"].toArray();
+            required.append("project-layer-v1");
+            result["required"] = required;
+        }
         if (containsMirrors) {
             auto required=result["required"].toArray();required.append("mirrored-layer-v1");result["required"]=required;
         }
@@ -700,7 +722,7 @@ namespace {
     }
     // Explicit version boundary: future migrations belong here, never rewrite a
     // source file on load. Version one has no historical in-place upgrade path.
-    Plan validateManifest(const QJsonObject& o, const Entries& files)
+    Plan validateManifest(const QJsonObject& o, const Entries& files, const QDir& parentDirectory)
     {
         require(o["format"] == "org.vulkana.project", "Not a Vulkana project");
         require(o["version"].isDouble() && o["version"].toDouble() == 1, "Unsupported Vulkana schema version");
@@ -715,7 +737,7 @@ namespace {
                     || capability == "encoded-srgb-compositing-v1" || capability == "layer-fill-opacity-v1"
                     || capability == "layer-effects-advanced-blending-v1" || capability == "multi-stop-gradient-v1"
                     || capability == "snapshot-timeline-v1" || capability == "mirrored-layer-v1" || capability == "document-guides-v1" || capability == "brush-symmetry-v1" || capability == "scalar-raster-v1"
-                    || capability == "packed-data-v1" || capability == "channel-group-v1",
+                    || capability == "packed-data-v1" || capability == "channel-group-v1" || capability == "project-layer-v1",
                 "Project requires unsupported capabilities");
         require(o["canvas"].isObject() && o["layers"].isArray(), "Missing canvas or layers");
         const auto canvas = o["canvas"].toObject();
@@ -744,6 +766,7 @@ namespace {
         std::set<core::LayerId> ids;
         std::vector<core::LayerId> leafOrder;
         std::set<QString> used { "manifest.json" };
+        quint64 linkPathBytes = 0;
         if (o.contains("snapshotTimeline")) {
             require(required.contains("snapshot-timeline-v1") && o["snapshotTimeline"].isObject(),
                 "Invalid or undeclared snapshot timeline");
@@ -803,6 +826,11 @@ namespace {
             require(!l.contains("rasterLocalFrame")||l["type"]=="raster","Raster local frame is only supported on raster layers");
             LayerPlan p;
             p.layer.id = layerId(l["id"]);
+            if (l.contains("projectSource")) {
+                require(l["type"] == "raster" && required.contains("project-layer-v1"),
+                    "Invalid or undeclared project layer source");
+                p.layer.projectSource = detail::decodeProjectSource(l["projectSource"], parentDirectory, linkPathBytes);
+            }
             if (l.contains("layerMask")) {
                 const auto m = l["layerMask"].toObject();
                 require(required.contains("layer-mask-v1") && m["version"] == 1 && m["enabled"].isBool(),
@@ -964,13 +992,18 @@ namespace {
                 }
                 require(p.layer.localToDocument.validOver({p.layer.rasterOrigin.x,p.layer.rasterOrigin.y,double(p.extent.width),double(p.extent.height)}),"Projective horizon crosses raster content");
                 p.path = r["path"].toString();
-                require(p.path == rasterPath(p.layer.id, p.dataKind), "Invalid raster payload path");
+                if (p.layer.projectSource)
+                    require(p.dataKind == core::RasterDataKind::Color && detail::validProjectAppearancePath(p.path, p.extent),
+                        "Invalid project layer appearance");
+                else
+                    require(p.path == rasterPath(p.layer.id, p.dataKind), "Invalid raster payload path");
                 const quint64 size = quint64(p.extent.width) * p.extent.height
                     * (p.dataKind == core::RasterDataKind::Scalar ? 1 : 4);
-                result.bytes = checkedBytes(result.bytes, size);
                 const auto entry = files.find(p.path);
-                require(entry != files.end() && entry->second.bytes == size && used.insert(p.path).second,
+                const bool first = used.insert(p.path).second;
+                require(entry != files.end() && entry->second.bytes == size && (first || p.layer.projectSource),
                     "Missing, duplicate or incorrectly sized raster payload");
+                if (first) result.bytes = checkedBytes(result.bytes, size);
                 require(core::numericLayerPropertiesSupported(p.layer, p.dataKind),
                     "Numeric raster contains unsupported colour, mask or blending properties");
                 // Compact uniform placeholders admit structural validation
@@ -1085,7 +1118,7 @@ ProjectLoadResult loadProject(const QString& path, ProjectProgress callback, Pro
         }
         progress.tick();
         result.metadata = readManifest(zip, files, progress);
-        auto plan = validateManifest(result.metadata, files);
+        auto plan = validateManifest(result.metadata, files, QFileInfo(path).absoluteDir());
         // Saving streams data already owned by the document. Loading must admit
         // new resident pixels, mask decoding, upload staging and driver backing.
         // Do not apply this admission to the save-time streaming CRC pass.
@@ -1115,6 +1148,7 @@ ProjectLoadResult loadProject(const QString& path, ProjectProgress callback, Pro
         }
         const auto families = QFontDatabase::families();
         std::set<QString> missing;
+        std::map<QString, std::shared_ptr<core::RasterSurface>> appearances;
         for (auto& p : plan.layers) {
             if (p.layer.mask) {
                 auto mask = std::make_shared<core::LayerMask>(*p.layer.mask);
@@ -1153,7 +1187,10 @@ ProjectLoadResult loadProject(const QString& path, ProjectProgress callback, Pro
                 require(core::validAdjustments(*p.adjustments.stack), "Invalid restored adjustment stack");
                 p.layer.adjustments = std::move(p.adjustments.stack);
             }
-            if (!p.path.isEmpty()) {
+            const auto existing = appearances.find(p.path);
+            if (existing != appearances.end()) {
+                p.layer.payload = core::RasterLayer{existing->second};
+            } else if (!p.path.isEmpty()) {
                 const auto bpp = p.dataKind == core::RasterDataKind::Scalar ? 1 : 4;
                 std::vector<std::byte> pixels(size_t(quint64(p.extent.width) * p.extent.height * quint64(bpp)));
                 size_t offset = 0;
@@ -1161,7 +1198,21 @@ ProjectLoadResult loadProject(const QString& path, ProjectProgress callback, Pro
                     std::memcpy(pixels.data()+offset,b,size_t(n)); offset += size_t(n); }, progress);
                 if (p.dataKind == core::RasterDataKind::Scalar)
                     p.layer.payload = core::RasterLayer {std::make_shared<core::ScalarRasterSurface>(p.extent, pixels, p.extent.width)};
-                else p.layer.payload = core::RasterLayer {std::make_shared<core::ContiguousRasterSurface>(p.extent, std::move(pixels), p.dataKind)};
+                else {
+                    if (p.layer.projectSource) {
+                        const auto digest = QCryptographicHash::hash(
+                            QByteArrayView(reinterpret_cast<const char*>(pixels.data()), qsizetype(pixels.size())),
+                            QCryptographicHash::Sha256);
+                        require(p.path == detail::projectAppearancePath(p.extent, digest), "Invalid project layer appearance digest");
+                    }
+                    std::shared_ptr<core::RasterSurface> surface = std::make_shared<core::ContiguousRasterSurface>(
+                        p.extent, std::move(pixels), p.dataKind);
+                    if (p.layer.projectSource) {
+                        surface = core::readOnlyProjectSurface(std::move(surface));
+                        appearances.emplace(p.path, surface);
+                    }
+                    p.layer.payload = core::RasterLayer{std::move(surface)};
+                }
             } else if (const auto* text = std::get_if<core::TextLayer>(&p.layer.payload)) {
                 auto checkFont = [&](const core::TextStyle& style) {
                     const auto family = QString::fromStdString(style.font.family);
@@ -1241,7 +1292,9 @@ ProjectIoResult saveProject(const QString& path, const core::Document& doc, cons
 {
     try {
         require(!path.isEmpty() && !path.contains(QChar::Null), "Invalid project path");
-        auto manifest = makeManifest(doc, metadata);
+        const QFileInfo target(path);
+        RasterPaths rasterPaths;
+        auto manifest = makeManifest(doc, metadata, target, rasterPaths);
         // Owned, disposable metadata: never preserve a thumbnail from a previous
         // save when preview generation is unavailable or content has changed.
         manifest.remove("preview");
@@ -1265,8 +1318,8 @@ ProjectIoResult saveProject(const QString& path, const core::Document& doc, cons
             if (const auto* r = std::get_if<core::RasterLayer>(&layer.payload); r && !layer.mirror) {
                 const auto e = r->surface->extent();
                 const auto n = quint64(e.width) * e.height * r->surface->nativeBytesPerPixel();
-                expected.emplace(rasterPath(layer.id, r->surface->dataKind()), Entry { 0, n, 0 });
-                bytes += n;
+                if (expected.emplace(rasterPaths.at(layer.id), Entry{0, n, 0}).second)
+                    bytes = checkedBytes(bytes, n);
             }
         for (const auto& layer : doc.layers()) {
             if (layer.mirror) continue;
@@ -1292,7 +1345,7 @@ ProjectIoResult saveProject(const QString& path, const core::Document& doc, cons
                 expected.emplace(detail::spatialFilterMaskPath(layer.id,filter.type),Entry{0,n,0});bytes+=n;
             }
         }
-        (void)validateManifest(manifest, expected); // Same structural checks for writer and reader.
+        (void)validateManifest(manifest, expected, target.absoluteDir()); // Same structural checks for writer and reader.
         const auto revision = doc.revision();
         std::vector<std::pair<std::shared_ptr<core::RasterSurface>,core::Revision>> sourceRevisions;
         for (const auto& layer : doc.layers())
@@ -1330,7 +1383,6 @@ ProjectIoResult saveProject(const QString& path, const core::Document& doc, cons
         if (preview.cancelled) throw Cancelled{};
         unchanged(); // A failed optional render must not bypass the lifetime guard.
         progress.tick(previewWork);
-        const QFileInfo target(path);
         auto temporary = std::make_unique<QTemporaryFile>(target.absolutePath() + "/.vulkana-save-XXXXXX");
         auto& temp = *temporary;
         require(temp.open(), "Cannot create temporary project beside destination");
@@ -1362,11 +1414,13 @@ ProjectIoResult saveProject(const QString& path, const core::Document& doc, cons
             }
             for (const auto& layer : doc.layers())
                 if (const auto* r = std::get_if<core::RasterLayer>(&layer.payload); r && !layer.mirror) {
+                    const auto& name = rasterPaths.at(layer.id);
+                    if (zip.writtenCrc.contains(name)) continue;
                     const auto e = r->surface->extent();
                     const size_t stride = size_t(e.width) * r->surface->nativeBytesPerPixel();
                     const auto rows = std::max<size_t>(1, chunkSize / stride);
                     std::vector<std::byte> buffer(rows * stride);
-                    writeEntry(zip, rasterPath(layer.id, r->surface->dataKind()), quint64(e.height) * stride, [&](const auto& write) {
+                    writeEntry(zip, name, quint64(e.height) * stride, [&](const auto& write) {
                     for (uint32_t y = 0; y < e.height;) {
                         const auto h = uint32_t(std::min<size_t>(rows,e.height-y));
                         r->surface->copyNative({0,int32_t(y),int32_t(e.width),int32_t(h)},buffer,stride);

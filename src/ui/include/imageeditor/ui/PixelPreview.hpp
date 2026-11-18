@@ -12,7 +12,7 @@ namespace imageeditor::ui {
 class PixelPreview final : public QObject {
 public:
     struct Profile { double freezeMs{},transferMs{};MergeProfile evaluation; };
-    enum class Purpose { NativePixels, Navigator };
+    enum class Purpose { NativePixels, Navigator, ProjectLayer };
     explicit PixelPreview(QObject* parent=nullptr, Purpose = Purpose::NativePixels);
     ~PixelPreview() override;
     void setEnabled(bool);

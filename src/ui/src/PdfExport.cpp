@@ -540,13 +540,15 @@ PdfExportSnapshot capturePdfExport(const core::Document &document,
     frozenLayer = original;
     // Export owns resolved content, independent of the live mirror/source link.
     frozenLayer.mirror.reset();
+    frozenLayer.projectSource.reset();
     auto *layer = &frozenLayer;
     layer->renderCache.reset();
     layer->filterCache.reset();
     layer->effectCache.reset();
     if (auto *raster = std::get_if<core::RasterLayer>(&layer->payload)) {
       auto &pixels = frozen.at(raster->surface->id());
-      if (!pixels) {
+      if (original.projectSource) pixels = raster->surface; // Immutable rendered canvas.
+      else if (!pixels) {
         if(const auto* scalar=dynamic_cast<const core::ScalarRasterSurface*>(raster->surface.get()))pixels=scalar->clone();
         else {
           const auto extent = raster->surface->extent();

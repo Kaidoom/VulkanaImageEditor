@@ -33,6 +33,7 @@ add_library(imageeditor_core STATIC
     src/ObjectSelectionBoundary.cpp
     src/MagicWandSelection.cpp
     src/ChannelGroups.cpp
+    src/ProjectLayer.cpp
     src/MirroredLayers.cpp
     src/ScalarClipboard.cpp
     src/Document.cpp

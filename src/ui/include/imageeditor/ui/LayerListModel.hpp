@@ -28,6 +28,8 @@ public:
     static constexpr int BlendModeRole = Qt::UserRole + 11;
     static constexpr int ContainerRole = Qt::UserRole + 12;
     static constexpr int MirroredRole = Qt::UserRole + 13;
+    static constexpr int ProjectSourceRole = Qt::UserRole + 14;
+    static constexpr int ProjectSourceMissingRole = Qt::UserRole + 15;
     explicit LayerListModel(QObject* parent = nullptr);
 
     void setSession(core::EditorSession* session);
@@ -89,6 +91,7 @@ private:
     std::vector<Row> rows_;
     std::set<core::LayerId> collapsed_;
     std::set<core::LayerId> selectedAncestorFolders_;
+    std::map<std::string, bool> missingProjectFiles_;
     struct Thumbnail { std::size_t stamp; std::size_t appearanceStamp; QIcon icon; qint64 renderedAt; };
     mutable std::map<core::LayerId, Thumbnail> thumbnails_;
     mutable std::map<core::LayerId, Thumbnail> rowThumbnails_;

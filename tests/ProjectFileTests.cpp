@@ -1,4 +1,5 @@
 #include "imageeditor/core/Document.hpp"
+#include "imageeditor/core/ProjectLayer.hpp"
 #include "imageeditor/core/RichText.hpp"
 #include "imageeditor/ui/ProjectFile.hpp"
 #include "imageeditor/ui/FlattenedDocument.hpp"
@@ -1323,6 +1324,92 @@ void recoverScaledPerspectiveLayer()
     }
 }
 
+void projectLayerFallbackStorage()
+{
+    Fixture f;
+    const auto parent = f.path("scene.vulkana");
+    const auto external = f.path("sources/eye.vulkana");
+    const auto nested = f.path("sources/pupil.vulkana");
+    c::Document doc({{12, 8}});
+    auto source = std::make_shared<c::ProjectLayerSource>();
+    source->path = external.toStdString();
+    source->dependencies = {nested.toStdString()};
+    source->instanceId = 73;
+    source->contentState = 49;
+    // Independently allocated but identical full-resolution, straight RGBA
+    // pixels. Include non-zero RGB under zero alpha to detect a preview bake.
+    const auto bytes = referencePixels();
+    const auto first = reinterpret_cast<const std::byte*>(bytes.constData());
+    for (int i = 0; i < 2; ++i) {
+        auto backing = std::make_shared<c::ContiguousRasterSurface>(c::Extent2u{3, 2},
+            std::vector<std::byte>(first, first + bytes.size()));
+        auto layer = c::Layer::raster("Placement", c::readOnlyProjectSurface(std::move(backing)));
+        layer.projectSource = source;
+        layer.localToDocument.m02 = i * 4;
+        CHECK(doc.insertLayer(doc.layers().size(), std::move(layer)));
+    }
+    auto saved = u::saveProject(parent, doc);
+    CHECK(saved);
+    if (!saved) return;
+    {
+        QFile archive(parent);
+        CHECK(archive.open(QIODevice::ReadOnly));
+        imageeditor::project::Archive zip(archive, false);
+        CHECK(imageeditor::project::entries(zip).size() == 2); // Manifest and one appearance.
+    }
+    CHECK(QDir().mkpath(f.path("relocated")));
+    const auto relocated = f.path("relocated/scene.vulkana");
+    CHECK(QFile::copy(parent, relocated));
+    const auto loaded = u::loadProject(relocated);
+    CHECK(loaded);
+    if (!loaded) return;
+    CHECK(loaded.metadata["required"].toArray().contains("project-layer-v1"));
+    const auto records = loaded.metadata["layers"].toArray();
+    CHECK(records.size() == 2);
+    const auto record = records[0].toObject();
+    const auto descriptor = record["projectSource"].toObject();
+    CHECK(descriptor["path"] == "sources/eye.vulkana");
+    CHECK(descriptor["dependencies"].toArray()[0] == "sources/pupil.vulkana");
+    const auto& layers = loaded.document->layers();
+    CHECK(layers[0].projectSource && layers[1].projectSource);
+    if (!layers[0].projectSource || !layers[1].projectSource) return;
+    CHECK(layers[0].projectSource->path == f.path("relocated/sources/eye.vulkana").toStdString());
+    CHECK(layers[0].projectSource->dependencies == std::vector<std::string>{f.path("relocated/sources/pupil.vulkana").toStdString()});
+    CHECK(layers[0].projectSource->instanceId == 0 && layers[0].projectSource->contentState == 0);
+    CHECK(layers[1].localToDocument.m02 == 4);
+    const auto appearance = std::get<c::RasterLayer>(layers[0].payload).surface;
+    CHECK(appearance == std::get<c::RasterLayer>(layers[1].payload).surface);
+    std::vector<std::byte> actual(size_t(bytes.size()));
+    appearance->copyRgba8({0, 0, 3, 2}, actual, 12);
+    CHECK(std::equal(actual.begin(), actual.end(), first));
+    CHECK(QDir().mkpath(f.path("sources")));
+    CHECK(!u::saveProject(nested, doc)); // Save As must not overwrite a transitive source.
+
+    const auto appearancePath = record["raster"].toObject()["path"].toString().toUtf8();
+    auto reject = [&](const QString& label, const QJsonObject& m, QByteArray pixels) {
+        f.reject(label, makeZip({{"manifest.json", QJsonDocument(m).toJson()}, {appearancePath, std::move(pixels)}}));
+    };
+    auto malformed = loaded.metadata;
+    malformed["required"] = QJsonArray{"rgba8", "rich-text-v1"};
+    reject("undeclared project source", malformed, bytes);
+    malformed = loaded.metadata;
+    editLayer(malformed, [](QJsonObject& layer) {
+        auto link = layer["projectSource"].toObject();
+        link["path"] = QString("bad") + QChar::Null + "path.vulkana";
+        layer["projectSource"] = link;
+    });
+    reject("invalid linked file path", malformed, bytes);
+    malformed = loaded.metadata;
+    editRaster(malformed, [](QJsonObject& raster) {
+        raster["width"] = 2;
+        raster["height"] = 3;
+    });
+    reject("shared project appearance with mismatched dimensions", malformed, bytes);
+    auto other = bytes;
+    other[0] = char(quint8(other[0]) ^ 1U);
+    reject("project appearance digest mismatch", loaded.metadata, other);
+}
+
 int main(int argc, char** argv)
 {
     qputenv("TZ", "UTC");
@@ -1354,6 +1441,7 @@ int main(int argc, char** argv)
         multiStopGradientPersistence();
         advancedEffectBlendingPersistence();
         recoverScaledPerspectiveLayer();
+        projectLayerFallbackStorage();
         frozenFixtureDefaultsAndZipVariants();
         rememberedSelectionRoundTrip();
         exactRasterAndRichTextRoundTrip();

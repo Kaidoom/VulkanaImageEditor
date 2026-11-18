@@ -242,6 +242,8 @@ void PsdExportPanel::updateDescription() {
                        : i18n::text("psd.export.panel.leave.this.layer.out.of.the.psd");
     break;
   }
+  if (e.projectLayer && PsdExportAction(action_->currentData().toInt()) != PsdExportAction::Omit)
+    text = i18n::text("psd.export.panel.project.layer.appearance") + QStringLiteral(" ") + text;
   i18n::setText(detail_, text);
   detail_->show();
 }

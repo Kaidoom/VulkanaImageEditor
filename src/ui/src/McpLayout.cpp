@@ -229,7 +229,14 @@ void McpController::registerLayoutTools()
                     "Repetition exceeds 1024 resulting layers; reduce copies or the selected set");
                 require(document().layers().size()+document().tree().containers.size()+(leaves.size()+containers)*count <= c::LayerTree::maxItems,
                     "Repetition exceeds 4096 tree items; reduce copies or the selected set");
-                for (auto leaf : leaves) {bytes += c::retainedLayerMemory(*document().layer(leaf)); require(bytes <= maximumCopyBytes/count, "Repetition exceeds 256 MiB copied data; reduce copies or source image sizes");}
+                for (auto leaf : leaves) {
+                    const auto& layer = *document().layer(leaf);
+                    bytes += c::retainedLayerMemory(layer);
+                    // Every placement references the same immutable source appearance.
+                    if (layer.projectSource)
+                        bytes -= std::get<c::RasterLayer>(layer.payload).surface->memoryCost();
+                    require(bytes <= maximumCopyBytes/count, "Repetition exceeds 256 MiB copied data; reduce copies or source image sizes");
+                }
                 std::map<c::LayerId,c::RectD> supports;
                 for (auto leaf : leaves) supports.emplace(leaf,evaluationSupport(document(),*document().layer(leaf)));
                 const auto motif = radial && !rotate ? itemUnion(document(),selected) : c::RectD{};

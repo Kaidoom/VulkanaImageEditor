@@ -21,6 +21,7 @@
 namespace imageeditor::core {
 
 struct LayerSpatialFilterCache;
+struct ProjectLayerSource;
 
 using LayerId = std::uint64_t;
 
@@ -109,6 +110,7 @@ struct Layer {
     // Linked layers retain ordinary resolved fields for existing consumers.
     // Inherited fields are disposable; source identity and overrides are canonical.
     std::optional<LayerMirror> mirror;
+    std::shared_ptr<const ProjectLayerSource> projectSource;
     bool visible {true};
     float opacity {1.0F};
     float fillOpacity {1.0F}; // Content only; never changes source alpha or effect geometry.
@@ -139,5 +141,17 @@ struct Layer {
     [[nodiscard]] static Layer text(std::string name, TextLayer textData);
     [[nodiscard]] static Layer shape(std::string name, ShapeLayer shapeData);
 };
+
+// Parent-owned masks, effects and transforms remain editable on project layers.
+[[nodiscard]] inline bool layerPixelsReadOnly(const Layer& layer) noexcept
+{
+    return layer.projectSource || layer.mirror.has_value();
+}
+[[nodiscard]] inline const char* readOnlyPixelsReason(const Layer& layer) noexcept
+{
+    return layer.projectSource
+        ? "Project layer pixels are linked. Edit the source project or convert the layer to raster."
+        : "Mirrored layers are read-only. Promote to a full layer before editing content.";
+}
 
 } // namespace imageeditor::core

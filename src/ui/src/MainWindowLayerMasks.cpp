@@ -146,7 +146,7 @@ void MainWindow::refreshLayerMaskActions() {
   i18n::setText(maskActions_[3], layer && layer->mask && !layer->mask->enabled
                                ? i18n::text("main.window.layer.masks.enable.layer.mask")
                                : i18n::text("main.window.layer.masks.disable.layer.mask"));
-  maskActions_[4]->setEnabled(writable && layer->mask && layer->mask->enabled);
+  maskActions_[4]->setEnabled(writable && !layer->projectSource && layer->mask && layer->mask->enabled);
   if(layer && std::holds_alternative<core::AdjustmentLayer>(layer->payload))maskActions_[4]->setEnabled(false);
   maskActions_[7]->setEnabled(available&&layer->mask&&core::validLayerMask(layer->mask)&&layer->localToDocument.inverted().has_value());
   const bool targets=available&&!session().selectedLayers().empty()
@@ -267,7 +267,7 @@ void MainWindow::applyLayerMask() {
     return;
   const auto id = *session().activeLayer();
   const auto *layer = session().document()->layer(id);
-  if (!layer || !layer->mask || !layer->mask->enabled)
+  if (!layer || layer->projectSource || !layer->mask || !layer->mask->enabled)
     return;
   if (!confirmLayerChange(
           i18n::text("main.window.layer.masks.apply.layer.mask.2"),

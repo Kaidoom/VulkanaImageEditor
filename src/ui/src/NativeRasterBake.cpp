@@ -22,7 +22,7 @@ std::shared_ptr<core::RasterSurface> surfaceFromNativeImage(const QImage& image)
 bool needsRasterization(const core::Layer& layer)
 {
     const auto& t=layer.localToDocument;
-    return !std::holds_alternative<core::RasterLayer>(layer.payload) || layer.crop
+    return layer.projectSource || !std::holds_alternative<core::RasterLayer>(layer.payload) || layer.crop
         || !t.isAffine() || t.m00!=1 || t.m11!=1 || t.m01!=0 || t.m10!=0
         || t.m02!=std::floor(t.m02) || t.m12!=std::floor(t.m12)
         || core::compileAdjustmentStack(layer.adjustments).active || core::hasActiveSpatialFilters(layer.filters)
@@ -78,7 +78,7 @@ RasterizeResult prepareRasterizeLayers(const core::Document& doc,const core::Lay
         const auto roots=onlyLayer?std::vector<core::LayerId>{*onlyLayer}:doc.tree().normalize(selection.ids);
         for (const auto id : doc.expandedLayers(roots))
             if (const auto* layer = doc.layer(id); layer && core::isMirroredLayer(*layer))
-                throw std::runtime_error("Promote mirrored layers to full layers before rasterizing them.");
+                throw std::runtime_error(core::readOnlyPixelsReason(*layer));
         std::vector<core::LayerId> ids,groups;
         for(auto root:roots) {
             const auto* c=doc.tree().container(root);
@@ -138,6 +138,7 @@ RasterizeResult prepareRasterizeLayers(const core::Document& doc,const core::Lay
             requireCurrent();
             const auto& original=*doc.layer(ordinary[i]);
             auto baked=original;
+            baked.projectSource.reset();
             baked.payload=core::RasterLayer{surfaceFromNativeImage(pixels.image)};
             baked.localToDocument={1,0,pixels.origin.x,0,1,pixels.origin.y};
             baked.rasterOrigin={};baked.rasterEffectFrame.reset();

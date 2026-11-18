@@ -1,4 +1,3 @@
-#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/core/CloneStroke.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include <algorithm>
@@ -19,9 +18,9 @@ CloneStroke::CloneStroke(Document& document, LayerId target, BrushSettings brush
           settings.mode == CloneMode::Heal)
 {
     const auto* layer = document.layer(target);
-    if (layer && isMirroredLayer(*layer)) {
+    if (layer && layerPixelsReadOnly(*layer)) {
         sampleDomainMatches_ = false;
-        diagnostic_ = "Mirrored layers are read-only. Promote to a full layer before editing content.";
+        diagnostic_ = readOnlyPixelsReason(*layer);
         return;
     }
     const auto* raster = layer ? std::get_if<RasterLayer>(&layer->payload) : nullptr;
@@ -46,7 +45,7 @@ bool CloneStroke::targetMatches() const noexcept
 {
     const auto* layer = document_.layer(target_);
     const auto* raster = layer ? std::get_if<RasterLayer>(&layer->payload) : nullptr;
-    return sampleDomainMatches_ && layer && !isMirroredLayer(*layer) && document_.revision() == revision_ && raster && raster->surface && raster->surface->id() == surface_
+    return sampleDomainMatches_ && layer && !layerPixelsReadOnly(*layer) && document_.revision() == revision_ && raster && raster->surface && raster->surface->id() == surface_
         && raster->surface->revision() == surfaceRevision_ && intrinsicTransform(*layer) == localToDocument_;
 }
 bool CloneStroke::begin(const NormalizedPointerSample& sample)
