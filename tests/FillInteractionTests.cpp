@@ -247,6 +247,8 @@ void keyboardEraseAndNudges(Fixture& f)
     const auto pixels = f.pixels();
     const auto matrix = f.layer().localToDocument;
     const auto depth = f.history().undoDepth();
+    // Even the last layer, which cannot be deleted, can have its selected pixels cleared.
+    CHECK(!f.action("DeleteSelectedLayersAction")->isEnabled());
     QTest::keyClick(f.canvas, Qt::Key_Delete);
     f.waitIdle();
     CHECK(f.history().undoDepth() == depth+1);
@@ -254,7 +256,7 @@ void keyboardEraseAndNudges(Fixture& f)
     CHECK(f.document().selection() == mask && f.layer().localToDocument == matrix);
     const auto erased = f.pixels();
     const auto revision = f.surface().revision();
-    QTest::keyClick(f.canvas, Qt::Key_Delete); f.waitIdle();
+    QTest::keyClick(f.canvas, Qt::Key_Delete, Qt::ShiftModifier); f.waitIdle();
     CHECK(f.history().undoDepth() == depth+1 && f.surface().revision() == revision);
     f.undo(); CHECK(f.pixels() == pixels);
     f.redo(); CHECK(f.pixels() == erased);
@@ -308,7 +310,7 @@ void keyboardEraseAndNudges(Fixture& f)
     QTest::keyClick(f.canvas,Qt::Key_D,Qt::ControlModifier|Qt::ShiftModifier);
     CHECK(f.document().selection() && f.document().selection()->equivalent(*mask));
     f.trigger("DeselectAction");
-    QTest::keyClick(f.canvas,Qt::Key_Delete); f.waitIdle();
+    QTest::keyClick(f.canvas, Qt::Key_Delete, Qt::ShiftModifier); f.waitIdle();
     CHECK(f.pixel(0,0).alpha==0 && f.pixel(16,16).alpha==0 && f.document().layers().size()==1);
     f.undo(); CHECK(f.pixels()==pixels);
     // Group movement: one atomic translation, preserving an existing affine.

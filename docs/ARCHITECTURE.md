@@ -170,7 +170,7 @@ layer opacity/blending; it never changes source pixels during ordinary editing.
 coverage, sharing unchanged tiles. Each gesture publishes one undo command.
 White reveals, black hides, and gray is numeric partial coverage (not gamma
 converted). Selection coverage constrains editing without replacing the selection.
-Eraser/Delete hide; brushes and Fill use the grayscale value of their chosen color.
+The Eraser and Shift+Delete hide masked pixels. Brushes and Fill use the grayscale value of their chosen color.
 The row thumbnail and status identify the per-document content/mask editing target.
 Other destructive pixel tools require returning to the content thumbnail.
 

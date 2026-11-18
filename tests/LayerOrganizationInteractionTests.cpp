@@ -1096,7 +1096,7 @@ void dissolvingSelectedFolderAndChildRetainsAUniqueSelection()
     const auto before = f.session().layerSelectionState();
     const auto tree = f.document().tree();
     const auto depth = f.session().history().undoDepth();
-    // Keeping contents is explicit; Shift+Delete removes selected contents.
+    // Keeping contents is explicit; Delete removes selected contents.
     CHECK(f.menuCommand(folder,"Remove folder, keep contents",true));
     CHECK(!f.document().containsItem(folder));
     CHECK(f.session().selectedLayers().size() == 2);
@@ -1844,9 +1844,9 @@ void duplicateAndDeleteShortcuts()
     const auto copies=f.session().layerSelectionState();
     auto* duplicate=f.action("DuplicateLayersAction"), *remove=f.action("DeleteSelectedLayersAction");
     CHECK(duplicate && duplicate->shortcut()==QKeySequence("Shift+D"));
-    CHECK(remove && remove->shortcut()==QKeySequence("Shift+Delete"));
+    CHECK(remove && remove->shortcut()==QKeySequence("Delete"));
     if(auto* focus=QApplication::focusWidget())focus->clearFocus();
-    QTest::keyClick(f.canvas,Qt::Key_Delete,Qt::ShiftModifier); settle();
+    QTest::keyClick(f.canvas,Qt::Key_Delete); settle();
     CHECK(f.document().layers().size()==4 && f.session().history().undoDepth()==2);
     CHECK(f.shortcut(QKeySequence::Undo)); CHECK(f.session().layerSelectionState()==copies);
     CHECK(f.shortcut(QKeySequence::Undo)); CHECK(f.session().layerSelectionState()==before);
@@ -1855,9 +1855,19 @@ void duplicateAndDeleteShortcuts()
     // Neither shortcut steals editable-field input or creates history there.
     QLineEdit field(&f.window); field.show(); field.setFocus(); field.setText("rename"); field.selectAll();
     const auto depth=f.session().history().undoDepth();
-    QTest::keyClick(&field,Qt::Key_Delete,Qt::ShiftModifier);
+    QTest::keyClick(&field,Qt::Key_Delete);
     QTest::keyClick(&field,Qt::Key_D,Qt::ShiftModifier);
     CHECK(f.document().layers().size()==6 && f.session().history().undoDepth()==depth);
+    field.hide();
+
+    // A text layer cannot erase pixels. Delete must not fall through to removing it.
+    f.click(f.members[2]);
+    CHECK(f.document().setSelection(core::SelectionMask::rectangle(f.document().canvas().extent, {5,5,20,20})));
+    QTest::keyClick(f.view, Qt::Key_Delete); settle();
+    QTest::keyClick(f.view, Qt::Key_Delete, Qt::KeypadModifier); settle();
+    CHECK(f.document().containsLayer(f.members[2]) && f.session().history().undoDepth()==depth);
+    CHECK(f.trigger("DeleteSelectedLayersAction") && !f.document().containsLayer(f.members[2]));
+    CHECK(f.shortcut(QKeySequence::Undo) && f.document().containsLayer(f.members[2]));
 }
 
 void rasterizeAndPixelPreviewActions()

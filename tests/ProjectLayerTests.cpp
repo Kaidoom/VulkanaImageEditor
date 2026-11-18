@@ -442,7 +442,8 @@ void paintOnProjectPlacement(const QTemporaryDir& dir, QVulkanInstance* vulkan)
     REQUIRE(pixel(window, id, 84, 92) == painted);
     const auto selection = c::SelectionMask::rectangle(extent, {84, 92, 1, 1}, 128);
     REQUIRE(session(window).execute(std::make_unique<c::SetSelectionCommand>(selection)));
-    action("ErasePixelsAction");
+    QTest::keyClick(canvas, Qt::Key_Delete);
+    REQUIRE(session(window).document()->containsLayer(id));
     const auto faded = pixel(window, id, 84, 92);
     REQUIRE(faded != painted && faded != alternateColor && faded.alpha == 255);
     REQUIRE(session(window).document()->selection() == selection);

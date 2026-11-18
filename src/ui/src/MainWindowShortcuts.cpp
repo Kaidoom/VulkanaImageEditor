@@ -1,6 +1,7 @@
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/AdjustmentCurveEditor.hpp"
+#include "imageeditor/ui/GradientStopEditor.hpp"
 #include "imageeditor/ui/CompactValueControl.hpp"
 #include "imageeditor/ui/CrossWindowPointerRouter.hpp"
 #include "imageeditor/ui/LayerListView.hpp"
@@ -37,6 +38,7 @@ QWidget* inputOwner(QWidget* widget)
             || qobject_cast<QAbstractSpinBox*>(p)
             || qobject_cast<QAbstractSlider*>(p) || qobject_cast<QComboBox*>(p)
             || qobject_cast<QAbstractItemView*>(p) || dynamic_cast<AdjustmentCurveEditor*>(p)
+            || dynamic_cast<GradientStopEditor*>(p)
             || (qobject_cast<QAbstractButton*>(p) && p->focusPolicy() != Qt::NoFocus)) return p;
     }
     return nullptr;
@@ -223,10 +225,11 @@ bool MainWindow::routeEditorShortcut(QObject* watched, QEvent* event)
     const bool layerNudging = layers && (session().activeTool()==core::ToolId::Move
         || core::isSelectionTool(session().activeTool()));
     const bool control = owner && !curve && !layers;
-    // Timeline frame deletion belongs to the list, even if an editor action
-    // has been rebound to Delete. It must never delete or paint a live layer.
-    if (owner && owner->objectName() == QStringLiteral("SnapshotTimelineFrames")
-        && key->key() == Qt::Key_Delete && key->modifiers() == Qt::NoModifier) return false;
+    const bool plainDelete = key->key() == Qt::Key_Delete && !(key->modifiers() & ~Qt::KeypadModifier);
+    // These editors own Delete while focused. Let the widget handle the key.
+    if (owner && plainDelete
+        && (curve || dynamic_cast<GradientStopEditor*>(owner)
+            || owner->objectName() == QStringLiteral("SnapshotTimelineFrames"))) return false;
     // Native widget navigation is fixed, not an accidental editor shortcut.
     if ((layers || control) && navigationKey(*key) && !(layerNudging && arrowKey(*key))) return false;
     unsigned context = curve ? CurveKeys : layers ? LayerListKeys : control ? ControlKeys
@@ -252,7 +255,16 @@ bool MainWindow::routeEditorShortcut(QObject* watched, QEvent* event)
             if (shortcutGestureIdle() && !layerTransform_ && !selectionTransform_ && !canvasResize_ && session().document()) canvasWindow_->setTemporaryMeasure(true);
         } else if (d.id == "PanCanvasAction") {
             panAccessKey_ = key->key(); canvasWindow_->setSpacePanHeld(true);
-        } else if (auto* action = shortcutActions_.value(d.id); action && action->isEnabled()) action->trigger();
+        } else {
+            auto* action = shortcutActions_.value(d.id);
+            if (d.id == "DeleteSelectedLayersAction" && plainDelete
+                && session().document() && session().document()->selection()) {
+                // A selection owns plain Delete even if clearing is unavailable or has no effect.
+                if (!(shortcutDefinition("ErasePixelsAction")->contexts & context)) return true;
+                action = shortcutActions_.value("ErasePixelsAction");
+            }
+            if (action && action->isEnabled()) action->trigger();
+        }
         return true;
     }
     // An unbound arrow must not unexpectedly select another row or collapse

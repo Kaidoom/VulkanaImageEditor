@@ -60,6 +60,8 @@ void bind(u::ShortcutsPanel& panel, const QString& id, int k, Qt::KeyboardModifi
 void registry()
 {
     auto bindings = u::defaultShortcutBindings();
+    CHECK(bindings.value("DeleteSelectedLayersAction") == QList<QKeySequence>{QKeySequence("Delete")});
+    CHECK(bindings.value("ErasePixelsAction") == QList<QKeySequence>{QKeySequence("Shift+Delete")});
     CHECK(bindings.value("ResetColorsAction")==QList<QKeySequence>{QKeySequence("D")});
     CHECK(!(u::shortcutDefinition("ResetColorsAction")->contexts & u::TextKeys));
     for (const auto& d : u::shortcutDefinitions()) for (const auto& k : d.defaults) {
@@ -80,6 +82,20 @@ void registry()
     u::assignShortcut(bindings, "ErasePixelsAction", {}, false);
     QSettings settings; CHECK(u::saveShortcutBindings(settings, bindings));
     CHECK(u::loadShortcutBindings(settings) == bindings);
+    settings.clear();
+    // Old preference files stored both defaults even after an unrelated preference change.
+    settings.setValue("shortcuts/v1/ErasePixelsAction", QStringList{"Del"});
+    settings.setValue("shortcuts/v1/DeleteSelectedLayersAction", QStringList{"Shift+Del"});
+    CHECK(u::loadShortcutBindings(settings) == u::defaultShortcutBindings());
+    settings.setValue("shortcuts/v1/ErasePixelsAction", QStringList{"F8"});
+    auto migrated = u::loadShortcutBindings(settings);
+    CHECK(migrated.value("ErasePixelsAction") == QList<QKeySequence>{QKeySequence("F8")});
+    CHECK(migrated.value("DeleteSelectedLayersAction") == QList<QKeySequence>{QKeySequence("Delete")});
+    // Users can still explicitly choose the old layout after upgrading.
+    u::assignShortcut(migrated, "ErasePixelsAction", QKeySequence("Delete"), true);
+    u::assignShortcut(migrated, "DeleteSelectedLayersAction", QKeySequence("Shift+Delete"), true);
+    CHECK(u::saveShortcutBindings(settings, migrated));
+    CHECK(u::loadShortcutBindings(settings) == migrated);
     settings.clear();
     settings.setValue("shortcuts/v1/ToolAction_brush",QStringList{"D"});
     CHECK(u::loadShortcutBindings(settings).value("ResetColorsAction").isEmpty());

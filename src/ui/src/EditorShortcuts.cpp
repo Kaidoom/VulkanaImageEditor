@@ -39,7 +39,7 @@ const QList<ShortcutDefinition>& shortcutDefinitions()
         add("LayerTransformAction", i18n::text("editor.shortcuts.transform.layers.selection"), i18n::text("editor.shortcuts.edit"), "Ctrl+T", EditorKeys | TextKeys);
         add("TransformSelectionAction", i18n::text("editor.shortcuts.transform.selection"), i18n::text("editor.shortcuts.select"), "", EditorKeys);
         add("TransformSelectedPixelsAction", i18n::text("editor.shortcuts.transform.selected.pixels"), i18n::text("editor.shortcuts.select"), "Shift+T", EditorKeys);
-        add("ErasePixelsAction", i18n::text("editor.shortcuts.erase.selection.clear.raster.layer"), i18n::text("editor.shortcuts.edit"), "Delete", CanvasKeys);
+        add("ErasePixelsAction", i18n::text("editor.shortcuts.erase.selection.clear.raster.layer"), i18n::text("editor.shortcuts.edit"), "Shift+Delete", CanvasKeys | LayerListKeys);
         add("FillForegroundAction", i18n::text("editor.shortcuts.fill.with.foreground"), i18n::text("editor.shortcuts.edit"), "Alt+Backspace");
         add("FillBackgroundAction", i18n::text("editor.shortcuts.fill.with.background"), i18n::text("editor.shortcuts.edit"), "Ctrl+Backspace");
         add("FinishOperationAction", i18n::text("editor.shortcuts.apply.finish.canvas.operation"), i18n::text("editor.shortcuts.editing.operations"), "Return", TransformKeys | ConstructionKeys);
@@ -50,7 +50,7 @@ const QList<ShortcutDefinition>& shortcutDefinitions()
         add("NudgeUpAction", i18n::text("editor.shortcuts.nudge.layers.selection.up"), i18n::text("editor.shortcuts.editing.operations"), "Up", CanvasKeys | TransformKeys | LayerListKeys, true);
         add("NudgeDownAction", i18n::text("editor.shortcuts.nudge.layers.selection.down"), i18n::text("editor.shortcuts.editing.operations"), "Down", CanvasKeys | TransformKeys | LayerListKeys, true);
         add("NewRasterLayerAction", i18n::text("editor.shortcuts.new.raster.layer"), i18n::text("editor.shortcuts.layers"), "Ctrl+Shift+N");
-        add("DeleteSelectedLayersAction", i18n::text("editor.shortcuts.delete.selected.layers"), i18n::text("editor.shortcuts.layers"), "Shift+Delete");
+        add("DeleteSelectedLayersAction", i18n::text("editor.shortcuts.delete.selected.layers"), i18n::text("editor.shortcuts.layers"), "Delete");
         add("DuplicateLayersAction", i18n::text("editor.shortcuts.duplicate.selected.layers"), i18n::text("editor.shortcuts.layers"), "Shift+D");
         add("RenameLayerItemAction", i18n::text("editor.shortcuts.rename.layer.folder.group"), i18n::text("editor.shortcuts.layers"), "F2");
         add("NewLayerFolderAction", i18n::text("editor.shortcuts.new.folder"), i18n::text("editor.shortcuts.layers"));
@@ -191,6 +191,7 @@ ShortcutBindings loadShortcutBindings(QSettings& settings)
 {
     auto out = defaultShortcutBindings();
     settings.beginGroup("shortcuts/v1");
+    const bool oldDeleteDefaults = settings.value("defaultsVersion", 1).toInt() < 2;
     for (const auto& d : shortcutDefinitions()) {
         if (!settings.contains(d.id)) continue;
         QList<QKeySequence> keys;
@@ -201,6 +202,11 @@ ShortcutBindings loadShortcutBindings(QSettings& settings)
             if (!keys.contains(key)) keys.append(key);
         }
         if (valid) {
+            // Earlier Preferences saves wrote every binding, including unchanged defaults.
+            if (oldDeleteDefaults && keys.size() == 1
+                && ((d.id == "ErasePixelsAction" && keys.front() == QKeySequence(Qt::Key_Delete))
+                    || (d.id == "DeleteSelectedLayersAction" && keys.front() == QKeySequence(Qt::ShiftModifier | Qt::Key_Delete))))
+                continue;
             // Explicit stored choices take precedence over newly introduced
             // defaults. Corrupt/manual conflicts resolve deterministically.
             for (const auto& key : keys)
@@ -214,6 +220,7 @@ ShortcutBindings loadShortcutBindings(QSettings& settings)
 bool saveShortcutBindings(QSettings& settings, const ShortcutBindings& bindings)
 {
     settings.beginGroup("shortcuts/v1");
+    settings.setValue("defaultsVersion", 2);
     for (const auto& d : shortcutDefinitions()) {
         QStringList keys;
         for (const auto& key : bindings.value(d.id)) keys.append(key.toString(QKeySequence::PortableText));

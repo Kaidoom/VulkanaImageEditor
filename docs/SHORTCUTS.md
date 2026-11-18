@@ -45,8 +45,10 @@ content and do not affect document history. Existing settings are preserved.
   for Ctrl+T, Crop, and lasso/polygon completion. Right-click completion is unchanged.
 - Remove point is **Backspace**, not Delete: it removes a lasso anchor, polygon
   vertex, or focused curve point. Delete on a focused curve does not erase artwork.
-- Delete in the canvas erases selected raster pixels, or clears a compatible raster
-  layer when there is no selection. It never deletes editable text/shapes/containers.
+- With a pixel selection, Delete clears the selected pixels on the active layer or mask.
+  With no pixel selection, Delete removes the selected layers. Shift+Delete always
+  clears content, using the selection if present. The layer trash button removes
+  the selected layers even when there is a pixel selection.
 - Plain Enter in text inserts a newline. Finish text is its own configurable
   command (default Ctrl+Enter). Standard character editing, selection, clipboard,
   and navigation keys stay local to text; conflicting text-command assignments
@@ -102,7 +104,7 @@ work while editing text: committed typing is retained when switching documents.
 | Transform layers / selection | Ctrl+T |
 | Transform Selection (boundary only) | Unassigned |
 | Transform Selected Pixels | Shift+T |
-| Erase selection / clear raster layer | Delete |
+| Erase selection / clear raster layer | Shift+Delete |
 | Fill with foreground | Alt+Backspace |
 | Fill with background | Ctrl+Backspace |
 
@@ -123,7 +125,7 @@ work while editing text: committed typing is retained when switching documents.
 | Command | Default |
 | --- | --- |
 | New raster layer | Ctrl+Shift+N |
-| Delete selected layers | Shift+Delete |
+| Delete selected layers | Delete |
 | Duplicate selected layers | Shift+D |
 | Rename layer / folder / group | F2 |
 | New folder | Unassigned |

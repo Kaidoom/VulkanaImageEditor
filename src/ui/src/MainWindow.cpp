@@ -1986,7 +1986,6 @@ void MainWindow::createActions()
         i18n::text("main.window.delete.layer"), this);
     i18n::setText(deleteLayerAction_, i18n::text("main.window.delete.selected.layers"));
     deleteLayerAction_->setObjectName(QStringLiteral("DeleteSelectedLayersAction"));
-    deleteLayerAction_->setShortcut(QKeySequence(Qt::ShiftModifier | Qt::Key_Delete));
     deleteLayerAction_->setAutoRepeat(false);
     registerEditorWindowAction(deleteLayerAction_);
     connect(deleteLayerAction_, &QAction::triggered, this, &MainWindow::deleteActiveLayer);

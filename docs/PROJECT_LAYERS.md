@@ -8,7 +8,7 @@ Select the layer’s **content thumbnail** and use the Brush to paint on this pl
 
 The Bucket’s **Contiguous** mode finds connected colors in the linked image and any existing paint, then fills that region on the placement’s paint overlay. **Selection / Layer** and the foreground/background fill shortcuts write to the same overlay.
 
-The Eraser removes local paint and reveals the linked artwork beneath. Press **Delete** to clear paint inside the selection, or all paint when there is no selection. A small brush icon in the layer row indicates that the placement contains paint when layer info is shown.
+The Eraser removes local paint and reveals the linked artwork beneath. With a pixel selection, **Delete** clears paint inside it. With no selection, **Shift+Delete** clears all paint and **Delete** removes the placement. A small brush icon in the layer row indicates that the placement contains paint when layer info is shown.
 
 To hide parts of the linked artwork itself, add a layer mask and paint on its thumbnail. Use **Delete Selected Layers** to remove the entire placement.
 
