@@ -14220,6 +14220,46 @@ Requested: %1 × %2 px</source>
       <source>Increase threshold</source>
       <translation>提高閾值</translation>
     </message>
+    <message id="layers.cleanup.preview.mask">
+      <source>Show cleanup mask</source>
+      <translation>顯示清理遮色片</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="layers.cleanup.preview.layer">
+      <source>Preview layer</source>
+      <translation>預覽圖層</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="layers.cleanup.preview.all">
+      <source>Preview one layer at a time. Cleanup applies to all selected layers.</source>
+      <translation>每次預覽一個圖層。清理會套用至所有選取的圖層。</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="layers.cleanup.preview.clear">
+      <source>Clear (%1)</source>
+      <translation>清除 (%1)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="layers.cleanup.preview.keep">
+      <source>Keep</source>
+      <translation>保留</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="layers.cleanup.preview.zoom.in">
+      <source>Zoom in</source>
+      <translation>放大</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="layers.cleanup.preview.zoom.out">
+      <source>Zoom out</source>
+      <translation>縮小</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="layers.cleanup.preview.navigation">
+      <source>Wheel to zoom · Left- or middle-drag to pan</source>
+      <translation>滾輪縮放 · 按住滑鼠左鍵或中鍵拖曳以平移</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
     <message id="layers.cleanup.no.pixels">
       <source>No pixels to clear.</source>
       <translation>沒有可清除的像素。</translation>

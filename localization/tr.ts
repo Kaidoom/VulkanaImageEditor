@@ -14205,6 +14205,46 @@ Requested: %1 × %2 px</source>
       <source>Increase threshold</source>
       <translation>Eşiği artır</translation>
     </message>
+    <message id="layers.cleanup.preview.mask">
+      <source>Show cleanup mask</source>
+      <translation>Temizleme maskesini göster</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="layers.cleanup.preview.layer">
+      <source>Preview layer</source>
+      <translation>Önizleme katmanı</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="layers.cleanup.preview.all">
+      <source>Preview one layer at a time. Cleanup applies to all selected layers.</source>
+      <translation>Önizlemede tek bir katman gösterilir. Temizleme, seçili tüm katmanlara uygulanır.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="layers.cleanup.preview.clear">
+      <source>Clear (%1)</source>
+      <translation>Temizle (%1)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="layers.cleanup.preview.keep">
+      <source>Keep</source>
+      <translation>Koru</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="layers.cleanup.preview.zoom.in">
+      <source>Zoom in</source>
+      <translation>Yakınlaştır</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="layers.cleanup.preview.zoom.out">
+      <source>Zoom out</source>
+      <translation>Uzaklaştır</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="layers.cleanup.preview.navigation">
+      <source>Wheel to zoom · Left- or middle-drag to pan</source>
+      <translation>Yakınlaştırmak için tekerleği kullanın · Görünümü kaydırmak için sol veya orta düğmeyle sürükleyin</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
     <message id="layers.cleanup.no.pixels">
       <source>No pixels to clear.</source>
       <translation>Temizlenecek piksel yok.</translation>

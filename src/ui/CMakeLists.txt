@@ -126,6 +126,8 @@ add_library(imageeditor_ui STATIC
     src/MainWindowLasso.cpp
     src/MainWindowSelectionTransform.cpp
     src/MainWindowFill.cpp
+    src/LayerCleanupPreview.cpp
+    src/LayerCleanupPixels.cpp
     src/MainWindowLayerPixelCleanup.cpp
     src/ToolIcons.cpp
     src/NewDocumentDialog.cpp

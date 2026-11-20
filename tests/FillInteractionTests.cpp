@@ -2,21 +2,25 @@
 #include "imageeditor/core/SelectionMask.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/ColorSelector.hpp"
+#include "imageeditor/ui/CompactValueControl.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "NativeGraphicsStartup.hpp"
 #include "imageeditor/ui/PreferencesDialog.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/ToolOptionsBar.hpp"
+#include "../src/ui/src/LayerCleanupPixels.hpp"
 
 #include <QAction>
 #include <QApplication>
 #include <QCursor>
+#include <QCheckBox>
+#include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QElapsedTimer>
 #include <QImage>
 #include <QDialog>
-#include <QSpinBox>
+#include <QInputMethodEvent>
 #include <QDialogButtonBox>
 #include <QLabel>
 #include <QLineEdit>
@@ -29,6 +33,7 @@
 #include <QToolBar>
 #include <QToolButton>
 #include <QTimer>
+#include <QWheelEvent>
 #include <QPushButton>
 #include <QVulkanInstance>
 
@@ -334,10 +339,41 @@ void keyboardEraseAndNudges(Fixture& f)
     f.undo(); CHECK(f.document().layer(secondId)->localToDocument == secondMatrix);
 }
 
+QPointF cleanupPreviewPoint(const QWidget& view, const core::ViewportState& camera, QSize native, QPoint pixel)
+{
+    const auto p = camera.documentToViewport({pixel.x()+.5, pixel.y()+.5},
+        {double(native.width()), double(native.height())}, {double(view.width()), double(view.height())});
+    return {p.x, p.y};
+}
+
+QColor previewColor(QWidget& view, QPointF pos)
+{
+    const auto shot = view.grab();
+    return shot.toImage().pixelColor(int(pos.x()*shot.devicePixelRatio()), int(pos.y()*shot.devicePixelRatio()));
+}
+
+void cleanupPixelsThresholdBeforeDownsampling()
+{
+    const std::array<core::Rgba8,5> pixels{{{255,0,0,255}, {0,0,255,64},
+        {255,0,255,0}, {0,255,0,192}, {126,60,234,255}}};
+    core::ContiguousRasterSurface surface({5,1});
+    surface.replaceRgba8({0,0,5,1},std::as_bytes(std::span(pixels)),20);
+    ui::CleanupPixelScan scan(QRect(0,0,5,1),2,64);
+    CHECK(scan.advance(surface));
+    // Values in these images are premultiplied. Only the blue strand drops
+    // out; transparent magenta never contributes to its neighbors.
+    CHECK(scan.patch.original.pixel(0,0)==qRgba(64,48,16,128));
+    CHECK(scan.patch.cleaned.pixel(0,0)==qRgba(64,48,0,112));
+    CHECK(scan.patch.original.pixel(1,0)==qRgb(126,60,234));
+    CHECK(scan.patch.cleaned.pixel(1,0)==scan.patch.original.pixel(1,0));
+}
+
 void layerPixelMenuUtilities(Fixture& f)
 {
     QImage image(64,48,QImage::Format_RGBA8888);
     image.fill(QColor(80,120,160,255));
+    image.setPixelColor(2,2,Qt::transparent);
+    image.setPixelColor(12,2,QColor(240,64,20,100));
     for (int x=4; x<=7; ++x) image.setPixelColor(x,2,QColor(80,120,160,x));
     f.open(image);
     auto& session = const_cast<core::EditorSession&>(f.window.editorSession());
@@ -363,26 +399,88 @@ void layerPixelMenuUtilities(Fixture& f)
         auto* dialog=f.window.findChild<QDialog*>("CleanTransparencyDialog");
         CHECK(dialog && !dialog->isWindow());
         if (!dialog) return;
-        auto* spin=dialog->findChild<QSpinBox*>();
-        auto* down=dialog->findChild<QPushButton*>("DecreaseCleanupThreshold");
-        auto* up=dialog->findChild<QPushButton*>("IncreaseCleanupThreshold");
-        auto* edit=spin ? spin->findChild<QLineEdit*>() : nullptr;
+        auto* spin=dynamic_cast<ui::CompactValueControl*>(dialog->findChild<QDoubleSpinBox*>("CleanupThreshold"));
         auto* actions=dialog->findChild<QDialogButtonBox*>();
-        CHECK(edit && down && up && actions);
-        if (!edit || !down || !up || !actions) {dialog->reject();return;}
-        CHECK(spin->value()==4 && spin->buttonSymbols()==QAbstractSpinBox::NoButtons);
-        CHECK(spin->geometry().center().y()==up->geometry().center().y());
-        CHECK(spin->width()<dialog->width()/2 && down->geometry().right()<up->geometry().left());
-        QTest::mouseClick(up,Qt::LeftButton);
-        CHECK(spin->value()==5);
-        QTest::mouseClick(down,Qt::LeftButton);
-        CHECK(spin->value()==4);
-        spin->setValue(0); CHECK(!down->isEnabled() && up->isEnabled());
-        spin->setValue(255); CHECK(down->isEnabled() && !up->isEnabled());
-        QTest::mouseClick(edit,Qt::LeftButton);
-        QTest::keyClick(f.window.windowHandle(),Qt::Key_A,Qt::ControlModifier);
-        QTest::keyClick(f.window.windowHandle(),Qt::Key_6);
-        CHECK(spin->value()==6);
+        CHECK(spin && actions);
+        if (!spin || !actions) {dialog->reject();return;}
+        CHECK(spin->value()==4 && spin->minimum()==0 && spin->maximum()==255 && spin->decimals()==0);
+        auto* preview=dialog->findChild<QWidget*>("CleanupTargetPreview");
+        auto* count=dialog->findChild<QLabel*>("CleanupPreviewCount");
+        auto* showMask=dialog->findChild<QCheckBox*>("CleanupShowMask");
+        auto* compare=dialog->findChild<QPushButton*>("CleanupHoldOriginal");
+        CHECK(preview && count && showMask && compare && !dialog->findChild<QComboBox*>("CleanupPreviewLayer"));
+        if (!preview || !count || !showMask || !compare) {dialog->reject();return;}
+        core::ViewportState camera;
+        camera.fit({64,48}, {double(preview->width()),double(preview->height())}, 1);
+        const auto colorAt = [&](int x) {
+            return previewColor(*preview, cleanupPreviewPoint(*preview,camera,{64,48},{x,2}));
+        };
+        CHECK(preview->width()>500 && preview->height()>250);
+        CHECK(!showMask->isChecked());
+        spin->setValue(0);
+        CHECK(waitFor([&]{ return colorAt(10)==QColor(80,120,160); }));
+        const auto unmodified=colorAt(12);
+        const auto zeroPreview=preview->grab().toImage();
+        QTest::mousePress(compare,Qt::LeftButton);
+        CHECK(preview->grab().toImage()==zeroPreview);
+        QTest::mouseRelease(compare,Qt::LeftButton);
+        spin->setValue(100);
+        const auto cleared=colorAt(12);
+        CHECK(cleared!=unmodified && colorAt(10)==QColor(80,120,160));
+        QTest::mousePress(compare,Qt::LeftButton);
+        CHECK(colorAt(12)==unmodified);
+        QTest::mouseRelease(compare,Qt::LeftButton);
+        CHECK(colorAt(12)==cleared);
+        spin->setValue(255);
+        CHECK(colorAt(12)==cleared && colorAt(10)!=QColor(80,120,160));
+        spin->setValue(4);
+        QTest::mouseClick(showMask,Qt::LeftButton);
+        const QColor kept(88,88,88);
+        CHECK(colorAt(2)==Qt::black && colorAt(4)==Qt::white && colorAt(5)==kept);
+        QTest::mousePress(compare,Qt::LeftButton);
+        CHECK(colorAt(12)==unmodified);
+        QTest::mouseRelease(compare,Qt::LeftButton);
+        CHECK(colorAt(12)==kept);
+        CHECK(count->text()=="Clear (1)");
+        CHECK(std::abs(spin->geometry().center().y()-compare->geometry().center().y())<=1);
+        CHECK(spin->geometry().right()<compare->geometry().left());
+        CHECK(showMask->geometry().right()<count->geometry().left());
+        CHECK(std::abs(showMask->geometry().center().y()-count->geometry().center().y())<=1);
+
+        const QRect field=spin->valueFieldRect();
+        const QPoint start(field.left()+2,field.center().y()), end=field.center();
+        QTest::mousePress(spin,Qt::LeftButton,{},start);
+        const auto pressedValue=spin->value();
+        QMouseEvent drag(QEvent::MouseMove,end,spin->mapToGlobal(end),Qt::NoButton,Qt::LeftButton,Qt::NoModifier);
+        QCoreApplication::sendEvent(spin,&drag);
+        CHECK(spin->isSliding() && spin->value()>pressedValue && spin->value()==std::round(spin->valueFromPosition(end.x())));
+        CHECK(colorAt(6)==Qt::white && count->text()=="Clear (5)");
+        QTest::mouseRelease(spin,Qt::LeftButton,{},end);
+        CHECK(!spin->isSliding());
+        spin->setValue(0);
+        CHECK(colorAt(4)==kept && count->text()=="Clear (0)");
+        spin->setValue(255);
+        CHECK(colorAt(2)==Qt::black && colorAt(10)==Qt::white);
+
+        if (QGuiApplication::platformName()=="offscreen") {
+            QTest::mouseDClick(spin,Qt::LeftButton,{},field.center());
+            QTest::mouseRelease(spin,Qt::LeftButton,{},field.center());
+        } else {
+            auto* panelWindow=f.workspace->panelOverlay()->windowHandle();
+            const auto fieldCenter=panelWindow->mapFromGlobal(spin->mapToGlobal(field.center()));
+            QTest::mouseDClick(panelWindow,Qt::LeftButton,{},fieldCenter);
+        }
+        CHECK(spin->isManualEntryActive());
+        QKeyEvent key(QEvent::KeyPress,Qt::Key_8,Qt::NoModifier,"8");
+        QCoreApplication::sendEvent(f.window.windowHandle(),&key);
+        CHECK(spin->value()==8);
+        QKeyEvent selectAll(QEvent::KeyPress,Qt::Key_A,Qt::ControlModifier);
+        QCoreApplication::sendEvent(f.window.windowHandle(),&selectAll);
+        QInputMethodEvent input;
+        input.setCommitString("6");
+        QCoreApplication::sendEvent(f.window.windowHandle(),&input);
+        CHECK(spin->value()==6 && colorAt(6)==Qt::white && colorAt(7)==kept);
+        CHECK(f.history().undoDepth()==depth && f.pixels()==original && f.document().selection()==mask);
         QTest::mouseClick(actions->button(QDialogButtonBox::Ok),Qt::LeftButton);
     });
     f.trigger("CleanTransparencyAction");
@@ -395,6 +493,112 @@ void layerPixelMenuUtilities(Fixture& f)
     });
     f.trigger("CleanTransparencyAction");
     CHECK(f.history().undoDepth()==depth && f.history().canRedo() && f.pixels()==original);
+    // The cleanup reads raw layer pixels, including off-canvas pixels and
+    // layers hidden in the composite. The picker only changes the preview.
+    auto surface = std::make_shared<core::ContiguousRasterSurface>(core::Extent2u{4096,512}, core::Rgba8{});
+    const std::array<core::Rgba8,2> speck{{{10,20,30,255},{10,20,30,1}}};
+    surface->replaceRgba8({4094,511,2,1},std::as_bytes(std::span(speck)),8);
+    const std::array<core::Rgba8,2> pair{{{10,20,30,255},{10,20,30,6}}};
+    surface->replaceRgba8({2072,251,2,1},std::as_bytes(std::span(pair)),8);
+    auto second = core::Layer::raster("Speck",surface);
+    second.visible = false;
+    const auto secondId = second.id;
+    CHECK(session.document()->insertLayer(1,std::move(second)));
+    const std::array ids{id,secondId};
+    session.setLayerSelection(ids,secondId);
+    const auto selected=session.layerSelectionState();
+    QTimer::singleShot(0,&f.window,[&] {
+        auto* dialog=f.window.findChild<QDialog*>("CleanTransparencyDialog");
+        if(!dialog) { CHECK(false); return; }
+        auto* combo=dialog->findChild<QComboBox*>("CleanupPreviewLayer");
+        auto* preview=dialog->findChild<QWidget*>("CleanupTargetPreview");
+        auto* count=dialog->findChild<QLabel*>("CleanupPreviewCount");
+        auto* spin=dynamic_cast<ui::CompactValueControl*>(dialog->findChild<QDoubleSpinBox*>("CleanupThreshold"));
+        auto* showMask=dialog->findChild<QCheckBox*>("CleanupShowMask");
+        auto* compare=dialog->findChild<QPushButton*>("CleanupHoldOriginal");
+        CHECK(combo && preview && count && spin && showMask && compare);
+        if(!combo || !preview || !count || !spin || !showMask || !compare) {dialog->reject();return;}
+        showMask->setChecked(true);
+        CHECK(combo->count()==2 && combo->currentText()=="Speck");
+        // Exercise switching sources while a scan may still be scheduled.
+        combo->setCurrentIndex(1-combo->currentIndex());
+        spin->setValue(5);
+        CHECK(count->text()=="Clear (2)");
+        combo->setCurrentIndex(combo->findText("Speck"));
+        CHECK(waitFor([&]{return count->text()=="Clear (1)";}));
+        const QSize native(4096,512);
+        core::ViewportState camera;
+        const core::Extent2d viewSize{double(preview->width()), double(preview->height())};
+        camera.fit({4096,512},viewSize,1);
+        auto pos = [&](QPoint pixel) { return cleanupPreviewPoint(*preview,camera,native,pixel); };
+        // In Fit, the last occupied bin represents both the opaque and faint pixels.
+        // Sample the centre of that bin so it lies inside the viewport border.
+        CHECK(previewColor(*preview,pos({4092,508}))==Qt::white);
+        auto* actual=dialog->findChild<QToolButton*>("CleanupZoomActual");
+        auto* fit=dialog->findChild<QToolButton*>("CleanupZoomFit");
+        auto* plus=dialog->findChild<QToolButton*>("CleanupZoomIn");
+        auto* minus=dialog->findChild<QToolButton*>("CleanupZoomOut");
+        auto* zoom=dialog->findChild<QLabel*>("CleanupPreviewZoom");
+        CHECK(actual && fit && plus && minus && zoom);
+        if (!actual || !fit || !plus || !minus || !zoom) {dialog->reject();return;}
+        const auto fittedZoom=zoom->text();
+        actual->click(); camera.reset100Percent();
+        CHECK(zoom->text()=="100%");
+        spin->setValue(6);
+        const QColor kept(88,88,88);
+        auto exact = [&] {
+            return previewColor(*preview,pos({2072,251}))==kept
+                && previewColor(*preview,pos({2073,251}))==Qt::white
+                && previewColor(*preview,pos({2074,251}))==Qt::black;
+        };
+        CHECK(waitFor(exact));
+        const auto anchor=pos({2073,251});
+        const auto wheel = [&](int steps) {
+            QWheelEvent event(anchor, preview->mapToGlobal(anchor), {}, {0,steps*120},
+                Qt::NoButton,Qt::NoModifier,Qt::NoScrollPhase,false);
+            QCoreApplication::sendEvent(preview,&event);
+            camera.zoomAround({anchor.x(),anchor.y()},std::pow(1.16,steps),{4096,512},viewSize);
+        };
+        wheel(6);
+        CHECK(zoom->text()=="244%" && waitFor(exact));
+        wheel(-6);
+        CHECK(zoom->text()=="100%" && waitFor(exact));
+        plus->click(); CHECK(zoom->text()=="125%");
+        minus->click(); CHECK(zoom->text()=="100%");
+        for (const auto button : {Qt::LeftButton, Qt::MiddleButton}) {
+            const QPoint from=preview->rect().center(), delta(24,13), to=from+delta;
+            QTest::mousePress(preview,button,Qt::NoModifier,from);
+            QMouseEvent move(QEvent::MouseMove,to,preview->mapToGlobal(to),Qt::NoButton,button,Qt::NoModifier);
+            QCoreApplication::sendEvent(preview,&move);
+            QTest::mouseRelease(preview,button,Qt::NoModifier,to);
+            camera.panBy({double(delta.x()),double(delta.y())});
+            CHECK(waitFor(exact));
+        }
+        showMask->setChecked(false);
+        const auto opaquePixel = [&] { return previewColor(*preview,pos({2072,251})); };
+        CHECK(waitFor([&]{return opaquePixel()==QColor(10,20,30);}));
+        spin->setValue(255);
+        const auto empty=opaquePixel();
+        QTest::mousePress(compare,Qt::LeftButton);
+        CHECK(opaquePixel()==QColor(10,20,30) && zoom->text()=="100%");
+        QTest::mouseRelease(compare,Qt::LeftButton);
+        CHECK(opaquePixel()==empty && empty!=QColor(10,20,30));
+        showMask->setChecked(true);
+        spin->setValue(5);
+        CHECK(previewColor(*preview,pos({2073,251}))==kept && count->text()=="Clear (1)");
+        fit->click(); camera.fit({4096,512},viewSize,1);
+        CHECK(zoom->text()==fittedZoom && previewColor(*preview,pos({4092,508}))==Qt::white);
+        CHECK(selected==session.layerSelectionState());
+        dialog->accept();
+    });
+    f.trigger("CleanTransparencyAction");
+    CHECK(f.history().undoDepth()==depth+1 && selected==session.layerSelectionState());
+    CHECK(f.pixel(4095,511).alpha==0 && f.pixel(4094,511).alpha==255 && f.pixel(2073,251).alpha==6);
+    session.setActiveLayer(id);
+    CHECK(f.pixel(5,2).alpha==0 && f.pixel(6,2).alpha==6);
+    f.undo();
+    CHECK(std::get<core::RasterLayer>(f.document().layer(secondId)->payload).surface==surface);
+
 }
 
 void controlsAreCachedAndDocumentingTheImplementedTools()
@@ -1051,6 +1255,7 @@ int main(int argc, char** argv)
     QSettings::setDefaultFormat(QSettings::IniFormat);
     QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settings.path());
     ui::applyEditorTheme(application);
+    cleanupPixelsThresholdBeforeDownsampling();
     if (qEnvironmentVariableIsSet("IMAGEEDITOR_TEST_FILL_NATIVE"))
         return nativeFillValidation();
     if (const auto preview = qEnvironmentVariable("IMAGEEDITOR_TEST_TOOLBARS_PREVIEW");

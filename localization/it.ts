@@ -14160,6 +14160,46 @@ Richiesto: %1 × %2 px</translation>
       <source>Increase threshold</source>
       <translation>Aumenta soglia</translation>
     </message>
+    <message id="layers.cleanup.preview.mask">
+      <source>Show cleanup mask</source>
+      <translation>Mostra maschera di pulizia</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="layers.cleanup.preview.layer">
+      <source>Preview layer</source>
+      <translation>Livello in anteprima</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="layers.cleanup.preview.all">
+      <source>Preview one layer at a time. Cleanup applies to all selected layers.</source>
+      <translation>L’anteprima mostra un livello alla volta. La pulizia si applica a tutti i livelli selezionati.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="layers.cleanup.preview.clear">
+      <source>Clear (%1)</source>
+      <translation>Cancella (%1)</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="layers.cleanup.preview.keep">
+      <source>Keep</source>
+      <translation>Mantieni</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="layers.cleanup.preview.zoom.in">
+      <source>Zoom in</source>
+      <translation>Ingrandisci</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="layers.cleanup.preview.zoom.out">
+      <source>Zoom out</source>
+      <translation>Riduci</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="layers.cleanup.preview.navigation">
+      <source>Wheel to zoom · Left- or middle-drag to pan</source>
+      <translation>Rotella per lo zoom · Trascina con il pulsante sinistro o centrale per spostare la vista</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
     <message id="layers.cleanup.no.pixels">
       <source>No pixels to clear.</source>
       <translation>Nessun pixel da cancellare.</translation>

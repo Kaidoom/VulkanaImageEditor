@@ -72,12 +72,11 @@ std::unique_ptr<Command> makeLayerPixelCleanupCommand(const Document& doc, const
             for (int row = 0; row < rows; ++row) {
                 auto* pixels = band.data() + size_t(row) * size_t(width);
                 for (int x = 0; x < width; ++x) {
-                    if (!pixels[x].alpha)
-                        continue;
                     if (operation == LayerPixelCleanup::RemoveLowAlpha) {
-                        if (pixels[x].alpha > threshold)
+                        if (!cleanupTargetsAlpha(pixels[x].alpha, threshold))
                             continue;
                     } else {
+                        if (!pixels[x].alpha) continue;
                         const auto p = mapping.map({ x + .5, y + row + .5 });
                         if (canvasBounds.contains(p))
                             continue;

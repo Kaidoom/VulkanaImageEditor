@@ -9461,6 +9461,30 @@ Requested: %1 × %2 px</source>
     <message id="layers.cleanup.threshold"><source>Clear pixels with alpha at or below this value (0–255)</source></message>
     <message id="layers.cleanup.decrease.threshold"><source>Decrease threshold</source></message>
     <message id="layers.cleanup.increase.threshold"><source>Increase threshold</source></message>
+    <message id="layers.cleanup.preview.mask">
+      <source>Show cleanup mask</source>
+    </message>
+    <message id="layers.cleanup.preview.layer">
+      <source>Preview layer</source>
+    </message>
+    <message id="layers.cleanup.preview.all">
+      <source>Preview one layer at a time. Cleanup applies to all selected layers.</source>
+    </message>
+    <message id="layers.cleanup.preview.clear">
+      <source>Clear (%1)</source>
+    </message>
+    <message id="layers.cleanup.preview.keep">
+      <source>Keep</source>
+    </message>
+    <message id="layers.cleanup.preview.zoom.in">
+      <source>Zoom in</source>
+    </message>
+    <message id="layers.cleanup.preview.zoom.out">
+      <source>Zoom out</source>
+    </message>
+    <message id="layers.cleanup.preview.navigation">
+      <source>Wheel to zoom · Left- or middle-drag to pan</source>
+    </message>
     <message id="layers.cleanup.no.pixels"><source>No pixels to clear.</source></message>
     <message id="project.paint.label"><source>Paint overlay</source></message>
     <message id="project.paint.clear"><source>Clear Paint Overlay</source></message>

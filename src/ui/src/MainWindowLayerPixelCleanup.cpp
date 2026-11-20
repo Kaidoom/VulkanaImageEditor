@@ -1,4 +1,5 @@
 #include "imageeditor/ui/MainWindow.hpp"
+#include "LayerCleanupPreview.hpp"
 #include "imageeditor/core/LayerPixelCleanup.hpp"
 #include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/ToolIcons.hpp"
@@ -8,76 +9,32 @@
 #include <QApplication>
 #include <QDialog>
 #include <QElapsedTimer>
-#include <QHBoxLayout>
 #include <QLabel>
 #include <QMenu>
 #include <QProgressBar>
-#include <QPushButton>
 #include <QScopeGuard>
 #include <QScopedValueRollback>
-#include <QSpinBox>
 #include <QStatusBar>
 #include <QVBoxLayout>
 
 namespace imageeditor::ui {
 namespace {
-std::optional<int> chooseAlphaThreshold(WorkspaceDialog& presenter, const i18n::Message& title)
+std::optional<int> chooseAlphaThreshold(WorkspaceDialog& presenter, const i18n::Message& title,
+    const core::Document& document, const core::LayerSelectionState& selected)
 {
     QDialog card(&presenter, Qt::SubWindow | Qt::FramelessWindowHint);
     card.setObjectName("CleanTransparencyDialog");
     i18n::setWindowTitle(&card, title);
     auto* layout = new QVBoxLayout(&card);
-    const auto prompt = i18n::text("layers.cleanup.threshold");
-    auto* label = i18n::make<QLabel>(prompt, &card);
-    layout->addWidget(label);
-    auto* row = new QHBoxLayout;
-    row->setSpacing(4);
-    layout->addLayout(row);
-
-    auto* value = new QSpinBox(&card);
-    value->setRange(0, 255);
-    value->setValue(core::defaultCleanupAlpha);
-    value->setAlignment(Qt::AlignCenter);
-    value->setButtonSymbols(QAbstractSpinBox::NoButtons);
-    value->setStyleSheet(QStringLiteral("QSpinBox { padding: 0 6px; }"));
-    value->setFixedWidth(std::max(56, value->sizeHint().width()));
-    label->setBuddy(value);
-    row->addWidget(value);
-
-    const auto addStep = [&](const QString& symbol, const i18n::Message& name, auto step) {
-        auto* button = new QPushButton(symbol, &card);
-        button->setAutoDefault(false);
-        button->setAutoRepeat(true);
-        button->setStyleSheet(QStringLiteral("QPushButton { padding: 0; }"));
-        i18n::setAccessibleName(button, name);
-        i18n::setToolTip(button, name);
-        QObject::connect(button, &QPushButton::clicked, value, step);
-        row->addWidget(button);
-        return button;
-    };
-    auto* decrease = addStep(QStringLiteral("−"), i18n::text("layers.cleanup.decrease.threshold"), &QSpinBox::stepDown);
-    auto* increase = addStep(QStringLiteral("+"), i18n::text("layers.cleanup.increase.threshold"), &QSpinBox::stepUp);
-    decrease->setObjectName("DecreaseCleanupThreshold");
-    increase->setObjectName("IncreaseCleanupThreshold");
-    const auto updateSteps = [=](int number) {
-        decrease->setEnabled(number > value->minimum());
-        increase->setEnabled(number < value->maximum());
-    };
-    QObject::connect(value, &QSpinBox::valueChanged, &card, updateSteps);
-    updateSteps(value->value());
+    auto* preview = new LayerCleanupPreview(document, selected, &card);
+    layout->addWidget(preview);
     auto* actions = new i18n::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &card);
-    const int height = actions->sizeHint().height();
-    value->setFixedHeight(height);
-    decrease->setFixedSize(height, height);
-    increase->setFixedSize(height, height);
-    row->addSpacing(8);
-    row->addStretch();
-    row->addWidget(actions);
+    layout->addWidget(actions);
     QObject::connect(actions, &QDialogButtonBox::accepted, &card, &QDialog::accept);
     QObject::connect(actions, &QDialogButtonBox::rejected, &card, &QDialog::reject);
+    card.setProperty("workspacePreferredSize", card.sizeHint());
     if (presenter.exec(card) != QDialog::Accepted) return std::nullopt;
-    value->interpretText();
-    return value->value();
+    return preview->threshold();
 }
 }
 
@@ -134,7 +91,7 @@ try {
     if (!trimToCanvas) {
         WorkspaceDialog presenter(*workspace_, *this);
         QScopedValueRollback modal(workspaceDialog_, &presenter);
-        const auto chosen = chooseAlphaThreshold(presenter, title);
+        const auto chosen = chooseAlphaThreshold(presenter, title, doc, selected);
         if (!chosen) return;
         threshold = *chosen;
     }
