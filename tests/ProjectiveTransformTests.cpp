@@ -165,8 +165,31 @@ void consecutiveNudgesOnInsetPerspectiveContent()
     CHECK(document.layer(id)->localToDocument == final);
 }
 
+void appearanceMustFitThePendingPerspectiveFrames()
+{
+    Document document({{64,64},96});
+    auto layer = Layer::raster("Projected", std::make_shared<ContiguousRasterSurface>(
+        Extent2u{32,32}, Rgba8{100,100,100,255}));
+    // Raw pixels lie on one side of x = -100. A wide glow would cross it.
+    layer.localToDocument = {1,0,0,0,1,0,.01,0,1};
+    const auto id = layer.id;
+    CHECK(document.insertLayer(0,std::move(layer)));
+    LayerTransformSession edit(document,id);
+    CHECK(edit.active());
+    const auto* target = document.layer(id);
+    CHECK(edit.supportsAppearance(*target,{},{}));
+    auto glow = std::make_shared<LayerEffectStack>();
+    auto& effect = glow->items[std::size_t(LayerEffectType::OuterGlow)];
+    effect.enabled = true;
+    effect.size = 160;
+    CHECK(!edit.supportsAppearance(*target,{},glow));
+    effect.size = 6;
+    CHECK(edit.supportsAppearance(*target,{},glow));
+}
+
 int main()
 {
+    appearanceMustFitThePendingPerspectiveFrames();
     consecutiveNudgesOnInsetPerspectiveContent();
     resizingDoesNotInverseProjectThePointerAcrossAHorizon();
     projectedResizeFollowsTheForwardHandleTrajectory();

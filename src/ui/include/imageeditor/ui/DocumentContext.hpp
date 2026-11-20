@@ -1,5 +1,6 @@
 #pragma once
 #include "imageeditor/core/EditorSession.hpp"
+#include "imageeditor/core/SelectedPixelTransform.hpp"
 #include "imageeditor/core/CloneStroke.hpp"
 #include "imageeditor/core/ViewportState.hpp"
 #include "imageeditor/core/Measurement.hpp"
@@ -13,6 +14,27 @@
 namespace imageeditor::ui {
 using DocumentInstanceId = std::uint64_t;
 struct RefinementWorkspace;
+
+struct SelectionTransform {
+    DocumentInstanceId owner{};
+    std::unique_ptr<core::SelectedPixelTransformSession> pixels;
+    core::SelectionState before;
+    core::RectI bounds;
+    core::TransformValues values, dragBefore;
+    std::optional<core::TransformDrag> drag;
+    core::BoundsSnapping snapping;
+    core::SnapGuides pendingGuides;
+    core::Vec2d dragPress;
+    bool moving {false};
+    bool snapMovementStarted {false};
+    std::vector<core::TransformValues> checkpoints;
+    std::size_t checkpoint {0};
+    [[nodiscard]] core::Extent2u extent() const { return {std::uint32_t(bounds.width), std::uint32_t(bounds.height)}; }
+    [[nodiscard]] core::AffineTransform matrix() const { return core::transformFromValues(values, extent()); }
+    [[nodiscard]] core::AffineTransform mapping() const {
+        return core::composeTransform(matrix(),{1,0,-double(bounds.x),0,1,-double(bounds.y)});
+    }
+};
 
 // Runtime ownership only. Neither tab order nor instance IDs enter .vulkana.
 struct DocumentContext final {
@@ -33,6 +55,10 @@ struct DocumentContext final {
     core::SnapshotFrameId selectedSnapshot {1}; // Session-only timeline selection.
     // Unpublished editing workspace, owned by this runtime tab only.
     std::shared_ptr<RefinementWorkspace> refinement;
+    std::unique_ptr<core::LayerTransformSession> suspendedLayerTransform;
+    std::optional<SelectionTransform> suspendedSelectionTransform;
+    core::ToolId toolBeforeTransform {core::ToolId::Move};
+    bool hasSuspendedTransform() const { return suspendedLayerTransform || suspendedSelectionTransform; }
     std::uint64_t cancellationGeneration {0};
     std::uint64_t lastActivated {0};
     // Observe a source once per committed state, even if its parent later

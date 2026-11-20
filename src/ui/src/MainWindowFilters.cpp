@@ -119,19 +119,7 @@ bool MainWindow::beginFilterEdit(core::SpatialFilterType type)
     }
     if(const auto* l=session().document()->layer(*session().activeLayer());l&&std::holds_alternative<core::AdjustmentLayer>(l->payload))return false;
     if(filterEdit_)return filterEdit_->active()&&filterEdit_->target()==*session().activeLayer();
-    if(canvasWindow_->pointerGestureActive()||activeBrushStroke_||activeCloneStroke_||cloneProcessing_
-        ||activeLocalBlurStroke_||localBlurProcessing_||activeFill_||shapeCreation_||shapeResize_
-        ||selectionGesture_||selectionRasterizer_||colorSelectionEditing_||smartInteractionActive())return false;
-    finishAdjustmentEdit(true);if(adjustmentEdit_)return false;
-    finishEffectEdit(true);if(effectEdit_)return false;
-    if(layerTransform_||layerCrop_||selectionTransform_){
-        finishCanvasOperation();if(layerTransform_||layerCrop_||selectionTransform_)return false;
-    }
-    if(textController_&&textController_->active()){
-        textController_->finish();if(textController_->active())return false;
-    }
-    finishLayerMove(true);if(activeLayerMove_)return false;
-    cancelPendingEdits();
+    if (!prepareAppearanceEdit()) return false;
     try{
         auto transaction=std::make_unique<core::FilterEditTransaction>(*session().document(),*session().activeLayer());
         if(!transaction->active())return false;
@@ -146,6 +134,7 @@ void MainWindow::previewFilterEdit(core::SpatialFilterState state)
         if(!target){finishFilterEdit(false);return;}
         auto candidate=*target;
         candidate.filters=state;
+        validateTransformAppearance(candidate, state, candidate.effects);
         // A native document-grid preview may be rotated/sheared relative to
         // the model. Filters need their canonical local source before admission.
         prepareCanonicalFilterSource(candidate, *session().document());
@@ -168,7 +157,9 @@ void MainWindow::finishFilterEdit(bool commit)
                 statusBar()->showMessage(i18n::text("main.window.filters.could.not.record.the.filter.preview.retained.retry.or"),5000);return;
             }
         }else (void)filterEdit_->cancel();
-        filterEdit_.reset();if(session().document())synchronizeUi(false,false);
+        filterEdit_.reset();
+        appearanceEditFinished();
+        if(session().document())synchronizeUi(false,false);
     }catch(const std::exception& e){statusBar()->showMessage(i18n::text("main.window.filters.could.not.finish.filter.1").arg(QString::fromUtf8(e.what())),5000);}
 }
 void MainWindow::captureFilterSelection(core::SpatialFilterType type)

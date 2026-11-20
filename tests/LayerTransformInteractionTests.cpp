@@ -14,6 +14,8 @@
 #include <QApplication>
 #include <QCoreApplication>
 #include <QContextMenuEvent>
+#include <QCheckBox>
+#include <QTabBar>
 #include <QCursor>
 #include <QDoubleSpinBox>
 #include <QDialog>
@@ -3259,6 +3261,68 @@ void nativeCanvasPressFlushesNumericTextBeforeBeginningTheGesture()
     CHECK(sameTransform(fixture.transform(), original));
 }
 
+void documentTabsKeepIndependentTransformPreviews()
+{
+    RasterFixture f;
+    if (!f.valid()) return;
+    auto* x = f.window.findChild<QDoubleSpinBox*>("TransformXControl");
+    auto* tabs = f.window.findChild<QTabBar*>("DocumentTabs");
+    auto* mode = f.window.findChild<QToolButton*>("LayerOpacityMode");
+    auto* opacity = f.window.findChild<QDoubleSpinBox*>("LayerOpacitySlider");
+    CHECK(x && tabs && mode && opacity);
+    if (!x || !tabs || !mode || !opacity) return;
+    const auto first = f.window.activeDocumentId();
+    const auto* doc = f.window.editorSession().document();
+    const auto id = *f.window.editorSession().activeLayer();
+    const auto initial = f.transform();
+    f.startWithAction();
+    x->setValue(x->value() + 37);
+    const auto preview = f.transform();
+    CHECK(!sameTransform(initial, preview));
+    mode->click(); opacity->setValue(42);
+    for (const auto name : {"AdjustmentEnabled0", "FilterEnabled0", "EffectEnabled0"}) {
+        auto* enabled = f.window.findChild<QCheckBox*>(name);
+        CHECK(enabled && enabled->isEnabled());
+        if (enabled) enabled->click();
+        CHECK(enabled && enabled->isChecked() && activeTransform(f));
+    }
+    auto* view = f.window.findChild<QListView*>("LayerList");
+    CHECK(view);
+    if (!view) return;
+    const auto index = view->currentIndex();
+    CHECK(view->model()->setData(index, Qt::Unchecked, Qt::CheckStateRole));
+    CHECK(activeTransform(f) && !doc->layer(id)->visible);
+    const auto appearanceState = doc->contentState();
+    CHECK(f.window.openImageFromPath(f.assets.filePath("upper.png")));
+    CHECK(first != f.window.activeDocumentId() && !activeTransform(f));
+    CHECK(sameTransform(doc->layer(id)->localToDocument, initial));
+    const auto secondInitial = f.transform();
+    f.startWithAction();
+    x->setValue(x->value() - 21);
+    const auto secondPreview = f.transform();
+    auto switchTab = [&](int index) {
+        QTest::mouseClick(tabs, Qt::LeftButton, {}, tabs->tabRect(index).center());
+        settleEvents();
+    };
+    const int secondTab = tabs->currentIndex();
+    const int firstTab = tabs->count()-2;
+    switchTab(firstTab);
+    CHECK(f.window.activeDocumentId() == first && activeTransform(f));
+    CHECK(sameTransform(f.transform(), preview));
+    CHECK(!f.activeLayer()->visible && near(f.activeLayer()->fillOpacity, .42, .001));
+    QTest::keyClick(f.canvas, Qt::Key_Escape);
+    CHECK(!activeTransform(f) && sameTransform(f.transform(), initial));
+    CHECK(doc->contentState() == appearanceState && !f.activeLayer()->visible);
+    switchTab(secondTab);
+    CHECK(activeTransform(f) && sameTransform(f.transform(), secondPreview));
+    QTest::keyClick(f.canvas, Qt::Key_Return);
+    CHECK(!activeTransform(f) && sameTransform(f.transform(), secondPreview));
+    auto* undo = actionWithShortcut(f.window, QKeySequence::Undo);
+    CHECK(undo);
+    if (undo) undo->trigger();
+    CHECK(sameTransform(f.transform(), secondInitial));
+}
+
 void conflictingEditsCancelThePreviewBeforeTheirOwnCommand()
 {
     {
@@ -3282,9 +3346,11 @@ void conflictingEditsCancelThePreviewBeforeTheirOwnCommand()
         CHECK(!sameTransform(fixture.transform(), original));
         opacity->setValue(63);
         settleEvents();
-        CHECK(fixture.window.editorSession().activeTool() == core::ToolId::Move);
-        CHECK(!fixture.canvas->scene().transformOverlay.has_value());
+        CHECK(activeTransform(fixture));
+        CHECK(!sameTransform(fixture.transform(), original));
+        QTest::keyClick(fixture.canvas, Qt::Key_Escape);
         CHECK(sameTransform(fixture.transform(), original));
+        CHECK(fixture.window.editorSession().document()->isModified());
         CHECK(near(fixture.activeLayer()->opacity, 0.63, 0.011));
         CHECK(fixture.window.editorSession().history().undoDepth()
             == historyDepth + 1U);
@@ -3908,6 +3974,7 @@ int main(int argc, char** argv)
     numericControlsRepublishCanonicalCoreValues();
     flipCommitsPendingNumericTextBeforeChangingScale();
     nativeCanvasPressFlushesNumericTextBeforeBeginningTheGesture();
+    documentTabsKeepIndependentTransformPreviews();
     conflictingEditsCancelThePreviewBeforeTheirOwnCommand();
     canvasPressRoutesAcrossTheNativePanelSurfaceUntilRelease();
 

@@ -112,9 +112,9 @@ void MainWindow::createLayerOrganizationActions()
 }
 void MainWindow::changeLayerVisibility(core::VisibilityOperation operation)
 {
-    if (fileBusy_ || !session().document() || !settleForFileOperation()) return;
+    if (fileBusy_ || !session().document()) return;
     try {
-        if (session().execute(std::make_unique<core::SetItemsVisibilityCommand>(
+        if (executeAppearanceCommand(std::make_unique<core::SetItemsVisibilityCommand>(
                 *session().document(), session().selectedLayers(), operation))) {
             fileState().untouched = false;
             synchronizeUi(false, false);

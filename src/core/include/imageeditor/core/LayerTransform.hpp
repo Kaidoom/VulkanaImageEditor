@@ -130,6 +130,9 @@ public:
     bool undo();
     bool redo();
     [[nodiscard]] const History& pendingHistory() const noexcept { return pendingHistory_; }
+    [[nodiscard]] bool supportsAppearance(const Layer&, const SpatialFilterState&, const LayerEffectState&) const;
+    bool suspendPreview();
+    bool resumePreview();
     TransformCommitResult commit(History& history);
     void cancel();
 
@@ -140,7 +143,7 @@ private:
     void synchronizeTargets();
     Document* document_;
     LayerId layerId_ { 0 };
-    std::uint64_t entryContentState_ { 0 };
+    std::optional<AffineTransform> suspendedFrame_;
     Extent2u extent_;
     Extent2d geometryExtent_;
     std::vector<LayerTransformTarget> targets_;
@@ -152,7 +155,7 @@ private:
     AffineTransform original_, current_, dragStart_, actionStart_;
     TransformValues values_, dragValues_, actionStartValues_;
     // Pending actions must not be evicted before whole-session cancellation.
-    History pendingHistory_ { std::numeric_limits<std::size_t>::max() };
+    History pendingHistory_ { std::numeric_limits<std::size_t>::max(), History::ContentTracking::OnPublication };
     // Preserve the user's signed-scale/angle representation across local travel.
     std::vector<TransformValues> actionValues_;
     std::vector<AffineTransform> actionFrames_;

@@ -655,7 +655,7 @@ MainWindow::MainWindow(
 
     layerModel_->setSession(&session());
     layerModel_->onVisibilityChanged = [this](core::LayerId layerId, bool visible) {
-        if (executeDocumentCommand(std::make_unique<core::SetLayerVisibilityCommand>(layerId, visible))) {
+        if (executeAppearanceCommand(std::make_unique<core::SetLayerVisibilityCommand>(layerId, visible))) {
             fileState().untouched = false;
             synchronizeUi(false, false);
             return true;
@@ -770,6 +770,7 @@ MainWindow::MainWindow(
         canvasWindow_->dismissLayerOutlines();
     };
     canvasWindow_->onTransformBegan = [this](core::TransformHandle handle, core::Vec2d position) {
+        if ((layerTransform_ || selectionTransform_) && !finishAppearanceEdits()) return false;
         if (canvasResize_) {
             canvasResizeOptionsPage_->finishNumericInput();
             const bool ok = runTransformAction([&] { return canvasResize_->begin(handle, position); });
@@ -2865,17 +2866,11 @@ void MainWindow::createDocks()
         if (!mode) return;
         const auto* layer = session().document()->layer(*session().activeLayer());
         if (!layer || layer->blendMode == *mode) return;
-        // A blend change must not silently discard completed Ctrl+T gestures
-        // when the general document-command boundary settles pending tools.
-        if (layerTransform_ || layerCrop_ || selectionTransform_ || canvasResize_) {
-            finishCanvasOperation();
-            if (layerTransform_ || layerCrop_ || selectionTransform_ || canvasResize_) { updateLayerControls(); return; }
-        }
-        if (executeDocumentCommand(std::make_unique<core::SetLayerBlendModeCommand>(
+        if (executeAppearanceCommand(std::make_unique<core::SetLayerBlendModeCommand>(
                 *session().activeLayer(), *mode))) {
             fileState().untouched = false;
             synchronizeUi(false, false);
-        }
+        } else updateLayerControls();
     });
     connect(opacitySlider_, &QDoubleSpinBox::valueChanged, this, [this](double value) {
         if (updatingUi_ || !session().activeLayer()) {
@@ -2887,10 +2882,10 @@ void MainWindow::createDocks()
             *session().activeLayer(), float(value)/100, activeOpacityMergeKey_);
         else command = std::make_unique<core::SetLayerOpacityCommand>(
             *session().activeLayer(), float(value)/100, activeOpacityMergeKey_);
-        if (executeDocumentCommand(std::move(command))) {
+        if (executeAppearanceCommand(std::move(command))) {
             fileState().untouched = false;
             synchronizeUi(false, false);
-        }
+        } else updateLayerControls();
     });
     opacitySlider_->onInteractionStarted = [this] {
         activeOpacityMergeKey_ = nextOpacityMergeKey_++;
@@ -4698,8 +4693,10 @@ void MainWindow::selectLayerFromRow(int row, Qt::KeyboardModifiers modifiers, bo
     if (session().activeTool() == core::ToolId::Move
         && (!activeLayerMove_ || !activeLayerMove_->dragging()))
         moveOptionsPage_->finishNumericInput();
-    cancelPendingEdits();
     const auto id=layerModel_->layerIdAt(row);
+    const bool sameTarget = id && id == session().activeLayer() && modifiers == Qt::NoModifier
+        && (contextSelection || session().selectedLayers().size() == 1);
+    cancelPendingEdits(sameTarget ? PendingTransforms::Keep : PendingTransforms::Cancel);
     if (contextSelection && id && session().isLayerSelected(*id)) {
         session().setLayerSelection(session().selectedLayers(), id, session().selectionAnchor());
     } else if(id && modifiers.testFlag(Qt::ShiftModifier)) {

@@ -69,7 +69,7 @@ void MainWindow::beginSelectionTransform()
     }
     const auto b = mask->bounds();
     SelectionTransform edit;
-    edit.owner = activeDocument_;
+    edit.owner = activeDocumentId();
     edit.before = mask;
     edit.bounds = b;
     edit.values.center = {b.x + b.width * 0.5, b.y + b.height * 0.5};
@@ -120,7 +120,7 @@ void MainWindow::flushSelectedPixelPreview()
         return;
     auto values = *queuedPixelTransform_;
     queuedPixelTransform_.reset();
-    if (!selectionTransform_ || !selectionTransform_->pixels || selectionTransform_->owner != activeDocument_)
+    if (!selectionTransform_ || !selectionTransform_->pixels || selectionTransform_->owner != activeDocumentId())
         return;
     auto &edit = *selectionTransform_;
     try {
@@ -147,7 +147,7 @@ void MainWindow::refreshSelectionTransform()
     if (!selectionTransform_)
         return;
     const auto &edit = *selectionTransform_;
-    if (edit.owner != activeDocument_)
+    if (edit.owner != activeDocumentId())
         return;
     if (edit.pixels)
         canvasWindow_->setDocument(session().document()->snapshot(), false);
@@ -247,6 +247,7 @@ void MainWindow::finishSelectionTransform(bool apply)
 {
     if (!selectionTransform_ || (apply && canvasWindow_->transformDragging()))
         return;
+    if (!finishAppearanceEdits()) return;
     if (apply)
         transformOptionsPage_->finishNumericInput();
     if (apply)
@@ -259,7 +260,7 @@ void MainWindow::finishSelectionTransform(bool apply)
     if (selectionTransform_->pixels) {
         auto &pending = *selectionTransform_;
         if (apply) {
-            if (pending.owner != activeDocument_)
+            if (pending.owner != activeDocumentId())
                 return;
             try {
                 const auto result = pending.pixels->commit(session().history());

@@ -35,12 +35,13 @@ void MainWindow::refreshMirroredLayerActions()
     const auto* doc = session().document();
     const auto* layer = doc && session().activeLayer() ? doc->layer(*session().activeLayer()) : nullptr;
     const bool mirrored = layer && core::isMirroredLayer(*layer);
-    const bool available = doc && layer && session().selectedLayers().size() == 1
+    const bool canChangeOpacity = doc && layer && session().selectedLayers().size() == 1
         && !fileBusy_ && !workspaceDialog_ && !refinement_ && !backgroundRemoval_
         && !activeFill_ && !activeBrushStroke_ && !activeCloneStroke_ && !activeLocalBlurStroke_
         && !activeSpotHealStroke_ && !cloneProcessing_ && !localBlurProcessing_
-        && !layerTransform_ && !selectionTransform_ && !layerCrop_ && !canvasResize_
+        && !layerCrop_ && !canvasResize_
         && !spotHealBusyForActiveDocument() && !canvasWindow_->pointerGestureActive();
+    const bool available = canChangeOpacity && !layerTransform_ && !selectionTransform_;
     mirrorActions_[0]->setEnabled(available && core::canMirrorLayer(*layer));
     mirrorActions_[1]->setEnabled(available && mirrored);
     mirrorActions_[2]->setEnabled(available && mirrored);
@@ -48,7 +49,7 @@ void MainWindow::refreshMirroredLayerActions()
     if (opacityLinkButton_) {
         const QSignalBlocker block(opacityLinkButton_);
         opacityLinkButton_->setVisible(mirrored);
-        opacityLinkButton_->setEnabled(available && mirrored);
+        opacityLinkButton_->setEnabled(canChangeOpacity && mirrored);
         opacityLinkButton_->setChecked(mirrored && !(pixelOpacityMode_
             ? layer->mirror->fillOpacityOverride : layer->mirror->opacityOverride));
         const auto hint = i18n::text(pixelOpacityMode_
@@ -104,7 +105,7 @@ void MainWindow::syncMirroredOpacity()
         ? session().document()->layer(*session().activeLayer()) : nullptr;
     if (!layer || !layer->mirror || fileBusy_ || workspaceDialog_) return;
     try {
-        if (executeDocumentCommand(std::make_unique<core::SyncMirroredLayerCommand>(layer->id,
+        if (executeAppearanceCommand(std::make_unique<core::SyncMirroredLayerCommand>(layer->id,
                 pixelOpacityMode_ ? core::MirrorSync::FillOpacity : core::MirrorSync::Opacity))) {
             fileState().untouched = false;
             synchronizeUi(true, false);

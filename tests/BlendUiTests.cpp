@@ -18,6 +18,7 @@
 #include <QStyle>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QToolButton>
 #include <QWheelEvent>
 #include <iostream>
 
@@ -179,7 +180,7 @@ void containersStayPassThrough()
     CHECK(f.combo->currentIndex()==0);
 }
 
-void blendSettlesTransformWithoutDiscardingItsActions()
+void blendStaysIndependentOfPendingTransform()
 {
     Fixture f; if (!f.valid()) return;
     f.select(f.base);
@@ -200,15 +201,20 @@ void blendSettlesTransformWithoutDiscardingItsActions()
     CHECK(f.canvas->scene().transformOverlay);
     CHECK(f.document().layer(f.base)->localToDocument.m02==moved.m02);
     f.choose(c::BlendMode::Screen);
-    CHECK(!f.canvas->scene().transformOverlay);
+    CHECK(f.canvas->scene().transformOverlay);
     CHECK(f.document().layer(f.base)->localToDocument.m02==moved.m02);
     CHECK(f.document().layer(f.base)->blendMode==c::BlendMode::Screen);
+    CHECK(f.session().history().undoDepth()==depth+1);
+    auto* apply = f.window.findChild<QToolButton*>("TransformApply");
+    CHECK(apply); if (!apply) return;
+    apply->click(); settle();
+    CHECK(!f.canvas->scene().transformOverlay);
     CHECK(f.session().history().undoDepth()==depth+2);
     f.history(false);
-    CHECK(f.document().layer(f.base)->blendMode==c::BlendMode::Normal);
-    CHECK(f.document().layer(f.base)->localToDocument.m02==moved.m02);
-    f.history(false);
+    CHECK(f.document().layer(f.base)->blendMode==c::BlendMode::Screen);
     CHECK(f.document().layer(f.base)->localToDocument.m02==initial.m02);
+    f.history(false);
+    CHECK(f.document().layer(f.base)->blendMode==c::BlendMode::Normal);
     f.history(true); f.history(true);
     CHECK(f.document().layer(f.base)->localToDocument.m02==moved.m02);
     CHECK(f.combo->currentData().toInt()==int(c::BlendMode::Screen));
@@ -302,7 +308,7 @@ int main(int argc,char** argv)
     u::applyEditorTheme(app);
     comboAndPrimaryHistory();
     containersStayPassThrough();
-    blendSettlesTransformWithoutDiscardingItsActions();
+    blendStaysIndependentOfPendingTransform();
     adjustmentBlendControls();
     effectBlendBindings();
     std::cout << (failures?"Blend UI tests FAILED\n":"Blend UI tests passed\n");

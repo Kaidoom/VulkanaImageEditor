@@ -137,7 +137,7 @@ class PixelTransformCommand final : public Command
 
 SelectedPixelTransformSession::SelectedPixelTransformSession(Document &document, LayerId id,
                                                              std::size_t budget)
-    : document_(&document), layer_(id), sourceRevision_(0), contentState_(document.contentState()),
+    : document_(&document), layer_(id), sourceRevision_(0),
       budget_(budget)
 {
     const auto *layer = document.layer(id);
@@ -580,6 +580,57 @@ bool SelectedPixelTransformSession::redo()
     rememberTarget();
     return true;
 }
+bool SelectedPixelTransformSession::supportsAppearance(const Layer& layer, const SpatialFilterState& filters,
+    const LayerEffectState& effects) const
+{
+    if (layer.id != layer_ || external_.isAffine()) return true;
+    const auto supported = [&](RectI bounds) {
+        const RectD raw{double(bounds.x), double(bounds.y), double(bounds.width), double(bounds.height)};
+        return external_.validOver(transformEvaluationSupport(raw, filters, effects));
+    };
+    return supported(originalBounds_) && supported(working_->state().bounds)
+        && std::ranges::all_of(storageCheckpoints_, [&](const auto& state) { return supported(state.bounds); });
+}
+
+void SelectedPixelTransformSession::appearanceChanged() noexcept
+{
+    // Called after an editor-owned appearance edit. Keep the independent
+    // raster, geometry, crop and selection guards anchored to their originals.
+    if (const auto* layer = document_->layer(layer_)) {
+        adjustments_ = layer->adjustments;
+        filters_ = layer->filters;
+        effects_ = layer->effects;
+        expectedContentState_ = document_->contentState();
+    }
+}
+
+bool SelectedPixelTransformSession::suspendPreview()
+{
+    if (!targetAvailable() || suspended_) return false;
+    const auto* layer = document_->layer(layer_);
+    suspended_ = SuspendedPreview{std::get<RasterLayer>(layer->payload).surface,
+        expectedOrigin_, expectedEffectFrame_, expectedSelection_, document_->lastSelection(),
+        document_->selectionEvidence()};
+    document_->setLayerRasterStorage(layer_, source_, originalOrigin_, originalEffectFrame_);
+    document_->setSelection(selection_, evidence_);
+    document_->setLastSelection(originalLastSelection_);
+    expectedSelection_ = document_->selection();
+    rememberTarget();
+    return true;
+}
+
+bool SelectedPixelTransformSession::resumePreview()
+{
+    if (!suspended_ || !targetAvailable()) return false;
+    document_->setLayerRasterStorage(layer_, suspended_->surface, suspended_->origin, suspended_->frame);
+    document_->setSelection(suspended_->selection, suspended_->evidence);
+    document_->setLastSelection(suspended_->lastSelection);
+    expectedSelection_ = document_->selection();
+    rememberTarget();
+    suspended_.reset();
+    return true;
+}
+
 TransformCommitResult SelectedPixelTransformSession::commit(History &history)
 {
     if (!targetAvailable())
@@ -606,7 +657,6 @@ void SelectedPixelTransformSession::cancel() noexcept
         document_->setLayerRasterStorage(layer_, source_, originalOrigin_, originalEffectFrame_);
         document_->setSelection(selection_, evidence_);
         document_->setLastSelection(originalLastSelection_);
-        document_->restoreContentState(contentState_);
     }
     active_ = false;
 }

@@ -286,7 +286,6 @@ LayerTransformSession::LayerTransformSession(Document& document, LayerId id)
 }
 LayerTransformSession::LayerTransformSession(Document& document, std::span<const LayerId> ids)
     : document_(&document)
-    , entryContentState_(document.contentState())
 {
     if (ids.empty() || std::ranges::any_of(ids,[&](LayerId id) { return !document.containsItem(id); }))
         return;
@@ -680,6 +679,36 @@ bool LayerTransformSession::redo()
     synchronizeTargets();
     return true;
 }
+bool LayerTransformSession::supportsAppearance(const Layer& layer, const SpatialFilterState& filters,
+    const LayerEffectState& effects) const
+{
+    const auto target = std::ranges::find(targets_, layer.id, &LayerTransformTarget::id);
+    if (target == targets_.end()) return true;
+    // Every retained frame, including redo and the entry geometry, must still
+    // be renderable after a filter or effect expands local pixel support.
+    const auto support = transformEvaluationSupport(intrinsicLocalBounds(layer), filters, effects);
+    const auto supported = [&](const AffineTransform& frame) {
+        const auto matrix = targetTransform(frame, *target);
+        return matrix.isAffine() || matrix.validOver(support);
+    };
+    return supported(current_) && std::ranges::all_of(actionFrames_, supported);
+}
+
+bool LayerTransformSession::suspendPreview()
+{
+    const auto frame = current_;
+    if (dragging() || !setFrame(original_)) return false;
+    suspendedFrame_ = frame;
+    return true;
+}
+
+bool LayerTransformSession::resumePreview()
+{
+    if (!suspendedFrame_ || !setFrame(*suspendedFrame_)) return false;
+    suspendedFrame_.reset();
+    return true;
+}
+
 TransformCommitResult LayerTransformSession::commit(History& history)
 {
     if (!targetAvailable()) {
@@ -706,7 +735,6 @@ void LayerTransformSession::cancel()
     const bool available = targetAvailable();
     if (available) {
         (void)setFrame(original_);
-        document_->restoreContentState(entryContentState_);
     } else if (active_)
         (void)restoreSurvivingTargets();
     active_ = false;

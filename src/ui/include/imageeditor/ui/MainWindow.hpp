@@ -561,7 +561,13 @@ private:
     bool moveBrushStroke(const core::NormalizedPointerSample& sample);
     bool endBrushStroke(const core::NormalizedPointerSample& sample);
     void cancelActiveBrushStroke(bool preserveCompletedRepair = false);
-    void cancelPendingEdits();
+    enum class PendingTransforms { Cancel, Keep };
+    void cancelPendingEdits(PendingTransforms transforms = PendingTransforms::Cancel);
+    bool finishAppearanceEdits();
+    bool prepareAppearanceEdit();
+    void validateTransformAppearance(const core::Layer&, const core::SpatialFilterState&, const core::LayerEffectState&) const;
+    void appearanceEditFinished();
+    bool executeAppearanceCommand(std::unique_ptr<core::Command> command);
     bool executeDocumentCommand(std::unique_ptr<core::Command> command);
     void beginLayerTransform();
     void createCropControls();
@@ -611,7 +617,9 @@ private:
     bool publishDocuments(std::vector<std::shared_ptr<DocumentContext>>);
     void createDocumentTabs();
     void refreshDocumentTabs();
-    bool settleForDocumentSwitch();
+    bool settleForDocumentSwitch(bool keepTransform = false);
+    bool suspendDocumentTransform();
+    void resumeDocumentTransform();
     void captureDocumentView();
     bool guardAllDocuments();
     void updateDocumentResources(bool clearInactive = false);
@@ -839,26 +847,6 @@ private:
         core::Vec2d pivot;
     };
     std::optional<SelectionRotation> selectionRotation_;
-    struct SelectionTransform {
-        std::shared_ptr<DocumentContext> owner;
-        std::unique_ptr<core::SelectedPixelTransformSession> pixels;
-        core::SelectionState before;
-        core::RectI bounds;
-        core::TransformValues values, dragBefore;
-        std::optional<core::TransformDrag> drag;
-        core::BoundsSnapping snapping;
-        core::SnapGuides pendingGuides;
-        core::Vec2d dragPress;
-        bool moving {false};
-        bool snapMovementStarted {false};
-        std::vector<core::TransformValues> checkpoints;
-        std::size_t checkpoint {0};
-        [[nodiscard]] core::Extent2u extent() const { return {std::uint32_t(bounds.width), std::uint32_t(bounds.height)}; }
-        [[nodiscard]] core::AffineTransform matrix() const { return core::transformFromValues(values, extent()); }
-        [[nodiscard]] core::AffineTransform mapping() const {
-            return core::composeTransform(matrix(),{1,0,-double(bounds.x),0,1,-double(bounds.y)});
-        }
-    };
     std::optional<SelectionTransform> selectionTransform_;
     QAction* transformSelectionAction_ {nullptr};
     QAction* transformPixelsAction_ {nullptr};

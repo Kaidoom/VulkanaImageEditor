@@ -72,7 +72,7 @@ bool MainWindow::runTransformAction(const std::function<bool()>& action)
         return false;
     }
 }
-void MainWindow::cancelPendingEdits()
+void MainWindow::cancelPendingEdits(PendingTransforms transforms)
 {
     canvasWindow_->cancelBrushSymmetryPlacement();
     canvasWindow_->cancelGuideInput();
@@ -95,14 +95,13 @@ void MainWindow::cancelPendingEdits()
     if (textController_ && textController_->active())
         return;
     cancelFill();
-    finishSelectionTransform(false);
+    if (transforms == PendingTransforms::Cancel) finishSelectionTransform(false);
     canvasWindow_->cancelSelectionInput();
     finishSelectionGesture(true); // Also cancels a released lasso's pending rasterization.
     finishSelectionRotation(false);
     cancelActiveBrushStroke();
     finishLayerMove(false);
-    if (layerTransform_)
-        finishLayerTransform(false);
+    if (transforms == PendingTransforms::Cancel) finishLayerTransform(false);
 }
 
 bool MainWindow::beginLayerMove(core::Vec2d position, Qt::KeyboardModifiers modifiers)
@@ -346,6 +345,59 @@ bool MainWindow::executeDocumentCommand(std::unique_ptr<core::Command> command)
     return session().execute(std::move(command));
 }
 
+void MainWindow::validateTransformAppearance(const core::Layer& layer, const core::SpatialFilterState& filters,
+    const core::LayerEffectState& effects) const
+{
+    if ((layerTransform_ && !layerTransform_->supportsAppearance(layer, filters, effects))
+        || (selectionTransform_ && selectionTransform_->pixels
+            && !selectionTransform_->pixels->supportsAppearance(layer, filters, effects)))
+        throw std::invalid_argument("The expanded effect area crosses the perspective transform's horizon.");
+}
+
+bool MainWindow::finishAppearanceEdits()
+{
+    finishAdjustmentEdit(true);
+    finishFilterEdit(true);
+    finishEffectEdit(true);
+    return !adjustmentEdit_ && !filterEdit_ && !effectEdit_;
+}
+
+bool MainWindow::prepareAppearanceEdit()
+{
+    if (fileBusy_ || refinement_ || !session().document() || canvasWindow_->pointerGestureActive()
+        || activeBrushStroke_ || activeSpotHealStroke_ || activeCloneStroke_ || cloneProcessing_
+        || activeLocalBlurStroke_ || localBlurProcessing_ || activeFill_ || shapeCreation_ || shapeResize_
+        || selectionGesture_ || selectionRasterizer_ || colorSelectionEditing_ || smartInteractionActive())
+        return false;
+    if (!finishAppearanceEdits()) return false;
+    if (layerCrop_ || canvasResize_) {
+        finishCanvasOperation();
+        if (layerCrop_ || canvasResize_) return false;
+    }
+    if (textController_) textController_->finish();
+    if (textController_ && textController_->active()) return false;
+    finishLayerMove(true);
+    if (activeLayerMove_) return false;
+    if (layerTransform_ || selectionTransform_) transformOptionsPage_->finishNumericInput();
+    if (selectionTransform_ && selectionTransform_->pixels && !selectionTransform_->pixels->targetAvailable())
+        return false;
+    cancelPendingEdits(PendingTransforms::Keep);
+    return true;
+}
+
+void MainWindow::appearanceEditFinished()
+{
+    if (selectionTransform_ && selectionTransform_->pixels)
+        selectionTransform_->pixels->appearanceChanged();
+}
+
+bool MainWindow::executeAppearanceCommand(std::unique_ptr<core::Command> command)
+{
+    if (!prepareAppearanceEdit() || !session().execute(std::move(command))) return false;
+    appearanceEditFinished();
+    return true;
+}
+
 void MainWindow::beginLayerTransform()
 try {
     if(layerCrop_ || canvasResize_)return;
@@ -422,6 +474,7 @@ void MainWindow::finishLayerTransform(bool apply)
     // the session. Escape always releases routing ownership before rollback.
     if (apply && canvasWindow_->transformDragging())
         return;
+    if (!finishAppearanceEdits()) return;
     auto transaction = std::move(layerTransform_);
     if (!apply)
         pointerRouter_->cancelCapture();

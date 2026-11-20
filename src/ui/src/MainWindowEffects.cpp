@@ -51,30 +51,7 @@ bool MainWindow::beginEffectEdit() {
   if (effectEdit_)
     return effectEdit_->active() &&
            effectEdit_->target() == *session().activeLayer();
-  if (canvasWindow_->pointerGestureActive() || activeBrushStroke_ ||
-      activeCloneStroke_ || cloneProcessing_ || activeLocalBlurStroke_ ||
-      localBlurProcessing_ || activeFill_ || shapeCreation_ || shapeResize_ ||
-      selectionGesture_ || selectionRasterizer_ || colorSelectionEditing_ ||
-      smartInteractionActive())
-    return false;
-  finishAdjustmentEdit(true);
-  finishFilterEdit(true);
-  if (adjustmentEdit_ || filterEdit_)
-    return false;
-  if (layerTransform_ || layerCrop_ || selectionTransform_ || canvasResize_) {
-    finishCanvasOperation();
-    if (layerTransform_ || layerCrop_ || selectionTransform_ || canvasResize_)
-      return false;
-  }
-  if (textController_ && textController_->active()) {
-    textController_->finish();
-    if (textController_->active())
-      return false;
-  }
-  finishLayerMove(true);
-  if (activeLayerMove_)
-    return false;
-  cancelPendingEdits();
+  if (!prepareAppearanceEdit()) return false;
   auto transaction = std::make_unique<core::EffectEditTransaction>(
       *session().document(), *session().activeLayer());
   if (!transaction->active())
@@ -93,6 +70,7 @@ void MainWindow::previewEffectEdit(core::LayerEffectState state) {
       finishEffectEdit(false);
       return;
     }
+    validateTransformAppearance(*layer, layer->filters, state);
     // Typed styles operate in canonical local pixels, never a zoom cache.
     auto source = layer->renderCache;
     if (core::hasActiveLayerEffects(state) &&
@@ -139,6 +117,7 @@ void MainWindow::finishEffectEdit(bool commit) {
     } else
       (void)effectEdit_->cancel();
     effectEdit_.reset();
+    appearanceEditFinished();
     if (session().document())
       synchronizeUi(false, false);
   } catch (const std::exception &e) {

@@ -21,6 +21,10 @@ class SelectedPixelTransformSession final
     // False means invalid/unrepresentable geometry; the last valid state stays.
     bool preview(const ProjectiveTransform &documentMapping);
     bool completeAction();
+    void appearanceChanged() noexcept;
+    [[nodiscard]] bool supportsAppearance(const Layer&, const SpatialFilterState&, const LayerEffectState&) const;
+    bool suspendPreview();
+    bool resumePreview();
     bool undo();
     bool redo();
     TransformCommitResult commit(History &);
@@ -67,9 +71,17 @@ class SelectedPixelTransformSession final
     std::shared_ptr<RegionalRasterSurface> working_;
     RegionalRasterSurface::State actionState_, initialState_;
     bool actionWasOriginal_{true}, active_{true};
-    std::uint64_t contentState_, evaluatedPixels_{0};
+    struct SuspendedPreview {
+        std::shared_ptr<RasterSurface> surface;
+        Vec2d origin;
+        std::optional<RectD> frame;
+        SelectionState selection, lastSelection;
+        SelectionEvidenceState evidence;
+    };
+    std::optional<SuspendedPreview> suspended_;
+    std::uint64_t evaluatedPixels_{0};
     std::size_t budget_;
-    History pending_{std::numeric_limits<std::size_t>::max()};
+    History pending_{std::numeric_limits<std::size_t>::max(), History::ContentTracking::OnPublication};
     std::vector<ProjectiveTransform> checkpoints_{{}};
     std::vector<RegionalRasterSurface::State> storageCheckpoints_;
 };

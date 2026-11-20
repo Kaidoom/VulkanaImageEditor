@@ -82,23 +82,7 @@ bool MainWindow::beginAdjustmentEdit(core::AdjustmentType type)
             && type != core::AdjustmentType::Curves && type != core::AdjustmentType::Invert) return false;
     }
     if(adjustmentEdit_)return adjustmentEdit_->active()&&adjustmentEdit_->target()==*session().activeLayer();
-    // Never mutate history beneath an explicit transform/text/stroke session.
-    // Completed transforms are applied using their normal command boundary;
-    // an unfinished pointer gesture must finish/cancel before panel editing.
-    if(canvasWindow_->pointerGestureActive()||activeBrushStroke_||activeCloneStroke_||cloneProcessing_
-        ||activeLocalBlurStroke_||localBlurProcessing_||activeFill_||shapeCreation_
-        ||shapeResize_||selectionGesture_||selectionRasterizer_||colorSelectionEditing_||smartInteractionActive())return false;
-    if(layerTransform_||layerCrop_||selectionTransform_) {
-        finishCanvasOperation();if(layerTransform_||layerCrop_||selectionTransform_)return false;
-    }
-    if(textController_&&textController_->active()) {
-        textController_->finish();if(textController_->active())return false;
-    }
-    finishLayerMove(true);
-    if(activeLayerMove_)return false;
-    finishFilterEdit(true);if(filterEdit_)return false;
-    finishEffectEdit(true);if(effectEdit_)return false;
-    cancelPendingEdits();
+    if (!prepareAppearanceEdit()) return false;
     if(!session().document()->layer(*session().activeLayer()))return false;
     try{
         auto transaction=std::make_unique<core::AdjustmentEditTransaction>(*session().document(),*session().activeLayer());
@@ -131,6 +115,7 @@ void MainWindow::finishAdjustmentEdit(bool commit)
             }
         }else (void)adjustmentEdit_->cancel();
         adjustmentEdit_.reset();
+        appearanceEditFinished();
         if(session().document())synchronizeUi(false,false);
     }catch(const std::exception& e){statusBar()->showMessage(i18n::text("main.window.adjustments.could.not.finish.adjustment.1").arg(QString::fromUtf8(e.what())),5000);}
 }

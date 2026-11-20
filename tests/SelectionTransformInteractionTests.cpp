@@ -749,17 +749,43 @@ void selectedPixelsDistortAndRoundTrip()
     f.shortcut("Shift+T");f.drag({30,25},{20,28});f.button("TransformCancel");
     CHECK(f.history().canRedo());CHECK(f.surface()==source);CHECK(f.selection()->equivalent(*selection));
 }
-void pixelTransformSettlesBeforeFileAndTabChanges()
+void pixelTransformResumesAfterTabChanges()
 {
-    Fixture f;CHECK(f.valid());if(!f.valid())return;f.selectWithHole();f.shortcut("Shift+T");
-    f.drag({30,25},{40,30});const auto firstId=f.window.activeDocumentId();
-    const auto moved=rasterBytes(*f.surface());
-    QImage image(19,23,QImage::Format_RGBA8888);image.fill(Qt::red);
-    const auto path=f.assets.filePath("second.png");CHECK(image.save(path));CHECK(f.window.openImageFromPath(path));
-    CHECK(f.window.activeDocumentId()!=firstId);CHECK(!f.canvas->scene().transformOverlay);
-    const auto* first=f.window.documentContext(firstId);CHECK(first);
-    if(first){CHECK(first->session.history().canUndo());
-        CHECK(rasterBytes(*std::get<core::RasterLayer>(first->session.document()->layers().front().payload).surface)==moved);}
+    Fixture f;
+    CHECK(f.valid()); if (!f.valid()) return;
+    f.selectWithHole();
+    const auto original = rasterBytes(*f.surface());
+    const auto originalSelection = f.selection();
+    f.shortcut("Shift+T");
+    f.drag({30,25},{40,30});
+    const auto moved = rasterBytes(*f.surface());
+    const auto movedSelection = f.selection();
+    const auto firstId = f.window.activeDocumentId();
+    auto* opacity = f.window.findChild<QDoubleSpinBox*>("LayerOpacitySlider");
+    CHECK(opacity); if (!opacity) return;
+    opacity->setValue(55);
+    CHECK(f.canvas->scene().transformOverlay && f.layer().opacity < .56f);
+    const auto depth = f.history().undoDepth();
+    QImage image(19,23,QImage::Format_RGBA8888); image.fill(Qt::red);
+    const auto path = f.assets.filePath("second.png");
+    CHECK(image.save(path)); CHECK(f.window.openImageFromPath(path));
+    CHECK(f.window.activeDocumentId()!=firstId && !f.canvas->scene().transformOverlay);
+    const auto* first = f.window.documentContext(firstId);
+    CHECK(first); if (!first) return;
+    CHECK(first->session.history().undoDepth()==depth);
+    const auto* inactive = first->session.document();
+    CHECK(rasterBytes(*std::get<core::RasterLayer>(inactive->layers().front().payload).surface)==original);
+    CHECK(inactive->selection()->equivalent(*originalSelection));
+    CHECK(f.window.activateDocument(firstId));
+    CHECK(f.canvas->scene().transformOverlay && rasterBytes(*f.surface())==moved);
+    CHECK(f.selection()->equivalent(*movedSelection));
+    f.button("TransformApply");
+    CHECK(f.history().undoDepth()==depth+1 && rasterBytes(*f.surface())==moved);
+    f.shortcut("Ctrl+Z");
+    CHECK(rasterBytes(*f.surface())==original && f.layer().opacity < .56f);
+    f.shortcut("Ctrl+Z");
+    CHECK(f.layer().opacity==1.0f);
+
 }
 } // namespace
 
@@ -787,7 +813,7 @@ int main(int argc, char** argv)
         if(!instance.create())return 1;
         nativeVulkan=&instance;
         selectionMovementSnapsWithAndWithoutTransform();
-        edgeSnapsAndCtrlChangesMidCornerDrag();selectedPixelsDistortAndRoundTrip();pixelTransformSettlesBeforeFileAndTabChanges();
+        edgeSnapsAndCtrlChangesMidCornerDrag();selectedPixelsDistortAndRoundTrip();pixelTransformResumesAfterTabChanges();
         nativeVulkan=nullptr;instance.destroy();
         std::cout<<"Native selected-pixel/projective interaction: platform="<<QGuiApplication::platformName().toStdString()<<" validation=enabled messages="<<validationMessages<<" failures="<<failures<<'\n';
         return failures||validationMessages?1:0;
@@ -801,7 +827,7 @@ int main(int argc, char** argv)
     applicationDeactivateFinishesSelectionNumericTextWithoutApplyingTheMask();
     edgeSnapsAndCtrlChangesMidCornerDrag();selectedPixelsDistortAndRoundTrip();
     selectionMovementSnapsWithAndWithoutTransform();
-    pixelTransformSettlesBeforeFileAndTabChanges();
+    pixelTransformResumesAfterTabChanges();
     if (failures)
         std::cerr << failures << " selection gizmo interaction assertions failed\n";
     else

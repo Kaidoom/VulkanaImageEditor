@@ -11,7 +11,11 @@ namespace imageeditor::core {
 
 class History {
 public:
-    explicit History(std::size_t memoryBudgetBytes = 256ULL * 1024ULL * 1024ULL);
+    // Transform gestures keep private undo steps. Their persistent state IDs are
+    // assigned on Apply, after any independent appearance edits.
+    enum class ContentTracking { Immediate, OnPublication };
+    explicit History(std::size_t memoryBudgetBytes = 256ULL * 1024ULL * 1024ULL,
+        ContentTracking tracking = ContentTracking::Immediate);
 
     bool execute(Document& document, std::unique_ptr<Command> command);
     // Ownership moves only after validation succeeds. Keeping the pointer in
@@ -49,6 +53,8 @@ public:
     }
 
 private:
+    static void stamp(Document&, Command&);
+    ContentTracking tracking_;
     bool record(Document&, std::unique_ptr<Command> command);
     void discardRedo();
     void trimToBudget();

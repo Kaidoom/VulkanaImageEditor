@@ -18,8 +18,8 @@ std::size_t saturatingAdd(std::size_t left, std::size_t right) noexcept
 
 } // namespace
 
-History::History(std::size_t memoryBudgetBytes)
-    : memoryBudgetBytes_(memoryBudgetBytes)
+History::History(std::size_t memoryBudgetBytes, ContentTracking tracking)
+    : tracking_(tracking), memoryBudgetBytes_(memoryBudgetBytes)
 {
 }
 
@@ -63,14 +63,20 @@ bool History::adoptApplied(Document& document, std::unique_ptr<Command>& command
     return record(document, std::move(command));
 }
 
+void History::stamp(Document& document, Command& command)
+{
+    command.contentBefore_ = document.contentState();
+    if (command.affectsPersistentContent())
+        document.advanceContentState();
+    command.contentAfter_ = document.contentState();
+}
+
 bool History::record(Document& document, std::unique_ptr<Command> command)
 {
     canvasOriginHint_ = command->canvasOriginAfter(false);
     const bool mergeAllowed = document.isModified(); // A saved endpoint is a merge barrier.
-    command->contentBefore_ = document.contentState();
-    if (command->affectsPersistentContent())
-        document.advanceContentState();
-    command->contentAfter_ = document.contentState();
+    if (tracking_ == ContentTracking::Immediate)
+        stamp(document, *command);
     discardRedo();
 
     if (mergeAllowed && !done_.empty()
@@ -101,11 +107,18 @@ bool History::publishAppliedBranch(Document& document, History& branch)
     branch.layerSelectionHint_ = nullptr;
     textEditHint_.reset();
     if (&branch == this || branch.done_.empty()
-        || branch.done_.back()->contentAfter_ != document.contentState()
+        || (branch.tracking_ == ContentTracking::Immediate && branch.done_.back()->contentAfter_ != document.contentState())
         || !branch.done_.back()->canAdoptApplied(document))
         return false;
     // Allocate before changing ownership or destroying an existing redo branch.
     done_.reserve(done_.size() + branch.done_.size());
+    if (branch.tracking_ == ContentTracking::OnPublication) {
+        for (auto& command : branch.done_) stamp(document, *command);
+        const auto applied = document.contentState();
+        for (auto it = branch.undone_.rbegin(); it != branch.undone_.rend(); ++it)
+            stamp(document, **it);
+        document.restoreContentState(applied);
+    }
     discardRedo();
     for (auto& command : branch.done_)
         done_.push_back(std::move(command));
@@ -157,7 +170,7 @@ bool History::undo(Document& document)
     auto command = std::move(done_.back());
     done_.pop_back();
     activeLayerHint_ = command->activeLayerAfter(true);
-    document.restoreContentState(command->contentBefore_);
+    if (tracking_ == ContentTracking::Immediate) document.restoreContentState(command->contentBefore_);
     textEditHint_ = command->textEditAfter(true);
     layerSelectionHint_ = command->layerSelectionAfter(true);
     maskEditingHint_ = command->maskEditingAfter(true);
@@ -185,7 +198,7 @@ bool History::redo(Document& document)
     auto command = std::move(undone_.back());
     undone_.pop_back();
     activeLayerHint_ = command->activeLayerAfter(false);
-    document.restoreContentState(command->contentAfter_);
+    if (tracking_ == ContentTracking::Immediate) document.restoreContentState(command->contentAfter_);
     textEditHint_ = command->textEditAfter(false);
     layerSelectionHint_ = command->layerSelectionAfter(false);
     maskEditingHint_ = command->maskEditingAfter(false);

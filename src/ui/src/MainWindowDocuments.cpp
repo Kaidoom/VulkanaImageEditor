@@ -386,7 +386,53 @@ void MainWindow::captureDocumentView()
     activeDocument_->collapsedFolders = layerModel_->collapsedFolderIds();
     activeDocument_->cloneAnchor = cloneAnchor_;
 }
-bool MainWindow::settleForDocumentSwitch()
+// Inactive documents expose their committed pixels and geometry to linked
+// project layers. Keep the private preview and its undo/redo steps in the tab.
+bool MainWindow::suspendDocumentTransform()
+{
+    if (!layerTransform_ && !selectionTransform_) return true;
+    if (layerTransform_ && !layerTransform_->suspendPreview()) return false;
+    if (selectionTransform_) {
+        flushSelectedPixelPreview();
+        if (selectionTransform_->pixels && !selectionTransform_->pixels->suspendPreview()) return false;
+    }
+    activeDocument_->toolBeforeTransform = toolBeforeTransform_;
+    activeDocument_->suspendedLayerTransform = std::move(layerTransform_);
+    activeDocument_->suspendedSelectionTransform = std::move(selectionTransform_);
+    selectionTransform_.reset();
+    canvasWindow_->setTransformOverlay({});
+    canvasWindow_->setSelectionPreview({});
+    canvasWindow_->setSnapGuides({});
+    setActiveTool(toolBeforeTransform_);
+    return true;
+}
+
+void MainWindow::resumeDocumentTransform()
+{
+    if (!activeDocument_->hasSuspendedTransform()) return;
+    auto layer = std::move(activeDocument_->suspendedLayerTransform);
+    auto selection = std::move(activeDocument_->suspendedSelectionTransform);
+    activeDocument_->suspendedSelectionTransform.reset();
+    if ((layer && !layer->resumePreview())
+        || (selection && (selection->pixels ? !selection->pixels->resumePreview()
+            : selection->before != session().document()->selection()))) {
+        statusBar()->showMessage(i18n::text("main.window.transform.transform.target.is.no.longer.available"), 3500);
+        return;
+    }
+    toolBeforeTransform_ = activeDocument_->toolBeforeTransform;
+    setActiveTool(core::ToolId::Transform);
+    layerTransform_ = std::move(layer);
+    selectionTransform_ = std::move(selection);
+    if (layerTransform_) refreshLayerTransform();
+    else {
+        if (const auto action = toolActionMap_.find(toolBeforeTransform_); action != toolActionMap_.end())
+            action->second->setChecked(true);
+        refreshSelectionTransform();
+    }
+    updateActionState();
+}
+
+bool MainWindow::settleForDocumentSwitch(bool keepTransform)
 {
     // Programmatic document publication can run under the graphics status
     // gate. Its input shield still blocks editor gestures and UI actions.
@@ -411,11 +457,15 @@ bool MainWindow::settleForDocumentSwitch()
     if (canvasWindow_->transformDragging()) canvasWindow_->cancelTransformInput();
     if (activeLayerMove_ && activeLayerMove_->dragging()) finishLayerMove(false);
     else finishLayerMove(true);
-    finishLayerCrop(true); finishLayerTransform(true);
+    finishLayerCrop(true);
+    if (!keepTransform) finishLayerTransform(true);
     finishQuickCanvasResize(true);
-    if (activeLayerMove_ || layerTransform_ || layerCrop_ || canvasResize_) return false;
-    finishSelectionNumericInput(); finishSelectionTransform(true);
-    if(selectionTransform_)return false;
+    if (activeLayerMove_ || layerCrop_ || canvasResize_ || (!keepTransform && layerTransform_)) return false;
+    finishSelectionNumericInput();
+    if (!keepTransform) {
+        finishSelectionTransform(true);
+        if (selectionTransform_) return false;
+    }
     layerAlphaSelection_.reset();
     cancelColorSelection(); cancelSmartSelection();
     canvasWindow_->cancelSelectionInput(); finishSelectionGesture(true); finishSelectionRotation(false);
@@ -431,9 +481,10 @@ bool MainWindow::activateDocument(DocumentInstanceId id)
     if (fileBusy_) return false;
     if (activeDocumentId() == id) return true;
     auto found = std::ranges::find_if(documents_, [id](const auto& context) { return context->id == id; });
-    if (found == documents_.end() || switchingDocument_ || !settleForDocumentSwitch()) return false;
+    if (found == documents_.end() || switchingDocument_ || !settleForDocumentSwitch(true)) return false;
     const QScopedValueRollback switching(switchingDocument_, true);
     suspendRefinement();
+    if (!suspendDocumentTransform()) return false;
     captureDocumentView();
     auto colors = session().colors();
     auto tool = session().activeTool();
@@ -467,12 +518,13 @@ bool MainWindow::activateDocument(DocumentInstanceId id)
     refreshOpenProjectLayers(*activeDocument_);
     if (session().document()->revision() != priorRevision)
         synchronizeUi(true, false);
+    resumeDocumentTransform();
     resumeRefinement();
     return true;
 }
 bool MainWindow::initializeDocument(std::unique_ptr<core::Document> document, QString name, QString path, QJsonObject metadata, QString source)
 {
-    if (!document || !settleForDocumentSwitch()) return false;
+    if (!document || !settleForDocumentSwitch(true)) return false;
     auto next = std::make_shared<DocumentContext>();
     next->session.replaceDocument(std::move(document));
     next->displayName = std::move(name); next->projectPath = std::move(path);
@@ -486,7 +538,7 @@ bool MainWindow::initializeDocument(std::unique_ptr<core::Document> document, QS
 }
 bool MainWindow::publishDocuments(std::vector<std::shared_ptr<DocumentContext>> staged)
 {
-    if (staged.empty() || !settleForDocumentSwitch()) return false;
+    if (staged.empty() || !settleForDocumentSwitch(true)) return false;
     for (const auto& context : staged)
         if (!context || context->closed || !context->session.document()) return false;
     for(const auto& context:staged)context->session.history().setMemoryBudget(std::size_t(performance_.undoBytes()));
@@ -495,7 +547,7 @@ bool MainWindow::publishDocuments(std::vector<std::shared_ptr<DocumentContext>> 
     documents_.reserve(documents_.size() + staged.size());
     // Only the untouched launch placeholder may be retired without a close
     // decision. Explicit New canvases and every opened document remain tabs.
-    auto placeholder = activeDocument_ && !activeDocument_->refinement && activeDocument_->untouched && !session().document()->isModified() ? activeDocument_ : nullptr;
+    auto placeholder = activeDocument_ && !layerTransform_ && !selectionTransform_ && !activeDocument_->refinement && activeDocument_->untouched && !session().document()->isModified() ? activeDocument_ : nullptr;
     const auto oldCount = documents_.size();
     documents_.insert(documents_.end(), staged.begin(), staged.end());
     if (!activateDocument(staged.front()->id)) { documents_.resize(oldCount); return false; }
@@ -530,7 +582,7 @@ bool MainWindow::closeDocument(DocumentInstanceId id)
     cancelDocumentRepair(id, true);
     const auto previous = activeDocumentId();
     const auto index = std::size_t(it - documents_.begin());
-    if (closing == activeDocument_ || closing->session.document()->isModified()) {
+    if (closing == activeDocument_ || closing->hasSuspendedTransform() || closing->session.document()->isModified()) {
         if (!activateDocument(id) || !settleForDocumentSwitch() || !guardUnsavedChanges()) {
             if (previous != id) activateDocument(previous);
             return false;
@@ -564,7 +616,7 @@ bool MainWindow::guardAllDocuments()
     const auto previous = activeDocumentId();
     const auto owners = documents_; // Save dialogs may process nested UI events.
     for (const auto& context : owners) {
-        if (!context->session.document()->isModified()) continue;
+        if (!context->session.document()->isModified() && !context->hasSuspendedTransform()) continue;
         if (!activateDocument(context->id) || !guardUnsavedChanges()) {
             activateDocument(previous); return false;
         }

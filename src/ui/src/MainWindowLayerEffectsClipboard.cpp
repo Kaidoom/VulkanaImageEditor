@@ -86,10 +86,12 @@ void MainWindow::pasteLayerEffects()
             statusBar()->showMessage(i18n::text("layer.effects.paste.invalid"), 4000);
             return;
         }
-        if (!settleForFileOperation() || activeDocumentId() != instance || session().activeLayer() != target) return;
+        if (!prepareAppearanceEdit() || activeDocumentId() != instance || session().activeLayer() != target) return;
         const auto* layer = session().document()->layer(target);
         if (!acceptsEffects(layer)) return;
-        if (executeDocumentCommand(std::make_unique<core::SetLayerEffectsCommand>(target, layer->effects, *copied, true))) {
+        validateTransformAppearance(*layer, layer->filters, *copied);
+        if (session().execute(std::make_unique<core::SetLayerEffectsCommand>(target, layer->effects, *copied, true))) {
+            appearanceEditFinished();
             fileState().untouched = false;
             synchronizeUi(true, false);
         }
