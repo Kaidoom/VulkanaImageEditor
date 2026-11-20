@@ -6,14 +6,26 @@
 #include <QColor>
 #include <QSize>
 #include <atomic>
+#include <optional>
+#include <vector>
 
 namespace imageeditor::ui {
 inline constexpr int kMaximumExportDimension = 32768;
 enum class ExportFormat { Png, Jpeg, WebP, Pdf, Psd };
+// Per-dialog source in document coordinates. Never stored in global preferences.
+struct ExportLayerSelection {
+    std::vector<core::LayerId> ids;
+    core::RectI bounds;
+    QString error;
+    bool operator==(const ExportLayerSelection&) const = default;
+};
+[[nodiscard]] ExportLayerSelection captureExportLayerSelection(const core::Document&, std::vector<core::LayerId>);
+
 struct ExportSettings {
     ExportFormat format { ExportFormat::Png };
     QString destination;
     QSize size;
+    std::optional<ExportLayerSelection> selectedLayers;
     bool aspectLocked { true };
     bool pngMatte { false };
     QColor pngMatteColor { Qt::white };

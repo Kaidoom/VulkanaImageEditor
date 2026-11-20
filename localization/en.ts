@@ -1539,6 +1539,15 @@ RGBA includes sampled alpha.</source>
       <source>Browse…</source>
       <extracomment>ExportDialog presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
     </message>
+    <message id="export.dialog.selected.layers.only">
+      <source>Export selected layers</source>
+    </message>
+    <message id="export.dialog.selected.layers.hint">
+      <source>Fit the image to the visible selected layers. Selecting a group includes its children.</source>
+    </message>
+    <message id="export.dialog.selected.layers.empty">
+      <source>Select layers with visible content to export.</source>
+    </message>
     <message id="export.dialog.output.size">
       <source>Output size</source>
       <extracomment>ExportDialog presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>

@@ -1,6 +1,7 @@
 #include "imageeditor/ui/FlattenedDocument.hpp"
 
 #include "imageeditor/core/ColorSampler.hpp"
+#include "imageeditor/core/CompositionPlan.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/core/RichText.hpp"
 #include "imageeditor/core/BoundedParallel.hpp"
@@ -61,7 +62,8 @@ static FlattenedDocumentResult flattenImpl(
     const core::Document& document, FlattenedDocumentProgress progress, FlattenedDocumentLimits limits,
     std::optional<std::span<const core::LayerId>> items, core::Extent2u requested = {},
     std::optional<core::Rgba8> matte = {}, MergeProfile* profile = nullptr, bool intrinsic = false,
-    std::optional<core::RectI> region = {}, core::RectI* boundsOnly = nullptr, bool overview = false)
+    std::optional<core::RectI> region = {}, core::RectI* boundsOnly = nullptr, bool overview = false,
+    LayerBoundsMode boundsMode = LayerBoundsMode::Surface)
 {
     if (profile) *profile={};
     ProfileStage setup(profile?&profile->setupMs:nullptr);
@@ -76,7 +78,8 @@ static FlattenedDocumentResult flattenImpl(
         core::Vec2d origin = region ? core::Vec2d{double(region->x),double(region->y)} : core::Vec2d{};
         auto extent = requested.empty() ? canvasExtent : requested;
         auto pixels = std::uint64_t(extent.width) * extent.height;
-        if (!items)
+        const bool fitItems = items && !region;
+        if (!fitItems)
             require(!extent.empty() && extent.width <= 32768 && extent.height <= 32768
                     && pixels <= limits.outputPixels,
                 "Flattened output exceeds the pixel/dimension limit");
@@ -89,6 +92,7 @@ static FlattenedDocumentResult flattenImpl(
             for (auto id : *items)
                 require(document.containsItem(id), "Merge target disappeared");
             selected = document.expandedLayers(*items);
+            if (boundsOnly && boundsMode == LayerBoundsMode::VisibleContent && selected.empty()) return {};
             require(!selected.empty(), "There is no content to merge");
         }
         const auto included = [&](core::LayerId id) { return !items || std::ranges::find(selected, id) != selected.end(); };
@@ -173,8 +177,8 @@ static FlattenedDocumentResult flattenImpl(
                 // document/output grid. No local bitmap then affine resampling.
                 // Spatial kernels are defined in local source pixels: prepare
                 // that canonical 1x source before filtering, then transform once.
-                const auto toGrid=core::composeAffine(items?core::AffineTransform{}:outputGrid,layer.localToDocument);
-                std::optional<core::RectI> clip=items?std::nullopt:
+                const auto toGrid=core::composeAffine(fitItems?core::AffineTransform{}:outputGrid,layer.localToDocument);
+                std::optional<core::RectI> clip=fitItems?std::nullopt:
                     std::optional(core::RectI{0,0,int(std::max(extent.width,canvasExtent.width)),
                         int(std::max(extent.height,canvasExtent.height))});
                 if(layer.crop && !filtered) {
@@ -228,11 +232,24 @@ static FlattenedDocumentResult flattenImpl(
         for(auto& layer:layers) {prepareLayer(layer);tick(++completed);}
 
         ProfileStage bounds(profile?&profile->boundsMs:nullptr);
-        if (items) {
+        if (fitItems) {
+            // A clipping group's output coverage comes from its base. An
+            // independently selected child still has its own isolated bounds.
+            std::vector<core::LayerId> contributors;
+            const bool clippedBounds = boundsMode == LayerBoundsMode::VisibleContent && core::hasClippingGroups(document.tree());
+            if (clippedBounds) {
+                const auto collect = [&](const auto& self, const core::CompositionNode& node) -> void {
+                    if (node.leaf) contributors.push_back(node.id);
+                    else if (node.clipping) self(self, node.children.front());
+                    else for (const auto& child : node.children) self(self, child);
+                };
+                collect(collect, core::compositionPlan(document.tree(), selected, *items));
+            }
             double left = std::numeric_limits<double>::max(), top = left, right = -left, bottom = -left;
             for (const auto& layer : layers) {
                 if(std::holds_alternative<core::AdjustmentLayer>(layer.payload))continue;
-                if (!layer.visible || layer.opacity <= 0)
+                if (!layer.visible || layer.opacity <= 0
+                    || (clippedBounds && std::ranges::find(contributors, layer.id) == contributors.end()))
                     continue;
                 const auto surface = core::renderedSurface(layer);
                 require(bool(surface), "A merge source could not be prepared");
@@ -240,7 +257,20 @@ static FlattenedDocumentResult flattenImpl(
                 // transformed twice (which inflates rotated document caches).
                 const bool styled=core::hasActiveLayerEffects(layer.effects)&&core::layerEffectCacheValid(layer);
                 const auto t=styled?layer.localToDocument:core::renderTransform(layer); const auto e=surface->extent();
-                const auto visual=styled?layer.effectCache->visualBounds:core::RectD{0,0,double(e.width),double(e.height)};
+                auto visual=styled?layer.effectCache->visualBounds:core::RectD{0,0,double(e.width),double(e.height)};
+                if (boundsMode == LayerBoundsMode::VisibleContent) {
+                    const auto content = surface->contentBounds();
+                    visual = {double(content.x), double(content.y), double(content.width), double(content.height)};
+                    if (styled) {
+                        // Effect caches use canonical local pixels (axis-aligned
+                        // raster origin or typed-source density), before layer placement.
+                        const auto mapping = core::renderPixelsToLocal(layer);
+                        const auto lo = mapping.map({visual.x, visual.y});
+                        const auto hi = mapping.map({visual.right(), visual.bottom()});
+                        visual = layer.effectCache->boundsWithEffects({lo.x,lo.y,hi.x-lo.x,hi.y-lo.y}, *layer.effects);
+                    }
+                    if (visual.empty() || (!styled && layer.fillOpacity <= 0)) continue;
+                }
                 require(t.validOver(visual),"Projective horizon crosses the evaluated layer support");
                 double l=std::numeric_limits<double>::max(),topEdge=l,r=-l,b=-l;
                 for (auto p : std::array {t.map({visual.x,visual.y}),t.map({visual.right(),visual.y}),
@@ -300,7 +330,8 @@ static FlattenedDocumentResult flattenImpl(
             bottom = std::ceil(bottom);
             const auto width = right - left, height = bottom - top;
             if(boundsOnly && (right<=left || bottom<=top))return {};
-            require(width > 0 && height > 0 && width <= 32768 && height <= 32768 && width * height <= double(limits.outputPixels)
+            require(width > 0 && height > 0 && width <= 32768 && height <= 32768
+                    && ((boundsOnly && boundsMode == LayerBoundsMode::VisibleContent) || width * height <= double(limits.outputPixels))
                     && std::abs(left) <= 1e9 && std::abs(top) <= 1e9,
                 "Merge bounds exceed the pixel/dimension limit, or all selected content is hidden");
             origin = { left, top };
@@ -324,7 +355,7 @@ static FlattenedDocumentResult flattenImpl(
         // Sampling the original document coordinates also preserves exact edge
         // decisions: translating a matrix before inversion can move a source
         // boundary a few ulps and drop a fully visible pixel.
-        const core::PinnedDocumentSampler sampler(prepared, items ? extent : canvasExtent, {}, origin, intrinsic ? nullptr : &document.tree(),items.value_or(std::span<const core::LayerId>{}),document.canvas().compositingSpace);
+        const core::PinnedDocumentSampler sampler(prepared, fitItems ? extent : canvasExtent, {}, origin, intrinsic ? nullptr : &document.tree(),items.value_or(std::span<const core::LayerId>{}),document.canvas().compositingSpace);
         samplerSetup.finish();
         ProfileStage allocation(profile?&profile->allocationMs:nullptr);
         QImage output(int(extent.width), int(extent.height), QImage::Format_RGBA8888);
@@ -342,7 +373,7 @@ static FlattenedDocumentResult flattenImpl(
             if (!layer->visible || layer->opacity<=0)continue;
             if(single) {single=nullptr;break;} single=layer;
         }
-        if(single && items && !matte && (intrinsic || !core::hasClippingGroups(document.tree())) && single->opacity==1 && single->fillOpacity==1
+        if(single && fitItems && !matte && (intrinsic || !core::hasClippingGroups(document.tree())) && single->opacity==1 && single->fillOpacity==1
             && single->blendMode==core::BlendMode::Normal && !single->crop && (!single->mask||!single->mask->enabled)
             && !core::compileAdjustmentStack(single->adjustments).active
             && !core::hasActiveSpatialFilters(single->filters)&&!core::hasActiveLayerEffects(single->effects)) {
@@ -369,8 +400,8 @@ static FlattenedDocumentResult flattenImpl(
         }
         constexpr std::uint64_t callbackPixels = 4096;
         std::uint64_t processed = 0;
-        const double stepX = items ? 1 : double(canvasExtent.width)/extent.width;
-        const double stepY = items ? 1 : double(canvasExtent.height)/extent.height;
+        const double stepX = fitItems ? 1 : double(canvasExtent.width)/extent.width;
+        const double stepY = fitItems ? 1 : double(canvasExtent.height)/extent.height;
         if (overview && (stepX != 1 || stepY != 1)) {
             // Sources and composition metadata are pinned before dispatch.
             // Only disjoint pixel rows are written by workers; never call Qt
@@ -544,18 +575,18 @@ FlattenedDocumentResult rasterizeLayerContent(const core::Document& doc, core::L
 }
 
 EvaluatedDocumentBounds evaluatedLayerItemsBounds(const core::Document& doc,
-    std::span<const core::LayerId> ids, FlattenedDocumentProgress progress, FlattenedDocumentLimits limits)
+    std::span<const core::LayerId> ids, FlattenedDocumentProgress progress, FlattenedDocumentLimits limits, LayerBoundsMode mode)
 {
     core::RectI rect{};
-    const auto result=flattenImpl(doc,std::move(progress),limits,ids,{}, {},nullptr,false,{},&rect);
+    const auto result=flattenImpl(doc,std::move(progress),limits,ids,{}, {},nullptr,false,{},&rect,false,mode);
     return {rect,result.error,result.cancelled};
 }
 FlattenedDocumentResult flattenDocumentRegion(const core::Document& doc,core::RectI region,
     core::Extent2u output,FlattenedDocumentProgress progress,FlattenedDocumentLimits limits,
-    std::optional<core::Rgba8> matte)
+    std::optional<core::Rgba8> matte, std::optional<std::span<const core::LayerId>> items)
 {
     if(output.empty())return {{},QStringLiteral("Output dimensions must be positive"),false,{}};
-    return flattenImpl(doc,std::move(progress),limits,std::nullopt,output,matte,nullptr,false,region);
+    return flattenImpl(doc,std::move(progress),limits,items,output,matte,nullptr,false,region);
 }
 
 } // namespace imageeditor::ui

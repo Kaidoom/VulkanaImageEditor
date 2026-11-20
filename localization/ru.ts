@@ -2266,6 +2266,21 @@ RGBA включает альфа образца.</translation>
       <translation>Обзор…</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
+    <message id="export.dialog.selected.layers.only">
+      <source>Export selected layers</source>
+      <translation>Экспортировать выбранные слои</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="export.dialog.selected.layers.hint">
+      <source>Fit the image to the visible selected layers. Selecting a group includes its children.</source>
+      <translation>Размер изображения определяется видимыми выбранными слоями. При выборе группы учитываются её слои.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="export.dialog.selected.layers.empty">
+      <source>Select layers with visible content to export.</source>
+      <translation>Выберите для экспорта слои с видимым содержимым.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
     <message id="export.dialog.output.size">
       <source>Output size</source>
       <extracomment>ExportDialog presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>

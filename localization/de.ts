@@ -2265,6 +2265,21 @@ RGBA enthält die abgetastete Transparenz.</translation>
       <translation>Durchsuchen…</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
+    <message id="export.dialog.selected.layers.only">
+      <source>Export selected layers</source>
+      <translation>Ausgewählte Ebenen exportieren</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="export.dialog.selected.layers.hint">
+      <source>Fit the image to the visible selected layers. Selecting a group includes its children.</source>
+      <translation>Das Bild an die sichtbaren ausgewählten Ebenen anpassen. Bei Gruppen werden die enthaltenen Ebenen einbezogen.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="export.dialog.selected.layers.empty">
+      <source>Select layers with visible content to export.</source>
+      <translation>Wählen Sie Ebenen mit sichtbarem Inhalt für den Export aus.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
     <message id="export.dialog.output.size">
       <source>Output size</source>
       <extracomment>ExportDialog presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>

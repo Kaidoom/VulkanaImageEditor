@@ -2265,6 +2265,21 @@ RGBA include l'alfa campionato.</translation>
       <translation>Sfoglia…</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
+    <message id="export.dialog.selected.layers.only">
+      <source>Export selected layers</source>
+      <translation>Esporta livelli selezionati</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="export.dialog.selected.layers.hint">
+      <source>Fit the image to the visible selected layers. Selecting a group includes its children.</source>
+      <translation>Adatta l’immagine ai livelli selezionati visibili. Selezionando un gruppo si includono i suoi livelli.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="export.dialog.selected.layers.empty">
+      <source>Select layers with visible content to export.</source>
+      <translation>Seleziona livelli con contenuto visibile da esportare.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
     <message id="export.dialog.output.size">
       <source>Output size</source>
       <extracomment>ExportDialog presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>

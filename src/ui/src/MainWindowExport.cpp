@@ -30,7 +30,7 @@ namespace {
     }
     bool sameRendering(const ExportSettings& a, const ExportSettings& b)
     {
-        return a.size == b.size && a.preserveData == b.preserveData && a.dataLayerId == b.dataLayerId && usesMatte(a) == usesMatte(b)
+        return a.size == b.size && a.selectedLayers == b.selectedLayers && a.preserveData == b.preserveData && a.dataLayerId == b.dataLayerId && usesMatte(a) == usesMatte(b)
             && (!usesMatte(a) || exportMatteColor(a).rgb() == exportMatteColor(b).rgb());
     }
     bool sameEncoding(const ExportSettings& a, const ExportSettings& b)
@@ -696,7 +696,7 @@ void MainWindow::exportImage(bool again)
     if (!owner->exportSettings) {
         initial.format = ExportFormat::Png;
         initial.destination = exportPathForFormat(initial.destination, initial.format);
-    } else if (owner->exportCanvasSize != canvas) {
+    } else if (!initial.selectedLayers && owner->exportCanvasSize != canvas) {
         // Reconcile at the presentation boundary so resize, reframe, Undo and
         // Redo all use the current canvas, including Export Again.
         initial.size = canvas;
@@ -711,6 +711,7 @@ void MainWindow::exportImage(bool again)
     initial.preserveData = dataId != 0;
     initial.dataLayerId = dataId;
     if (dataId) {
+        initial.selectedLayers.reset();
         initial.format = ExportFormat::Png; initial.size = canvas; initial.pngMatte = false;
         initial.destination = exportPathForFormat(initial.destination, ExportFormat::Png);
     }
@@ -718,7 +719,10 @@ void MainWindow::exportImage(bool again)
     // frozen snapshot; image-codec work owns immutable rendered buffers.
     const QScopedValueRollback busy(fileBusy_, true);
     WorkspaceDialog presenter(*workspace_, *this);
-    ExportDialog dialog(initial, canvas, &presenter);
+    ExportDialog::SelectionSource selectionSource;
+    if (!dataId && !session().selectedLayers().empty())
+        selectionSource = [&document, ids = session().selectedLayers()] { return captureExportLayerSelection(document, ids); };
+    ExportDialog dialog(initial, canvas, &presenter, std::move(selectionSource));
     if (containsNumeric) {
         if (auto* formats = dialog.findChild<QComboBox*>(QStringLiteral("ExportFormat")))
             if (auto* model = qobject_cast<QStandardItemModel*>(formats->model()))

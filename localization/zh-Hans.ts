@@ -2264,6 +2264,21 @@ RGBA 包含采样的透明度。</translation>
       <translation>浏览…</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
+    <message id="export.dialog.selected.layers.only">
+      <source>Export selected layers</source>
+      <translation>导出所选图层</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="export.dialog.selected.layers.hint">
+      <source>Fit the image to the visible selected layers. Selecting a group includes its children.</source>
+      <translation>按所选可见图层的范围确定图像大小。选择组时会包含其中的图层。</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="export.dialog.selected.layers.empty">
+      <source>Select layers with visible content to export.</source>
+      <translation>请选择有可见内容的图层进行导出。</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
     <message id="export.dialog.output.size">
       <source>Output size</source>
       <extracomment>ExportDialog presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>

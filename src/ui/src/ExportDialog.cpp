@@ -222,6 +222,10 @@ struct ExportDialog::Impl {
     ExportDialog& owner;
     ExportSettings draft;
     QSize canvas;
+    QSize wholeOutput;
+    SelectionSource selectionSource;
+    std::optional<ExportLayerSelection> selection;
+    QCheckBox* selectedOnly{};
     double ratio { 1 };
     QWidget* controls { nullptr };
     ExportCombo* format { nullptr };
@@ -261,13 +265,20 @@ struct ExportDialog::Impl {
     bool updating { false }, writing { false };
     bool pendingSizeEdit { false };
 
-    Impl(ExportDialog& dialog, ExportSettings initial, QSize original)
+    Impl(ExportDialog& dialog, ExportSettings initial, QSize original, SelectionSource source)
         : owner(dialog)
         , draft(std::move(initial))
-        , canvas(original)
+        , canvas(original), selectionSource(std::move(source))
     {
         if (!canvas.isValid())
             canvas = QSize(1, 1);
+        wholeOutput = !draft.selectedLayers && draft.size.isValid() ? draft.size : canvas;
+        if (draft.selectedLayers) {
+            const auto previous = std::move(*draft.selectedLayers);
+            resolveSelection();
+            draft.selectedLayers = selection;
+            if (previous != *selection) draft.size = sourceSize();
+        }
         if (!draft.size.isValid())
             draft.size = canvas;
         if (!draft.pngMatteColor.isValid())
@@ -277,6 +288,33 @@ struct ExportDialog::Impl {
         draft.pngMatteColor.setAlpha(255);
         draft.jpegMatteColor.setAlpha(255);
         ratio = double(draft.size.width()) / draft.size.height();
+    }
+    void resolveSelection()
+    {
+        if (!selection) selection = selectionSource ? selectionSource() : ExportLayerSelection{};
+    }
+    QSize sourceSize() const
+    {
+        if (!draft.selectedLayers) return canvas;
+        const auto bounds = draft.selectedLayers->bounds;
+        return bounds.empty() ? canvas : QSize(bounds.width, bounds.height);
+    }
+    void setSelectedOnly(bool enabled)
+    {
+        if (enabled) {
+            wholeOutput = draft.size;
+            resolveSelection();
+            draft.selectedLayers = selection;
+            draft.size = sourceSize();
+        } else {
+            draft.selectedLayers.reset();
+            draft.size = wholeOutput;
+        }
+        selectedOnly->setEnabled(bool(selectionSource) || enabled);
+        ratio = double(draft.size.width()) / draft.size.height();
+        pendingSizeEdit = false;
+        preview->setImage({});
+        updateDimensions();
     }
     CompactValueControl* number(QWidget* parent, const char* name, const i18n::Message& label, double minimum,
         double maximum, double initial, int decimals = 0)
@@ -332,14 +370,23 @@ struct ExportDialog::Impl {
     void updateDimensions()
     {
         const QSignalBlocker widthBlock(width), heightBlock(height), scaleBlock(scale);
+        const auto native = sourceSize();
+        const bool emptySelection = draft.selectedLayers && draft.selectedLayers->bounds.empty();
+        for (auto* field : {width, height, scale}) field->setEnabled(!emptySelection && !draft.preserveData);
+        aspect->setEnabled(!emptySelection && !draft.preserveData);
+        scale->setMaximum(100.0 * kMaximumExportDimension / std::max(native.width(), native.height()));
         width->setValue(draft.size.width());
         height->setValue(draft.size.height());
-        scale->setValue(100.0 * draft.size.width() / canvas.width());
-        const double x = double(draft.size.width()) / canvas.width();
-        const double y = double(draft.size.height()) / canvas.height();
+        scale->setValue(100.0 * draft.size.width() / native.width());
+        if (emptySelection) {
+            i18n::setText(dimensionsHint, i18n::text("export.dialog.selected.layers.empty"));
+            return;
+        }
+        const double x = double(draft.size.width()) / native.width();
+        const double y = double(draft.size.height()) / native.height();
         i18n::setText(dimensionsHint, i18n::text("export.dialog.original.1.2.px.3")
-                .arg(canvas.width())
-                .arg(canvas.height())
+                .arg(native.width())
+                .arg(native.height())
                 .arg(std::abs(x - y) > .001 ? i18n::text("export.dialog.custom.proportions") : QString()));
     }
     void updateFormat()
@@ -348,6 +395,7 @@ struct ExportDialog::Impl {
         const bool isPsd=draft.format==ExportFormat::Psd;
         options->setCurrentIndex(int(draft.format));
         for(auto* control:sizeControls)control->setVisible(!isPdf&&!isPsd);
+        selectedOnly->setVisible(!isPdf && !isPsd && !draft.preserveData);
         pdf->setPdfVisible(isPdf);
         psd->setPsdVisible(isPsd);
         settingsScroll->setVisible(!isPsd);
@@ -376,10 +424,11 @@ struct ExportDialog::Impl {
         defaults.destination = draft.destination;
         defaults.preserveData = draft.preserveData;
         defaults.dataLayerId = draft.dataLayerId;
-        defaults.size = canvas;
+        defaults.selectedLayers = draft.selectedLayers;
+        defaults.size = sourceSize();
         draft = defaults;
         pendingSizeEdit = false;
-        ratio = double(canvas.width()) / canvas.height();
+        ratio = double(draft.size.width()) / draft.size.height();
         updateDimensions();
         const auto setValue = [](QDoubleSpinBox* field, double value) {
             const QSignalBlocker block(field);
@@ -426,9 +475,9 @@ struct ExportDialog::Impl {
     }
 };
 
-ExportDialog::ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* parent)
+ExportDialog::ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* parent, SelectionSource selection)
     : QDialog(parent, parent ? Qt::SubWindow : Qt::Dialog)
-    , impl_(std::make_unique<Impl>(*this, std::move(initial), canvasSize))
+    , impl_(std::make_unique<Impl>(*this, std::move(initial), canvasSize, std::move(selection)))
 {
     auto& d = *impl_;
     setObjectName(QStringLiteral("ExportDialog"));
@@ -519,6 +568,12 @@ ExportDialog::ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* pa
     auto* sizeTitle = i18n::make<QLabel>(i18n::text("export.dialog.output.size"), settings);
     sizeTitle->setObjectName(QStringLiteral("SectionLabel"));
     form->addWidget(sizeTitle);
+    d.selectedOnly = i18n::make<QCheckBox>(i18n::text("export.dialog.selected.layers.only"), settings);
+    d.selectedOnly->setObjectName(QStringLiteral("ExportSelectedLayers"));
+    i18n::setToolTip(d.selectedOnly, i18n::text("export.dialog.selected.layers.hint"));
+    d.selectedOnly->setChecked(d.draft.selectedLayers.has_value());
+    d.selectedOnly->setEnabled(bool(d.selectionSource) || d.draft.selectedLayers.has_value());
+    form->addWidget(d.selectedOnly);
     d.width = d.editableNumber(
         settings, "ExportWidth", i18n::text("export.dialog.width"), 1, kMaximumExportDimension, d.draft.size.width());
     d.height = d.editableNumber(
@@ -740,8 +795,17 @@ ExportDialog::ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* pa
     connect(d.format, &QComboBox::currentIndexChanged, this, [this](int index) {
         auto& state = *impl_;
         state.draft.format = ExportFormat(index);
+        if ((state.draft.format == ExportFormat::Pdf || state.draft.format == ExportFormat::Psd) && state.draft.selectedLayers) {
+            const QSignalBlocker block(state.selectedOnly);
+            state.selectedOnly->setChecked(false);
+            state.setSelectedOnly(false);
+        }
         state.updateFormat();
         state.notify();
+    });
+    connect(d.selectedOnly, &QCheckBox::toggled, this, [this](bool enabled) {
+        impl_->setSelectedOnly(enabled);
+        impl_->notify();
     });
     connect(d.width, &QDoubleSpinBox::valueChanged, this, [this](double value) {
         auto& state = *impl_;
@@ -779,9 +843,10 @@ ExportDialog::ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* pa
     connect(d.scale, &QDoubleSpinBox::valueChanged, this, [this](double percent) {
         auto& state = *impl_;
         state.pendingSizeEdit = false;
-        state.draft.size = QSize(std::max(1, int(std::lround(state.canvas.width() * percent / 100))),
-            std::max(1, int(std::lround(state.canvas.height() * percent / 100))));
-        state.ratio = double(state.canvas.width()) / state.canvas.height();
+        const auto native = state.sourceSize();
+        state.draft.size = QSize(std::max(1, int(std::lround(native.width() * percent / 100))),
+            std::max(1, int(std::lround(native.height() * percent / 100))));
+        state.ratio = double(native.width()) / native.height();
         state.updateDimensions();
         state.notify();
     });

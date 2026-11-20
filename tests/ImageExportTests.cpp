@@ -374,6 +374,117 @@ void allBlendModesAndMatteIsAfterComposition()
     }
 }
 
+void selectedLayersUseIsolatedContentBounds()
+{
+    c::Document doc({{12, 10}, 96});
+    CHECK(doc.insertLayer(0, raster("Unselected backdrop", {12,10}, {0,255,0,255})));
+    std::vector<std::byte> padded(8 * 8 * 4);
+    for (int y : {3, 4}) for (int x : {2, 3}) {
+        padded[(y * 8 + x) * 4] = std::byte{255};
+        padded[(y * 8 + x) * 4 + 3] = std::byte{255};
+    }
+    auto red = c::Layer::raster("Off the canvas", std::make_shared<c::ContiguousRasterSurface>(
+        c::Extent2u{8,8}, std::move(padded)));
+    red.localToDocument = {1,0,-5,0,1,-2};
+    const auto redId = red.id;
+    CHECK(doc.insertLayer(1, std::move(red)));
+    auto blue = raster("Blue", {2,1}, {0,0,255,255});
+    blue.localToDocument = {1,0,4,0,1,4};
+    const auto blueId = blue.id;
+    CHECK(doc.insertLayer(2, std::move(blue)));
+    auto hidden = raster("Hidden", {20,20}, {255,255,255,255});
+    hidden.visible = false;
+    const auto hiddenId = hidden.id;
+    CHECK(doc.insertLayer(3, std::move(hidden)));
+    auto tree = doc.tree();
+    constexpr c::LayerId folder = 400000101;
+    tree.roots = {tree.roots.front(), redId, folder};
+    tree.containers = {{folder, "Folder", c::ContainerKind::Folder, c::ColorLabel::None, {blueId,hiddenId}}};
+    CHECK(doc.replaceStructure(doc.tree(), std::move(tree)));
+    CHECK(doc.setSelection(c::SelectionMask::rectangle({12,10}, {9,8,1,1})));
+    const auto revision = doc.revision();
+    auto s = settings({9,4});
+    s.selectedLayers = u::captureExportLayerSelection(doc, {redId,folder,blueId});
+    CHECK(s.selectedLayers->bounds == c::RectI{-3,1,9,4});
+    auto result = u::renderExport(doc, s);
+    CHECK(result && result.image.size() == s.size);
+    if (!result) return;
+    CHECK(pixel(result.image,0,0) == c::Rgba8{255,0,0,255});
+    CHECK(pixel(result.image,8,3) == c::Rgba8{0,0,255,255});
+    CHECK(pixel(result.image,4,1).alpha == 0);
+    const std::atomic_bool cancel{false};
+    const auto png = u::encodeExport(result.image,s,cancel);
+    CHECK(png && equalPixels(png.decoded, result.image));
+    s.format = u::ExportFormat::Jpeg;
+    s.jpegMatteColor = Qt::white;
+    result = u::renderExport(doc,s);
+    CHECK(result && pixel(result.image,4,1) == c::Rgba8{255,255,255,255});
+    s.format = u::ExportFormat::WebP;
+    s.size = {18,8};
+    result = u::renderExport(doc,s);
+    CHECK(result && result.image.size() == s.size);
+    CHECK(result && pixel(result.image,8,2).alpha == 0);
+    CHECK(doc.revision() == revision);
+    for (const auto& ids : {std::vector<c::LayerId>{hiddenId}, std::vector<c::LayerId>{}}) {
+        s.selectedLayers = u::captureExportLayerSelection(doc, ids);
+        CHECK(!u::renderExport(doc,s));
+    }
+
+    auto effects = std::make_shared<c::LayerEffectStack>();
+    auto& overlay = effects->items[std::size_t(c::LayerEffectType::ColorOverlay)];
+    overlay.enabled = true;
+    overlay.color = {90,40,210,255};
+    CHECK(doc.setLayerEffects(redId,effects));
+    s.selectedLayers = u::captureExportLayerSelection(doc,{redId});
+    CHECK(s.selectedLayers->bounds == c::RectI{-3,1,2,2});
+    s.size = {2,2};
+    result = u::renderExport(doc,s);
+    CHECK(result && pixel(result.image,0,0) == overlay.color);
+    auto stroke = std::make_shared<c::LayerEffectStack>(*effects);
+    auto& outline = stroke->items[std::size_t(c::LayerEffectType::Stroke)];
+    outline.enabled = true;
+    outline.size = 2;
+    outline.position = c::StrokePosition::Outside;
+    CHECK(doc.setLayerEffects(redId,stroke));
+    const auto styled = u::captureExportLayerSelection(doc,{redId});
+    CHECK(styled.bounds.x < -3 && styled.bounds.right() > -1 && styled.bounds.y < 1 && styled.bounds.bottom() > 3);
+
+    // A mask and a rotate/scale transform survive isolation. Compare native
+    // and resized results to an otherwise identical document without a backdrop.
+    auto rotated = raster("Masked", {4,3}, {80,20,190,255});
+    rotated.localToDocument = {0,-1,12,2,0,-3};
+    auto mask = std::make_shared<c::LayerMask>();
+    mask->coverage = c::SelectionMask::rectangle({4,3}, {1,0,2,3}, 128);
+    mask->outside = 0;
+    rotated.mask = mask;
+    const auto rotatedId = rotated.id;
+    c::Document isolated({{12,10},96});
+    CHECK(isolated.insertLayer(0, rotated));
+    CHECK(doc.insertLayer(doc.layers().size(), std::move(rotated)));
+    s.selectedLayers = u::captureExportLayerSelection(doc,{rotatedId});
+    const auto region = s.selectedLayers->bounds;
+    CHECK(region == c::RectI{9,-3,3,8});
+    for (QSize size : {QSize(3,8), QSize(2,4), QSize(6,16)}) {
+        s.size = size;
+        const auto expected = u::flattenDocumentRegion(isolated, region, {unsigned(size.width()),unsigned(size.height())});
+        result = u::renderExport(doc,s);
+        CHECK(result && expected && equalPixels(result.image,expected.image));
+    }
+
+    // A selected clipping group fits its base. Selecting the upper member
+    // individually exports its own isolated appearance.
+    tree = doc.tree();
+    tree.containers.front().kind = c::ContainerKind::ClippingMaskGroup;
+    CHECK(doc.replaceStructure(doc.tree(), std::move(tree)));
+    CHECK(doc.setLayerVisibility(hiddenId, true));
+    s.selectedLayers = u::captureExportLayerSelection(doc,{folder});
+    CHECK(s.selectedLayers->bounds == c::RectI{4,4,2,1});
+    s.size = {2,1};
+    result = u::renderExport(doc,s);
+    CHECK(result && pixel(result.image,0,0) == c::Rgba8{255,255,255,255});
+    CHECK(u::captureExportLayerSelection(doc,{hiddenId}).bounds == c::RectI{0,0,20,20});
+}
+
 void resizeUsesLinearPremultipliedCoverageAndNativeOrientation()
 {
     c::Document doc({ { 2, 2 }, 300 });
@@ -776,6 +887,7 @@ int main(int argc, char** argv)
     if (!families.isEmpty())
         authoritativeMixedRenderingAndStateIsolation(families.front().toStdString());
     allBlendModesAndMatteIsAfterComposition();
+    selectedLayersUseIsolatedContentBounds();
     resizeUsesLinearPremultipliedCoverageAndNativeOrientation();
     pngAndWebpContainersAndAlpha();
     jpegIsRgb444WithFreshMetadata();

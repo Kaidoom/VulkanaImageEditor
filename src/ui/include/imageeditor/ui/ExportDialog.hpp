@@ -8,7 +8,8 @@ namespace imageeditor::ui {
 // publication belong to the owner coordinator, never to a paint event.
 class ExportDialog final : public QDialog {
 public:
-    ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* parent = nullptr);
+    using SelectionSource = std::function<ExportLayerSelection()>;
+    ExportDialog(ExportSettings initial, QSize canvasSize, QWidget* parent = nullptr, SelectionSource = {});
     ~ExportDialog() override;
     [[nodiscard]] ExportSettings settings() const;
     void setDestination(const QString&);

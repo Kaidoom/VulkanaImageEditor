@@ -1,3 +1,4 @@
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/ImageExport.hpp"
 #include "imageeditor/ui/FileDialogLocations.hpp"
 #include "imageeditor/core/ChannelGroups.hpp"
@@ -167,14 +168,32 @@ QString exportPathForFormat(const QString& path, ExportFormat format)
     const auto base = suffix.isEmpty() ? path : path.left(path.size() - suffix.size() - 1);
     return base + (base.endsWith('.') ? QString{} : QStringLiteral(".")) + extension;
 }
+ExportLayerSelection captureExportLayerSelection(const core::Document& document, std::vector<core::LayerId> ids)
+{
+    ExportLayerSelection source{std::move(ids), {}, {}};
+    if (!source.ids.empty()) {
+        const auto bounds = evaluatedLayerItemsBounds(document, source.ids, {}, {}, LayerBoundsMode::VisibleContent);
+        source.bounds = bounds.rect;
+        source.error = bounds.error;
+    }
+    return source;
+}
+
 QString validateExport(const ExportSettings& s, QSize canvas)
 {
-    if (s.preserveData && (s.format != ExportFormat::Png || s.pngMatte))
+    if (s.preserveData && (s.format != ExportFormat::Png || s.pngMatte || s.selectedLayers))
         return QStringLiteral("Channel data export requires PNG without a background colour.");
     if (s.preserveData && s.size != canvas)
         return QStringLiteral("Channel data export keeps the original pixel dimensions.");
     if(s.format==ExportFormat::Pdf)return {}; // Geometry/selection validated by the immutable PDF page plan.
     if(s.format==ExportFormat::Psd)return {}; // Validated by the layered export plan.
+    if (s.selectedLayers) {
+        if (!s.selectedLayers->error.isEmpty()) return s.selectedLayers->error;
+        const auto rect = s.selectedLayers->bounds;
+        if (s.selectedLayers->ids.empty() || rect.empty())
+            return i18n::text("export.dialog.selected.layers.empty");
+        canvas = {rect.width, rect.height};
+    }
     const auto invalidSize = [](QSize size) {
         return size.width() < 1 || size.height() < 1 || size.width() > kMaximumExportDimension
             || size.height() > kMaximumExportDimension;
@@ -331,9 +350,11 @@ FlattenedDocumentResult renderExport(
             std::uint8_t(color.blue()), 255 };
     FlattenedDocumentLimits limits;
     limits.outputPixels = maximumPixels;
-    auto result = flattenDocumentAtSize(document,
-        { std::uint32_t(settings.size.width()), std::uint32_t(settings.size.height()) }, std::move(progress),
-        limits, matte);
+    const core::Extent2u output{std::uint32_t(settings.size.width()), std::uint32_t(settings.size.height())};
+    auto result = settings.selectedLayers
+        ? flattenDocumentRegion(document, settings.selectedLayers->bounds, output, std::move(progress),
+              limits, matte, settings.selectedLayers->ids)
+        : flattenDocumentAtSize(document, output, std::move(progress), limits, matte);
     if (result)
         result.image.setColorSpace(QColorSpace::SRgb);
     return result;

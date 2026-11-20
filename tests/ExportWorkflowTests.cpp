@@ -483,6 +483,86 @@ void resizedCanvasExports(u::MainWindow& window, const QTemporaryDir& files)
     inspect({96, 72}, {192, 144});
 }
 
+void selectedLayerWorkflow(u::MainWindow& window, const QTemporaryDir& files)
+{
+    QImage backdrop(24,16,QImage::Format_RGBA8888);
+    backdrop.fill(Qt::green);
+    const auto path = files.filePath("selection-backdrop.png");
+    CHECK(backdrop.save(path));
+    CHECK(window.openImageFromPath(path));
+    auto& session = const_cast<c::EditorSession&>(window.editorSession());
+    const auto backdropId = *session.activeLayer();
+    auto foreground = c::Layer::raster("Red", std::make_shared<c::ContiguousRasterSurface>(
+        c::Extent2u{6,4}, c::Rgba8{255,0,0,255}));
+    foreground.localToDocument = {1,0,-4,0,1,3};
+    const auto id = foreground.id;
+    CHECK(session.execute(std::make_unique<c::AddLayerCommand>(std::move(foreground),1,backdropId)));
+    session.setActiveLayer(id);
+    const auto destination = files.filePath("selection-result.png");
+    const auto run = [&](bool again, QSize expected, QColor color) {
+        const State before(window);
+        bool initialized = false, written = false;
+        QElapsedTimer elapsed;
+        elapsed.start();
+        QTimer driver;
+        driver.setInterval(15);
+        QObject::connect(&driver, &QTimer::timeout, &window, [&] {
+            auto* dialog = exportDialog();
+            if (!dialog) return;
+            if (elapsed.elapsed()>12000) { CHECK(false); dialog->reject(); return; }
+            auto* toggle = dialog->findChild<QCheckBox*>("ExportSelectedLayers");
+            auto* button = dialog->findChild<QPushButton*>("ExportWrite");
+            if (!initialized) {
+                initialized = true;
+                CHECK(toggle && (again || toggle->isEnabled()));
+                if (!toggle) { dialog->reject(); return; }
+                if (!again) {
+                    dialog->setDestination(destination);
+                    CHECK(!toggle->isChecked());
+                    toggle->click();
+                    CHECK(dialog->settings().size == expected);
+                    toggle->click();
+                    CHECK(dialog->settings().size == backdrop.size());
+                    toggle->click();
+                }
+                CHECK(toggle->isChecked() && dialog->settings().size == expected);
+            }
+            if (dialog->findChild<QLabel*>("ExportStatus")->text().startsWith("Exported")) {
+                const QImage exported(destination);
+                CHECK(exported.size() == expected && exported.pixelColor(0,0) == color);
+                written = true;
+                dialog->findChild<QPushButton*>("ExportSuccessClose")->click();
+                dialog->findChild<QPushButton*>("ExportHeaderClose")->click();
+            } else if (!again && button->isEnabled()) button->click();
+        });
+        driver.start();
+        window.exportImage(again);
+        driver.stop();
+        CHECK(initialized && written);
+        before.verify(window);
+    };
+    run(false, {6,4}, Qt::red);
+    CHECK(QFile::remove(destination));
+    session.setActiveLayer(backdropId);
+    run(true, backdrop.size(), Qt::green);
+    const auto previous = read(destination);
+    session.setActiveLayer({});
+    const State noSelection(window);
+    bool rejected = false;
+    QTimer::singleShot(100, &window, [&] {
+        auto* dialog = exportDialog();
+        CHECK(dialog);
+        if (!dialog) return;
+        CHECK(dialog->findChild<QCheckBox*>("ExportSelectedLayers")->isChecked());
+        CHECK(!dialog->findChild<QPushButton*>("ExportWrite")->isEnabled());
+        rejected = dialog->findChild<QLabel*>("ExportStatus")->text().contains("visible content");
+        dialog->reject();
+    });
+    window.exportImage(true);
+    CHECK(rejected && read(destination) == previous);
+    noSelection.verify(window);
+}
+
 void workflow(QVulkanInstance* instance, const QString& artifacts)
 {
     QTemporaryDir files;
@@ -822,6 +902,7 @@ void workflow(QVulkanInstance* instance, const QString& artifacts)
     CHECK(!QFileInfo::exists(files.filePath("cancel-encode.webp")));
     baseline.verify(window);
     resizedCanvasExports(window, files);
+    selectedLayerWorkflow(window, files);
     window.close();
     QTest::qWait(150);
 }

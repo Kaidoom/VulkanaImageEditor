@@ -79,12 +79,15 @@ struct EvaluatedDocumentBounds {
 };
 // The same evaluated visual bounds used by native baking, without allocating
 // or sampling an output image. Empty visible content returns an empty rect.
+enum class LayerBoundsMode { Surface, VisibleContent };
 [[nodiscard]] EvaluatedDocumentBounds evaluatedLayerItemsBounds(const core::Document&,
-    std::span<const core::LayerId>, FlattenedDocumentProgress = {}, FlattenedDocumentLimits = {});
+    std::span<const core::LayerId>, FlattenedDocumentProgress = {}, FlattenedDocumentLimits = {},
+    LayerBoundsMode = LayerBoundsMode::Surface);
 // Explicit document-space page region. Preserves source coordinates and native
-// pixels; output density affects reconstruction, never document geometry.
+// pixels; output density affects reconstruction, never document geometry. An
+// item list isolates those layers with the same group composition as Merge Selected.
 [[nodiscard]] FlattenedDocumentResult flattenDocumentRegion(const core::Document&, core::RectI,
     core::Extent2u output, FlattenedDocumentProgress = {}, FlattenedDocumentLimits = {},
-    std::optional<core::Rgba8> matte = {});
+    std::optional<core::Rgba8> matte = {}, std::optional<std::span<const core::LayerId>> items = {});
 
 } // namespace imageeditor::ui

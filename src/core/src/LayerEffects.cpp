@@ -242,6 +242,23 @@ LayerEffect defaultLayerEffect(LayerEffectType type) {
   }
   return e;
 }
+RectD LayerEffectCache::boundsWithEffects(RectD source, const LayerEffectStack& effects) const {
+  const auto include = [&](RectD r) {
+    if (r.empty()) return;
+    if (source.empty()) { source = r; return; }
+    const double x = std::min(source.x, r.x), y = std::min(source.y, r.y);
+    source = {x, y, std::max(source.right(), r.right()) - x, std::max(source.bottom(), r.bottom()) - y};
+  };
+  if (!effects.pixelAlphaShapesEffects) include(paintFrame);
+  // Only the exterior masks can extend the source footprint.
+  for (auto i : {0, 2, 4})
+    if (effects.items[std::size_t(i == 0 ? 0 : i - 1)].enabled && masks[std::size_t(i)])
+      include(masks[std::size_t(i)]->localBounds);
+  if (bevelActive(effects.items[7]))
+    for (auto i : {8, 9}) if (masks[i]) include(masks[i]->localBounds);
+  return source;
+}
+
 LayerEffectStack::LayerEffectStack() {
   for (std::size_t i = 0; i < items.size(); ++i)
     items[i] = defaultLayerEffect(LayerEffectType(i));
@@ -548,34 +565,7 @@ prepareLayerEffects(const Layer &layer, const FilterPreparationOptions &o) {
   }
   const auto a = mapping.map({0, 0}),
              b = mapping.map({double(e.width), double(e.height)});
-  result->visualBounds = {a.x, a.y, b.x - a.x, b.y - a.y};
-  if (!pixelAlpha && !result->paintFrame.empty()) {
-    auto& v = result->visualBounds;
-    const auto& frame = result->paintFrame;
-    const double right = std::max(v.right(), frame.right()), bottom = std::max(v.bottom(), frame.bottom());
-    v.x = std::min(v.x,frame.x); v.y = std::min(v.y,frame.y);
-    v.width = right-v.x; v.height = bottom-v.y;
-  }
-  for (auto i : {0, 2, 4})
-    if (layer.effects->items[std::size_t(i == 0 ? 0 : i - 1)].enabled &&
-        result->masks[std::size_t(i)]) {
-      const auto &r = result->masks[std::size_t(i)]->localBounds;
-      if(r.empty())continue;
-      auto &v = result->visualBounds;
-      const double right = std::max(v.x + v.width, r.x + r.width),
-                   bottom = std::max(v.y + v.height, r.y + r.height);
-      v.x = std::min(v.x, r.x);
-      v.y = std::min(v.y, r.y);
-      v.width = right - v.x;
-      v.height = bottom - v.y;
-    }
-  if(bevelActive(bevel))for(auto i:{8,9}) {
-    if(!result->masks[std::size_t(i)])continue;
-    const auto& r=result->masks[std::size_t(i)]->localBounds;if(r.empty())continue;
-    auto& v=result->visualBounds;
-    const double right=std::max(v.x+v.width,r.x+r.width),bottom=std::max(v.y+v.height,r.y+r.height);
-    v.x=std::min(v.x,r.x);v.y=std::min(v.y,r.y);v.width=right-v.x;v.height=bottom-v.y;
-  }
+  result->visualBounds = result->boundsWithEffects({a.x, a.y, b.x - a.x, b.y - a.y}, *layer.effects);
   require(source->revision() == result->sourceRevision,
           "Effect source changed while preparing");
   return result;

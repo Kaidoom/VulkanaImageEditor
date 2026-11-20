@@ -138,6 +138,7 @@ struct LayerEffectCache {
     return (bevelDistance ? bevelDistance->distance.size()*6 : 0) +
            (bevelNormals ? bevelNormals->xy.size()*4 : 0);
   }
+  [[nodiscard]] RectD boundsWithEffects(RectD source, const LayerEffectStack&) const;
   RectD visualBounds;
   std::size_t workingBytes{};
 };
