@@ -12916,6 +12916,21 @@ Prepare %3 · Finish %4 · Total %5</source>
       <translation>Размер</translation>
       <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
     </message>
+    <message id="diffusion.ui.scale.output">
+      <source>Scale Output</source>
+      <translation>Масштаб результата</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.reset.output.scale">
+      <source>Reset output scale to 100%</source>
+      <translation>Сбросить масштаб результата до 100%</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.measured.megapixels">
+      <source>%1 × %2 is %3 decimal MP. Presets use 1024 × 1024 pixels per MP.</source>
+      <translation>%1 × %2 — это %3 Мп в десятичной системе. В предустановках 1 Мп равен 1024 × 1024 пикселям.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
     <message id="diffusion.ui.output.width.in.pixels">
       <source>Output width in pixels</source>
       <translation>Выходная ширина в пикселях</translation>

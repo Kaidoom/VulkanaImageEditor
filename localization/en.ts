@@ -8687,6 +8687,15 @@ Prepare %3 · Finish %4 · Total %5</source>
     <message id="diffusion.ui.size">
       <source>Size</source>
     </message>
+    <message id="diffusion.ui.scale.output">
+      <source>Scale Output</source>
+    </message>
+    <message id="diffusion.ui.reset.output.scale">
+      <source>Reset output scale to 100%</source>
+    </message>
+    <message id="diffusion.ui.measured.megapixels">
+      <source>%1 × %2 is %3 decimal MP. Presets use 1024 × 1024 pixels per MP.</source>
+    </message>
     <message id="diffusion.ui.output.width.in.pixels">
       <source>Output width in pixels</source>
     </message>

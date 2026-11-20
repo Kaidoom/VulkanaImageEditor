@@ -12930,6 +12930,21 @@ Prepare %3 · Finish %4 · Total %5</source>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
       <translation>आकार</translation>
     </message>
+    <message id="diffusion.ui.scale.output">
+      <source>Scale Output</source>
+      <translation>आउटपुट स्केल</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.reset.output.scale">
+      <source>Reset output scale to 100%</source>
+      <translation>आउटपुट स्केल 100% पर रीसेट करें</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.measured.megapixels">
+      <source>%1 × %2 is %3 decimal MP. Presets use 1024 × 1024 pixels per MP.</source>
+      <translation>%1 × %2 दशमलव में %3 MP है। प्रीसेट में 1 MP के लिए 1024 × 1024 पिक्सेल लिए जाते हैं।</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
     <message id="diffusion.ui.output.width.in.pixels">
       <source>Output width in pixels</source>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>

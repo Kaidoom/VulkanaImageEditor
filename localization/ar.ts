@@ -12950,6 +12950,21 @@ Prepare %3 · Finish %4 · Total %5</source>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
       <translation>الحجم</translation>
     </message>
+    <message id="diffusion.ui.scale.output">
+      <source>Scale Output</source>
+      <translation>مقياس الإخراج</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.reset.output.scale">
+      <source>Reset output scale to 100%</source>
+      <translation>إعادة مقياس الإخراج إلى 100%</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.measured.megapixels">
+      <source>%1 × %2 is %3 decimal MP. Presets use 1024 × 1024 pixels per MP.</source>
+      <translation>تعادل الأبعاد %1 × %2 مقدار %3 ميغابكسل بالنظام العشري. تحسب الإعدادات المسبقة كل 1024 × 1024 بكسل على أنها ميغابكسل واحد.</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
     <message id="diffusion.ui.output.width.in.pixels">
       <source>Output width in pixels</source>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>

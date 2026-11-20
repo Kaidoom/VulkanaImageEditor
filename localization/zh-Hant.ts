@@ -12929,6 +12929,21 @@ Prepare %3 · Finish %4 · Total %5</source>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
       <translation>尺寸</translation>
     </message>
+    <message id="diffusion.ui.scale.output">
+      <source>Scale Output</source>
+      <translation>輸出縮放</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.reset.output.scale">
+      <source>Reset output scale to 100%</source>
+      <translation>將輸出縮放重設為 100%</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
+    <message id="diffusion.ui.measured.megapixels">
+      <source>%1 × %2 is %3 decimal MP. Presets use 1024 × 1024 pixels per MP.</source>
+      <translation>%1 × %2 以十進位計算為 %3 MP。預設以 1024 × 1024 像素計為 1 MP。</translation>
+      <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
+    </message>
     <message id="diffusion.ui.output.width.in.pixels">
       <source>Output width in pixels</source>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>

@@ -27,6 +27,7 @@
 #include <QSettings>
 #include <QSignalSpy>
 #include <QSpinBox>
+#include <QSlider>
 #include <QStandardPaths>
 #include <QTabWidget>
 #include <QTemporaryDir>
@@ -1072,6 +1073,84 @@ private slots:
     QCOMPARE(restored.request()["height"].toInt(), 1312);
     QCOMPARE(restored.findChild<QComboBox *>("DiffusionAspectRatio")->currentText(), QString("Custom"));
   }
+  void outputScaleUsesExactReferenceAndRebases() {
+    DiffusionPanel panel;
+    auto *width = panel.findChild<QSpinBox *>("DiffusionWidth");
+    auto *height = panel.findChild<QSpinBox *>("DiffusionHeight");
+    auto *slider = panel.findChild<QSlider *>("DiffusionOutputScaleSlider");
+    auto *percent = panel.findChild<QDoubleSpinBox *>("DiffusionOutputScalePercent");
+    auto *reset = panel.findChild<QToolButton *>("DiffusionResetOutputScale");
+    auto *ratio = panel.findChild<QComboBox *>("DiffusionAspectRatio");
+    auto *mp = panel.findChild<QComboBox *>("DiffusionMegapixels");
+    const auto size = [&] { return QSize(width->value(), height->value()); };
+    QCOMPARE(percent->value(), 100.0);
+    QVERIFY(!reset->isEnabled());
+    panel.setResolution({1184, 1760});
+    QCOMPARE(mp->currentText(), QString("1.99 MP"));
+    QVERIFY(mp->toolTip().contains("2.08"));
+    QCOMPARE(ratio->currentData().toSize(), QSize(2, 3));
+    slider->setValue(149); // Drag between stops, using the actual matched dimensions.
+    QCOMPARE(slider->value(), 150);
+    QCOMPARE(size(), QSize(1792, 2624));
+    QCOMPARE(percent->value(), 150.0);
+    percent->setValue(83.25);
+    QCOMPARE(size(), QSize(992, 1472));
+    QCOMPARE(panel.prepareGeneration().value("height").toInt(), 1472);
+    slider->setValue(150);
+    QCOMPARE(size(), QSize(1792, 2624));
+    reset->click();
+    QCOMPARE(size(), QSize(1184, 1760));
+    percent->setValue(150);
+    width->setValue(1312); // The displayed height becomes part of the new base.
+    QCOMPARE(percent->value(), 100.0);
+    QCOMPARE(ratio->currentText(), QString("Custom"));
+    percent->setValue(50);
+    QCOMPARE(size(), QSize(640, 1312));
+    panel.saveSettings();
+    DiffusionPanel restored;
+    QCOMPARE(restored.findChild<QDoubleSpinBox *>("DiffusionOutputScalePercent")->value(), 50.0);
+    restored.findChild<QToolButton *>("DiffusionResetOutputScale")->click();
+    QCOMPARE(restored.request()["width"].toInt(), 1312);
+    QCOMPARE(restored.request()["height"].toInt(), 2624);
+    panel.setResolution({1024, 1024});
+    QCOMPARE(percent->value(), 100.0);
+    percent->setValue(125);
+    mp->setCurrentIndex(mp->findData(2.0));
+    QCOMPARE(percent->value(), 100.0);
+    QCOMPARE(size(), QSize(1440, 1440));
+  }
+  void outputScaleRespectsGridAndLimits() {
+    DiffusionPanel panel;
+    auto *percent = panel.findChild<QDoubleSpinBox *>("DiffusionOutputScalePercent");
+    auto *multiple = panel.findChild<QComboBox *>("DiffusionResolutionMultiple");
+    auto *width = panel.findChild<QSpinBox *>("DiffusionWidth");
+    auto *height = panel.findChild<QSpinBox *>("DiffusionHeight");
+    panel.setResolution({6144, 3072});
+    percent->setValue(200);
+    QCOMPARE(width->value(), 8192);
+    QCOMPARE(height->value(), 4096);
+    auto *batch = panel.findChild<QDoubleSpinBox *>("Diffusion_batch");
+    batch->setValue(4);
+    panel.setResolution({4096, 4096});
+    percent->setValue(200);
+    QCOMPARE(width->value(), 4096);
+    QCOMPARE(height->value(), 4096);
+    batch->setValue(1);
+    QCOMPARE(width->value(), 8192);
+    QCOMPARE(height->value(), 8192);
+    panel.setResolution({32, 1024});
+    percent->setValue(50);
+    QCOMPARE(width->value(), 32);
+    QCOMPARE(height->value(), 1024);
+    panel.setResolution({1184, 1760});
+    percent->setValue(120);
+    multiple->setCurrentIndex(multiple->findData(12));
+    QCOMPARE(width->value() % 96, 0); // Both Qwen's 32 and the chosen 12.
+    QCOMPARE(height->value() % 96, 0);
+    percent->setValue(100);
+    QCOMPARE(width->value(), 1184);
+    QCOMPARE(height->value(), 1760);
+  }
   void resolutionSelectorDetectsStoredSizeWithoutRecalculating() {
     QSettings().setValue("diffusion/width", 1536);
     QSettings().setValue("diffusion/height", 1024);
@@ -1147,6 +1226,7 @@ private slots:
   }
   void resolutionRemainsAuthoritativeAcrossCapabilitiesAndModes() {
     for (const auto &value : imageeditor::diffusion::modelProfiles()) {
+      QSettings().clear(); // Each profile starts with a fresh 1 MP reference.
       const auto profile = value.toObject();
       DiffusionPanel panel;
       panel.setConfiguration({{"profile", profile["id"]}});
@@ -1195,6 +1275,8 @@ private slots:
       QCOMPARE(restored.request()["width"].toInt(), 841);
       QCOMPARE(restored.request()["height"].toInt(), 1257);
       QCOMPARE(restored.findChild<QComboBox *>("DiffusionAspectRatio")->currentData().toSize(), QSize(2, 3));
+      auto *mp = panel.findChild<QComboBox *>("DiffusionMegapixels");
+      mp->setCurrentIndex(mp->findData(1.0));
       multiple->setCurrentIndex(multiple->findData(profile["alignment"].toInt()));
       ratio->setCurrentIndex(ratio->findData(QSize(2, 3)));
       ratio->activated(ratio->currentIndex());
@@ -1205,7 +1287,6 @@ private slots:
       QCOMPARE(request["width"].toInt(), expected.width());
       QCOMPARE(request["height"].toInt(), expected.height());
       QVERIFY(panel.findChild<QLabel *>("DiffusionResolutionRequirement")->text().contains(profile["name"].toString()));
-      QSettings().clear();
     }
   }
   void centeredSizeAndNarrowResolutionLayout() {

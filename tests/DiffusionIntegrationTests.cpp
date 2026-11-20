@@ -747,20 +747,40 @@ private slots:
     QCOMPARE(width->value(), 64);
     QCOMPARE(height->value(), 64);
     QCOMPARE(ratio->currentData().toSize(), QSize(1, 1));
-    QImage reference(128, 192, QImage::Format_RGBA8888);
+    QImage reference(1184, 1760, QImage::Format_RGBA8888);
     reference.fill(Qt::blue);
     QVERIFY(panel->addInput({reference, "Portrait", "Test"}));
     child<QListWidget>("DiffusionInputsList")->setCurrentRow(0);
     child<QToolButton>("DiffusionMatchSelectedSize")->click();
-    QCOMPARE(width->value(), 128);
-    QCOMPARE(height->value(), 192);
+    QCOMPARE(width->value(), 1184);
+    QCOMPARE(height->value(), 1760);
     QCOMPARE(ratio->currentData().toSize(), QSize(2, 3));
-    QCOMPARE(panel->findChild<QComboBox *>("DiffusionMegapixels")->currentData().toDouble(), 1.0);
+    QCOMPARE(panel->findChild<QComboBox *>("DiffusionMegapixels")->currentText(), QString("1.99 MP"));
+    auto *scale = panel->findChild<QDoubleSpinBox *>("DiffusionOutputScalePercent");
+    QVERIFY(scale);
+    panel->findChild<QScrollArea *>("DiffusionGenerationPage")->ensureWidgetVisible(scale);
+    QCoreApplication::processEvents();
+    QTest::mouseClick(scale, Qt::LeftButton, {}, QPoint(20, scale->height()/2));
+    QTRY_VERIFY(scale->hasFocus());
+    scale->selectAll();
+    QInputMethodEvent entry;
+    entry.setCommitString("125.5");
+    QCoreApplication::sendEvent(window->windowHandle(), &entry);
+    QTest::keyClick(window->windowHandle(), Qt::Key_Return);
+    QCOMPARE(scale->value(), 125.5);
+    QCOMPARE(width->value(), 1472);
+    QCOMPARE(height->value(), 2208);
     panel->clearInputs();
     child<QToolButton>("DiffusionMatchSelectedSize")->click();
     QCOMPARE(width->value(), 64);
     QCOMPARE(height->value(), 64);
     QCOMPARE(ratio->currentData().toSize(), QSize(1, 1));
+    QCOMPARE(scale->value(), 100.0);
+    scale->setValue(150);
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QVERIFY(panel->selectedResult());
+    QCOMPARE(panel->selectedResult()->image.size(), QSize(96, 96));
     QCOMPARE(session().document()->revision(), revision);
   }
   void checkpointOnlyGenerationAndNativeFileEntry() {
@@ -827,6 +847,8 @@ private slots:
     QCOMPARE(session().document()->revision(), revision);
 
     panel->setWorkerExecutable(worker);
+    auto *mp = child<QComboBox>("DiffusionMegapixels");
+    mp->setCurrentIndex(mp->findData(1.0)); // Recover with the 1 MP preset.
     ratio->setCurrentIndex(ratio->findData(QSize(2, 3)));
     ratio->activated(ratio->currentIndex());
     QCOMPARE(QSize(width->value(), height->value()), QSize(840, 1256));

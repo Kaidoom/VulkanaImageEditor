@@ -54,6 +54,7 @@
 #include <QSet>
 #include <QSignalBlocker>
 #include <QSpinBox>
+#include <QSlider>
 #include <QStandardItemModel>
 #include <QStandardPaths>
 #include <QStyle>
@@ -68,6 +69,7 @@
 #include <QWheelEvent>
 #include <algorithm>
 #include <cmath>
+#include <numeric>
 
 namespace imageeditor::ui {
 namespace {
@@ -514,6 +516,13 @@ struct DiffusionPanel::Impl {
   QComboBox *aspectRatio{}, *megapixels{}, *resolutionMultiple{};
   QLabel *resolutionRequirement{};
   bool updatingResolution{};
+  QSize scaleReference{1024, 1024};
+  QSpinBox *typedDimension{};
+  QSlider *scaleSlider{};
+  QDoubleSpinBox *scalePercent{};
+  QToolButton *resetScale{};
+  double referencePresetMp{}; // Zero for a manually entered or matched size.
+  int measuredMpIndex{-1};
   QCheckBox *imageToImage{};
   QCheckBox *cropGuidance{};
   QWidget *modeSettings{};
@@ -728,8 +737,7 @@ struct DiffusionPanel::Impl {
         break;
       }
       updateCapabilities(false);
-      if (previousProfile != profiles->currentData() && resolutionMultiple->currentData().toInt() == 0)
-        applyResolutionPreset();
+      if (previousProfile != profiles->currentData()) profileResolutionChanged();
     }
     if (q.onConfigurationChanged) q.onConfigurationChanged();
     q.saveSettings();
@@ -925,6 +933,78 @@ struct DiffusionPanel::Impl {
     width->setValue(size.width());
     height->setValue(size.height());
   }
+  void showScale(double percent) {
+    const QSignalBlocker field(scalePercent), slider(scaleSlider);
+    scalePercent->setValue(percent);
+    scaleSlider->setValue(qRound(percent / 5) * 5);
+    resetScale->setEnabled(percent != 100);
+  }
+  void rebaseResolution(double presetMp = 0) {
+    typedDimension = nullptr;
+    scaleReference = {width->value(), height->value()};
+    referencePresetMp = presetMp;
+    showScale(100);
+  }
+  void selectMegapixels(double mp) {
+    // Reflect the actual size without firing the preset's resize callback.
+    const QSignalBlocker block(megapixels);
+    if (measuredMpIndex >= 0) {
+      megapixels->removeItem(measuredMpIndex);
+      measuredMpIndex = -1;
+    }
+    const auto measured = QString::number(mp, 'f', mp < 0.1 ? 3 : 2);
+    int index = megapixels->findData(measured.toDouble());
+    if (index < 0) {
+      index = 0;
+      while (index < megapixels->count() && megapixels->itemData(index).toDouble() < mp) ++index;
+      megapixels->insertItem(index, measured + QStringLiteral(" MP"), mp);
+      measuredMpIndex = index;
+    }
+    megapixels->setCurrentIndex(index);
+  }
+  void syncMegapixels() {
+    const double pixels = double(width->value()) * height->value();
+    selectMegapixels(pixels / (1024 * 1024));
+    i18n::setToolTip(megapixels, i18n::text("diffusion.ui.measured.megapixels")
+        .arg(width->value()).arg(height->value()).arg(QString::number(pixels / 1000000, 'f', 2)));
+  }
+  static int nearestGridUnits(double units) {
+    // Resolution presets use nearest-multiple rounding with ties to even.
+    const double lower = std::floor(units);
+    return int(units - lower == .5 ? lower + std::fmod(lower, 2.0) : std::round(units));
+  }
+  QSize scaledResolution(double percent, int batch) const {
+    if (percent == 100) return scaleReference;
+    const int alignment = profile().value("alignment").toInt(32);
+    const int selected = resolutionMultiple->currentData().toInt();
+    const int multiple = selected ? std::lcm(selected, alignment) : alignment;
+    const int minimum = (width->minimum() + multiple - 1) / multiple * multiple;
+    const int maximum = width->maximum() / multiple * multiple;
+    const double w = scaleReference.width(), h = scaleReference.height();
+    const double budget = 67108864.0 / std::max(1, batch);
+    const double upper = std::min({maximum / w, maximum / h, std::sqrt(budget / (w * h)),
+                                   budget / (minimum * std::max(w, h))});
+    const double lower = std::max(minimum / w, minimum / h);
+    const double factor = std::min(upper, std::max(lower, percent / 100));
+    const auto fit = [&](int wUnits, int hUnits) {
+      return QSize(std::clamp(wUnits * multiple, minimum, maximum),
+                   std::clamp(hUnits * multiple, minimum, maximum));
+    };
+    const double wUnits = w * factor / multiple, hUnits = h * factor / multiple;
+    const auto nearest = fit(nearestGridUnits(wUnits), nearestGridUnits(hUnits));
+    if (double(nearest.width()) * nearest.height() <= budget) return nearest;
+    // Nearest-grid rounding can just cross the worker's combined batch limit.
+    return fit(int(wUnits), int(hUnits));
+  }
+  void applyOutputScale(double percent) {
+    showScale(percent);
+    writeResolution(scaledResolution(percent, effectiveSampling().value("batch").toInt(1)));
+    syncMegapixels();
+  }
+  void profileResolutionChanged() {
+    if (scalePercent->value() == 100 && referencePresetMp > 0 && resolutionMultiple->currentData().toInt() == 0)
+      applyResolutionPreset(referencePresetMp);
+  }
   void setAlignedSize(QSize size) {
     const int alignment = profile().value("alignment").toInt(32);
     writeResolution({std::max(alignment, ((size.width() + alignment - 1) / alignment) * alignment),
@@ -945,21 +1025,21 @@ struct DiffusionPanel::Impl {
     const QSignalBlocker block(aspectRatio);
     aspectRatio->setCurrentIndex(best);
   }
-  void applyResolutionPreset() {
+  void applyResolutionPreset(double targetMp) {
     const auto ratio = aspectRatio->currentData().toSize();
-    if (ratio.isEmpty()) return;
-    const double pixels = megapixels->currentData().toDouble() * 1024 * 1024;
+    if (ratio.isEmpty()) {
+      if (scalePercent->value() != 100) rebaseResolution();
+      return;
+    }
+    const double pixels = targetMp * 1024 * 1024;
     const double scale = std::sqrt(pixels / (ratio.width() * ratio.height()));
     const int selected = resolutionMultiple->currentData().toInt();
     const int multiple = selected ? selected : profile().value("alignment").toInt(32);
-    const auto rounded = [multiple](double dimension) {
-      const double units = dimension / multiple;
-      const double lower = std::floor(units);
-      // Match the reference's nearest-multiple rounding, including ties to even.
-      const double nearest = units - lower == .5 ? lower + std::fmod(lower, 2.0) : std::round(units);
-      return int(nearest) * multiple;
-    };
+    const auto rounded = [multiple](double dimension) { return nearestGridUnits(dimension / multiple) * multiple; };
     writeResolution({rounded(ratio.width() * scale), rounded(ratio.height() * scale)});
+    rebaseResolution(targetMp);
+    selectMegapixels(targetMp);
+    i18n::setToolTip(megapixels, i18n::text("diffusion.ui.approximate.pixel.count.1.0.mp.is"));
   }
   int maxInputs() const {
     if (!q.supportsImageInputs())
@@ -1422,7 +1502,15 @@ struct DiffusionPanel::Impl {
                    {"cacheEnd", .95}});
       sigmas->clear();
     }
-    const double cfg = effectiveSampling()["guidance"].toDouble();
+    const auto effective = effectiveSampling();
+    if (scalePercent->value() != 100) {
+      const auto scaled = scaledResolution(scalePercent->value(), effective.value("batch").toInt(1));
+      if (scaled != QSize(width->value(), height->value())) {
+        writeResolution(scaled);
+        syncMegapixels();
+      }
+    }
+    const double cfg = effective["guidance"].toDouble();
     const bool supportsNegative = p.value("negativePrompt").toBool();
     negative->setEnabled(supportsNegative && cfg > 1);
     i18n::setToolTip(negative,
@@ -2149,6 +2237,41 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
       onResetSize();
   });
   essentials->addLayout(outputRow);
+  auto *scaleRow = new QHBoxLayout;
+  scaleRow->setSpacing(4);
+  scaleRow->addStretch();
+  auto *scaleLabel = i18n::make<QLabel>(i18n::text("diffusion.ui.scale.output"));
+  scaleRow->addWidget(scaleLabel);
+  d->scaleSlider = new ScrollSafe<QSlider>(Qt::Horizontal);
+  d->scaleSlider->setObjectName("DiffusionOutputScaleSlider");
+  d->scaleSlider->setRange(50, 200);
+  d->scaleSlider->setSingleStep(5);
+  d->scaleSlider->setPageStep(10);
+  d->scaleSlider->setMaximumWidth(132);
+  i18n::setAccessibleName(d->scaleSlider, i18n::text("diffusion.ui.scale.output"));
+  scaleRow->addWidget(d->scaleSlider, 1);
+  d->scalePercent = new ScrollSafe<QDoubleSpinBox>;
+  d->scalePercent->setObjectName("DiffusionOutputScalePercent");
+  d->scalePercent->setRange(50, 200);
+  d->scalePercent->setDecimals(2);
+  d->scalePercent->setSingleStep(1);
+  d->scalePercent->setSuffix(QStringLiteral("%"));
+  d->scalePercent->setKeyboardTracking(false);
+  d->scalePercent->setButtonSymbols(QAbstractSpinBox::NoButtons);
+  d->scalePercent->setAlignment(Qt::AlignCenter);
+  d->scalePercent->setStyleSheet(QStringLiteral("QDoubleSpinBox { padding: 0 5px; }"));
+  d->scalePercent->setFixedWidth(d->scalePercent->fontMetrics().horizontalAdvance(QStringLiteral("200.00%")) + 20);
+  scaleLabel->setBuddy(d->scalePercent);
+  scaleRow->addWidget(d->scalePercent);
+  d->resetScale = iconButton(ToolGlyph::Refresh, i18n::text("diffusion.ui.reset.output.scale"), content);
+  d->resetScale->setObjectName("DiffusionResetOutputScale");
+  scaleRow->addWidget(d->resetScale);
+  scaleRow->addStretch();
+  essentials->addLayout(scaleRow);
+  d->showScale(100);
+  connect(d->scaleSlider, &QSlider::valueChanged, this, [this](int value) { d->applyOutputScale(qRound(value / 5.0) * 5); });
+  connect(d->scalePercent, &QDoubleSpinBox::valueChanged, this, [this](double percent) { d->applyOutputScale(percent); });
+  connect(d->resetScale, &QToolButton::clicked, this, [this] { d->applyOutputScale(100); });
   QVBoxLayout *resolutionLayout{};
   essentials->addWidget(section(i18n::text("diffusion.ui.resolution.selector"), "DiffusionResolution", resolutionLayout));
   auto *resolutionForm = form(resolutionLayout);
@@ -2185,15 +2308,29 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   d->resolutionRequirement->setObjectName("DiffusionResolutionRequirement");
   d->resolutionRequirement->setWordWrap(true);
   resolutionLayout->addWidget(d->resolutionRequirement);
-  connect(d->aspectRatio, &QComboBox::activated, this, [this] { d->applyResolutionPreset(); });
-  for (auto *selector : {d->megapixels, d->resolutionMultiple})
-    connect(selector, &QComboBox::currentIndexChanged, this, [this] { d->applyResolutionPreset(); });
-  for (auto *dimension : {d->width, d->height})
-    connect(dimension, &QSpinBox::valueChanged, this, [this] {
-      if (d->updatingResolution) return;
-      const QSignalBlocker block(d->aspectRatio);
-      d->aspectRatio->setCurrentIndex(d->aspectRatio->count() - 1);
+  connect(d->aspectRatio, &QComboBox::activated, this, [this] { d->applyResolutionPreset(d->megapixels->currentData().toDouble()); });
+  connect(d->megapixels, &QComboBox::currentIndexChanged, this, [this] {
+    d->applyResolutionPreset(d->megapixels->currentData().toDouble());
+  });
+  connect(d->resolutionMultiple, &QComboBox::currentIndexChanged, this, [this] {
+    if (d->scalePercent->value() != 100) d->applyOutputScale(d->scalePercent->value());
+    else d->applyResolutionPreset(d->megapixels->currentData().toDouble());
+  });
+  const auto manualSize = [this] {
+    if (d->updatingResolution) return;
+    d->rebaseResolution();
+    d->syncMegapixels();
+    const QSignalBlocker block(d->aspectRatio);
+    d->aspectRatio->setCurrentIndex(d->aspectRatio->count() - 1);
+  };
+  for (auto *dimension : {d->width, d->height}) {
+    connect(dimension, &QSpinBox::valueChanged, this, manualSize);
+    connect(dimension->findChild<QLineEdit *>(), &QLineEdit::textEdited, this,
+            [this, dimension] { d->typedDimension = dimension; });
+    connect(dimension, &QSpinBox::editingFinished, this, [this, dimension, manualSize] {
+      if (d->typedDimension == dimension) manualSize(); // Explicitly re-entered the displayed value.
     });
+  }
   QVBoxLayout *overridesLayout{};
   d->overridesSection = section(i18n::text("diffusion.ui.overrides"), "DiffusionOverrides", overridesLayout);
   d->overridesForm = form(overridesLayout);
@@ -2786,8 +2923,7 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   });
   const auto profileChanged = [this] {
     d->updateCapabilities(true);
-    if (!d->updating && d->resolutionMultiple->currentData().toInt() == 0)
-      d->applyResolutionPreset();
+    if (!d->updating) d->profileResolutionChanged();
     if (!d->updating && onConfigurationChanged)
       onConfigurationChanged();
   };
@@ -2931,8 +3067,21 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   if (settings.contains("diffusion/exposedGeneration"))
     d->setExposedGeneration(QJsonDocument::fromJson(
         settings.value("diffusion/exposedGeneration").toByteArray()).array());
-  d->width->setValue(settings.value("diffusion/width", 1024).toInt());
-  d->height->setValue(settings.value("diffusion/height", 1024).toInt());
+  d->writeResolution({settings.value("diffusion/width", 1024).toInt(), settings.value("diffusion/height", 1024).toInt()});
+  d->rebaseResolution();
+  d->syncMegapixels();
+  const auto scale = settings.value("diffusion/outputScale").toMap();
+  const QSize base = scale.value("reference").toSize();
+  const double percent = scale.value("percent", 100).toDouble();
+  if (percent >= 50 && percent <= 200 && percent != 100
+      && base.width() >= d->width->minimum() && base.width() <= d->width->maximum()
+      && base.height() >= d->height->minimum() && base.height() <= d->height->maximum()) {
+    const QSignalBlocker block(d->resolutionMultiple);
+    const int index = d->resolutionMultiple->findData(scale.value("multiple", 0));
+    d->resolutionMultiple->setCurrentIndex(std::max(0, index));
+    d->scaleReference = base;
+    d->showScale(percent);
+  }
   setMode(Mode(std::clamp(settings.value("diffusion/mode", 0).toInt(), 0, 2)));
   d->updateCapabilities(false);
   d->rebuildInputs();
@@ -3351,6 +3500,8 @@ void DiffusionPanel::setConfiguration(const QJsonObject &config,
 }
 void DiffusionPanel::setResolution(QSize size) {
   d->setAlignedSize(size);
+  d->rebaseResolution();
+  d->syncMegapixels();
   d->detectAspectRatio();
 }
 const QVector<DiffusionPanel::Input> &DiffusionPanel::inputs() const {
@@ -3774,6 +3925,9 @@ void DiffusionPanel::saveSettings() {
              QJsonDocument(d->exposedGeneration()).toJson(QJsonDocument::Compact));
   s.setValue("diffusion/width", d->width->value());
   s.setValue("diffusion/height", d->height->value());
+  if (d->scalePercent->value() == 100) s.remove("diffusion/outputScale");
+  else s.setValue("diffusion/outputScale", QVariantMap{{"reference", d->scaleReference},
+      {"percent", d->scalePercent->value()}, {"multiple", d->resolutionMultiple->currentData()}});
   s.setValue("diffusion/mode", int(mode()));
   s.setValue("diffusion/editImageToImage", d->editImageToImage);
 }
