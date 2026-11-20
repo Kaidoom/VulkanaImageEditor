@@ -588,6 +588,7 @@ private:
     void refreshMoveControls();
     void stepTransformHistory(bool redo);
     void adjustBrushSize(bool increase);
+    static double steppedBrushSize(double current, bool increase);
     void applyBrushSettings(const core::BrushSettings& settings);
     void setForegroundColor(core::Rgba8 color);
     void setColors(core::EditorColors colors);

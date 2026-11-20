@@ -637,6 +637,31 @@ void toolShortcutsSpanCanvasAndOverlayWindows()
     QCoreApplication::processEvents();
     CHECK(brushSize->value() > sizeBeforeShortcut);
 
+    brushSize->setValue(5);
+    for (int size = 4; size >= 1; --size) {
+        QTest::keyClick(canvas, Qt::Key_BracketLeft);
+        CHECK(brushSize->value() == size);
+    }
+    QTest::keyClick(canvas, Qt::Key_BracketLeft);
+    CHECK(brushSize->value() == 1);
+    for (int size = 2; size <= 5; ++size) {
+        QTest::keyClick(canvas, Qt::Key_BracketRight);
+        CHECK(brushSize->value() == size);
+    }
+    brushSize->setValue(2.5);
+    QTest::keyClick(canvas, Qt::Key_BracketRight);
+    CHECK(brushSize->value() == 3.5);
+    QTest::keyClick(canvas, Qt::Key_BracketLeft);
+    CHECK(brushSize->value() == 2.5);
+    brushSize->setValue(100);
+    QTest::keyClick(canvas, Qt::Key_BracketRight);
+    CHECK(brushSize->value() == 110);
+    QTest::keyClick(canvas, Qt::Key_BracketLeft);
+    CHECK(brushSize->value() == 100);
+    brushSize->setValue(1000);
+    QTest::keyClick(canvas, Qt::Key_BracketRight);
+    CHECK(brushSize->value() == 1000);
+
     workspace->panelOverlay()->activateWindow();
     opacity->setFocus(Qt::OtherFocusReason);
     QCoreApplication::processEvents();

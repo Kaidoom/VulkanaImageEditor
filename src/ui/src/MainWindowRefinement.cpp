@@ -1454,10 +1454,7 @@ bool MainWindow::refinementEvent(QObject *watched, QEvent *event) {
   if (smaller || larger) {
     if (event->type() == QEvent::KeyPress && !refinement_->path.active()) {
       auto *size = refinement_->brushSize;
-      const double current = size->value();
-      const double next = std::round(current * (larger ? 1.1 : 1. / 1.1));
-      size->setValue(larger ? std::max(current + 1, next)
-                            : std::min(current - 1, next));
+      size->setValue(steppedBrushSize(size->value(), larger));
     }
     event->accept();
     return true;

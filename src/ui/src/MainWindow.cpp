@@ -5194,6 +5194,12 @@ void MainWindow::cancelActiveBrushStroke(bool preserveCompletedRepair)
         limited ? 6500 : 1500);
 }
 
+double MainWindow::steppedBrushSize(double current, bool increase)
+{
+    const double scaled = std::round(current * (increase ? 1.1 : 1.0 / 1.1));
+    return increase ? std::max(current + 1, scaled) : std::min(current - 1, scaled);
+}
+
 void MainWindow::adjustBrushSize(bool increase)
 {
     if(session().activeTool()==core::ToolId::SmartSelect && smartMode_==core::SmartSelectMode::QuickSelection) {
@@ -5206,12 +5212,11 @@ void MainWindow::adjustBrushSize(bool increase)
         && session().activeTool()!=core::ToolId::LocalBlur) {
         return;
     }
-    const auto factor = increase ? 1.1 : 1.0 / 1.1;
     brushSettings_.sizePixels = std::clamp(
-        std::round(brushSettings_.sizePixels * factor), 1.0, 1000.0);
+        steppedBrushSize(brushSettings_.sizePixels, increase), 1.0, 1000.0);
     applyBrushSettings(brushSettings_);
     statusBar()->showMessage(i18n::text("main.window.brush.size.1.px")
-            .arg(brushSettings_.sizePixels, 0, 'f', 0),
+            .arg(brushSettings_.sizePixels),
         900);
 }
 
