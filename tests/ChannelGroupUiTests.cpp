@@ -316,9 +316,11 @@ void workflow()
     const auto untouched = doc->contentState();
     QApplication::clipboard()->setText(QStringLiteral("not channel data")); paste->trigger();
     CHECK(doc->contentState() == untouched);
-    view->onAlphaSelectionRequested(model->rowForLayer(roles[0]));
+    view->onAlphaSelectionRequested(model->rowForLayer(roles[0]), c::SelectionOperation::Replace);
     for (int i = 0; i < 100 && !doc->selection(); ++i) QTest::qWait(5);
     CHECK(doc->selection() && doc->selection()->coverageAtDocumentPixel(4, 4) == 20);
+    view->onAlphaSelectionRequested(model->rowForLayer(roles[1]), c::SelectionOperation::Add);
+    CHECK(doc->selection() && doc->selection()->coverageAtDocumentPixel(4, 4) == 100);
     choose(sourceId); CHECK(panel && !panel->scalarMode()); CHECK(session.colors() == originalColors);
     CHECK(recombine->isEnabled()); recombine->trigger();
     CHECK(doc->layer(sourceId) && c::isPackedDataLayer(*doc->layer(sourceId)));

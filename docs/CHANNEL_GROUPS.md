@@ -23,7 +23,7 @@ Supported editing includes:
 - Brushes, eraser and fill, with pressure, brush strength and soft selections.
 - Eyedropper and Alt-picking from Brush, Eraser or Fill sample the selected channel's raw numeric value as opaque grayscale. Merged Visible sampling is disabled in channel editing; its ordinary colour-layer preference is restored afterward.
 - Rectangle/ellipse and freehand selections.
-- Ctrl-click a channel thumbnail to load its values as selection coverage. An all-zero result leaves the current selection unchanged.
+- Ctrl-click a channel thumbnail to load its values as selection coverage. Ctrl+Shift-click another thumbnail to add its coverage, keeping the higher value where they overlap. An all-zero result leaves the current selection unchanged.
 - Channel cut/copy/paste and undo/redo.
 - Clone Stamp, Healing Brush, Spot Healing and Local Blur.
 - Non-destructive Levels and Curves using the Value channel, Invert, and Gaussian Blur.

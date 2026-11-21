@@ -12,6 +12,7 @@
 #include "imageeditor/ui/ProjectFile.hpp"
 #include "imageeditor/ui/Theme.hpp"
 #include "imageeditor/ui/ToolOptionsBar.hpp"
+#include "NativeGraphicsStartup.hpp"
 
 #include <QAction>
 #include <QApplication>
@@ -114,7 +115,7 @@ struct Fixture {
         window.setUnsavedPromptEnabled(false);
         window.resize(1420, 860);
         window.show();
-        settle();
+        CHECK(imageeditor::test::waitForGraphicsStartup(window));
         settle();
         for (auto* candidate : QGuiApplication::allWindows()) {
             if (candidate->objectName() == QStringLiteral("VulkanCanvasWindow"))
@@ -243,20 +244,21 @@ void thumbnailAlphaReplacesAtomicallyAndKeepsLayerTargets(QVulkanInstance* insta
     auto* view=dynamic_cast<ui::LayerListView*>(f.window.findChild<QListView*>("LayerList"));
     auto* model=view?dynamic_cast<ui::LayerListModel*>(view->model()):nullptr;
     CHECK(view&&model);if(!view||!model)return;
-    auto click=[&](core::LayerId id,bool thumbnail=true,bool wait=true) {
+    auto click=[&](core::LayerId id,Qt::KeyboardModifiers modifiers=Qt::ControlModifier,bool thumbnail=true) {
         const auto index=model->index(model->rowForLayer(id),0);
         view->scrollTo(index);settle();
-        QTest::mouseClick(view->viewport(),Qt::LeftButton,Qt::ControlModifier,
+        QTest::mouseClick(view->viewport(),Qt::LeftButton,modifiers,
             thumbnail?view->thumbnailRect(index,false).center():view->visualRect(index).center());
-        if(wait)QTest::qWait(25);
+        QTest::qWait(25);
     };
+    const auto add = Qt::ControlModifier | Qt::ShiftModifier;
     const auto target=session.layerSelectionState();
-    click(activeId,false); // Last row remains selected.
+    click(activeId,Qt::ControlModifier,false); // Last row remains selected.
     CHECK(session.layerSelectionState()==target);
     f.action("SelectAllAction");
     const auto before=f.selection();const auto depth=f.history().undoDepth();
     const auto content=f.document().contentState();
-    f.mode("Add"); // Thumbnail loading always replaces, regardless of toolbar mode.
+    f.mode("Add"); // Plain Ctrl-click replaces, regardless of toolbar mode.
     click(sourceId);
     const auto loaded=f.selection();
     CHECK(loaded&&loaded!=before);
@@ -278,6 +280,17 @@ void thumbnailAlphaReplacesAtomicallyAndKeepsLayerTargets(QVulkanInstance* insta
     CHECK(f.selection()->equivalent(*loaded));
     const auto same=f.selection();const auto sameDepth=f.history().undoDepth();
     click(sourceId);CHECK(f.selection()==same&&f.history().undoDepth()==sameDepth);
+    f.mode("Subtract");
+    click(faintId,add);
+    const auto both=f.selection();
+    checkPixel(both,0,0,1); checkPixel(both,17,10,64); checkPixel(both,63,47,0);
+    CHECK(session.activeLayer()==sourceId&&session.editingLayerMask());
+    CHECK(f.history().undoDepth()==sameDepth+1&&f.document().contentState()==content);
+    click(sourceId,add);
+    CHECK(f.selection()==both&&f.history().undoDepth()==sameDepth+1);
+    f.undo();CHECK(f.selection()==same);
+    click(emptyId,add);CHECK(f.selection()==same&&f.history().canRedo());
+    f.redo();CHECK(f.selection()==both);
     // Fractional/negative/projective transforms use the same authoritative sampler.
     for(const auto& transform : {core::AffineTransform{-1,0,35.25,0,1,6.5},
                                 core::AffineTransform{1,.12,9,.1,1,8,.002,.001,1}}) {
@@ -294,7 +307,8 @@ void thumbnailAlphaReplacesAtomicallyAndKeepsLayerTargets(QVulkanInstance* insta
     const auto old=f.selection();click(sourceId);CHECK(f.selection()==old);
     CHECK(session.document()->setLayerTransform(sourceId,{1,0,12,0,1,8}));
     CHECK(std::get<core::RasterLayer>(session.document()->layer(sourceId)->payload).surface->revision()==1);
-    click(faintId);checkPixel(f.selection(),0,0,1);
+    f.action("DeselectAction"); CHECK(!f.selection());
+    click(faintId,add);checkPixel(f.selection(),0,0,1);checkPixel(f.selection(),17,10,0);
     CHECK(!f.selection()->bounds().empty()&&f.selection()->boundaryEdges().empty());
     click(activeId);checkPixel(f.selection(),63,47,255);
 }
@@ -318,9 +332,10 @@ void thumbnailAlphaSupportsTypedContentAndCancelsStaleRequests(QVulkanInstance* 
     auto* view=dynamic_cast<ui::LayerListView*>(f.window.findChild<QListView*>("LayerList"));
     auto* model=view?dynamic_cast<ui::LayerListModel*>(view->model()):nullptr;
     CHECK(view&&model);if(!view||!model)return;
-    auto click=[&](core::LayerId id) {
+    const auto add = Qt::ControlModifier | Qt::ShiftModifier;
+    auto click=[&](core::LayerId id,Qt::KeyboardModifiers modifiers=Qt::ControlModifier) {
         const auto index=model->index(model->rowForLayer(id),0);view->scrollTo(index);settle();
-        QTest::mouseClick(view->viewport(),Qt::LeftButton,Qt::ControlModifier,view->thumbnailRect(index,false).center());
+        QTest::mouseClick(view->viewport(),Qt::LeftButton,modifiers,view->thumbnailRect(index,false).center());
     };
     click(shapeId);QTest::qWait(50);checkPixel(f.selection(),90,70,128);
     CHECK(std::holds_alternative<core::ShapeLayer>(session.document()->layer(shapeId)->payload));
@@ -331,14 +346,22 @@ void thumbnailAlphaSupportsTypedContentAndCancelsStaleRequests(QVulkanInstance* 
     const auto depth=f.history().undoDepth();
     click(bigId); // Still pending: never clear the old selection while sampling.
     CHECK(f.selection()==letters);
+    click(shapeId,add);
     QTest::keyClick(view,Qt::Key_Escape);QTest::qWait(50);
     CHECK(f.selection()==letters&&f.history().undoDepth()==depth);
     click(bigId);
     CHECK(session.document()->setLayerOpacity(bigId,.7F));QTest::qWait(50);
     CHECK(f.selection()==letters&&f.history().undoDepth()==depth);
-    click(bigId);QTest::qWait(300);
+    click(bigId);click(textId,add); // Add before the large replacement finishes.
+    for (int i=0; i<200 && f.history().undoDepth()!=depth+2; ++i) QTest::qWait(5);
+    const auto combined=f.selection();
+    CHECK(f.history().undoDepth()==depth+2);
+    f.undo();
     checkPixel(f.selection(),799,599,128);
     CHECK(f.history().undoDepth()==depth+1);
+    const auto expected=core::combineSelection(f.selection(),letters,core::SelectionOperation::Add);
+    CHECK(combined&&combined->equivalent(*expected));
+    f.redo();CHECK(f.selection()==combined);f.undo();
     const auto owner=f.window.activeDocumentId();
     click(bigId);
     const auto other=f.assets.filePath("other.png");QImage image(16,16,QImage::Format_RGBA8888);image.fill(Qt::white);CHECK(image.save(other));

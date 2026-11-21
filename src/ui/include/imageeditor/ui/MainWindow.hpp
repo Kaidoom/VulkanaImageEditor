@@ -499,7 +499,7 @@ private:
         std::vector<core::ItemVisibilityUpdate> retainedLeafVisibility = {});
     void setActiveTool(core::ToolId tool);
     void selectLayerFromRow(int row, Qt::KeyboardModifiers modifiers = {}, bool contextSelection = false);
-    void loadLayerAlphaSelection(int row);
+    void loadLayerAlphaSelection(int row, core::SelectionOperation operation);
     void advanceLayerAlphaSelection();
     struct LayerAlphaSelectionContext;
     std::shared_ptr<LayerAlphaSelectionContext> layerAlphaSelection_;

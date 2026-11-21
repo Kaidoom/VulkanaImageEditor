@@ -2739,8 +2739,8 @@ void MainWindow::createDocks()
     static_cast<LayerListView*>(layerList_)->onOpenProjectSource = [this](int row) {
         if (auto id = layerModel_->layerIdAt(row)) openProjectLayer(*id);
     };
-    static_cast<LayerListView*>(layerList_)->onAlphaSelectionRequested = [this](int row) {
-        loadLayerAlphaSelection(row);
+    static_cast<LayerListView*>(layerList_)->onAlphaSelectionRequested = [this](int row, core::SelectionOperation operation) {
+        loadLayerAlphaSelection(row, operation);
     };
     static_cast<LayerListView*>(layerList_)->onContextSelectionRequested = [this](int row) {
         selectLayerFromRow(row, Qt::NoModifier, true);

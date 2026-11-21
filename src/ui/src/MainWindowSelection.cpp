@@ -23,12 +23,13 @@
 #include <QTimer>
 #include <QElapsedTimer>
 #include <cmath>
+#include <deque>
 
 namespace imageeditor::ui {
-struct MainWindow::LayerAlphaSelectionContext {
-    DocumentInstanceId instance{};
-    core::Revision revision{}, selectionRevision{};
-    core::SelectionState before;
+namespace {
+// Only the thumbnail currently being sampled needs pixel buffers. Later clicks
+// keep stable layer IDs until the preceding selection has entered history.
+struct LayerAlphaScan {
     core::Extent2u extent;
     core::RectI region;
     std::unique_ptr<core::PinnedDocumentSampler> sampler;
@@ -39,28 +40,16 @@ struct MainWindow::LayerAlphaSelectionContext {
     std::vector<std::uint8_t> coverage;
     int nextRow{};
     bool nonempty{};
-};
 
-void MainWindow::loadLayerAlphaSelection(int row)
-{
-    if (fileBusy_ || refinement_ || workspaceDialog_ || !session().document()) return;
-    const auto id = layerModel_->layerIdAt(row);
-    const auto instance = activeDocumentId();
-    if (!id) return;
-    cancelPendingEdits();
-    if (activeDocumentId() != instance || !session().document()) return;
-    const auto& doc = *session().document();
-    const auto* layer = doc.layer(*id);
-    if (!layer || std::holds_alternative<core::AdjustmentLayer>(layer->payload)) return;
-    try {
+    LayerAlphaScan(const core::Layer& layer, core::Extent2u canvas) : extent(canvas)
+    {
         constexpr std::size_t maximumPixels = 64ULL * 1024 * 1024;
-        const auto extent = doc.canvas().extent;
         if (std::uint64_t(extent.width) * extent.height > maximumPixels)
             throw std::length_error("Layer transparency selection exceeds 64 megapixels");
         // Only intrinsic content alpha: no layer opacity, visibility, mask,
         // adjustment, filter, style or clipping-group contribution. Retain the
         // layer's geometry/crop and prepare typed content independently of zoom.
-        auto source = *layer;
+        auto source = layer;
         source.visible = true;
         source.opacity = 1;
         source.fillOpacity = 1;
@@ -88,10 +77,7 @@ void MainWindow::loadLayerAlphaSelection(int row)
         const int x1 = int(std::ceil(std::clamp(right + 1, 0., double(extent.width))));
         const int y1 = int(std::ceil(std::clamp(bottom + 1, 0., double(extent.height))));
         if (x1 <= x0 || y1 <= y0) return;
-        auto job = std::make_shared<LayerAlphaSelectionContext>();
-        job->instance = instance; job->revision = doc.revision();
-        job->selectionRevision = doc.selectionRevision(); job->before = doc.selection();
-        job->extent = extent; job->region = {x0, y0, x1 - x0, y1 - y0};
+        region = {x0, y0, x1 - x0, y1 - y0};
         const std::array<const core::Layer*, 1> layers{&source};
         if (core::isScalarLayer(source)) {
             std::vector<std::byte> values(std::size_t(size.width) * size.height);
@@ -100,12 +86,80 @@ void MainWindow::loadLayerAlphaSelection(int row)
             mask->coverage = core::SelectionMask::fromR8(size,
                 {reinterpret_cast<const std::uint8_t*>(values.data()), values.size()}, size.width);
             mask->outside = 0;
-            job->scalarValues = std::move(mask);
-            job->documentToScalar = *mapping.inverted();
-        } else job->sampler = std::make_unique<core::PinnedDocumentSampler>(layers, extent);
-        job->row.resize(std::size_t(job->region.width));
-        job->scratch.resize(job->row.size() * 4);
-        job->coverage.resize(job->row.size() * std::size_t(job->region.height));
+            scalarValues = std::move(mask);
+            documentToScalar = *mapping.inverted();
+        } else sampler = std::make_unique<core::PinnedDocumentSampler>(layers, extent);
+        row.resize(std::size_t(region.width));
+        scratch.resize(row.size() * 4);
+        coverage.resize(row.size() * std::size_t(region.height));
+    }
+
+    bool advance()
+    {
+        QElapsedTimer time; time.start();
+        std::size_t pixels = 0;
+        while (nextRow < region.height && pixels < 65536 && time.elapsed() < 8) {
+            const auto offset = std::size_t(nextRow) * row.size();
+            if (sampler) sampler->sampleRow(region.x, region.y + nextRow, row, scratch);
+            for (std::size_t x = 0; x < row.size(); ++x) {
+                const auto value = scalarValues ? core::layerMaskCoverage(scalarValues,
+                    documentToScalar.map({double(region.x) + double(x) + .5, double(region.y + nextRow) + .5}))
+                    : row[x][3];
+                const auto alpha = std::uint8_t(std::clamp(std::lround(value * 255), 0L, 255L));
+                coverage[offset + x] = alpha;
+                nonempty |= alpha != 0; // Not the marching-ants threshold.
+            }
+            ++nextRow;
+            pixels += row.size();
+        }
+        return nextRow == region.height;
+    }
+};
+} // namespace
+
+struct MainWindow::LayerAlphaSelectionContext {
+    DocumentInstanceId instance{};
+    core::Revision revision{}, selectionRevision{};
+    core::SelectionState before;
+    core::SelectionOperation operation{};
+    std::deque<core::LayerId> queuedLayers;
+    std::optional<LayerAlphaScan> scan;
+
+    void capture(const core::Document& doc)
+    {
+        revision = doc.revision();
+        selectionRevision = doc.selectionRevision();
+        before = doc.selection();
+    }
+
+    bool matches(DocumentInstanceId owner, const core::Document& doc) const
+    {
+        return instance == owner && revision == doc.revision()
+            && selectionRevision == doc.selectionRevision() && before == doc.selection();
+    }
+};
+
+void MainWindow::loadLayerAlphaSelection(int row, core::SelectionOperation operation)
+{
+    if (fileBusy_ || refinement_ || workspaceDialog_ || !session().document()) return;
+    const auto id = layerModel_->layerIdAt(row);
+    const auto instance = activeDocumentId();
+    if (!id) return;
+    const auto* layer = session().document()->layer(*id);
+    if (!layer || std::holds_alternative<core::AdjustmentLayer>(layer->payload)) return;
+    try {
+        if (operation == core::SelectionOperation::Add && layerAlphaSelection_
+            && layerAlphaSelection_->matches(instance, *session().document())) {
+            layerAlphaSelection_->queuedLayers.push_back(*id);
+            return;
+        }
+        cancelPendingEdits();
+        if (activeDocumentId() != instance || !session().document()) return;
+        auto job = std::make_shared<LayerAlphaSelectionContext>();
+        job->instance = instance;
+        job->capture(*session().document());
+        job->operation = operation;
+        job->queuedLayers.push_back(*id);
         layerAlphaSelection_ = std::move(job);
         advanceLayerAlphaSelection();
     } catch (const std::exception& error) {
@@ -119,41 +173,38 @@ void MainWindow::advanceLayerAlphaSelection()
     const auto job = layerAlphaSelection_;
     if (!job) return;
     const auto* doc = session().document();
-    if (!doc || activeDocumentId() != job->instance || doc->revision() != job->revision
-        || doc->selectionRevision() != job->selectionRevision || doc->selection() != job->before
+    if (!doc || !job->matches(activeDocumentId(), *doc)
         || selectionGesture_ || smartInteractionActive() || colorSelectionEditing_) {
         layerAlphaSelection_.reset(); return;
     }
     try {
-        QElapsedTimer time; time.start();
-        std::size_t pixels = 0;
-        while (job->nextRow < job->region.height && pixels < 65536 && time.elapsed() < 8) {
-            const auto offset = std::size_t(job->nextRow) * job->row.size();
-            if (job->sampler) job->sampler->sampleRow(job->region.x, job->region.y + job->nextRow, job->row, job->scratch);
-            for (std::size_t x = 0; x < job->row.size(); ++x) {
-                const auto value = job->scalarValues ? core::layerMaskCoverage(job->scalarValues,
-                    job->documentToScalar.map({double(job->region.x) + double(x) + .5, double(job->region.y + job->nextRow) + .5}))
-                    : job->row[x][3];
-                const auto coverage = std::uint8_t(std::clamp(std::lround(value * 255), 0L, 255L));
-                job->coverage[offset + x] = coverage;
-                job->nonempty |= coverage != 0; // Not the marching-ants threshold.
+        if (!job->scan) {
+            const auto* layer = doc->layer(job->queuedLayers.front());
+            if (!layer) { layerAlphaSelection_.reset(); return; }
+            job->scan.emplace(*layer, doc->canvas().extent);
+            job->queuedLayers.pop_front();
+        }
+        auto& scan = *job->scan;
+        if (scan.advance()) {
+            const auto alpha = scan.nonempty
+                ? core::SelectionMask::fromR8Region(scan.extent, scan.region, scan.coverage, scan.row.size())
+                : core::SelectionState{};
+            job->scan.reset();
+            if (alpha) {
+                auto selection = core::combineSelection(job->before, alpha, job->operation);
+                if (session().execute(std::make_unique<core::SetSelectionCommand>(std::move(selection)))) {
+                    job->capture(*doc);
+                    synchronizeUi(false, false);
+                }
             }
-            ++job->nextRow;
-            pixels += job->row.size();
+            if (layerAlphaSelection_ != job) return;
+            if (job->queuedLayers.empty()) { layerAlphaSelection_.reset(); return; }
+            job->operation = core::SelectionOperation::Add;
         }
-        if (job->nextRow < job->region.height) {
-            QTimer::singleShot(0, this, [this, weak = std::weak_ptr(job)] {
-                if (const auto pending = weak.lock(); pending && layerAlphaSelection_ == pending)
-                    advanceLayerAlphaSelection();
-            });
-            return;
-        }
-        layerAlphaSelection_.reset();
-        if (!job->nonempty) return; // Preserve selection, remembered selection and redo.
-        const auto selection = core::SelectionMask::fromR8Region(job->extent, job->region,
-            job->coverage, job->row.size());
-        if (session().execute(std::make_unique<core::SetSelectionCommand>(selection)))
-            synchronizeUi(false, false);
+        QTimer::singleShot(0, this, [this, weak = std::weak_ptr(job)] {
+            if (const auto pending = weak.lock(); pending && layerAlphaSelection_ == pending)
+                advanceLayerAlphaSelection();
+        });
     } catch (const std::exception& error) {
         layerAlphaSelection_.reset();
         statusBar()->showMessage(QString::fromUtf8(error.what()), 6000);

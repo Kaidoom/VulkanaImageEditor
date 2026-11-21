@@ -479,13 +479,14 @@ bool LayerListView::event(QEvent* event)
 void LayerListView::mousePressEvent(QMouseEvent* event)
 {
     const auto row = indexAt(event->position().toPoint());
-    if (event->button() == Qt::LeftButton && event->modifiers() == Qt::ControlModifier
+    const bool addAlpha = event->modifiers() == (Qt::ControlModifier | Qt::ShiftModifier);
+    if (event->button() == Qt::LeftButton && (event->modifiers() == Qt::ControlModifier || addAlpha)
         && row.isValid() && !row.data(Qt::UserRole + 3).toBool()
         && thumbnailRect(row, false).contains(event->position().toPoint())
         && onAlphaSelectionRequested) {
         deferredSingleIndex_ = QPersistentModelIndex{};
         alphaSelectionGesture_ = true;
-        onAlphaSelectionRequested(row.row());
+        onAlphaSelectionRequested(row.row(), addAlpha ? core::SelectionOperation::Add : core::SelectionOperation::Replace);
         event->accept();
         return; // Do not change the active layer/mask target or start a drag.
     }

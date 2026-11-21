@@ -1,6 +1,7 @@
 #pragma once
 
 #include "imageeditor/core/Layer.hpp"
+#include "imageeditor/core/SelectionMask.hpp"
 
 #include <QListView>
 #include <QPersistentModelIndex>
@@ -24,7 +25,7 @@ public:
     std::function<void(int, Qt::KeyboardModifiers)> onRowSelectionRequested;
     std::function<void(int)> onContextSelectionRequested;
     std::function<void(int,bool)> onEditingTargetRequested;
-    std::function<void(int)> onAlphaSelectionRequested;
+    std::function<void(int, core::SelectionOperation)> onAlphaSelectionRequested;
     std::function<void(int)> onOpenProjectSource;
     [[nodiscard]] QRect thumbnailRect(const QModelIndex&,bool mask) const;
     [[nodiscard]] QRect effectIndicatorRect(const QModelIndex&, core::LayerEffectType) const;
