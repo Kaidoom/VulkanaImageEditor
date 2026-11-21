@@ -28,6 +28,10 @@ enum class BrushCompositeMode : std::uint8_t {
     // Sampled filters replace linear-light color detail using the accumulated
     // brush influence, retaining the exact destination alpha byte.
     FilterColor,
+    // Direct Spot Heal also reconstructs alpha when the stroke covers a hole.
+    RepairColor,
+    // Interpolate toward the sampled premultiplied RGBA at brush coverage.
+    ReplaceSample,
 };
 
 enum class BrushStrokeFailure { None, RasterWorkLimitExceeded };
@@ -170,6 +174,7 @@ private:
     std::function<PremultipliedColor(Vec2d)> sampledColor_;
     bool deferSampledWrites_ {false};
     bool sampledSelectionResolved_ {false};
+    bool repairTouchesHole_ {false};
     std::function<void(const BrushDab&)> dabObserver_;
     std::unique_ptr<IBrushEngine> engine_;
     std::unique_ptr<IBrushTip> tip_;

@@ -485,6 +485,8 @@ void BasicPixelBrushStroke::compositePixel(StrokeTile& tile,
     if(sampledColor_) {
         const RectI pixel{localX,localY,1,1};
         coverageBounds_=coverageBounds_.empty()?pixel:coverageBounds_.united(pixel);
+        if (compositeMode_ == BrushCompositeMode::RepairColor && tile.original[pixelIndex * kBytesPerPixel + 3] == std::byte{})
+            repairTouchesHole_ = true;
     }
 
     if(!deferSampledWrites_)resolvePixel(tile, localX, localY, dab, accumulated);
@@ -547,14 +549,21 @@ void BasicPixelBrushStroke::resolvePixel(StrokeTile& tile,
             // Invalid/transparent samples leave the original intact, including
             // hidden RGB. A Heal replacement may retract its provisional paint.
             std::copy_n(tile.original.data()+offset,kBytesPerPixel,output.data());
-        } else if (compositeMode_ == BrushCompositeMode::FilterColor) {
+        } else if (compositeMode_ == BrushCompositeMode::FilterColor || compositeMode_ == BrushCompositeMode::RepairColor
+            || compositeMode_ == BrushCompositeMode::ReplaceSample) {
             const double coverage = std::clamp(dab.strokeOpacity * accumulated, 0.0, 1.0);
+            // Across a hole, interpolate premultiplied RGBA up to the donor's
+            // coverage, including the feathered rim. Ordinary detail repairs
+            // keep the layer's original alpha byte.
+            const bool replaceAlpha = compositeMode_ == BrushCompositeMode::ReplaceSample || repairTouchesHole_;
+            const double alpha = replaceAlpha ? std::lerp(destinationAlpha, double(sampled[3]), coverage) : destinationAlpha;
+            const double colorWeight = replaceAlpha && alpha > 0 ? coverage * sampled[3] / alpha : coverage;
             for (std::size_t channel = 0; channel < 3; ++channel) {
                 const auto original = srgbToLinear(std::to_integer<std::uint8_t>(tile.original[offset + channel]));
                 const auto filtered = std::clamp(double(sampled[channel]) / double(sampled[3]), 0.0, 1.0);
-                output[channel] = std::byte(linearToSrgb(original + (filtered - original) * coverage));
+                output[channel] = std::byte(linearToSrgb(original + (filtered - original) * colorWeight));
             }
-            output[3] = tile.original[offset + 3];
+            output[3] = replaceAlpha ? std::byte(alphaToByte(alpha)) : tile.original[offset + 3];
         } else {
             const double coverage=std::clamp(dab.strokeOpacity*accumulated,0.0,1.0);
             const double sourceAlpha=std::clamp(sampled[3]*coverage,0.0,1.0);

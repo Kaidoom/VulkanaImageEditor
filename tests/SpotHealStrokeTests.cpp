@@ -129,13 +129,66 @@ void renderedRetouch()
         SpotHealStroke stroke(doc, id, brush, clone, reference(doc, id, clone.source));
         CHECK(stroke.begin(sample({32, 32}))); auto input = stroke.finishInput(sample({32, 32})); CHECK(input);
         auto result = SpotHealStroke::solve(input); History history;
-        if (opaque) { CHECK(result.repair); CHECK(stroke.publish(result, history) == RasterEditCommitResult::Committed);
-            CHECK(history.undoDepth() == 1); CHECK(history.undo(doc)); }
-        else { CHECK(result.repair.status == SpotHealStatus::InvalidInput); CHECK(history.undoDepth() == 0); }
+        CHECK(result.repair);
+        CHECK(stroke.publish(result, history) == RasterEditCommitResult::Committed);
+        CHECK(history.undoDepth() == 1); CHECK(history.undo(doc));
         const auto empty = bytes(*target);
         CHECK(std::all_of(empty.begin(), empty.end(), [](std::byte b) { return b == std::byte{}; }));
         CHECK(doc.setLayerOpacity(id, .5F)); CHECK(!spotHealTargetDiagnostic(doc, id, clone.source).empty());
     }
+}
+
+void healTransparentHole()
+{
+    const Extent2u extent{64, 64};
+    for (const auto mode : {CloneSampleSource::SourceLayer, CloneSampleSource::CurrentAndBelow, CloneSampleSource::AllVisible}) {
+        Document doc({extent});
+        const std::array donor{std::byte{110}, std::byte{145}, std::byte{170}, std::byte{160}};
+        auto surface = std::make_shared<ContiguousRasterSurface>(extent, Rgba8{110,145,170,160});
+        std::array<std::byte, 6 * 6 * 4> blank{};
+        blank[3] = std::byte{45}; // A partly erased edge alongside fully transparent pixels.
+        surface->replaceRgba8({29,29,6,6}, blank, 6 * 4);
+        const auto before = bytes(*surface);
+        const auto id = add(doc, surface);
+        CloneSettings clone; clone.source = mode;
+        auto brush = settings(); brush.hardness = brush.opacity = 1;
+        SpotHealStroke stroke(doc, id, brush, clone, reference(doc, id, mode));
+        auto result = solve(stroke, {32, 32});
+        History history;
+        CHECK(stroke.publish(result, history) == RasterEditCommitResult::Committed);
+        std::array<std::byte, 4> center;
+        surface->copyRgba8({32,32,1,1}, center, 4);
+        CHECK(center == donor);
+        surface->copyRgba8({29,29,1,1}, center, 4);
+        CHECK(center == donor);
+        surface->copyRgba8({35,32,1,1}, center, 4);
+        CHECK(center == donor); // Surrounding translucent material keeps its original opacity.
+        const auto after = bytes(*surface);
+        CHECK(history.undo(doc) && bytes(*surface) == before);
+        CHECK(history.redo(doc) && bytes(*surface) == after);
+        CHECK(history.undo(doc));
+        CHECK(doc.setSelection(SelectionMask::rectangle(extent, {0,0,33,64}, 128)));
+        brush.opacity = .5;
+        SpotHealStroke partial(doc, id, brush, clone, reference(doc, id, mode));
+        const auto soft = solve(partial, {32,32});
+        CHECK(partial.publish(soft, history) == RasterEditCommitResult::Committed);
+        surface->copyRgba8({32,32,1,1}, center, 4);
+        CHECK(center[3] == std::byte{40}); // donor 160 × 50% opacity × 128/255 selection
+        surface->copyRgba8({33,32,1,1}, center, 4);
+        CHECK(center[3] == std::byte{0});
+    }
+    Document empty({extent});
+    auto blank = std::make_shared<ContiguousRasterSurface>(extent);
+    const auto id = add(empty, blank);
+    CloneSettings clone; clone.source = CloneSampleSource::AllVisible;
+    SpotHealStroke noDonors(empty, id, settings(), clone, reference(empty, id, clone.source));
+    CHECK(noDonors.begin(sample({32,32})));
+    const auto failed = SpotHealStroke::solve(noDonors.finishInput(sample({32,32})));
+    CHECK(failed.repair.status == SpotHealStatus::InsufficientContext);
+    History history;
+    const auto revision = blank->revision();
+    CHECK(noDonors.publish(failed, history) == RasterEditCommitResult::TargetUnavailable);
+    CHECK(revision == blank->revision() && history.undoDepth() == 0);
 }
 
 void retouchBetweenVisibleLayers()
@@ -318,14 +371,13 @@ void finalQuantization()
             const auto candidate = solved.repair.pixels[index];
             const double weight = opacity * (double(float(.37)) * double(mask) / 255.0);
             const double oldAlpha = double(std::to_integer<unsigned>(before[offset + 3])) / 255.0;
-            const double alpha = direct ? oldAlpha : weight + oldAlpha * (1 - weight);
+            const double sourceAlpha = weight * double(candidate[3]);
+            const double alpha = direct ? oldAlpha : sourceAlpha + oldAlpha * (1 - weight);
             for (std::size_t c = 0; c < 3; ++c) {
                 const double from = referenceDecode(before[offset + c]);
-                // Rendered retouch exposes unassociated float RGB at alpha=1;
-                // direct repair retains the solver's premultiplied float RGBA.
-                const double to = direct ? double(candidate[c]) / double(candidate[3]) : double(candidate[c] / candidate[3]);
+                const double to = double(candidate[c]) / double(candidate[3]);
                 const double value = direct ? from + (to - from) * weight
-                    : (to * weight + from * oldAlpha * (1 - weight)) / alpha;
+                    : (candidate[c] * weight + from * oldAlpha * (1 - weight)) / alpha;
                 expected[offset + c] = referenceEncode(value);
                 if (direct) {
                     const double firstEncoded = referenceDecode(referenceEncode(from + (to - from) * opacity * double(float(.37))));
@@ -379,7 +431,7 @@ void selectionResolvedAdmission()
 }
 int main()
 {
-    try { masksAndHistory(); transformedAndStale(); renderedRetouch(); retouchBetweenVisibleLayers(); cropAndNoop(); filteredTypedReferenceAndCorruption();
+    try { masksAndHistory(); transformedAndStale(); renderedRetouch(); healTransparentHole(); retouchBetweenVisibleLayers(); cropAndNoop(); filteredTypedReferenceAndCorruption();
         finalQuantization(); selectionResolvedAdmission(); }
     catch (const std::exception& error) { ++failures; std::cerr << error.what() << '\n'; }
     if (!failures) std::cout << "Spot Heal stroke tests passed\n";

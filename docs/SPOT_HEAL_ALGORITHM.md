@@ -73,10 +73,12 @@ layers, checkerboard, preview overrides or overlays.
 
 The unknown branch does not inspect original color **or alpha**, even for NaNs.
 Candidate invariance is tested by replacing every unknown value with entirely
-different RGBA. Direct publishing separately preserves destination alpha by
-default; a clean retouch layer needs an explicit nonzero-coverage policy, not
-preservation of its empty alpha. The backend does not invert translucent
-source-over composition.
+different RGBA. Source Layer preserves existing alpha for detail repairs.
+When the writable stroke crosses a fully transparent pixel, it reconstructs
+alpha as well as colour so feathered edges can heal with the hole. Rendered
+sampling modes write the reconstructed RGBA to the selected layer. Brush
+coverage blends premultiplied values, preserving the opacity of translucent
+donors. Completely transparent pixels cannot supply donor texture.
 
 ## Reconstruction
 

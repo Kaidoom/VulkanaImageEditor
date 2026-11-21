@@ -94,9 +94,6 @@ struct SpotHealWork {
     SelectionState unknown;
     Extent2u gridExtent;
     AffineTransform gridToDocument;
-    AffineTransform localToDocument;
-    RectI writeBounds;
-    std::vector<float> writeCoverage;
     bool direct {true};
     std::uint64_t seed {1};
     float adaptation {.8F};
@@ -132,7 +129,7 @@ SpotHealStroke::SpotHealStroke(Document& document, LayerId target, BrushSettings
     , canvas_(document.canvas().extent)
     , hardTip_((assets ? assets : &builtinBrushAssetResolver())->createTip(brush.tip))
     , brush_(document, target, brush,
-        settings.source == CloneSampleSource::SourceLayer ? BrushCompositeMode::FilterColor : BrushCompositeMode::Paint,
+        settings.source == CloneSampleSource::SourceLayer ? BrushCompositeMode::RepairColor : BrushCompositeMode::ReplaceSample,
         std::make_unique<BasicPixelBrushEngine>(), {}, {}, assets, {}, [](Vec2d) { return PremultipliedColor{}; },
         "Spot Heal stroke", true, [this](const BrushDab& dab) { observeDab(dab); })
 {
@@ -215,10 +212,6 @@ std::shared_ptr<const SpotHealWork> SpotHealStroke::finishInput(const Normalized
         result->unknown = result->direct ? snapshotMask(nativeMarks_, nativeMarkBounds_, extent_) : previewMask();
         result->gridExtent = result->direct ? extent_ : canvas_;
         result->gridToDocument = result->direct ? localToDocument_ : AffineTransform{};
-        result->localToDocument = localToDocument_;
-        result->writeBounds = writes; result->writeCoverage.resize(area(writes));
-        if (!brush_.copyCoverage(writes, result->writeCoverage)) throw std::runtime_error("Spot Heal write mask is unavailable.");
-        if (std::none_of(result->writeCoverage.begin(), result->writeCoverage.end(), [](float c) { return c > 0; })) return {};
         result->seed = settings_.deterministicSeed; result->adaptation = float(cloneSettings_.adaptation);
         work_ = result; return result;
     } catch (const std::exception& error) { diagnostic_ = error.what(); cancel(); return {}; }
@@ -245,22 +238,6 @@ SpotHealSolved SpotHealStroke::solve(std::shared_ptr<const SpotHealWork> work, c
         const auto remainingBytes = options.maxWorkingBytes - reference.snapshotBytes();
         auto marked = work->unknown->bounds();
         if (marked.empty()) { solved.repair.status = SpotHealStatus::NoUnknownPixels; return finish(); }
-        if (!work->direct) {
-            // Rendered repairs paint sampled colour onto the target. The
-            // opacity requirement concerns the sampled composite at the stroke.
-            for (int y = 0; y < work->writeBounds.height; ++y) {
-                if (stopped(options)) { solved.repair.status = SpotHealStatus::Cancelled; return finish(); }
-                for (int x = 0; x < work->writeBounds.width; ++x) {
-                    if (work->writeCoverage[std::size_t(y) * std::size_t(work->writeBounds.width) + std::size_t(x)] <= 0) continue;
-                    const auto p = work->localToDocument.map({work->writeBounds.x + x + .5, work->writeBounds.y + y + .5});
-                    if (reference.sample(p)[3] < 1.0F - 1e-6F) {
-                        solved.repair.status = SpotHealStatus::InvalidInput;
-                        solved.repair.diagnostics.message = "Rendered Spot Heal requires opaque reference under the writable repair. Use Source Layer to preserve partial alpha.";
-                        return finish();
-                    }
-                }
-            }
-        }
         const auto support = work->direct ? Vec2d{} : reference.readSupport();
         if (!std::isfinite(support.x) || !std::isfinite(support.y) || support.x > 4096 || support.y > 4096)
             throw std::length_error("Spot Heal reference filtering support is too large for safe donor exclusion.");
@@ -340,9 +317,7 @@ RasterEditCommitResult SpotHealStroke::publish(const SpotHealSolved& solved, His
                 if (x < 0 || y < 0 || x >= solved.gridBounds.width || y >= solved.gridBounds.height) return PremultipliedColor{};
                 return solved.repair.pixels[std::size_t(y) * std::size_t(solved.gridBounds.width) + std::size_t(x)];
             }
-            auto value = candidateAt(solved, p);
-            if (value[3] > 0) { for (int c = 0; c < 3; ++c) value[std::size_t(c)] /= value[3]; value[3] = 1; }
-            return value;
+            return candidateAt(solved, p);
         };
         if (!brush_.reapplySampledColorSelectionResolved(sampler, cancelled) || (cancelled && cancelled()))
             throw std::runtime_error("Spot Heal publication cancelled; original pixels restored.");
