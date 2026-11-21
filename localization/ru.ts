@@ -4413,6 +4413,21 @@ Escape · Отменить обработку
       <translation>Откройте изображение или создайте холст</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
+    <message id="document.tabs.open.folder">
+      <source>Open Containing Folder</source>
+      <translation>Открыть папку с файлом</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+    </message>
+    <message id="document.tabs.duplicate">
+      <source>Duplicate</source>
+      <translation>Дублировать</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+    </message>
+    <message id="document.tabs.folder.failed">
+      <source>Could not open folder %1.</source>
+      <translation>Не удалось открыть папку %1.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+    </message>
     <message id="main.window.documents.new.canvas">
       <source>New Canvas</source>
       <extracomment>MainWindowDocuments presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>

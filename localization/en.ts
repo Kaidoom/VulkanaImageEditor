@@ -2975,6 +2975,15 @@ Merged Visible uses the visible document. Active Layer ignores its opacity and v
       <source>Open an image or start a new canvas</source>
       <extracomment>MainWindowDocuments presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>
     </message>
+    <message id="document.tabs.open.folder">
+      <source>Open Containing Folder</source>
+    </message>
+    <message id="document.tabs.duplicate">
+      <source>Duplicate</source>
+    </message>
+    <message id="document.tabs.folder.failed">
+      <source>Could not open folder %1.</source>
+    </message>
     <message id="main.window.documents.new.canvas">
       <source>New Canvas</source>
       <extracomment>MainWindowDocuments presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>

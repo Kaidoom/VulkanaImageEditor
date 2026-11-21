@@ -4411,6 +4411,21 @@ Escape · 処理を中止
       <translation>画像を開くか、新しいキャンバスを作成</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
+    <message id="document.tabs.open.folder">
+      <source>Open Containing Folder</source>
+      <translation>ファイルのあるフォルダーを開く</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+    </message>
+    <message id="document.tabs.duplicate">
+      <source>Duplicate</source>
+      <translation>複製</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+    </message>
+    <message id="document.tabs.folder.failed">
+      <source>Could not open folder %1.</source>
+      <translation>フォルダー %1 を開けませんでした。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+    </message>
     <message id="main.window.documents.new.canvas">
       <source>New Canvas</source>
       <extracomment>MainWindowDocuments presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>

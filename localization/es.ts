@@ -4412,6 +4412,21 @@ Visible combinado usa el documento visible. Capa activa omite opacidad y visibil
       <translation>Abre una imagen o crea un lienzo</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
+    <message id="document.tabs.open.folder">
+      <source>Open Containing Folder</source>
+      <translation>Abrir la carpeta contenedora</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+    </message>
+    <message id="document.tabs.duplicate">
+      <source>Duplicate</source>
+      <translation>Duplicar</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+    </message>
+    <message id="document.tabs.folder.failed">
+      <source>Could not open folder %1.</source>
+      <translation>No se pudo abrir la carpeta %1.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+    </message>
     <message id="main.window.documents.new.canvas">
       <source>New Canvas</source>
       <extracomment>MainWindowDocuments presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>

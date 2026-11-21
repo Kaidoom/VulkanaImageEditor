@@ -21,6 +21,46 @@ std::size_t repeatedProjectBytes(const Layer& layer, std::unordered_set<SurfaceI
     if (base != raster->surface && !seen.insert(base->id()).second) return base->memoryCost();
     return 0;
 }
+
+Layer independentLayerCopy(const Layer& layer)
+{
+    auto copy = layer;
+    copy.renderCache.reset();
+    copy.filterCache.reset();
+    copy.effectCache.reset();
+    auto* raster = std::get_if<RasterLayer>(&copy.payload);
+    if (!raster || layerPixelsReadOnly(copy)) return copy;
+    if (!raster->surface) throw std::invalid_argument("Raster layer has no pixels");
+    if (auto scalar = std::dynamic_pointer_cast<ScalarRasterSurface>(raster->surface)) {
+        raster->surface = scalar->clone();
+    } else {
+        const auto extent = raster->surface->extent();
+        const std::size_t stride = std::size_t(extent.width) * 4;
+        std::vector<std::byte> pixels(stride * extent.height);
+        raster->surface->copyRgba8({0, 0, int(extent.width), int(extent.height)}, pixels, stride);
+        raster->surface = std::make_shared<ContiguousRasterSurface>(extent, std::move(pixels), raster->surface->dataKind());
+    }
+    return copy;
+}
+}
+
+std::unique_ptr<Document> duplicateDocument(const Document& source)
+{
+    auto copy = std::make_unique<Document>(source.canvas());
+    std::vector<Layer> layers;
+    layers.reserve(source.layers().size());
+    for (const auto& layer : source.layers()) layers.push_back(independentLayerCopy(layer));
+    // IDs are local to a document. Keeping them preserves mirrors, channel
+    // roles, clipping groups and metadata references in the new tree.
+    if (!source.tree().roots.empty() && !copy->replaceStructure(copy->tree(), source.tree(), {}, layers))
+        throw std::runtime_error("Unable to duplicate the layer tree");
+    copy->setSelection(source.selection(), source.selectionEvidence());
+    copy->setLastSelection(source.lastSelection());
+    copy->setSnapshotTimeline(copy->snapshotTimeline(), source.snapshotTimeline());
+    copy->setGuides(copy->guides(), source.guides());
+    copy->setBrushSymmetry(copy->brushSymmetry(), source.brushSymmetry());
+    copy->markUnsaved();
+    return copy;
 }
 
 LayerTransfer captureLayerTransfer(const Document& source, std::span<const LayerId> selection)
@@ -55,20 +95,8 @@ LayerTransfer captureLayerTransfer(const Document& source, std::span<const Layer
             }
             result.tree.containers.push_back(std::move(copy));
         } else {
-            auto copy = *source.layer(id); copy.id = next;
+            auto copy = independentLayerCopy(*source.layer(id)); copy.id = next;
             if (root) copy.visible = source.isEffectivelyVisible(id);
-            copy.renderCache.reset(); copy.filterCache.reset(); copy.effectCache.reset();
-            if (auto* raster = std::get_if<RasterLayer>(&copy.payload); raster && !layerPixelsReadOnly(copy)) {
-                if (!raster->surface) throw std::invalid_argument("Layer transfer has no source pixels");
-                if (const auto scalar = std::dynamic_pointer_cast<ScalarRasterSurface>(raster->surface)) {
-                    raster->surface = scalar->clone();
-                } else {
-                const auto e = raster->surface->extent();
-                std::vector<std::byte> pixels(std::size_t(e.width)*e.height*4);
-                raster->surface->copyRgba8({0,0,int(e.width),int(e.height)}, pixels, std::size_t(e.width)*4);
-                raster->surface = std::make_shared<ContiguousRasterSurface>(e, std::move(pixels), raster->surface->dataKind());
-                }
-            }
             result.layers.push_back(std::move(copy));
         }
         return next;
@@ -144,21 +172,9 @@ std::unique_ptr<LayerStructureCommand> duplicateLayerItems(const Document& doc, 
             }
             tree.containers.push_back(std::move(copy));
         } else {
-            auto copy = *doc.layer(id);
+            auto copy = independentLayerCopy(*doc.layer(id));
             copy.id = newId;
             if (root) copy.name += " copy";
-            copy.renderCache.reset(); copy.filterCache.reset(); copy.effectCache.reset();
-            if (auto* raster = std::get_if<RasterLayer>(&copy.payload); raster && !layerPixelsReadOnly(copy)) {
-                if (!raster->surface) throw std::invalid_argument("Raster layer has no pixels");
-                if (const auto scalar = std::dynamic_pointer_cast<ScalarRasterSurface>(raster->surface)) {
-                    raster->surface = scalar->clone();
-                } else {
-                const auto e = raster->surface->extent();
-                std::vector<std::byte> pixels(std::size_t(e.width) * e.height * 4);
-                raster->surface->copyRgba8({0,0,int(e.width),int(e.height)}, pixels, std::size_t(e.width)*4);
-                raster->surface = std::make_shared<ContiguousRasterSurface>(e, std::move(pixels), raster->surface->dataKind());
-                }
-            }
             added.push_back(std::move(copy));
         }
         return newId;

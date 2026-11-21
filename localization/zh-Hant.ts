@@ -4411,6 +4411,21 @@ Escape · 取消處理
       <translation>開啟影像或新增畫布</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
+    <message id="document.tabs.open.folder">
+      <source>Open Containing Folder</source>
+      <translation>開啟檔案所在資料夾</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+    </message>
+    <message id="document.tabs.duplicate">
+      <source>Duplicate</source>
+      <translation>建立副本</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+    </message>
+    <message id="document.tabs.folder.failed">
+      <source>Could not open folder %1.</source>
+      <translation>無法開啟資料夾 %1。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+    </message>
     <message id="main.window.documents.new.canvas">
       <source>New Canvas</source>
       <extracomment>MainWindowDocuments presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>

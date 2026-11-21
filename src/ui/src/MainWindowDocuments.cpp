@@ -16,6 +16,8 @@
 #include "imageeditor/ui/CrossWindowPointerRouter.hpp"
 #include "imageeditor/ui/PixelPreview.hpp"
 #include "imageeditor/ui/Theme.hpp"
+#include "imageeditor/ui/ToolIcons.hpp"
+#include "imageeditor/ui/PopupOwnership.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
 #include "imageeditor/core/ProjectLayer.hpp"
@@ -24,7 +26,11 @@
 #include "imageeditor/core/ScalarRasterSurface.hpp"
 #include <QAction>
 #include <QApplication>
+#include <QDesktopServices>
+#include <QDir>
 #include <QFileInfo>
+#include <QMenu>
+#include <QToolButton>
 #include <QImageReader>
 #include <QMimeData>
 #include <QHBoxLayout>
@@ -80,6 +86,10 @@ public:
         return size;
     }
     QSize sizeHint() const override { auto size=QTabBar::sizeHint();size.setHeight(32);return size; }
+    QSize minimumSizeHint() const override {
+        // Qt can reserve room for scroll arrows even when a single short tab fits.
+        return QTabBar::minimumSizeHint().boundedTo(sizeHint());
+    }
 protected:
     void mousePressEvent(QMouseEvent* event) override {
         preparePointerPress(*event); // Also correct without the workspace router.
@@ -116,6 +126,7 @@ void MainWindow::createDocumentTabs()
     panel->setObjectName("DocumentTabsPanel");
     panel->setAttribute(Qt::WA_StyledBackground);
     panel->setFixedHeight(33);
+    panel->setAcceptDrops(true);
     auto* tabLayout = new QHBoxLayout(panel);
     tabLayout->setContentsMargins(4, 0, 4, 0); // Panel's 1 px border completes the 33 px row.
     tabLayout->setSpacing(0);
@@ -127,7 +138,29 @@ void MainWindow::createDocumentTabs()
     documentTabs_->setUsesScrollButtons(true);
     documentTabs_->setElideMode(Qt::ElideMiddle);
     documentTabs_->setDrawBase(false);
+    documentTabs_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
     tabLayout->addWidget(documentTabs_);
+    auto* add = new QToolButton(panel);
+    add->setObjectName("NewDocumentTabButton");
+    add->setAutoRaise(true);
+    add->setIcon(toolGlyph(ToolGlyph::Plus));
+    add->setIconSize({16, 16});
+    add->setFixedSize(28, 28);
+    i18n::setToolTip(add, i18n::text("new.document.dialog.create.a.new.canvas"));
+    i18n::setAccessibleName(add, i18n::text("main.window.documents.new.canvas"));
+    tabLayout->addWidget(add);
+    tabLayout->addStretch();
+    connect(add, &QToolButton::clicked, this, [this] {
+        if (fileBusy_ || workspaceDialog_ || creatingDocumentTab_) return;
+        {
+            const QScopedValueRollback creating(creatingDocumentTab_, true);
+            refreshDocumentTabs();
+            createNewDocument();
+        }
+        refreshDocumentTabs();
+    });
+    documentTabs_->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(documentTabs_, &QTabBar::customContextMenuRequested, this, &MainWindow::showDocumentTabMenu);
     static_cast<QVBoxLayout*>(centralWidget()->layout())->insertWidget(0, panel);
     documentTabs_->setFocusPolicy(Qt::NoFocus);
     documentTabs_->setAcceptDrops(true);
@@ -156,7 +189,7 @@ void MainWindow::createDocumentTabs()
         closeDocument(documentTabs_->tabData(index).toULongLong());
     });
     connect(documentTabs_, &QTabBar::tabMoved, this, [this](int from, int to) {
-        if (switchingDocument_) return;
+        if (switchingDocument_ || creatingDocumentTab_) return;
         auto context = documents_.at(std::size_t(from));
         documents_.erase(documents_.begin() + from);
         documents_.insert(documents_.begin() + to, std::move(context));
@@ -176,6 +209,66 @@ void MainWindow::createDocumentTabs()
     row->addWidget(create); row->addWidget(open); layout->addLayout(row);
     workspace_->setWelcomeOverlay(welcome_, false);
 }
+void MainWindow::showDocumentTabMenu(QPoint point)
+{
+    if (fileBusy_ || workspaceDialog_ || creatingDocumentTab_) return;
+    const int index = documentTabs_->tabAt(point);
+    if (index < 0) return;
+    const auto id = documentTabs_->tabData(index).toULongLong();
+    const auto* context = documentContext(id);
+    if (!context) return;
+    const QString path = context->projectPath.isEmpty() ? context->sourcePath : context->projectPath;
+    const QString folder = path.isEmpty() ? QString{} : QFileInfo(path).absolutePath();
+    QMenu menu(documentTabs_);
+    menu.setObjectName("DocumentTabMenu");
+    auto* open = i18n::addAction(&menu, toolGlyph(ToolGlyph::Folder), i18n::text("document.tabs.open.folder"));
+    open->setEnabled(!folder.isEmpty() && QDir(folder).exists());
+    auto* save = i18n::addAction(&menu, toolGlyph(ToolGlyph::Save), i18n::text("editor.shortcuts.save"));
+    auto* duplicate = i18n::addAction(&menu, toolGlyph(ToolGlyph::Copy), i18n::text("document.tabs.duplicate"));
+    menu.addSeparator();
+    auto* close = i18n::addAction(&menu, toolGlyph(ToolGlyph::Close), i18n::text("dialog.button.close"));
+    preparePopupOwnership(&menu, documentTabs_);
+    const auto* action = menu.exec(documentTabs_->mapToGlobal(point));
+    if (!action || !documentContext(id) || fileBusy_ || workspaceDialog_) return;
+    if (action == open) {
+        if (!QDesktopServices::openUrl(QUrl::fromLocalFile(folder)))
+            statusBar()->showMessage(i18n::text("document.tabs.folder.failed").arg(folder), 5000);
+    } else if (action == close) {
+        closeDocument(id);
+    } else {
+        const auto previous = activeDocumentId();
+        if (!activateDocument(id)) return;
+        if (action == duplicate && duplicateDocumentTab(id)) return;
+        if (action == save) saveDocument();
+        if (previous != id) activateDocument(previous);
+    }
+}
+
+bool MainWindow::duplicateDocumentTab(DocumentInstanceId id)
+{
+    if (activeDocumentId() != id || !settleForFileOperation() || activeDocumentId() != id) return false;
+    try {
+        const auto& source = *activeDocument_;
+        auto copy = std::make_shared<DocumentContext>();
+        copy->session.replaceDocument(core::duplicateDocument(*source.session.document()));
+        const auto selected = source.session.layerSelectionState();
+        copy->session.setLayerSelection(selected.ids, selected.primary, selected.anchor);
+        copy->session.setEditingLayerMask(source.session.editingLayerMask());
+        const auto name = source.projectPath.isEmpty() && source.sourcePath.isEmpty()
+            ? source.displayName : QFileInfo(source.displayName).completeBaseName();
+        copy->displayName = i18n::text("diffusion.ui.1.copy").arg(name);
+        copy->metadata = source.metadata;
+        copy->collapsedFolders = layerModel_->collapsedFolderIds();
+        copy->view = canvasWindow_->scene().viewport;
+        copy->viewInitialized = true;
+        copy->selectedSnapshot = source.selectedSnapshot;
+        return publishDocuments({std::move(copy)}, false);
+    } catch (const std::exception& error) {
+        statusBar()->showMessage(QString::fromUtf8(error.what()), 6000);
+        return false;
+    }
+}
+
 QMimeData* MainWindow::captureLayerTransfer(std::span<const core::LayerId> ids, std::optional<core::Vec2d> grab)
 {
     if (!activeDocument_ || ids.empty()) return nullptr;
@@ -278,7 +371,8 @@ bool MainWindow::importLayerFiles(const QMimeData* data, core::ItemPlacement pla
 bool MainWindow::routeDocumentDrag(QObject* watched, QEvent* event)
 {
     const auto clearHover = [this] { tabHoverTimer_->stop(); tabHoverTarget_ = 0; tabHoverPayload_.clear(); };
-    const QRect stripRect(documentTabs_->mapToGlobal(QPoint{}), documentTabs_->size());
+    const auto* panel = documentTabs_->parentWidget();
+    const QRect stripRect(panel->mapToGlobal(QPoint{}), panel->size());
     if (event->type() == QEvent::MouseMove && activeLayerMove_ && activeLayerMove_->dragging()) {
         const auto* mouse = static_cast<QMouseEvent*>(event);
         if (mouse->buttons().testFlag(Qt::LeftButton) && stripRect.contains(mouse->globalPosition().toPoint())
@@ -347,7 +441,8 @@ void MainWindow::refreshDocumentTabs()
     if (!documentTabs_) return;
     const QScopedValueRollback updating(switchingDocument_, true);
     const QSignalBlocker blocked(documentTabs_);
-    while (documentTabs_->count() > int(documents_.size())) documentTabs_->removeTab(documentTabs_->count()-1);
+    const int documentCount = int(documents_.size());
+    while (documentTabs_->count() > documentCount + int(creatingDocumentTab_)) documentTabs_->removeTab(documentTabs_->count()-1);
     for (int i=0; i<int(documents_.size()); ++i) {
         const auto& context = documents_[std::size_t(i)];
         QString label = context->displayName;
@@ -363,9 +458,21 @@ void MainWindow::refreshDocumentTabs()
         if (context->session.document()->isModified()) label += " *";
         if (i == documentTabs_->count()) documentTabs_->addTab(label);
         else documentTabs_->setTabText(i, label);
+        if (!documentTabs_->tabData(i).isValid())
+            for (auto side : {QTabBar::LeftSide, QTabBar::RightSide})
+                if (auto* button = documentTabs_->tabButton(i, side)) button->show();
         documentTabs_->setTabData(i, qulonglong(context->id));
         documentTabs_->setTabToolTip(i, path.isEmpty() ? i18n::text("main.window.documents.unsaved.document") : path);
         if (context == activeDocument_) documentTabs_->setCurrentIndex(i);
+    }
+    if (creatingDocumentTab_) {
+        const auto label = i18n::text("main.window.documents.new.canvas");
+        if (documentTabs_->count() == documentCount) documentTabs_->addTab(label);
+        else documentTabs_->setTabText(documentCount, label);
+        documentTabs_->setTabData(documentCount, {});
+        for (auto side : {QTabBar::LeftSide, QTabBar::RightSide})
+            if (auto* button = documentTabs_->tabButton(documentCount, side)) button->hide();
+        documentTabs_->setCurrentIndex(documentCount);
     }
     for (const auto* name : {"CloseDocumentAction", "NextDocumentAction", "PreviousDocumentAction"})
         if (auto* action = findChild<QAction*>(name)) action->setEnabled(!documents_.empty());
@@ -536,7 +643,7 @@ bool MainWindow::initializeDocument(std::unique_ptr<core::Document> document, QS
     }
     return publishDocuments({std::move(next)});
 }
-bool MainWindow::publishDocuments(std::vector<std::shared_ptr<DocumentContext>> staged)
+bool MainWindow::publishDocuments(std::vector<std::shared_ptr<DocumentContext>> staged, bool replaceUntouched)
 {
     if (staged.empty() || !settleForDocumentSwitch(true)) return false;
     for (const auto& context : staged)
@@ -547,7 +654,7 @@ bool MainWindow::publishDocuments(std::vector<std::shared_ptr<DocumentContext>> 
     documents_.reserve(documents_.size() + staged.size());
     // Only the untouched launch placeholder may be retired without a close
     // decision. Explicit New canvases and every opened document remain tabs.
-    auto placeholder = activeDocument_ && !layerTransform_ && !selectionTransform_ && !activeDocument_->refinement && activeDocument_->untouched && !session().document()->isModified() ? activeDocument_ : nullptr;
+    auto placeholder = replaceUntouched && !creatingDocumentTab_ && activeDocument_ && !layerTransform_ && !selectionTransform_ && !activeDocument_->refinement && activeDocument_->untouched && !session().document()->isModified() ? activeDocument_ : nullptr;
     const auto oldCount = documents_.size();
     documents_.insert(documents_.end(), staged.begin(), staged.end());
     if (!activateDocument(staged.front()->id)) { documents_.resize(oldCount); return false; }

@@ -4413,6 +4413,21 @@ Escape · Скасувати обробку
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
       <translation>Відкрийте зображення або створіть полотно</translation>
     </message>
+    <message id="document.tabs.open.folder">
+      <source>Open Containing Folder</source>
+      <translation>Відкрити теку з файлом</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+    </message>
+    <message id="document.tabs.duplicate">
+      <source>Duplicate</source>
+      <translation>Дублювати</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+    </message>
+    <message id="document.tabs.folder.failed">
+      <source>Could not open folder %1.</source>
+      <translation>Не вдалося відкрити теку %1.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+    </message>
     <message id="main.window.documents.new.canvas">
       <source>New Canvas</source>
       <extracomment>MainWindowDocuments presentation. Keep placeholders and shortcut tokens unchanged. AI-assisted drafts welcome contributor review.</extracomment>

@@ -164,7 +164,7 @@ void MainWindow::beginBackgroundRemoval()
             state->disabledWidgets.push_back({widget, widget->isEnabled()});
             widget->setEnabled(false);
         };
-        disable(documentTabs_);
+        disable(documentTabs_->parentWidget());
         disable(toolOptionsBar_);
         for (auto* child : workspace_->panelOverlay()->findChildren<QWidget*>(QString{}, Qt::FindDirectChildrenOnly)) {
             if (child == state->panel) continue;

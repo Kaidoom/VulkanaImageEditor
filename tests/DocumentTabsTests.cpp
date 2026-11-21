@@ -7,6 +7,8 @@
 #include "imageeditor/ui/TextController.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/CrossWindowPointerRouter.hpp"
+#include "imageeditor/ui/ProjectFile.hpp"
+#include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/core/LayerCommands.hpp"
 #include "imageeditor/core/LayerStructureCommands.hpp"
 #include "imageeditor/core/LayerGeometry.hpp"
@@ -21,6 +23,10 @@
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTimer>
+#include <QDesktopServices>
+#include <QContextMenuEvent>
+#include <QMenu>
+#include <QToolButton>
 #include <QDropEvent>
 #include <QDragEnterEvent>
 #include <QFile>
@@ -346,6 +352,173 @@ void checkLayerFileDrops(QTemporaryDir& files, const QString& background)
     CHECK(QFile::exists(first) && QFile::exists(second));
 }
 
+class FolderReceiver final : public QObject {
+    Q_OBJECT
+public:
+    QUrl opened;
+public slots:
+    void open(const QUrl& url) { opened = url; }
+};
+
+void checkTabActions(const QTemporaryDir& dir)
+{
+    u::MainWindow window(nullptr, false);
+    window.setUnsavedPromptEnabled(false);
+    window.resize(1300,850);
+    window.show();
+    auto* add = window.findChild<QToolButton*>("NewDocumentTabButton");
+    auto* tabs = window.findChild<QTabBar*>("DocumentTabs");
+    CHECK(add && tabs);
+    if (!add || !tabs) return;
+    const auto strip = tabs->parentWidget();
+    QCoreApplication::processEvents();
+    const int lastTabRight = tabs->mapTo(strip,tabs->tabRect(tabs->count()-1).topRight()).x();
+    CHECK(add->x()>lastTabRight && add->x()-lastTabRight<=8);
+    const auto first = window.activeDocumentId();
+    const int initialTabs = tabs->count();
+    for (bool create : {false, true}) {
+        bool shown = false;
+        QTimer::singleShot(0, &window, [&] {
+            auto* card = window.findChild<QDialog*>("NewDocumentDialog");
+            CHECK(card && card->isVisible() && !card->isWindow());
+            if (!card) return;
+            shown = true;
+            CHECK(tabs->count() == initialTabs + 1 && tabs->currentIndex() == initialTabs);
+            CHECK(tabs->tabText(initialTabs) == "New Canvas");
+            if (create) card->accept(); else card->reject();
+        });
+        QTest::mouseClick(add, Qt::LeftButton);
+        CHECK(shown && tabs->count() == initialTabs + int(create));
+        CHECK(window.documentContext(first) && (window.activeDocumentId() == first) == !create);
+    }
+    const auto blank = window.activeDocumentId();
+    const QString path = dir.filePath("test.v2.png");
+    QImage input(32,24,QImage::Format_RGBA8888);
+    input.fill(Qt::red);
+    CHECK(input.save(path) && window.openImageFromPath(path));
+    const auto owner = window.activeDocumentId();
+    auto& source = const_cast<c::EditorSession&>(window.editorSession());
+    const auto layer = *source.activeLayer();
+    // Include an unsaved edit and a dependent mirror in the duplicate.
+    CHECK(source.execute(std::make_unique<c::SetLayerOpacityCommand>(layer, .65f)));
+    CHECK(source.execute(c::createMirroredLayer(*source.document(), source.layerSelectionState())));
+    const auto mirror = *source.activeLayer();
+    const auto sourceHistory = source.history().undoDepth();
+    auto* doc = source.document();
+    const auto selection = c::SelectionMask::rectangle({32,24},{2,3,4,5});
+    CHECK(doc->setSelection(selection));
+    auto guides = doc->guides();
+    guides.items.push_back({guides.nextId++,c::GuideOrientation::Vertical,10});
+    CHECK(doc->setGuides(doc->guides(), guides));
+    auto timeline = doc->snapshotTimeline();
+    timeline.frames.front().durationMs = 320;
+    CHECK(doc->setSnapshotTimeline(doc->snapshotTimeline(), timeline));
+    CHECK(window.activateDocument(blank));
+
+    auto menuAction = [&](u::DocumentInstanceId id, const QString& label, bool folderEnabled) {
+        int index = 0;
+        while (index < tabs->count() && tabs->tabData(index).toULongLong()!=id) ++index;
+        CHECK(index < tabs->count());
+        if (index == tabs->count()) return;
+        bool shown = false;
+        QTimer pick;
+        pick.setSingleShot(true);
+        QObject::connect(&pick,&QTimer::timeout,&window,[&] {
+            auto* menu = window.findChild<QMenu*>("DocumentTabMenu");
+            CHECK(menu && menu->isVisible());
+            if (!menu) return;
+            shown = true;
+            auto* folder = menu->actions().front();
+            CHECK(folder->text()=="Open Containing Folder" && folder->isEnabled()==folderEnabled);
+            for (auto* action : menu->actions()) if (action->text()==label && action->isEnabled()) {
+                QTest::mouseClick(menu,Qt::LeftButton,{},menu->actionGeometry(action).center());
+                return;
+            }
+            CHECK(false);
+            menu->close();
+        });
+        pick.start(0);
+        const auto point = tabs->tabRect(index).center();
+        QContextMenuEvent event(QContextMenuEvent::Mouse,point,tabs->mapToGlobal(point));
+        QApplication::sendEvent(tabs,&event);
+        CHECK(shown);
+    };
+    FolderReceiver receiver;
+    QDesktopServices::setUrlHandler("file",&receiver,"open");
+    menuAction(owner,"Open Containing Folder",true);
+    QDesktopServices::unsetUrlHandler("file");
+    CHECK(receiver.opened == QUrl::fromLocalFile(dir.path()));
+    CHECK(window.activeDocumentId() == blank);
+    u::MainWindow::FileInteractions hooks;
+    int savePrompts = 0;
+    QString destination;
+    hooks.chooseSavePath = [&] { ++savePrompts; return destination; };
+    hooks.reportError = [&](const QString& message) { std::cerr << message.toStdString() << '\n'; CHECK(false); };
+    window.setFileInteractions(hooks);
+
+    const auto initialFiles = QDir(dir.path()).entryList(QDir::Files);
+    menuAction(owner,"Duplicate",true);
+    const auto dup = window.activeDocumentId();
+    const auto* copy = window.documentContext(dup);
+    CHECK(copy && dup!=owner && dup!=blank && savePrompts==0);
+    if (!copy || dup==owner || dup==blank) return;
+    CHECK(QDir(dir.path()).entryList(QDir::Files)==initialFiles);
+    CHECK(copy->projectPath.isEmpty() && copy->sourcePath.isEmpty() && copy->displayName=="test.v2 copy");
+    CHECK(copy->session.document()->isModified() && copy->session.history().undoDepth()==0);
+    CHECK(copy->session.layerSelectionState()==source.layerSelectionState());
+    const auto* clone = copy->session.document();
+    CHECK(clone->tree()==doc->tree() && clone->guides()==guides && clone->snapshotTimeline()==timeline);
+    CHECK(clone->selection()->equivalent(*selection) && clone->layer(layer)->opacity==.65f);
+    const auto pixels = std::get<c::RasterLayer>(clone->layer(layer)->payload).surface;
+    const auto original = std::get<c::RasterLayer>(doc->layer(layer)->payload).surface;
+    const std::array<c::Rgba8,1> blue{{{0,0,255,255}}};
+    pixels->replaceRgba8({0,0,1,1},std::as_bytes(std::span(blue)),4);
+    const auto firstPixel = [](const auto& surface) {
+        c::Rgba8 value{};
+        surface->copyRgba8({0,0,1,1},std::as_writable_bytes(std::span(&value,1)),4);
+        return value;
+    };
+    CHECK(pixels!=original && firstPixel(original).red==255);
+    CHECK(firstPixel(std::get<c::RasterLayer>(clone->layer(mirror)->payload).surface)==blue[0]);
+    CHECK(firstPixel(std::get<c::RasterLayer>(doc->layer(mirror)->payload).surface).red==255);
+    CHECK(source.history().undoDepth()==sourceHistory);
+
+    CHECK(window.activateDocument(blank));
+    menuAction(dup,"Save",false);
+    CHECK(savePrompts==1 && copy->projectPath.isEmpty() && window.activeDocumentId()==blank);
+    destination=dir.filePath("duplicate.vulkana");
+    menuAction(dup,"Save",false);
+    CHECK(savePrompts==2 && copy->projectPath==destination && !clone->isModified() && window.activeDocumentId()==blank);
+    auto reopened = u::loadProject(destination);
+    CHECK(reopened && firstPixel(std::get<c::RasterLayer>(reopened.document->layer(layer)->payload).surface)==blue[0]);
+    CHECK(QImage(path).pixelColor(0,0)==Qt::red && window.documentContext(owner)->projectPath.isEmpty());
+    // A saved project's duplicate also gets its own destination and keeps
+    // the original project's saved bytes, even when Save As is cancelled.
+    QFile saved(destination);
+    CHECK(saved.open(QIODevice::ReadOnly));
+    const auto savedBytes = saved.readAll();
+    saved.close();
+    menuAction(dup,"Duplicate",true);
+    const auto secondCopy = window.activeDocumentId();
+    CHECK(secondCopy!=dup && window.documentContext(secondCopy)->projectPath.isEmpty());
+    destination.clear();
+    menuAction(secondCopy,"Save",false);
+    CHECK(savePrompts==3 && window.documentContext(secondCopy)->projectPath.isEmpty());
+    CHECK(saved.open(QIODevice::ReadOnly) && saved.readAll()==savedBytes);
+    saved.close();
+    CHECK(window.activateDocument(blank));
+    menuAction(secondCopy,"Close",false);
+    menuAction(dup,"Close",true);
+    CHECK(!window.documentContext(dup) && window.activeDocumentId()==blank && window.documentContext(owner));
+    window.resize(900,750);
+    for (int i=0; i<10; ++i) CHECK(window.openImageFromPath(path));
+    QCoreApplication::processEvents();
+    CHECK(tabs->sizeHint().width()>tabs->width());
+    CHECK(add->isVisible() && add->geometry().left()>tabs->geometry().right()
+        && strip->rect().contains(add->geometry()));
+    window.close();
+}
+
 int main(int argc,char** argv)
 {
     QCoreApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
@@ -354,6 +527,10 @@ int main(int argc,char** argv)
     QStandardPaths::setTestModeEnabled(true);QTemporaryDir dir;
     QSettings::setDefaultFormat(QSettings::IniFormat);QSettings::setPath(QSettings::IniFormat,QSettings::UserScope,dir.path());
     u::applyEditorTheme(app);
+    if(app.arguments().contains("--tab-actions")) {
+        checkTabActions(dir);
+        return failures?EXIT_FAILURE:EXIT_SUCCESS;
+    }
     if(app.arguments().contains("--layer-file-drop")) {
         QImage image(40,30,QImage::Format_RGBA8888);image.fill(Qt::red);
         const auto path=dir.filePath("background.png");CHECK(image.save(path));
@@ -534,6 +711,9 @@ int main(int argc,char** argv)
     CHECK(window.documentContext(targetId)->session.document()->isModified());
     window.setUnsavedPromptEnabled(false);window.close();
     checkDragInteractions(path,project);
+    checkTabActions(dir);
     std::cout<<"Document tabs: "<<failures<<" failures\n";
     return failures?1:0;
 }
+
+#include "DocumentTabsTests.moc"

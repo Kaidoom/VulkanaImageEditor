@@ -53,6 +53,8 @@ private:
 };
 
 [[nodiscard]] std::size_t retainedLayerMemory(const Layer&) noexcept;
+[[nodiscard]] std::unique_ptr<Document> duplicateDocument(const Document&);
+
 struct LayerTransfer {
     LayerTree tree;
     std::vector<Layer> layers;

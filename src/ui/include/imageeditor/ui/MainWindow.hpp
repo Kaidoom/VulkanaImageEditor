@@ -613,9 +613,12 @@ private:
     QTabBar* documentTabs_ {nullptr};
     QWidget* welcome_ {nullptr};
     bool switchingDocument_ {false};
+    bool creatingDocumentTab_ {false};
     std::uint64_t documentActivationClock_ {0};
     bool initializeDocument(std::unique_ptr<core::Document>, QString name, QString path = {}, QJsonObject metadata = {}, QString source = {});
-    bool publishDocuments(std::vector<std::shared_ptr<DocumentContext>>);
+    bool publishDocuments(std::vector<std::shared_ptr<DocumentContext>>, bool replaceUntouched = true);
+    bool duplicateDocumentTab(DocumentInstanceId);
+    void showDocumentTabMenu(QPoint);
     void createDocumentTabs();
     void refreshDocumentTabs();
     bool settleForDocumentSwitch(bool keepTransform = false);

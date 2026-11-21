@@ -339,10 +339,11 @@ bool MainWindow::routeSpotHealProcessingInput(QObject* watched, QEvent* event)
         event->accept(); return true;
     }
     const auto* widget = qobject_cast<QWidget*>(watched);
-    if (widget && (widget == documentTabs_ || documentTabs_->isAncestorOf(widget))) return false;
+    const auto* tabStrip = documentTabs_->parentWidget();
+    if (widget && (widget == tabStrip || tabStrip->isAncestorOf(widget))) return false;
     if (type == QEvent::MouseButtonPress || type == QEvent::MouseButtonRelease || type == QEvent::MouseMove) {
         const auto* mouse = static_cast<QMouseEvent*>(event);
-        if (QRect(documentTabs_->mapToGlobal(QPoint{}), documentTabs_->size()).contains(mouse->globalPosition().toPoint())) return false;
+        if (QRect(tabStrip->mapToGlobal(QPoint{}), tabStrip->size()).contains(mouse->globalPosition().toPoint())) return false;
     }
     const auto* cancel = cloningOptionsPage_->findChild<QPushButton*>(QStringLiteral("SpotHealCancelProcessing"));
     bool cancelButton = widget == cancel;

@@ -17,6 +17,12 @@
   An already-open canonical `.vulkana` path focuses its existing context without
   reloading it or clearing undo. Reopening an ordinary image creates another tab.
   Failed/cancelled input does not replace a document or leave a placeholder.
+- Click the **+** after the last tab to open New Canvas. Cancelling returns
+  to the previous tab.
+- Right-click a tab to open its containing folder, save, duplicate or close
+  that document. Imported images use their source folder until saved as a project.
+  **Duplicate** opens the current edits in an independent, unsaved tab with a
+  fresh undo history. Its first Save prompts for a project name.
 - At ordinary startup, New Canvas is presented with no hidden editable document.
   Cancel leaves an empty welcome area with New/Open actions. Closing the last tab
   presents the same card; Cancel does not create an unsolicited blank document.

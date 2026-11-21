@@ -257,9 +257,11 @@ bool MainWindow::saveDocument(bool saveAs)
     QString path = fileState().projectPath;
     const bool chooseDestination = saveAs || path.isEmpty();
     if (chooseDestination) {
+        const auto baseName = fileState().sourcePath.isEmpty() ? fileState().displayName
+            : QFileInfo(fileState().displayName).completeBaseName();
         path = fileInteractions_.chooseSavePath ? fileInteractions_.chooseSavePath()
                                                 : QFileDialog::getSaveFileName(this, i18n::text("main.window.files.save.vulkana.project"),
-                                                      fileState().projectPath.isEmpty() ? QFileInfo(fileState().displayName).completeBaseName() + ".vulkana" : fileState().projectPath,
+                                                      fileState().projectPath.isEmpty() ? baseName + ".vulkana" : fileState().projectPath,
                                                       i18n::text("main.window.files.vulkana.project.vulkana"), nullptr, QFileDialog::DontConfirmOverwrite);
         if (path.isEmpty())
             return false;
