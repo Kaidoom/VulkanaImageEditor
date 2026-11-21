@@ -193,7 +193,7 @@ bool diffusionTargetCurrent(const core::Document& doc, const DiffusionTarget& ta
     return true;
 }
 
-FlattenedDocumentResult diffusionRenderedLayer(const core::Document& document, core::LayerId id)
+FlattenedDocumentResult diffusionRenderedLayer(const core::Document& document, core::LayerId id, bool allowEmpty)
 {
     const std::array ids {id};
     auto rendered = flattenLayerItems(document, ids, {}, {}, nullptr, LayerBoundsMode::VisibleContent);
@@ -213,7 +213,10 @@ FlattenedDocumentResult diffusionRenderedLayer(const core::Document& document, c
         if (top < 0) top = y;
         bottom = y;
     }
-    if (top < 0) return {{}, i18n::text("diffusion.ui.the.selected.layer.has.no.visible.bounds"), false, {}};
+    if (top < 0) {
+        if (allowEmpty) return {};
+        return {{}, i18n::text("diffusion.ui.the.selected.layer.has.no.visible.bounds"), false, {}};
+    }
     const QRect bounds(QPoint(left, top), QPoint(right, bottom));
     if (bounds != image.rect()) {
         auto cropped = image.copy(bounds);

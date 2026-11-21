@@ -65,6 +65,13 @@ class DiffusionIntegrationTests : public QObject {
   void openMode(const char *action) {
     auto *a = child<QAction>(action);
     QVERIFY(a);
+    if (a->menu()) {
+      QVERIFY(QMetaObject::invokeMethod(child<QMenu>("AIImageEditorMenu"), "aboutToShow", Qt::DirectConnection));
+      QVERIFY(a->isEnabled());
+      const auto choices = a->menu()->actions();
+      QCOMPARE(choices.size(), 1);
+      a = choices.first();
+    }
     a->trigger();
     QCoreApplication::processEvents();
   }
@@ -105,6 +112,17 @@ private slots:
   }
   void init() {
     QSettings().clear();
+    openTestDocument();
+    panel->setConfiguration({{"profile", "qwen-image-2.1-turbo"},
+                             {"files", QJsonObject{{"diffusion", modelPath},
+                                                   {"textEncoder", modelPath},
+                                                   {"vae", modelPath},
+                                                   {"vision", modelPath}}},
+                             {"settings", QJsonObject{{"device", "CPU"}}}});
+    panel->setResolution({64, 64});
+  }
+private:
+  void openTestDocument() {
     window = std::make_unique<u::MainWindow>(nullptr, false, false);
     QVERIFY(child<QWidget>("AIImageEditorWorkspace")->isHidden());
     window->setUnsavedPromptEnabled(false);
@@ -118,14 +136,8 @@ private slots:
     panel = dynamic_cast<u::DiffusionPanel *>(widget);
     QVERIFY(panel);
     panel->setWorkerExecutable(QString::fromUtf8(DIFFUSION_UI_WORKER));
-    panel->setConfiguration({{"profile", "qwen-image-2.1-turbo"},
-                             {"files", QJsonObject{{"diffusion", modelPath},
-                                                   {"textEncoder", modelPath},
-                                                   {"vae", modelPath},
-                                                   {"vision", modelPath}}},
-                             {"settings", QJsonObject{{"device", "CPU"}}}});
-    panel->setResolution({64, 64});
   }
+private slots:
   void cleanup() {
     window.reset();
     QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
@@ -570,6 +582,109 @@ private slots:
     const auto edit = panel->selectedResult()->metadata["request"].toObject();
     QCOMPARE(edit["referenceImages"].toArray().size(), 1);
     QVERIFY(edit.contains("spatial"));
+  }
+  void fillMenuChoosesCompatibleConfigurationAndCapturesSelectedLayers() {
+    auto config = panel->configuration();
+    window.reset();
+    QJsonArray entries;
+    const auto add = [&](QString name, QString profile) {
+      config["profile"] = profile;
+      entries.append(QJsonObject{{"id", name}, {"name", name}, {"configuration", config}});
+    };
+    add("Qwen Q4", "qwen-image-2.1-turbo");
+    add("FLUX Q8", "flux3-image-klein-distilled");
+    add("MiniMax H3", "minimax-h3-image");
+    QSettings().setValue("diffusion/modelId", "MiniMax H3");
+    QSettings().setValue("diffusion/currentConfiguration", QJsonDocument(config).toJson());
+    config.remove("files");
+    add("Unfinished Qwen", "qwen-image-2.1-turbo");
+    QSettings().setValue("diffusion/modelConfigurations", QJsonDocument(entries).toJson());
+    openTestDocument();
+    auto *doc = session().document();
+    const auto first = *session().activeLayer();
+    QImage patch(16, 16, QImage::Format_RGBA8888);
+    patch.fill(Qt::green);
+    const auto layer = u::diffusionResultLayer(nullptr, patch, true, false, "Patch");
+    QVERIFY(layer && doc->insertLayer(1, *layer));
+    QVERIFY(doc->setLayerTransform(layer->id, {1, 0, 16, 0, 1, 12}));
+    QImage cover(64, 64, QImage::Format_RGBA8888);
+    cover.fill(Qt::magenta);
+    const auto coverLayer = u::diffusionResultLayer(nullptr, cover, true, false, "Unselected cover");
+    QVERIFY(coverLayer && doc->insertLayer(2, *coverLayer));
+    const std::array ids{first, layer->id};
+    session().setLayerSelection(ids, layer->id);
+    auto *ai = child<QMenu>("AIImageEditorMenu");
+    auto *fill = child<QAction>("AIGenerativeFillAction");
+    ai->aboutToShow();
+    QVERIFY(fill->isEnabled());
+    auto choices = fill->menu()->actions();
+    QCOMPARE(choices.size(), 2);
+    QCOMPARE(choices[0]->text(), "Qwen Q4");
+    QCOMPARE(choices[1]->text(), "FLUX Q8");
+    QCOMPARE(panel->configurationName(), "MiniMax H3");
+    QVERIFY(panel->inputs().isEmpty());
+    QVERIFY(panel->results().isEmpty());
+
+    const auto revision = doc->revision();
+    choices[1]->trigger();
+    QCOMPARE(panel->configurationName(), "FLUX Q8");
+    QCOMPARE(panel->mode(), u::DiffusionPanel::Mode::Fill);
+    QCOMPARE(panel->inputs().size(), 2);
+    QCOMPARE(panel->inputs()[0].metadata.value("layerId").toString(), QString::number(layer->id));
+    QCOMPARE(panel->inputs()[1].metadata.value("layerId").toString(), QString::number(first));
+    auto *generateButton = child<QPushButton>("DiffusionGenerate");
+    QVERIFY(!generateButton->isEnabled());
+    QCOMPARE(doc->revision(), revision);
+    QVERIFY(!panel->isBusy());
+
+    child<QAction>("SelectAllAction")->trigger();
+    QVERIFY(generateButton->isEnabled());
+    child<QAction>("DeselectAction")->trigger();
+    QVERIFY(!generateButton->isEnabled());
+    child<QAction>("SelectAllAction")->trigger();
+    const auto selection = doc->selection();
+    generate();
+    QVERIFY(panel->isBusy());
+    choices[0]->trigger(); // Action retained from before the job started.
+    ai->aboutToShow();
+    QVERIFY(!fill->isEnabled());
+    QCOMPARE(panel->configurationName(), "FLUX Q8");
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QCOMPARE(panel->results().size(), 1);
+    const auto request = panel->selectedResult()->metadata.value("request").toObject();
+    const auto references = request.value("referenceImages").toArray();
+    QCOMPARE(references.size(), 2);
+    QCOMPARE(QImage(references[0].toString()).size(), QSize(16, 16));
+    QCOMPARE(QImage(references[1].toString()).pixelColor(0, 0), QColor(70, 90, 210));
+    const QImage initial(request.value("initialImage").toString());
+    QCOMPARE(initial.pixelColor(20, 15), QColor(Qt::green)); // Active layer at its document position.
+    QCOMPARE(initial.pixelColor(5, 5), QColor(Qt::white)); // Selected transparency, independent of the composition.
+    QVERIFY(request.contains("mask"));
+    panel->onAddInput(u::DiffusionPanel::InputSource::VisibleCanvas);
+    const auto manualId = panel->inputs().last().id;
+    ai->aboutToShow();
+    QVERIFY(fill->menu()->actions()[1]->isChecked());
+    fill->menu()->actions()[0]->trigger();
+    QCOMPARE(panel->configurationName(), "Qwen Q4");
+    QCOMPARE(panel->inputs().size(), 3);
+    QCOMPARE(panel->inputs().last().id, manualId);
+    QVERIFY(panel->inputs().last().metadata.value("visibleCanvas").toBool());
+    QVERIFY(generateButton->isEnabled());
+    QCOMPARE(doc->selection(), selection);
+    QCOMPARE(panel->results().size(), 1);
+    // Opening with only the patch selected drops the automatic second layer
+    // while retaining the explicitly added visible canvas.
+    session().setActiveLayer(layer->id);
+    ai->aboutToShow();
+    fill->menu()->actions()[0]->trigger();
+    QCOMPARE(panel->inputs().size(), 2);
+    QCOMPARE(panel->inputs().last().id, manualId);
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QCOMPARE(panel->results().size(), 2);
+    const auto explicitRefs = panel->selectedResult()->metadata["request"].toObject()["referenceImages"].toArray();
+    QCOMPARE(explicitRefs.size(), 2);
+    QCOMPARE(QImage(explicitRefs[1].toString()).pixelColor(30, 30), QColor(Qt::magenta));
   }
   void generationOverridesUseNativeInputAndReachWorker() {
     openMode("AIGenerateImageAction");
@@ -1612,6 +1727,11 @@ private slots:
     QVERIFY(doc->setLayerTransform(id, {1, 0, 32, 0, 1, 32}));
     QVERIFY(doc->setSelection(c::SelectionMask::filled({128, 128}, 255)));
     openMode("AIGenerativeFillAction");
+    QCOMPARE(panel->inputs().size(), 1);
+    QCOMPARE(panel->inputs()[0].image.size(), QSize(64, 64));
+    QCOMPARE(panel->inputs()[0].toDocument.map(QPointF{}), QPointF(32, 32));
+    panel->clearInputs();
+    panel->onAddInput(u::DiffusionPanel::InputSource::VisibleCanvas);
     panel->setMaxInputSize(64);
     generate();
     QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);

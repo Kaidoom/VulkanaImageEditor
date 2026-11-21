@@ -8,7 +8,7 @@ Open **Edit → AI** and choose:
 
 - **Generate Image:** generate without a target. References can be added when the selected model supports them, and other editing can continue during inference.
 - **Edit Current Layer:** capture the selected raster layer as Image 1 and begin an editing session.
-- **Generative Fill:** capture the visible canvas and current soft selection, then restrict application of the result to that selection.
+- **Generative Fill:** choose a compatible model configuration from the submenu. Vulkana activates it and adds the explicitly selected layers. The active layer is Image 1. To supply the whole composition as a reference, add **Visible Canvas** from the inputs list. You can choose the model before making a pixel selection. Generate becomes available with a selection, and application preserves pixels outside it. The model chooser is unavailable while a job is running.
 - **AI Image Editor:** reopen the panel in its previous mode.
 
 The AI panel temporarily occupies the right dock’s content area and shares its resize handle. Closing it restores the regular panels, tabs and splitter layout. It starts hidden on each launch and stays in place behind preview overlays. Its tabs are **Configuration**, **Generate** and **Preview**. Configuration contains saved model setups, sampling and performance settings; Generate contains prompts, presets, inputs, size and seed; Preview contains completed variations, image details, and Generate again/Discard actions. Apply controls are in the expanded image preview.
@@ -44,7 +44,7 @@ The seed field supports single-step increment/decrement and direct entry through
 | Generate | None; input images are references only | Disabled |
 | Edit layer, image-to-image off (default) | None; Image 1 and other inputs guide reference editing | Disabled |
 | Edit layer, image-to-image on | Image 1, scaled to the output size | Enabled |
-| Generative Fill | Rendered canvas and the captured selection mask; image-to-image is always on | Enabled |
+| Generative Fill | Image 1 placed on the canvas and the captured selection mask. Image-to-image is always on | Enabled |
 
 Lower strength starts later in the denoising schedule, retaining more of the starting image and running fewer steps. Try **1.0** for object insertion or substantial replacements; it uses the full schedule while references still guide the result. Strength is not a reference-image influence slider. The native engine discretizes strength to sampling steps, so nearby values can produce the same schedule, and zero is not a pixel-exact passthrough. Fill's soft selection is still enforced separately when applying the result.
 
@@ -88,7 +88,7 @@ Zoom and middle-button panning remain available while dragging the divider.
 
 Generative Fill keeps fitting enabled to maintain canvas and selection alignment. Vulkana retains the original soft selection and composites through it when applying. Replacement and new-document output preserve pixels outside the selection exactly; a new result layer is transparent outside it. A new layer overlays its existing backdrop, so it cannot erase transparency in the layers below. Replacement is confined to the target raster's existing pixel grid; new-layer output can cover selected regions elsewhere on the canvas.
 
-Fill uses the full canvas dimensions for its starting image and selection mask, including margins beyond the selected layer. In temporary inference inputs, fully transparent selected canvas pixels receive an opaque white placeholder so RGBA-aware models do not interpret those missing areas as transparency to retain. This also applies to matching visible-canvas references from the same document. Opaque and partly transparent content, unselected pixels, other references, and the original document are retained; final application still uses the original soft mask and the generated alpha.
+Fill uses Image 1 as the starting image for denoising. A layer snapshot from the active document keeps its position and scale on a transparent canvas. An input from another document or file is centered and fitted proportionally. The selection mask stays in canvas coordinates, including margins beyond the layer. The editor uses the composite separately to preview the result in context. In temporary inference inputs, fully transparent selected canvas pixels receive an opaque white placeholder so RGBA-aware models do not interpret those missing areas as transparency to retain. This treatment also applies to Image 1 and explicitly added visible-canvas references from the same document. Opaque and partly transparent content, unselected pixels, other references, and the original document are retained; final application still uses the original soft mask and the generated alpha.
 
 Outpainting quality remains model-, prompt-, resolution- and seed-dependent. The supported Qwen and FLUX profiles use general image editing with a sampling mask, not dedicated mask-conditioned inpainting. The mask restricts denoising but does not itself tell the model what the words “selected area” mean. Describe the intended continuation and its location explicitly; region guidance can supply additional semantic placement hints. Use Add as New Layer or Open new document for margins outside the original raster's bounds. Visible-canvas references are snapshots taken when added; re-add one if the source canvas has changed.
 
@@ -100,8 +100,8 @@ For a canvas-cropped Edit input, replacement uses the captured document placemen
 
 **MiniMax-H3-Image** supports Generate and reference-based Edit Layer. Select
 the six-step H3 **image** diffusion checkpoint, the MiniMax-H3 Qwen3-VL-32B
-encoder and the dedicated H3 **image** VAE. The Q4_K_M encoder with embedded
-vision weights can use an empty Vision field. Start at 1024 × 1024 with six
+encoder and the dedicated H3 **image** VAE. We recommend the Q4_K_M GGUF text
+encoder with embedded vision weights. Leave Vision empty for this encoder. Start at 1024 × 1024 with six
 steps, Euler, CFG 1, the Discrete scheduler and VAE tiling. At six steps the
 scheduler uses the model's PDD sigmas. Dimensions must be multiples of 32.
 

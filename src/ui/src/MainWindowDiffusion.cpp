@@ -35,6 +35,7 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QMouseEvent>
+#include <QPainter>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QScopedValueRollback>
@@ -69,6 +70,57 @@ QImage srgb(QImage image) {
 QTransform qtTransform(const core::AffineTransform &m) {
   return QTransform(m.m00, m.m10, m.m20, m.m01, m.m11, m.m21, m.m02, m.m12,
                     m.m22);
+}
+DiffusionPanel::Input layerInput(const core::Document &doc, const core::Layer &layer,
+                                quint64 documentId, bool raw, bool allowEmpty = false) {
+  DiffusionPanel::Input input;
+  if (raw) {
+    input.image = diffusionRawLayer(layer);
+    input.toDocument = QTransform::fromTranslate(layer.rasterOrigin.x, layer.rasterOrigin.y) *
+                       qtTransform(layer.localToDocument);
+  } else {
+    const auto rendered = diffusionRenderedLayer(doc, layer.id, allowEmpty);
+    if (rendered) {
+      input.image = srgb(rendered.image);
+      input.toDocument = QTransform::fromTranslate(rendered.origin.x, rendered.origin.y);
+    } else if (allowEmpty && rendered.error.isEmpty() && !rendered.cancelled) {
+      input.image = QImage(QSize(int(doc.canvas().extent.width), int(doc.canvas().extent.height)), QImage::Format_RGBA8888);
+      if (input.image.isNull()) throw std::bad_alloc();
+      input.image.fill(Qt::transparent);
+      input.image.setColorSpace(QColorSpace::SRgb);
+    } else {
+      throw std::runtime_error(rendered.error.toStdString());
+    }
+  }
+  input.label = QString::fromStdString(layer.name);
+  input.source = raw ? i18n::text("diffusion.ui.raw.pixels") : i18n::text("diffusion.ui.rendered.appearance.isolated.layer");
+  input.metadata = {{"documentId", QString::number(documentId)}, {"layerId", QString::number(layer.id)}, {"boundedLayer", !raw}};
+  input.sourceCanvas = QSize(int(doc.canvas().extent.width), int(doc.canvas().extent.height));
+  return input;
+}
+bool hasColorRaster(const core::EditorSession &session) {
+  const auto *doc = session.document();
+  const auto *layer = doc && session.activeLayer() ? doc->layer(*session.activeLayer()) : nullptr;
+  const auto *raster = layer ? std::get_if<core::RasterLayer>(&layer->payload) : nullptr;
+  return raster && raster->surface && raster->surface->dataKind() == core::RasterDataKind::Color;
+}
+bool capturedSessionInput(const DiffusionPanel::Input &input) {
+  return input.target || input.metadata.value("fillSelection").toBool();
+}
+// Place an immutable input on the selection's canvas grid, or project the
+// canvas mask back onto a bounded reference with the inverse transform.
+QImage onFillGrid(const QImage &source, const QTransform &placement, QSize extent) {
+  if (source.size() == extent && placement.isIdentity()) return source;
+  QImage image(extent, source.format());
+  if (image.isNull()) throw std::bad_alloc();
+  image.setColorSpace(source.colorSpace());
+  image.fill(0);
+  QPainter painter(&image);
+  painter.setCompositionMode(QPainter::CompositionMode_Source);
+  painter.setRenderHint(QPainter::SmoothPixmapTransform);
+  painter.setTransform(placement);
+  painter.drawImage(QPointF{}, source);
+  return image;
 }
 core::AffineTransform coreTransform(const QTransform &m) {
   return {.m00 = m.m11(),
@@ -109,9 +161,6 @@ struct DiffusionWorkspace {
   QString comparisonKey;
   std::unique_ptr<diffusion::WorkerClient> worker;
   QTemporaryDir files{QDir::tempPath() + "/vulkana-diffusion-XXXXXX"};
-  std::shared_ptr<DocumentContext> owner;
-  std::optional<DiffusionTarget> target;
-  QImage before;
   DiffusionPanel::Mode mode{DiffusionPanel::Mode::Generate};
   QJsonObject pendingConfiguration, loadedConfiguration, pendingGeneration;
   QJsonArray residentModels;
@@ -185,22 +234,27 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
          int(DiffusionPanel::Mode::Generate));
   auto *edit = action(i18n::text("diffusion.ui.edit.current.layer"), "AIEditLayerAction",
                       int(DiffusionPanel::Mode::Edit));
-  auto *fill = action(i18n::text("diffusion.ui.generative.fill.2"), "AIGenerativeFillAction",
-                      int(DiffusionPanel::Mode::Fill));
+  auto *fill = i18n::addMenu(ai, i18n::text("diffusion.ui.generative.fill.2"));
+  fill->menuAction()->setObjectName("AIGenerativeFillAction");
+  fill->setIcon(toolGlyph(ToolGlyph::LayerRaster));
   ai->addSeparator();
   action(i18n::text("diffusion.ui.ai.image.editor.2"), "AIImageEditorAction", -1);
   connect(ai, &QMenu::aboutToShow, this, [this, edit, fill] {
-    auto *doc = session().document();
-    auto *layer = doc && session().activeLayer()
-                      ? doc->layer(*session().activeLayer())
-                      : nullptr;
-    const auto *raster =
-        layer ? std::get_if<core::RasterLayer>(&layer->payload) : nullptr;
-    edit->setEnabled(diffusion_->panel->supportsMode(DiffusionPanel::Mode::Edit) && raster && raster->surface
-        && raster->surface->dataKind() == core::RasterDataKind::Color && !fileBusy_ &&
-                     !workspaceDialog_);
-    fill->setEnabled(diffusion_->panel->supportsMode(DiffusionPanel::Mode::Fill) && edit->isEnabled() && doc->selection() &&
-                     !doc->selection()->bounds().empty());
+    const bool available = !fileBusy_ && !workspaceDialog_ && hasColorRaster(session());
+    auto *panel = diffusion_->panel;
+    edit->setEnabled(available && panel->supportsMode(DiffusionPanel::Mode::Edit));
+    fill->clear();
+    for (const auto &choice : panel->configurationsForMode(DiffusionPanel::Mode::Fill)) {
+      auto *item = fill->addAction(QString(choice.name).replace('&', "&&"));
+      item->setCheckable(true);
+      item->setChecked(choice.active);
+      connect(item, &QAction::triggered, this, [this, id = choice.id] {
+        if (fileBusy_ || workspaceDialog_ || !hasColorRaster(session())) return;
+        if (diffusion_->panel->chooseConfiguration(id, DiffusionPanel::Mode::Fill))
+          openDiffusion(int(DiffusionPanel::Mode::Fill));
+      });
+    }
+    fill->menuAction()->setEnabled(available && !panel->isBusy() && !fill->isEmpty());
   });
   state->panel->onGenerate = [this, active] {
     if (active())
@@ -534,64 +588,68 @@ bool MainWindow::captureDiffusionSession() {
   try {
     if (!settleForFileOperation())
       return false;
-    if (!activeDocument_ || !session().document() || !session().activeLayer())
+    if (!activeDocument_ || !hasColorRaster(session()))
       throw std::runtime_error(i18n::text("diffusion.ui.select.a.raster.layer.to.start.an").toStdString());
-    if (s.mode == DiffusionPanel::Mode::Fill &&
-        (!session().document()->selection() ||
-         session().document()->selection()->bounds().empty()))
-      throw std::runtime_error(i18n::text("diffusion.ui.make.a.selection.before.using.generative.fill").toStdString());
-    s.owner = activeDocument_;
-    s.target =
-        captureDiffusionTarget(*session().document(), *session().activeLayer(),
-                               s.mode == DiffusionPanel::Mode::Fill);
-    const auto *layer = s.owner->session.document()->layer(s.target->layerId);
-    auto origin = s.target->rasterOrigin;
-    bool bounded = false;
-    if (s.mode == DiffusionPanel::Mode::Fill) {
-      const auto rendered = flattenDocument(*s.owner->session.document());
-      if (!rendered)
-        throw std::runtime_error(rendered.error.toStdString());
-      s.before = srgb(rendered.image);
+    const bool fill = s.mode == DiffusionPanel::Mode::Fill;
+    const auto &doc = *session().document();
+    const auto *layer = doc.layer(*session().activeLayer());
+    const QSize canvas(int(doc.canvas().extent.width), int(doc.canvas().extent.height));
+    auto inputs = s.panel->inputs();
+    inputs.removeIf(capturedSessionInput);
+    if (fill) {
+      auto selected = doc.expandedLayers(session().selectedLayers());
+      std::erase(selected, layer->id);
+      selected.insert(selected.begin(), layer->id);
+      QVector<DiffusionPanel::Input> selectedInputs;
+      const auto docId = QString::number(activeDocument_->id);
+      for (const auto id : selected) {
+        const auto *source = doc.layer(id);
+        if (!source || std::holds_alternative<core::AdjustmentLayer>(source->payload)) continue;
+        if (selectedInputs.size() >= s.panel->referenceLimit())
+          throw std::runtime_error(i18n::text("diffusion.ui.this.model.accepts.1.references.in.total")
+                                       .arg(s.panel->referenceLimit()).toStdString());
+        const auto existing = std::find_if(inputs.cbegin(), inputs.cend(), [&](const auto &input) {
+          return input.metadata.value("documentId") == docId && input.metadata.value("layerId") == QString::number(id) &&
+                 input.metadata.value("boundedLayer").toBool();
+        });
+        if (existing != inputs.cend()) {
+          selectedInputs.append(inputs.takeAt(existing - inputs.cbegin()));
+        } else {
+          auto input = layerInput(doc, *source, activeDocument_->id, false, true);
+          input.target = id == layer->id;
+          input.metadata["fillSelection"] = true;
+          selectedInputs.append(std::move(input));
+        }
+      }
+      inputs = std::move(selectedInputs) + inputs;
     } else {
-      s.before = s.target->originalPixels;
+      const auto target = captureDiffusionTarget(doc, layer->id, false);
+      auto origin = target.rasterOrigin;
+      auto pixels = target.originalPixels;
       const auto bounds = std::get<core::RasterLayer>(layer->payload).surface->contentBounds();
       const QRect rawBounds(bounds.x, bounds.y, bounds.width, bounds.height);
-      if (!rawBounds.isEmpty() && rawBounds != s.before.rect()) {
-        bounded = true;
+      const bool bounded = !rawBounds.isEmpty() && rawBounds != pixels.rect();
+      if (bounded) {
         origin = origin + core::Vec2d{double(bounds.x), double(bounds.y)};
-        s.before = s.before.copy(rawBounds);
-        if (s.before.isNull()) throw std::bad_alloc();
+        pixels = pixels.copy(rawBounds);
+        if (pixels.isNull()) throw std::bad_alloc();
       }
+      inputs.prepend({pixels, QString::fromStdString(layer->name), i18n::text("diffusion.ui.target.raw.layer.pixels"),
+                      true, {{"documentId", QString::number(activeDocument_->id)}, {"layerId", QString::number(layer->id)},
+                             {"boundedLayer", bounded}},
+                      QTransform::fromTranslate(origin.x, origin.y) * qtTransform(target.localToDocument)});
+      inputs.front().sourceCanvas = canvas;
     }
-    auto inputs = s.panel->inputs();
-    inputs.removeIf([](const auto &input) { return input.target; });
-    inputs.prepend({s.before,
-                    QString::fromStdString(layer->name),
-                    s.mode == DiffusionPanel::Mode::Fill
-                        ? i18n::text("diffusion.ui.target.visible.canvas")
-                        : i18n::text("diffusion.ui.target.raw.layer.pixels"),
-                    true,
-                    {{"documentId", QString::number(s.owner->id)},
-                     {"layerId", QString::number(s.target->layerId)},
-                     {"boundedLayer", bounded},
-                     {"visibleCanvas", s.mode == DiffusionPanel::Mode::Fill}},
-                    s.mode == DiffusionPanel::Mode::Fill
-                        ? QTransform{}
-                        : QTransform::fromTranslate(origin.x, origin.y) *
-                              qtTransform(s.target->localToDocument)});
-    if (s.mode == DiffusionPanel::Mode::Edit)
-      inputs.front().sourceCanvas = QSize(int(s.target->canvas.extent.width), int(s.target->canvas.extent.height));
+    const auto resolution = fill ? canvas : inputs.front().image.size();
     s.panel->setInputs(std::move(inputs));
-    s.panel->setResolution(s.before.size());
+    s.panel->setResolution(resolution);
     s.panel->setTargetCompatible(true);
     s.panel->setStatus(i18n::text("diffusion.ui.target.captured.you.can.keep.editing.changed"));
     return true;
   } catch (const std::exception &e) {
     refreshDiffusion();
-    s.target.reset();
-    s.owner.reset();
     auto inputs = s.panel->inputs();
-    inputs.removeIf([](const auto &input) { return input.target; });
+    inputs.removeIf(capturedSessionInput);
     s.panel->setInputs(std::move(inputs));
     s.cleanup = true;
     cleanupDiffusionFiles();
@@ -609,40 +667,40 @@ void MainWindow::generateDiffusion() {
     const auto inputs = s.panel->supportsImageInputs() ? s.panel->inputs() : QVector<DiffusionPanel::Input>{};
     if (s.mode != DiffusionPanel::Mode::Generate && inputs.isEmpty())
       throw std::runtime_error(i18n::text("diffusion.ui.add.an.input.image.before.generating.an").toStdString());
-    s.target.reset();
-    s.owner.reset();
-    s.before = {};
+    std::optional<DiffusionTarget> target;
+    std::shared_ptr<DocumentContext> owner;
+    QImage before;
     if (s.mode == DiffusionPanel::Mode::Fill) {
       if (!session().document() || !session().activeLayer())
         throw std::runtime_error(i18n::text("diffusion.ui.select.a.raster.layer.and.a.selection").toStdString());
-      s.owner = activeDocument_;
-      s.target = captureDiffusionTarget(*session().document(),
+      owner = activeDocument_;
+      target = captureDiffusionTarget(*session().document(),
                                         *session().activeLayer(), true);
       const auto rendered = flattenDocument(*session().document());
       if (!rendered)
         throw std::runtime_error(rendered.error.toStdString());
-      s.before = srgb(rendered.image);
+      before = srgb(rendered.image);
     } else if (s.mode == DiffusionPanel::Mode::Edit) {
       const auto &input = inputs.front();
-      s.before = input.image;
+      before = input.image;
       const auto id = input.metadata["documentId"].toString().toULongLong();
-      for (const auto &owner : documents_)
-        if (owner->id == id && !owner->closed) {
-          s.owner = owner;
+      for (const auto &document : documents_)
+        if (document->id == id && !document->closed) {
+          owner = document;
           break;
         }
     }
-    s.jobContext = {s.owner, s.target, s.before, s.mode, {}, {}};
+    s.jobContext = {owner, target, before, s.mode, {}, {}};
     if (s.mode == DiffusionPanel::Mode::Edit) {
       s.jobContext.inputToDocument = inputs.front().toDocument;
-      s.jobContext.inputSize = s.before.size();
+      s.jobContext.inputSize = before.size();
       s.jobContext.croppedEdit = inputs.front().cropToCanvas;
       if (inputs.front().metadata.value("boundedLayer").toBool())
         s.jobContext.boundedInputLayer = inputs.front().metadata.value("layerId").toString().toULongLong();
     }
     s.jobDocuments.clear();
-    if (s.owner)
-      s.jobDocuments.insert(s.owner->id);
+    if (owner)
+      s.jobDocuments.insert(owner->id);
     for (const auto &input : inputs) {
       bool ok = false;
       const auto id = input.metadata["documentId"].toString().toULongLong(&ok);
@@ -676,20 +734,40 @@ void MainWindow::generateDiffusion() {
       return path;
     };
     QImage fillMask;
-    QImage initial = s.before;
+    QImage initial;
+    QTransform basePlacement;
     if (s.mode == DiffusionPanel::Mode::Fill) {
-      fillMask = diffusionSelectionMask(*s.target, {}, true);
-      initial = diffusionPrepareFillInput(s.before, fillMask);
+      fillMask = diffusionSelectionMask(*target, {}, true);
+      const auto &base = inputs.front();
+      auto source = base.fullImage;
+      basePlacement = base.fullToDocument;
+      if (base.cropToCanvas) {
+        const auto cropped = diffusionCropToCanvas(source, basePlacement, base.sourceCanvas);
+        source = cropped.image;
+        basePlacement = cropped.toDocument;
+      }
+      if (source.isNull()) throw std::runtime_error(i18n::text("diffusion.ui.a.cropped.layer.is.outside.its.canvas").toStdString());
+      if (base.metadata.value("documentId").toString() != QString::number(owner->id)) {
+        // An external input has no placement in this document.
+        const auto fit = source.size().scaled(fillMask.size(), Qt::KeepAspectRatio);
+        basePlacement = QTransform::fromScale(double(fit.width()) / source.width(), double(fit.height()) / source.height())
+                        * QTransform::fromTranslate((fillMask.width() - fit.width()) / 2, (fillMask.height() - fit.height()) / 2);
+      }
+      initial = diffusionPrepareFillInput(onFillGrid(source, basePlacement, fillMask.size()), fillMask);
+      basePlacement = QTransform::fromScale(double(source.width()) / base.image.width(),
+                                            double(source.height()) / base.image.height()) * basePlacement;
+    } else {
+      initial = before;
     }
     QJsonArray refs;
     for (int i = 0; i < inputs.size(); ++i) {
       const auto &input = inputs[i];
       auto image = srgb(input.image);
-      if (!fillMask.isNull() && input.metadata["visibleCanvas"].toBool() &&
-          input.metadata["documentId"].toString() == QString::number(s.owner->id) &&
-          input.fullToDocument.isIdentity() && input.fullImage.size() == fillMask.size())
-        image = diffusionPrepareFillInput(image, fillMask.scaled(image.size(), Qt::IgnoreAspectRatio,
-                                                                Qt::SmoothTransformation));
+      if (!fillMask.isNull() && (i == 0 || (input.metadata["visibleCanvas"].toBool() &&
+          input.metadata["documentId"].toString() == QString::number(owner->id)))) {
+        const auto placement = i == 0 ? basePlacement : input.toDocument;
+        image = diffusionPrepareFillInput(image, onFillGrid(fillMask, placement.inverted(), image.size()));
+      }
       refs.append(save(image, QString("image-%1").arg(i + 1)));
     }
     if (!refs.isEmpty())
@@ -978,11 +1056,8 @@ void MainWindow::discardDiffusion(bool closePanel) {
     return;
   auto &s = *diffusion_;
   cancelDiffusion();
-  s.target.reset();
-  s.owner.reset();
-  s.before = {};
   auto inputs = s.panel->inputs();
-  inputs.removeIf([](const auto &input) { return input.target; });
+  inputs.removeIf(capturedSessionInput);
   s.panel->setInputs(std::move(inputs));
   s.cleanup = true;
   cleanupDiffusionFiles();
@@ -1003,6 +1078,7 @@ void MainWindow::refreshDiffusion() {
       std::get<core::RasterLayer>(layer->payload).surface &&
       std::get<core::RasterLayer>(layer->payload).surface->dataKind() == core::RasterDataKind::Color;
   s.panel->setTargetCompatible(selected);
+  s.panel->setFillSelectionAvailable(hasColorRaster(session()) && doc->selection() && !doc->selection()->bounds().empty());
   QVector<DiffusionPanel::ComparisonLayer> choices;
   if (doc) for (auto it = doc->layers().rbegin(); it != doc->layers().rend(); ++it) {
     const auto &candidate = *it;
@@ -1227,25 +1303,7 @@ void MainWindow::addDiffusionInput(int sourceValue) {
         const bool raw =
             source == DiffusionPanel::InputSource::CurrentLayerPixels ||
             source == DiffusionPanel::InputSource::DocumentLayerPixels;
-        if (raw) {
-          input.image = diffusionRawLayer(*layer);
-          input.toDocument = QTransform::fromTranslate(layer->rasterOrigin.x,
-                                                       layer->rasterOrigin.y) *
-                             qtTransform(layer->localToDocument);
-        } else {
-          const auto rendered = diffusionRenderedLayer(*doc, *id);
-          if (!rendered)
-            throw std::runtime_error(rendered.error.toStdString());
-          input.image = srgb(rendered.image);
-          input.toDocument =
-              QTransform::fromTranslate(rendered.origin.x, rendered.origin.y);
-        }
-        input.label = QString::fromStdString(layer->name);
-        input.source =
-            raw ? i18n::text("diffusion.ui.raw.pixels") : i18n::text("diffusion.ui.rendered.appearance.isolated.layer");
-        input.metadata = {{"documentId", QString::number(owner->id)},
-                          {"layerId", QString::number(*id)}, {"boundedLayer", !raw}};
-        input.sourceCanvas = QSize(int(doc->canvas().extent.width), int(doc->canvas().extent.height));
+        input = layerInput(*doc, *layer, owner->id, raw);
       }
     }
     s.panel->addInput(std::move(input));

@@ -36,7 +36,7 @@ struct DiffusionTarget {
 // Nontransparent rendered bounds in document pixels, including off-canvas content. Backdrop-dependent blend modes can
 // differ from the visible canvas; use flattenDocument for a full composite.
 [[nodiscard]] FlattenedDocumentResult diffusionRenderedLayer(
-    const core::Document&, core::LayerId);
+    const core::Document&, core::LayerId, bool allowEmpty = false);
 
 // Native layer-grid coverage (or document grid when requested), resized only
 // for inference. Full-size coverage

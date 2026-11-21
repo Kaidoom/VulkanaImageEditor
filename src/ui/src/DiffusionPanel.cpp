@@ -73,6 +73,17 @@
 
 namespace imageeditor::ui {
 namespace {
+bool profileSupportsMode(const QJsonObject &profile, DiffusionPanel::Mode mode) {
+  if (profile.isEmpty()) return false;
+  const auto modes = profile.value("modes");
+  if (!modes.isArray()) return true; // Older worker profiles supported all three modes.
+  static const QStringList names{"generate", "edit", "fill"};
+  return modes.toArray().contains(names.value(int(mode)));
+}
+bool hasModelFiles(const QJsonObject &files, const QJsonObject &profile) {
+  const auto has = [&](const char *key) { return !files.value(key).toString().trimmed().isEmpty(); };
+  return has("diffusion") && (profile.value("checkpoint").toBool() || (has("textEncoder") && has("vae")));
+}
 template <class Base> class ScrollSafe final : public Base {
 public:
   using Base::Base;
@@ -821,7 +832,7 @@ struct DiffusionPanel::Impl {
     }
     filterComparisonLayers();
   }
-  bool busy{}, canReplaceSelected{}, updating{};
+  bool busy{}, canReplaceSelected{}, fillSelectionAvailable{}, updating{};
   diffusion::PromptPresetStore presetStore{
       diffusion::PromptPresetStore::defaultFilePath()};
   QVector<diffusion::PromptPreset> presetList;
@@ -895,12 +906,20 @@ struct DiffusionPanel::Impl {
     input.visibleRegionIds.clear();
     for (const auto &r : input.regions) input.visibleRegionIds.append(r.id);
   }
-  QJsonObject profile() const {
-    const auto id = profiles->currentData().toString();
+  QJsonObject profile(const QString &id) const {
     for (const auto &p : profileList)
       if (p.toObject()["id"].toString() == id)
         return p.toObject();
     return {};
+  }
+  QJsonObject profile() const { return profile(profiles->currentData().toString()); }
+  QJsonObject modelFiles() const {
+    QJsonObject paths;
+    for (auto it = files.begin(); it != files.end(); ++it) {
+      const auto path = it.value()->text().trimmed();
+      if (!path.isEmpty()) paths[it.key()] = path;
+    }
+    return paths;
   }
   static QString familyKey(const QJsonObject &profile) {
     return profile.value("familyGroup").toString(profile.value("family").toString());
@@ -1156,10 +1175,7 @@ struct DiffusionPanel::Impl {
     if (inputs.size() == 1 && inputIndex(outputSceneId) < 0 && !hasTransfers())
       rebuildScenes();
     const bool ready = q.selectedResult() != nullptr;
-    const bool configured = !files["diffusion"]->text().trimmed().isEmpty() &&
-                            (profile().value("checkpoint").toBool() ||
-                             (!files["textEncoder"]->text().trimmed().isEmpty() &&
-                              !files["vae"]->text().trimmed().isEmpty()));
+    const bool configured = hasModelFiles(modelFiles(), profile());
     addModel->setEnabled(!busy);
     configModels->setEnabled(!busy && !modelConfigs.isEmpty());
     duplicateModel->setEnabled(!busy && (configured || !currentModelId.isEmpty()));
@@ -1170,14 +1186,16 @@ struct DiffusionPanel::Impl {
     const bool nonempty = !q.supportsImageInputs() || std::none_of(inputs.begin(), inputs.end(), [](const auto &in) { return in.image.isNull(); });
     const auto linkError = transferError();
     i18n::setText(generate, busy ? i18n::text("diffusion.ui.cancel") : i18n::text("diffusion.ui.generate"));
-    generate->setEnabled(busy || (configured && hasInputs && nonempty && referencesFit() && linkError.isEmpty()));
+    const bool needsSelection = q.mode() == Mode::Fill && !fillSelectionAvailable;
+    const bool canGenerate = configured && hasInputs && nonempty && referencesFit() && linkError.isEmpty() && !needsSelection;
+    generate->setEnabled(busy || canGenerate);
     for (auto *button : unloadButtons)
       button->setEnabled(!busy && canUnloadModels);
-    i18n::setToolTip(generate, busy ? i18n::text("diffusion.ui.cancel.generation") : !linkError.isEmpty() ? linkError : !nonempty ? i18n::text("diffusion.ui.a.cropped.layer.is.outside.its.canvas")
+    i18n::setToolTip(generate, busy ? i18n::text("diffusion.ui.cancel.generation") : needsSelection ? i18n::text("diffusion.ui.make.a.selection.before.using.generative.fill") : !linkError.isEmpty() ? linkError : !nonempty ? i18n::text("diffusion.ui.a.cropped.layer.is.outside.its.canvas")
         : !referencesFit()
         ? i18n::text("diffusion.ui.remove.an.image.or.region.to.stay")
         : configured ? QString{} : i18n::text("diffusion.ui.add.model.files.in.the.configuration.tab"));
-    regenerate->setEnabled(!busy && ready && configured && hasInputs && nonempty && referencesFit() && linkError.isEmpty());
+    regenerate->setEnabled(!busy && ready && canGenerate);
     apply->setEnabled(!busy && ready);
     discard->setEnabled(ready);
     resultImage->setVisible(true);
@@ -3145,13 +3163,39 @@ DiffusionPanel::Mode DiffusionPanel::mode() const {
   return Mode(d->mode->currentIndex());
 }
 bool DiffusionPanel::supportsMode(Mode mode) const {
-  const auto modes = d->profile().value("modes");
-  if (!modes.isArray()) return true; // Older worker profiles supported all three modes.
-  const QStringList names{"generate", "edit", "fill"};
-  return modes.toArray().contains(names.value(int(mode)));
+  return profileSupportsMode(d->profile(), mode);
+}
+QVector<DiffusionPanel::ModelChoice> DiffusionPanel::configurationsForMode(Mode mode) const {
+  QVector<ModelChoice> choices;
+  const auto add = [&](const QString &id, const QString &name, const QJsonObject &config) {
+    const auto profile = d->profile(config.value("profile").toString());
+    if (profileSupportsMode(profile, mode) && hasModelFiles(config.value("files").toObject(), profile))
+      choices.append({id, name, id == d->currentModelId});
+  };
+  const auto current = configuration();
+  if (d->currentModelId.isEmpty()) add({}, configurationName(), current);
+  for (const auto &value : d->modelConfigs) {
+    const auto entry = value.toObject();
+    const auto id = entry.value("id").toString();
+    if (!id.isEmpty()) add(id, entry.value("name").toString(),
+                           id == d->currentModelId ? current : entry.value("configuration").toObject());
+  }
+  return choices;
+}
+bool DiffusionPanel::chooseConfiguration(const QString &id, Mode mode) {
+  if (isBusy()) return false;
+  for (const auto &choice : configurationsForMode(mode)) {
+    if (choice.id != id) continue;
+    if (!choice.active) d->loadModel(id);
+    return true;
+  }
+  return false;
 }
 bool DiffusionPanel::supportsImageInputs() const {
   return d->profile().value("referenceImages").toBool(true);
+}
+int DiffusionPanel::referenceLimit() const {
+  return d->profile().value("maxReferenceImages").toInt(8);
 }
 bool DiffusionPanel::supportsRegions() const {
   return d->profile().value("spatialGuidance").toString("none") != "none";
@@ -3264,10 +3308,7 @@ QString DiffusionPanel::backend() const {
   return sessionCudaWorker().isEmpty() ? d->backend->currentData().toString() : "cuda";
 }
 QJsonObject DiffusionPanel::configuration() const {
-  QJsonObject files;
-  for (auto it = d->files.begin(); it != d->files.end(); ++it)
-    if (!it.value()->text().trimmed().isEmpty())
-      files[it.key()] = it.value()->text().trimmed();
+  auto files = d->modelFiles();
   auto resources = controls(d->resource);
   QJsonObject placements;
   for (const auto &key :
@@ -3865,6 +3906,11 @@ void DiffusionPanel::setProgressPreview(QImage image) {
 }
 void DiffusionPanel::setTargetCompatible(bool selected) {
   d->canReplaceSelected = selected;
+  d->updateActions();
+}
+void DiffusionPanel::setFillSelectionAvailable(bool available) {
+  if (d->fillSelectionAvailable == available) return;
+  d->fillSelectionAvailable = available;
   d->updateActions();
 }
 void DiffusionPanel::setComparisonLayers(QVector<ComparisonLayer> layers) {

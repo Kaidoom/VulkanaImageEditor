@@ -70,7 +70,11 @@ public:
   ~DiffusionPanel() override;
   Mode mode() const;
   bool supportsMode(Mode mode) const;
+  struct ModelChoice { QString id, name; bool active; };
+  QVector<ModelChoice> configurationsForMode(Mode mode) const;
+  bool chooseConfiguration(const QString &id, Mode mode);
   bool supportsImageInputs() const;
+  int referenceLimit() const;
   bool supportsRegions() const;
   void showGeneration();
   void showResults();
@@ -138,6 +142,7 @@ public:
   i18n::Message setProgress(const QString &backend, const QJsonObject &progress);
   void setProgressPreview(QImage image);
   void setTargetCompatible(bool selected);
+  void setFillSelectionAvailable(bool available);
   void setComparisonLayers(QVector<ComparisonLayer> layers);
   QString comparisonLayerId() const;
   bool comparisonActive() const;
