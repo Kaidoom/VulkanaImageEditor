@@ -229,11 +229,16 @@ bool MainWindow::guardUnsavedChanges()
     if (fileInteractions_.askUnsaved)
         choice = fileInteractions_.askUnsaved();
     else {
+        WorkspaceDialog presenter(*workspace_, *this);
         QMessageBox question(QMessageBox::Question, i18n::text("main.window.files.save.changes"),
             i18n::text("main.window.files.save.changes.to.1.before.continuing").arg(fileState().displayName),
-            QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, this);
+            QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, &presenter);
+        question.setWindowFlags(Qt::SubWindow | Qt::FramelessWindowHint);
         question.setDefaultButton(QMessageBox::Save);
-        const int response = question.exec();
+        question.setEscapeButton(QMessageBox::Cancel);
+        const QScopedValueRollback active(workspaceDialog_, &presenter);
+        presenter.exec(question);
+        const auto response = question.standardButton(question.clickedButton());
         choice = response == QMessageBox::Save ? UnsavedChoice::Save
             : response == QMessageBox::Discard ? UnsavedChoice::Discard
                                                : UnsavedChoice::Cancel;

@@ -580,7 +580,6 @@ bool MainWindow::settleForDocumentSwitch(bool keepTransform)
     cancelFilterPreparation(true);
     if (shapeDensityTimer_) shapeDensityTimer_->stop();
     canvasWindow_->setAdjustmentBypassLayer({}); canvasWindow_->setFilterBypassLayer({}); canvasWindow_->setEffectBypassLayer({});
-    adjustmentsPanel_->setTarget(nullptr, false); // Clear ID-only histogram/page caches before rebinding.
     return true;
 }
 bool MainWindow::activateDocument(DocumentInstanceId id)
@@ -596,6 +595,9 @@ bool MainWindow::activateDocument(DocumentInstanceId id)
     auto colors = session().colors();
     auto tool = session().activeTool();
     auto source = session().colorSampleSource();
+    // Layer IDs can repeat across projects. Detach the panels only when the
+    // active document actually changes, since a pending close can be cancelled.
+    adjustmentsPanel_->setTarget(nullptr, false);
     activeDocument_ = *found;
     activeDocument_->lastActivated = ++documentActivationClock_;
     session().setColors(colors); session().setActiveTool(tool); session().setColorSampleSource(source);

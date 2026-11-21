@@ -1,4 +1,7 @@
 #include "imageeditor/core/LayerCommands.hpp"
+#include "imageeditor/ui/AdjustmentsPanel.hpp"
+#include "imageeditor/ui/EffectsPanel.hpp"
+#include "imageeditor/ui/FiltersPanel.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/NewDocumentDialog.hpp"
 #include "imageeditor/ui/ProjectFile.hpp"
@@ -20,6 +23,7 @@
 #include <QLineEdit>
 #include <QLabel>
 #include <QMenu>
+#include <QMessageBox>
 #include <QProgressBar>
 #include <QProgressDialog>
 #include <QPushButton>
@@ -153,6 +157,17 @@ struct Fixture {
         settle();
     }
 };
+
+void checkLayerPanelTargets(Fixture& f, std::optional<core::LayerId> expected)
+{
+    auto* panel = dynamic_cast<ui::AdjustmentsPanel*>(f.window.findChild<QWidget*>("AdjustmentsPanelContent"));
+    CHECK(panel);
+    if (!panel) return;
+    CHECK(f.session().activeLayer() == expected);
+    CHECK(panel->target() == expected);
+    CHECK(panel->filtersPanel()->target() == expected);
+    CHECK(panel->effectsPanel()->target() == expected);
+}
 
 struct State {
     const core::Document* document;
@@ -292,6 +307,7 @@ void closeChoicesKeepOrFinishDocument()
         const bool shouldClose = mode == Case::Discard || mode == Case::Save;
         CHECK(accepted == shouldClose);
         CHECK(f.window.isVisible() != shouldClose);
+        if (!shouldClose) checkLayerPanelTargets(f, before.active);
         CHECK(f.asks == 1);
         if (mode == Case::Save) {
             CHECK(QFileInfo::exists(f.destination));
@@ -717,6 +733,49 @@ void updateRestartGuards()
     CHECK(arguments == QStringList({"--wait-for-instance-exit"}));
 }
 
+void brushCursorDuringUnsavedPrompt()
+{
+    Fixture f;
+    f.show();
+    f.modify();
+    ui::MainWindow::FileInteractions hooks;
+    hooks.chooseSavePath = [&] { ++f.choices; return QString{}; };
+    f.window.setFileInteractions(std::move(hooks));
+    auto* brush = f.window.findChild<QAction*>("ToolAction_brush");
+    CHECK(brush);
+    if (!brush) return;
+    brush->trigger();
+    const auto id = f.window.activeDocumentId();
+    const auto layer = f.session().activeLayer();
+    CHECK(layer.has_value());
+    checkLayerPanelTargets(f, layer);
+    for (auto button : {QMessageBox::Cancel, QMessageBox::Save, QMessageBox::Discard}) {
+        bool visited = false;
+        QTimer::singleShot(0, &f.window, [&] {
+            auto* question = f.window.findChild<QMessageBox*>();
+            CHECK(question);
+            if (!question) return;
+            visited = true;
+            auto* shield = question->parentWidget();
+            CHECK(!question->isWindow() && shield->objectName() == "WorkspaceDialogShield");
+            const QPoint outside(2, 2);
+            CHECK(shield->isVisible() && !question->geometry().contains(outside));
+            CHECK(shield->window()->childAt(shield->mapTo(shield->window(), outside)) == shield);
+            CHECK(shield->cursor().shape() == Qt::ArrowCursor);
+            CHECK(question->defaultButton() == question->button(QMessageBox::Save));
+            question->button(button)->click();
+        });
+        CHECK(f.window.closeDocument(id) == (button == QMessageBox::Discard));
+        CHECK(visited && !f.window.findChild<QWidget*>("WorkspaceDialogShield"));
+        if (button != QMessageBox::Discard) {
+            CHECK(f.window.activeDocumentId() == id && f.session().document()->isModified());
+            CHECK(f.session().activeTool() == core::ToolId::Brush);
+            checkLayerPanelTargets(f, layer);
+        }
+    }
+    CHECK(f.choices == 1);
+}
+
 void externalLaunchesUseExistingWorkspace()
 {
     Fixture f;
@@ -792,6 +851,7 @@ int main(int argc, char** argv)
         saveAsCancellationFailureAndAssociation();
         openingImageDoesNotTurnSaveIntoImageOverwrite();
         closeChoicesKeepOrFinishDocument();
+        brushCursorDuringUnsavedPrompt();
         failedOpenAndCancelledOpenPreserveDocument();
         saveBeforeOpenMustSucceed();
         newDocumentGuardOccursOnlyAfterDialogAcceptance();

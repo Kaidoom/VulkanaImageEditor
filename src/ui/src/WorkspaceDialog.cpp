@@ -49,6 +49,7 @@ WorkspaceDialog::WorkspaceDialog(OverlayDockWorkspace& workspace, QWidget& host)
     : QWidget(workspace.panelOverlay()), workspace_(workspace), workspaceGuard_(&workspace), host_(host)
 {
     setObjectName(QStringLiteral("WorkspaceDialogShield"));
+    setCursor(Qt::ArrowCursor);
     setFocusPolicy(Qt::NoFocus);
     connect(qApp, &QApplication::focusChanged, this, [this](QWidget*, QWidget* now) {
         if (running_ && workspace_.modalOverlay() == this && now && belongsTo(now, dialog_)) {
