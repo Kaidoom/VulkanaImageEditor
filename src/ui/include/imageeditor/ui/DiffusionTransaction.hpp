@@ -33,7 +33,7 @@ struct DiffusionTarget {
 [[nodiscard]] bool diffusionTargetCurrent(
     const core::Document&, const DiffusionTarget&, QString* error = nullptr);
 [[nodiscard]] QImage diffusionRawLayer(const core::Layer&);
-// Isolated appearance over transparency. Backdrop-dependent blend modes can
+// Nontransparent rendered bounds in document pixels, including off-canvas content. Backdrop-dependent blend modes can
 // differ from the visible canvas; use flattenDocument for a full composite.
 [[nodiscard]] FlattenedDocumentResult diffusionRenderedLayer(
     const core::Document&, core::LayerId);
@@ -64,10 +64,10 @@ struct DiffusionTarget {
 [[nodiscard]] std::unique_ptr<core::Command> diffusionReplaceCommand(
     const core::Document&, const DiffusionTarget&, const QImage& generated,
     bool resultInDocumentSpace, bool useSelection, QString* error = nullptr);
-// A cropped input edit replaces only its captured document rectangle.
+// A bounded input edit replaces only its captured footprint in document coordinates.
 [[nodiscard]] std::unique_ptr<core::Command> diffusionReplacePlacedCommand(
     const core::Document&, const DiffusionTarget&, const QImage&, const QTransform& resultToDocument,
-    QString* error = nullptr);
+    bool clipToCanvas, QString* error = nullptr);
 // Native new-layer output retains the target's pixel frame and transform.
 // Document-space output occupies the canvas grid with an identity transform.
 // Selection-limited new layers are transparent outside the captured region.

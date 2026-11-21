@@ -60,13 +60,14 @@ inline constexpr std::uint32_t maximumOverviewDimension = 2048;
 // export/Pixel Preview this is an overview, not native-pixel area integration.
 [[nodiscard]] FlattenedDocumentResult renderDocumentOverview(const core::Document&,
     core::Extent2u output, FlattenedDocumentProgress = {}, MergeProfile* = nullptr);
+enum class LayerBoundsMode { Surface, VisibleContent };
 // Isolated selected-only composition over transparent RGBA. Real blend modes
 // are retained; no unselected backdrop participates or restricts admission.
 // Selected normalized items only; preserve full visible bounds outside canvas.
 // Empty/hidden-only input fails explicitly. Never samples a raster selection.
 [[nodiscard]] FlattenedDocumentResult flattenLayerItems(const core::Document&,
     std::span<const core::LayerId>, FlattenedDocumentProgress = {}, FlattenedDocumentLimits = {},
-    MergeProfile* = nullptr);
+    MergeProfile* = nullptr, LayerBoundsMode = LayerBoundsMode::Surface);
 // One layer's internal source/effects/geometry, before final opacity/blending.
 // Visibility is retained by the caller, not baked into these source pixels.
 [[nodiscard]] FlattenedDocumentResult rasterizeLayerContent(const core::Document&, core::LayerId,
@@ -79,7 +80,6 @@ struct EvaluatedDocumentBounds {
 };
 // The same evaluated visual bounds used by native baking, without allocating
 // or sampling an output image. Empty visible content returns an empty rect.
-enum class LayerBoundsMode { Surface, VisibleContent };
 [[nodiscard]] EvaluatedDocumentBounds evaluatedLayerItemsBounds(const core::Document&,
     std::span<const core::LayerId>, FlattenedDocumentProgress = {}, FlattenedDocumentLimits = {},
     LayerBoundsMode = LayerBoundsMode::Surface);

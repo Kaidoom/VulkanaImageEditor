@@ -95,6 +95,7 @@ struct DiffusionWorkspace {
     QTransform inputToDocument;
     QSize inputSize;
     bool croppedEdit{};
+    core::LayerId boundedInputLayer{};
   };
   QMap<QString, ResultContext> resultContexts;
   ResultContext jobContext;
@@ -543,16 +544,27 @@ bool MainWindow::captureDiffusionSession() {
     s.target =
         captureDiffusionTarget(*session().document(), *session().activeLayer(),
                                s.mode == DiffusionPanel::Mode::Fill);
+    const auto *layer = s.owner->session.document()->layer(s.target->layerId);
+    auto origin = s.target->rasterOrigin;
+    bool bounded = false;
     if (s.mode == DiffusionPanel::Mode::Fill) {
       const auto rendered = flattenDocument(*s.owner->session.document());
       if (!rendered)
         throw std::runtime_error(rendered.error.toStdString());
       s.before = srgb(rendered.image);
-    } else
+    } else {
       s.before = s.target->originalPixels;
+      const auto bounds = std::get<core::RasterLayer>(layer->payload).surface->contentBounds();
+      const QRect rawBounds(bounds.x, bounds.y, bounds.width, bounds.height);
+      if (!rawBounds.isEmpty() && rawBounds != s.before.rect()) {
+        bounded = true;
+        origin = origin + core::Vec2d{double(bounds.x), double(bounds.y)};
+        s.before = s.before.copy(rawBounds);
+        if (s.before.isNull()) throw std::bad_alloc();
+      }
+    }
     auto inputs = s.panel->inputs();
     inputs.removeIf([](const auto &input) { return input.target; });
-    const auto *layer = s.owner->session.document()->layer(s.target->layerId);
     inputs.prepend({s.before,
                     QString::fromStdString(layer->name),
                     s.mode == DiffusionPanel::Mode::Fill
@@ -561,11 +573,11 @@ bool MainWindow::captureDiffusionSession() {
                     true,
                     {{"documentId", QString::number(s.owner->id)},
                      {"layerId", QString::number(s.target->layerId)},
+                     {"boundedLayer", bounded},
                      {"visibleCanvas", s.mode == DiffusionPanel::Mode::Fill}},
                     s.mode == DiffusionPanel::Mode::Fill
                         ? QTransform{}
-                        : QTransform::fromTranslate(s.target->rasterOrigin.x,
-                                                    s.target->rasterOrigin.y) *
+                        : QTransform::fromTranslate(origin.x, origin.y) *
                               qtTransform(s.target->localToDocument)});
     if (s.mode == DiffusionPanel::Mode::Edit)
       inputs.front().sourceCanvas = QSize(int(s.target->canvas.extent.width), int(s.target->canvas.extent.height));
@@ -625,6 +637,8 @@ void MainWindow::generateDiffusion() {
       s.jobContext.inputToDocument = inputs.front().toDocument;
       s.jobContext.inputSize = s.before.size();
       s.jobContext.croppedEdit = inputs.front().cropToCanvas;
+      if (inputs.front().metadata.value("boundedLayer").toBool())
+        s.jobContext.boundedInputLayer = inputs.front().metadata.value("layerId").toString().toULongLong();
     }
     s.jobDocuments.clear();
     if (s.owner)
@@ -880,18 +894,16 @@ void MainWindow::applyDiffusion() {
       std::unique_ptr<core::Command> command;
       std::optional<core::LayerId> newLayer;
       if (destination == DiffusionPanel::Destination::ReplaceSelected) {
-        if (destination == DiffusionPanel::Destination::ReplaceSelected) {
-          if (!session().activeLayer())
-            throw std::runtime_error(i18n::text("diffusion.ui.select.a.raster.layer.to.replace").toStdString());
-          const auto originalSelection =
-              target ? target->selection : core::SelectionState{};
-          target = captureDiffusionTarget(*session().document(),
-                                          *session().activeLayer(), false);
-          target->selection = originalSelection;
-        }
-        command = context.croppedEdit
+        if (!session().activeLayer())
+          throw std::runtime_error(i18n::text("diffusion.ui.select.a.raster.layer.to.replace").toStdString());
+        const auto originalSelection = target ? target->selection : core::SelectionState{};
+        target = captureDiffusionTarget(*session().document(), *session().activeLayer(), false);
+        target->selection = originalSelection;
+        const bool replaceInPlace = context.croppedEdit ||
+            (owner == originalOwner && context.boundedInputLayer == target->layerId);
+        command = replaceInPlace
             ? diffusionReplacePlacedCommand(*session().document(), *target, image,
-                                             s.panel->selectedResult()->toDocument, &error)
+                                            s.panel->selectedResult()->toDocument, context.croppedEdit, &error)
             : diffusionReplaceCommand(*session().document(), *target, image,
                                       documentSpace, selection, &error);
       } else {
@@ -1044,11 +1056,9 @@ void MainWindow::matchSelectedDiffusionSize() {
       }
     auto copy = *doc;
     copy.layer(*session().activeLayer())->visible = true;
-    const std::array ids{*session().activeLayer()};
-    const auto bounds = evaluatedLayerItemsBounds(copy, ids);
-    if (!bounds.error.isEmpty()) throw std::runtime_error(bounds.error.toStdString());
-    if (bounds.rect.empty()) throw std::runtime_error(i18n::text("diffusion.ui.the.selected.layer.has.no.visible.bounds").toStdString());
-    diffusion_->panel->setResolution(QSize(bounds.rect.width, bounds.rect.height));
+    const auto appearance = diffusionRenderedLayer(copy, *session().activeLayer());
+    if (!appearance) throw std::runtime_error(appearance.error.toStdString());
+    diffusion_->panel->setResolution(appearance.image.size());
   } catch (const std::exception &e) {
     diffusion_->panel->setStatus(QString::fromUtf8(e.what()), true);
   }
@@ -1234,7 +1244,7 @@ void MainWindow::addDiffusionInput(int sourceValue) {
         input.source =
             raw ? i18n::text("diffusion.ui.raw.pixels") : i18n::text("diffusion.ui.rendered.appearance.isolated.layer");
         input.metadata = {{"documentId", QString::number(owner->id)},
-                          {"layerId", QString::number(*id)}};
+                          {"layerId", QString::number(*id)}, {"boundedLayer", !raw}};
         input.sourceCanvas = QSize(int(doc->canvas().extent.width), int(doc->canvas().extent.height));
       }
     }

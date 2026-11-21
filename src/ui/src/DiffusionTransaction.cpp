@@ -1,10 +1,10 @@
 #include "imageeditor/core/MirroredLayers.hpp"
 #include "imageeditor/ui/DiffusionTransaction.hpp"
 #include "imageeditor/ui/QtRasterImageLoader.hpp"
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/core/ColorMath.hpp"
 
 #include <QColorSpace>
-#include <QPainter>
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -196,7 +196,33 @@ bool diffusionTargetCurrent(const core::Document& doc, const DiffusionTarget& ta
 FlattenedDocumentResult diffusionRenderedLayer(const core::Document& document, core::LayerId id)
 {
     const std::array ids {id};
-    return flattenLayerItems(document, ids);
+    auto rendered = flattenLayerItems(document, ids, {}, {}, nullptr, LayerBoundsMode::VisibleContent);
+    if (!rendered.error.isEmpty() || rendered.cancelled) return rendered;
+    // Crop the final alpha too: masks, rotated geometry and styles can leave
+    // transparent borders within the conservative rendering extent.
+    const auto& image = rendered.image;
+    int left = image.width(), right = -1, top = -1, bottom = -1;
+    for (int y = 0; y < image.height(); ++y) {
+        const auto* row = image.constScanLine(y);
+        int first = 0, last = image.width() - 1;
+        while (first <= last && row[first * 4 + 3] == 0) ++first;
+        if (first > last) continue;
+        while (row[last * 4 + 3] == 0) --last;
+        left = std::min(left, first);
+        right = std::max(right, last);
+        if (top < 0) top = y;
+        bottom = y;
+    }
+    if (top < 0) return {{}, i18n::text("diffusion.ui.the.selected.layer.has.no.visible.bounds"), false, {}};
+    const QRect bounds(QPoint(left, top), QPoint(right, bottom));
+    if (bounds != image.rect()) {
+        auto cropped = image.copy(bounds);
+        if (cropped.isNull()) throw std::bad_alloc();
+        rendered.image = std::move(cropped);
+        rendered.origin.x += left;
+        rendered.origin.y += top;
+    }
+    return rendered;
 }
 
 QImage diffusionSelectionMask(const DiffusionTarget& target, QSize size, bool documentSpace)
@@ -311,22 +337,34 @@ QImage diffusionResolvedPixels(const DiffusionTarget& target, const QImage& gene
     return diffusionCompositeSelection(target.originalPixels, native, diffusionSelectionMask(target));
 }
 
+namespace {
+void requireWritableTarget(const core::Document& doc, const DiffusionTarget& target)
+{
+    QString error;
+    if (!diffusionTargetCurrent(doc, target, &error)) throw std::runtime_error(error.toStdString());
+    if (const auto* layer = doc.layer(target.layerId); core::layerPixelsReadOnly(*layer))
+        throw std::invalid_argument(core::readOnlyPixelsReason(*layer));
+}
+
+std::unique_ptr<core::Command> replacePixels(const core::Document& doc, const DiffusionTarget& target, const QImage& pixels)
+{
+    if (pixels == target.originalPixels)
+        throw std::invalid_argument("The AI result does not change this raster layer. For a fill outside its bounds, choose Add as New Layer.");
+    const auto loaded = rasterLayerFromImage(pixels, QStringLiteral("AI result"));
+    if (!loaded) throw std::runtime_error(loaded.error.toStdString());
+    const auto* layer = doc.layer(target.layerId);
+    return std::make_unique<ReplaceDiffusionPixelsCommand>(doc, target,
+        std::get<core::RasterLayer>(layer->payload).surface,
+        std::get<core::RasterLayer>(loaded.layer->payload).surface, layer->rasterEffectFrame);
+}
+}
+
 std::unique_ptr<core::Command> diffusionReplaceCommand(const core::Document& doc, const DiffusionTarget& target,
     const QImage& generated, bool documentSpace, bool useSelection, QString* error)
 {
     try {
-        if (!diffusionTargetCurrent(doc, target, error)) return {};
-        if (const auto* current = doc.layer(target.layerId); core::layerPixelsReadOnly(*current))
-            throw std::invalid_argument(core::readOnlyPixelsReason(*current));
-        const auto pixels = diffusionResolvedPixels(target, generated, documentSpace, useSelection);
-        if (pixels == target.originalPixels)
-            throw std::invalid_argument("The AI result does not change this raster layer. For a fill outside its bounds, choose Add as New Layer.");
-        const auto loaded = rasterLayerFromImage(pixels, QStringLiteral("AI result"));
-        if (!loaded) throw std::runtime_error(loaded.error.toStdString());
-        const auto* layer = doc.layer(target.layerId);
-        return std::make_unique<ReplaceDiffusionPixelsCommand>(doc, target,
-            std::get<core::RasterLayer>(layer->payload).surface,
-            std::get<core::RasterLayer>(loaded.layer->payload).surface, layer->rasterEffectFrame);
+        requireWritableTarget(doc, target);
+        return replacePixels(doc, target, diffusionResolvedPixels(target, generated, documentSpace, useSelection));
     } catch (const std::exception& exception) {
         if (error) *error = QString::fromUtf8(exception.what());
         return {};
@@ -334,28 +372,30 @@ std::unique_ptr<core::Command> diffusionReplaceCommand(const core::Document& doc
 }
 
 std::unique_ptr<core::Command> diffusionReplacePlacedCommand(const core::Document& doc,
-    const DiffusionTarget& target, const QImage& generated, const QTransform& placement, QString* error)
+    const DiffusionTarget& target, const QImage& generated, const QTransform& placement, bool clipToCanvas, QString* error)
 {
     try {
-        const QSize size(int(target.canvas.extent.width), int(target.canvas.extent.height));
-        validateSize(size);
-        const auto bounds = placement.mapRect(QRectF(QPointF{}, generated.size()))
-                                .intersected(QRectF(QPointF{}, size)).toAlignedRect()
-                                .intersected(QRect(QPoint{}, size));
-        if (bounds.isEmpty()) throw std::invalid_argument("The cropped result is outside the destination canvas.");
-        QImage positioned(size, QImage::Format_RGBA8888);
-        if (positioned.isNull()) throw std::bad_alloc();
-        positioned.fill(Qt::transparent);
-        positioned.setColorSpace(QColorSpace::SRgb);
-        QPainter painter(&positioned);
-        painter.setRenderHint(QPainter::SmoothPixmapTransform);
-        painter.setTransform(placement);
-        painter.drawImage(QPointF{}, rgba(generated));
-        painter.end();
-        auto scoped = target;
-        scoped.selection = core::SelectionMask::rectangle(target.canvas.extent,
-            {bounds.x(), bounds.y(), bounds.width(), bounds.height()});
-        return diffusionReplaceCommand(doc, scoped, positioned, true, true, error);
+        requireWritableTarget(doc, target);
+        const auto source = rgba(generated);
+        bool invertible = false;
+        const auto fromDocument = placement.inverted(&invertible);
+        if (!invertible) throw std::invalid_argument("The AI result has an invalid placement.");
+        // Sample the captured rectangle directly on the destination's native
+        // grid. Uncropped inputs may extend beyond the document on any side.
+        auto pixels = target.originalPixels.copy();
+        if (pixels.isNull()) throw std::bad_alloc();
+        for (int y = 0; y < pixels.height(); ++y) {
+            auto* row = pixels.scanLine(y);
+            for (int x = 0; x < pixels.width(); ++x) {
+                const auto p = target.localToDocument.map({target.rasterOrigin.x+x+.5, target.rasterOrigin.y+y+.5});
+                if (clipToCanvas && (p.x < 0 || p.y < 0 || p.x >= target.canvas.extent.width || p.y >= target.canvas.extent.height))
+                    continue;
+                const auto q = fromDocument.map(QPointF(p.x, p.y));
+                if (q.x() >= 0 && q.y() >= 0 && q.x() < source.width() && q.y() < source.height())
+                    sample(source, q.x()-.5, q.y()-.5, row + x*4);
+            }
+        }
+        return replacePixels(doc, target, pixels);
     } catch (const std::exception& e) {
         if (error) *error = QString::fromUtf8(e.what());
         return {};

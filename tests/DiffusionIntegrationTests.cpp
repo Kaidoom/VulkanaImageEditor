@@ -1502,6 +1502,70 @@ private slots:
     QVERIFY(panel->results().isEmpty());
     QCOMPARE(session().document()->revision(), revision);
   }
+  void paddedLayerUsesContentBoundsForInputMatchAndApply() {
+    auto *doc = session().document();
+    const auto id = *session().activeLayer();
+    auto storage = std::make_shared<c::ContiguousRasterSurface>(c::Extent2u{96,80}, c::Rgba8{47,52,93,0});
+    std::vector<c::Rgba8> content(31*29, {85,100,170,255});
+    storage->replaceRgba8({14,20,31,29},std::as_bytes(std::span(content)),31*4);
+    QVERIFY(doc->setLayerRasterStorage(id,storage,{-4,-2},{}));
+    QVERIFY(doc->setLayerTransform(id,{1,0,-17,0,1,5}));
+    const auto before = native();
+    openMode("AIEditLayerAction");
+    QCOMPARE(panel->inputs().front().outputSize,QSize(31,29));
+    QCOMPARE(panel->inputs().front().toDocument.map(QPointF{}),QPointF(-7,23));
+    panel->clearInputs();
+    auto *match = child<QToolButton>("DiffusionMatchSelectedSize");
+    match->click(); // Active layer fallback with no input.
+    QCOMPARE(panel->request()["width"].toInt(),32);
+    QCOMPARE(panel->request()["height"].toInt(),32);
+    using Source = u::DiffusionPanel::InputSource;
+    panel->onAddInput(Source::CurrentLayerPixels);
+    QCOMPARE(panel->inputs().front().fullImage,before);
+    panel->clearInputs();
+    panel->onAddInput(Source::VisibleCanvas);
+    QCOMPARE(panel->inputs().front().fullImage.size(),QSize(64,64));
+    panel->clearInputs();
+    panel->onAddInput(Source::CurrentLayerAppearance);
+    const auto input = panel->inputs().front();
+    QCOMPARE(input.fullImage.size(),QSize(31,29));
+    QCOMPARE(input.fullToDocument.map(QPointF{}),QPointF(-7,23));
+    QVERIFY(panel->setInputCropToCanvas(input.id,true));
+    QCOMPARE(panel->inputs().front().outputSize,QSize(24,29));
+    QCOMPARE(panel->inputs().front().toDocument.map(QPointF{}),QPointF(0,23));
+    QVERIFY(panel->setInputCropToCanvas(input.id,false));
+    QCOMPARE(panel->inputs().front().image,input.image);
+    child<QListWidget>("DiffusionInputsList")->setCurrentRow(0);
+    match->click();
+    QCOMPARE(panel->request()["width"].toInt(),32);
+    QCOMPARE(panel->request()["height"].toInt(),32);
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(),10000);
+    QVERIFY(panel->selectedResult());
+    const auto request = panel->selectedResult()->metadata["request"].toObject();
+    QCOMPARE(QImage(request["referenceImages"].toArray().at(0).toString()).size(),QSize(31,29));
+    QCOMPARE(native(),before);
+    panel->setDestination(u::DiffusionPanel::Destination::NewLayer);
+    panel->onApply();
+    QVERIFY(*session().activeLayer()!=id);
+    const auto *added = doc->layer(*session().activeLayer());
+    QCOMPARE(u::diffusionRawLayer(*added).size(),QSize(32,32));
+    QCOMPARE(added->localToDocument.m00,31./32);
+    QCOMPARE(added->localToDocument.m11,29./32);
+    QCOMPARE(added->localToDocument.m02,-7.);
+    QCOMPARE(added->localToDocument.m12,23.);
+    QVERIFY(session().undo());
+    session().setActiveLayer(id);
+    panel->setDestination(u::DiffusionPanel::Destination::ReplaceSelected);
+    panel->onApply();
+    const auto applied = native();
+    QCOMPARE(applied.size(),before.size());
+    QCOMPARE(applied.pixelColor(14,20),QColor(30,200,90)); // Off-canvas content also belongs to the input.
+    QCOMPARE(applied.pixelColor(44,48),QColor(30,200,90));
+    QCOMPARE(applied.pixelColor(45,48),before.pixelColor(45,48));
+    QVERIFY(session().undo());
+    QCOMPARE(native(),before);
+  }
   void croppedLayerInputMatchesSizeAndKeepsOutsidePixels() {
     auto *doc = session().document();
     const auto id = *session().activeLayer();

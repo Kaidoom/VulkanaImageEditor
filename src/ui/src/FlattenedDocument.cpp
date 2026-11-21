@@ -261,6 +261,11 @@ static FlattenedDocumentResult flattenImpl(
                 if (boundsMode == LayerBoundsMode::VisibleContent) {
                     const auto content = surface->contentBounds();
                     visual = {double(content.x), double(content.y), double(content.width), double(content.height)};
+                    // Linear filtering can put faint pixels half a source texel
+                    // beyond the nontransparent texels when the layer is transformed.
+                    if (!boundsOnly && !visual.empty())
+                        visual = core::RectD{visual.x-.5, visual.y-.5, visual.width+1, visual.height+1}
+                            .clippedTo({0,0,double(e.width),double(e.height)});
                     if (styled) {
                         // Effect caches use canonical local pixels (axis-aligned
                         // raster origin or typed-source density), before layer placement.
@@ -329,7 +334,7 @@ static FlattenedDocumentResult flattenImpl(
             right = std::ceil(right);
             bottom = std::ceil(bottom);
             const auto width = right - left, height = bottom - top;
-            if(boundsOnly && (right<=left || bottom<=top))return {};
+            if((boundsOnly || boundsMode == LayerBoundsMode::VisibleContent) && (right<=left || bottom<=top))return {};
             require(width > 0 && height > 0 && width <= 32768 && height <= 32768
                     && ((boundsOnly && boundsMode == LayerBoundsMode::VisibleContent) || width * height <= double(limits.outputPixels))
                     && std::abs(left) <= 1e9 && std::abs(top) <= 1e9,
@@ -559,9 +564,9 @@ FlattenedDocumentResult renderDocumentOverview(const core::Document& doc, core::
             .arg(maximumOverviewDimension).arg(output.width).arg(output.height),false,{}};
     return flattenImpl(doc,std::move(progress),{},std::nullopt,output,{},profile,false,{},nullptr,true);
 }
-FlattenedDocumentResult flattenLayerItems(const core::Document& doc, std::span<const core::LayerId> ids, FlattenedDocumentProgress progress, FlattenedDocumentLimits limits, MergeProfile* profile)
+FlattenedDocumentResult flattenLayerItems(const core::Document& doc, std::span<const core::LayerId> ids, FlattenedDocumentProgress progress, FlattenedDocumentLimits limits, MergeProfile* profile, LayerBoundsMode mode)
 {
-    return flattenImpl(doc, std::move(progress), limits, ids, {}, {}, profile);
+    return flattenImpl(doc, std::move(progress), limits, ids, {}, {}, profile, false, {}, nullptr, false, mode);
 }
 
 FlattenedDocumentResult rasterizeLayerContent(const core::Document& doc, core::LayerId id,

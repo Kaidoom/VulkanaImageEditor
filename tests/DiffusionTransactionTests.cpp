@@ -263,7 +263,7 @@ void canvasCroppedInputsAndPlacedReplacement()
     CHECK(doc->setSelection(unrelated));
     const auto target = u::captureDiffusionTarget(*doc, layer.id, false);
     auto command = u::diffusionReplacePlacedCommand(*doc, target,
-        image(1, 1, {240, 100, 20, 255}), QTransform::fromTranslate(3, 2));
+        image(1, 1, {240, 100, 20, 255}), QTransform::fromTranslate(3, 2), true);
     CHECK(command && session.execute(std::move(command)));
     const auto after = u::diffusionRawLayer(*doc->layer(layer.id));
     CHECK(after.pixelColor(1, 1) == QColor(240, 100, 20));
@@ -274,6 +274,48 @@ void canvasCroppedInputsAndPlacedReplacement()
     CHECK(session.redo());
     CHECK(u::diffusionRawLayer(*doc->layer(layer.id)) == after);
 }
+void appearanceKeepsEveryRenderedAlphaPixel()
+{
+    c::Document doc({{24,18}});
+    auto surface = std::make_shared<c::ContiguousRasterSurface>(c::Extent2u{12,10}, c::Rgba8{25,40,60,0});
+    std::vector<c::Rgba8> ink(7*6, {60,100,180,180});
+    ink.front().alpha = 1;
+    surface->replaceRgba8({2,1,7,6},std::as_bytes(std::span(ink)),7*4);
+    auto layer = c::Layer::raster("Padded",surface);
+    layer.localToDocument = {2.2,-.4,-9,.25,2.1,3};
+    const auto id = layer.id;
+    CHECK(doc.insertLayer(0,layer));
+    const auto verify = [&] {
+        const auto full = u::flattenLayerItems(doc,std::array{id});
+        const auto tight = u::diffusionRenderedLayer(doc,id);
+        CHECK(full && tight);
+        if (!full || !tight) return;
+        QRect visible;
+        for (int y=0;y<full.image.height();++y)
+            for (int x=0;x<full.image.width();++x)
+                if (full.image.pixelColor(x,y).alpha()) visible |= QRect(x,y,1,1);
+        CHECK(tight.origin == c::Vec2d{full.origin.x+visible.x(),full.origin.y+visible.y()});
+        CHECK(tight.image == full.image.copy(visible));
+    };
+    verify();
+    auto mask = std::make_shared<c::LayerMask>();
+    mask->coverage = c::SelectionMask::rectangle({12,10},{4,2,2,3});
+    mask->outside = 0;
+    CHECK(doc.setLayerMask(id,mask));
+    verify();
+    auto effects = std::make_shared<c::LayerEffectStack>();
+    auto& shadow = effects->items[std::size_t(c::LayerEffectType::DropShadow)];
+    shadow.enabled = true; shadow.size = 3; shadow.distance = 5;
+    CHECK(doc.setLayerEffects(id,effects));
+    verify();
+    CHECK(doc.setLayerEffects(id,{}));
+    auto empty = std::make_shared<c::LayerMask>(*mask);
+    empty->coverage = c::SelectionMask::filled({12,10},0);
+    CHECK(doc.setLayerMask(id,empty));
+    const auto invisible = u::diffusionRenderedLayer(doc,id);
+    CHECK(!invisible && !invisible.error.isEmpty());
+}
+
 void renderedAppearanceDiffersFromRaw()
 {
     c::Layer layer;auto doc=document(&layer);
@@ -290,7 +332,7 @@ int main(int argc,char** argv)
 {
     QGuiApplication app(argc,argv);
     captureAndStaleGuards();selectionMappingAndSoftEdges();
-    replacePreservesStateAndUndo();transformedDocumentResults();regionalRasterOriginIsPreserved();newLayerFramesAndMask();fillLayerPreservesVisibleOutside();transparentFillPreviewMatchesNewLayer();transparentFillInputIsOnlyAnInferenceCopy();canvasCroppedInputsAndPlacedReplacement();renderedAppearanceDiffersFromRaw();
+    replacePreservesStateAndUndo();transformedDocumentResults();regionalRasterOriginIsPreserved();newLayerFramesAndMask();fillLayerPreservesVisibleOutside();transparentFillPreviewMatchesNewLayer();transparentFillInputIsOnlyAnInferenceCopy();canvasCroppedInputsAndPlacedReplacement();appearanceKeepsEveryRenderedAlphaPixel();renderedAppearanceDiffersFromRaw();
     std::cout << (failures?"FAIL":"PASS") << " diffusion transaction checks: " << failures << " failures\n";
     return failures?1:0;
 }

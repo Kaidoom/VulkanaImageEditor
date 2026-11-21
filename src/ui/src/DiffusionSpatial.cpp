@@ -44,6 +44,14 @@ DiffusionInputCrop diffusionCropToCanvas(const QImage& source, const QTransform&
     if (bounds.isEmpty()) return {};
     if (qint64(bounds.width()) * bounds.height() > 67108864)
         throw std::invalid_argument("Cropped AI inputs must contain at most 64 megapixels.");
+    if (source.format() == QImage::Format_RGBA8888 && source.colorSpace() == QColorSpace::SRgb
+        && transform.type() <= QTransform::TxTranslate && transform.dx() == std::floor(transform.dx())
+        && transform.dy() == std::floor(transform.dy())) {
+        const QRect local = bounds.translated(-int(transform.dx()), -int(transform.dy()));
+        const auto image = local == source.rect() ? source : source.copy(local);
+        if (image.isNull()) throw std::bad_alloc();
+        return {image, QTransform::fromTranslate(bounds.x(), bounds.y())};
+    }
     QImage image(bounds.size(), QImage::Format_RGBA8888);
     if (image.isNull()) throw std::bad_alloc();
     image.fill(Qt::transparent);
