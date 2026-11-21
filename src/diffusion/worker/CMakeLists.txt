@@ -153,7 +153,9 @@ if(BUILD_TESTING)
     target_include_directories(vulkana_diffusion_spatial_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${VULKANA_DIFFUSION_ENGINE_DIR}/thirdparty")
     add_test(NAME vulkana_diffusion_spatial_tests COMMAND vulkana_diffusion_spatial_tests)
     add_executable(vulkana_diffusion_lora_tests "${CMAKE_CURRENT_SOURCE_DIR}/../../../tests/diffusion/LoraReportTests.cpp")
-    target_include_directories(vulkana_diffusion_lora_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_include_directories(vulkana_diffusion_lora_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${VULKANA_DIFFUSION_ENGINE_DIR}/src")
+    target_link_libraries(vulkana_diffusion_lora_tests PRIVATE stable-diffusion)
     add_test(NAME vulkana_diffusion_lora_tests COMMAND vulkana_diffusion_lora_tests)
     add_executable(vulkana_diffusion_flux3_layout_tests "${CMAKE_CURRENT_SOURCE_DIR}/../../../tests/diffusion/Flux3LayoutTests.cpp")
     target_include_directories(vulkana_diffusion_flux3_layout_tests PRIVATE

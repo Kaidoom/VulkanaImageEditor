@@ -6,6 +6,7 @@
 git -C /path/to/stable-diffusion.cpp apply /path/to/VulkanaImageEditor/src/diffusion/patches/0001-int8-large-convrot.patch
 git -C /path/to/stable-diffusion.cpp apply /path/to/VulkanaImageEditor/src/diffusion/patches/0002-flux3-fused-qkv.patch
 git -C /path/to/stable-diffusion.cpp apply /path/to/VulkanaImageEditor/src/diffusion/patches/0003-minimax-h3-image.patch
+git -C /path/to/stable-diffusion.cpp apply /path/to/VulkanaImageEditor/src/diffusion/patches/0004-minimax-h3-token-refiner-lora.patch
 ```
 
 The worker build verifies the revisions, patch checksums and that the patches are applied. It does not download or modify engine sources. When upgrading the engine, review and rebase these patches, update the lock and rerun the worker protocol, numerical kernel and real-inference checks.
@@ -32,3 +33,8 @@ the image checkpoint, selects its six PDD output heads by timestep, and runs
 the single-frame VAE and Qwen3-VL reference conditioning. When updating the
 engine, use upstream's implementation and repeat both generation and reference
 editing with the worker.
+
+`0004-minimax-h3-token-refiner-lora.patch` maps the unprefixed `token_refiner`
+weights in Diffusers-format H3 LoRAs to the corresponding diffusion tensors.
+The worker LoRA test covers both adapter projections and an already-qualified
+name. [Upstream fix](https://github.com/leejet/stable-diffusion.cpp/pull/2306)

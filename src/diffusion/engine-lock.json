@@ -22,6 +22,11 @@
       "path": "patches/0003-minimax-h3-image.patch",
       "sha256": "97f524445f75b9976791449804d1585c9109af503c7421d960b432e3c666a221",
       "reason": "Backport MiniMax-H3-Image model detection, six-step PDD heads and scheduler, Qwen3-VL conditioning and the single-frame image VAE from upstream 32d516c."
+    },
+    {
+      "path": "patches/0004-minimax-h3-token-refiner-lora.patch",
+      "sha256": "85fff308a909dbd98a1948063c31e7d84c81f499689ef104da782d219345eb97",
+      "reason": "Backport upstream 008b9a2 to match Diffusers-format MiniMax-H3 token_refiner LoRA tensors to their diffusion weights."
     }
   ],
   "policy": "Pinned baseline; review upgrades and record downstream patches. No automatic source or model downloads."
