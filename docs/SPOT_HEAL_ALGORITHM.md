@@ -16,6 +16,11 @@ Heal operator for exterior-tone adaptation. `CloneReference` captures immutable
 intrinsic pixels for same-layer raw repair, or the rendered hierarchy for retouch
 references, with the existing crop/effect sampling policy.
 
+**All Visible** can sample layers above the selected retouch layer.
+**Current & Below** limits the sample to the selected layer and those beneath it.
+Both modes paint the repair onto the selected raster layer. Higher layers still
+composite over the stroke, so an opaque upper layer can hide the repair.
+
 ## Algorithm references
 
 - [Barnes et al., PatchMatch, SIGGRAPH 2009](https://gfx.cs.princeton.edu/pubs/Barnes_2009_PAR/):

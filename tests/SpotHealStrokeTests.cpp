@@ -138,6 +138,41 @@ void renderedRetouch()
     }
 }
 
+void retouchBetweenVisibleLayers()
+{
+    const Extent2u extent{64, 64};
+    Document doc({extent});
+    auto lower = std::make_shared<ContiguousRasterSurface>(extent, Rgba8{180, 40, 20, 255});
+    auto target = std::make_shared<ContiguousRasterSurface>(extent);
+    // A differently coloured upper layer with a hole at the seam. A repair
+    // inside the hole is visible, and its donor colour identifies the source.
+    auto upper = fixture({0, 0, 0, 0});
+    add(doc, lower);
+    const auto id = add(doc, target);
+    add(doc, upper);
+    const auto blank = bytes(*target), lowerBefore = bytes(*lower), upperBefore = bytes(*upper);
+    auto brush = settings();
+    brush.hardness = brush.opacity = 1;
+    History history;
+    for (const auto source : {CloneSampleSource::CurrentAndBelow, CloneSampleSource::AllVisible}) {
+        CloneSettings clone;
+        clone.source = source;
+        SpotHealStroke stroke(doc, id, brush, clone, reference(doc, id, source));
+        const auto result = solve(stroke, {32, 32});
+        CHECK(stroke.publish(result, history) == RasterEditCommitResult::Committed);
+        std::array<std::byte, 4> expected, actual;
+        (source == CloneSampleSource::AllVisible ? upper : lower)->copyRgba8({0, 0, 1, 1}, expected, 4);
+        target->copyRgba8({32, 32, 1, 1}, actual, 4);
+        CHECK(actual == expected);
+        const auto painted = bytes(*target);
+        CHECK(history.undoDepth() == 1);
+        CHECK(history.undo(doc) && bytes(*target) == blank);
+        CHECK(history.redo(doc) && bytes(*target) == painted);
+        CHECK(history.undo(doc));
+        CHECK(bytes(*upper) == upperBefore && bytes(*lower) == lowerBefore);
+    }
+}
+
 void cropAndNoop()
 {
     Document doc({{64, 64}}); auto source = fixture({110, 145, 170, 255}); const auto id = add(doc, source); History history;
@@ -344,7 +379,7 @@ void selectionResolvedAdmission()
 }
 int main()
 {
-    try { masksAndHistory(); transformedAndStale(); renderedRetouch(); cropAndNoop(); filteredTypedReferenceAndCorruption();
+    try { masksAndHistory(); transformedAndStale(); renderedRetouch(); retouchBetweenVisibleLayers(); cropAndNoop(); filteredTypedReferenceAndCorruption();
         finalQuantization(); selectionResolvedAdmission(); }
     catch (const std::exception& error) { ++failures; std::cerr << error.what() << '\n'; }
     if (!failures) std::cout << "Spot Heal stroke tests passed\n";

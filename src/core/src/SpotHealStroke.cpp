@@ -123,14 +123,6 @@ std::string spotHealTargetDiagnostic(const Document& document, LayerId target, C
         [](const Adjustment& a) { return a.enabled && !adjustmentIsNeutral(a); });
     if (layer->blendMode != BlendMode::Normal || layer->opacity != 1.0F || adjusted || hasActiveSpatialFilters(layer->filters)||hasActiveLayerEffects(layer->effects))
         return "Rendered Spot Heal needs a Normal, 100% opacity retouch layer without active effects. Use Source Layer for direct repair.";
-    if (source == CloneSampleSource::AllVisible) {
-        bool above = false;
-        for (const auto& item : document.layers()) {
-            if (above && document.isEffectivelyVisible(item.id) && item.opacity > 0)
-                return "Place the retouch layer above all visible layers, or choose Current & Below.";
-            if (item.id == target) above = true;
-        }
-    }
     return {};
 }
 
@@ -254,8 +246,8 @@ SpotHealSolved SpotHealStroke::solve(std::shared_ptr<const SpotHealWork> work, c
         auto marked = work->unknown->bounds();
         if (marked.empty()) { solved.repair.status = SpotHealStatus::NoUnknownPixels; return finish(); }
         if (!work->direct) {
-            // A Normal retouch layer can safely replace an opaque visible
-            // backdrop. Arbitrary RGBA inverse compositing is not attempted.
+            // Rendered repairs paint sampled colour onto the target. The
+            // opacity requirement concerns the sampled composite at the stroke.
             for (int y = 0; y < work->writeBounds.height; ++y) {
                 if (stopped(options)) { solved.repair.status = SpotHealStatus::Cancelled; return finish(); }
                 for (int x = 0; x < work->writeBounds.width; ++x) {
