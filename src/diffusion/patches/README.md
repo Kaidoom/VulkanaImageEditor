@@ -5,6 +5,7 @@
 ```sh
 git -C /path/to/stable-diffusion.cpp apply /path/to/VulkanaImageEditor/src/diffusion/patches/0001-int8-large-convrot.patch
 git -C /path/to/stable-diffusion.cpp apply /path/to/VulkanaImageEditor/src/diffusion/patches/0002-flux3-fused-qkv.patch
+git -C /path/to/stable-diffusion.cpp apply /path/to/VulkanaImageEditor/src/diffusion/patches/0003-minimax-h3-image.patch
 ```
 
 The worker build verifies the revisions, patch checksums and that the patches are applied. It does not download or modify engine sources. When upgrading the engine, review and rebase these patches, update the lock and rerun the worker protocol, numerical kernel and real-inference checks.
@@ -22,3 +23,12 @@ Unsupported group sizes and widths incompatible with the selected group are reje
 `0002-flux3-fused-qkv.patch` recognizes FLUX.3 checkpoints that combine Q, K and V projections into a single `qkv` weight. It uses one native linear operation and strided views to separate its output into attention heads, preserving the checkpoint's quantization and scales. Both base and distilled checkpoints use the detected layout; existing separate-projection checkpoints retain their original path. No weight files are rewritten.
 
 Unrecognized architectures report the selected diffusion/checkpoint filename instead of an empty path. The worker preserves that diagnostic as a recoverable `unsupported_model_format` error. `tests/diffusion/Flux3LayoutTests.cpp` covers detection, flow-map independence and channel/token/batch layout; worker protocol tests cover both checkpoint and component-file error reporting.
+
+## MiniMax-H3-Image
+
+`0003-minimax-h3-image.patch` backports the image pipeline from upstream commit
+`32d516c0197ed5ca31305b8575e14eb1451fad33` to the pinned C API. It detects
+the image checkpoint, selects its six PDD output heads by timestep, and runs
+the single-frame VAE and Qwen3-VL reference conditioning. When updating the
+engine, use upstream's implementation and repeat both generation and reference
+editing with the worker.

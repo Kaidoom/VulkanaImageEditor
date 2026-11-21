@@ -1363,15 +1363,16 @@ struct DiffusionPanel::Impl {
     if (!hasExplicitStrength)
       setControl(sampling["strength"], mode == Mode::Fill ? 1.0 : .75);
     modeSettings->setEnabled(!busy);
+    const bool supportsDenoising = profile().value("imageToImage").toBool(true);
     {
       const QSignalBlocker block(imageToImage);
-      imageToImage->setChecked(mode == Mode::Fill ||
-                              (mode == Mode::Edit && editImageToImage));
+      imageToImage->setChecked(q.imageToImageEnabled());
     }
-    imageToImage->setEnabled(mode == Mode::Edit && q.supportsMode(Mode::Edit));
+    imageToImage->setEnabled(mode == Mode::Edit && q.supportsMode(Mode::Edit) && supportsDenoising);
     i18n::setToolTip(imageToImage,
         !q.supportsMode(Mode::Edit) && !q.supportsMode(Mode::Fill)
             ? i18n::text("diffusion.ui.this.model.generates.from.text.only.image")
+        : !supportsDenoising ? i18n::text("diffusion.ui.this.mode.is.unavailable.for.the.selected")
         : mode == Mode::Fill
             ? i18n::text("diffusion.ui.always.used.for.generative.fill.the.canvas")
         : mode == Mode::Edit
@@ -1381,6 +1382,7 @@ struct DiffusionPanel::Impl {
     i18n::setToolTip(sampling["strength"],
         !q.supportsMode(Mode::Edit) && !q.supportsMode(Mode::Fill)
             ? i18n::text("diffusion.ui.denoising.strength.is.available.for.models.that")
+        : !supportsDenoising ? i18n::text("diffusion.ui.this.mode.is.unavailable.for.the.selected")
         : q.imageToImageEnabled()
             ? i18n::text("diffusion.ui.lower.values.retain.more.of.the.starting")
         : mode == Mode::Edit
@@ -1490,7 +1492,7 @@ struct DiffusionPanel::Impl {
                    {"schedule", p.value("schedule")},
                    {"flowShift", 0.0},
                    {"batch", 1},
-                   {"vaeTiling", false},
+                   {"vaeTiling", p.value("vaeTiling").toBool(false)},
                    {"vaeTileSize", 256},
                    {"vaeTileOverlap", .25},
                    {"preview", true},
@@ -3198,7 +3200,8 @@ QTransform DiffusionPanel::resultPlacement() const {
 }
 bool DiffusionPanel::imageToImageEnabled() const {
   return (supportsMode(Mode::Fill) && mode() == Mode::Fill) ||
-         (supportsMode(Mode::Edit) && mode() == Mode::Edit && d->editImageToImage);
+         (supportsMode(Mode::Edit) && mode() == Mode::Edit && d->editImageToImage
+          && d->profile().value("imageToImage").toBool(true));
 }
 void DiffusionPanel::setWorkerUpdates(WorkerUpdates* updates) {
   if (d->workerUpdates == updates) return;
@@ -3278,8 +3281,9 @@ QJsonObject DiffusionPanel::configuration() const {
   if (d->profile()["family"] != "qwen-image-2.1") {
     resources.remove("prefixCache");
     resources.remove("prefixCacheType");
-    files.remove("vision");
   }
+  if (!d->profile().value("visionRequiredForReferences").toBool())
+    files.remove("vision");
   if (d->profile().value("checkpoint").toBool())
     files.remove("textEncoder");
   QJsonObject result{{"profile", d->profiles->currentData().toString()},

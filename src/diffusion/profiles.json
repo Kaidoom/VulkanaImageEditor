@@ -231,5 +231,33 @@
     "rgba": false,
     "spatialGuidance": "none",
     "negativePrompt": true
+  },
+  {
+    "id": "minimax-h3-image",
+    "name": "MiniMax-H3-Image",
+    "resultName": "MiniMaxH3",
+    "family": "minimax-h3-image",
+    "engineModel": "MiniMax-H3-Image",
+    "tested": true,
+    "alignment": 32,
+    "steps": 6,
+    "guidance": 1,
+    "sampler": "euler",
+    "scheduler": "discrete",
+    "schedule": "auto",
+    "flowSchedule": false,
+    "vaeTiling": true,
+    "modes": [
+      "generate",
+      "edit"
+    ],
+    "referenceImages": true,
+    "maxReferenceImages": 16,
+    "visionRequiredForReferences": true,
+    "imageToImage": false,
+    "nativeInpainting": false,
+    "rgba": false,
+    "spatialGuidance": "none",
+    "negativePrompt": true
   }
 ]

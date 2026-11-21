@@ -234,7 +234,7 @@ public:
                     w.lastError = message.substr(0, 4096);
                     // Preserve the conditioner's diagnostic before its caller
                     // replaces it with the generic "failed to encode prompt".
-                    if (message.find("Qwen Image 2.1 editing requires Qwen3-VL vision weights") != std::string::npos)
+                    if (message.find("editing requires Qwen3-VL vision weights") != std::string::npos)
                         w.missingVision = true;
                     // Keep the actionable loader error when later engine wrappers
                     // merely report that model construction failed.
@@ -768,7 +768,8 @@ Json Worker::generate(const Json& p)
     const std::string modelName = loadedProfile["name"];
     require(loadedProfile.value("referenceImages", true) || !p.contains("referenceImages"),
         modelName + " generates from text only; reference images are unavailable");
-    require(supportsMode("edit") || supportsMode("fill") || (!p.contains("initialImage") && !p.contains("strength")),
+    require(((supportsMode("edit") && loadedProfile.value("imageToImage", true)) || supportsMode("fill"))
+            || (!p.contains("initialImage") && !p.contains("strength")),
         modelName + " does not support image-to-image denoising");
     require(supportsMode("fill") || !p.contains("mask"), modelName + " does not support Generative Fill");
     require(loadedProfile.value("spatialGuidance", "none") != "none" || !p.contains("spatial"),
@@ -1009,7 +1010,7 @@ Json Worker::generate(const Json& p)
         params.init_image = initial->view;
     if (mask)
         params.mask_image = mask->view;
-    params.vae_tiling_params.enabled = flag(p, "vaeTiling", false);
+    params.vae_tiling_params.enabled = flag(p, "vaeTiling", loadedProfile.value("vaeTiling", false));
     params.vae_tiling_params.tile_size_w = params.vae_tiling_params.tile_size_h
         = integer(p, "vaeTileSize", 256, 64, 2048);
     require(params.vae_tiling_params.tile_size_w % 32 == 0, "vaeTileSize must be a multiple of 32");

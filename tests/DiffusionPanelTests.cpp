@@ -382,7 +382,7 @@ private slots:
     DiffusionPanel panel;
     auto *family = panel.findChild<QComboBox *>("DiffusionFamily");
     auto *variant = panel.findChild<QComboBox *>("DiffusionProfile");
-    QCOMPARE(family->count(), 4);
+    QCOMPARE(family->count(), 5);
     QCOMPARE(family->currentText(), QString("Qwen 2.1 Image"));
     QCOMPARE(variant->count(), 2);
     QCOMPARE(variant->currentText(), QString("Turbo"));
@@ -670,6 +670,29 @@ private slots:
     QVERIFY(section->isEnabled());
     panel.setConfiguration({{"profile", "stable-diffusion"}});
     QVERIFY(!panel.findChild<QDoubleSpinBox *>("DiffusionOverride_flowShift")->isEnabled());
+  }
+  void miniMaxH3UsesReferenceEditing() {
+    DiffusionPanel panel;
+    panel.setConfiguration({{"profile", "minimax-h3-image"},
+      {"files", QJsonObject{{"diffusion", "h3.safetensors"}, {"textEncoder", "encoder.gguf"},
+                            {"vae", "vae.safetensors"}, {"vision", "vision.gguf"}}}});
+    QCOMPARE(panel.configuration()["files"].toObject()["vision"].toString(), QString("vision.gguf"));
+    QVERIFY(panel.supportsMode(DiffusionPanel::Mode::Generate));
+    QVERIFY(panel.supportsMode(DiffusionPanel::Mode::Edit));
+    QVERIFY(!panel.supportsMode(DiffusionPanel::Mode::Fill));
+    QVERIFY(!panel.supportsRegions());
+    QImage image(64, 64, QImage::Format_RGB32);
+    image.fill(Qt::red);
+    QVERIFY(panel.addInput({image, "Reference", "Test"}));
+    panel.setMode(DiffusionPanel::Mode::Edit);
+    QVERIFY(!panel.findChild<QCheckBox *>("DiffusionImageToImage")->isEnabled());
+    const auto request = panel.prepareGeneration();
+    QCOMPARE(request["steps"].toInt(), 6);
+    QCOMPARE(request["scheduler"].toString(), QString("discrete"));
+    QCOMPARE(request["sampler"].toString(), QString("euler"));
+    QCOMPARE(request["guidance"].toDouble(), 1.0);
+    QVERIFY(request["vaeTiling"].toBool());
+    QVERIFY(!request.contains("strength"));
   }
   void generationOnlyCapabilitiesKeepExistingInputs() {
     DiffusionPanel panel;

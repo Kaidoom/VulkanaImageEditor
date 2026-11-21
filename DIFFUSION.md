@@ -98,6 +98,20 @@ For a canvas-cropped Edit input, replacement uses the captured document placemen
 
 ## Supported models and regions
 
+**MiniMax-H3-Image** supports Generate and reference-based Edit Layer. Select
+the six-step H3 **image** diffusion checkpoint, the MiniMax-H3 Qwen3-VL-32B
+encoder and the dedicated H3 **image** VAE. The Q4_K_M encoder with embedded
+vision weights can use an empty Vision field. Start at 1024 × 1024 with six
+steps, Euler, CFG 1, the Discrete scheduler and VAE tiling. At six steps the
+scheduler uses the model's PDD sigmas. Dimensions must be multiples of 32.
+
+In an edit prompt, refer to inputs in list order, for example
+`Edit <Picture 1>. Change the teapot glaze to cobalt blue.` The model accepts
+up to 16 references. Reference processing can enlarge the short edge to 1024
+pixels, so additional images can increase memory use even with an input size
+limit. Generative Fill, region guidance and initial-image denoising are
+unavailable for this profile.
+
 **Qwen Image 2.1 Turbo:** diffusion weights, Qwen3-VL 8B text encoder and Qwen Image 2.1 VAE. For image editing, vision weights may be embedded in the text encoder or supplied as a separate matching projector. Leave Vision empty for a combined encoder; a text-only encoder, such as a split GGUF, needs its projector. The backend checks the loaded tensors rather than inferring this from INT8/GGUF filenames. Recommended: 8 steps, Euler, CFG 1, exact Turbo sigma schedule. The base Qwen profile is available but has not been independently exercised with base weights.
 
 **Flux Klein:** choose the matching generation and variant. Flux 2 uses its diffusion weights, a matching Qwen3 text encoder (4B for Klein 4B, 8B for Klein 9B), and the FLUX.2 VAE. Flux 3 uses its diffusion weights, Qwen3-VL 4B and the FLUX.2 VAE. Neither needs a separate vision projector. Both support image references; native structured region guidance is available for Flux 3 only.
