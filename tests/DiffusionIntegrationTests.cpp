@@ -5,6 +5,7 @@
 #include "imageeditor/ui/DiffusionPreview.hpp"
 #include "imageeditor/ui/LayerListView.hpp"
 #include "imageeditor/ui/LayerListModel.hpp"
+#include "imageeditor/ui/ProjectFile.hpp"
 #include "imageeditor/ui/DiffusionTransaction.hpp"
 #include "imageeditor/ui/FlattenedDocument.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
@@ -48,6 +49,7 @@
 #include <QTest>
 #include <QTimer>
 #include <QToolButton>
+#include <algorithm>
 #include <memory>
 #include <tuple>
 namespace u = imageeditor::ui;
@@ -122,6 +124,41 @@ private slots:
     panel->setResolution({64, 64});
   }
 private:
+  void addDecompositionInput(const QString &documentName = {}) {
+    auto *list = child<QListWidget>("DiffusionInputsList");
+    QVERIFY(list && list->isVisible() && list->isEnabled());
+    QCOMPARE(list->count(), 1); // Empty list plus the add row.
+    QTest::mouseClick(list->viewport(), Qt::LeftButton, {}, list->visualItemRect(list->item(0)).center());
+    auto *menu = qobject_cast<QMenu*>(QApplication::activePopupWidget());
+    QVERIFY(menu);
+    QCOMPARE(menu->actions().size(), 2); // Current layer or another open document layer.
+    if (!documentName.isEmpty()) {
+      QTimer::singleShot(0, window.get(), [this, documentName] {
+        auto *chooser = window->findChild<QInputDialog *>();
+        QVERIFY(chooser);
+        const auto entries = chooser->comboBoxItems();
+        const auto item = std::find_if(entries.begin(), entries.end(), [&](const auto &entry) {
+          return entry.startsWith(documentName + " / ");
+        });
+        if (item == entries.end()) chooser->reject();
+        QVERIFY(item != entries.end());
+        chooser->setTextValue(*item);
+        chooser->accept();
+      });
+    }
+    auto *action = documentName.isEmpty() ? menu->actions().first() : menu->actions().last();
+    QTest::mouseClick(menu, Qt::LeftButton, {}, menu->actionGeometry(action).center());
+    QTRY_COMPARE(panel->inputs().size(), 1);
+    QVERIFY(!(list->item(1)->flags() & Qt::ItemIsEnabled));
+  }
+  void removeDecompositionInput() {
+    auto *list = child<QListWidget>("DiffusionInputsList");
+    const auto row = list->visualItemRect(list->item(0));
+    QTest::mouseClick(list->viewport(), Qt::LeftButton, {}, QPoint(row.right() - 12, row.center().y()));
+    QTRY_COMPARE(list->count(), 1);
+    QVERIFY(panel->inputs().isEmpty());
+    QVERIFY(!child<QPushButton>("DiffusionGenerate")->isEnabled());
+  }
   void openTestDocument() {
     window = std::make_unique<u::MainWindow>(nullptr, false, false);
     QVERIFY(child<QWidget>("AIImageEditorWorkspace")->isHidden());
@@ -2433,6 +2470,157 @@ private slots:
     generate();
     QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
     QCOMPARE(panel->results().size(), 2);
+  }
+  void decompositionWaitsForAnExplicitLayerInput() {
+    openMode("AIGenerateImageAction");
+    panel->onAddInput(u::DiffusionPanel::InputSource::VisibleCanvas);
+    panel->onAddInput(u::DiffusionPanel::InputSource::CurrentLayerAppearance);
+    QCOMPARE(panel->inputs().size(), 2);
+    const auto config = panel->configuration();
+    auto layered = config;
+    layered["profile"] = "qwen-image-layered";
+    panel->setConfiguration(layered);
+    QCOMPARE(panel->mode(), u::DiffusionPanel::Mode::Decompose);
+    QVERIFY(panel->inputs().isEmpty());
+    auto *caption = child<QPlainTextEdit>("DiffusionPrompt");
+    QTest::mouseClick(caption->viewport(), Qt::LeftButton);
+    QInputMethodEvent captionInput;
+    captionInput.setCommitString("Three kittens");
+    QCoreApplication::sendEvent(window->windowHandle(), &captionInput);
+    QCOMPARE(caption->toPlainText(), "Three kittens");
+    QVERIFY(!child<QPushButton>("DiffusionGenerate")->isEnabled());
+    addDecompositionInput();
+    QVERIFY(child<QPushButton>("DiffusionGenerate")->isEnabled());
+    auto *list = child<QListWidget>("DiffusionInputsList");
+    list->itemDoubleClicked(list->item(0));
+    auto *preview = child<QDialog>("DiffusionPreviewDialog");
+    QVERIFY(preview && preview->isVisible() && !preview->isWindow());
+    preview->reject();
+    QCoreApplication::processEvents();
+    removeDecompositionInput();
+    panel->setConfiguration(config);
+    QCOMPARE(panel->inputs().size(), 2);
+    panel->setConfiguration(layered);
+    QVERIFY(panel->inputs().isEmpty());
+    addDecompositionInput();
+    QCOMPARE(panel->inputs().first().metadata["layerId"].toString(), QString::number(*session().activeLayer()));
+  }
+  void oldWorkerKeepsDecompositionConfiguration() {
+    qputenv("VULKANA_TEST_DIFFUSION_NO_STACK", "1");
+    const auto restore = qScopeGuard([] { qunsetenv("VULKANA_TEST_DIFFUSION_NO_STACK"); });
+    auto config = panel->configuration();
+    config["profile"] = "qwen-image-layered";
+    panel->setConfiguration(config);
+    openMode("AIGenerateImageAction");
+    addDecompositionInput();
+    const auto before = session().document()->revision();
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+    QVERIFY(panel->results().isEmpty());
+    QCOMPARE(panel->configuration()["profile"].toString(), "qwen-image-layered");
+    QVERIFY(child<QLabel>("DiffusionProgressStatus")->text().contains("Update"));
+    QCOMPARE(session().document()->revision(), before);
+  }
+  void decomposeIntoLayersFromInputList() {
+    auto config = panel->configuration();
+    config["profile"] = "qwen-image-layered";
+    const auto realLoad = qEnvironmentVariable("VULKANA_TEST_LAYERED_CONFIG");
+    if (!realLoad.isEmpty()) {
+      QFile file(realLoad);
+      QVERIFY(file.open(QIODevice::ReadOnly));
+      config = QJsonDocument::fromJson(file.readAll()).object();
+      panel->setWorkerExecutable(qEnvironmentVariable("VULKANA_DIFFUSION_TEST_WORKER"));
+      QVERIFY(window->openImageFromPath(qEnvironmentVariable("VULKANA_TEST_LAYERED_SOURCE")));
+    }
+    panel->setConfiguration(config);
+    auto *doc = session().document();
+    const auto id = *session().activeLayer();
+    openMode("AIGenerateImageAction");
+    addDecompositionInput();
+    QCOMPARE(panel->mode(), u::DiffusionPanel::Mode::Decompose);
+    QCOMPARE(panel->inputs().size(), 1);
+    auto *count = child<QSpinBox>("DiffusionLayerCount");
+    QVERIFY(count);
+    count->setValue(3);
+    const auto before = doc->tree();
+    const auto original = native();
+    const auto revision = doc->revision();
+    prompt({});
+    auto *decompose = child<QPushButton>("DiffusionGenerate");
+    QVERIFY(decompose->isEnabled());
+    QTest::mouseClick(decompose, Qt::LeftButton);
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), realLoad.isEmpty() ? 10000 : 420000);
+    QVERIFY2(panel->selectedResult(), qPrintable(child<QLabel>("DiffusionProgressStatus")->text()));
+    QCOMPARE(panel->results().size(), 1);
+    const auto &result = *panel->selectedResult();
+    QCOMPARE(result.layers.size(), 3);
+    QCOMPARE(result.metadata["request"].toObject()["prompt"].toString(), QString{});
+    if (!realLoad.isEmpty())
+      qInfo() << "Decomposition worker time (ms)" << result.metadata["timings"].toObject()["totalMs"].toDouble();
+    for (const auto &pixels : result.layers) {
+      QVERIFY(pixels.hasAlphaChannel());
+      QCOMPARE(pixels.size(), result.image.size());
+    }
+    QCOMPARE(doc->revision(), revision);
+    QCOMPARE(doc->tree(), before);
+    QVERIFY(doc->layer(id)->visible);
+    // Replacing the input after generation must not redirect this stack's Apply.
+    const auto sourceDocument = window->activeDocumentId();
+    if (realLoad.isEmpty()) {
+      const auto secondPath = temporary.filePath("other-layer.png");
+      QImage other(32, 48, QImage::Format_RGBA8888);
+      other.fill(Qt::red);
+      QVERIFY(other.save(secondPath));
+      QVERIFY(window->openImageFromPath(secondPath));
+      const auto replacementDocument = window->activeDocumentId();
+      QVERIFY(replacementDocument != sourceDocument);
+      QVERIFY(window->activateDocument(sourceDocument));
+      openMode("AIGenerateImageAction");
+      removeDecompositionInput();
+      addDecompositionInput("other-layer.png");
+      QCOMPARE(panel->inputs().first().metadata["documentId"].toString(), QString::number(replacementDocument));
+      QCOMPARE(panel->inputs().first().fullImage.size(), other.size());
+      QVERIFY(window->activateDocument(replacementDocument));
+    }
+    panel->showResultPreview();
+    auto *picker = child<QComboBox>("DiffusionStackInspector");
+    QVERIFY(picker && picker->isVisible());
+    QCOMPARE(picker->count(), 4);
+    picker->setCurrentIndex(2);
+    auto *apply = child<QPushButton>("DiffusionApply");
+    QVERIFY(apply && apply->isEnabled());
+    QTest::mouseClick(apply, Qt::LeftButton);
+    QTRY_COMPARE(doc->layers().size(), size_t(4));
+    QCOMPARE(window->activeDocumentId(), sourceDocument);
+    const auto folder = *session().activeLayer();
+    QVERIFY(doc->tree().container(folder));
+    QCOMPARE(doc->tree().container(folder)->children.size(), size_t(3));
+    QVERIFY(!doc->layer(id)->visible);
+    QCOMPARE(u::diffusionRawLayer(*doc->layer(id)), original);
+    QVERIFY(session().undo());
+    QCOMPARE(doc->tree(), before);
+    QVERIFY(doc->layer(id)->visible);
+    QVERIFY(session().redo());
+    QCOMPARE(doc->tree().container(folder)->children.size(), size_t(3));
+    const auto path = temporary.filePath("decomposed.vulkana");
+    QVERIFY(u::saveProject(path, *doc));
+    const auto reopened = u::loadProject(path);
+    QVERIFY(reopened);
+    QCOMPARE(reopened.document->tree(), doc->tree());
+    QVERIFY(!reopened.document->layer(id)->visible);
+    for (const auto part : doc->tree().container(folder)->children)
+      QCOMPARE(u::diffusionRawLayer(*reopened.document->layer(part)), u::diffusionRawLayer(*doc->layer(part)));
+    if (realLoad.isEmpty()) {
+      QVERIFY(session().undo());
+      QVERIFY(doc->setLayerOpacity(id, .5));
+      panel->onApply();
+      QCOMPARE(doc->tree(), before);
+      QVERIFY(doc->layer(id)->visible);
+      generate("incomplete");
+      QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), 10000);
+      QCOMPARE(panel->results().size(), 1);
+      QCOMPARE(doc->tree(), before);
+    }
   }
   void realWorkerRoundTrip() {
     const auto worker = qEnvironmentVariable("VULKANA_DIFFUSION_TEST_WORKER"),

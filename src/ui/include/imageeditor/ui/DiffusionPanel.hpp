@@ -17,7 +17,7 @@ namespace imageeditor::ui {
 class WorkerUpdates;
 class DiffusionPanel final : public QWidget {
 public:
-  enum class Mode { Generate, Edit, Fill };
+  enum class Mode { Generate, Edit, Fill, Decompose };
   enum class Destination { NewLayer, ReplaceSelected, NewDocument };
   enum class InputSource {
     CurrentLayerAppearance,
@@ -52,6 +52,7 @@ public:
     QTransform toDocument;
     Mode mode{Mode::Generate};
     std::optional<bool> fitToBounds;
+    QVector<QImage> layers; // Native bottom-to-top order for a decomposition.
     QString layerName() const; // Frozen model identity and the output's actual seed.
   };
 

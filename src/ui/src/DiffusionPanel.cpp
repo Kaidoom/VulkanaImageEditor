@@ -76,8 +76,8 @@ namespace {
 bool profileSupportsMode(const QJsonObject &profile, DiffusionPanel::Mode mode) {
   if (profile.isEmpty()) return false;
   const auto modes = profile.value("modes");
-  if (!modes.isArray()) return true; // Older worker profiles supported all three modes.
-  static const QStringList names{"generate", "edit", "fill"};
+  if (!modes.isArray()) return mode != DiffusionPanel::Mode::Decompose; // Older worker profiles supported all three modes.
+  static const QStringList names{"generate", "edit", "fill", "decompose"};
   return modes.toArray().contains(names.value(int(mode)));
 }
 bool hasModelFiles(const QJsonObject &files, const QJsonObject &profile) {
@@ -536,7 +536,12 @@ struct DiffusionPanel::Impl {
   int measuredMpIndex{-1};
   QCheckBox *imageToImage{};
   QCheckBox *cropGuidance{};
-  QWidget *modeSettings{};
+  QWidget *modeSettings{}, *regularResolution{}, *stackSettings{}, *inputsSection{}, *regionsSection{};
+  QLabel *stackDimensions{};
+  QSpinBox *stackCount{};
+  QComboBox *stackBucket{};
+  QPointer<QComboBox> stackInspector;
+  QString inspectedStack;
   bool editImageToImage{};
   bool referenceLimitShown{};
   bool hasExplicitStrength{}; // A saved or edited value takes precedence over mode defaults.
@@ -621,7 +626,7 @@ struct DiffusionPanel::Impl {
         const QSignalBlocker block(target);
         qobject_cast<QDoubleSpinBox *>(target)->setSpecialValueText(from->specialValueText());
       }
-      const bool shown = exposeButtons[it.key()]->isChecked();
+      const bool shown = exposeButtons[it.key()]->isChecked() && (it.key() != "batch" || q.mode() != Mode::Decompose);
       overridesForm->setRowVisible(overrideRows[it.key()], shown);
       any |= shown;
       const auto baseline = controlValue(source);
@@ -790,6 +795,10 @@ struct DiffusionPanel::Impl {
   }
   std::unique_ptr<DiffusionLoras> loras;
   QVector<Input> inputs;
+  // Keep the single decomposition source separate from multi-image editing sessions.
+  QVector<Input> inactiveInputs;
+  QString inactiveOutputSceneId;
+  bool usingDecompositionInputs{};
   QVector<Result> results;
   QImage draftPreview;
   QVector<DiffusionRegion> regions;
@@ -861,7 +870,7 @@ struct DiffusionPanel::Impl {
     }
     input.outputSize = input.image.size();
     const int limit = maxInputSize->currentData().toInt();
-    if (!input.image.isNull() && std::max(input.image.width(), input.image.height()) > limit) {
+    if (q.mode() != Mode::Decompose && !input.image.isNull() && std::max(input.image.width(), input.image.height()) > limit) {
       const auto oldSize = input.image.size();
       input.image = input.image.scaled(QSize(limit, limit), Qt::KeepAspectRatio, Qt::SmoothTransformation);
       if (input.image.isNull()) throw std::bad_alloc();
@@ -1150,8 +1159,10 @@ struct DiffusionPanel::Impl {
   }
   void updateOutputControls() {
     const bool ready = q.selectedResult() != nullptr;
-    outputDestination->setVisible(lightbox && previewShowsResult && ready);
-    fitOutput->setVisible(lightbox && previewShowsResult && ready);
+    const bool stack = ready && !q.selectedResult()->layers.isEmpty();
+    outputDestination->setVisible(lightbox && previewShowsResult && ready && !stack);
+    fitOutput->setVisible(lightbox && previewShowsResult && ready && !stack);
+    i18n::setText(apply, stack ? i18n::Message("Apply as folder") : i18n::text("diffusion.ui.apply"));
     if (const auto *result = q.selectedResult()) {
       const bool fill = result->mode == Mode::Fill;
       const bool replace = q.destination() == Destination::ReplaceSelected;
@@ -1171,6 +1182,29 @@ struct DiffusionPanel::Impl {
     if (previewShowsResult && lightboxPreview && !comparisonReference.isNull())
       lightboxPreview->setComparison(comparisonReference, comparisonTransform, q.resultPlacement());
   }
+  static bool isDecompositionLayer(const Input &input) {
+    return input.metadata.value("boundedLayer").toBool() && !input.cropToCanvas &&
+           !input.metadata.value("documentId").toString().isEmpty() && !input.metadata.value("layerId").toString().isEmpty();
+  }
+  const Input *decompositionSource() const {
+    return inputs.size() == 1 && isDecompositionLayer(inputs.front()) ? &inputs.front() : nullptr;
+  }
+  QSize stackResolution() const {
+    const auto *input = decompositionSource();
+    const QSize source = input ? input->fullImage.size() : QSize{};
+    if (source.isEmpty()) return {0, 0};
+    const auto bucket = stackBucket->currentData().toInt();
+    const double ratio = std::sqrt(double(source.width()) / source.height());
+    const auto align = [](double pixels) { return 32 * std::max(1, qRound(pixels / 32)); };
+    return {align(bucket * ratio), align(bucket / ratio)};
+  }
+  QString decompositionInputError() const {
+    if (!decompositionSource()) return "Add a raster layer to Input images.";
+    const auto size = stackResolution();
+    if (size.isEmpty()) return "The captured layer contains no pixels.";
+    if (std::max(size.width(), size.height()) > 8192) return "The source aspect ratio exceeds the worker's 8192 px limit at this resolution.";
+    return {};
+  }
   void updateActions() {
     if (inputs.size() == 1 && inputIndex(outputSceneId) < 0 && !hasTransfers())
       rebuildScenes();
@@ -1182,16 +1216,18 @@ struct DiffusionPanel::Impl {
     deleteModel->setEnabled(!busy && !currentModelId.isEmpty());
     models->setItemText(0, configured ? i18n::text("diffusion.ui.current.configuration")
                                       : i18n::text("diffusion.ui.missing.configuration"));
+    const bool decompose = q.mode() == Mode::Decompose;
+    const auto sourceError = decompose ? decompositionInputError() : QString{};
     const bool hasInputs = q.mode() == Mode::Generate || !inputs.isEmpty();
     const bool nonempty = !q.supportsImageInputs() || std::none_of(inputs.begin(), inputs.end(), [](const auto &in) { return in.image.isNull(); });
     const auto linkError = transferError();
-    i18n::setText(generate, busy ? i18n::text("diffusion.ui.cancel") : i18n::text("diffusion.ui.generate"));
+    i18n::setText(generate, busy ? i18n::text("diffusion.ui.cancel") : decompose ? i18n::Message("Decompose") : i18n::text("diffusion.ui.generate"));
     const bool needsSelection = q.mode() == Mode::Fill && !fillSelectionAvailable;
-    const bool canGenerate = configured && hasInputs && nonempty && referencesFit() && linkError.isEmpty() && !needsSelection;
+    const bool canGenerate = configured && hasInputs && nonempty && referencesFit() && linkError.isEmpty() && sourceError.isEmpty() && !needsSelection;
     generate->setEnabled(busy || canGenerate);
     for (auto *button : unloadButtons)
       button->setEnabled(!busy && canUnloadModels);
-    i18n::setToolTip(generate, busy ? i18n::text("diffusion.ui.cancel.generation") : needsSelection ? i18n::text("diffusion.ui.make.a.selection.before.using.generative.fill") : !linkError.isEmpty() ? linkError : !nonempty ? i18n::text("diffusion.ui.a.cropped.layer.is.outside.its.canvas")
+    i18n::setToolTip(generate, busy ? i18n::text("diffusion.ui.cancel.generation") : !sourceError.isEmpty() ? i18n::Message(sourceError) : needsSelection ? i18n::text("diffusion.ui.make.a.selection.before.using.generative.fill") : !linkError.isEmpty() ? linkError : !nonempty ? i18n::text("diffusion.ui.a.cropped.layer.is.outside.its.canvas")
         : !referencesFit()
         ? i18n::text("diffusion.ui.remove.an.image.or.region.to.stay")
         : configured ? QString{} : i18n::text("diffusion.ui.add.model.files.in.the.configuration.tab"));
@@ -1353,9 +1389,25 @@ struct DiffusionPanel::Impl {
       resultImage->setPixmap(QPixmap::fromImage(
           thumbnail(image, {std::max(80, resultImage->width()), 180})));
     if (previewShowsResult && lightboxPreview) {
+      if (stackInspector) {
+        const bool stack = result && !result->layers.isEmpty();
+        const auto key = stack ? result->metadata.value("contextId").toString() : QString{};
+        if (key != inspectedStack || (stack && stackInspector->count() != result->layers.size() + 1)) {
+          const QSignalBlocker guard(stackInspector);
+          inspectedStack = key;
+          stackInspector->clear();
+          if (stack) {
+            stackInspector->addItem("Composite");
+            for (int i = 0; i < result->layers.size(); ++i)
+              stackInspector->addItem(QString("Layer %1").arg(i + 1));
+          }
+        }
+        stackInspector->setVisible(stack);
+      }
       lightboxPreview->setEmptyText(pendingSelected() ? i18n::text("diffusion.ui.generating")
                                                       : i18n::text("diffusion.ui.no.image"));
-      lightboxPreview->setImage(image, true);
+      const int slot = stackInspector ? stackInspector->currentIndex() - 1 : -1;
+      lightboxPreview->setImage(result && slot >= 0 && slot < result->layers.size() ? result->layers[slot] : image, true);
       if (lightboxTitle)
         lightboxTitle->setText(title + (image.isNull()
                                             ? QString{}
@@ -1380,7 +1432,20 @@ struct DiffusionPanel::Impl {
     const auto mode = q.mode();
     if (!hasExplicitStrength)
       setControl(sampling["strength"], mode == Mode::Fill ? 1.0 : .75);
+    const bool decompose = mode == Mode::Decompose;
+    stackSettings->setVisible(decompose);
+    stackSettings->setEnabled(!busy);
+    maxInputSize->setVisible(!decompose);
+    regionsSection->setVisible(!decompose);
+    if (decompose) {
+      const auto size = stackResolution();
+      stackDimensions->setVisible(!size.isEmpty());
+      stackDimensions->setText(QString("%1 × %2 px").arg(size.width()).arg(size.height()));
+    }
+    regularResolution->setVisible(!decompose);
+    modeSettings->setVisible(!decompose);
     modeSettings->setEnabled(!busy);
+    i18n::setPlaceholderText(prompt, decompose ? i18n::Message("Describe the source image (optional)") : i18n::text("diffusion.ui.describe.the.image.or.the.changes.you"));
     const bool supportsDenoising = profile().value("imageToImage").toBool(true);
     {
       const QSignalBlocker block(imageToImage);
@@ -1410,6 +1475,7 @@ struct DiffusionPanel::Impl {
   void updateSamplingAvailability(const QMap<QString, QWidget *> &widgets,
                                   QWidget *customSigmas, const QJsonObject &values) {
     const auto p = profile();
+    widgets["batch"]->setEnabled(q.mode() != Mode::Decompose);
     const auto schedule = values["schedule"].toString();
     i18n::setToolTip(widgets["steps"], schedule == "turbo"
         ? i18n::text("diffusion.ui.the.fixed.turbo.sigma.schedule.uses.8")
@@ -1462,7 +1528,7 @@ struct DiffusionPanel::Impl {
       i18n::setPlaceholderText(files[key], checkpoint && key == "vae" ? i18n::text("diffusion.ui.use.checkpoint.vae") : label);
     }
     if (auto *items = qobject_cast<QStandardItemModel *>(mode->model())) {
-      for (const auto value : {Mode::Generate, Mode::Edit, Mode::Fill}) {
+      for (const auto value : {Mode::Generate, Mode::Edit, Mode::Fill, Mode::Decompose}) {
         const bool supported = q.supportsMode(value);
         items->item(int(value))->setEnabled(supported);
         items->item(int(value))->setToolTip(supported ? QString{} : i18n::text("diffusion.ui.this.mode.is.unavailable.for.the.selected"));
@@ -1470,7 +1536,19 @@ struct DiffusionPanel::Impl {
     }
     if (!q.supportsMode(q.mode())) {
       const QSignalBlocker block(mode);
-      mode->setCurrentIndex(int(Mode::Generate));
+      mode->setCurrentIndex(int(q.supportsMode(Mode::Decompose) ? Mode::Decompose : Mode::Generate));
+    }
+    const bool decompose = q.mode() == Mode::Decompose;
+    if (decompose != usingDecompositionInputs) {
+      usingDecompositionInputs = decompose;
+      const auto generationHint = i18n::text("diffusion.ui.choose.model.files.and.enter.a.prompt");
+      if (decompose && status->text() == generationHint)
+        i18n::setText(status, {});
+      else if (!decompose && status->text().isEmpty())
+        i18n::setText(status, generationHint);
+      inputs.swap(inactiveInputs);
+      outputSceneId.swap(inactiveOutputSceneId);
+      rebuildInputs();
     }
     const int alignment = p.value("alignment").toInt(32);
     width->setSingleStep(alignment);
@@ -1561,7 +1639,7 @@ struct DiffusionPanel::Impl {
   QString inputTitle(int index) const {
     const auto &input = inputs[index];
     return QString("Image%1%2\n%3%4").arg(index + 1)
-        .arg(index == 0 && q.mode() != Mode::Generate ? i18n::text("diffusion.ui.edit.image") : "")
+        .arg(index == 0 && (q.mode() == Mode::Edit || q.mode() == Mode::Fill) ? i18n::text("diffusion.ui.edit.image") : "")
         .arg(input.label)
         .arg(input.regions.isEmpty() ? QString{} : QString(" · ")
              + i18n::text("diffusion.ui.regions") + ": " + QString::number(input.regions.size()));
@@ -1584,19 +1662,22 @@ struct DiffusionPanel::Impl {
           inputList);
       item->setData(Qt::UserRole, i);
       item->setData(Qt::UserRole + 1, false);
-      item->setData(Qt::UserRole + 2, !in.sourceCanvas.isEmpty());
+      item->setData(Qt::UserRole + 2, q.mode() != Mode::Decompose && !in.sourceCanvas.isEmpty());
       item->setData(Qt::UserRole + 3, in.cropToCanvas);
       item->setToolTip(QString("%1 · %2 × %3 px\n%4")
                            .arg(in.source)
                            .arg(in.image.width())
                            .arg(in.image.height())
                            .arg(in.label) + (in.cropToCanvas ? i18n::text("diffusion.ui.cropped.to.the.source.canvas") : "") +
-                                            i18n::text("diffusion.ui.double.click.to.inspect.and.edit.this"));
+                                            (q.supportsRegions() ? i18n::text("diffusion.ui.double.click.to.inspect.and.edit.this") : QString{}));
     }
     auto *add = new QListWidgetItem(inputList);
     add->setData(Qt::UserRole, -1);
     add->setToolTip(i18n::text("diffusion.ui.add.input.image"));
     inputList->setFixedHeight(std::min(5, int(inputs.size())) * 48 + 32);
+    // Propagate the new row height through both nested layouts before the scroll page sizes the section.
+    inputList->parentWidget()->layout()->activate();
+    inputsSection->layout()->activate();
     inputList->setCurrentRow(std::min(selected, int(inputs.size()) - 1));
     rebuildRegionSources();
     if (!regionEditorInput.isEmpty() && inputIndex(regionEditorInput) < 0 && lightbox)
@@ -1654,7 +1735,8 @@ struct DiffusionPanel::Impl {
     const auto available = q.screen()->availableGeometry().size();
     dialog->resize(std::min(1000, int(available.width() * .85)),
                    std::min(760, int(available.height() * .85)));
-    if (!resultPreview || !q.onPresentPreview) preparePopupOwnership(dialog, &q);
+    const bool presentInWorkspace = q.onPresentPreview && (resultPreview || (!editRegions && q.mode() == Mode::Decompose));
+    if (!presentInWorkspace) preparePopupOwnership(dialog, &q);
     auto *main = new QWidget(dialog);
     main->setObjectName("DiffusionPreviewContent");
     auto *columns = new QHBoxLayout(dialog);
@@ -1744,6 +1826,11 @@ struct DiffusionPanel::Impl {
       auto *outputColumn = new QVBoxLayout;
       outputColumn->setSpacing(5);
       auto *outputRow = new QHBoxLayout;
+      stackInspector = new ScrollSafe<QComboBox>(dialog);
+      stackInspector->setObjectName("DiffusionStackInspector");
+      stackInspector->setAccessibleName("Inspect layer");
+      outputRow->addWidget(stackInspector);
+      QObject::connect(stackInspector, &QComboBox::currentIndexChanged, dialog, [this] { refreshDisplayedPreview(); });
       outputRow->addWidget(outputDestination);
       outputRow->addWidget(apply);
       outputColumn->addLayout(outputRow);
@@ -1948,7 +2035,7 @@ struct DiffusionPanel::Impl {
     if (resultPreview)
       refreshDisplayedPreview();
     if (resultPreview) dialog->routeNavigationKeys();
-    if (resultPreview && q.onPresentPreview)
+    if (presentInWorkspace)
       q.onPresentPreview(*dialog);
     else {
       dialog->show();
@@ -2121,8 +2208,8 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   configLayout->addSpacing(10);
   sectionHeading(configLayout, i18n::text("diffusion.ui.configuration"), "DiffusionConfiguration");
   auto *top = new QHBoxLayout;
-  d->mode = combo({i18n::text("diffusion.ui.generate"), i18n::text("diffusion.ui.edit.layer"), i18n::text("diffusion.ui.generative.fill")},
-                  {"generate", "edit", "fill"}, content);
+  d->mode = combo({i18n::text("diffusion.ui.generate"), i18n::text("diffusion.ui.edit.layer"), i18n::text("diffusion.ui.generative.fill"), "Decompose into Layers"},
+                  {"generate", "edit", "fill", "decompose"}, content);
   d->mode->setObjectName("DiffusionMode");
   top->addWidget(d->mode, 1);
   layout->addLayout(top);
@@ -2218,6 +2305,35 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   negativeLayout->addWidget(d->negative);
   layout->addWidget(d->loras->generationSection());
   auto *essentials = new QVBoxLayout;
+  d->stackSettings = new QWidget(content);
+  auto *stackRow = new QHBoxLayout(d->stackSettings);
+  stackRow->setContentsMargins(0, 0, 0, 0);
+  stackRow->addWidget(new QLabel("Layers"));
+  d->stackCount = new ScrollSafe<QSpinBox>;
+  d->stackCount->setObjectName("DiffusionLayerCount");
+  d->stackCount->setRange(2, 10);
+  d->stackCount->setValue(QSettings().value("diffusion/stackLayerCount", 4).toInt());
+  d->stackCount->setAccessibleName("Decomposition layer count");
+  stackRow->addWidget(d->stackCount);
+  stackRow->addSpacing(8);
+  stackRow->addWidget(new QLabel("Processing resolution"));
+  d->stackBucket = new ScrollSafe<QComboBox>;
+  d->stackBucket->setObjectName("DiffusionStackResolution");
+  d->stackBucket->addItem("640", 640);
+  d->stackBucket->addItem("1024", 1024);
+  d->stackBucket->setAccessibleName("Processing resolution");
+  d->stackBucket->setCurrentIndex(std::max(0, d->stackBucket->findData(QSettings().value("diffusion/stackResolution", 640))));
+  d->stackBucket->setToolTip("Target area at the source aspect ratio, rounded to the model grid.");
+  stackRow->addWidget(d->stackBucket);
+  d->stackDimensions = new QLabel;
+  d->stackDimensions->setObjectName("DiffusionStackDimensions");
+  stackRow->addWidget(d->stackDimensions);
+  stackRow->addStretch();
+  essentials->addWidget(d->stackSettings);
+  d->regularResolution = new QWidget(content);
+  auto *sizeLayout = new QVBoxLayout(d->regularResolution);
+  sizeLayout->setContentsMargins(0, 0, 0, 0);
+  essentials->addWidget(d->regularResolution);
   auto *outputRow = new QHBoxLayout;
   outputRow->setObjectName("DiffusionSizeRow");
   outputRow->setSpacing(4);
@@ -2256,7 +2372,7 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
     if (onResetSize)
       onResetSize();
   });
-  essentials->addLayout(outputRow);
+  sizeLayout->addLayout(outputRow);
   auto *scaleRow = new QHBoxLayout;
   scaleRow->setSpacing(4);
   scaleRow->addStretch();
@@ -2287,13 +2403,13 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   d->resetScale->setObjectName("DiffusionResetOutputScale");
   scaleRow->addWidget(d->resetScale);
   scaleRow->addStretch();
-  essentials->addLayout(scaleRow);
+  sizeLayout->addLayout(scaleRow);
   d->showScale(100);
   connect(d->scaleSlider, &QSlider::valueChanged, this, [this](int value) { d->applyOutputScale(qRound(value / 5.0) * 5); });
   connect(d->scalePercent, &QDoubleSpinBox::valueChanged, this, [this](double percent) { d->applyOutputScale(percent); });
   connect(d->resetScale, &QToolButton::clicked, this, [this] { d->applyOutputScale(100); });
   QVBoxLayout *resolutionLayout{};
-  essentials->addWidget(section(i18n::text("diffusion.ui.resolution.selector"), "DiffusionResolution", resolutionLayout));
+  sizeLayout->addWidget(section(i18n::text("diffusion.ui.resolution.selector"), "DiffusionResolution", resolutionLayout));
   auto *resolutionForm = form(resolutionLayout);
   d->aspectRatio = new ScrollSafe<QComboBox>;
   d->aspectRatio->setObjectName("DiffusionAspectRatio");
@@ -2405,8 +2521,8 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   modeLayout->setSpacing(8);
   layout->addWidget(d->modeSettings);
   QVBoxLayout *inputsLayout{};
-  layout->addWidget(
-      section(i18n::text("diffusion.ui.input.images"), "DiffusionInputs", inputsLayout, true));
+  d->inputsSection = section(i18n::text("diffusion.ui.input.images"), "DiffusionInputs", inputsLayout, true);
+  layout->addWidget(d->inputsSection, 0, Qt::AlignTop);
   d->inputList = new QListWidget;
   d->inputList->setObjectName("DiffusionInputsList");
   d->inputList->setIconSize({48, 40});
@@ -2462,6 +2578,8 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
         {i18n::text("diffusion.ui.rendered.visible.canvas"), InputSource::VisibleCanvas},
         {i18n::text("diffusion.ui.image.file"), InputSource::File}};
     for (const auto &s : sources) {
+      if (mode() == Mode::Decompose && s.second != InputSource::CurrentLayerAppearance &&
+          s.second != InputSource::DocumentLayerAppearance) continue;
       auto *a = menu->addAction(s.first);
       connect(a, &QAction::triggered, this, [this, source = s.second] {
         if (onAddInput)
@@ -2501,7 +2619,7 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
             if (d->inputList->row(item) >= d->inputs.size())
               return;
             const auto &in = d->inputs[d->inputList->row(item)];
-            if (!d->busy)
+            if (!d->busy && mode() != Mode::Decompose)
               showInputRegions(in.id);
             else
               d->showPreview(in.image, {}, in.label);
@@ -2519,7 +2637,8 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
       onInputsChanged();
   });
   QVBoxLayout *regionsLayout{};
-  layout->addWidget(section(i18n::text("diffusion.ui.regions"), "DiffusionRegions", regionsLayout));
+  d->regionsSection = section(i18n::text("diffusion.ui.regions"), "DiffusionRegions", regionsLayout);
+  layout->addWidget(d->regionsSection);
   d->outputSceneRow = new QWidget;
   auto *sceneLayout = new QHBoxLayout(d->outputSceneRow);
   sceneLayout->setContentsMargins(0, 0, 0, 0);
@@ -2905,6 +3024,8 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   layout->addStretch();
   configLayout->addStretch();
   outputLayout->addStretch();
+  connect(d->stackBucket, &QComboBox::currentIndexChanged, this, [this] { d->updateActions(); d->queueSave(); });
+  connect(d->stackCount, &QSpinBox::valueChanged, this, [this] { d->queueSave(); });
   connect(d->generate, &QPushButton::clicked, this, [this] {
     if (d->busy) {
       if (onCancel) onCancel();
@@ -3102,7 +3223,7 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
     d->scaleReference = base;
     d->showScale(percent);
   }
-  setMode(Mode(std::clamp(settings.value("diffusion/mode", 0).toInt(), 0, 2)));
+  setMode(Mode(std::clamp(settings.value("diffusion/mode", 0).toInt(), 0, 3)));
   d->updateCapabilities(false);
   d->rebuildInputs();
   d->detectAspectRatio();
@@ -3227,7 +3348,9 @@ void DiffusionPanel::setOutputCanvasSize(QSize size) {
 }
 QTransform DiffusionPanel::resultPlacement() const {
   const auto *result = selectedResult();
-  if (!result || destination() == Destination::NewDocument) return {};
+  if (!result) return {};
+  if (result->mode == Mode::Decompose) return result->toDocument;
+  if (destination() == Destination::NewDocument) return {};
   if (result->mode == Mode::Fill || destination() == Destination::ReplaceSelected)
     return result->toDocument;
   if (result->fitToBounds.value_or(result->mode == Mode::Edit)) {
@@ -3339,7 +3462,7 @@ QJsonObject DiffusionPanel::generationParameters() const {
     params.remove("flowShift");
   const auto loras = d->loras->enabledLoras();
   if (!loras.isEmpty()) params["loras"] = loras;
-  if (supportsImageInputs())
+  if (supportsImageInputs() && mode() != Mode::Decompose)
     params["referenceMaxSize"] = d->maxInputSize->currentData().toInt();
   const auto sampler = params["sampler"].toString();
   if (!(sampler.contains("_a") || sampler.contains("sde") ||
@@ -3353,6 +3476,13 @@ QJsonObject DiffusionPanel::generationParameters() const {
     params["negativePrompt"] = d->negative->toPlainText();
   params["width"] = d->width->value();
   params["height"] = d->height->value();
+  if (mode() == Mode::Decompose) {
+    const auto size = d->stackResolution();
+    params["width"] = size.width();
+    params["height"] = size.height();
+    params["batch"] = 1;
+    params["layerCount"] = d->stackCount->value();
+  }
   params["seed"] = qint64(d->seed->value());
   if (params["schedule"] == "custom") {
     QString text = customSigmas.trimmed();
@@ -3367,7 +3497,13 @@ QJsonObject DiffusionPanel::generationParameters() const {
 QJsonObject DiffusionPanel::prepareGeneration() {
   const auto profile = d->profile();
   const int alignment = profile.value("alignment").toInt(32);
-  const auto sizeError = diffusion::resolutionError(d->width->value(), d->height->value(),
+  QSize size(d->width->value(), d->height->value());
+  if (mode() == Mode::Decompose) {
+    if (const auto error = d->decompositionInputError(); !error.isEmpty())
+      throw std::invalid_argument(error.toStdString());
+    size = d->stackResolution();
+  }
+  const auto sizeError = diffusion::resolutionError(size.width(), size.height(),
       alignment, profile.value("name").toString().toStdString());
   if (!sizeError.empty())
     throw std::invalid_argument(sizeError);
@@ -3557,7 +3693,7 @@ bool DiffusionPanel::addInput(Input input) {
     setStatus(i18n::text("diffusion.ui.this.model.generates.from.text.only.choose"));
     return false;
   }
-  if (input.image.isNull())
+  if (input.image.isNull() || (mode() == Mode::Decompose && !Impl::isDecompositionLayer(input)))
     return false;
   if (d->inputs.size() >= d->maxInputs()) {
     setStatus(i18n::text("diffusion.ui.this.model.accepts.1.references.in.total")
@@ -3576,6 +3712,11 @@ bool DiffusionPanel::addInput(Input input) {
   return true;
 }
 void DiffusionPanel::setInputs(QVector<Input> inputs) {
+  if (mode() == Mode::Decompose && !inputs.isEmpty() &&
+      (inputs.size() != 1 || !Impl::isDecompositionLayer(inputs.front()))) {
+    setStatus("Decomposition accepts one raster layer.", true);
+    return;
+  }
   QSet<QString> ids;
   for (auto &input : inputs) {
     if (input.id.isEmpty() || ids.contains(input.id))
@@ -3609,7 +3750,7 @@ void DiffusionPanel::setMaxInputSize(int size) {
 }
 bool DiffusionPanel::setInputCropToCanvas(const QString &id, bool cropped) {
   const int index = d->inputIndex(id);
-  if (d->busy || index < 0 || d->inputs[index].sourceCanvas.isEmpty()) return false;
+  if (d->busy || mode() == Mode::Decompose || index < 0 || d->inputs[index].sourceCanvas.isEmpty()) return false;
   try {
     auto input = d->inputs[index];
     d->rememberInputRegions(input);
@@ -3979,6 +4120,8 @@ void DiffusionPanel::saveSettings() {
   else s.setValue("diffusion/outputScale", QVariantMap{{"reference", d->scaleReference},
       {"percent", d->scalePercent->value()}, {"multiple", d->resolutionMultiple->currentData()}});
   s.setValue("diffusion/mode", int(mode()));
+  s.setValue("diffusion/stackResolution", d->stackBucket->currentData());
+  s.setValue("diffusion/stackLayerCount", d->stackCount->value());
   s.setValue("diffusion/editImageToImage", d->editImageToImage);
 }
 } // namespace imageeditor::ui

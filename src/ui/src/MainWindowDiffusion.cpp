@@ -148,6 +148,7 @@ struct DiffusionWorkspace {
     QSize inputSize;
     bool croppedEdit{};
     core::LayerId boundedInputLayer{};
+    core::CompositingSpace compositingSpace{core::CompositingSpace::LinearSRgb};
   };
   QMap<QString, ResultContext> resultContexts;
   ResultContext jobContext;
@@ -362,7 +363,14 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
             diffusion_->loadedConfiguration = {};
             diffusion_->residentModels = {};
             diffusion_->refreshLoadedModels();
-            diffusion_->panel->setProfiles(hello.value("profiles").toArray());
+            auto profiles = hello.value("profiles").toArray();
+            // Worker packages update independently. Keep the layered configuration
+            // editable even when an older worker cannot execute its requests.
+            if (std::none_of(profiles.constBegin(), profiles.constEnd(), [](const QJsonValue &value) {
+                  return value.toObject().value("id") == "qwen-image-layered";
+                }))
+              profiles.append(diffusion::modelProfile("qwen-image-layered"));
+            diffusion_->panel->setProfiles(profiles);
             diffusion_->panel->setDevices(hello.value("devices").toArray());
             diffusion_->panel->setSamplers(hello.value("samplers").toArray(),
                                            hello.value("schedulers").toArray());
@@ -428,35 +436,57 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
             s.wanted = false;
             // Each output keeps its frozen inputs independently of later
             // jobs, document edits, or a switch to another editing mode.
-            s.resultContexts[id] = s.jobContext;
+            auto metadata = result;
+            metadata["contextId"] = id;
+            metadata["request"] = s.pendingGeneration;
+            metadata["configuration"] = s.pendingConfiguration;
+            metadata["configurationName"] = s.pendingConfigurationName;
             const auto priorCount = s.panel->results().size();
-            for (const auto &item : images) {
-              const auto object = item.toObject();
-              QImage image(object.value("path").toString());
-              if (image.isNull()) {
-                s.panel->setStatus("The generated image could not be read.",
-                                   true);
-                refreshDiffusion();
-                continue;
+            if (s.jobContext.mode == DiffusionPanel::Mode::Decompose) {
+              const auto count = s.pendingGeneration.value("layerCount").toInt();
+              if (result.value("resultKind") != "layerStack" || count < 2 || images.size() != count)
+                throw std::runtime_error("The worker returned an incomplete decomposition.");
+              QVector<QImage> layers;
+              const QSize expected(s.pendingGeneration["width"].toInt(), s.pendingGeneration["height"].toInt());
+              for (const auto &item : images) {
+                const QImage pixels(item.toObject().value("path").toString());
+                if (pixels.isNull() || pixels.size() != expected || !pixels.hasAlphaChannel())
+                  throw std::runtime_error("The worker returned an invalid RGBA layer. The stack was discarded.");
+                layers.append(srgb(pixels));
               }
-              auto metadata = result;
-              metadata["image"] = object;
-              metadata["contextId"] = id;
-              metadata["request"] = s.pendingGeneration;
-              metadata["configuration"] = s.pendingConfiguration;
-              metadata["configurationName"] = s.pendingConfigurationName;
-              s.panel->appendResult(
-                  {srgb(image), s.jobContext.before,
-                   i18n::text("diffusion.ui.variation.1").arg(++s.variationCounter), metadata,
-                   s.jobContext.mode == DiffusionPanel::Mode::Edit &&
-                           s.jobContext.inputSize.isValid()
-                       ? QTransform::fromScale(
-                             double(s.jobContext.inputSize.width()) /
-                                 image.width(),
-                             double(s.jobContext.inputSize.height()) /
-                                 image.height()) *
-                             s.jobContext.inputToDocument
-                       : QTransform{}, s.jobContext.mode});
+              const auto placement = QTransform::fromScale(double(s.jobContext.inputSize.width()) / expected.width(),
+                                                           double(s.jobContext.inputSize.height()) / expected.height()) *
+                                     s.jobContext.inputToDocument;
+              auto composite = diffusionStackPreview(layers, s.jobContext.compositingSpace);
+              s.resultContexts[id] = s.jobContext;
+              s.panel->appendResult({std::move(composite), s.jobContext.before,
+                                     QString("Decomposition · %1 layers").arg(count), metadata,
+                                     placement, s.jobContext.mode, {}, std::move(layers)});
+            } else {
+              s.resultContexts[id] = s.jobContext;
+              for (const auto &item : images) {
+                const auto object = item.toObject();
+                QImage image(object.value("path").toString());
+                if (image.isNull()) {
+                  s.panel->setStatus("The generated image could not be read.",
+                                     true);
+                  refreshDiffusion();
+                  continue;
+                }
+                metadata["image"] = object;
+                s.panel->appendResult(
+                    {srgb(image), s.jobContext.before,
+                     i18n::text("diffusion.ui.variation.1").arg(++s.variationCounter), metadata,
+                     s.jobContext.mode == DiffusionPanel::Mode::Edit &&
+                             s.jobContext.inputSize.isValid()
+                         ? QTransform::fromScale(
+                               double(s.jobContext.inputSize.width()) /
+                                   image.width(),
+                               double(s.jobContext.inputSize.height()) /
+                                   image.height()) *
+                               s.jobContext.inputToDocument
+                         : QTransform{}, s.jobContext.mode});
+              }
             }
             if (s.panel->results().size() == priorCount)
               throw std::runtime_error(
@@ -574,9 +604,9 @@ void MainWindow::openDiffusion(int requested) {
                         : static_cast<DiffusionPanel::Mode>(requested);
   s.panel->setMode(mode);
   s.mode = s.panel->mode();
-  if (requested >= 0 && s.mode != DiffusionPanel::Mode::Generate)
+  if (requested >= 0 && (s.mode == DiffusionPanel::Mode::Edit || s.mode == DiffusionPanel::Mode::Fill))
     captureDiffusionSession();
-  if (s.mode != mode)
+  if (s.mode != mode && s.mode != DiffusionPanel::Mode::Decompose)
     s.panel->setStatus(i18n::text("diffusion.ui.this.model.generates.from.text.only.choose.2"));
   refreshDiffusion();
 }
@@ -680,6 +710,16 @@ void MainWindow::generateDiffusion() {
       if (!rendered)
         throw std::runtime_error(rendered.error.toStdString());
       before = srgb(rendered.image);
+    } else if (s.mode == DiffusionPanel::Mode::Decompose) {
+      const auto &source = inputs.front();
+      const auto id = source.metadata.value("documentId").toString().toULongLong();
+      const auto layerId = source.metadata.value("layerId").toString().toULongLong();
+      for (const auto &document : documents_)
+        if (document->id == id && !document->closed) owner = document;
+      if (inputs.size() != 1 || !owner || !owner->session.document() ||
+          !canDecomposeLayer(*owner->session.document(), layerId) || !source.metadata.value("boundedLayer").toBool())
+        throw std::runtime_error("Add a visible raster layer to Input images before decomposing.");
+      before = source.fullImage;
     } else if (s.mode == DiffusionPanel::Mode::Edit) {
       const auto &input = inputs.front();
       before = input.image;
@@ -691,6 +731,12 @@ void MainWindow::generateDiffusion() {
         }
     }
     s.jobContext = {owner, target, before, s.mode, {}, {}};
+    if (s.mode == DiffusionPanel::Mode::Decompose) {
+      s.jobContext.boundedInputLayer = inputs.front().metadata.value("layerId").toString().toULongLong();
+      s.jobContext.inputToDocument = inputs.front().fullToDocument;
+      s.jobContext.inputSize = before.size();
+      s.jobContext.compositingSpace = owner->session.document()->canvas().compositingSpace;
+    }
     if (s.mode == DiffusionPanel::Mode::Edit) {
       s.jobContext.inputToDocument = inputs.front().toDocument;
       s.jobContext.inputSize = before.size();
@@ -715,7 +761,7 @@ void MainWindow::generateDiffusion() {
     s.pendingGeneration = s.panel->prepareGeneration();
     const auto size = QSize(s.pendingGeneration.value("width").toInt(1024),
                             s.pendingGeneration.value("height").toInt(1024));
-    if (s.pendingGeneration.value("prompt").toString().trimmed().isEmpty())
+    if (s.mode != DiffusionPanel::Mode::Decompose && s.pendingGeneration.value("prompt").toString().trimmed().isEmpty())
       throw std::runtime_error(i18n::text("diffusion.ui.enter.a.prompt.before.generating").toStdString());
     if (!s.files.isValid())
       throw std::runtime_error("Cannot create a private directory for "
@@ -763,6 +809,10 @@ void MainWindow::generateDiffusion() {
     for (int i = 0; i < inputs.size(); ++i) {
       const auto &input = inputs[i];
       auto image = srgb(input.image);
+      if (s.mode == DiffusionPanel::Mode::Decompose) {
+        image = input.fullImage.scaled(size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+        if (image.isNull()) throw std::bad_alloc();
+      }
       if (!fillMask.isNull() && (i == 0 || (input.metadata["visibleCanvas"].toBool() &&
           input.metadata["documentId"].toString() == QString::number(owner->id)))) {
         const auto placement = i == 0 ? basePlacement : input.toDocument;
@@ -847,6 +897,14 @@ void MainWindow::continueDiffusionJob() {
       !s.loadId.isEmpty() || !s.generateId.isEmpty())
     return;
   const auto actualBackend = s.worker->hello()["backend"].toString();
+  if (s.jobContext.mode == DiffusionPanel::Mode::Decompose &&
+      !s.worker->hello().value("layerStackResults").toBool()) {
+    s.wanted = false;
+    s.panel->setBusy(false);
+    s.panel->setStatus("Update the inference worker to decompose images into layers.", true);
+    updateDiffusionNotice(i18n::text("diffusion.ui.generation.could.not.start"), 0, 0, true);
+    return;
+  }
   if (!s.pendingGeneration.value("loras").toArray().isEmpty() &&
       !s.worker->hello().value("loraParameters").toBool()) {
     s.wanted = false;
@@ -939,7 +997,25 @@ void MainWindow::applyDiffusion() {
     const bool documentSpace = selection;
     const bool available = originalOwner && !originalOwner->closed &&
                            originalOwner->session.document();
-    if (destination == DiffusionPanel::Destination::NewDocument) {
+    if (context.mode == DiffusionPanel::Mode::Decompose) {
+      if (!available || !originalOwner->session.document()->layer(context.boundedInputLayer))
+        throw std::runtime_error("The source layer is no longer available in its original document.");
+      if (originalOwner != activeDocument_ && !activateDocument(originalOwner->id))
+        throw std::runtime_error("Activate the source document before applying the stack.");
+      const auto &document = *session().document();
+      const auto *source = document.layer(context.boundedInputLayer);
+      if (!canDecomposeLayer(document, source->id) || document.canvas().compositingSpace != context.compositingSpace)
+        throw std::runtime_error("The source layer or document blending space changed. Capture the layer again.");
+      const auto current = layerInput(document, *source, originalOwner->id, false);
+      if (current.toDocument != context.inputToDocument || current.image != context.before)
+        throw std::runtime_error("The source layer changed. Capture it again before applying this stack.");
+      const auto &result = *s.panel->selectedResult();
+      auto command = diffusionStackCommand(document, source->id, session().layerSelectionState(),
+                                           result.layers, result.toDocument);
+      if (!executeDocumentCommand(std::move(command)))
+        throw std::runtime_error("The decomposed folder could not be inserted.");
+      fileState().untouched = false;
+    } else if (destination == DiffusionPanel::Destination::NewDocument) {
       QImage documentImage = image;
       if (selection && target) {
         const auto coverage = diffusionSelectionMask(*target, {}, true);
@@ -1235,6 +1311,10 @@ void MainWindow::addDiffusionInput(int sourceValue) {
     return;
   auto &s = *diffusion_;
   const auto source = static_cast<DiffusionPanel::InputSource>(sourceValue);
+  const bool decompose = s.panel->mode() == DiffusionPanel::Mode::Decompose;
+  if (decompose && (!s.panel->inputs().isEmpty() ||
+      (source != DiffusionPanel::InputSource::CurrentLayerAppearance && source != DiffusionPanel::InputSource::DocumentLayerAppearance)))
+    return;
   try {
     DiffusionPanel::Input input;
     if (source == DiffusionPanel::InputSource::File) {
@@ -1263,11 +1343,13 @@ void MainWindow::addDiffusionInput(int sourceValue) {
             choices;
         for (const auto &document : documents_)
           for (const auto &layer : document->session.document()->layers()) {
+            if (decompose && !canDecomposeLayer(*document->session.document(), layer.id)) continue;
             labels.append(document->displayName + " / " +
                           QString::fromStdString(layer.name) +
                           QString(" [%1]").arg(layer.id));
             choices.emplace_back(document, layer.id);
           }
+        if (decompose && choices.empty()) throw std::runtime_error("No compatible document layers are available.");
         WorkspaceDialog presenter(*workspace_, *this);
         QInputDialog chooser(&presenter,
                              Qt::SubWindow | Qt::FramelessWindowHint);
@@ -1303,6 +1385,8 @@ void MainWindow::addDiffusionInput(int sourceValue) {
         const bool raw =
             source == DiffusionPanel::InputSource::CurrentLayerPixels ||
             source == DiffusionPanel::InputSource::DocumentLayerPixels;
+        if (decompose && !canDecomposeLayer(*doc, *id))
+          throw std::runtime_error("Choose a visible color raster outside clipping and channel groups.");
         input = layerInput(*doc, *layer, owner->id, raw);
       }
     }

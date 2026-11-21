@@ -382,7 +382,8 @@ private slots:
     DiffusionPanel panel;
     auto *family = panel.findChild<QComboBox *>("DiffusionFamily");
     auto *variant = panel.findChild<QComboBox *>("DiffusionProfile");
-    QCOMPARE(family->count(), 5);
+    QCOMPARE(family->count(), 6);
+    QVERIFY(family->findData("qwen-image-layered") >= 0);
     QCOMPARE(family->currentText(), QString("Qwen 2.1 Image"));
     QCOMPARE(variant->count(), 2);
     QCOMPARE(variant->currentText(), QString("Turbo"));
@@ -1251,6 +1252,7 @@ private slots:
     for (const auto &value : imageeditor::diffusion::modelProfiles()) {
       QSettings().clear(); // Each profile starts with a fresh 1 MP reference.
       const auto profile = value.toObject();
+      if (!profile["modes"].toArray().contains("generate")) continue; // Decomposition derives its resolution from its captured source.
       DiffusionPanel panel;
       panel.setConfiguration({{"profile", profile["id"]}});
       auto *width = panel.findChild<QSpinBox *>("DiffusionWidth");
@@ -1699,6 +1701,111 @@ private slots:
     preview.setComparisonSplit(1);
     const auto right = preview.grab().toImage();
     QCOMPARE(left.pixelColor(400, 300), right.pixelColor(400, 300));
+  }
+  void decompositionUsesOneLayerInputAndDedicatedControls() {
+    DiffusionPanel panel;
+    panel.setResolution({800, 640});
+    panel.setConfiguration({{"profile", "qwen-image-layered"},
+        {"files", QJsonObject{{"diffusion","model.gguf"},{"textEncoder","encoder.gguf"},{"vae","vae.safetensors"}}}});
+    QCOMPARE(panel.mode(), DiffusionPanel::Mode::Decompose);
+    auto *go = panel.findChild<QPushButton *>("DiffusionGenerate");
+    auto *source = panel.findChild<QLabel *>("DiffusionStackDimensions");
+    auto *count = panel.findChild<QSpinBox *>("DiffusionLayerCount");
+    auto *bucket = panel.findChild<QComboBox *>("DiffusionStackResolution");
+    QVERIFY(source && count && bucket && go);
+    QVERIFY(source->isHidden());
+    QVERIFY(!go->isEnabled());
+    QCOMPARE(count->value(), 4);
+    QCOMPARE(bucket->currentData().toInt(), 640);
+    QImage input(128, 32, QImage::Format_RGBA8888);
+    input.fill(Qt::blue);
+    const DiffusionPanel::Input ink{input, "Ink", "Appearance", false, {{"boundedLayer", true}, {"documentId", "1"}, {"layerId", "2"}}};
+    QVERIFY(!panel.addInput({input, "File", "Disk"}));
+    QVERIFY(panel.addInput(ink));
+    QVERIFY(!panel.addInput(ink));
+    QCOMPARE(panel.inputs().size(), 1);
+    QVERIFY(go->isEnabled());
+    QCOMPARE(panel.prepareGeneration()["prompt"].toString(), QString{});
+    auto *prompt = panel.findChild<QPlainTextEdit *>("DiffusionPrompt");
+    prompt->setPlainText("A panel of blue ink");
+    QVERIFY(go->isEnabled());
+    QVERIFY(source->text().contains("1280 × 320"));
+    const auto defaults = panel.prepareGeneration();
+    QCOMPARE(defaults["width"].toInt(), 1280);
+    QCOMPARE(defaults["height"].toInt(), 320);
+    QCOMPARE(defaults["layerCount"].toInt(), 4);
+    QCOMPARE(defaults["steps"].toInt(), 20);
+    QCOMPARE(defaults["guidance"].toDouble(), 4.);
+    QCOMPARE(defaults["sampler"].toString(), "euler");
+    QCOMPARE(defaults["scheduler"].toString(), "discrete");
+    QCOMPARE(defaults["prompt"].toString(), prompt->toPlainText());
+    QCOMPARE(defaults["batch"].toInt(), 1);
+    QVERIFY(!defaults.contains("referenceMaxSize"));
+    QVERIFY(!defaults.contains("strength"));
+    bucket->setCurrentIndex(bucket->findData(1024));
+    count->setValue(3);
+    const auto request = panel.prepareGeneration();
+    QCOMPARE(request["width"].toInt(), 2048);
+    QCOMPARE(request["height"].toInt(), 512);
+    QCOMPARE(request["layerCount"].toInt(), 3);
+    panel.saveSettings();
+    DiffusionPanel restored;
+    QCOMPARE(restored.mode(), DiffusionPanel::Mode::Decompose);
+    QCOMPARE(restored.findChild<QSpinBox *>("DiffusionLayerCount")->value(), 3);
+    QCOMPARE(restored.findChild<QComboBox *>("DiffusionStackResolution")->currentData().toInt(), 1024);
+    QVERIFY(!restored.findChild<QPushButton *>("DiffusionGenerate")->isEnabled());
+    panel.setConfiguration({{"profile", "krea-2-turbo"}});
+    QCOMPARE(panel.mode(), DiffusionPanel::Mode::Generate);
+    QCOMPARE(panel.request()["width"].toInt(), 800);
+    QCOMPARE(panel.request()["height"].toInt(), 640);
+    QVERIFY(!panel.request().contains("layerCount"));
+  }
+  void inspectStackWithoutChangingTheAppliedResult() {
+    DiffusionPanel panel;
+    QImage composite(32, 32, QImage::Format_RGBA8888);
+    composite.fill(Qt::red);
+    auto bottom = composite, top = composite;
+    bottom.fill(QColor(20, 30, 40, 240));
+    top.fill(QColor(255, 30, 40, 70));
+    QTransform placement;
+    placement.translate(50, 20);
+    placement.scale(2, 2);
+    panel.appendResult({composite, {}, "Stack", {{"contextId","one"}}, placement,
+                        DiffusionPanel::Mode::Decompose, {}, {bottom, top}});
+    panel.setDestination(DiffusionPanel::Destination::NewDocument);
+    QCOMPARE(panel.resultPlacement(), placement);
+    int applied = 0;
+    panel.onApply = [&] {
+      QCOMPARE(panel.selectedResult()->image, composite);
+      QCOMPARE(panel.selectedResult()->layers, QVector<QImage>({bottom, top}));
+      ++applied;
+    };
+    panel.showResultPreview();
+    auto *dialog = panel.findChild<QDialog *>("DiffusionPreviewDialog");
+    QVERIFY(dialog);
+    auto *inspect = dialog->findChild<QComboBox *>("DiffusionStackInspector");
+    auto *preview = dynamic_cast<DiffusionPreview *>(dialog->findChild<QWidget *>("DiffusionPreview"));
+    auto *apply = dialog->findChild<QPushButton *>("DiffusionApply");
+    QVERIFY(inspect && preview && apply);
+    QVERIFY(inspect->isVisible());
+    QCOMPARE(inspect->count(), 3);
+    QCOMPARE(preview->image(), composite);
+    QVERIFY(panel.findChild<QCheckBox *>("DiffusionFitOutput")->isHidden());
+    inspect->setCurrentIndex(1);
+    QCOMPARE(preview->image(), bottom);
+    inspect->setCurrentIndex(2);
+    QCOMPARE(preview->image(), top);
+    QCOMPARE(apply->text(), "Apply as folder");
+    apply->click();
+    QCOMPARE(applied, 1);
+    panel.appendResult({composite, {}, "Plain", {}});
+    panel.showResultPreview();
+    const auto dialogs = panel.findChildren<QDialog *>("DiffusionPreviewDialog");
+    dialog = nullptr;
+    for (auto *candidate : dialogs) if (candidate->isVisible()) dialog = candidate;
+    QVERIFY(dialog);
+    QVERIFY(dialog->findChild<QComboBox *>("DiffusionStackInspector")->isHidden());
+    QCOMPARE(dialog->findChild<QPushButton *>("DiffusionApply")->text(), "Apply");
   }
   void pendingPreviewAndOverlayNavigation() {
     QWidget host;

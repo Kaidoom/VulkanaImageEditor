@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Opt-in native worker protocol tests. No model files or inference are required."""
 import json
+import os
 from pathlib import Path
 import queue
 import struct
@@ -9,6 +10,7 @@ import sys
 import tempfile
 import threading
 import unittest
+import zlib
 
 WORKER = str(Path(sys.argv.pop(1)).resolve())
 
@@ -80,6 +82,16 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(h3["maxReferenceImages"], 16)
         self.assertFalse(h3["imageToImage"])
         self.assertTrue(h3["visionRequiredForReferences"])
+        self.assertTrue(self.hello["layerStackResults"])
+        layered = next(p for p in self.hello["profiles"] if p["id"] == "qwen-image-layered")
+        self.assertEqual(layered["modes"], ["decompose"])
+        self.assertEqual(layered["engineModel"], "Qwen Image Layered")
+        self.assertEqual(layered["maxReferenceImages"], 1)
+        self.assertTrue(layered["rgba"])
+        self.assertFalse(layered["imageToImage"])
+        self.assertFalse(layered["visionRequiredForReferences"])
+        self.assertEqual((layered["sampler"], layered["scheduler"], layered["steps"], layered["guidance"]),
+                         ("euler", "discrete", 20, 4))
         flux = next(p for p in self.hello["profiles"] if p["id"] == "flux3-image-klein-distilled")
         self.assertEqual(flux["alignment"], 16)
         qwen = next(p for p in self.hello["profiles"] if p["id"] == "qwen-image-2.1-turbo")
@@ -128,6 +140,40 @@ class ProtocolTests(unittest.TestCase):
         self.assertIn("Git LFS pointer", result["error"]["message"])
         self.assertTrue(pointer.exists())
         self.assertTrue(self.call("ping")["ok"])
+
+    @unittest.skipUnless(os.getenv("VULKANA_DIFFUSION_TEST_LAYERED_LOAD"),
+                         "Set a local Qwen-Image-Layered load configuration to test request rejection.")
+    def test_layered_request_validation(self):
+        load = json.loads(Path(os.environ["VULKANA_DIFFUSION_TEST_LAYERED_LOAD"]).read_text())
+        self.assertEqual(load["profile"], "qwen-image-layered")
+        loaded = self.call("load", load)
+        self.assertTrue(loaded["ok"], loaded)
+        # A valid 1 × 1 RGBA image lets us exercise the final size check without running inference.
+        def chunk(kind, data):
+            return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+        image = Path(self.directory.name, "pixel.png")
+        image.write_bytes(b"\x89PNG\r\n\x1a\n" +
+                          chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0)) +
+                          chunk(b"IDAT", zlib.compress(b"\0\xff\0\0\xff")) + chunk(b"IEND", b""))
+        params = {"prompt": "A red square.", "width": 640, "height": 640,
+                  "layerCount": 4, "referenceImages": [str(image)]}
+        for override, expected in [
+            ({"layerCount": 1}, "layerCount"), ({"layerCount": 11}, "layerCount"),
+            ({"layerCount": 2.5}, "integer"), ({"batch": 2}, "one image stack"),
+            ({"referenceImages": []}, "one source image"),
+            ({"referenceImages": [str(image)] * 2}, "one source image"),
+            ({"width": 4096, "height": 4096}, "64 megapixels"),
+            ({"referenceMaxSize": 128}, "omit referenceMaxSize"),
+            ({"initialImage": str(image)}, "denoising"), ({"mask": str(image)}, "Generative Fill"),
+            ({"prompt": ""}, "processing dimensions"), ({"prompt": "  \n"}, "processing dimensions"),
+            ({}, "processing dimensions"),
+        ]:
+            with self.subTest(override=override):
+                reply = self.call("generate", {**params, **override})
+                self.assertEqual(reply["error"]["code"], "invalid_arguments", reply)
+                self.assertIn(expected, reply["error"]["message"])
+        self.assertTrue(self.call("status")["result"]["loaded"])
+        self.assertFalse(any(Path(self.directory.name).glob("job-*")))
 
     def test_checkpoint_optional_components_validation(self):
         checkpoint = Path(self.directory.name) / "checkpoint.safetensors"

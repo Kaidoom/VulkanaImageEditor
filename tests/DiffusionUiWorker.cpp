@@ -36,13 +36,18 @@ int main(int argc, char** argv)
         send({ { "id", id }, { "ok", false },
             { "error", QJsonObject { { "code", code }, { "message", message } } } });
     };
+    auto profiles = imageeditor::diffusion::modelProfiles();
+    const bool stacks = !qEnvironmentVariableIsSet("VULKANA_TEST_DIFFUSION_NO_STACK");
+    if (!stacks)
+        for (qsizetype i = profiles.size(); i-- > 0;)
+            if (profiles[i].toObject()["id"] == "qwen-image-layered") profiles.removeAt(i);
     send({ { "event", "hello" }, { "protocol", 1 }, { "backend", qEnvironmentVariableIsSet("VULKANA_TEST_DIFFUSION_PHASES") ? "vulkan" : "test" },
-        { "referenceSizeLimit", true },
+        { "referenceSizeLimit", true }, { "layerStackResults", stacks },
         { "loraParameters", true },
         { "flux3NativeRegions", !qEnvironmentVariableIsSet("VULKANA_TEST_DIFFUSION_SPATIAL_V1") },
         { "spatialVersions", qEnvironmentVariableIsSet("VULKANA_TEST_DIFFUSION_SPATIAL_V1")
               ? QJsonArray { 1 } : QJsonArray { 1, 2, 3 } },
-        { "profiles", imageeditor::diffusion::modelProfiles() },
+        { "profiles", profiles },
         { "devices", QJsonArray { QJsonObject { { "id", "CPU" }, { "name", "Test CPU" } } } },
         { "samplers", QJsonArray { "euler" } }, { "schedulers", QJsonArray { "discrete" } } });
     QByteArray input;
@@ -91,6 +96,19 @@ int main(int argc, char** argv)
         if (params.value("prompt").toString() == "identity") {
             const QImage reference(params["referenceImages"].toArray().first().toString());
             image = reference.scaled(image.size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+        }
+        if (params.contains("layerCount")) {
+            QJsonArray layers;
+            for (int i = 0; i < params["layerCount"].toInt(); ++i) {
+                image.fill(i == 0 ? QColor(Qt::blue) : QColor(255, 0, 0, 110));
+                const auto path = QDir(folder).filePath(QString("layer-%1.png").arg(i));
+                image.save(path);
+                layers.append(QJsonObject{{"path",path},{"width",image.width()},{"height",image.height()},{"channels",4}});
+            }
+            if (params["prompt"] == "incomplete") layers.removeLast();
+            ok(id, {{"images",layers},{"resultKind","layerStack"},{"request",params},{"contextGeneration",serial}});
+            stateEvent();
+            return;
         }
         const auto path = QDir(folder).filePath("image-0.png");
         image.save(path);

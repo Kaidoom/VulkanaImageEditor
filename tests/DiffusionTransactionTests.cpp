@@ -316,6 +316,109 @@ void appearanceKeepsEveryRenderedAlphaPixel()
     CHECK(!invisible && !invisible.error.isEmpty());
 }
 
+void decomposedFolderHistoryAndPreview()
+{
+    const QVector<QImage> images{image(4,3,{252,25,6,175}), image(4,3,{8,32,251,130})};
+    for (const auto space : {c::CompositingSpace::LinearSRgb, c::CompositingSpace::EncodedSRgb}) {
+        c::Layer source;
+        c::EditorSession session;
+        session.replaceDocument(document(&source));
+        auto& doc = *session.document();
+        auto canvas = doc.canvas();
+        canvas.compositingSpace = space;
+        (void)doc.setCanvas(canvas);
+        const auto outer = c::makeLayerId(), inner = c::makeLayerId();
+        auto tree = doc.tree();
+        tree.roots = {outer};
+        tree.containers = {{outer,"Outer",c::ContainerKind::Folder,c::ColorLabel::None,{inner}},
+                           {inner,"Inner",c::ContainerKind::Folder,c::ColorLabel::None,{source.id}}};
+        CHECK(doc.replaceStructure(doc.tree(),tree));
+        session.setActiveLayer(source.id);
+        CHECK(doc.setSelection(c::SelectionMask::rectangle({8,6},{0,0,1,1},128)));
+        const auto selection = session.layerSelectionState();
+        const auto mask = doc.selection();
+        const auto original = u::diffusionRawLayer(source);
+        const auto before = u::flattenDocument(doc);
+        const auto revision = doc.revision();
+        CHECK(u::canDecomposeLayer(doc,source.id));
+        const auto preview = u::diffusionStackPreview(images,space);
+        auto command = u::diffusionStackCommand(doc,source.id,selection,images,QTransform::fromTranslate(2,1));
+        CHECK(doc.tree()==tree && doc.revision()==revision && doc.layer(source.id)->visible);
+        CHECK(before && u::flattenDocument(doc).image==before.image);
+        CHECK(session.execute(std::move(command)));
+        const auto folder = session.activeLayer().value_or(0);
+        const auto* container = doc.tree().container(folder);
+        CHECK(container && container->kind==c::ContainerKind::Folder && container->children.size()==2);
+        if (!container || container->children.size()!=2) return;
+        const auto children = container->children;
+        CHECK(doc.tree().placement(folder)==c::ItemPlacement{inner,1});
+        CHECK(doc.tree().placement(source.id)==c::ItemPlacement{inner,0});
+        CHECK(!doc.layer(source.id)->visible && u::diffusionRawLayer(*doc.layer(source.id))==original);
+        for (std::size_t i=0;i<children.size();++i) {
+            const auto* layer = doc.layer(children[i]);
+            CHECK(layer && !c::layerPixelsReadOnly(*layer) && layer->localToDocument==source.localToDocument);
+            if (layer) CHECK(u::diffusionRawLayer(*layer)==images[i]);
+        }
+        const auto after = u::flattenDocument(doc);
+        CHECK(after && after.image.copy(2,1,4,3)==preview);
+        CHECK(doc.selection()==mask && session.history().undoDepth()==1);
+        CHECK(session.undo());
+        CHECK(doc.tree()==tree && doc.layer(source.id)->visible && doc.selection()==mask);
+        CHECK(session.layerSelectionState()==selection && session.history().undoDepth()==0);
+        CHECK(before && u::flattenDocument(doc).image==before.image);
+        CHECK(session.redo());
+        CHECK(session.activeLayer()==folder && doc.tree().container(folder)->children==children);
+        CHECK(after && u::flattenDocument(doc).image==after.image);
+    }
+}
+
+void decomposedFolderAdmission()
+{
+    c::Layer source;
+    c::EditorSession session;
+    session.replaceDocument(document(&source));
+    auto& doc = *session.document();
+    const QVector<QImage> images{image(3,2,{0,12,48,240}), image(3,2,{252,128,0,95})};
+    const auto expectInvalid = [&](const QVector<QImage>& output, const QTransform& placement = {}) {
+        const auto before = doc.revision();
+        bool threw = false;
+        try { (void)u::diffusionStackCommand(doc,source.id,session.layerSelectionState(),output,placement); }
+        catch (const std::invalid_argument&) { threw = true; }
+        CHECK(threw && before==doc.revision() && session.history().undoDepth()==0);
+    };
+    expectInvalid({});
+    expectInvalid({images[0],image(2,2,{0,0,0,0})});
+    expectInvalid({images[0],images[1].convertToFormat(QImage::Format_RGB32)});
+    expectInvalid(images,QTransform::fromScale(1,0));
+
+    // Shared result-grid placement, including an offset, scale and rotation.
+    const QTransform placement(0,2,-2,0,6,-1);
+    auto command = u::diffusionStackCommand(doc,source.id,session.layerSelectionState(),images,placement);
+    CHECK(session.execute(std::move(command)));
+    const auto* result = doc.tree().container(*session.activeLayer());
+    CHECK(result);
+    if (result) for (const auto child : result->children) {
+        const auto& transform = doc.layer(child)->localToDocument;
+        CHECK(transform.map({0,0})==c::Vec2d{6,-1});
+        CHECK(transform.map({3,2})==c::Vec2d{2,5});
+    }
+    CHECK(session.undo());
+    // Hiding the original while the source is a clipping base would erase
+    // the coverage for its clipped siblings. Reject before generating.
+    const auto clipping = c::makeLayerId(), nested = c::makeLayerId();
+    auto tree=doc.tree(); tree.roots={clipping};
+    tree.containers={{clipping,"Clip",c::ContainerKind::ClippingMaskGroup,c::ColorLabel::None,{nested}},
+                     {nested,"Nested",c::ContainerKind::Folder,c::ColorLabel::None,{source.id}}};
+    CHECK(doc.replaceStructure(doc.tree(),tree));
+    CHECK(!u::canDecomposeLayer(doc,source.id));
+    expectInvalid(images);
+    tree.containers.front().kind=c::ContainerKind::Folder;
+    tree.containers.front().visible=false;
+    CHECK(doc.replaceStructure(doc.tree(),tree));
+    CHECK(!u::canDecomposeLayer(doc,source.id));
+    expectInvalid(images);
+}
+
 void renderedAppearanceDiffersFromRaw()
 {
     c::Layer layer;auto doc=document(&layer);
@@ -333,6 +436,7 @@ int main(int argc,char** argv)
     QGuiApplication app(argc,argv);
     captureAndStaleGuards();selectionMappingAndSoftEdges();
     replacePreservesStateAndUndo();transformedDocumentResults();regionalRasterOriginIsPreserved();newLayerFramesAndMask();fillLayerPreservesVisibleOutside();transparentFillPreviewMatchesNewLayer();transparentFillInputIsOnlyAnInferenceCopy();canvasCroppedInputsAndPlacedReplacement();appearanceKeepsEveryRenderedAlphaPixel();renderedAppearanceDiffersFromRaw();
+    decomposedFolderHistoryAndPreview(); decomposedFolderAdmission();
     std::cout << (failures?"FAIL":"PASS") << " diffusion transaction checks: " << failures << " failures\n";
     return failures?1:0;
 }

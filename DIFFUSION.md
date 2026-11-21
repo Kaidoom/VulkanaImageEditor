@@ -96,6 +96,16 @@ Replace selected layer captures and validates the destination at Apply time, pre
 
 For a canvas-cropped Edit input, replacement uses the captured document placement and preserves destination pixels outside that rectangle. The active selection remains unchanged, and the operation supports undo/redo. Add as New Layer retains the result's captured placement when fitting is checked.
 
+## Decompose into Layers
+
+In the AI Image Editor, select a **Qwen-Image-Layered** configuration. On first use, create one in Configuration with the diffusion weights, Qwen2.5-VL-7B-Instruct text encoder and dedicated RGBA VAE. In Generate, use **Input images → +** to add the current raster layer or choose a layer from an open document. Decomposition takes one layer. Use its trash icon to clear the input and choose another. Leave the positive prompt empty to use the source image alone, or enter a caption to guide decomposition. Choose the layer count and processing resolution, then select **Decompose**. The default 640 resolution bucket preserves the source aspect ratio with dimensions rounded to the model grid. The 1024 bucket can require considerably more memory and time.
+
+Open the resulting preview to inspect **Composite** or an individual RGBA layer. **Apply as folder** places the entire stack above the source at its captured position, hides the original and selects the new folder. Its children are ordinary editable raster layers. One Undo removes the folder and restores the previous visibility and layer selection. Previewing and discarding leave the document untouched. If the source appearance or placement changes, capture it again before applying. Rasters inside clipping or channel groups are ineligible.
+
+Decomposition predicts an approximate separation. The model can keep several subjects together or produce overlapping pieces. A generated child can be decomposed again. Retain the original when checking fine edges and artwork that was occluded in the input.
+
+The native worker advertises `layerStackResults`. The layered profile uses one RGBA reference, batch size one and a `layerCount` of 2–10. A successful response identifies one `layerStack` and lists its PNGs from bottom to top. The worker excludes the engine's extra source-reconstruction slot.
+
 ## Supported models and regions
 
 **MiniMax-H3-Image** supports Generate and reference-based Edit Layer. Select

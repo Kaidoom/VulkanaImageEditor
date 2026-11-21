@@ -259,5 +259,32 @@
     "rgba": false,
     "spatialGuidance": "none",
     "negativePrompt": true
+  },
+  {
+    "id": "qwen-image-layered",
+    "name": "Qwen-Image-Layered",
+    "resultName": "Qwen Layered",
+    "family": "qwen-image-layered",
+    "engineModel": "Qwen Image Layered",
+    "tested": true,
+    "alignment": 32,
+    "steps": 20,
+    "guidance": 4,
+    "sampler": "euler",
+    "scheduler": "discrete",
+    "schedule": "auto",
+    "flowShift": 3.0,
+    "vaeTiling": true,
+    "modes": [
+      "decompose"
+    ],
+    "referenceImages": true,
+    "maxReferenceImages": 1,
+    "visionRequiredForReferences": false,
+    "imageToImage": false,
+    "nativeInpainting": false,
+    "rgba": true,
+    "spatialGuidance": "none",
+    "negativePrompt": true
   }
 ]

@@ -378,7 +378,7 @@ public:
         send({ { "samplers", samplers }, { "schedulers", schedulers }, { "event", "hello" },
             { "generationStages", true },
             { "referenceSizeLimit", true },
-            { "loraParameters", true },
+            { "loraParameters", true }, { "layerStackResults", true },
             { "flux3NativeRegions", true },
             { "protocol", 1 }, { "spatialVersions", Json::array({1, 2, 3}) }, { "engineCommit", VULKANA_DIFFUSION_ENGINE_COMMIT },
             { "backend", VULKANA_DIFFUSION_BACKEND }, { "devices", devices }, { "profiles", profiles() } });
@@ -734,7 +734,7 @@ Json Worker::generate(const Json& p)
         { "prompt", "negativePrompt", "width", "height", "steps", "guidance", "seed", "batch", "sampler",
             "scheduler", "schedule", "sigmas", "strength", "referenceImages", "initialImage", "mask",
             "vaeTiling", "vaeTileSize", "vaeTileOverlap", "preview", "previewInterval", "flowShift",
-            "spatial", "eta", "cacheMode", "cacheReuseThreshold", "cacheStart", "cacheEnd", "referenceMaxSize", "loras" });
+            "spatial", "eta", "cacheMode", "cacheReuseThreshold", "cacheStart", "cacheEnd", "referenceMaxSize", "loras", "layerCount" });
     if (!context)
         throw Failure("model_not_loaded", "Load a model before generating");
     progress("preparing", "inputs");
@@ -799,18 +799,32 @@ Json Worker::generate(const Json& p)
     const bool extendedSpatial = p.contains("spatial") && p["spatial"].value("version", 1) == 3;
     require(nativeFlux || !extendedSpatial, "Spatial schema 3 descriptions and transfers currently apply only to FLUX.3");
     require(nativeFlux || !cropGuidance, "spatial.cropGuidance applies only to FLUX.3");
-    require(!prompt.empty(), "prompt is required");
+    const bool decompose = supportsMode("decompose");
+    if (decompose && prompt.find_first_not_of(" \r\n\t") == std::string::npos)
+        prompt.clear();
+    require(decompose || !prompt.empty(), "prompt is required");
     const int width = integer(p, "width", 1024, 32, 8192), height = integer(p, "height", 1024, 32, 8192);
     const int alignment = loadedProfile["alignment"];
     const auto sizeError = imageeditor::diffusion::resolutionError(width, height, alignment, modelName);
     require(sizeError.empty(), sizeError);
     const int steps = integer(p, "steps", loadedProfile["steps"], 1, 1000),
               batch = integer(p, "batch", 1, 1, 8);
-    require(
-        uint64_t(width) * height * batch <= 67108864, "Combined batch output must not exceed 64 megapixels");
+    require(decompose || !p.contains("layerCount"), "layerCount requires a decomposition profile");
+    const int layerCount = decompose ? integer(p, "layerCount", 4, 2, 10) : 0;
+    if (decompose) {
+        require(batch == 1, "Decompose one image stack at a time");
+        require(p.contains("referenceImages") && p["referenceImages"].is_array() && p["referenceImages"].size() == 1,
+            "Decomposition requires one source image");
+    }
+    // The engine allocates and decodes the reconstruction alongside the editable layers.
+    const int nativeOutputs = decompose ? layerCount + 1 : batch;
+    require(uint64_t(width) * height * nativeOutputs <= 67108864, decompose
+        ? "Combined layer stack and reconstruction must not exceed 64 megapixels"
+        : "Combined batch output must not exceed 64 megapixels");
     const auto guidance = number(p, "guidance", loadedProfile["guidance"], 0, 100);
     const int referenceMaxSize = integer(p, "referenceMaxSize", 0, 0, 8192);
     require(referenceMaxSize == 0 || referenceMaxSize >= 64, "referenceMaxSize must be 0 or 64–8192 pixels");
+    require(!decompose || referenceMaxSize == 0, "For decomposition, size the source to width and height and omit referenceMaxSize");
     require(negative.empty() || guidance > 1,
         "negativePrompt requires guidance greater than 1; it is not used with CFG 1");
     const double seed = number(p, "seed", -1, -1, 9007199254740991.0);
@@ -936,6 +950,11 @@ Json Worker::generate(const Json& p)
     }
     sd_img_gen_params_t params;
     sd_img_gen_params_init(&params);
+    if (decompose) {
+        require(refs.front().width == unsigned(width) && refs.front().height == unsigned(height),
+            "The decomposition source must match the requested processing dimensions");
+        params.ref_image_args = "resize_before_vae=false";
+    }
     std::string referenceArgs;
     std::vector<vulkana::diffusion::SizedReference> resizedReferences;
     Json referenceSizes = Json::array();
@@ -981,6 +1000,7 @@ Json Worker::generate(const Json& p)
     params.height = height;
     params.seed = static_cast<int64_t>(seed);
     params.batch_count = batch;
+    if (decompose) params.qwen_image_layers = layerCount;
     params.sample_params.sample_method = method;
     params.sample_params.scheduler = sched;
     params.sample_params.sample_steps = steps;
@@ -1060,7 +1080,7 @@ Json Worker::generate(const Json& p)
     const double engineMs = millis(engineStart);
     sd_set_preview_callback(nullptr, PREVIEW_NONE, 0, false, false, nullptr);
     checkCancel();
-    if (!success || !result || result->count != batch) {
+    if (!success || !result || (!decompose && result->count != batch)) {
         release();
         std::lock_guard lock(logMutex);
         if (missingVision)
@@ -1077,6 +1097,8 @@ Json Worker::generate(const Json& p)
                                  : "")
                 + (memoryError.empty() ? lastError : memoryError));
     }
+    if (decompose && (!result->items || result->count != nativeOutputs))
+        throw Failure("invalid_output", "Decomposition returned an incomplete layer stack");
     std::string incompatibleLora;
     {
         std::lock_guard lock(logMutex);
@@ -1094,15 +1116,19 @@ Json Worker::generate(const Json& p)
     const auto outputStart = Clock::now();
     progress("saving");
     Json outputs = Json::array();
-    for (int i = 0; i < result->count; ++i) {
+    // Layered slot zero reconstructs the source. Only subsequent slots are editable layers.
+    for (int i = decompose ? 1 : 0; i < result->count; ++i) {
         checkCancel();
+        const auto& pixels = result->items[i].image;
+        if (decompose && (!pixels.data || pixels.channel != 4 || pixels.width != unsigned(width) || pixels.height != unsigned(height)))
+            throw Failure("invalid_output", "Decomposition returned an invalid RGBA layer");
         const auto path = directory / ("image-" + std::to_string(i) + ".png");
-        png(path, result->items[i].image);
+        png(path, pixels);
         Json metadata = Json::object();
         if (result->items[i].generation_info)
             metadata = Json::parse(result->items[i].generation_info, nullptr, false);
-        outputs.push_back({ { "path", path.string() }, { "width", result->items[i].image.width },
-            { "height", result->items[i].image.height }, { "channels", result->items[i].image.channel },
+        outputs.push_back({ { "path", path.string() }, { "width", pixels.width },
+            { "height", pixels.height }, { "channels", pixels.channel },
             { "generationInfo", metadata } });
     }
     Json timings
@@ -1118,7 +1144,7 @@ Json Worker::generate(const Json& p)
         std::lock_guard lock(logMutex);
         timings["engineStagesMs"] = engineTimings;
     }
-    return { { "images", outputs }, { "profile", loadedProfile["id"] }, { "contextGeneration", generation },
+    return { { "images", outputs }, { "resultKind", decompose ? "layerStack" : "images" }, { "profile", loadedProfile["id"] }, { "contextGeneration", generation },
         { "effectiveSettings", effectiveSettings }, { "request", p }, { "timings", timings },
         { "inputRegionReferences", regionReferences }, { "referenceSizes", referenceSizes },
         { "fluxRegionBindings", fluxRegionBindings }, { "fluxRegionRows", fluxRegionRows } };

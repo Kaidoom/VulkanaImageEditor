@@ -1,4 +1,5 @@
 #include "imageeditor/core/MirroredLayers.hpp"
+#include "imageeditor/core/LayerStructureCommands.hpp"
 #include "imageeditor/ui/DiffusionTransaction.hpp"
 #include "imageeditor/ui/QtRasterImageLoader.hpp"
 #include "imageeditor/ui/Localization.hpp"
@@ -440,5 +441,79 @@ std::optional<core::Layer> diffusionResultLayer(const DiffusionTarget* target, c
         if (error) *error = QString::fromUtf8(exception.what());
         return {};
     }
+}
+namespace {
+std::vector<core::Layer> stackRasterLayers(const QVector<QImage>& images)
+{
+    if (images.isEmpty()) throw std::invalid_argument("The decomposition contains no layers.");
+    const auto size = images.front().size();
+    validateSize(size);
+    std::vector<core::Layer> layers;
+    layers.reserve(static_cast<std::size_t>(images.size()));
+    for (const auto& image : images) {
+        if (image.size() != size || !image.hasAlphaChannel())
+            throw std::invalid_argument("Invalid decomposition layer dimensions or alpha channel.");
+        auto raster = rasterLayerFromImage(image, QString("Layer %1").arg(layers.size() + 1));
+        if (!raster) throw std::runtime_error(raster.error.toStdString());
+        layers.push_back(std::move(*raster.layer));
+    }
+    return layers;
+}
+} // namespace
+
+bool canDecomposeLayer(const core::Document& doc, core::LayerId sourceId)
+{
+    const auto* layer = doc.layer(sourceId);
+    const auto* raster = layer ? std::get_if<core::RasterLayer>(&layer->payload) : nullptr;
+    if (!raster || !raster->surface || raster->surface->dataKind() != core::RasterDataKind::Color ||
+        !doc.isEffectivelyVisible(sourceId)) return false;
+    for (auto place = doc.tree().placement(sourceId); place && place->parent; place = doc.tree().placement(place->parent)) {
+        const auto* container = doc.tree().container(place->parent);
+        if (container->kind == core::ContainerKind::ChannelGroup || container->kind == core::ContainerKind::ClippingMaskGroup)
+            return false;
+    }
+    return true;
+}
+
+QImage diffusionStackPreview(const QVector<QImage>& images, core::CompositingSpace space)
+{
+    auto layers = stackRasterLayers(images);
+    const auto size = images.front().size();
+    core::Document preview({{unsigned(size.width()), unsigned(size.height())}, 96.0, space});
+    core::LayerTree tree;
+    for (const auto& layer : layers) tree.roots.push_back(layer.id);
+    if (!preview.replaceStructure(preview.tree(), std::move(tree), {}, layers))
+        throw std::runtime_error("Cannot prepare the decomposed layer preview.");
+    const auto composite = flattenDocument(preview);
+    if (!composite) throw std::runtime_error(composite.error.toStdString());
+    return composite.image;
+}
+
+std::unique_ptr<core::Command> diffusionStackCommand(const core::Document& doc, core::LayerId sourceId,
+    const core::LayerSelectionState& selection, const QVector<QImage>& images, const QTransform& placement)
+{
+    if (!canDecomposeLayer(doc, sourceId))
+        throw std::invalid_argument("Choose a visible color raster outside clipping and channel groups.");
+    const core::AffineTransform transform{placement.m11(), placement.m21(), placement.dx(),
+                                          placement.m12(), placement.m22(), placement.dy(),
+                                          placement.m13(), placement.m23(), placement.m33()};
+    if (!transform.inverted()) throw std::invalid_argument("The decomposed stack has invalid placement.");
+    auto added = stackRasterLayers(images);
+    auto tree = doc.tree();
+    const auto at = *tree.placement(sourceId);
+    const auto folderId = core::makeLayerId();
+    const std::string name = doc.layer(sourceId)->name + " (decomposed)";
+    core::LayerContainer folder{folderId, name.size() <= 4096 ? name : "Decomposed layers",
+                                core::ContainerKind::Folder, core::ColorLabel::None, {}};
+    for (auto& layer : added) {
+        layer.localToDocument = transform;
+        folder.children.push_back(layer.id);
+    }
+    tree.containers.push_back(std::move(folder));
+    auto& siblings = *tree.children(at.parent);
+    siblings.insert(siblings.begin() + std::ptrdiff_t(at.index + 1), folderId);
+    return std::make_unique<core::LayerStructureCommand>("Decompose into Layers", doc, std::move(tree),
+        std::vector<core::LayerId>{}, std::move(added), selection, core::LayerSelectionState{{folderId}, folderId, folderId},
+        std::vector<core::ItemVisibilityUpdate>{{sourceId, true, false}});
 }
 } // namespace imageeditor::ui

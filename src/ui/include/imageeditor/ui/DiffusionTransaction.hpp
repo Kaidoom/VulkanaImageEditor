@@ -33,6 +33,13 @@ struct DiffusionTarget {
 [[nodiscard]] bool diffusionTargetCurrent(
     const core::Document&, const DiffusionTarget&, QString* error = nullptr);
 [[nodiscard]] QImage diffusionRawLayer(const core::Layer&);
+// Stack images share a straight-alpha pixel grid in bottom-to-top order.
+[[nodiscard]] bool canDecomposeLayer(const core::Document&, core::LayerId);
+[[nodiscard]] QImage diffusionStackPreview(const QVector<QImage>& layers,
+    core::CompositingSpace space = core::CompositingSpace::LinearSRgb);
+[[nodiscard]] std::unique_ptr<core::Command> diffusionStackCommand(
+    const core::Document&, core::LayerId source, const core::LayerSelectionState&,
+    const QVector<QImage>& layers, const QTransform& placement);
 // Nontransparent rendered bounds in document pixels, including off-canvas content. Backdrop-dependent blend modes can
 // differ from the visible canvas; use flattenDocument for a full composite.
 [[nodiscard]] FlattenedDocumentResult diffusionRenderedLayer(
