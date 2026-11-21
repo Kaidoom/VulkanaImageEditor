@@ -318,6 +318,67 @@ private slots:
     QCOMPARE(session().document()->revision(), revision);
     QCOMPARE(session().activeTool(), tool);
   }
+  void layerClickReclaimsDeleteFromPrompt_data() {
+    QTest::addColumn<bool>("onCanvas");
+    QTest::newRow("layer list") << false;
+    QTest::newRow("canvas") << true;
+  }
+  void layerClickReclaimsDeleteFromPrompt() {
+    QFETCH(bool, onCanvas);
+    const auto original = *session().activeLayer();
+    child<QAction>("DuplicateLayersAction")->trigger();
+    const auto copy = *session().activeLayer();
+    QVERIFY(copy != original);
+    openMode("AIGenerateImageAction");
+    auto *workspace = dynamic_cast<u::OverlayDockWorkspace *>(child<QWidget>("CanvasWorkspace"));
+    QVERIFY(workspace);
+    auto *surface = workspace->panelOverlay();
+    auto click = [surface](QWidget *widget, QPoint position) {
+      QTest::mouseClick(surface->windowHandle(), Qt::LeftButton, {},
+                        surface->mapFromGlobal(widget->mapToGlobal(position)));
+    };
+    auto *layers = child<QListView>("LayerList");
+    const auto *model = static_cast<u::LayerListModel *>(layers->model());
+    const auto row = model->index(model->rowForLayer(original));
+    QVERIFY(row.isValid());
+    if (onCanvas) {
+      click(layers->viewport(), layers->visualRect(row).center());
+      QTRY_COMPARE(session().activeLayer(), original);
+    }
+    auto *field = child<QPlainTextEdit>("DiffusionPrompt");
+    click(field->viewport(), field->viewport()->rect().center());
+    QTRY_VERIFY(field->hasFocus());
+    QInputMethodEvent input;
+    input.setCommitString("AB");
+    QCoreApplication::sendEvent(window->windowHandle(), &input);
+    QCOMPARE(field->toPlainText(), QString("AB"));
+    field->moveCursor(QTextCursor::Start);
+    QTest::keyClick(window->windowHandle(), Qt::Key_Delete);
+    QCOMPARE(field->toPlainText(), QString("B"));
+    if (onCanvas) {
+      imageeditor::render::CanvasWindow *canvas = nullptr;
+      for (auto *w : QGuiApplication::allWindows())
+        if ((canvas = dynamic_cast<imageeditor::render::CanvasWindow *>(w))) break;
+      QVERIFY(canvas);
+      const auto &scene = canvas->scene();
+      const auto p = scene.viewport.documentToViewport({32, 32}, {64, 64}, scene.logicalViewport);
+      QTest::mouseClick(canvas, Qt::LeftButton, {}, QPoint(qRound(p.x), qRound(p.y)));
+    } else {
+      // Qt can deliver FocusIn before the viewport receives the mouse press.
+      layers->setFocus(Qt::MouseFocusReason);
+      click(layers->viewport(), layers->visualRect(row).center());
+    }
+    const auto target = onCanvas ? copy : original;
+    QTRY_COMPARE(session().activeLayer(), target);
+    QVERIFY(child<QAction>("DeleteSelectedLayersAction")->isEnabled());
+    QTest::keyClick(window->windowHandle(), Qt::Key_Delete);
+    QVERIFY(window->windowHandle()->focusObject() != field);
+    QVERIFY(!session().document()->containsLayer(target));
+    QVERIFY(session().document()->containsLayer(onCanvas ? original : copy));
+    QCOMPARE(field->toPlainText(), QString("B"));
+    QVERIFY(session().undo());
+    QVERIFY(session().document()->containsLayer(target));
+  }
   void presetSnippetsAreEditableWithoutPrompts() {
     openMode("AIEditLayerAction");
     auto *presets = panel->findChild<QComboBox *>("DiffusionPresets");
