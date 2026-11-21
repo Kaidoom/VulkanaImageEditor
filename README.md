@@ -14,32 +14,45 @@ with native Windows builds, a Qt workspace and Vulkan-accelerated canvas.
 - **Layered editing:** raster, editable text and shapes; bitmap masks, folders,
   clipping mask groups, multi-selection, blend modes, duplication, merging and
   explicit rasterization.
+- **Linked projects and mirrored layers** let you reuse artwork. Double-click a
+  [project layer](docs/PROJECT_LAYERS.md) to edit its source, then return to the
+  parent to see the changes. A [mirrored layer](docs/MIRRORED_LAYERS_AND_GUIDES.md)
+  follows its source within a document and can have its own transform and effects.
 - **Channel Groups:** edit individual channels as grayscale layers for packed
   textures, with lossless conversion, numeric painting, retouching and adjustments.
   See the [Channel Groups guide](docs/CHANNEL_GROUPS.md).
-- **Painting and retouching:** pressure-sensitive brushes, procedural and textured
-  presets, erasing, fill, local blur, Clone Stamp, Heal and automatic Spot Heal.
+- **Painting and retouching** includes pressure-sensitive brushes, fill, local blur,
+  Clone Stamp and healing. [Brush Symmetry](docs/BRUSH_SYMMETRY.md) mirrors strokes
+  across a movable axis, including on layer masks. Spot Heal can fill transparent
+  holes and sample visible layers above and below the repair layer.
 - **Selections:** rectangle, ellipse, freehand/polygon/magnetic lasso, select by
   color and brush-guided Quick Selection, with grow/shrink, inversion and reselect.
 - **Object Selection and refinement:** select an object with a rough rectangle
   using the bundled offline model; improve selections and bitmap masks with
   Refine Selection, live previews and manual corrections. No model download or
   Python installation is needed to use Object Selection.
-- **Local AI image editing:** generate images, edit layers and fill selections
-  using your own models with Vulkan or an optional CUDA worker. Preview results before
-  applying them as undoable edits. See [Vulkana Diffusion](DIFFUSION.md) for
-  setup and GPU requirements.
+- **Local AI image editing** lets you generate images, edit layers and fill
+  selections with your own models and LoRAs. Compare results before applying
+  them. Qwen-Image-Layered can split an image into a folder of editable layers.
+  Release builds include Vulkan, with a separate CUDA worker for NVIDIA GPUs.
+  See [Vulkana Diffusion](DIFFUSION.md) for setup and GPU requirements.
 - **Transforms:** move, scale, rotate, flip and corner distortion; transform
-  selection boundaries or selected pixels, with snapping and alignment guides.
+  selection boundaries or selected pixels. Place a centered guide or a set of
+  evenly spaced guides, then snap layers into position.
 - **Non-destructive adjustments:** per-layer corrections and masked adjustment
   layers with All Below / This Group scope; exposure, levels, curves, hue/saturation,
   vibrance, color balance, warmth/tint, monochrome conversion and inversion.
 - **Filters and layer effects:** Gaussian, Motion and Lens Blur; Stroke, Drop/Inner
   Shadow, Outer/Inner Glow, Color Overlay, Gradient Overlay and Bevel & Emboss.
-- **Multiple documents:** tabs with independent history, selections and view state,
-  plus editable layer copying between documents.
+- **Document tabs** keep their own history, selections and zoom. Duplicate a tab
+  to try changes in an unsaved copy, copy layers between documents, or drop
+  images into the Layers panel to place them in the stack.
+- **Layer cleanup** includes a zoomable transparency preview for inspecting hair
+  and soft edges. Delete Inverted clears outside a selection and keeps it active.
+  Trim to Canvas Bounds removes off-canvas pixels from selected layers.
 - **PSD import:** reviewed conversion to native layers, rich text, simple shapes,
-  bitmap masks, clipping groups and supported styles, with explicit saved-raster fallbacks.
+  bitmap masks, clipping groups and supported styles. Review why a conversion is
+  needed and apply the same choice to matching layers in one step.
 - **PSD export:** layered or flattened output, editable text/shapes/masks and
   clipping where supported, with reviewed conversions and a fresh composite.
 - **PDF import:** selected pages at your chosen PPI, as raster layers or separate
@@ -48,7 +61,8 @@ with native Windows builds, a Qt workspace and Vulkan-accelerated canvas.
   canvas/fitted sizes and selectable text where supported.
 - **Workspace and output:** tabbed dockable panels, a Navigator with pan/zoom
   controls, themes, editable shortcuts, rulers, Pixel Preview, native `.vulkana`
-  projects and PNG/JPEG/WebP export.
+  projects and PNG/JPEG/WebP export. Export selected layers at their combined
+  visible bounds, or resize the canvas to fit the selected layer.
 - **Languages:** 16 interface languages, selectable in Preferences → General →
   Language without restarting. All language versions are first drafts; reviews
   and corrections are welcome.

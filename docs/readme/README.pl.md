@@ -15,12 +15,18 @@ obszarem roboczym Qt i płótnem przyspieszanym przez Vulkan.
 - **Edycja warstwowa:** warstwy rastrowe, edytowalny tekst i kształty; maski bitmapowe,
   foldery, grupy masek przycinających, zaznaczanie wielu warstw, tryby mieszania,
   powielanie, scalanie i rasteryzacja na żądanie.
+- **Połączone projekty i warstwy lustrzane** pozwalają wielokrotnie używać tej samej grafiki.
+  Kliknij dwukrotnie [warstwę projektu](../PROJECT_LAYERS.md), aby edytować jej źródło,
+  a po powrocie do projektu nadrzędnego zobaczysz zmiany. [Warstwa lustrzana](../MIRRORED_LAYERS_AND_GUIDES.md)
+  odzwierciedla zmiany źródła w tym samym dokumencie i może mieć własne przekształcenie i efekty.
 - **Grupy kanałów:** edytuj poszczególne kanały jako warstwy w skali szarości
   dla tekstur z pakowanymi danymi, z bezstratną konwersją, malowaniem wartości,
   retuszem i korektami. Zobacz [przewodnik po grupach kanałów](../CHANNEL_GROUPS.md).
-- **Malowanie i retusz:** pędzle reagujące na nacisk, ustawienia proceduralne i teksturowane,
-  gumka, wypełnienie, miejscowe rozmycie, stempel klonujący, pędzel korygujący
-  i automatyczny punktowy pędzel korygujący.
+- **Malowanie i retusz** obejmują pędzle reagujące na nacisk, wypełnienie, miejscowe
+  rozmycie, stempel klonujący i korektę. [Symetria pędzla](../BRUSH_SYMMETRY.md)
+  odbija pociągnięcia względem ruchomej osi, także na maskach warstw. Korekta punktowa
+  może wypełniać przezroczyste ubytki i pobierać próbki z widocznych warstw nad
+  i pod warstwą retuszu.
 - **Zaznaczenia:** prostokąt, elipsa, lasso odręczne/wielokątne/magnetyczne,
   zaznaczanie według koloru i szybkie zaznaczanie prowadzone pędzlem,
   z powiększaniem/pomniejszaniem, odwracaniem i przywracaniem zaznaczenia.
@@ -28,13 +34,16 @@ obszarem roboczym Qt i płótnem przyspieszanym przez Vulkan.
   prostokąta i dołączonego modelu działającego offline; dopracowywanie zaznaczeń i masek
   bitmapowych z podglądem na żywo i ręcznymi poprawkami. Zaznaczanie obiektów nie wymaga
   pobierania modelu ani instalacji Pythona.
-- **Lokalna edycja z AI:** generuj obrazy, edytuj warstwy i wypełniaj zaznaczenia
-  za pomocą własnych modeli i opcjonalnego silnika CUDA. Przeglądaj wyniki przed
-  zastosowaniem odwracalnych zmian. Wymaga obsługiwanej karty NVIDIA;
-  zobacz [Vulkana Diffusion](../../DIFFUSION.md).
-- **Przekształcenia:** przesuwanie, skalowanie, obracanie, odbijanie i zniekształcanie
-  narożników; przekształcanie granic zaznaczenia lub zaznaczonych pikseli,
-  z przyciąganiem i prowadnicami wyrównania.
+- **Lokalna edycja obrazów z AI** pozwala generować obrazy, edytować warstwy i wypełniać
+  zaznaczenia za pomocą własnych modeli i adapterów LoRA. Porównaj wyniki przed ich
+  zastosowaniem. Qwen-Image-Layered może rozdzielić obraz na edytowalne warstwy w folderze.
+  Wydania aplikacji mają wbudowaną obsługę Vulkan. Dla kart NVIDIA dostępny jest osobny
+  moduł CUDA. Instrukcje konfiguracji i wymagania sprzętowe znajdziesz w przewodniku
+  [Vulkana Diffusion](../../DIFFUSION.md).
+- **Przekształcenia** obejmują przesuwanie, skalowanie, obracanie, odbijanie
+  i zniekształcanie za pomocą narożników. Przekształcaj granice zaznaczenia lub
+  zaznaczone piksele. Umieść prowadnicę pośrodku albo kilka prowadnic w równych
+  odstępach i przyciągaj do nich warstwy.
 - **Niedestrukcyjne korekty:** korekty poszczególnych warstw i maskowane warstwy korekcyjne
   o zasięgu Wszystkie poniżej / Ta grupa; ekspozycja, poziomy, krzywe, odcień/nasycenie,
   intensywność kolorów, balans kolorów, ciepło/zabarwienie, konwersja do monochromatyczności
@@ -42,11 +51,17 @@ obszarem roboczym Qt i płótnem przyspieszanym przez Vulkan.
 - **Filtry i efekty warstw:** rozmycie gaussowskie, ruchowe i soczewkowe; obrys,
   cień zewnętrzny/wewnętrzny, blask zewnętrzny/wewnętrzny, nałożenie koloru,
   nałożenie gradientu oraz fazowanie i płaskorzeźba.
-- **Wiele dokumentów:** karty z niezależną historią, zaznaczeniami i stanem widoku
-  oraz kopiowanie edytowalnych warstw między dokumentami.
-- **Import PSD:** konwersja z możliwością sprawdzenia do rodzimych warstw, tekstu
-  sformatowanego, prostych kształtów, masek bitmapowych, grup przycinających
-  i obsługiwanych stylów, z wyraźnie wskazanym użyciem zapisanego rastra w razie potrzeby.
+- **Karty dokumentów** zachowują własną historię, zaznaczenia i poziom powiększenia.
+  Powiel kartę, aby wypróbować zmiany w niezapisanej kopii. Kopiuj warstwy między
+  dokumentami lub przeciągaj obrazy do panelu Warstwy, aby dodać je do stosu.
+- **Oczyszczanie warstw** ułatwia podgląd przezroczystości, w którym można powiększyć
+  włosy i miękkie krawędzie. „Wyczyść odwrócone zaznaczenie” usuwa piksele spoza
+  zaznaczenia i pozostawia zaznaczenie aktywne. „Przytnij do granic płótna” usuwa
+  z zaznaczonych warstw piksele poza płótnem.
+- **Import PSD** obsługuje konwersję na rodzime warstwy, tekst sformatowany, proste
+  kształty, maski bitmapowe, grupy przycinające i obsługiwane style. Sprawdź,
+  dlaczego warstwa wymaga konwersji, i zastosuj ten sam wybór do wszystkich
+  pasujących warstw naraz.
 - **Eksport PSD:** wynik warstwowy lub spłaszczony, edytowalny tekst/kształty/maski
   i przycinanie tam, gdzie są obsługiwane, z możliwością sprawdzenia konwersji
   i nowo wygenerowanym obrazem złożonym.
@@ -57,6 +72,8 @@ obszarem roboczym Qt i płótnem przyspieszanym przez Vulkan.
 - **Obszar roboczy i zapis:** dokowalne panele z kartami, Nawigator z przesuwaniem
   i powiększaniem, motywy, edytowalne skróty, linijki, podgląd pikseli, rodzime
   projekty `.vulkana` i eksport PNG/JPEG/WebP.
+  Eksportuj zaznaczone warstwy przycięte do wspólnych granic ich widocznej zawartości
+  lub zmień rozmiar płótna, aby dopasować je do zaznaczonej warstwy.
 - **Języki:** 16 języków interfejsu, wybieranych w Preferencje → Ogólne → Język
   bez ponownego uruchamiania. Wszystkie wersje językowe są wstępne;
   zachęcamy do ich sprawdzania i zgłaszania poprawek.
@@ -156,7 +173,8 @@ Każdy dokument ma własną zawartość i historię; karty współdzielą obszar
 i renderer Vulkan. Edytowalne dane źródłowe są oddzielone od pamięci podręcznych
 renderowania. Płótno, podgląd pikseli i eksport korzystają z tych samych reguł kompozycji.
 
-Zobacz [dokumentację dla programistów](../README.md) i [przewodnik po architekturze](../ARCHITECTURE.md).
+Zobacz [dokumentację dla programistów](../README.md), [przewodnik po architekturze](../ARCHITECTURE.md)
+oraz [opis konfiguracji i narzędzi MCP](../MCP.md).
 
 ## Licencja
 

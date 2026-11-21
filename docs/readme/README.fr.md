@@ -15,13 +15,22 @@ avec un espace de travail Qt et un canevas accéléré par Vulkan.
 - **Édition par calques :** calques matriciels, textes et formes modifiables ;
   masques bitmap, dossiers, groupes de masques d’écrêtage, sélection multiple,
   modes de fusion, duplication, fusion et pixellisation explicite.
+- **Les projets liés et les calques miroir** permettent de réutiliser un dessin.
+  Double-cliquez sur un [calque de projet](../PROJECT_LAYERS.md) pour modifier
+  sa source, puis revenez au projet parent pour voir les changements. Un
+  [calque miroir](../MIRRORED_LAYERS_AND_GUIDES.md) suit les modifications de sa
+  source dans le même document et peut avoir sa propre transformation et ses
+  propres effets.
 - **Groupes de canaux :** modifiez chaque canal comme un calque en niveaux de gris
   pour les textures regroupant plusieurs données, avec conversion sans perte,
   peinture numérique, retouches et réglages. Consultez le
   [guide des groupes de canaux](../CHANNEL_GROUPS.md).
-- **Peinture et retouche :** pinceaux sensibles à la pression, préréglages
-  procéduraux et texturés, gomme, remplissage, flou local, tampon de duplication,
-  correcteur et correcteur localisé automatique.
+- **Les outils de peinture et de retouche** comprennent les pinceaux sensibles
+  à la pression, le remplissage, le flou local, le tampon de duplication et les
+  outils de correction. La [symétrie du pinceau](../BRUSH_SYMMETRY.md) reproduit
+  les traits de part et d’autre d’un axe mobile, y compris sur les masques de
+  calque. La correction localisée peut combler des trous transparents et prélever
+  des pixels sur les calques visibles au-dessus et au-dessous du calque de retouche.
 - **Sélections :** rectangle, ellipse, lasso à main levée, polygonal ou magnétique,
   sélection par couleur et sélection rapide guidée au pinceau, avec agrandissement,
   réduction, inversion et rétablissement de la sélection.
@@ -30,13 +39,17 @@ avec un espace de travail Qt et un canevas accéléré par Vulkan.
   et les masques bitmap avec l’outil d’amélioration de la sélection, ses aperçus en
   direct et les corrections manuelles. Aucun téléchargement de modèle ni aucune
   installation de Python n’est nécessaire pour utiliser la sélection d’objet.
-- **Édition locale par IA :** générez des images, modifiez des calques et remplissez
-  des sélections avec vos propres modèles et le moteur CUDA facultatif. Prévisualisez
-  les résultats avant de les appliquer comme modifications annulables. Nécessite un
-  GPU NVIDIA compatible ; consultez [Vulkana Diffusion](../../DIFFUSION.md).
-- **Transformations :** déplacement, mise à l’échelle, rotation, retournement et
-  déformation par les coins ; transformez les limites d’une sélection ou les pixels
-  sélectionnés, avec magnétisme et repères d’alignement.
+- **L’édition locale par IA** permet de générer des images, de modifier des
+  calques et de remplir des sélections avec vos propres modèles et LoRA.
+  Comparez les résultats avant de les appliquer. Qwen-Image-Layered peut
+  décomposer une image en un dossier de calques modifiables. Les versions
+  distribuées incluent Vulkan. Un moteur CUDA distinct est disponible pour les
+  GPU NVIDIA. Consultez [Vulkana Diffusion](../../DIFFUSION.md) pour la
+  configuration et les prérequis matériels.
+- **Les transformations** permettent de déplacer, de redimensionner, de faire
+  pivoter, de retourner ou de déformer par les coins les calques, les contours de
+  sélection ou les pixels sélectionnés. Placez un repère au centre ou plusieurs
+  repères à intervalles réguliers pour y aligner les calques par magnétisme.
 - **Réglages non destructifs :** corrections par calque et calques de réglage
   masqués, appliqués à tous les calques inférieurs ou au groupe courant ; exposition,
   niveaux, courbes, teinte/saturation, vibrance, balance des couleurs, chaleur/teinte,
@@ -44,11 +57,19 @@ avec un espace de travail Qt et un canevas accéléré par Vulkan.
 - **Filtres et effets de calque :** flou gaussien, directionnel et de l’objectif ;
   contour, ombre portée/interne, lueur externe/interne, incrustation de couleur,
   incrustation en dégradé, biseautage et estampage.
-- **Documents multiples :** onglets avec historique, sélections et état d’affichage
-  indépendants, et copie de calques modifiables entre documents.
-- **Importation PSD :** conversion avec vérification en calques natifs, texte
-  enrichi, formes simples, masques bitmap, groupes d’écrêtage et styles pris en
-  charge, avec recours explicite aux versions matricielles enregistrées si nécessaire.
+- **Les onglets de document** conservent chacun leur historique, leurs sélections
+  et leur niveau de zoom. Dupliquez un onglet pour faire des essais sur une copie
+  non enregistrée, copiez des calques entre documents ou déposez des images dans
+  le panneau Calques pour les insérer dans la pile.
+- **Le nettoyage des calques** s’appuie sur un aperçu de la transparence que vous
+  pouvez agrandir pour examiner les cheveux et les contours flous.
+  « Effacer la sélection inversée » efface les pixels hors de la sélection et la
+  garde active. Sur les calques sélectionnés, « Rogner aux limites du canevas »
+  supprime les pixels situés hors du canevas.
+- **L’importation PSD** permet de vérifier la conversion en calques natifs,
+  texte enrichi, formes simples, masques bitmap, groupes d’écrêtage et styles
+  pris en charge. Consultez la raison d’une conversion et appliquez en une fois
+  le même choix aux calques du même type.
 - **Exportation PSD :** sortie avec calques ou aplatie, textes, formes et masques
   modifiables et écrêtage lorsque le format le permet, avec vérification des
   conversions et une image composite recalculée.
@@ -60,6 +81,8 @@ avec un espace de travail Qt et un canevas accéléré par Vulkan.
 - **Espace de travail et sortie :** panneaux ancrables à onglets, navigateur avec
   commandes de déplacement et de zoom, thèmes, raccourcis modifiables, règles,
   aperçu des pixels, projets natifs `.vulkana` et exportation PNG/JPEG/WebP.
+  Exportez les calques sélectionnés en recadrant sur la zone qui englobe leur
+  contenu visible, ou adaptez les dimensions du canevas au calque sélectionné.
 - **Langues :** 16 langues d’interface, sélectionnables dans Préférences → Général →
   Langue sans redémarrage. Toutes les versions linguistiques sont des premières
   ébauches ; les relectures et corrections de chacun sont les bienvenues.
@@ -164,8 +187,8 @@ un espace de travail et un moteur de rendu Vulkan. Les données sources modifiab
 restent séparées des caches de rendu. Le canevas, l’aperçu des pixels et
 l’exportation suivent les mêmes règles de composition.
 
-Consultez la [documentation de développement](../README.md) et le
-[guide d’architecture](../ARCHITECTURE.md).
+Consultez la [documentation de développement](../README.md), le [guide d’architecture](../ARCHITECTURE.md)
+et le [guide de configuration et des outils MCP](../MCP.md).
 
 ## Licence
 

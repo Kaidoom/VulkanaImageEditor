@@ -15,33 +15,51 @@ sunan bir görüntü düzenleyici.
 - **Katmanlı düzenleme:** raster katmanlar, düzenlenebilir metin ve şekiller; bitmap
   maskeleri, klasörler, kırpma maskesi grupları, çoklu seçim, karıştırma modları,
   çoğaltma, birleştirme ve isteğe bağlı rasterleştirme.
+- **Bağlantılı projeler ve ayna katmanlar** aynı çizimi yeniden kullanmanızı sağlar.
+  Kaynağını düzenlemek için bir [proje katmanına](../PROJECT_LAYERS.md) çift tıklayın.
+  Ana projeye döndüğünüzde değişiklikleri görebilirsiniz. [Ayna katman](../MIRRORED_LAYERS_AND_GUIDES.md)
+  aynı belgedeki kaynağını takip eder ve kendi dönüşümüne ve efektlerine sahip olabilir.
 - **Kanal grupları:** paketlenmiş dokular için kanalları ayrı gri tonlamalı
   katmanlar olarak düzenleyin; kayıpsız dönüşüm, sayısal boyama, rötuş ve ayarları
   kullanın. [Kanal grupları kılavuzuna](../CHANNEL_GROUPS.md) bakın.
-- **Boyama ve rötuş:** basınca duyarlı fırçalar, işlemsel ve dokulu hazır ayarlar,
-  silgi, dolgu, yerel bulanıklaştırma, Klonlama Damgası, İyileştirme ve otomatik Nokta İyileştirme.
+- **Boyama ve rötuş** için basınca duyarlı fırçalar, dolgu, yerel bulanıklaştırma,
+  klon damgası ve onarım araçları bulunur. [Fırça simetrisi](../BRUSH_SYMMETRY.md),
+  katman maskelerinde de fırça darbelerini hareketli bir eksene göre yansıtır.
+  “Nokta Onar” saydam boşlukları doldurabilir ve onarım katmanının üstündeki ve
+  altındaki görünür katmanlardan örnek alabilir.
 - **Seçimler:** dikdörtgen, elips, serbest/poligonal/manyetik kement, renge göre seçim
   ve fırçayla yönlendirilen Hızlı Seçim; büyütme/küçültme, ters çevirme ve yeniden seçme.
 - **Nesne Seçimi ve iyileştirme:** birlikte gelen çevrimdışı modeli kullanarak bir
   nesneyi kabaca çizilmiş bir dikdörtgenle seçme; Seçimi İyileştir, canlı önizlemeler
   ve elle düzeltmelerle seçimleri ve bitmap maskelerini iyileştirme. Nesne Seçimi
   için model indirmeniz veya Python yüklemeniz gerekmez.
-- **Yerel yapay zekâ düzenleme:** kendi modelleriniz ve isteğe bağlı CUDA motoruyla
-  görüntü üretin, katmanları düzenleyin ve seçimleri doldurun. Sonuçları geri alınabilir
-  değişiklikler olarak uygulamadan önce önizleyin. Desteklenen bir NVIDIA GPU gerekir;
-  [Vulkana Diffusion](../../DIFFUSION.md) kılavuzuna bakın.
-- **Dönüşümler:** taşıma, ölçekleme, döndürme, çevirme ve köşeleri çarpıtma;
-  yakalama ve hizalama kılavuzlarıyla seçim sınırlarını veya seçili pikselleri dönüştürme.
+- **Yerel yapay zekâyla görüntü düzenleme** sayesinde kendi modellerinizle ve
+  LoRA'larınızla görüntü üretin, katmanları düzenleyin ve seçili alanları doldurun.
+  Uygulamadan önce sonuçları karşılaştırın. Qwen-Image-Layered bir görüntüyü bir
+  klasörde toplanan düzenlenebilir katmanlara ayırabilir. Dağıtılan sürümlere
+  Vulkan dahildir. NVIDIA GPU'lar için ayrı bir CUDA işçisi sunulur. Kurulum ve
+  GPU gereksinimleri için [Vulkana Diffusion](../../DIFFUSION.md) kılavuzuna bakın.
+- **Dönüşümler** taşıma, ölçekleme, döndürme, çevirme ve köşeleri çarpıtma
+  işlemlerini kapsar. Seçim sınırlarını veya seçili pikselleri dönüştürün.
+  Ortaya bir kılavuz ya da eşit aralıklarla bir dizi kılavuz yerleştirip
+  yakalama özelliğiyle katmanları hizalayın.
 - **Tahribatsız ayarlamalar:** katman başına düzeltmeler ve Aşağıdakilerin Tümü / Bu Grup
   kapsamına sahip maskeli ayarlama katmanları; pozlama, düzeyler, eğriler, ton/doygunluk,
   canlılık, renk dengesi, sıcaklık/renk tonu, tek renkli dönüşüm ve renkleri tersine çevirme.
 - **Filtreler ve katman efektleri:** Gauss, Hareket ve Lens Bulanıklığı; Kontur,
   Dış/İç Gölge, Dış/İç Işıma, Renk Kaplama, Degrade Kaplama ve Eğim ve Kabartma.
-- **Birden fazla belge:** bağımsız geçmişe, seçimlere ve görünüm durumuna sahip
-  sekmeler; belgeler arasında düzenlenebilir katman kopyalama.
-- **PSD içe aktarma:** dönüşümleri gözden geçirerek yerel katmanlara, zengin metne,
-  basit şekillere, bitmap maskelerine, kırpma gruplarına ve desteklenen stillere aktarma;
-  gerektiğinde kayıtlı raster verisinin kullanılacağını açıkça belirtme.
+- **Belge sekmeleri** kendi geçmişini, seçimlerini ve yakınlaştırma düzeyini
+  korur. Değişiklikleri kaydedilmemiş bir kopyada denemek için sekmeyi çoğaltın.
+  Belgeler arasında katman kopyalayabilir veya görüntüleri Katmanlar paneline
+  sürükleyerek katman yığınına ekleyebilirsiniz.
+- **Katman temizliği** sırasında saydamlık önizlemesini yakınlaştırarak saç
+  tellerini ve yumuşak kenarları inceleyin. “Ters seçimi sil” seçimin dışını
+  temizler ve seçimi etkin tutar. “Tuval sınırlarına kırp” seçili katmanlardan
+  tuval dışındaki pikselleri kaldırır.
+- **PSD içe aktarma** sırasında içerik yerel katmanlara, zengin metne, basit
+  şekillere, bitmap maskelerine, kırpma gruplarına ve desteklenen stillere
+  dönüştürülebilir. Dönüşümün neden gerektiğini inceleyin ve aynı seçeneği
+  eşleşen katmanlara tek adımda uygulayın.
 - **PSD dışa aktarma:** katmanlı veya düzleştirilmiş çıktı; desteklendiği durumlarda
   düzenlenebilir metin/şekil/maskeler ve kırpma, gözden geçirilebilir dönüşümler
   ve yeniden oluşturulan birleşik görüntü.
@@ -53,6 +71,8 @@ sunan bir görüntü düzenleyici.
 - **Çalışma alanı ve çıktı:** sekmeli, kenetlenebilir paneller; kaydırma/yakınlaştırma
   denetimli Gezgin, temalar, düzenlenebilir kısayollar, cetveller, Piksel Önizleme,
   yerel `.vulkana` projeleri ve PNG/JPEG/WebP dışa aktarma.
+  Seçili katmanları, görünür içeriklerini çevreleyen en küçük dikdörtgenle sınırlı
+  olarak dışa aktarabilir veya tuvali seçili katmana sığacak şekilde yeniden boyutlandırabilirsiniz.
 - **Diller:** Tercihler → Genel → Dil bölümünden yeniden başlatmadan seçilebilen
   16 arayüz dili. Tüm dil sürümleri ilk taslaktır; inceleme ve düzeltmeler
   memnuniyetle karşılanır.
@@ -152,7 +172,8 @@ Her belgenin içeriği ve geçmişi kendisine aittir; sekmeler tek bir çalışm
 ve Vulkan işleyicisini paylaşır. Düzenlenebilir kaynak verileri işleme önbelleklerinden
 ayrı tutulur. Tuval, Piksel Önizleme ve dışa aktarma aynı birleştirme kurallarını kullanır.
 
-[Geliştirici belgelerine](../README.md) ve [mimari kılavuzuna](../ARCHITECTURE.md) bakın.
+[Geliştirici belgelerine](../README.md), [mimari kılavuzuna](../ARCHITECTURE.md)
+ve [MCP kurulumu ve araçları kılavuzuna](../MCP.md) bakın.
 
 ## Lisans
 

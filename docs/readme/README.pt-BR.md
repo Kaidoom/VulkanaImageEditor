@@ -15,12 +15,20 @@ com uma área de trabalho Qt e uma tela acelerada por Vulkan.
 - **Edição em camadas:** camadas raster, texto e formas editáveis; máscaras bitmap,
   pastas, grupos de máscaras de corte, seleção múltipla, modos de mesclagem,
   duplicação, mesclagem e rasterização explícita.
+- **Projetos vinculados e camadas espelhadas** permitem reutilizar um desenho.
+  Clique duas vezes em uma [camada de projeto](../PROJECT_LAYERS.md) para editar
+  a origem e volte ao projeto principal para ver as alterações. Uma
+  [camada espelhada](../MIRRORED_LAYERS_AND_GUIDES.md) acompanha as mudanças na
+  camada de origem dentro do documento e pode ter transformações e efeitos próprios.
 - **Grupos de canais:** edite canais individuais como camadas em tons de cinza
   para texturas com dados empacotados, com conversão sem perdas, pintura numérica,
   retoque e ajustes. Consulte o [guia de grupos de canais](../CHANNEL_GROUPS.md).
-- **Pintura e retoque:** pincéis sensíveis à pressão, predefinições procedurais
-  e texturizadas, borracha, preenchimento, desfoque local, carimbo de clonagem,
-  pincel de recuperação e recuperação localizada automática.
+- **As ferramentas de pintura e retoque** incluem pincéis sensíveis à pressão,
+  preenchimento, desfoque local, carimbo de clonagem e ferramentas de correção.
+  A [simetria do pincel](../BRUSH_SYMMETRY.md) espelha as pinceladas em torno
+  de um eixo móvel, inclusive em máscaras de camada. A correção pontual pode
+  preencher lacunas transparentes e coletar amostras das camadas visíveis acima
+  e abaixo da camada de retoque.
 - **Seleções:** retângulo, elipse, laço à mão livre/poligonal/magnético, seleção
   por cor e seleção rápida guiada por pincel, com expansão, contração, inversão
   e recuperação da seleção.
@@ -28,13 +36,17 @@ com uma área de trabalho Qt e uma tela acelerada por Vulkan.
   aproximado usando o modelo offline incluído; melhore seleções e máscaras bitmap
   com Refinar seleção, prévias em tempo real e correções manuais. A seleção de
   objetos não exige baixar um modelo nem instalar Python.
-- **Edição local com IA:** gere imagens, edite camadas e preencha seleções usando
-  seus próprios modelos e o mecanismo CUDA opcional. Veja os resultados antes de
-  aplicá-los como alterações que podem ser desfeitas. Requer uma GPU NVIDIA
-  compatível; consulte [Vulkana Diffusion](../../DIFFUSION.md).
-- **Transformações:** mover, redimensionar, girar, espelhar e distorcer pelos
-  cantos; transforme os limites da seleção ou os pixels selecionados, com encaixe
-  e guias de alinhamento.
+- **A edição local com IA** permite gerar imagens, editar camadas e preencher
+  seleções com seus próprios modelos e LoRAs. Compare os resultados antes de
+  aplicá-los. O Qwen-Image-Layered pode decompor uma imagem em uma pasta de
+  camadas editáveis. As versões distribuídas incluem o Vulkan. Para GPUs NVIDIA,
+  há um processo de inferência CUDA disponível à parte. Consulte
+  [Vulkana Diffusion](../../DIFFUSION.md) para ver as instruções de configuração
+  e os requisitos de GPU.
+- **As transformações** permitem mover, redimensionar, girar, espelhar e distorcer
+  pelos cantos, inclusive os limites da seleção ou os pixels selecionados.
+  Posicione uma guia no centro ou várias em intervalos regulares e use o encaixe
+  para alinhar as camadas.
 - **Ajustes não destrutivos:** correções por camada e camadas de ajuste com máscara,
   aplicadas a todas as camadas abaixo ou ao grupo atual; exposição, níveis, curvas,
   matiz/saturação, vibração, equilíbrio de cores, calor/matiz, conversão
@@ -42,11 +54,18 @@ com uma área de trabalho Qt e uma tela acelerada por Vulkan.
 - **Filtros e efeitos de camada:** desfoque gaussiano, de movimento e de lente;
   traçado, sombra projetada/interna, brilho externo/interno, sobreposição de cor,
   sobreposição de degradê e chanfro e entalhe.
-- **Vários documentos:** abas com histórico, seleções e estado de visualização
-  independentes, além de cópia de camadas editáveis entre documentos.
-- **Importação PSD:** conversão com revisão para camadas nativas, texto formatado,
-  formas simples, máscaras bitmap, grupos de corte e estilos compatíveis, com
-  uso explícito das versões raster salvas quando necessário.
+- **As abas de documentos** mantêm seu próprio histórico, suas seleções e seu
+  nível de zoom. Duplique uma aba para testar alterações em uma cópia ainda não
+  salva, copie camadas entre documentos ou arraste imagens para o painel Camadas
+  para inseri-las na pilha.
+- **A limpeza de camadas** inclui uma prévia de transparência que você pode
+  ampliar para examinar fios de cabelo e bordas suaves. “Apagar seleção inversa”
+  apaga os pixels fora da seleção e a mantém ativa. “Aparar aos limites da tela”
+  remove das camadas selecionadas os pixels que ficam fora da tela.
+- **A importação de PSD** permite revisar a conversão em camadas nativas, texto
+  formatado, formas simples, máscaras bitmap, grupos de corte e estilos
+  compatíveis. Veja por que uma conversão é necessária e aplique a mesma opção a
+  todas as camadas do mesmo tipo de uma só vez.
 - **Exportação PSD:** saída em camadas ou achatada, texto/formas/máscaras editáveis
   e recorte quando compatível, com revisão das conversões e uma imagem composta
   gerada novamente.
@@ -58,6 +77,8 @@ com uma área de trabalho Qt e uma tela acelerada por Vulkan.
 - **Área de trabalho e saída:** painéis acopláveis com abas, um navegador com
   controles de deslocamento e zoom, temas, atalhos editáveis, réguas, prévia de
   pixels, projetos nativos `.vulkana` e exportação PNG/JPEG/WebP.
+  Exporte as camadas selecionadas com um recorte que abrange todo o conteúdo
+  visível dessas camadas ou ajuste o tamanho da tela à camada selecionada.
 - **Idiomas:** 16 idiomas de interface, selecionáveis em Preferências → Geral →
   Idioma sem reiniciar. Todas as versões de idioma são rascunhos iniciais;
   revisões e correções de qualquer pessoa interessada são bem-vindas.
@@ -162,8 +183,8 @@ uma área de trabalho e um renderizador Vulkan. Os dados de origem editáveis
 permanecem separados dos caches de renderização. A tela, a prévia de pixels e
 a exportação compartilham as mesmas regras de composição.
 
-Consulte a [documentação para desenvolvedores](../README.md) e o
-[guia de arquitetura](../ARCHITECTURE.md).
+Consulte a [documentação para desenvolvedores](../README.md), o [guia de arquitetura](../ARCHITECTURE.md)
+e o [guia de configuração e ferramentas do MCP](../MCP.md).
 
 ## Licença
 

@@ -15,12 +15,21 @@ con un espacio de trabajo Qt y un lienzo acelerado por Vulkan.
 - **Edición con capas:** capas ráster, texto y formas editables; máscaras de mapa
   de bits, carpetas, grupos de máscaras de recorte, selección múltiple, modos de
   fusión, duplicación, combinación y rasterización explícita.
+- **Los proyectos vinculados y las capas espejo** permiten reutilizar un mismo
+  dibujo. Haz doble clic en una [capa de proyecto](../PROJECT_LAYERS.md) para
+  editar su origen y vuelve al proyecto principal para ver los cambios. Una
+  [capa espejo](../MIRRORED_LAYERS_AND_GUIDES.md) refleja los cambios de la capa
+  de origen dentro del documento y puede tener su propia transformación y sus
+  propios efectos.
 - **Grupos de canales:** edita cada canal como una capa en escala de grises para
   texturas con datos empaquetados, con conversión sin pérdida, pintura numérica,
   retoque y ajustes. Consulta la [guía de grupos de canales](../CHANNEL_GROUPS.md).
-- **Pintura y retoque:** pinceles sensibles a la presión, preajustes procedurales
-  y con textura, borrado, relleno, desenfoque local, tampón de clonar, corrector
-  y corrector puntual automático.
+- **Las herramientas de pintura y retoque** incluyen pinceles sensibles a la
+  presión, relleno, desenfoque local, tampón de clonar y herramientas de
+  corrección. La [simetría del pincel](../BRUSH_SYMMETRY.md) refleja los trazos
+  respecto a un eje que puedes mover, incluso en las máscaras de capa. El
+  corrector puntual puede rellenar huecos transparentes y tomar muestras de las
+  capas visibles por encima y por debajo de la capa de retoque.
 - **Selecciones:** rectángulo, elipse, lazo a mano alzada/poligonal/magnético,
   selección por color y selección rápida guiada por pincel, con ampliación,
   reducción, inversión y recuperación de la selección.
@@ -29,13 +38,16 @@ con un espacio de trabajo Qt y un lienzo acelerado por Vulkan.
   selecciones y las máscaras de mapa de bits con Perfeccionar selección, vistas
   previas en directo y correcciones manuales. La selección de objetos no requiere
   descargar un modelo ni instalar Python.
-- **Edición local con IA:** genera imágenes, edita capas y rellena selecciones con
-  tus propios modelos y el motor CUDA opcional. Previsualiza los resultados antes
-  de aplicarlos como cambios que puedes deshacer. Requiere una GPU NVIDIA compatible;
-  consulta [Vulkana Diffusion](../../DIFFUSION.md).
-- **Transformaciones:** mover, escalar, rotar, voltear y distorsionar desde las
-  esquinas; transforma los límites de la selección o los píxeles seleccionados,
-  con ajuste automático y guías de alineación.
+- **La edición local con IA** permite generar imágenes, editar capas y rellenar
+  selecciones con tus propios modelos y LoRA. Compara los resultados antes de
+  aplicarlos. Qwen-Image-Layered puede descomponer una imagen en una carpeta de
+  capas editables. Las versiones distribuidas incluyen Vulkan y ofrecen un motor
+  CUDA por separado para GPU NVIDIA. Consulta [Vulkana Diffusion](../../DIFFUSION.md)
+  para conocer los requisitos de la GPU y los pasos de configuración.
+- **Las transformaciones** permiten mover, escalar, girar, voltear y distorsionar
+  desde las esquinas, incluso los límites de una selección o los píxeles
+  seleccionados. Coloca una guía en el centro o varias a intervalos regulares
+  para alinear las capas mediante el ajuste magnético.
 - **Ajustes no destructivos:** correcciones por capa y capas de ajuste con máscara,
   con alcance a todas las capas inferiores o al grupo actual; exposición, niveles,
   curvas, tono/saturación, intensidad, equilibrio de color, calidez/tinte,
@@ -43,11 +55,19 @@ con un espacio de trabajo Qt y un lienzo acelerado por Vulkan.
 - **Filtros y efectos de capa:** desenfoque gaussiano, de movimiento y de lente;
   trazo, sombra paralela/interior, resplandor exterior/interior, superposición de
   color, superposición de degradado y bisel y relieve.
-- **Varios documentos:** pestañas con historial, selecciones y estado de vista
-  independientes, además de copia de capas editables entre documentos.
-- **Importación PSD:** conversión con revisión a capas nativas, texto enriquecido,
-  formas simples, máscaras de mapa de bits, grupos de recorte y estilos compatibles,
-  con uso explícito de las versiones ráster guardadas cuando es necesario.
+- **Las pestañas de documentos** conservan su propio historial, sus selecciones
+  y su nivel de zoom. Duplica una pestaña para probar cambios en una copia sin
+  guardar, copia capas entre documentos o arrastra imágenes al panel Capas para
+  insertarlas en la pila.
+- **La limpieza de capas** incluye una vista previa de transparencia que puedes
+  ampliar para examinar el cabello y los bordes suaves.
+  «Borrar selección inversa» borra los píxeles fuera de la selección y la mantiene
+  activa. «Recortar a los límites del lienzo» elimina de las capas seleccionadas
+  los píxeles que quedan fuera del lienzo.
+- **La importación de PSD** permite revisar la conversión a capas nativas, texto
+  enriquecido, formas simples, máscaras de mapa de bits, grupos de recorte y
+  estilos compatibles. Consulta por qué es necesaria una conversión y aplica la
+  misma opción a todas las capas del mismo tipo en un solo paso.
 - **Exportación PSD:** salida con capas o acoplada, texto/formas/máscaras editables
   y recorte cuando se admite, con revisión de las conversiones y una imagen
   compuesta recién generada.
@@ -59,6 +79,8 @@ con un espacio de trabajo Qt y un lienzo acelerado por Vulkan.
 - **Espacio de trabajo y salida:** paneles acoplables con pestañas, un navegador
   con controles de desplazamiento y zoom, temas, atajos editables, reglas, vista
   previa de píxeles, proyectos nativos `.vulkana` y exportación PNG/JPEG/WebP.
+  Exporta las capas seleccionadas con un recorte que abarca todo su contenido
+  visible o cambia el tamaño del lienzo para ajustarlo a la capa seleccionada.
 - **Idiomas:** 16 idiomas de interfaz, seleccionables en Preferencias → General →
   Idioma sin reiniciar. Todas las versiones lingüísticas son borradores iniciales;
   cualquier persona puede aportar revisiones y correcciones.
@@ -163,8 +185,8 @@ de trabajo y un renderizador Vulkan. Los datos de origen editables se mantienen
 separados de las cachés de renderizado. El lienzo, la vista previa de píxeles y la
 exportación comparten las mismas reglas de composición.
 
-Consulta la [documentación para desarrolladores](../README.md) y la
-[guía de arquitectura](../ARCHITECTURE.md).
+Consulta la [documentación para desarrolladores](../README.md), la [guía de arquitectura](../ARCHITECTURE.md)
+y la [guía de configuración y herramientas de MCP](../MCP.md).
 
 ## Licencia
 

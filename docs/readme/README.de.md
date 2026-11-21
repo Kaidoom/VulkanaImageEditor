@@ -15,12 +15,21 @@ Qt-Arbeitsoberfläche und einer Vulkan-beschleunigten Leinwand.
 - **Bearbeitung mit Ebenen:** Rasterebenen, bearbeitbarer Text und Formen;
   Bitmap-Masken, Ordner, Schnittmaskengruppen, Mehrfachauswahl, Mischmodi,
   Duplizieren, Zusammenführen und ausdrückliches Rastern.
+- **Verknüpfte Projekte und Spiegelebenen** machen Bildinhalte wiederverwendbar.
+  Ein Doppelklick auf eine [Projektebene](../PROJECT_LAYERS.md) öffnet das
+  Quellprojekt zur Bearbeitung. Bei der Rückkehr zum übergeordneten Projekt sind
+  die Änderungen sichtbar. Eine [Spiegelebene](../MIRRORED_LAYERS_AND_GUIDES.md)
+  folgt ihrer Quelle im selben Dokument und kann eigene Transformationen und
+  Effekte erhalten.
 - **Kanalgruppen:** einzelne Kanäle als Graustufenebenen für gepackte Texturen
   bearbeiten, mit verlustfreier Umwandlung, numerischem Malen, Retusche und
   Anpassungen. Siehe die [Anleitung zu Kanalgruppen](../CHANNEL_GROUPS.md).
-- **Malen und Retuschieren:** druckempfindliche Pinsel, prozedurale und texturierte
-  Vorgaben, Radieren, Füllen, lokales Weichzeichnen, Kopierstempel, Reparaturpinsel
-  und automatische Bereichsreparatur.
+- **Malen und Retuschieren** umfasst druckempfindliche Pinsel, Füllen, lokales
+  Weichzeichnen, Kopierstempel und Reparaturwerkzeuge. Mit der
+  [Pinselsymmetrie](../BRUSH_SYMMETRY.md) lassen sich Striche an einer frei
+  platzierbaren Achse spiegeln, auch auf Ebenenmasken. Die Bereichsreparatur kann
+  transparente Lücken füllen und sichtbare Ebenen ober- und unterhalb der
+  Retuscheebene als Quelle nutzen.
 - **Auswahlen:** Rechteck, Ellipse, Freihand-, Polygon- und magnetisches Lasso,
   Farbauswahl und pinselgeführte Schnellauswahl, mit Vergrößern, Verkleinern,
   Umkehren und Wiederherstellen der Auswahl.
@@ -29,13 +38,17 @@ Qt-Arbeitsoberfläche und einer Vulkan-beschleunigten Leinwand.
   Bitmap-Masken lassen sich mit „Auswahl verfeinern“, Live-Vorschauen und manuellen
   Korrekturen verbessern. Für die Objektauswahl muss weder ein Modell
   heruntergeladen noch Python installiert werden.
-- **Lokale KI-Bildbearbeitung:** Bilder erzeugen, Ebenen bearbeiten und Auswahlen
-  mit eigenen Modellen und dem optionalen CUDA-Prozess füllen. Ergebnisse vor dem
-  Anwenden prüfen; Änderungen lassen sich rückgängig machen. Eine unterstützte
-  NVIDIA-GPU ist erforderlich; siehe [Vulkana Diffusion](../../DIFFUSION.md).
-- **Transformationen:** Verschieben, Skalieren, Drehen, Spiegeln und Verzerren
-  über die Eckpunkte; Auswahlgrenzen oder ausgewählte Pixel transformieren,
-  mit Einrasten und Ausrichtungshilfen.
+- **Lokale KI-Bildbearbeitung** erzeugt Bilder, bearbeitet Ebenen und füllt
+  Auswahlen mit eigenen Modellen und LoRAs. Varianten lassen sich vor dem
+  Anwenden vergleichen. Qwen-Image-Layered kann ein Bild in einen Ordner mit
+  bearbeitbaren Ebenen zerlegen. Die veröffentlichten Pakete enthalten Vulkan.
+  Für NVIDIA-GPUs ist ein separater CUDA-Inferenzprozess verfügbar. Hinweise zur
+  Einrichtung und zu den GPU-Anforderungen stehen unter
+  [Vulkana Diffusion](../../DIFFUSION.md).
+- **Transformationen** ermöglichen Verschieben, Skalieren, Drehen, Spiegeln und
+  Verzerren über die Eckpunkte, auch für Auswahlgrenzen und ausgewählte Pixel.
+  Ebenen lassen sich an einer mittigen Hilfslinie oder an mehreren gleichmäßig
+  verteilten Hilfslinien einrasten.
 - **Nicht destruktive Anpassungen:** Korrekturen pro Ebene und maskierte
   Einstellungsebenen mit Geltungsbereich für alle darunterliegenden Ebenen oder
   die aktuelle Gruppe; Belichtung, Tonwertkorrektur, Gradationskurven,
@@ -44,11 +57,18 @@ Qt-Arbeitsoberfläche und einer Vulkan-beschleunigten Leinwand.
 - **Filter und Ebeneneffekte:** Gaußscher Weichzeichner, Bewegungs- und
   Objektivunschärfe; Kontur, Schlag- und innerer Schatten, Schein nach außen/innen,
   Farbüberlagerung, Verlaufsüberlagerung sowie abgeflachte Kante und Relief.
-- **Mehrere Dokumente:** Tabs mit jeweils eigenem Verlauf, eigenen Auswahlen
-  und eigenem Ansichtsstatus; bearbeitbare Ebenen lassen sich zwischen Dokumenten kopieren.
-- **PSD-Import:** Konvertierung mit Überprüfung in native Ebenen, formatierten
+- **Dokument-Tabs** haben einen eigenen Verlauf, eigene Auswahlen und eine
+  eigene Zoomstufe. Ein Tab lässt sich duplizieren, um Änderungen in einer
+  ungespeicherten Kopie zu testen. Ebenen lassen sich zwischen Dokumenten
+  kopieren und Bilder direkt in den Stapel im Ebenenbedienfeld ziehen.
+- **Beim Bereinigen von Ebenen** zeigt die zoombare Transparenzvorschau feine
+  Details an Haaren und weichen Kanten. „Umgekehrte Auswahl löschen“ löscht Pixel
+  außerhalb der Auswahl und lässt sie aktiv. „Auf Leinwandgrenzen beschneiden“
+  entfernt aus den ausgewählten Ebenen alle Pixel außerhalb der Leinwand.
+- **PSD-Import** wandelt Inhalte nach Prüfung in native Ebenen, formatierten
   Text, einfache Formen, Bitmap-Masken, Schnittmaskengruppen und unterstützte
-  Stile, mit ausdrücklichem Rückgriff auf gespeicherte Rasterversionen bei Bedarf.
+  Stile um. Im Importdialog ist ersichtlich, warum eine Konvertierung nötig ist.
+  Die Entscheidung lässt sich in einem Schritt auf gleichartige Ebenen anwenden.
 - **PSD-Export:** Ausgabe mit Ebenen oder auf eine Ebene reduziert, bearbeitbare
   Texte, Formen und Masken sowie Beschneidung durch Schnittmasken, soweit
   unterstützt, mit Überprüfung der Konvertierungen und einem neu berechneten Gesamtbild.
@@ -60,6 +80,9 @@ Qt-Arbeitsoberfläche und einer Vulkan-beschleunigten Leinwand.
 - **Arbeitsoberfläche und Ausgabe:** andockbare Bedienfelder mit Tabs, ein
   Navigator mit Schwenk- und Zoomsteuerung, Designs, bearbeitbare Tastenkürzel,
   Lineale, Pixelvorschau, native `.vulkana`-Projekte und PNG/JPEG/WebP-Export.
+  Ausgewählte Ebenen lassen sich auf ihren gemeinsamen sichtbaren Bereich
+  zugeschnitten exportieren. Die Leinwandgröße lässt sich an die ausgewählte
+  Ebene anpassen.
 - **Sprachen:** 16 Oberflächensprachen, auswählbar unter Einstellungen → Allgemein →
   Sprache ohne Neustart. Alle Sprachfassungen sind erste Entwürfe; alle
   Interessierten sind zum Prüfen und Korrigieren eingeladen.
@@ -164,8 +187,8 @@ eine Arbeitsoberfläche und einen Vulkan-Renderer. Bearbeitbare Quelldaten bleib
 von den Render-Caches getrennt. Leinwand, Pixelvorschau und Export verwenden
 dieselben Kompositionsregeln.
 
-Siehe die [Entwicklerdokumentation](../README.md) und den
-[Architekturleitfaden](../ARCHITECTURE.md).
+Siehe die [Entwicklerdokumentation](../README.md), den [Architekturleitfaden](../ARCHITECTURE.md)
+und die [Anleitung zur Einrichtung und Nutzung der MCP-Werkzeuge](../MCP.md).
 
 ## Lizenz
 

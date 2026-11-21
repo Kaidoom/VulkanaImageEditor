@@ -15,12 +15,21 @@ con un’area di lavoro Qt e una tela accelerata da Vulkan.
 - **Modifica a livelli:** livelli raster, testo e forme modificabili; maschere
   bitmap, cartelle, gruppi di maschere di ritaglio, selezione multipla, metodi di
   fusione, duplicazione, unione e rasterizzazione esplicita.
+- **I progetti collegati e i livelli specchio** permettono di riutilizzare un
+  disegno. Fai doppio clic su un [livello di progetto](../PROJECT_LAYERS.md)
+  per modificarne la sorgente, poi torna al progetto principale per vedere le
+  modifiche. Un [livello specchio](../MIRRORED_LAYERS_AND_GUIDES.md) segue le
+  modifiche della sorgente nello stesso documento e può avere una trasformazione
+  ed effetti propri.
 - **Gruppi di canali:** modifica i singoli canali come livelli in scala di grigi
   per texture con dati combinati, con conversione senza perdita, pittura numerica,
   ritocco e regolazioni. Consulta la [guida ai gruppi di canali](../CHANNEL_GROUPS.md).
-- **Pittura e ritocco:** pennelli sensibili alla pressione, preimpostazioni
-  procedurali e con texture, gomma, riempimento, sfocatura locale, timbro clone,
-  pennello correttivo e correzione al volo automatica.
+- **Gli strumenti di pittura e ritocco** includono pennelli sensibili alla
+  pressione, riempimento, sfocatura locale, timbro clone e strumenti correttivi.
+  La [simmetria del pennello](../BRUSH_SYMMETRY.md) riflette i tratti rispetto
+  a un asse mobile, anche sulle maschere di livello. Il correttivo al volo può
+  riempire buchi trasparenti e campionare i livelli visibili sopra e sotto il
+  livello di ritocco.
 - **Selezioni:** rettangolo, ellisse, lazo a mano libera/poligonale/magnetico,
   selezione per colore e selezione rapida guidata dal pennello, con espansione,
   contrazione, inversione e ripristino della selezione.
@@ -29,13 +38,17 @@ con un’area di lavoro Qt e una tela accelerata da Vulkan.
   selezioni e le maschere bitmap con Perfeziona selezione, anteprime in tempo reale
   e correzioni manuali. Per usare Selezione oggetto non occorre scaricare un modello
   né installare Python.
-- **Modifica locale con IA:** genera immagini, modifica livelli e riempi selezioni
-  con i tuoi modelli e il motore CUDA facoltativo. Visualizza i risultati prima di
-  applicarli come modifiche annullabili. Richiede una GPU NVIDIA compatibile;
-  consulta [Vulkana Diffusion](../../DIFFUSION.md).
-- **Trasformazioni:** spostamento, ridimensionamento, rotazione, riflessione e
-  distorsione dagli angoli; trasforma i contorni della selezione o i pixel
-  selezionati, con aggancio e guide di allineamento.
+- **La modifica locale con IA** permette di generare immagini, modificare livelli
+  e riempire selezioni con i tuoi modelli e LoRA. Confronta i risultati prima
+  di applicarli. Qwen-Image-Layered può scomporre un’immagine in una cartella di
+  livelli modificabili. Le versioni distribuite includono Vulkan. Per le GPU
+  NVIDIA è disponibile un motore CUDA separato. Consulta
+  [Vulkana Diffusion](../../DIFFUSION.md) per la configurazione e i requisiti
+  della GPU.
+- **Le trasformazioni** permettono di spostare, ridimensionare, ruotare,
+  riflettere o distorcere dagli angoli livelli, contorni di selezione e pixel
+  selezionati. Posiziona una guida al centro o più guide a intervalli regolari
+  per allineare i livelli con l’aggancio.
 - **Regolazioni non distruttive:** correzioni per livello e livelli di regolazione
   con maschera, applicabili a tutti i livelli sottostanti o al gruppo corrente;
   esposizione, valori tonali, curve, tonalità/saturazione, vividezza, bilanciamento
@@ -43,11 +56,19 @@ con un’area di lavoro Qt e una tela accelerata da Vulkan.
 - **Filtri ed effetti di livello:** sfocatura gaussiana, di movimento e obiettivo;
   traccia, ombra esterna/interna, bagliore esterno/interno, sovrapposizione colore,
   sovrapposizione sfumatura, smusso ed effetto rilievo.
-- **Più documenti:** schede con cronologia, selezioni e stato della vista
-  indipendenti, oltre alla copia di livelli modificabili tra documenti.
-- **Importazione PSD:** conversione con verifica in livelli nativi, testo
-  formattato, forme semplici, maschere bitmap, gruppi di ritaglio e stili supportati,
-  con ricorso esplicito alle versioni raster salvate quando necessario.
+- **Le schede dei documenti** conservano ciascuna la propria cronologia, le
+  proprie selezioni e il proprio zoom. Duplica una scheda per fare delle prove
+  su una copia non salvata, copia livelli tra documenti o trascina le immagini
+  nel pannello Livelli per inserirle nella pila.
+- **La pulizia dei livelli** include un’anteprima della trasparenza che puoi
+  ingrandire per esaminare i capelli e i bordi sfumati. «Cancella selezione inversa»
+  cancella i pixel esterni alla selezione e la mantiene attiva.
+  «Ritaglia ai limiti della tela» rimuove dai livelli selezionati i pixel
+  esterni alla tela.
+- **L’importazione PSD** permette di verificare la conversione in livelli
+  nativi, testo formattato, forme semplici, maschere bitmap, gruppi di ritaglio
+  e stili supportati. Verifica perché è necessaria una conversione e applica la
+  stessa scelta ai livelli dello stesso tipo in un solo passaggio.
 - **Esportazione PSD:** output a livelli o unificato, testo/forme/maschere
   modificabili e ritaglio ove supportato, con verifica delle conversioni e una
   nuova immagine composita.
@@ -59,6 +80,8 @@ con un’area di lavoro Qt e una tela accelerata da Vulkan.
 - **Area di lavoro e output:** pannelli agganciabili a schede, un navigatore con
   controlli di spostamento e zoom, temi, scorciatoie modificabili, righelli,
   anteprima pixel, progetti nativi `.vulkana` ed esportazione PNG/JPEG/WebP.
+  Esporta i livelli selezionati ritagliandoli sull’area che racchiude il loro
+  contenuto visibile, oppure adatta le dimensioni della tela al livello selezionato.
 - **Lingue:** 16 lingue dell’interfaccia, selezionabili in Preferenze → Generali →
   Lingua senza riavviare. Tutte le versioni linguistiche sono prime bozze;
   chiunque può contribuire con revisioni e correzioni.
@@ -163,8 +186,8 @@ un’area di lavoro e un renderer Vulkan. I dati sorgente modificabili restano
 separati dalle cache di rendering. Tela, anteprima pixel ed esportazione
 condividono le stesse regole di composizione.
 
-Consulta la [documentazione per sviluppatori](../README.md) e la
-[guida all’architettura](../ARCHITECTURE.md).
+Consulta la [documentazione per sviluppatori](../README.md), la [guida all’architettura](../ARCHITECTURE.md)
+e la [guida alla configurazione e agli strumenti MCP](../MCP.md).
 
 ## Licenza
 
