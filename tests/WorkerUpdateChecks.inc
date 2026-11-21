@@ -133,6 +133,23 @@ void workerPanelTests() {
     const QString entry="bin/vulkana-diffusion-worker-cuda" + QString(u::WorkerUpdates::hostPlatform()=="windows"?".exe":"");
     const auto executable=package.filePath(entry); QFile file(executable); CHECK(file.open(QIODevice::WriteOnly));file.write("fixture");file.close();file.setPermissions(QFile::ReadOwner|QFile::ExeOwner|QFile::WriteOwner);
     auto metadata=[&](const QString& version){QFile m(package.filePath("worker.json"));CHECK(m.open(QIODevice::WriteOnly));m.write(QJsonDocument(QJsonObject{{"schemaVersion",1},{"protocol",1},{"backend","cuda"},{"version",version},{"executable",entry}}).toJson());};
+    const auto clickWithPickerTimeout = [&](QAbstractButton* button, const char* name) {
+        bool timedOut = false;
+        QTimer watchdog;
+        watchdog.setSingleShot(true);
+        QObject::connect(&watchdog, &QTimer::timeout, &panel, [&] {
+            timedOut = true;
+            if (auto* chooser = panel.window()->findChild<QFileDialog*>(name)) {
+                // A missing path opens a second modal loop inside QFileDialog::accept().
+                for (auto* nested : chooser->findChildren<QDialog*>())
+                    if (nested->isVisible()) nested->reject();
+                chooser->reject();
+            }
+        });
+        watchdog.start(3000);
+        button->click();
+        CHECK(!timedOut);
+    };
     // Add/Change uses a directory-only chooser: package and bin both work.
     const auto chooseFolder = [&](const QString& directory, bool accept = true) {
         bool seen = false;
@@ -143,17 +160,19 @@ void workerPanelTests() {
             seen = true;
             CHECK(chooser->fileMode() == QFileDialog::Directory);
             CHECK(chooser->testOption(QFileDialog::ShowDirsOnly));
+            responder.stop();
             if (accept) {
-                chooser->setDirectory(directory);
+                // Enter the chosen folder's complete path. Navigating with setDirectory()
+                // leaves the previous filename in the edit on some Qt versions.
+                auto* field = chooser->findChild<QLineEdit*>("fileNameEdit");
+                CHECK(field);
+                if (!field) { chooser->reject(); return; }
+                field->setText(QDir::toNativeSeparators(directory));
+                CHECK(QFileInfo(chooser->selectedFiles().value(0)) == QFileInfo(directory));
                 QMetaObject::invokeMethod(chooser, "accept", Qt::QueuedConnection);
             } else chooser->reject();
-            responder.stop();
         });
-        QTimer watchdog; watchdog.setSingleShot(true);
-        QObject::connect(&watchdog, &QTimer::timeout, &panel, [&] {
-            if (auto* chooser = panel.window()->findChild<QFileDialog*>("DiffusionWorkerFolderDialog")) chooser->reject();
-        });
-        responder.start(5); watchdog.start(3000); add->click(); CHECK(seen);
+        responder.start(5); clickWithPickerTimeout(add, "DiffusionWorkerFolderDialog"); CHECK(seen);
     };
     chooseFolder(package.path());
     CHECK(QSettings().value("diffusion/workers/cuda").toString() == executable);
@@ -203,8 +222,7 @@ void workerPanelTests() {
     });
     responder.start(5);
     network.responses.push_back({hostWorkerPayload()});
-    QTimer::singleShot(3000,&panel,[&]{ if (!pickerSeen) for(auto* widget:QApplication::topLevelWidgets()) if(auto* chooser=qobject_cast<QFileDialog*>(widget)) chooser->reject(); });
-    download->click();
+    clickWithPickerTimeout(download, "DiffusionWorkerSaveDialog");
     CHECK(pickerSeen && waitFor([&]{return !updates.downloading();}));
     CHECK(readFile(saveBase+(u::WorkerUpdates::hostPlatform()=="windows"?".zip":".tar.xz"))==hostWorkerPayload());
     CHECK(QFile::remove(executable)); panel.refreshWorkers(); CHECK(!download->isHidden() && !add->isHidden());
