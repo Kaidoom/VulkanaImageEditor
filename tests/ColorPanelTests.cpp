@@ -1,4 +1,6 @@
 #include "imageeditor/ui/ColorPanel.hpp"
+#include "imageeditor/ui/MainWindow.hpp"
+#include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include "imageeditor/ui/ColorSelector.hpp"
 #include "imageeditor/ui/SwatchesPanel.hpp"
 #include "imageeditor/ui/ColorPicker.hpp"
@@ -470,34 +472,47 @@ void nativeScreenPick()
         std::cout << "Direct screen capture requires an X11 session; XWayland uses the desktop portal.\n";
         return;
     }
-    QWidget sample;
+    ui::MainWindow host(nullptr,false,false);
+    host.resize(1000,700); host.show();
+    CHECK(QTest::qWaitForWindowExposed(&host));
+    auto* workspace = dynamic_cast<ui::OverlayDockWorkspace*>(host.findChild<QWidget*>("CanvasWorkspace"));
+    CHECK(workspace); if (!workspace) return;
+    QWidget sample(workspace->panelOverlay());
+    sample.setGeometry(workspace->panelOverlay()->rect().adjusted(4,4,-4,-4));
     sample.setStyleSheet("background-color: #3478C1;");
-    sample.setGeometry(50, 50, 140, 140); sample.show();
-    ui::ColorDialog dialog(QColor(10, 20, 30, 91));
+    sample.show(); sample.raise();
+    ui::ColorDialog dialog(QColor(10,20,30,91),&host);
     dialog.setOption(ui::ColorDialog::ShowAlphaChannel);
-    dialog.move(400, 80); dialog.show();
-    QTest::qWait(250);
+    dialog.show(); QTest::qWait(100);
     auto* button = dialog.findChild<QPushButton*>("PickScreenColor");
     CHECK(button && button->isEnabled());
+    const auto global = dialog.mapToGlobal(dialog.rect().center());
+    const auto dimmedPoint = dialog.mapToGlobal(QPoint(-10,dialog.height()/2));
+    const auto pixel = [](QPoint pos) {
+        auto* screen = QApplication::screenAt(pos);
+        if (!screen) return QColor{};
+        const auto local = pos - screen->geometry().topLeft();
+        const auto shot = screen->grabWindow(0,local.x(),local.y(),1,1).toImage();
+        return shot.isNull() ? QColor{} : shot.pixelColor(0,0);
+    };
+    const QColor expected("#3478C1");
+    CHECK(pixel(global)!=expected && pixel(dimmedPoint)!=expected);
     button->click(); settle();
-    CHECK(!button->isEnabled() && QWidget::mouseGrabber() == &dialog);
-    const QPointF global = sample.mapToGlobal(sample.rect().center());
-    const auto local = dialog.mapFromGlobal(global);
-    QMouseEvent release(QEvent::MouseButtonRelease, local, local, global, Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
-    QApplication::sendEvent(&dialog, &release); settle();
-    if (dialog.currentColor() != QColor(0x34, 0x78, 0xC1, 91))
-        std::cerr << "Screen sample=" << dialog.currentColor().name(QColor::HexArgb).toStdString()
-                  << "; expected widget=" << sample.grab().toImage().pixelColor(70, 70).name().toStdString()
-                  << "; global=" << global.x() << ',' << global.y()
-                  << "; dialog=" << dialog.x() << ',' << dialog.y() << '\n';
-    CHECK(dialog.currentColor() == QColor(0x34, 0x78, 0xC1, 91));
-    CHECK(button->isEnabled() && !QWidget::mouseGrabber() && !QWidget::keyboardGrabber());
-    button->click(); QTest::keyClick(&dialog, Qt::Key_Escape); settle();
-    CHECK(dialog.isVisible() && button->isEnabled());
-    CHECK(dialog.currentColor() == QColor(0x34, 0x78, 0xC1, 91));
-    button->click(); dialog.reject(); settle();
+    CHECK(!dialog.isVisible() && !workspace->modalOverlay()->isVisible());
+    CHECK(QWidget::mouseGrabber()==&host && QWidget::keyboardGrabber()==&host);
+    CHECK(pixel(global)==expected && pixel(dimmedPoint)==expected);
+    // Pick precisely where the chooser had covered the sample.
+    QTest::mouseRelease(&host,Qt::LeftButton,{},host.mapFromGlobal(global));
+    settle();
+    CHECK(dialog.result()==QDialog::Accepted && dialog.selectedColor()==QColor(0x34,0x78,0xC1,91));
+    CHECK(!workspace->modalOverlay() && !dialog.isVisible());
     CHECK(!QWidget::mouseGrabber() && !QWidget::keyboardGrabber());
-    dialog.show(); settle(); CHECK(button->isEnabled()); dialog.close();
+    dialog.show(); button->click(); QTest::keyClick(&host,Qt::Key_Escape); settle();
+    CHECK(dialog.result()==QDialog::Rejected && !dialog.isVisible() && !workspace->modalOverlay());
+    CHECK(!QWidget::mouseGrabber() && !QWidget::keyboardGrabber());
+    dialog.show(); button->click(); dialog.reject(); settle();
+    CHECK(!QWidget::mouseGrabber() && !QWidget::keyboardGrabber());
+    dialog.show(); CHECK(button->isEnabled()); dialog.close();
 }
 } // namespace
 int main(int argc,char** argv)

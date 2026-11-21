@@ -5,6 +5,7 @@
 #include "imageeditor/ui/WorkspaceDialog.hpp"
 #include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include <QApplication>
+#include <QCloseEvent>
 #include <QCursor>
 #include <QDialogButtonBox>
 #include <QEventLoop>
@@ -15,6 +16,8 @@
 #include <QPointer>
 #include <QPushButton>
 #include <QScreen>
+#include <QTimer>
+#include <QToolTip>
 #include <QUuid>
 #include <QVBoxLayout>
 #include <QWindow>
@@ -56,44 +59,38 @@ private:
 class ScreenColorPick final : public QObject {
     Q_OBJECT
 public:
-    explicit ScreenColorPick(QWidget* owner) : QObject(owner), owner_(owner) {}
+    explicit ScreenColorPick(QObject* parent) : QObject(parent) {
+#ifdef Q_OS_LINUX
+        portalStart_.setSingleShot(true);
+        connect(&portalStart_, &QTimer::timeout, this, &ScreenColorPick::requestPortalPick);
+#endif
+    }
     ~ScreenColorPick() override { stop(); }
-    void start() {
+    void start(QWidget* host) {
         stop();
 #ifdef Q_OS_LINUX
-        const auto platform = QGuiApplication::platformName();
-        if (platform.startsWith("wayland") || qEnvironmentVariable("XDG_SESSION_TYPE") == "wayland") {
-            const auto bus = QDBusConnection::sessionBus();
-            auto sender = bus.baseService(); sender.remove(0, 1); sender.replace('.', '_');
-            const auto token = "vulkana_color_" + QUuid::createUuid().toString(QUuid::Id128);
-            path_ = "/org/freedesktop/portal/desktop/request/" + sender + '/' + token;
-            if (!bus.isConnected() || !subscribe()) { stop(); emit finished({}, i18n::text("color.dialog.desktop.color.picking.is.unavailable")); return; }
-            const auto expected = path_;
-            auto request = QDBusMessage::createMethodCall("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop",
-                                                        "org.freedesktop.portal.Screenshot", "PickColor");
-            // An empty parent identifier is permitted; never pass a Wayland
-            // subsurface's winId as though it were an exported desktop handle.
-            request << QString{} << QVariantMap{{"handle_token", token}};
-            auto* watcher = new QDBusPendingCallWatcher(bus.asyncCall(request, 3000), this);
-            connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, expected](QDBusPendingCallWatcher* watcher) {
-                const QDBusPendingReply<QDBusObjectPath> reply = *watcher;
-                watcher->deleteLater();
-                if (path_ != expected) return;
-                if (reply.isError()) { stop(); emit finished({}, i18n::text("color.dialog.desktop.color.picking.is.unavailable")); return; }
-                if (reply.value().path() != path_) {
-                    unsubscribe(); path_ = reply.value().path();
-                    if (!subscribe()) { stop(); emit finished({}, i18n::text("color.dialog.could.not.start.desktop.color.picking")); }
-                }
-            });
+        if (QGuiApplication::platformName().startsWith("wayland") || qEnvironmentVariable("XDG_SESSION_TYPE") == "wayland") {
+            // Some portals freeze the desktop as soon as PickColor arrives.
+            // Give the compositor a frame to present the freshly repainted workspace.
+            const auto* screen = host ? host->screen() : QGuiApplication::primaryScreen();
+            const double hz = screen ? screen->refreshRate() : 0.;
+            portalStart_.start(int(std::ceil(1000. / (hz > 1. ? hz : 60.))));
             return;
         }
 #endif
+        if (!host || !host->isVisible()) {
+            emit finished({}, i18n::text("color.dialog.desktop.color.picking.is.unavailable"));
+            return;
+        }
+        grabHost_ = host;
         picking_ = true;
         qApp->installEventFilter(this);
-        owner_->grabMouse(Qt::CrossCursor); owner_->grabKeyboard();
+        host->grabMouse(Qt::CrossCursor);
+        host->grabKeyboard();
     }
     void stop() {
 #ifdef Q_OS_LINUX
+        portalStart_.stop();
         if (!path_.isEmpty()) {
             unsubscribe();
             auto close = QDBusMessage::createMethodCall("org.freedesktop.portal.Desktop", path_, "org.freedesktop.portal.Request", "Close");
@@ -104,18 +101,22 @@ public:
         if (picking_) {
             picking_ = false;
             qApp->removeEventFilter(this);
-            if (QWidget::mouseGrabber() == owner_) owner_->releaseMouse();
-            if (QWidget::keyboardGrabber() == owner_) owner_->releaseKeyboard();
+            if (grabHost_ && QWidget::mouseGrabber() == grabHost_) grabHost_->releaseMouse();
+            if (grabHost_ && QWidget::keyboardGrabber() == grabHost_) grabHost_->releaseKeyboard();
+            grabHost_.clear();
         }
     }
 signals:
     void finished(QColor color, QString error);
 protected:
-    bool eventFilter(QObject*, QEvent* event) override {
+    bool eventFilter(QObject* watched, QEvent* event) override {
         if (!picking_) return false;
         if (event->type() == QEvent::ShortcutOverride) { event->accept(); return true; }
-        if (event->type() == QEvent::ApplicationDeactivate
-            || (event->type() == QEvent::KeyPress && static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape)) {
+        if (event->type() == QEvent::ApplicationDeactivate ||
+            (watched == grabHost_ && (event->type() == QEvent::Hide || event->type() == QEvent::Close))) {
+            stop(); emit finished({}, {}); return false;
+        }
+        if (event->type() == QEvent::KeyPress && static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape) {
             stop(); emit finished({}, {}); return true;
         }
         QPoint position;
@@ -162,6 +163,31 @@ private slots:
 #endif
 private:
 #ifdef Q_OS_LINUX
+    QTimer portalStart_;
+    void requestPortalPick() {
+        const auto bus = QDBusConnection::sessionBus();
+        auto sender = bus.baseService(); sender.remove(0, 1); sender.replace('.', '_');
+        const auto token = "vulkana_color_" + QUuid::createUuid().toString(QUuid::Id128);
+        path_ = "/org/freedesktop/portal/desktop/request/" + sender + '/' + token;
+        if (!bus.isConnected() || !subscribe()) { stop(); emit finished({}, i18n::text("color.dialog.desktop.color.picking.is.unavailable")); return; }
+        const auto expected = path_;
+        auto request = QDBusMessage::createMethodCall("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop",
+                                                    "org.freedesktop.portal.Screenshot", "PickColor");
+        // An empty parent identifier is permitted; never pass a Wayland
+        // subsurface's winId as though it were an exported desktop handle.
+        request << QString{} << QVariantMap{{"handle_token", token}};
+        auto* watcher = new QDBusPendingCallWatcher(bus.asyncCall(request, 3000), this);
+        connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, expected](QDBusPendingCallWatcher* watcher) {
+            const QDBusPendingReply<QDBusObjectPath> reply = *watcher;
+            watcher->deleteLater();
+            if (path_ != expected) return;
+            if (reply.isError()) { stop(); emit finished({}, i18n::text("color.dialog.desktop.color.picking.is.unavailable")); return; }
+            if (reply.value().path() != path_) {
+                unsubscribe(); path_ = reply.value().path();
+                if (!subscribe()) { stop(); emit finished({}, i18n::text("color.dialog.could.not.start.desktop.color.picking")); }
+            }
+        });
+    }
     bool subscribe() {
         return QDBusConnection::sessionBus().connect("org.freedesktop.portal.Desktop", path_, "org.freedesktop.portal.Request",
             "Response", this, SLOT(response(uint,QVariantMap,QDBusMessage)));
@@ -172,7 +198,7 @@ private:
     }
     QString path_;
 #endif
-    QPointer<QWidget> owner_;
+    QPointer<QWidget> grabHost_;
     bool picking_ {};
 };
 
@@ -231,11 +257,45 @@ ColorDialog::ColorDialog(const QColor& color, QWidget* parent) : QDialog(parent,
     picker_->onColorChanged = [this](QColor color) { preview_->update(); emit currentColorChanged(color); };
     auto* screen = new ScreenColorPick(this); screenPicker_ = screen;
     connect(screenButton_, &QPushButton::clicked, this, [this, screen] {
-        screenButton_->setEnabled(false); i18n::setText(status_, i18n::text("color.dialog.select.a.screen.color.escape.cancels")); status_->show(); screen->start();
+        if (pickingScreen_ || !isVisible()) return;
+        pickingScreen_ = true;
+        screenButton_->setEnabled(false);
+        status_->hide();
+        QToolTip::hideText();
+        QWidget* host = parentWidget();
+        while (host && host->parentWidget()) host = host->parentWidget();
+        // Leave the modal transaction alive until the pick resolves. Hiding
+        // its entire shield removes both the editor card and the dimming.
+        auto* presentation = presenter_ ? static_cast<QWidget*>(presenter_.data()) : this;
+        if (presenter_) presenter_->hide();
+        else QDialog::setVisible(false);
+        if (auto* plane = presentation->parentWidget()) plane->repaint();
+        if (!host) {
+            for (auto* window : QApplication::topLevelWidgets())
+                if (window != this && window->isVisible() && window->windowType() == Qt::Window) {
+                    host = window;
+                    break;
+                }
+        }
+        screen->start(host);
     });
     connect(screen, &ScreenColorPick::finished, this, [this](QColor color, const QString& error) {
-        screenButton_->setEnabled(true); status_->setText(error); status_->setVisible(!error.isEmpty());
-        if (color.isValid()) { color.setAlpha(currentColor().alpha()); setCurrentColor(color); }
+        if (!pickingScreen_) return;
+        if (!error.isEmpty()) {
+            pickingScreen_ = false;
+            screenButton_->setEnabled(true);
+            status_->setText(error);
+            status_->show();
+            if (presenter_) presenter_->show();
+            else show();
+            screenButton_->setFocus();
+            return;
+        }
+        if (!color.isValid()) { reject(); return; }
+        color.setAlpha(currentColor().alpha());
+        QPointer<ColorDialog> guarded(this);
+        setCurrentColor(color);
+        if (guarded && pickingScreen_) accept();
     });
 }
 ColorDialog::~ColorDialog() {
@@ -243,6 +303,7 @@ ColorDialog::~ColorDialog() {
     if (ownsPresenter_ && presenter_) { presenter_->finish(); presenter_->deleteLater(); }
 }
 void ColorDialog::setVisible(bool visible) {
+    if (!visible && pickingScreen_) { reject(); return; }
     if (visible && ownsPresenter_ && presenter_ && !presenter_->active()) {
         presenter_->open(*this);
         return;
@@ -251,6 +312,12 @@ void ColorDialog::setVisible(bool visible) {
     if (!visible && ownsPresenter_ && presenter_) presenter_->finish();
     if (visible && !presenter_ && parentWidget())
         move((parentWidget()->width() - width()) / 2, (parentWidget()->height() - height()) / 2);
+}
+void ColorDialog::closeEvent(QCloseEvent* event) {
+    // QDialog's default close only rejects a visible dialog. A screen pick
+    // still owns its request and transaction while the card is out of view.
+    if (pickingScreen_) { reject(); event->accept(); return; }
+    QDialog::closeEvent(event);
 }
 int ColorDialog::exec() {
     if (presenter_) return presenter_->exec(*this);
@@ -277,6 +344,7 @@ void ColorDialog::setOptions(ColorDialogOptions options) {
 }
 void ColorDialog::setOption(ColorDialogOption option, bool on) { auto value = options_; value.setFlag(option, on); setOptions(value); }
 void ColorDialog::done(int result) {
+    pickingScreen_ = false;
     static_cast<ScreenColorPick*>(screenPicker_)->stop();
     screenButton_->setEnabled(QGuiApplication::platformName() != "offscreen" && QGuiApplication::platformName() != "minimal");
     status_->hide();

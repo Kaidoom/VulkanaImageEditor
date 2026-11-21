@@ -1,5 +1,8 @@
 #include "imageeditor/ui/ColorDialog.hpp"
 #include "imageeditor/ui/Theme.hpp"
+#include "imageeditor/ui/MainWindow.hpp"
+#include "imageeditor/ui/EffectsPanel.hpp"
+#include "imageeditor/ui/OverlayDockWorkspace.hpp"
 #include <QApplication>
 #include <QDBusArgument>
 #include <QDBusConnection>
@@ -7,6 +10,11 @@
 #include <QDBusObjectPath>
 #include <QElapsedTimer>
 #include <QPushButton>
+#include <QSignalSpy>
+#include <QSettings>
+#include <QTemporaryDir>
+#include <QStandardPaths>
+#include <QTimer>
 #include <QTest>
 #include <functional>
 #include <iostream>
@@ -57,42 +65,112 @@ int main(int argc, char** argv) {
     // isolated bus before this test registers its deterministic service.
     qputenv("QT_QPA_PLATFORMTHEME", "generic");
     QApplication app(argc, argv);
+    QStandardPaths::setTestModeEnabled(true);
+    QTemporaryDir settings;
+    QCoreApplication::setOrganizationName("ImageEditorTests");
+    QCoreApplication::setApplicationName("ColorPortal");
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settings.path());
     imageeditor::ui::applyEditorTheme(app);
     auto bus = QDBusConnection::sessionBus();
     Portal portal;
     if (!bus.registerService("org.freedesktop.portal.Desktop")
         || !bus.registerObject("/org/freedesktop/portal/desktop", &portal, QDBusConnection::ExportAllSlots)) return 1;
-    imageeditor::ui::ColorDialog dialog(QColor(10, 20, 30, 91));
-    dialog.setOption(imageeditor::ui::ColorDialog::ShowAlphaChannel);
-    dialog.show();
-    auto* button = dialog.findChild<QPushButton*>("PickScreenColor");
-    const auto start = [&] {
+    namespace u = imageeditor::ui;
+    namespace c = imageeditor::core;
+    u::MainWindow host(nullptr, false, false);
+    host.setUnsavedPromptEnabled(false);
+    host.resize(1100,800);
+    host.show();
+    QApplication::processEvents();
+    auto* workspace = dynamic_cast<u::OverlayDockWorkspace*>(host.findChild<QWidget*>("CanvasWorkspace"));
+    if (!workspace) return 1;
+    const auto start = [&](u::ColorDialog& dialog) {
+        auto* button = dialog.findChild<QPushButton*>("PickScreenColor");
+        auto* shield = workspace->modalOverlay();
+        CHECK(button && dialog.isVisible() && shield && shield->isVisible());
+        if (!button || !shield) return;
         const auto previous = portal.calls;
-        // Headless screen buttons are intentionally disabled; exercise the same
-        // asynchronous request handler without requiring a desktop input grab.
+        // Headless controls are disabled; invoke the real handoff on our isolated bus.
         QMetaObject::invokeMethod(button, "clicked", Qt::DirectConnection);
+        CHECK(!dialog.isVisible() && !shield->isVisible());
         CHECK(waitFor([&] { return portal.calls == previous + 1; }));
-        CHECK(!button->isEnabled());
+        CHECK(!button->isEnabled() && !shield->isVisible());
     };
-    start(); portal.respond(0);
-    CHECK(waitFor([&] { return button->isEnabled(); }));
-    CHECK(dialog.currentColor() == QColor(51, 102, 204, 91));
-    start(); portal.respond(1);
-    CHECK(waitFor([&] { return button->isEnabled(); }));
-    CHECK(dialog.currentColor() == QColor(51, 102, 204, 91));
-    start(); portal.respond(0, true);
-    CHECK(waitFor([&] { return button->isEnabled(); }));
-    CHECK(dialog.currentColor() == QColor(51, 102, 204, 91));
-    start(); const auto obsolete = portal.path; dialog.reject();
-    CHECK(waitFor([&] { return portal.request.closed == 1; }));
-    dialog.show(); start();
-    dialog.setCurrentColor(QColor(80, 90, 100, 91));
-    portal.respond(0, false, obsolete); QTest::qWait(30);
-    CHECK(dialog.currentColor() == QColor(80, 90, 100, 91) && !button->isEnabled());
-    portal.respond(0); CHECK(waitFor([&] { return button->isEnabled(); }));
-    CHECK(dialog.currentColor() == QColor(51, 102, 204, 91));
-    start(); dialog.close(); CHECK(waitFor([&] { return portal.request.closed == 2; }));
-    if (!failures) std::cout << "Color portal: asynchronous sample, cancel, invalid response, close, and stale-result isolation passed\n";
+
+    u::ColorDialog dialog(QColor(10,20,30,91), &host);
+    dialog.setOption(u::ColorDialog::ShowAlphaChannel);
+    QSignalSpy finished(&dialog, &QDialog::finished);
+    QSignalSpy selected(&dialog, &u::ColorDialog::colorSelected);
+    dialog.show(); start(dialog); portal.respond(0);
+    CHECK(waitFor([&] { return finished.count()==1; }));
+    CHECK(!dialog.isVisible() && !workspace->modalOverlay() && selected.count()==1);
+    CHECK(dialog.selectedColor()==QColor(51,102,204,91));
+    dialog.show(); start(dialog); portal.respond(1);
+    CHECK(waitFor([&] { return finished.count()==2; }));
+    CHECK(dialog.result()==QDialog::Rejected && !dialog.isVisible() && !workspace->modalOverlay() && selected.count()==1);
+    dialog.show(); start(dialog); portal.respond(0,true);
+    CHECK(waitFor([&] { return dialog.isVisible(); }));
+    CHECK(dialog.findChild<QPushButton*>("PickScreenColor")->isEnabled() && finished.count()==2);
+    start(dialog); const auto obsolete=portal.path; dialog.reject();
+    CHECK(waitFor([&] { return portal.request.closed==1; }));
+    dialog.show(); start(dialog);
+    portal.respond(0,false,obsolete); QTest::qWait(30);
+    CHECK(!dialog.isVisible() && selected.count()==1 && finished.count()==3);
+    portal.respond(0); CHECK(waitFor([&] { return finished.count()==4; }));
+    dialog.show(); start(dialog); dialog.close();
+    CHECK(waitFor([&] { return portal.request.closed==2; }));
+    CHECK(!workspace->modalOverlay());
+    dialog.show();
+    const int previousCalls = portal.calls;
+    QMetaObject::invokeMethod(dialog.findChild<QPushButton*>("PickScreenColor"), "clicked", Qt::DirectConnection);
+    dialog.reject();
+    QTest::qWait(50);
+    CHECK(portal.calls==previousCalls && !workspace->modalOverlay());
+
+    // Asynchronous working-color caller: successful picks publish immediately.
+    auto* primary = host.findChild<QPushButton*>("ForegroundColorButton");
+    if (!primary) return 1;
+    primary->click();
+    auto* working = host.findChild<u::ColorDialog*>("WorkingColorDialog");
+    if (!working) return 1;
+    start(*working); portal.respond(0);
+    CHECK(waitFor([&] { return !workspace->modalOverlay(); }));
+    CHECK((host.editorSession().colors().primary==c::Rgba8{51,102,204,255}));
+
+    // Effects use a caller-owned presenter and a synchronous edit transaction.
+    auto* effects = dynamic_cast<u::EffectsPanel*>(host.findChild<QWidget*>("EffectsPanelContent"));
+    if (!effects || !host.editorSession().activeLayer()) return 1;
+    const auto id = *host.editorSession().activeLayer();
+    const auto depth = host.editorSession().history().undoDepth();
+    const auto pickEffect = [&](auto openColor, bool cancel) {
+        QTimer pick;
+        pick.setSingleShot(true);
+        QObject::connect(&pick,&QTimer::timeout,&host,[&]{
+            auto* shield = workspace->modalOverlay();
+            auto* effectDialog = shield ? shield->findChild<u::ColorDialog*>() : nullptr;
+            if (!effectDialog) { CHECK(false); return; }
+            effectDialog->setCurrentColor(Qt::red); // Exercise live preview and rollback.
+            start(*effectDialog);
+            portal.respond(cancel ? 1 : 0);
+        });
+        pick.start(0);
+        openColor();
+        CHECK(!workspace->modalOverlay());
+    };
+    const auto overlayColor = [&] { effects->onColorRequested(c::LayerEffectType::ColorOverlay,false); };
+    pickEffect(overlayColor,false);
+    const auto effectsAfter = host.editorSession().document()->layer(id)->effects;
+    CHECK((effectsAfter && effectsAfter->items[std::size_t(c::LayerEffectType::ColorOverlay)].color==c::Rgba8{51,102,204,255}));
+    CHECK(host.editorSession().history().undoDepth()==depth+1);
+    pickEffect(overlayColor,true);
+    CHECK(c::equivalentLayerEffects(host.editorSession().document()->layer(id)->effects,effectsAfter));
+    CHECK(host.editorSession().history().undoDepth()==depth+1);
+    pickEffect([&] { effects->onGradientColorRequested(1); },false);
+    const auto gradient = host.editorSession().document()->layer(id)->effects;
+    const auto stops = c::effectiveGradientStops(gradient->items[std::size_t(c::LayerEffectType::GradientOverlay)]);
+    CHECK((stops.size()==2 && stops[1].color==c::Rgba8{51,102,204,255}));
+    CHECK(host.editorSession().history().undoDepth()==depth+2);
     return failures ? 1 : 0;
 }
 #include "ColorPortalTests.moc"

@@ -174,7 +174,7 @@ void WorkspaceDialog::focusControl(QWidget* control)
 void WorkspaceDialog::restoreCardFocus()
 {
     auto* nativeFocus = QGuiApplication::focusWindow();
-    if (running_ && workspace_.modalOverlay() == this && lastFocus_ && host_.isVisible() && !host_.isMinimized()
+    if (running_ && isVisible() && workspace_.modalOverlay() == this && lastFocus_ && host_.isVisible() && !host_.isMinimized()
         && QGuiApplication::applicationState() == Qt::ApplicationActive
         && (nativeFocus == host_.windowHandle() || nativeFocus == workspace_.panelOverlay()->windowHandle())
         && !QApplication::activeModalWidget() && !QApplication::activePopupWidget())

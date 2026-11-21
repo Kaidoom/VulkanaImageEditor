@@ -38,10 +38,13 @@ public:
 signals:
     void currentColorChanged(const QColor& color);
     void colorSelected(const QColor& color);
+protected:
+    void closeEvent(QCloseEvent*) override;
 private:
     ColorPicker* picker_ {};
     QPointer<WorkspaceDialog> presenter_;
     bool ownsPresenter_ {};
+    bool pickingScreen_ {};
     QObject* screenPicker_ {};
     QPushButton* screenButton_ {};
     QDialogButtonBox* buttons_ {};
