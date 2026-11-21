@@ -686,31 +686,34 @@ void edgeSnapsAndCtrlChangesMidCornerDrag()
         f.selectWithHole(); f.shortcut(shortcut);
         auto* lock=f.window.findChild<QToolButton*>("TransformAspectLock"); CHECK(lock); if(!lock)return;
         lock->setChecked(false);
-        auto h=f.canvas->scene().transformOverlay->handles();
+        const auto handles = [&] { return f.canvas->scene().transformOverlay->handles(); };
+        auto h=handles();
         const auto unsnapped=128-3.0/f.canvas->zoom(); // Capture tolerance is logical screen pixels.
         f.press(f.logical(h[3])); f.move(f.logical({unsnapped,h[3].y}));
-        QTest::qWait(25); settle();
-        CHECK(near(f.canvas->scene().transformOverlay->handles()[3].x,128));
+        // Selected-pixel previews publish on a timer. Wait for each distinct
+        // result before changing modifiers or using its handles for the next drag.
+        CHECK(QTest::qWaitFor([&] { return near(handles()[3].x,128); }, 2000));
         CHECK(f.canvas->scene().snapGuides[0]);
-        QTest::keyPress(f.canvas,Qt::Key_Control); QTest::qWait(25); settle();
-        CHECK(near(f.canvas->scene().transformOverlay->handles()[3].x,unsnapped));
+        QTest::keyPress(f.canvas,Qt::Key_Control);
+        CHECK(QTest::qWaitFor([&] { return near(handles()[3].x,unsnapped); }, 2000));
         CHECK(!f.canvas->scene().snapGuides[0]);
-        QTest::keyRelease(f.canvas,Qt::Key_Control); QTest::qWait(25); settle();
-        CHECK(near(f.canvas->scene().transformOverlay->handles()[3].x,128));
+        QTest::keyRelease(f.canvas,Qt::Key_Control);
+        CHECK(QTest::qWaitFor([&] { return near(handles()[3].x,128); }, 2000));
         f.release(f.logical({unsnapped,h[3].y}));
         CHECK(!f.canvas->scene().snapGuides[0]);
-        h=f.canvas->scene().transformOverlay->handles();
+        h=handles();
         const auto corner=h[0], point=corner+core::Vec2d{3,4};
-        f.press(f.logical(corner)); f.move(f.logical(point)); QTest::qWait(25); settle();
+        f.press(f.logical(corner)); f.move(f.logical(point));
+        CHECK(QTest::qWaitFor([&] { return near(handles()[0],point); }, 2000));
         const auto scaled=f.matrix(); CHECK(scaled.isAffine());
         CHECK(!f.canvas->scene().snapGuides[0] && !f.canvas->scene().snapGuides[1]);
-        QTest::keyPress(f.canvas,Qt::Key_Control); QTest::qWait(25); settle();
-        CHECK(!f.matrix().isAffine());
+        QTest::keyPress(f.canvas,Qt::Key_Control);
+        CHECK(QTest::qWaitFor([&] { return !f.matrix().isAffine(); }, 2000));
         CHECK(f.canvas->cursor().shape()==Qt::SizeAllCursor);
-        const auto distorted=f.canvas->scene().transformOverlay->handles();
+        const auto distorted=handles();
         for (std::size_t other:{2u,4u,6u}) CHECK(near(distorted[other],h[other]));
-        QTest::keyRelease(f.canvas,Qt::Key_Control); QTest::qWait(25); settle();
-        CHECK(f.matrix()==scaled);
+        QTest::keyRelease(f.canvas,Qt::Key_Control);
+        CHECK(QTest::qWaitFor([&] { return f.matrix()==scaled; }, 2000));
         CHECK(f.canvas->cursor().shape()==Qt::SizeFDiagCursor || f.canvas->cursor().shape()==Qt::SizeBDiagCursor);
         f.release(f.logical(point));
         f.button("TransformCancel");

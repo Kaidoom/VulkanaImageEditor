@@ -460,7 +460,7 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
               auto composite = diffusionStackPreview(layers, s.jobContext.compositingSpace);
               s.resultContexts[id] = s.jobContext;
               s.panel->appendResult({std::move(composite), s.jobContext.before,
-                                     QString("Decomposition · %1 layers").arg(count), metadata,
+                                     i18n::text("diffusion.decompose.result", count), metadata,
                                      placement, s.jobContext.mode, {}, std::move(layers)});
             } else {
               s.resultContexts[id] = s.jobContext;
@@ -901,7 +901,7 @@ void MainWindow::continueDiffusionJob() {
       !s.worker->hello().value("layerStackResults").toBool()) {
     s.wanted = false;
     s.panel->setBusy(false);
-    s.panel->setStatus("Update the inference worker to decompose images into layers.", true);
+    s.panel->setStatus(i18n::text("diffusion.decompose.worker.update"), true);
     updateDiffusionNotice(i18n::text("diffusion.ui.generation.could.not.start"), 0, 0, true);
     return;
   }

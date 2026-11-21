@@ -9541,4 +9541,59 @@ Requested: %1 × %2 px</source>
       <source>Symmetry options</source>
     </message>
   </context>
+  <context>
+    <name>DiffusionDecomposition</name>
+    <message id="diffusion.decompose.apply">
+      <source>Apply as folder</source>
+    </message>
+    <message id="diffusion.decompose.action">
+      <source>Decompose</source>
+    </message>
+    <message id="diffusion.decompose.prompt">
+      <source>Describe the source image (optional)</source>
+    </message>
+    <message id="diffusion.decompose.add.input">
+      <source>Add a raster layer to Input images.</source>
+    </message>
+    <message id="diffusion.decompose.empty.source">
+      <source>The captured layer contains no pixels.</source>
+    </message>
+    <message id="diffusion.decompose.aspect.ratio">
+      <source>The source aspect ratio exceeds the worker's 8192 px limit at this resolution.</source>
+    </message>
+    <message id="diffusion.decompose.mode">
+      <source>Decompose into Layers</source>
+    </message>
+    <message id="diffusion.decompose.composite">
+      <source>Composite</source>
+    </message>
+    <message id="diffusion.decompose.layer">
+      <source>Layer %1</source>
+    </message>
+    <message id="diffusion.decompose.inspect">
+      <source>Inspect layer</source>
+    </message>
+    <message id="diffusion.decompose.count">
+      <source>Decomposition layer count</source>
+    </message>
+    <message id="diffusion.decompose.resolution">
+      <source>Processing resolution</source>
+    </message>
+    <message id="diffusion.decompose.resolution.hint">
+      <source>Target area at the source aspect ratio, rounded to the model grid.</source>
+    </message>
+    <message id="diffusion.decompose.one.input">
+      <source>Decomposition accepts one raster layer.</source>
+    </message>
+    <message id="diffusion.decompose.worker.update">
+      <source>Update the inference worker to decompose images into layers.</source>
+    </message>
+    <message id="diffusion.decompose.result" numerus="yes">
+      <source>Decomposition · %n layer(s)</source>
+      <translation>
+        <numerusform>Decomposition · %n layer</numerusform>
+        <numerusform>Decomposition · %n layers</numerusform>
+      </translation>
+    </message>
+  </context>
 </TS>

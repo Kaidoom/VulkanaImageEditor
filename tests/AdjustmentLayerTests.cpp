@@ -25,6 +25,7 @@
 #include <QDir>
 #include <QApplication>
 #include <QAction>
+#include <QPushButton>
 #include <QTemporaryDir>
 #include <QTabWidget>
 #include <iostream>
@@ -254,7 +255,13 @@ int main(int argc,char** argv) {
         if(native){window.resize(1100,780);window.show();CHECK(waitFor([&]{return window.isVisible();}));}
         QImage im(8,8,QImage::Format_RGBA8888);im.fill(Qt::red);const auto source=temp.filePath("ui.png");CHECK(im.save(source));CHECK(window.openImageFromPath(source));
         auto& session=const_cast<c::EditorSession&>(window.editorSession());
-        auto* action=window.findChild<QAction*>("NewAdjustmentLayerAction");CHECK(action);if(action)action->trigger();
+        auto* action=window.findChild<QAction*>("NewAdjustmentLayerAction");
+        auto* add=window.findChild<QPushButton*>("AddAdjustmentLayerButton");
+        CHECK(action && add);
+        if (!action || !add) return 1;
+        action->setEnabled(false); CHECK(!add->isEnabled());
+        action->setEnabled(true); CHECK(add->isEnabled());
+        add->click();
         auto* layer=session.document()->layer(*session.activeLayer());CHECK(layer&&std::holds_alternative<c::AdjustmentLayer>(layer->payload));
         CHECK(layer&&layer->mask&&layer->mask->coverage->memoryCost()<65536);
         auto* tabs=window.findChild<QTabWidget*>("AdjustmentTabs");CHECK(tabs&&!tabs->isTabEnabled(3)&&!tabs->isTabEnabled(4));

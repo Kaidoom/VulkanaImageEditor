@@ -313,20 +313,25 @@ void pendingTransformCancelRestoresCheckpointAndRedo() {
   values.center.x += 7;
   CHECK(edit.setValues(values));
   CHECK(edit.completeAction());
-  const auto first = f.document.contentState();
-  CHECK(first != saved);
-  CHECK(f.document.isModified());
+  const auto first = f.document.layer(f.id)->localToDocument;
+  CHECK(first != original);
+  CHECK(f.document.contentState() == saved);
+  CHECK(!f.document.isModified());
   values.rotationDegrees = 25;
   CHECK(edit.setValues(values));
   CHECK(edit.completeAction());
-  CHECK(f.document.contentState() != first);
+  const auto second = f.document.layer(f.id)->localToDocument;
+  CHECK(second != first);
+  CHECK(f.document.contentState() == saved);
   CHECK(edit.undo());
-  CHECK(f.document.contentState() == first);
+  CHECK(f.document.layer(f.id)->localToDocument == first);
   CHECK(edit.undo());
+  CHECK(f.document.layer(f.id)->localToDocument == original);
   CHECK(f.document.contentState() == saved);
   CHECK(!f.document.isModified());
   CHECK(edit.redo());
   CHECK(edit.redo());
+  CHECK(f.document.layer(f.id)->localToDocument == second);
   edit.cancel();
   CHECK(f.document.layer(f.id)->localToDocument == original);
   CHECK(f.document.contentState() == saved);
@@ -339,7 +344,7 @@ void pendingTransformCancelRestoresCheckpointAndRedo() {
   CHECK(f.document.isModified());
 }
 
-void transformPublicationRetainsActionTokens() {
+void transformPublicationAssignsActionTokens() {
   Fixture f;
   const auto saved = f.document.contentState();
   LayerTransformSession edit(f.document, f.id);
@@ -347,15 +352,17 @@ void transformPublicationRetainsActionTokens() {
   values.center.x += 7;
   CHECK(edit.setValues(values));
   CHECK(edit.completeAction());
-  const auto first = f.document.contentState();
+  const auto firstFrame = f.document.layer(f.id)->localToDocument;
   values.center.y += 4;
   CHECK(edit.setValues(values));
   CHECK(edit.completeAction());
-  const auto second = f.document.contentState();
+  const auto secondFrame = f.document.layer(f.id)->localToDocument;
   CHECK(edit.undo());
-  CHECK(f.document.contentState() == first);
+  CHECK(f.document.layer(f.id)->localToDocument == firstFrame);
+  CHECK(f.document.contentState() == saved);
   CHECK(edit.commit(f.history) == TransformCommitResult::Committed);
-  CHECK(f.document.contentState() == first);
+  const auto first = f.document.contentState();
+  CHECK(first != saved);
   CHECK(f.history.undoDepth() == 1);
   CHECK(f.history.redoDepth() == 1);
   CHECK(f.history.undo(f.document));
@@ -363,21 +370,22 @@ void transformPublicationRetainsActionTokens() {
   CHECK(!f.document.isModified());
   CHECK(f.history.redo(f.document));
   CHECK(f.document.contentState() == first);
+  CHECK(f.document.layer(f.id)->localToDocument == firstFrame);
+  CHECK(f.history.redo(f.document));
+  const auto second = f.document.contentState();
+  CHECK(second != first && second != saved);
+  CHECK(f.document.layer(f.id)->localToDocument == secondFrame);
+  CHECK(f.document.isModified());
+  CHECK(f.history.undo(f.document));
   CHECK(f.history.redo(f.document));
   CHECK(f.document.contentState() == second);
-  CHECK(f.document.isModified());
 }
 
-void rejectedTransformPublicationRetainsPendingGeometry() {
+void transformPublicationFollowsInterleavedVisibilityEdit() {
   Fixture f;
   f.opacity(.75f);
   f.document.markSaved();
   const auto saved = f.document.contentState();
-  f.opacity(.5f);
-  CHECK(f.history.undo(f.document));
-  const auto undo = f.history.undoDepth();
-  const auto redo = f.history.redoDepth();
-  const auto memory = f.history.memoryUsed();
   const auto original = f.document.layer(f.id)->localToDocument;
 
   LayerTransformSession edit(f.document, f.id);
@@ -387,48 +395,32 @@ void rejectedTransformPublicationRetainsPendingGeometry() {
   CHECK(edit.setValues(values));
   CHECK(edit.completeAction());
   const auto transformed = f.document.layer(f.id)->localToDocument;
-  const auto pendingState = f.document.contentState();
-  const auto pendingMemory = edit.pendingHistory().memoryUsed();
-
-  // Geometry still matches the transform's endpoint, but another history has
-  // changed persistent state. Adoption must validate both, without cancelling
-  // completed gestures or destroying the destination's existing redo branch.
-  History unrelated;
-  CHECK(unrelated.execute(
+  CHECK(f.document.contentState() == saved);
+  CHECK(f.history.execute(
       f.document, std::make_unique<SetLayerVisibilityCommand>(f.id, false)));
-  const auto interleavedState = f.document.contentState();
-  CHECK(interleavedState != pendingState);
-  CHECK(edit.commit(f.history) == TransformCommitResult::TargetUnavailable);
-  CHECK(edit.active());
-  CHECK(edit.targetAvailable());
-  CHECK(f.document.layer(f.id)->localToDocument == transformed);
-  CHECK(!f.document.layer(f.id)->visible);
-  CHECK(f.document.contentState() == interleavedState);
-  CHECK(edit.pendingHistory().undoDepth() == 1);
-  CHECK(edit.pendingHistory().redoDepth() == 0);
-  CHECK(edit.pendingHistory().memoryUsed() == pendingMemory);
-  CHECK(f.history.undoDepth() == undo);
-  CHECK(f.history.redoDepth() == redo);
-  CHECK(f.history.memoryUsed() == memory);
-
-  // Once the conflicting mutation is reversed, the same retained session can
-  // publish normally. No replay or resampling of its geometry is necessary.
-  CHECK(unrelated.undo(f.document));
-  CHECK(f.document.contentState() == pendingState);
-  CHECK(f.document.layer(f.id)->visible);
+  const auto hidden = f.document.contentState();
+  CHECK(hidden != saved);
   CHECK(edit.commit(f.history) == TransformCommitResult::Committed);
+  const auto applied = f.document.contentState();
+  CHECK(applied != hidden && applied != saved);
   CHECK(!edit.active());
   CHECK(f.document.layer(f.id)->localToDocument == transformed);
-  CHECK(f.document.contentState() == pendingState);
-  CHECK(f.history.undoDepth() == undo + 1);
-  CHECK(f.history.redoDepth() == 0);
+  CHECK(!f.document.layer(f.id)->visible);
+
   CHECK(f.history.undo(f.document));
   CHECK(f.document.layer(f.id)->localToDocument == original);
+  CHECK(!f.document.layer(f.id)->visible);
+  CHECK(f.document.contentState() == hidden);
+  CHECK(f.history.undo(f.document));
+  CHECK(f.document.layer(f.id)->visible);
   CHECK(f.document.contentState() == saved);
   CHECK(!f.document.isModified());
   CHECK(f.history.redo(f.document));
+  CHECK(f.document.contentState() == hidden);
+  CHECK(f.history.redo(f.document));
+  CHECK(f.document.contentState() == applied);
   CHECK(f.document.layer(f.id)->localToDocument == transformed);
-  CHECK(f.document.contentState() == pendingState);
+  CHECK(!f.document.layer(f.id)->visible);
 }
 
 void textTypingMergeAndUndoneInitialBranch() {
@@ -489,8 +481,8 @@ int main() {
     canvasChangesAreContentEvenWhenSelectionChangesToo();
     directRasterCommitCancelAndNoOp();
     pendingTransformCancelRestoresCheckpointAndRedo();
-    transformPublicationRetainsActionTokens();
-    rejectedTransformPublicationRetainsPendingGeometry();
+    transformPublicationAssignsActionTokens();
+    transformPublicationFollowsInterleavedVisibilityEdit();
     textTypingMergeAndUndoneInitialBranch();
   } catch (const std::exception &error) {
     std::cerr << "Unexpected exception: " << error.what() << '\n';

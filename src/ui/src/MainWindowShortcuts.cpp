@@ -157,9 +157,11 @@ bool MainWindow::routePanelKeyboard(QObject* watched, QEvent* event)
         canvasContainer_->setFocus(Qt::MouseFocusReason);
     } else if ((press || event->type() == QEvent::FocusIn) && qobject_cast<QWidget*>(watched)) {
         auto* target = inputOwner(static_cast<QWidget*>(watched));
-        // Qt can focus the new widget before delivering its press while the
-        // native host still routes keys and IME to the previous field.
-        const bool reclaimFocus = press && target && (canvasContainer_->focusProxy() != target
+        // FocusIn can precede the press while the host still delegates to the
+        // previous field. Leave an already-focused control with no proxy alone
+        // so its press-and-hold gesture keeps its mouse capture.
+        const auto* proxy = canvasContainer_->focusProxy();
+        const bool reclaimFocus = press && target && ((proxy && proxy != target)
             || (!target->hasFocus() && !target->isAncestorOf(QApplication::focusWidget())));
         if (target && (keyboardPanelTarget_ != target || reclaimFocus)) {
             keyboardPanelTarget_ = target;

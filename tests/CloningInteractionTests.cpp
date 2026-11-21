@@ -27,6 +27,8 @@
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTimer>
+#include <QSignalBlocker>
+#include <QSignalSpy>
 #include <QToolBar>
 #include <QToolButton>
 #include <QPushButton>
@@ -767,6 +769,11 @@ void spotHealInteraction(Fixture& f, bool native)
     f.find<QDoubleSpinBox>("CloneSizeControl")->setValue(36);
     f.mouse(QEvent::MouseButtonPress, {102, 50});
     f.mouse(QEvent::MouseMove, {116, 77});
+    // Keep the result pending while exercising the busy UI. A fast solver
+    // may otherwise publish before the test can deliver the Cancel click.
+    auto* pollTimer = f.find<QTimer>("SpotHealPollTimer");
+    if (!pollTimer) return;
+    QSignalBlocker holdPublication(pollTimer);
     f.mouse(QEvent::MouseButtonRelease, {116, 77});
     CHECK(f.canvas->scene().repairProcessing);
     CHECK(!f.window.saveDocument());
@@ -789,6 +796,8 @@ void spotHealInteraction(Fixture& f, bool native)
     CHECK(f.canvas->zoom() != zoom);
     QElapsedTimer cancellation; cancellation.start();
     auto* cancelButton=f.find<QPushButton>("SpotHealCancelProcessing");
+    CHECK(cancelButton->isVisible());
+    QSignalSpy cancelClicks(cancelButton, &QPushButton::clicked);
     const QPoint cancelGlobal=cancelButton->mapToGlobal(cancelButton->rect().center());
     auto* carrier=cancelButton->window()->windowHandle();
     if (carrier) {
@@ -797,6 +806,8 @@ void spotHealInteraction(Fixture& f, bool native)
         QMouseEvent up(QEvent::MouseButtonRelease,cancelLocal,cancelLocal,QPointF(cancelGlobal),Qt::LeftButton,Qt::NoButton,Qt::NoModifier);
         QCoreApplication::sendEvent(carrier,&down);QCoreApplication::sendEvent(carrier,&up);
     } else { CHECK(false); cancelButton->click(); }
+    CHECK(cancelClicks.count() == 1);
+    holdPublication.unblock();
     CHECK(waitFor([&] { return !f.canvas->scene().repairProcessing; }, 2000));
     std::cout << "Spot Heal UI cancellation_ms=" << cancellation.elapsed() << '\n';
     CHECK(f.currentPixels() == before && f.session().history().redoDepth() == 1);

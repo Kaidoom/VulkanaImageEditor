@@ -1895,6 +1895,10 @@ void MainWindow::dropEvent(QDropEvent* event)
 void MainWindow::createActions()
 {
     createLayerOrganizationActions();
+    newAdjustmentLayerAction_ = i18n::make<QAction>(toolGlyph(ToolGlyph::AdjustmentLayer),
+        i18n::text("main.window.new.adjustment.layer"), this);
+    newAdjustmentLayerAction_->setObjectName(QStringLiteral("NewAdjustmentLayerAction"));
+    connect(newAdjustmentLayerAction_, &QAction::triggered, this, &MainWindow::addAdjustmentLayer);
     createMirroredLayerActions();
     createSelectionActions();
     transformAction_ = i18n::make<QAction>(i18n::text("main.window.transform.layer"), this);
@@ -2230,9 +2234,6 @@ void MainWindow::createMenus()
     preferences->setObjectName(QStringLiteral("PreferencesAction"));
 
     auto* layerMenu=i18n::addMenu(menuBar(), i18n::text("main.window.layers.2"));
-    newAdjustmentLayerAction_=i18n::make<QAction>(toolGlyph(ToolGlyph::AdjustmentLayer),i18n::text("main.window.new.adjustment.layer"),this);
-    newAdjustmentLayerAction_->setObjectName(QStringLiteral("NewAdjustmentLayerAction"));
-    connect(newAdjustmentLayerAction_,&QAction::triggered,this,&MainWindow::addAdjustmentLayer);
     layerMenu->addAction(newAdjustmentLayerAction_);
     auto* addProject = i18n::addAction(layerMenu, toolGlyph(ToolGlyph::Link), i18n::text("project.layer.add"), this, [this] {
         const auto path = chooseProjectLayerPath();

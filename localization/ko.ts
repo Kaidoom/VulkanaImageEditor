@@ -104,228 +104,284 @@
     </message>
     <message id="diffusion.progress.worker">
       <source>Generating using %1 worker</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1 워커로 생성 중</translation>
     </message>
     <message id="diffusion.progress.stage.hint">
       <source>Progress describes the current stage, not the whole job. Some stages may repeat for separate images or model components.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>진행률은 현재 단계의 진행 상황을 나타냅니다. 이미지나 모델 구성 요소를 개별적으로 처리할 때 일부 단계가 반복될 수 있습니다.</translation>
     </message>
     <message id="diffusion.progress.step.count">
       <source>%v / %m steps</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%v / %m단계</translation>
     </message>
     <message id="diffusion.progress.current.percent">
       <source>Current stage: %p%</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>현재 단계: %p%</translation>
     </message>
     <message id="diffusion.progress.pass">
       <source>Pass %1</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>패스 %1</translation>
     </message>
     <message id="diffusion.progress.starting">
       <source>Starting worker…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>워커 시작 중…</translation>
     </message>
     <message id="diffusion.progress.starting.hint">
       <source>Connecting to the inference worker.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>추론 워커에 연결하고 있습니다.</translation>
     </message>
     <message id="diffusion.progress.loading">
       <source>Loading model…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>모델 불러오는 중…</translation>
     </message>
     <message id="diffusion.progress.loading.hint">
       <source>Preparing model weights. Image generation has not started yet.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>모델 가중치를 준비하고 있습니다. 이미지 생성은 아직 시작되지 않았습니다.</translation>
     </message>
     <message id="diffusion.progress.preparing">
       <source>Preparing generation…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성 준비 중…</translation>
     </message>
     <message id="diffusion.progress.preparing.hint">
       <source>Preparing inputs and model resources.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>입력과 모델 리소스를 준비하고 있습니다.</translation>
     </message>
     <message id="diffusion.progress.loras">
       <source>Preparing LoRAs…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>LoRA 준비 중…</translation>
     </message>
     <message id="diffusion.progress.loras.hint">
       <source>Loading the enabled LoRAs for this generation.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이번 생성에 사용할 LoRA를 불러오고 있습니다.</translation>
     </message>
     <message id="diffusion.progress.prompt">
       <source>Encoding prompt…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>프롬프트 인코딩 중…</translation>
     </message>
     <message id="diffusion.progress.prompt.hint">
       <source>Reading your prompt and reference images before generating.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성에 사용할 프롬프트와 참조 이미지를 읽고 있습니다.</translation>
     </message>
     <message id="diffusion.progress.negative">
       <source>Encoding negative prompt…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>네거티브 프롬프트 인코딩 중…</translation>
     </message>
     <message id="diffusion.progress.negative.hint">
       <source>Preparing guidance for unwanted details.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>원하지 않는 세부 요소를 피하기 위한 가이던스를 준비하고 있습니다.</translation>
     </message>
     <message id="diffusion.progress.references">
       <source>Encoding references…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>참조 이미지 인코딩 중…</translation>
     </message>
     <message id="diffusion.progress.references.hint">
       <source>Preparing the image information used for generation.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성에 사용할 이미지 정보를 준비하고 있습니다.</translation>
     </message>
     <message id="diffusion.progress.vae_encode">
       <source>Encoding images…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이미지 인코딩 중…</translation>
     </message>
     <message id="diffusion.progress.vae_encode.hint">
       <source>Converting input images into a form the model can use.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>입력 이미지를 모델이 처리할 수 있는 형식으로 변환하고 있습니다.</translation>
     </message>
     <message id="diffusion.progress.sampling">
       <source>Generating image…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이미지 생성 중…</translation>
     </message>
     <message id="diffusion.progress.sampling.hint">
       <source>Creating the image, one sampling step at a time.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>샘플링을 한 단계씩 진행하며 이미지를 생성하고 있습니다.</translation>
     </message>
     <message id="diffusion.progress.vae_decode">
       <source>Decoding image…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이미지 디코딩 중…</translation>
     </message>
     <message id="diffusion.progress.vae_decode.hint">
       <source>Converting the generated result into full-resolution pixels.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>생성 결과를 전체 해상도의 픽셀로 변환하고 있습니다.</translation>
     </message>
     <message id="diffusion.progress.saving">
       <source>Preparing preview…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>미리보기 준비 중…</translation>
     </message>
     <message id="diffusion.progress.saving.hint">
       <source>Saving the result for preview and Apply.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>미리 보고 적용할 수 있도록 결과를 저장하고 있습니다.</translation>
     </message>
     <message id="diffusion.progress.processing">
       <source>Processing image…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이미지 처리 중…</translation>
     </message>
     <message id="diffusion.progress.processing.hint">
       <source>This worker does not report individual generation stages.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이 워커는 개별 생성 단계의 진행 상황을 알려 주지 않습니다.</translation>
     </message>
     <message id="diffusion.progress.loading_weights">
       <source>Loading model weights…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>모델 가중치 불러오는 중…</translation>
     </message>
     <message id="diffusion.progress.loading_weights.hint">
       <source>Moving the weights needed for this stage into memory.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이 단계에 필요한 가중치를 메모리로 옮기고 있습니다.</translation>
     </message>
     <message id="diffusion.workers.session.available">
       <source>Available (session override)</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>사용 가능(이 세션에서 재정의)</translation>
     </message>
     <message id="diffusion.workers.session.hint">
       <source>CUDA is selected by --cuda-worker for this session. Your saved worker and backend are unchanged.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이 세션에서는 --cuda-worker로 CUDA가 선택되었습니다. 저장한 워커와 백엔드 설정은 그대로 유지됩니다.</translation>
     </message>
     <message id="diffusion.ui.workers">
       <source>Workers</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>워커</translation>
     </message>
     <message id="diffusion.ui.add.worker">
       <source>Add worker…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>워커 추가…</translation>
     </message>
     <message id="diffusion.ui.choose.worker">
       <source>Choose extracted worker folder</source>
       <oldsource>Choose worker executable</oldsource>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>압축을 푼 워커 폴더 선택</translation>
     </message>
     <message id="diffusion.workers.folder.missing">
       <source>No CUDA worker found. Select the extracted worker folder or its bin folder for this system.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>CUDA 워커를 찾을 수 없습니다. 이 시스템용 워커의 압축을 푼 폴더 또는 그 안의 bin 폴더를 선택하세요.</translation>
     </message>
     <message id="diffusion.workers.folder.ambiguous">
       <source>Several CUDA workers were found. Select one worker’s folder or its bin folder.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>CUDA 워커가 여러 개 있습니다. 워커 하나의 폴더 또는 그 안의 bin 폴더를 선택하세요.</translation>
     </message>
     <message id="diffusion.workers.folder.added">
       <source>CUDA worker added.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>CUDA 워커를 추가했습니다.</translation>
     </message>
     <message id="diffusion.ui.worker.available">
       <source>Available</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>사용 가능</translation>
     </message>
     <message id="diffusion.ui.worker.not.added">
       <source>Not added</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>추가되지 않음</translation>
     </message>
     <message id="diffusion.ui.worker.missing">
       <source>Missing</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>찾을 수 없음</translation>
     </message>
     <message id="diffusion.workers.download.invalid">
       <source>The worker download information or archive is invalid.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>워커 다운로드 정보 또는 압축 파일이 올바르지 않습니다.</translation>
     </message>
     <message id="diffusion.workers.feed.invalid">
       <source>Worker update information is invalid. Check for updates again in About.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>워커 업데이트 정보가 올바르지 않습니다. ‘Vulkana 정보’에서 업데이트를 다시 확인하세요.</translation>
     </message>
     <message id="diffusion.workers.check.failed">
       <source>Could not check worker updates. Try again in About.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>워커 업데이트를 확인할 수 없습니다. ‘Vulkana 정보’에서 다시 시도하세요.</translation>
     </message>
     <message id="diffusion.workers.downloading">
       <source>Downloading CUDA worker…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>CUDA 워커 다운로드 중…</translation>
     </message>
     <message id="diffusion.workers.download.saved">
       <source>CUDA worker downloaded. Extract the archive, then choose Add worker or Change worker.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>CUDA 워커를 다운로드했습니다. 압축을 푼 다음 ‘워커 추가’ 또는 ‘워커 변경’을 선택하세요.</translation>
     </message>
     <message id="diffusion.workers.download">
       <source>Download CUDA worker</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>CUDA 워커 다운로드</translation>
     </message>
     <message id="diffusion.workers.download.version">
       <source>Download CUDA worker %1</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>CUDA 워커 %1 다운로드</translation>
     </message>
     <message id="diffusion.workers.save.archive">
       <source>Save CUDA worker archive</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>CUDA 워커 압축 파일 저장</translation>
     </message>
     <message id="diffusion.workers.xz.archives">
       <source>XZ archives (*.tar.xz)</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>XZ 압축 파일 (*.tar.xz)</translation>
     </message>
     <message id="diffusion.workers.change">
       <source>Change worker…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>워커 변경…</translation>
     </message>
     <message id="diffusion.workers.vulkan.bundled">
       <source>Included with Vulkana. Vulkan worker updates are included in application updates.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Vulkana에 포함되어 있습니다. Vulkan 워커는 앱과 함께 업데이트됩니다.</translation>
     </message>
     <message id="diffusion.workers.check.about">
       <source>Check for updates in About to find a compatible CUDA worker.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>호환되는 CUDA 워커를 찾으려면 ‘Vulkana 정보’에서 업데이트를 확인하세요.</translation>
     </message>
     <message id="diffusion.workers.checking">
       <source>Checking worker updates…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>워커 업데이트 확인 중…</translation>
     </message>
     <message id="diffusion.workers.no.compatible">
       <source>No compatible CUDA worker is available for this build.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이 빌드에 호환되는 CUDA 워커가 없습니다.</translation>
     </message>
   </context>
   <context>
@@ -8210,7 +8266,8 @@ Escape · 취소
     <message id="psd.export.panel.project.layer.appearance">
       <source>PSD stores the Project Layer as pixels. The source link stays in the Vulkana project.</source>
       <extracomment>Layer conversion details for a linked Vulkana project.</extracomment>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>PSD에는 프로젝트 레이어가 픽셀로 저장됩니다. 원본 링크는 Vulkana 프로젝트에 유지됩니다.</translation>
     </message>
     <message id="psd.export.panel.keep.this.layer.editable.where.possible.otherwise.export.it">
       <source>Keep this layer editable where possible; otherwise export it as pixels.</source>
@@ -13678,7 +13735,8 @@ Prepare %3 · Finish %4 · Total %5</source>
     <message id="diffusion.ui.ready.1.s.inspect.the.result.before">
       <source>Generation done in %1 s.</source>
       <oldsource>Ready · %1 s — inspect the result before applying.</oldsource>
-      <translation type="unfinished">준비됨 · %1 s — 적용 전에 결과를 확인하세요.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%1초 만에 생성이 완료되었습니다.</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="diffusion.ui.generation.failed">
@@ -14107,109 +14165,134 @@ Requested: %1 × %2 px</source>
     <name>LayerEffectClipboard</name>
     <message id="layer.effects.copy">
       <source>Copy Effects</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>효과 복사</translation>
     </message>
     <message id="layer.effects.paste">
       <source>Paste Effects</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>효과 붙여넣기</translation>
     </message>
     <message id="layer.effects.paste.hint">
       <source>Replace this layer’s effects with the copied effects.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이 레이어의 효과를 복사한 효과로 바꿉니다.</translation>
     </message>
     <message id="layer.effects.copy.done">
       <source>Effects copied.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>효과를 복사했습니다.</translation>
     </message>
     <message id="layer.effects.paste.invalid">
       <source>The copied effects could not be read.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>복사한 효과를 읽을 수 없습니다.</translation>
     </message>
   </context>
   <context>
     <name>Guides</name>
     <message id="guides.tool">
       <source>Guides</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>안내선</translation>
     </message>
     <message id="guides.horizontal">
       <source>Horizontal</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>가로</translation>
     </message>
     <message id="guides.vertical">
       <source>Vertical</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>세로</translation>
     </message>
     <message id="guides.count">
       <source>Count: </source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>개수: </translation>
     </message>
     <message id="guides.count.hint">
       <source>Number of guides. Use the mouse wheel over the canvas to adjust it.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>안내선의 개수입니다. 캔버스 위에서 마우스 휠을 돌려 조절할 수 있습니다.</translation>
     </message>
     <message id="guides.show">
       <source>Show guides</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>안내선 표시</translation>
     </message>
     <message id="guides.clear">
       <source>Clear guides</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>안내선 모두 지우기</translation>
     </message>
     <message id="guides.key.click">
       <source>Left click</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>왼쪽 클릭</translation>
     </message>
     <message id="guides.key.drag">
       <source>Drag</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>드래그</translation>
     </message>
     <message id="guides.key.right">
       <source>Right click</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>오른쪽 클릭</translation>
     </message>
     <message id="guides.key.wheel">
       <source>Mouse wheel</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>마우스 휠</translation>
     </message>
     <message id="guides.hint.place">
       <source>Place guides</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>안내선 배치</translation>
     </message>
     <message id="guides.hint.move">
       <source>Move a guide</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>안내선 이동</translation>
     </message>
     <message id="guides.hint.remove">
       <source>Remove a guide</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>안내선 제거</translation>
     </message>
     <message id="guides.hint.count">
       <source>Change guide count</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>안내선 개수 변경</translation>
     </message>
   </context>
   <context>
     <name>MirroredLayers</name>
     <message id="layers.mirror.create">
       <source>Create mirrored layer</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>미러 레이어 만들기</translation>
     </message>
     <message id="layers.mirror.promote">
       <source>Promote to full layer</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>독립 레이어로 변환</translation>
     </message>
     <message id="layers.mirror.sync">
       <source>Sync with source</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>원본과 동기화</translation>
     </message>
     <message id="layers.mirror.select.source">
       <source>Select source</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>원본 선택</translation>
     </message>
     <message id="layers.mirror.label">
       <source>Mirrored</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>미러</translation>
     </message>
     <message id="layers.cleanup.transparency">
       <source>Clean Up Transparency</source>
@@ -14289,102 +14372,211 @@ Requested: %1 × %2 px</source>
     </message>
     <message id="project.layer.add">
       <source>Add Project as Layer…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>프로젝트를 레이어로 추가…</translation>
     </message>
     <message id="project.layer.open">
       <source>Open Source Project</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>원본 프로젝트 열기</translation>
     </message>
     <message id="project.layer.relink">
       <source>Relink Project Layer…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>프로젝트 레이어 다시 연결…</translation>
     </message>
     <message id="project.layer.refresh">
       <source>Refresh Project Layer</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>프로젝트 레이어 새로 고침</translation>
     </message>
     <message id="project.layer.convert">
       <source>Convert to Raster Layer</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>래스터 레이어로 변환</translation>
     </message>
     <message id="project.layer.choose">
       <source>Choose a source project</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>원본 프로젝트 선택</translation>
     </message>
     <message id="project.layer.filter">
       <source>Vulkana projects (*.vulkana)</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Vulkana 프로젝트 (*.vulkana)</translation>
     </message>
     <message id="project.layer.rendering">
       <source>Rendering project layer…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>프로젝트 레이어 렌더링 중…</translation>
     </message>
     <message id="project.layer.missing">
       <source>Source project missing. Relink the project layer to open its source.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>원본 프로젝트를 찾을 수 없습니다. 원본을 열려면 프로젝트 레이어를 다시 연결하세요.</translation>
     </message>
     <message id="layers.project.label">
       <source>Project Layer</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>프로젝트 레이어</translation>
     </message>
     <message id="layers.project.missing.label">
       <source>Project Layer · File missing</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>프로젝트 레이어 · 파일 없음</translation>
     </message>
     <message id="layers.project.missing.hint">
       <source>Source file missing. The saved appearance is available. Use Relink to choose its new location.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>원본 파일을 찾을 수 없습니다. 저장된 레이어 모습은 그대로 사용할 수 있습니다. ‘다시 연결’로 새 위치를 선택하세요.</translation>
     </message>
     <message id="layers.project.read.only">
       <source>Project layer pixels are linked. Edit the source project or convert the layer to raster.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>프로젝트 레이어의 픽셀은 원본과 연결되어 있습니다. 원본 프로젝트를 편집하거나 래스터 레이어로 변환하세요.</translation>
     </message>
     <message id="layers.mirror.read.only">
       <source>Mirrored layers are read-only. Promote to a full layer to edit the content.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>미러 레이어는 읽기 전용입니다. 내용을 편집하려면 독립 레이어로 변환하세요.</translation>
     </message>
     <message id="layers.mirror.link.opacity">
       <source>Link layer opacity to the source</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>레이어 불투명도를 원본에 연결</translation>
     </message>
     <message id="layers.mirror.link.fill">
       <source>Link pixel opacity to the source</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>픽셀 불투명도를 원본에 연결</translation>
     </message>
   </context>
   <context>
     <name>BrushSymmetry</name>
     <message id="brush.symmetry.title">
       <source>Brush Symmetry</source>
-      <translation type="unfinished">Brush Symmetry</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>브러시 대칭</translation>
     </message>
     <message id="brush.symmetry.hint">
       <source>Toggle brush symmetry. Use the menu to choose an axis or reposition the target.</source>
-      <translation type="unfinished">Toggle brush symmetry. Use the menu to choose an axis or reposition the target.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>브러시 대칭을 켜거나 끕니다. 메뉴에서 대칭축을 선택하거나 대칭 기준점을 옮길 수 있습니다.</translation>
     </message>
     <message id="brush.symmetry.placing">
       <source>Click or drag to place the symmetry target. Esc cancels.</source>
-      <translation type="unfinished">Click or drag to place the symmetry target. Esc cancels.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>클릭하거나 드래그해 대칭 기준점을 배치하세요. Esc를 누르면 취소합니다.</translation>
     </message>
     <message id="brush.symmetry.vertical">
       <source>Vertical — mirror left/right</source>
-      <translation type="unfinished">Vertical — mirror left/right</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>세로축 — 좌우 대칭</translation>
     </message>
     <message id="brush.symmetry.horizontal">
       <source>Horizontal — mirror top/bottom</source>
-      <translation type="unfinished">Horizontal — mirror top/bottom</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>가로축 — 상하 대칭</translation>
     </message>
     <message id="brush.symmetry.reposition">
       <source>Reposition target</source>
-      <translation type="unfinished">Reposition target</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>기준점 옮기기</translation>
     </message>
     <message id="brush.symmetry.short">
       <source>Symmetry</source>
-      <translation type="unfinished">Symmetry</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>대칭</translation>
     </message>
     <message id="brush.symmetry.options">
       <source>Symmetry options</source>
-      <translation type="unfinished">Symmetry options</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>대칭 옵션</translation>
+    </message>
+  </context>
+  <context>
+    <name>DiffusionDecomposition</name>
+    <message id="diffusion.decompose.apply">
+      <source>Apply as folder</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>폴더로 적용</translation>
+    </message>
+    <message id="diffusion.decompose.action">
+      <source>Decompose</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>분해</translation>
+    </message>
+    <message id="diffusion.decompose.prompt">
+      <source>Describe the source image (optional)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>원본 이미지 설명(선택 사항)</translation>
+    </message>
+    <message id="diffusion.decompose.add.input">
+      <source>Add a raster layer to Input images.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>‘입력 이미지’에 래스터 레이어를 추가하세요.</translation>
+    </message>
+    <message id="diffusion.decompose.empty.source">
+      <source>The captured layer contains no pixels.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>캡처한 레이어에 픽셀이 없습니다.</translation>
+    </message>
+    <message id="diffusion.decompose.aspect.ratio">
+      <source>The source aspect ratio exceeds the worker's 8192 px limit at this resolution.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이 해상도에서 원본 가로세로 비율을 유지하면 한쪽 길이가 워커 제한인 8192픽셀을 초과합니다.</translation>
+    </message>
+    <message id="diffusion.decompose.mode">
+      <source>Decompose into Layers</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>레이어로 분해</translation>
+    </message>
+    <message id="diffusion.decompose.composite">
+      <source>Composite</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>합성 이미지</translation>
+    </message>
+    <message id="diffusion.decompose.layer">
+      <source>Layer %1</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>레이어 %1</translation>
+    </message>
+    <message id="diffusion.decompose.inspect">
+      <source>Inspect layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>레이어 살펴보기</translation>
+    </message>
+    <message id="diffusion.decompose.count">
+      <source>Decomposition layer count</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>분해할 레이어 수</translation>
+    </message>
+    <message id="diffusion.decompose.resolution">
+      <source>Processing resolution</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>처리 해상도</translation>
+    </message>
+    <message id="diffusion.decompose.resolution.hint">
+      <source>Target area at the source aspect ratio, rounded to the model grid.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>원본 가로세로 비율로 목표 면적의 크기를 구하고 모델 격자에 맞게 반올림합니다.</translation>
+    </message>
+    <message id="diffusion.decompose.one.input">
+      <source>Decomposition accepts one raster layer.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>분해에는 래스터 레이어 하나만 사용할 수 있습니다.</translation>
+    </message>
+    <message id="diffusion.decompose.worker.update">
+      <source>Update the inference worker to decompose images into layers.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>이미지를 레이어로 분해하려면 추론 워커를 업데이트하세요.</translation>
+    </message>
+    <message id="diffusion.decompose.result" numerus="yes">
+      <source>Decomposition · %n layer(s)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>
+        <numerusform>분해 결과 · 레이어 %n개</numerusform>
+      </translation>
     </message>
   </context>
 </TS>

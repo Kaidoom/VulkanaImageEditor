@@ -1162,7 +1162,7 @@ struct DiffusionPanel::Impl {
     const bool stack = ready && !q.selectedResult()->layers.isEmpty();
     outputDestination->setVisible(lightbox && previewShowsResult && ready && !stack);
     fitOutput->setVisible(lightbox && previewShowsResult && ready && !stack);
-    i18n::setText(apply, stack ? i18n::Message("Apply as folder") : i18n::text("diffusion.ui.apply"));
+    i18n::setText(apply, stack ? i18n::text("diffusion.decompose.apply") : i18n::text("diffusion.ui.apply"));
     if (const auto *result = q.selectedResult()) {
       const bool fill = result->mode == Mode::Fill;
       const bool replace = q.destination() == Destination::ReplaceSelected;
@@ -1198,11 +1198,11 @@ struct DiffusionPanel::Impl {
     const auto align = [](double pixels) { return 32 * std::max(1, qRound(pixels / 32)); };
     return {align(bucket * ratio), align(bucket / ratio)};
   }
-  QString decompositionInputError() const {
-    if (!decompositionSource()) return "Add a raster layer to Input images.";
+  i18n::Message decompositionInputError() const {
+    if (!decompositionSource()) return i18n::text("diffusion.decompose.add.input");
     const auto size = stackResolution();
-    if (size.isEmpty()) return "The captured layer contains no pixels.";
-    if (std::max(size.width(), size.height()) > 8192) return "The source aspect ratio exceeds the worker's 8192 px limit at this resolution.";
+    if (size.isEmpty()) return i18n::text("diffusion.decompose.empty.source");
+    if (std::max(size.width(), size.height()) > 8192) return i18n::text("diffusion.decompose.aspect.ratio");
     return {};
   }
   void updateActions() {
@@ -1217,17 +1217,17 @@ struct DiffusionPanel::Impl {
     models->setItemText(0, configured ? i18n::text("diffusion.ui.current.configuration")
                                       : i18n::text("diffusion.ui.missing.configuration"));
     const bool decompose = q.mode() == Mode::Decompose;
-    const auto sourceError = decompose ? decompositionInputError() : QString{};
+    const auto sourceError = decompose ? decompositionInputError() : i18n::Message{};
     const bool hasInputs = q.mode() == Mode::Generate || !inputs.isEmpty();
     const bool nonempty = !q.supportsImageInputs() || std::none_of(inputs.begin(), inputs.end(), [](const auto &in) { return in.image.isNull(); });
     const auto linkError = transferError();
-    i18n::setText(generate, busy ? i18n::text("diffusion.ui.cancel") : decompose ? i18n::Message("Decompose") : i18n::text("diffusion.ui.generate"));
+    i18n::setText(generate, busy ? i18n::text("diffusion.ui.cancel") : decompose ? i18n::text("diffusion.decompose.action") : i18n::text("diffusion.ui.generate"));
     const bool needsSelection = q.mode() == Mode::Fill && !fillSelectionAvailable;
     const bool canGenerate = configured && hasInputs && nonempty && referencesFit() && linkError.isEmpty() && sourceError.isEmpty() && !needsSelection;
     generate->setEnabled(busy || canGenerate);
     for (auto *button : unloadButtons)
       button->setEnabled(!busy && canUnloadModels);
-    i18n::setToolTip(generate, busy ? i18n::text("diffusion.ui.cancel.generation") : !sourceError.isEmpty() ? i18n::Message(sourceError) : needsSelection ? i18n::text("diffusion.ui.make.a.selection.before.using.generative.fill") : !linkError.isEmpty() ? linkError : !nonempty ? i18n::text("diffusion.ui.a.cropped.layer.is.outside.its.canvas")
+    i18n::setToolTip(generate, busy ? i18n::text("diffusion.ui.cancel.generation") : !sourceError.isEmpty() ? sourceError : needsSelection ? i18n::text("diffusion.ui.make.a.selection.before.using.generative.fill") : !linkError.isEmpty() ? linkError : !nonempty ? i18n::text("diffusion.ui.a.cropped.layer.is.outside.its.canvas")
         : !referencesFit()
         ? i18n::text("diffusion.ui.remove.an.image.or.region.to.stay")
         : configured ? QString{} : i18n::text("diffusion.ui.add.model.files.in.the.configuration.tab"));
@@ -1397,9 +1397,9 @@ struct DiffusionPanel::Impl {
           inspectedStack = key;
           stackInspector->clear();
           if (stack) {
-            stackInspector->addItem("Composite");
+            i18n::addItem(stackInspector, i18n::text("diffusion.decompose.composite"));
             for (int i = 0; i < result->layers.size(); ++i)
-              stackInspector->addItem(QString("Layer %1").arg(i + 1));
+              i18n::addItem(stackInspector, i18n::text("diffusion.decompose.layer").arg(i + 1));
           }
         }
         stackInspector->setVisible(stack);
@@ -1445,7 +1445,7 @@ struct DiffusionPanel::Impl {
     regularResolution->setVisible(!decompose);
     modeSettings->setVisible(!decompose);
     modeSettings->setEnabled(!busy);
-    i18n::setPlaceholderText(prompt, decompose ? i18n::Message("Describe the source image (optional)") : i18n::text("diffusion.ui.describe.the.image.or.the.changes.you"));
+    i18n::setPlaceholderText(prompt, decompose ? i18n::text("diffusion.decompose.prompt") : i18n::text("diffusion.ui.describe.the.image.or.the.changes.you"));
     const bool supportsDenoising = profile().value("imageToImage").toBool(true);
     {
       const QSignalBlocker block(imageToImage);
@@ -1828,7 +1828,7 @@ struct DiffusionPanel::Impl {
       auto *outputRow = new QHBoxLayout;
       stackInspector = new ScrollSafe<QComboBox>(dialog);
       stackInspector->setObjectName("DiffusionStackInspector");
-      stackInspector->setAccessibleName("Inspect layer");
+      i18n::setAccessibleName(stackInspector, i18n::text("diffusion.decompose.inspect"));
       outputRow->addWidget(stackInspector);
       QObject::connect(stackInspector, &QComboBox::currentIndexChanged, dialog, [this] { refreshDisplayedPreview(); });
       outputRow->addWidget(outputDestination);
@@ -2208,7 +2208,7 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   configLayout->addSpacing(10);
   sectionHeading(configLayout, i18n::text("diffusion.ui.configuration"), "DiffusionConfiguration");
   auto *top = new QHBoxLayout;
-  d->mode = combo({i18n::text("diffusion.ui.generate"), i18n::text("diffusion.ui.edit.layer"), i18n::text("diffusion.ui.generative.fill"), "Decompose into Layers"},
+  d->mode = combo({i18n::text("diffusion.ui.generate"), i18n::text("diffusion.ui.edit.layer"), i18n::text("diffusion.ui.generative.fill"), i18n::text("diffusion.decompose.mode")},
                   {"generate", "edit", "fill", "decompose"}, content);
   d->mode->setObjectName("DiffusionMode");
   top->addWidget(d->mode, 1);
@@ -2308,22 +2308,22 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   d->stackSettings = new QWidget(content);
   auto *stackRow = new QHBoxLayout(d->stackSettings);
   stackRow->setContentsMargins(0, 0, 0, 0);
-  stackRow->addWidget(new QLabel("Layers"));
+  stackRow->addWidget(i18n::make<QLabel>(i18n::text("main.window.layers")));
   d->stackCount = new ScrollSafe<QSpinBox>;
   d->stackCount->setObjectName("DiffusionLayerCount");
   d->stackCount->setRange(2, 10);
   d->stackCount->setValue(QSettings().value("diffusion/stackLayerCount", 4).toInt());
-  d->stackCount->setAccessibleName("Decomposition layer count");
+  i18n::setAccessibleName(d->stackCount, i18n::text("diffusion.decompose.count"));
   stackRow->addWidget(d->stackCount);
   stackRow->addSpacing(8);
-  stackRow->addWidget(new QLabel("Processing resolution"));
+  stackRow->addWidget(i18n::make<QLabel>(i18n::text("diffusion.decompose.resolution")));
   d->stackBucket = new ScrollSafe<QComboBox>;
   d->stackBucket->setObjectName("DiffusionStackResolution");
   d->stackBucket->addItem("640", 640);
   d->stackBucket->addItem("1024", 1024);
-  d->stackBucket->setAccessibleName("Processing resolution");
+  i18n::setAccessibleName(d->stackBucket, i18n::text("diffusion.decompose.resolution"));
   d->stackBucket->setCurrentIndex(std::max(0, d->stackBucket->findData(QSettings().value("diffusion/stackResolution", 640))));
-  d->stackBucket->setToolTip("Target area at the source aspect ratio, rounded to the model grid.");
+  i18n::setToolTip(d->stackBucket, i18n::text("diffusion.decompose.resolution.hint"));
   stackRow->addWidget(d->stackBucket);
   d->stackDimensions = new QLabel;
   d->stackDimensions->setObjectName("DiffusionStackDimensions");
@@ -3714,7 +3714,7 @@ bool DiffusionPanel::addInput(Input input) {
 void DiffusionPanel::setInputs(QVector<Input> inputs) {
   if (mode() == Mode::Decompose && !inputs.isEmpty() &&
       (inputs.size() != 1 || !Impl::isDecompositionLayer(inputs.front()))) {
-    setStatus("Decomposition accepts one raster layer.", true);
+    setStatus(i18n::text("diffusion.decompose.one.input"), true);
     return;
   }
   QSet<QString> ids;

@@ -686,7 +686,8 @@ void brushWorkspaceUsesOneStableTopOptionsBar()
 {
     imageeditor::ui::MainWindow window(nullptr, false, false);
     window.setUnsavedPromptEnabled(false);
-    window.resize(1500, 900);
+    // Leave room to center the brush fields with the symmetry controls on their right.
+    window.resize(1680, 900);
     window.show();
     QCoreApplication::processEvents();
 
@@ -855,6 +856,8 @@ void brushWorkspaceUsesOneStableTopOptionsBar()
     const auto eraseRight = eraseModeButton->mapTo(
         bar, eraseModeButton->rect().topRight()).x();
     CHECK(eraseRight < controlsLeft);
+    auto* symmetry = page->findChild<QWidget*>(QStringLiteral("BrushSymmetryControls"));
+    CHECK(symmetry && symmetry->isVisible() && controlsRight < symmetry->mapTo(bar, QPoint{}).x());
     CHECK(std::abs((controlsLeft + controlsRight) / 2
               - bar->rect().center().x())
         <= 3);

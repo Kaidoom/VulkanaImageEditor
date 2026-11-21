@@ -2,6 +2,7 @@
 #include "imageeditor/core/SnapshotTimeline.hpp"
 #include "imageeditor/render/CanvasWindow.hpp"
 #include "imageeditor/ui/FlattenedDocument.hpp"
+#include "imageeditor/ui/Localization.hpp"
 #include "imageeditor/ui/MainWindow.hpp"
 #include "imageeditor/ui/ProjectFile.hpp"
 #include "imageeditor/ui/SnapshotTimelinePanel.hpp"
@@ -23,6 +24,7 @@
 #include <QElapsedTimer>
 #include <QFile>
 #include <QImage>
+#include <QLabel>
 #include <QListWidget>
 #include <QMenu>
 #include <QMenuBar>
@@ -752,7 +754,12 @@ void gifPlayback(QVulkanInstance* instance = nullptr)
     QTest::keyClick(&f.list(), Qt::Key_Space); settle();
     CHECK(f.button("SnapshotTimelinePlay").isChecked() && !f.canvas->spacePanHeld());
     CHECK(waitFor([&] { return f.list().currentRow() == 0; }));
-    f.list().setCurrentRow(3); settle();
+    // A seek must update the displayed frame before another playback tick can
+    // replace the user's selection, even when the previous frame is overdue.
+    QTest::qSleep(80); // Leave the event loop paused beyond frame zero's 40 ms.
+    f.list().setCurrentRow(3);
+    CHECK(child<QLabel>(*overlay, "SnapshotTimelinePreviewTitle").text()
+          == u::i18n::text("snapshot.timeline.preview.title").arg(3));
     CHECK(f.list().currentRow() == 3 && f.button("SnapshotTimelinePlay").isChecked());
     f.click("SnapshotTimelineExitPreview");
     const auto exited = f.list().currentRow();

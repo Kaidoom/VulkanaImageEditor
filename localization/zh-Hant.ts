@@ -104,228 +104,284 @@
     </message>
     <message id="diffusion.progress.worker">
       <source>Generating using %1 worker</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在使用 %1 推論程序產生</translation>
     </message>
     <message id="diffusion.progress.stage.hint">
       <source>Progress describes the current stage, not the whole job. Some stages may repeat for separate images or model components.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>進度顯示目前階段的完成狀況。處理不同影像或模型元件時，某些階段可能會重複。</translation>
     </message>
     <message id="diffusion.progress.step.count">
       <source>%v / %m steps</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>%v / %m 步</translation>
     </message>
     <message id="diffusion.progress.current.percent">
       <source>Current stage: %p%</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>目前階段：%p%</translation>
     </message>
     <message id="diffusion.progress.pass">
       <source>Pass %1</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>第 %1 輪</translation>
     </message>
     <message id="diffusion.progress.starting">
       <source>Starting worker…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在啟動推論程序…</translation>
     </message>
     <message id="diffusion.progress.starting.hint">
       <source>Connecting to the inference worker.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在連線至推論程序。</translation>
     </message>
     <message id="diffusion.progress.loading">
       <source>Loading model…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在載入模型…</translation>
     </message>
     <message id="diffusion.progress.loading.hint">
       <source>Preparing model weights. Image generation has not started yet.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在準備模型權重。影像尚未開始產生。</translation>
     </message>
     <message id="diffusion.progress.preparing">
       <source>Preparing generation…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在準備產生…</translation>
     </message>
     <message id="diffusion.progress.preparing.hint">
       <source>Preparing inputs and model resources.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在準備輸入資料與模型資源。</translation>
     </message>
     <message id="diffusion.progress.loras">
       <source>Preparing LoRAs…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在準備 LoRA…</translation>
     </message>
     <message id="diffusion.progress.loras.hint">
       <source>Loading the enabled LoRAs for this generation.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在載入這次產生影像時啟用的 LoRA。</translation>
     </message>
     <message id="diffusion.progress.prompt">
       <source>Encoding prompt…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在編碼提示詞…</translation>
     </message>
     <message id="diffusion.progress.prompt.hint">
       <source>Reading your prompt and reference images before generating.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在讀取提示詞與參考影像，為產生影像做準備。</translation>
     </message>
     <message id="diffusion.progress.negative">
       <source>Encoding negative prompt…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在編碼負面提示詞…</translation>
     </message>
     <message id="diffusion.progress.negative.hint">
       <source>Preparing guidance for unwanted details.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在準備引導資訊，以避免產生不需要的細節。</translation>
     </message>
     <message id="diffusion.progress.references">
       <source>Encoding references…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在編碼參考影像…</translation>
     </message>
     <message id="diffusion.progress.references.hint">
       <source>Preparing the image information used for generation.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在準備產生影像時使用的影像資訊。</translation>
     </message>
     <message id="diffusion.progress.vae_encode">
       <source>Encoding images…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在編碼影像…</translation>
     </message>
     <message id="diffusion.progress.vae_encode.hint">
       <source>Converting input images into a form the model can use.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在將輸入影像轉換成模型可用的形式。</translation>
     </message>
     <message id="diffusion.progress.sampling">
       <source>Generating image…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在產生影像…</translation>
     </message>
     <message id="diffusion.progress.sampling.hint">
       <source>Creating the image, one sampling step at a time.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在逐步取樣，產生影像。</translation>
     </message>
     <message id="diffusion.progress.vae_decode">
       <source>Decoding image…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在解碼影像…</translation>
     </message>
     <message id="diffusion.progress.vae_decode.hint">
       <source>Converting the generated result into full-resolution pixels.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在將產生的結果轉換成完整解析度的像素。</translation>
     </message>
     <message id="diffusion.progress.saving">
       <source>Preparing preview…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在準備預覽…</translation>
     </message>
     <message id="diffusion.progress.saving.hint">
       <source>Saving the result for preview and Apply.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在儲存結果，以供預覽及套用。</translation>
     </message>
     <message id="diffusion.progress.processing">
       <source>Processing image…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在處理影像…</translation>
     </message>
     <message id="diffusion.progress.processing.hint">
       <source>This worker does not report individual generation stages.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>此推論程序不會回報各個產生階段。</translation>
     </message>
     <message id="diffusion.progress.loading_weights">
       <source>Loading model weights…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在載入模型權重…</translation>
     </message>
     <message id="diffusion.progress.loading_weights.hint">
       <source>Moving the weights needed for this stage into memory.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在將此階段所需的權重載入記憶體。</translation>
     </message>
     <message id="diffusion.workers.session.available">
       <source>Available (session override)</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>可用（僅限本次工作階段）</translation>
     </message>
     <message id="diffusion.workers.session.hint">
       <source>CUDA is selected by --cuda-worker for this session. Your saved worker and backend are unchanged.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>此工作階段透過 --cuda-worker 選用了 CUDA。已儲存的推論程序和後端設定保持不變。</translation>
     </message>
     <message id="diffusion.ui.workers">
       <source>Workers</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>推論程序</translation>
     </message>
     <message id="diffusion.ui.add.worker">
       <source>Add worker…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>新增推論程序…</translation>
     </message>
     <message id="diffusion.ui.choose.worker">
       <source>Choose extracted worker folder</source>
       <oldsource>Choose worker executable</oldsource>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>選擇解壓縮後的推論程序資料夾</translation>
     </message>
     <message id="diffusion.workers.folder.missing">
       <source>No CUDA worker found. Select the extracted worker folder or its bin folder for this system.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>找不到 CUDA 推論程序。請選擇適用於此系統的已解壓縮資料夾，或其中的 bin 資料夾。</translation>
     </message>
     <message id="diffusion.workers.folder.ambiguous">
       <source>Several CUDA workers were found. Select one worker’s folder or its bin folder.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>找到多個 CUDA 推論程序。請選擇其中一個程序的資料夾或其中的 bin 資料夾。</translation>
     </message>
     <message id="diffusion.workers.folder.added">
       <source>CUDA worker added.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>已新增 CUDA 推論程序。</translation>
     </message>
     <message id="diffusion.ui.worker.available">
       <source>Available</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>可用</translation>
     </message>
     <message id="diffusion.ui.worker.not.added">
       <source>Not added</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>尚未新增</translation>
     </message>
     <message id="diffusion.ui.worker.missing">
       <source>Missing</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>找不到</translation>
     </message>
     <message id="diffusion.workers.download.invalid">
       <source>The worker download information or archive is invalid.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>推論程序的下載資訊或壓縮檔無效。</translation>
     </message>
     <message id="diffusion.workers.feed.invalid">
       <source>Worker update information is invalid. Check for updates again in About.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>推論程序的更新資訊無效。請在「關於 Vulkana」中重新檢查更新。</translation>
     </message>
     <message id="diffusion.workers.check.failed">
       <source>Could not check worker updates. Try again in About.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>無法檢查推論程序的更新。請在「關於 Vulkana」中再試一次。</translation>
     </message>
     <message id="diffusion.workers.downloading">
       <source>Downloading CUDA worker…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在下載 CUDA 推論程序…</translation>
     </message>
     <message id="diffusion.workers.download.saved">
       <source>CUDA worker downloaded. Extract the archive, then choose Add worker or Change worker.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>CUDA 推論程序已下載。請將檔案解壓縮，再選擇「新增推論程序」或「更換推論程序」。</translation>
     </message>
     <message id="diffusion.workers.download">
       <source>Download CUDA worker</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>下載 CUDA 推論程序</translation>
     </message>
     <message id="diffusion.workers.download.version">
       <source>Download CUDA worker %1</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>下載 CUDA 推論程序 %1</translation>
     </message>
     <message id="diffusion.workers.save.archive">
       <source>Save CUDA worker archive</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>儲存 CUDA 推論程序壓縮檔</translation>
     </message>
     <message id="diffusion.workers.xz.archives">
       <source>XZ archives (*.tar.xz)</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>XZ 壓縮檔 (*.tar.xz)</translation>
     </message>
     <message id="diffusion.workers.change">
       <source>Change worker…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>更換推論程序…</translation>
     </message>
     <message id="diffusion.workers.vulkan.bundled">
       <source>Included with Vulkana. Vulkan worker updates are included in application updates.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>隨 Vulkana 提供，Vulkan 推論程序會跟著應用程式一起更新。</translation>
     </message>
     <message id="diffusion.workers.check.about">
       <source>Check for updates in About to find a compatible CUDA worker.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>請在「關於 Vulkana」中檢查更新，以尋找相容的 CUDA 推論程序。</translation>
     </message>
     <message id="diffusion.workers.checking">
       <source>Checking worker updates…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在檢查推論程序更新…</translation>
     </message>
     <message id="diffusion.workers.no.compatible">
       <source>No compatible CUDA worker is available for this build.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>此版本沒有可用的相容 CUDA 推論程序。</translation>
     </message>
   </context>
   <context>
@@ -8210,7 +8266,8 @@ Escape 取消
     <message id="psd.export.panel.project.layer.appearance">
       <source>PSD stores the Project Layer as pixels. The source link stays in the Vulkana project.</source>
       <extracomment>Layer conversion details for a linked Vulkana project.</extracomment>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>PSD 會將專案圖層儲存為像素。來源連結會保留在 Vulkana 專案中。</translation>
     </message>
     <message id="psd.export.panel.keep.this.layer.editable.where.possible.otherwise.export.it">
       <source>Keep this layer editable where possible; otherwise export it as pixels.</source>
@@ -13678,7 +13735,8 @@ Prepare %3 · Finish %4 · Total %5</source>
     <message id="diffusion.ui.ready.1.s.inspect.the.result.before">
       <source>Generation done in %1 s.</source>
       <oldsource>Ready · %1 s — inspect the result before applying.</oldsource>
-      <translation type="unfinished">就緒 · %1 s — 套用前請檢查結果。</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>產生完成，耗時 %1 秒。</translation>
       <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
     </message>
     <message id="diffusion.ui.generation.failed">
@@ -14107,109 +14165,134 @@ Requested: %1 × %2 px</source>
     <name>LayerEffectClipboard</name>
     <message id="layer.effects.copy">
       <source>Copy Effects</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>複製效果</translation>
     </message>
     <message id="layer.effects.paste">
       <source>Paste Effects</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>貼上效果</translation>
     </message>
     <message id="layer.effects.paste.hint">
       <source>Replace this layer’s effects with the copied effects.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>以複製的效果取代此圖層的效果。</translation>
     </message>
     <message id="layer.effects.copy.done">
       <source>Effects copied.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>已複製效果。</translation>
     </message>
     <message id="layer.effects.paste.invalid">
       <source>The copied effects could not be read.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>無法讀取複製的效果。</translation>
     </message>
   </context>
   <context>
     <name>Guides</name>
     <message id="guides.tool">
       <source>Guides</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>參考線</translation>
     </message>
     <message id="guides.horizontal">
       <source>Horizontal</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>水平</translation>
     </message>
     <message id="guides.vertical">
       <source>Vertical</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>垂直</translation>
     </message>
     <message id="guides.count">
       <source>Count: </source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>數量： </translation>
     </message>
     <message id="guides.count.hint">
       <source>Number of guides. Use the mouse wheel over the canvas to adjust it.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>參考線的數量。在畫布上捲動滑鼠滾輪即可調整。</translation>
     </message>
     <message id="guides.show">
       <source>Show guides</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>顯示參考線</translation>
     </message>
     <message id="guides.clear">
       <source>Clear guides</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>清除參考線</translation>
     </message>
     <message id="guides.key.click">
       <source>Left click</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>按一下左鍵</translation>
     </message>
     <message id="guides.key.drag">
       <source>Drag</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>拖曳</translation>
     </message>
     <message id="guides.key.right">
       <source>Right click</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>按一下右鍵</translation>
     </message>
     <message id="guides.key.wheel">
       <source>Mouse wheel</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>滑鼠滾輪</translation>
     </message>
     <message id="guides.hint.place">
       <source>Place guides</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>放置參考線</translation>
     </message>
     <message id="guides.hint.move">
       <source>Move a guide</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>移動參考線</translation>
     </message>
     <message id="guides.hint.remove">
       <source>Remove a guide</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>移除參考線</translation>
     </message>
     <message id="guides.hint.count">
       <source>Change guide count</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>變更參考線數量</translation>
     </message>
   </context>
   <context>
     <name>MirroredLayers</name>
     <message id="layers.mirror.create">
       <source>Create mirrored layer</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>建立鏡像圖層</translation>
     </message>
     <message id="layers.mirror.promote">
       <source>Promote to full layer</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>轉換為獨立圖層</translation>
     </message>
     <message id="layers.mirror.sync">
       <source>Sync with source</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>與來源圖層同步</translation>
     </message>
     <message id="layers.mirror.select.source">
       <source>Select source</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>選取來源圖層</translation>
     </message>
     <message id="layers.mirror.label">
       <source>Mirrored</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>鏡像</translation>
     </message>
     <message id="layers.cleanup.transparency">
       <source>Clean Up Transparency</source>
@@ -14289,102 +14372,211 @@ Requested: %1 × %2 px</source>
     </message>
     <message id="project.layer.add">
       <source>Add Project as Layer…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>將專案新增為圖層…</translation>
     </message>
     <message id="project.layer.open">
       <source>Open Source Project</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>開啟來源專案</translation>
     </message>
     <message id="project.layer.relink">
       <source>Relink Project Layer…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>重新連結專案圖層…</translation>
     </message>
     <message id="project.layer.refresh">
       <source>Refresh Project Layer</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>重新整理專案圖層</translation>
     </message>
     <message id="project.layer.convert">
       <source>Convert to Raster Layer</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>轉換為點陣圖層</translation>
     </message>
     <message id="project.layer.choose">
       <source>Choose a source project</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>選擇來源專案</translation>
     </message>
     <message id="project.layer.filter">
       <source>Vulkana projects (*.vulkana)</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>Vulkana 專案 (*.vulkana)</translation>
     </message>
     <message id="project.layer.rendering">
       <source>Rendering project layer…</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>正在算繪專案圖層…</translation>
     </message>
     <message id="project.layer.missing">
       <source>Source project missing. Relink the project layer to open its source.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>找不到來源專案。請重新連結專案圖層，再開啟來源專案。</translation>
     </message>
     <message id="layers.project.label">
       <source>Project Layer</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>專案圖層</translation>
     </message>
     <message id="layers.project.missing.label">
       <source>Project Layer · File missing</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>專案圖層 · 找不到檔案</translation>
     </message>
     <message id="layers.project.missing.hint">
       <source>Source file missing. The saved appearance is available. Use Relink to choose its new location.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>找不到來源檔案。仍可使用已儲存的圖層外觀。請選擇「重新連結」來指定檔案的新位置。</translation>
     </message>
     <message id="layers.project.read.only">
       <source>Project layer pixels are linked. Edit the source project or convert the layer to raster.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>專案圖層的像素連結至來源專案。請編輯來源專案，或將圖層轉換為點陣圖層。</translation>
     </message>
     <message id="layers.mirror.read.only">
       <source>Mirrored layers are read-only. Promote to a full layer to edit the content.</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>鏡像圖層是唯讀的。若要編輯內容，請先將其轉換為獨立圖層。</translation>
     </message>
     <message id="layers.mirror.link.opacity">
       <source>Link layer opacity to the source</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>將圖層不透明度連結至來源圖層</translation>
     </message>
     <message id="layers.mirror.link.fill">
       <source>Link pixel opacity to the source</source>
-      <translation type="unfinished" />
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>將像素不透明度連結至來源圖層</translation>
     </message>
   </context>
   <context>
     <name>BrushSymmetry</name>
     <message id="brush.symmetry.title">
       <source>Brush Symmetry</source>
-      <translation type="unfinished">Brush Symmetry</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>筆刷對稱</translation>
     </message>
     <message id="brush.symmetry.hint">
       <source>Toggle brush symmetry. Use the menu to choose an axis or reposition the target.</source>
-      <translation type="unfinished">Toggle brush symmetry. Use the menu to choose an axis or reposition the target.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>切換筆刷對稱。在選單中選擇對稱軸，或重新定位對稱中心。</translation>
     </message>
     <message id="brush.symmetry.placing">
       <source>Click or drag to place the symmetry target. Esc cancels.</source>
-      <translation type="unfinished">Click or drag to place the symmetry target. Esc cancels.</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>按一下或拖曳以放置對稱中心。按 Esc 取消。</translation>
     </message>
     <message id="brush.symmetry.vertical">
       <source>Vertical — mirror left/right</source>
-      <translation type="unfinished">Vertical — mirror left/right</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>垂直軸 — 左右鏡像</translation>
     </message>
     <message id="brush.symmetry.horizontal">
       <source>Horizontal — mirror top/bottom</source>
-      <translation type="unfinished">Horizontal — mirror top/bottom</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>水平軸 — 上下鏡像</translation>
     </message>
     <message id="brush.symmetry.reposition">
       <source>Reposition target</source>
-      <translation type="unfinished">Reposition target</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>重新定位對稱中心</translation>
     </message>
     <message id="brush.symmetry.short">
       <source>Symmetry</source>
-      <translation type="unfinished">Symmetry</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>對稱</translation>
     </message>
     <message id="brush.symmetry.options">
       <source>Symmetry options</source>
-      <translation type="unfinished">Symmetry options</translation>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>對稱選項</translation>
+    </message>
+  </context>
+  <context>
+    <name>DiffusionDecomposition</name>
+    <message id="diffusion.decompose.apply">
+      <source>Apply as folder</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>套用為資料夾</translation>
+    </message>
+    <message id="diffusion.decompose.action">
+      <source>Decompose</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>分解</translation>
+    </message>
+    <message id="diffusion.decompose.prompt">
+      <source>Describe the source image (optional)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>描述來源影像（選用）</translation>
+    </message>
+    <message id="diffusion.decompose.add.input">
+      <source>Add a raster layer to Input images.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>請在「輸入影像」中新增一個點陣圖層。</translation>
+    </message>
+    <message id="diffusion.decompose.empty.source">
+      <source>The captured layer contains no pixels.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>擷取的圖層不含任何像素。</translation>
+    </message>
+    <message id="diffusion.decompose.aspect.ratio">
+      <source>The source aspect ratio exceeds the worker's 8192 px limit at this resolution.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>在此處理解析度下，來源影像的長寬比會使一邊超出推論程序的 8192 像素上限。</translation>
+    </message>
+    <message id="diffusion.decompose.mode">
+      <source>Decompose into Layers</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>分解成圖層</translation>
+    </message>
+    <message id="diffusion.decompose.composite">
+      <source>Composite</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>合成影像</translation>
+    </message>
+    <message id="diffusion.decompose.layer">
+      <source>Layer %1</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>圖層 %1</translation>
+    </message>
+    <message id="diffusion.decompose.inspect">
+      <source>Inspect layer</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>檢視圖層</translation>
+    </message>
+    <message id="diffusion.decompose.count">
+      <source>Decomposition layer count</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>分解後的圖層數</translation>
+    </message>
+    <message id="diffusion.decompose.resolution">
+      <source>Processing resolution</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>處理解析度</translation>
+    </message>
+    <message id="diffusion.decompose.resolution.hint">
+      <source>Target area at the source aspect ratio, rounded to the model grid.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>保留來源影像的長寬比，並將目標面積對應的尺寸取整至模型網格。</translation>
+    </message>
+    <message id="diffusion.decompose.one.input">
+      <source>Decomposition accepts one raster layer.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>分解時只能輸入一個點陣圖層。</translation>
+    </message>
+    <message id="diffusion.decompose.worker.update">
+      <source>Update the inference worker to decompose images into layers.</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>請更新推論程序，才能將影像分解成圖層。</translation>
+    </message>
+    <message id="diffusion.decompose.result" numerus="yes">
+      <source>Decomposition · %n layer(s)</source>
+      <translatorcomment>AI-assisted draft; native-speaker review pending.</translatorcomment>
+      <translation>
+        <numerusform>分解結果 · %n 個圖層</numerusform>
+      </translation>
     </message>
   </context>
 </TS>

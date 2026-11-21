@@ -104,228 +104,228 @@
     </message>
     <message id="diffusion.progress.worker">
       <source>Generating using %1 worker</source>
-      <translation type="unfinished" />
+      <translation>Generando con el motor %1</translation>
     </message>
     <message id="diffusion.progress.stage.hint">
       <source>Progress describes the current stage, not the whole job. Some stages may repeat for separate images or model components.</source>
-      <translation type="unfinished" />
+      <translation>El progreso corresponde a la etapa actual. Algunas etapas pueden repetirse para distintas imágenes o componentes del modelo.</translation>
     </message>
     <message id="diffusion.progress.step.count">
       <source>%v / %m steps</source>
-      <translation type="unfinished" />
+      <translation>%v / %m pasos</translation>
     </message>
     <message id="diffusion.progress.current.percent">
       <source>Current stage: %p%</source>
-      <translation type="unfinished" />
+      <translation>Etapa actual: %p%</translation>
     </message>
     <message id="diffusion.progress.pass">
       <source>Pass %1</source>
-      <translation type="unfinished" />
+      <translation>Pasada %1</translation>
     </message>
     <message id="diffusion.progress.starting">
       <source>Starting worker…</source>
-      <translation type="unfinished" />
+      <translation>Iniciando el motor…</translation>
     </message>
     <message id="diffusion.progress.starting.hint">
       <source>Connecting to the inference worker.</source>
-      <translation type="unfinished" />
+      <translation>Conectando con el motor de inferencia.</translation>
     </message>
     <message id="diffusion.progress.loading">
       <source>Loading model…</source>
-      <translation type="unfinished" />
+      <translation>Cargando el modelo…</translation>
     </message>
     <message id="diffusion.progress.loading.hint">
       <source>Preparing model weights. Image generation has not started yet.</source>
-      <translation type="unfinished" />
+      <translation>Preparando los pesos del modelo. La generación de la imagen aún no ha empezado.</translation>
     </message>
     <message id="diffusion.progress.preparing">
       <source>Preparing generation…</source>
-      <translation type="unfinished" />
+      <translation>Preparando la generación…</translation>
     </message>
     <message id="diffusion.progress.preparing.hint">
       <source>Preparing inputs and model resources.</source>
-      <translation type="unfinished" />
+      <translation>Preparando las entradas y los recursos del modelo.</translation>
     </message>
     <message id="diffusion.progress.loras">
       <source>Preparing LoRAs…</source>
-      <translation type="unfinished" />
+      <translation>Preparando los LoRAs…</translation>
     </message>
     <message id="diffusion.progress.loras.hint">
       <source>Loading the enabled LoRAs for this generation.</source>
-      <translation type="unfinished" />
+      <translation>Cargando los LoRAs activados para esta generación.</translation>
     </message>
     <message id="diffusion.progress.prompt">
       <source>Encoding prompt…</source>
-      <translation type="unfinished" />
+      <translation>Codificando el prompt…</translation>
     </message>
     <message id="diffusion.progress.prompt.hint">
       <source>Reading your prompt and reference images before generating.</source>
-      <translation type="unfinished" />
+      <translation>Leyendo el prompt y las imágenes de referencia antes de generar.</translation>
     </message>
     <message id="diffusion.progress.negative">
       <source>Encoding negative prompt…</source>
-      <translation type="unfinished" />
+      <translation>Codificando el prompt negativo…</translation>
     </message>
     <message id="diffusion.progress.negative.hint">
       <source>Preparing guidance for unwanted details.</source>
-      <translation type="unfinished" />
+      <translation>Preparando las indicaciones para evitar detalles no deseados.</translation>
     </message>
     <message id="diffusion.progress.references">
       <source>Encoding references…</source>
-      <translation type="unfinished" />
+      <translation>Codificando las referencias…</translation>
     </message>
     <message id="diffusion.progress.references.hint">
       <source>Preparing the image information used for generation.</source>
-      <translation type="unfinished" />
+      <translation>Preparando la información de las imágenes para la generación.</translation>
     </message>
     <message id="diffusion.progress.vae_encode">
       <source>Encoding images…</source>
-      <translation type="unfinished" />
+      <translation>Codificando las imágenes…</translation>
     </message>
     <message id="diffusion.progress.vae_encode.hint">
       <source>Converting input images into a form the model can use.</source>
-      <translation type="unfinished" />
+      <translation>Convirtiendo las imágenes de entrada a un formato que pueda usar el modelo.</translation>
     </message>
     <message id="diffusion.progress.sampling">
       <source>Generating image…</source>
-      <translation type="unfinished" />
+      <translation>Generando la imagen…</translation>
     </message>
     <message id="diffusion.progress.sampling.hint">
       <source>Creating the image, one sampling step at a time.</source>
-      <translation type="unfinished" />
+      <translation>Creando la imagen paso a paso mediante muestreo.</translation>
     </message>
     <message id="diffusion.progress.vae_decode">
       <source>Decoding image…</source>
-      <translation type="unfinished" />
+      <translation>Descodificando la imagen…</translation>
     </message>
     <message id="diffusion.progress.vae_decode.hint">
       <source>Converting the generated result into full-resolution pixels.</source>
-      <translation type="unfinished" />
+      <translation>Convirtiendo el resultado generado en píxeles a resolución completa.</translation>
     </message>
     <message id="diffusion.progress.saving">
       <source>Preparing preview…</source>
-      <translation type="unfinished" />
+      <translation>Preparando la vista previa…</translation>
     </message>
     <message id="diffusion.progress.saving.hint">
       <source>Saving the result for preview and Apply.</source>
-      <translation type="unfinished" />
+      <translation>Guardando el resultado para previsualizarlo y aplicarlo.</translation>
     </message>
     <message id="diffusion.progress.processing">
       <source>Processing image…</source>
-      <translation type="unfinished" />
+      <translation>Procesando la imagen…</translation>
     </message>
     <message id="diffusion.progress.processing.hint">
       <source>This worker does not report individual generation stages.</source>
-      <translation type="unfinished" />
+      <translation>Este motor no informa de las etapas individuales de la generación.</translation>
     </message>
     <message id="diffusion.progress.loading_weights">
       <source>Loading model weights…</source>
-      <translation type="unfinished" />
+      <translation>Cargando los pesos del modelo…</translation>
     </message>
     <message id="diffusion.progress.loading_weights.hint">
       <source>Moving the weights needed for this stage into memory.</source>
-      <translation type="unfinished" />
+      <translation>Cargando en memoria los pesos necesarios para esta etapa.</translation>
     </message>
     <message id="diffusion.workers.session.available">
       <source>Available (session override)</source>
-      <translation type="unfinished" />
+      <translation>Disponible (solo en esta sesión)</translation>
     </message>
     <message id="diffusion.workers.session.hint">
       <source>CUDA is selected by --cuda-worker for this session. Your saved worker and backend are unchanged.</source>
-      <translation type="unfinished" />
+      <translation>Se ha seleccionado CUDA con --cuda-worker para esta sesión. Se conservan el motor de inferencia y el backend guardados.</translation>
     </message>
     <message id="diffusion.ui.workers">
       <source>Workers</source>
-      <translation type="unfinished" />
+      <translation>Motores de inferencia</translation>
     </message>
     <message id="diffusion.ui.add.worker">
       <source>Add worker…</source>
-      <translation type="unfinished" />
+      <translation>Añadir motor…</translation>
     </message>
     <message id="diffusion.ui.choose.worker">
       <source>Choose extracted worker folder</source>
       <oldsource>Choose worker executable</oldsource>
-      <translation type="unfinished" />
+      <translation>Elegir la carpeta extraída del motor</translation>
     </message>
     <message id="diffusion.workers.folder.missing">
       <source>No CUDA worker found. Select the extracted worker folder or its bin folder for this system.</source>
-      <translation type="unfinished" />
+      <translation>No se encontró ningún motor CUDA. Selecciona la carpeta extraída correspondiente a este sistema o su subcarpeta bin.</translation>
     </message>
     <message id="diffusion.workers.folder.ambiguous">
       <source>Several CUDA workers were found. Select one worker’s folder or its bin folder.</source>
-      <translation type="unfinished" />
+      <translation>Se encontraron varios motores CUDA. Selecciona la carpeta de uno de ellos o su subcarpeta bin.</translation>
     </message>
     <message id="diffusion.workers.folder.added">
       <source>CUDA worker added.</source>
-      <translation type="unfinished" />
+      <translation>Motor CUDA añadido.</translation>
     </message>
     <message id="diffusion.ui.worker.available">
       <source>Available</source>
-      <translation type="unfinished" />
+      <translation>Disponible</translation>
     </message>
     <message id="diffusion.ui.worker.not.added">
       <source>Not added</source>
-      <translation type="unfinished" />
+      <translation>Sin añadir</translation>
     </message>
     <message id="diffusion.ui.worker.missing">
       <source>Missing</source>
-      <translation type="unfinished" />
+      <translation>No encontrado</translation>
     </message>
     <message id="diffusion.workers.download.invalid">
       <source>The worker download information or archive is invalid.</source>
-      <translation type="unfinished" />
+      <translation>Los datos de descarga o el archivo comprimido del motor no son válidos.</translation>
     </message>
     <message id="diffusion.workers.feed.invalid">
       <source>Worker update information is invalid. Check for updates again in About.</source>
-      <translation type="unfinished" />
+      <translation>La información de actualización del motor no es válida. Vuelve a buscar actualizaciones en «Acerca de Vulkana».</translation>
     </message>
     <message id="diffusion.workers.check.failed">
       <source>Could not check worker updates. Try again in About.</source>
-      <translation type="unfinished" />
+      <translation>No se pudieron comprobar las actualizaciones del motor. Vuelve a intentarlo en «Acerca de Vulkana».</translation>
     </message>
     <message id="diffusion.workers.downloading">
       <source>Downloading CUDA worker…</source>
-      <translation type="unfinished" />
+      <translation>Descargando el motor CUDA…</translation>
     </message>
     <message id="diffusion.workers.download.saved">
       <source>CUDA worker downloaded. Extract the archive, then choose Add worker or Change worker.</source>
-      <translation type="unfinished" />
+      <translation>Motor CUDA descargado. Extrae el archivo y elige «Añadir motor» o «Cambiar motor».</translation>
     </message>
     <message id="diffusion.workers.download">
       <source>Download CUDA worker</source>
-      <translation type="unfinished" />
+      <translation>Descargar el motor CUDA</translation>
     </message>
     <message id="diffusion.workers.download.version">
       <source>Download CUDA worker %1</source>
-      <translation type="unfinished" />
+      <translation>Descargar el motor CUDA %1</translation>
     </message>
     <message id="diffusion.workers.save.archive">
       <source>Save CUDA worker archive</source>
-      <translation type="unfinished" />
+      <translation>Guardar el archivo comprimido del motor CUDA</translation>
     </message>
     <message id="diffusion.workers.xz.archives">
       <source>XZ archives (*.tar.xz)</source>
-      <translation type="unfinished" />
+      <translation>Archivos XZ (*.tar.xz)</translation>
     </message>
     <message id="diffusion.workers.change">
       <source>Change worker…</source>
-      <translation type="unfinished" />
+      <translation>Cambiar motor…</translation>
     </message>
     <message id="diffusion.workers.vulkan.bundled">
       <source>Included with Vulkana. Vulkan worker updates are included in application updates.</source>
-      <translation type="unfinished" />
+      <translation>Incluido con Vulkana. El motor Vulkan se actualiza junto con la aplicación.</translation>
     </message>
     <message id="diffusion.workers.check.about">
       <source>Check for updates in About to find a compatible CUDA worker.</source>
-      <translation type="unfinished" />
+      <translation>Busca actualizaciones en «Acerca de Vulkana» para encontrar un motor CUDA compatible.</translation>
     </message>
     <message id="diffusion.workers.checking">
       <source>Checking worker updates…</source>
-      <translation type="unfinished" />
+      <translation>Buscando actualizaciones del motor…</translation>
     </message>
     <message id="diffusion.workers.no.compatible">
       <source>No compatible CUDA worker is available for this build.</source>
-      <translation type="unfinished" />
+      <translation>No hay ningún motor CUDA compatible con esta versión.</translation>
     </message>
   </context>
   <context>
@@ -8208,7 +8208,7 @@ Rueda · Zoom; {{FitCanvasAction}} · Encajar; {{ActualSizeAction}} · 100%</tra
     <message id="psd.export.panel.project.layer.appearance">
       <source>PSD stores the Project Layer as pixels. The source link stays in the Vulkana project.</source>
       <extracomment>Layer conversion details for a linked Vulkana project.</extracomment>
-      <translation type="unfinished" />
+      <translation>El PSD guarda la capa de proyecto como píxeles. El vínculo al origen se conserva en el proyecto de Vulkana.</translation>
     </message>
     <message id="psd.export.panel.keep.this.layer.editable.where.possible.otherwise.export.it">
       <source>Keep this layer editable where possible; otherwise export it as pixels.</source>
@@ -13618,7 +13618,7 @@ Preparación %3 · Finalización %4 · Total %5</translation>
     <message id="diffusion.ui.ready.1.s.inspect.the.result.before">
       <source>Generation done in %1 s.</source>
       <oldsource>Ready · %1 s — inspect the result before applying.</oldsource>
-      <translation type="unfinished">Listo · %1 s — revisa el resultado antes de aplicarlo.</translation>
+      <translation>Generación completada en %1 s.</translation>
       <translatorcomment>AI-assisted draft; contributor review welcome.</translatorcomment>
     </message>
     <message id="diffusion.ui.generation.failed">
@@ -14047,109 +14047,109 @@ Solicitado: %1 × %2 px</translation>
     <name>LayerEffectClipboard</name>
     <message id="layer.effects.copy">
       <source>Copy Effects</source>
-      <translation type="unfinished" />
+      <translation>Copiar efectos</translation>
     </message>
     <message id="layer.effects.paste">
       <source>Paste Effects</source>
-      <translation type="unfinished" />
+      <translation>Pegar efectos</translation>
     </message>
     <message id="layer.effects.paste.hint">
       <source>Replace this layer’s effects with the copied effects.</source>
-      <translation type="unfinished" />
+      <translation>Reemplaza los efectos de esta capa por los copiados.</translation>
     </message>
     <message id="layer.effects.copy.done">
       <source>Effects copied.</source>
-      <translation type="unfinished" />
+      <translation>Efectos copiados.</translation>
     </message>
     <message id="layer.effects.paste.invalid">
       <source>The copied effects could not be read.</source>
-      <translation type="unfinished" />
+      <translation>No se pudieron leer los efectos copiados.</translation>
     </message>
   </context>
   <context>
     <name>Guides</name>
     <message id="guides.tool">
       <source>Guides</source>
-      <translation type="unfinished" />
+      <translation>Guías</translation>
     </message>
     <message id="guides.horizontal">
       <source>Horizontal</source>
-      <translation type="unfinished" />
+      <translation>Horizontal</translation>
     </message>
     <message id="guides.vertical">
       <source>Vertical</source>
-      <translation type="unfinished" />
+      <translation>Vertical</translation>
     </message>
     <message id="guides.count">
       <source>Count: </source>
-      <translation type="unfinished" />
+      <translation>Cantidad: </translation>
     </message>
     <message id="guides.count.hint">
       <source>Number of guides. Use the mouse wheel over the canvas to adjust it.</source>
-      <translation type="unfinished" />
+      <translation>Número de guías. Ajústalo con la rueda del ratón sobre el lienzo.</translation>
     </message>
     <message id="guides.show">
       <source>Show guides</source>
-      <translation type="unfinished" />
+      <translation>Mostrar guías</translation>
     </message>
     <message id="guides.clear">
       <source>Clear guides</source>
-      <translation type="unfinished" />
+      <translation>Borrar guías</translation>
     </message>
     <message id="guides.key.click">
       <source>Left click</source>
-      <translation type="unfinished" />
+      <translation>Clic izquierdo</translation>
     </message>
     <message id="guides.key.drag">
       <source>Drag</source>
-      <translation type="unfinished" />
+      <translation>Arrastrar</translation>
     </message>
     <message id="guides.key.right">
       <source>Right click</source>
-      <translation type="unfinished" />
+      <translation>Clic derecho</translation>
     </message>
     <message id="guides.key.wheel">
       <source>Mouse wheel</source>
-      <translation type="unfinished" />
+      <translation>Rueda del ratón</translation>
     </message>
     <message id="guides.hint.place">
       <source>Place guides</source>
-      <translation type="unfinished" />
+      <translation>Colocar guías</translation>
     </message>
     <message id="guides.hint.move">
       <source>Move a guide</source>
-      <translation type="unfinished" />
+      <translation>Mover una guía</translation>
     </message>
     <message id="guides.hint.remove">
       <source>Remove a guide</source>
-      <translation type="unfinished" />
+      <translation>Eliminar una guía</translation>
     </message>
     <message id="guides.hint.count">
       <source>Change guide count</source>
-      <translation type="unfinished" />
+      <translation>Cambiar el número de guías</translation>
     </message>
   </context>
   <context>
     <name>MirroredLayers</name>
     <message id="layers.mirror.create">
       <source>Create mirrored layer</source>
-      <translation type="unfinished" />
+      <translation>Crear capa espejo</translation>
     </message>
     <message id="layers.mirror.promote">
       <source>Promote to full layer</source>
-      <translation type="unfinished" />
+      <translation>Convertir en capa independiente</translation>
     </message>
     <message id="layers.mirror.sync">
       <source>Sync with source</source>
-      <translation type="unfinished" />
+      <translation>Sincronizar con el origen</translation>
     </message>
     <message id="layers.mirror.select.source">
       <source>Select source</source>
-      <translation type="unfinished" />
+      <translation>Seleccionar el origen</translation>
     </message>
     <message id="layers.mirror.label">
       <source>Mirrored</source>
-      <translation type="unfinished" />
+      <translation>Espejo</translation>
     </message>
     <message id="layers.cleanup.transparency">
       <source>Clean Up Transparency</source>
@@ -14229,102 +14229,172 @@ Solicitado: %1 × %2 px</translation>
     </message>
     <message id="project.layer.add">
       <source>Add Project as Layer…</source>
-      <translation type="unfinished" />
+      <translation>Añadir proyecto como capa…</translation>
     </message>
     <message id="project.layer.open">
       <source>Open Source Project</source>
-      <translation type="unfinished" />
+      <translation>Abrir proyecto de origen</translation>
     </message>
     <message id="project.layer.relink">
       <source>Relink Project Layer…</source>
-      <translation type="unfinished" />
+      <translation>Volver a vincular la capa de proyecto…</translation>
     </message>
     <message id="project.layer.refresh">
       <source>Refresh Project Layer</source>
-      <translation type="unfinished" />
+      <translation>Actualizar la capa de proyecto</translation>
     </message>
     <message id="project.layer.convert">
       <source>Convert to Raster Layer</source>
-      <translation type="unfinished" />
+      <translation>Convertir en capa raster</translation>
     </message>
     <message id="project.layer.choose">
       <source>Choose a source project</source>
-      <translation type="unfinished" />
+      <translation>Elegir un proyecto de origen</translation>
     </message>
     <message id="project.layer.filter">
       <source>Vulkana projects (*.vulkana)</source>
-      <translation type="unfinished" />
+      <translation>Proyectos de Vulkana (*.vulkana)</translation>
     </message>
     <message id="project.layer.rendering">
       <source>Rendering project layer…</source>
-      <translation type="unfinished" />
+      <translation>Renderizando la capa de proyecto…</translation>
     </message>
     <message id="project.layer.missing">
       <source>Source project missing. Relink the project layer to open its source.</source>
-      <translation type="unfinished" />
+      <translation>Falta el proyecto de origen. Vuelve a vincular la capa de proyecto para abrir su origen.</translation>
     </message>
     <message id="layers.project.label">
       <source>Project Layer</source>
-      <translation type="unfinished" />
+      <translation>Capa de proyecto</translation>
     </message>
     <message id="layers.project.missing.label">
       <source>Project Layer · File missing</source>
-      <translation type="unfinished" />
+      <translation>Capa de proyecto · Falta el archivo</translation>
     </message>
     <message id="layers.project.missing.hint">
       <source>Source file missing. The saved appearance is available. Use Relink to choose its new location.</source>
-      <translation type="unfinished" />
+      <translation>Falta el archivo de origen. Se conserva la apariencia guardada. Usa «Volver a vincular la capa de proyecto» para elegir la nueva ubicación.</translation>
     </message>
     <message id="layers.project.read.only">
       <source>Project layer pixels are linked. Edit the source project or convert the layer to raster.</source>
-      <translation type="unfinished" />
+      <translation>Los píxeles de la capa de proyecto están vinculados. Edita el proyecto de origen o convierte la capa en una capa raster.</translation>
     </message>
     <message id="layers.mirror.read.only">
       <source>Mirrored layers are read-only. Promote to a full layer to edit the content.</source>
-      <translation type="unfinished" />
+      <translation>Las capas espejo son de solo lectura. Convierte esta capa en una capa independiente para editar su contenido.</translation>
     </message>
     <message id="layers.mirror.link.opacity">
       <source>Link layer opacity to the source</source>
-      <translation type="unfinished" />
+      <translation>Vincular la opacidad de la capa al origen</translation>
     </message>
     <message id="layers.mirror.link.fill">
       <source>Link pixel opacity to the source</source>
-      <translation type="unfinished" />
+      <translation>Vincular la opacidad de los píxeles al origen</translation>
     </message>
   </context>
   <context>
     <name>BrushSymmetry</name>
     <message id="brush.symmetry.title">
       <source>Brush Symmetry</source>
-      <translation type="unfinished">Brush Symmetry</translation>
+      <translation>Simetría del pincel</translation>
     </message>
     <message id="brush.symmetry.hint">
       <source>Toggle brush symmetry. Use the menu to choose an axis or reposition the target.</source>
-      <translation type="unfinished">Toggle brush symmetry. Use the menu to choose an axis or reposition the target.</translation>
+      <translation>Activa o desactiva la simetría del pincel. Usa el menú para elegir un eje o mover el centro de simetría.</translation>
     </message>
     <message id="brush.symmetry.placing">
       <source>Click or drag to place the symmetry target. Esc cancels.</source>
-      <translation type="unfinished">Click or drag to place the symmetry target. Esc cancels.</translation>
+      <translation>Haz clic o arrastra para colocar el centro de simetría. Pulsa Esc para cancelar.</translation>
     </message>
     <message id="brush.symmetry.vertical">
       <source>Vertical — mirror left/right</source>
-      <translation type="unfinished">Vertical — mirror left/right</translation>
+      <translation>Vertical — reflejar izquierda/derecha</translation>
     </message>
     <message id="brush.symmetry.horizontal">
       <source>Horizontal — mirror top/bottom</source>
-      <translation type="unfinished">Horizontal — mirror top/bottom</translation>
+      <translation>Horizontal — reflejar arriba/abajo</translation>
     </message>
     <message id="brush.symmetry.reposition">
       <source>Reposition target</source>
-      <translation type="unfinished">Reposition target</translation>
+      <translation>Mover el centro de simetría</translation>
     </message>
     <message id="brush.symmetry.short">
       <source>Symmetry</source>
-      <translation type="unfinished">Symmetry</translation>
+      <translation>Simetría</translation>
     </message>
     <message id="brush.symmetry.options">
       <source>Symmetry options</source>
-      <translation type="unfinished">Symmetry options</translation>
+      <translation>Opciones de simetría</translation>
+    </message>
+  </context>
+  <context>
+    <name>DiffusionDecomposition</name>
+    <message id="diffusion.decompose.apply">
+      <source>Apply as folder</source>
+      <translation>Aplicar como carpeta</translation>
+    </message>
+    <message id="diffusion.decompose.action">
+      <source>Decompose</source>
+      <translation>Descomponer</translation>
+    </message>
+    <message id="diffusion.decompose.prompt">
+      <source>Describe the source image (optional)</source>
+      <translation>Describe la imagen de origen (opcional)</translation>
+    </message>
+    <message id="diffusion.decompose.add.input">
+      <source>Add a raster layer to Input images.</source>
+      <translation>Añade una capa raster a «Imágenes de entrada».</translation>
+    </message>
+    <message id="diffusion.decompose.empty.source">
+      <source>The captured layer contains no pixels.</source>
+      <translation>La capa capturada no contiene píxeles.</translation>
+    </message>
+    <message id="diffusion.decompose.aspect.ratio">
+      <source>The source aspect ratio exceeds the worker's 8192 px limit at this resolution.</source>
+      <translation>Con esta relación de aspecto, la imagen de origen supera el límite de 8192 px del motor a la resolución elegida.</translation>
+    </message>
+    <message id="diffusion.decompose.mode">
+      <source>Decompose into Layers</source>
+      <translation>Descomponer en capas</translation>
+    </message>
+    <message id="diffusion.decompose.composite">
+      <source>Composite</source>
+      <translation>Imagen compuesta</translation>
+    </message>
+    <message id="diffusion.decompose.layer">
+      <source>Layer %1</source>
+      <translation>Capa %1</translation>
+    </message>
+    <message id="diffusion.decompose.inspect">
+      <source>Inspect layer</source>
+      <translation>Inspeccionar capa</translation>
+    </message>
+    <message id="diffusion.decompose.count">
+      <source>Decomposition layer count</source>
+      <translation>Número de capas de la descomposición</translation>
+    </message>
+    <message id="diffusion.decompose.resolution">
+      <source>Processing resolution</source>
+      <translation>Resolución de procesamiento</translation>
+    </message>
+    <message id="diffusion.decompose.resolution.hint">
+      <source>Target area at the source aspect ratio, rounded to the model grid.</source>
+      <translation>Área de procesamiento con la relación de aspecto del origen. Las dimensiones se redondean a la cuadrícula del modelo.</translation>
+    </message>
+    <message id="diffusion.decompose.one.input">
+      <source>Decomposition accepts one raster layer.</source>
+      <translation>La descomposición admite una sola capa raster.</translation>
+    </message>
+    <message id="diffusion.decompose.worker.update">
+      <source>Update the inference worker to decompose images into layers.</source>
+      <translation>Actualiza el motor de inferencia para descomponer imágenes en capas.</translation>
+    </message>
+    <message id="diffusion.decompose.result" numerus="yes">
+      <source>Decomposition · %n layer(s)</source>
+      <translation>
+        <numerusform>Descomposición · %n capa</numerusform>
+        <numerusform>Descomposición · %n capas</numerusform>
+      </translation>
     </message>
   </context>
 </TS>

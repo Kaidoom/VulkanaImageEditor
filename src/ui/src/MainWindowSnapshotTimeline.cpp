@@ -381,13 +381,15 @@ void MainWindow::createSnapshotTimeline(QMenu* menu)
     snapshotTimeline_->onSelected = [this, queue](auto id) {
         if (!activeDocument_ || snapshotTimelineDocument_ != activeDocumentId()) return;
         activeDocument_->selectedSnapshot = id;
-        if (snapshotTimeline_->previewActive()) queue([this, id] {
-            if (snapshotTimeline_->previewActive() && snapshotTimeline_->selectedFrameId() == id) {
-                if (snapshotPlayback_->currentFrame()) snapshotPlayback_->seek(id);
-                else previewSnapshot(true);
-            }
-        });
-        else if (snapshotPreview_) finishSnapshotPreview();
+        if (snapshotTimeline_->previewActive()) {
+            // Seeking an existing playback session must reset its clock before
+            // a pending frame tick can overwrite the newly selected row.
+            if (snapshotPlayback_->currentFrame()) snapshotPlayback_->seek(id);
+            else queue([this, id] {
+                if (snapshotTimeline_->previewActive() && snapshotTimeline_->selectedFrameId() == id)
+                    previewSnapshot(true);
+            });
+        } else if (snapshotPreview_) finishSnapshotPreview();
     };
     snapshotTimeline_->onAdd = [this, queue] { queue([this] {
         if (!session().document()) return;

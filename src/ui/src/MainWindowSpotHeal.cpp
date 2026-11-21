@@ -144,6 +144,7 @@ bool MainWindow::beginSpotHealStroke(const core::NormalizedPointerSample& sample
     }
     if (!spotHealTimer_) {
         spotHealTimer_ = new QTimer(this);
+        spotHealTimer_->setObjectName(QStringLiteral("SpotHealPollTimer"));
         spotHealTimer_->setInterval(33);
         connect(spotHealTimer_, &QTimer::timeout, this, &MainWindow::pollSpotHeal);
     }

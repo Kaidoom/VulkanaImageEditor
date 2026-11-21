@@ -55,7 +55,7 @@ void workerCheckIntegrationTests() {
     Network network;
     network.responses.push_back({manifest("0.3.8")});
     Response slow{hostWorkerFeed()}; slow.delayMs = 60; network.workerResponses.push_back(slow);
-    u::UpdateService app("0.3.8",nullptr,&network);
+    u::UpdateService app("0.3.8", nullptr, &network, u::UpdatePackage::Rpm);
     auto* workers = app.workerUpdates();
     app.check(1000);
     CHECK(network.requests.size() == 1 && network.workerRequests.size() == 1 && workers->checking());
