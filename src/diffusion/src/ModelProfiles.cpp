@@ -4,7 +4,12 @@
 namespace imageeditor::diffusion {
 QJsonArray modelProfiles()
 {
-    return QJsonDocument::fromJson(profileJson).array();
+    auto profiles = QJsonDocument::fromJson(profileJson).array();
+#ifndef Q_OS_LINUX
+    for (qsizetype i = profiles.size(); i-- > 0;)
+        if (profiles.at(i).toObject().value("platform") == "linux") profiles.removeAt(i);
+#endif
+    return profiles;
 }
 QJsonObject modelProfile(const QString& id)
 {

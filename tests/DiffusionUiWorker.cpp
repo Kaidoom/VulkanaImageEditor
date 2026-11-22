@@ -41,7 +41,13 @@ int main(int argc, char** argv)
     if (!stacks)
         for (qsizetype i = profiles.size(); i-- > 0;)
             if (profiles[i].toObject()["id"] == "qwen-image-layered") profiles.removeAt(i);
-    send({ { "event", "hello" }, { "protocol", 1 }, { "backend", qEnvironmentVariableIsSet("VULKANA_TEST_DIFFUSION_PHASES") ? "vulkan" : "test" },
+    const bool named = qEnvironmentVariableIsSet("VULKANA_TEST_DIFFUSION_NAMED");
+    if (!named)
+        for (qsizetype i = profiles.size(); i-- > 0;)
+            if (profiles[i].toObject()["id"] == "see-through-layerdiff-v3") profiles.removeAt(i);
+    auto backend = qEnvironmentVariable("VULKANA_TEST_FAKE_BACKEND");
+    if (backend.isEmpty()) backend = qEnvironmentVariableIsSet("VULKANA_TEST_DIFFUSION_PHASES") ? "vulkan" : named ? "cuda" : "test";
+    send({ { "namedLayerStacks", named }, { "event", "hello" }, { "protocol", 1 }, { "backend", backend },
         { "referenceSizeLimit", true }, { "layerStackResults", stacks },
         { "loraParameters", true },
         { "flux3NativeRegions", !qEnvironmentVariableIsSet("VULKANA_TEST_DIFFUSION_SPATIAL_V1") },
@@ -96,6 +102,24 @@ int main(int argc, char** argv)
         if (params.value("prompt").toString() == "identity") {
             const QImage reference(params["referenceImages"].toArray().first().toString());
             image = reference.scaled(image.size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+        }
+        if (params.contains("processingResolution")) {
+            QJsonArray parts;
+            const QString invalidPart = qEnvironmentVariable("VULKANA_TEST_INVALID_PART");
+            const int count = invalidPart == "count" ? 30 : 12;
+            for (int i = 0; i < count; ++i) {
+                QImage part(3, 4, QImage::Format_RGBA8888);
+                part.fill(QColor(i, 41, 20, 220));
+                const auto path = QDir(folder).filePath(QString("part-%1.png").arg(i));
+                part.save(path);
+                const int x = invalidPart == "bounds" ? image.width() : 3 + i % 12;
+                const auto name = QString("part %1").arg(invalidPart == "name" ? 0 : i);
+                parts.append(QJsonObject{{"path",path},{"width",3},{"height",4},{"x",x},{"y",7},{"name",name}});
+            }
+            ok(id, {{"images",parts},{"resultKind","layerStack"},{"stackWidth",image.width()},
+                    {"stackHeight",image.height()},{"request",params},{"contextGeneration",serial}});
+            stateEvent();
+            return;
         }
         if (params.contains("layerCount")) {
             QJsonArray layers;

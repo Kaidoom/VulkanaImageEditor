@@ -341,8 +341,8 @@ void decomposedFolderHistoryAndPreview()
         const auto before = u::flattenDocument(doc);
         const auto revision = doc.revision();
         CHECK(u::canDecomposeLayer(doc,source.id));
-        const auto preview = u::diffusionStackPreview(images,space);
-        auto command = u::diffusionStackCommand(doc,source.id,selection,images,QTransform::fromTranslate(2,1));
+        const auto preview = u::diffusionStackPreview(u::DiffusionLayerStack::fromFullImages(images),space);
+        auto command = u::diffusionStackCommand(doc,source.id,selection,u::DiffusionLayerStack::fromFullImages(images),QTransform::fromTranslate(2,1));
         CHECK(doc.tree()==tree && doc.revision()==revision && doc.layer(source.id)->visible);
         CHECK(before && u::flattenDocument(doc).image==before.image);
         CHECK(session.execute(std::move(command)));
@@ -382,7 +382,7 @@ void decomposedFolderAdmission()
     const auto expectInvalid = [&](const QVector<QImage>& output, const QTransform& placement = {}) {
         const auto before = doc.revision();
         bool threw = false;
-        try { (void)u::diffusionStackCommand(doc,source.id,session.layerSelectionState(),output,placement); }
+        try { (void)u::diffusionStackCommand(doc,source.id,session.layerSelectionState(),u::DiffusionLayerStack::fromFullImages(output),placement); }
         catch (const std::invalid_argument&) { threw = true; }
         CHECK(threw && before==doc.revision() && session.history().undoDepth()==0);
     };
@@ -393,7 +393,7 @@ void decomposedFolderAdmission()
 
     // Shared result-grid placement, including an offset, scale and rotation.
     const QTransform placement(0,2,-2,0,6,-1);
-    auto command = u::diffusionStackCommand(doc,source.id,session.layerSelectionState(),images,placement);
+    auto command = u::diffusionStackCommand(doc,source.id,session.layerSelectionState(),u::DiffusionLayerStack::fromFullImages(images),placement);
     CHECK(session.execute(std::move(command)));
     const auto* result = doc.tree().container(*session.activeLayer());
     CHECK(result);

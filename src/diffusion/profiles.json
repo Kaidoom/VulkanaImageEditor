@@ -286,5 +286,25 @@
     "rgba": true,
     "spatialGuidance": "none",
     "negativePrompt": true
+  },
+  {
+    "id": "see-through-layerdiff-v3",
+    "name": "See-through LayerDiff 3D",
+    "family": "see-through-layerdiff",
+    "resultName": "See-through",
+    "namedParts": true,
+    "modelDirectory": true,
+    "platform": "linux",
+    "backend": "cuda",
+    "steps": 30,
+    "processingResolution": 1088,
+    "modes": ["decompose"],
+    "referenceImages": true,
+    "maxReferenceImages": 1,
+    "imageToImage": false,
+    "nativeInpainting": false,
+    "rgba": true,
+    "spatialGuidance": "none",
+    "negativePrompt": false
   }
 ]

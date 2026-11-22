@@ -39,6 +39,7 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QScopedValueRollback>
+#include <QSet>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QStatusBar>
@@ -66,6 +67,42 @@ QImage srgb(QImage image) {
   if (copy.isNull())
     throw std::runtime_error("Not enough memory to prepare the input image.");
   return copy;
+}
+DiffusionLayerStack readDecompositionStack(const QJsonObject &result, QSize extent, bool named, int requestedCount) {
+  const auto images = result.value("images").toArray();
+  if (result.value("resultKind") != "layerStack" || images.isEmpty() ||
+      (named ? QSize(result.value("stackWidth").toInt(), result.value("stackHeight").toInt()) != extent
+             : images.size() != requestedCount))
+    throw std::runtime_error("The worker returned an incomplete decomposition.");
+
+  // LayerDiff has 12 body roles and 11 face roles. Six roles can split into left/right parts.
+  constexpr int maxNamedParts = 12 + 11 + 6;
+  if (named && images.size() > maxNamedParts)
+    throw std::runtime_error(i18n::text("diffusion.layerdiff.too.many.parts").toStdString());
+
+  QSet<QString> seenNames;
+  DiffusionLayerStack stack{extent, {}};
+  QVector<QImage> fullImages;
+  for (const auto &item : images) {
+    const auto entry = item.toObject();
+    QImageReader reader(entry.value("path").toString(), "PNG");
+    const QSize size = reader.size();
+    const QString label = entry.value("name").toString();
+    const QPoint offset(entry.value("x").toInt(-1), entry.value("y").toInt(-1));
+    if (named && (label.trimmed().isEmpty() || label.toUtf8().size() > 4096 || offset.x() < 0 || offset.y() < 0 ||
+                  size != QSize(entry.value("width").toInt(), entry.value("height").toInt()) || size.isEmpty() ||
+                  offset.x() > extent.width() - size.width() || offset.y() > extent.height() - size.height()))
+      throw std::runtime_error(i18n::text("diffusion.layerdiff.invalid.part").toStdString());
+    if (named && seenNames.contains(label))
+      throw std::runtime_error(i18n::text("diffusion.layerdiff.duplicate.part").toStdString());
+    if (named) seenNames.insert(label);
+    if (!named && size != extent) throw std::runtime_error("The decomposition layers do not match the requested dimensions.");
+    auto pixels = reader.read();
+    if (pixels.isNull() || !pixels.hasAlphaChannel()) throw std::runtime_error("The worker returned an invalid RGBA layer.");
+    if (named) stack.parts.append({label, offset, srgb(std::move(pixels))});
+    else fullImages.append(srgb(std::move(pixels)));
+  }
+  return named ? stack : DiffusionLayerStack::fromFullImages(fullImages);
 }
 QTransform qtTransform(const core::AffineTransform &m) {
   return QTransform(m.m00, m.m10, m.m20, m.m01, m.m11, m.m21, m.m02, m.m12,
@@ -170,6 +207,9 @@ struct DiffusionWorkspace {
   QStringList sessionFiles;
   bool wanted{}, cleanup{}, shuttingDown{};
   std::uint64_t epoch{}, requestEpoch{}, variationCounter{};
+  QJsonObject pendingProfile() const {
+    return diffusion::modelProfile(pendingConfiguration.value("profile").toString());
+  }
   void refreshLoadedModels() {
     panel->setLoadedModels(residentModels,
                           !wanted && worker->state() ==
@@ -364,12 +404,15 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
             diffusion_->residentModels = {};
             diffusion_->refreshLoadedModels();
             auto profiles = hello.value("profiles").toArray();
-            // Worker packages update independently. Keep the layered configuration
-            // editable even when an older worker cannot execute its requests.
-            if (std::none_of(profiles.constBegin(), profiles.constEnd(), [](const QJsonValue &value) {
-                  return value.toObject().value("id") == "qwen-image-layered";
-                }))
-              profiles.append(diffusion::modelProfile("qwen-image-layered"));
+            // Keep configurations editable when switching between independently updated workers.
+            for (const auto &value : diffusion::modelProfiles()) {
+              const auto model = value.toObject();
+              if (!model.value("modes").toArray().contains("decompose")) continue;
+              if (std::none_of(profiles.constBegin(), profiles.constEnd(), [&](const QJsonValue &entry) {
+                    return entry.toObject().value("id") == model.value("id");
+                  }))
+                profiles.append(model);
+            }
             diffusion_->panel->setProfiles(profiles);
             diffusion_->panel->setDevices(hello.value("devices").toArray());
             diffusion_->panel->setSamplers(hello.value("samplers").toArray(),
@@ -443,25 +486,18 @@ void MainWindow::createDiffusionActions(QMenu *editMenu) {
             metadata["configurationName"] = s.pendingConfigurationName;
             const auto priorCount = s.panel->results().size();
             if (s.jobContext.mode == DiffusionPanel::Mode::Decompose) {
-              const auto count = s.pendingGeneration.value("layerCount").toInt();
-              if (result.value("resultKind") != "layerStack" || count < 2 || images.size() != count)
-                throw std::runtime_error("The worker returned an incomplete decomposition.");
-              QVector<QImage> layers;
               const QSize expected(s.pendingGeneration["width"].toInt(), s.pendingGeneration["height"].toInt());
-              for (const auto &item : images) {
-                const QImage pixels(item.toObject().value("path").toString());
-                if (pixels.isNull() || pixels.size() != expected || !pixels.hasAlphaChannel())
-                  throw std::runtime_error("The worker returned an invalid RGBA layer. The stack was discarded.");
-                layers.append(srgb(pixels));
-              }
+              auto stack = readDecompositionStack(result, expected, s.pendingProfile().value("namedParts").toBool(),
+                                                  s.pendingGeneration.value("layerCount").toInt());
+              const auto count = stack.parts.size();
               const auto placement = QTransform::fromScale(double(s.jobContext.inputSize.width()) / expected.width(),
                                                            double(s.jobContext.inputSize.height()) / expected.height()) *
                                      s.jobContext.inputToDocument;
-              auto composite = diffusionStackPreview(layers, s.jobContext.compositingSpace);
+              auto composite = diffusionStackPreview(stack, s.jobContext.compositingSpace);
               s.resultContexts[id] = s.jobContext;
               s.panel->appendResult({std::move(composite), s.jobContext.before,
-                                     i18n::text("diffusion.decompose.result", count), metadata,
-                                     placement, s.jobContext.mode, {}, std::move(layers)});
+                                     i18n::text("diffusion.decompose.result", int(count)), metadata,
+                                     placement, s.jobContext.mode, {}, std::move(stack)});
             } else {
               s.resultContexts[id] = s.jobContext;
               for (const auto &item : images) {
@@ -810,7 +846,7 @@ void MainWindow::generateDiffusion() {
       const auto &input = inputs[i];
       auto image = srgb(input.image);
       if (s.mode == DiffusionPanel::Mode::Decompose) {
-        image = input.fullImage.scaled(size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+        image = input.fullImage.size() == size ? input.fullImage : input.fullImage.scaled(size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
         if (image.isNull()) throw std::bad_alloc();
       }
       if (!fillMask.isNull() && (i == 0 || (input.metadata["visibleCanvas"].toBool() &&
@@ -854,6 +890,8 @@ void MainWindow::generateDiffusion() {
     s.noticeDismissed = false;
     updateDiffusionNotice(i18n::text("diffusion.ui.preparing.generation"));
     s.pendingBackend = s.panel->backend();
+    if (s.pendingBackend == "auto")
+      s.pendingBackend = s.pendingProfile().value("backend").toString("auto");
     s.pendingExecutable = s.panel->workerExecutable();
     if (s.pendingExecutable.isEmpty())
       s.pendingExecutable = discoverDiffusionWorker(s.pendingBackend);
@@ -897,6 +935,15 @@ void MainWindow::continueDiffusionJob() {
       !s.loadId.isEmpty() || !s.generateId.isEmpty())
     return;
   const auto actualBackend = s.worker->hello()["backend"].toString();
+  const auto profile = s.pendingProfile();
+  if (profile.value("namedParts").toBool() &&
+      (actualBackend != "cuda" || !s.worker->hello().value("namedLayerStacks").toBool())) {
+    s.wanted = false;
+    s.panel->setBusy(false);
+    s.panel->setStatus(i18n::text("diffusion.layerdiff.old.worker"), true);
+    updateDiffusionNotice(i18n::text("diffusion.ui.generation.could.not.start"), 0, 0, true);
+    return;
+  }
   if (s.jobContext.mode == DiffusionPanel::Mode::Decompose &&
       !s.worker->hello().value("layerStackResults").toBool()) {
     s.wanted = false;
@@ -913,7 +960,7 @@ void MainWindow::continueDiffusionJob() {
     updateDiffusionNotice(i18n::text("diffusion.ui.generation.could.not.start"), 0, 0, true);
     return;
   }
-  if (diffusion::modelProfile(s.pendingConfiguration.value("profile").toString()).value("family") == "flux3" &&
+  if (profile.value("family") == "flux3" &&
       !s.worker->hello().value("flux3NativeRegions").toBool()) {
     s.wanted = false;
     s.panel->setBusy(false);
@@ -1011,7 +1058,7 @@ void MainWindow::applyDiffusion() {
         throw std::runtime_error("The source layer changed. Capture it again before applying this stack.");
       const auto &result = *s.panel->selectedResult();
       auto command = diffusionStackCommand(document, source->id, session().layerSelectionState(),
-                                           result.layers, result.toDocument);
+                                           result.stack, result.toDocument);
       if (!executeDocumentCommand(std::move(command)))
         throw std::runtime_error("The decomposed folder could not be inserted.");
       fileState().untouched = false;

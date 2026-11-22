@@ -117,6 +117,24 @@ target_include_directories(vulkana-diffusion-worker PRIVATE "${CMAKE_CURRENT_BIN
 target_include_directories(vulkana-diffusion-worker PRIVATE
     "${VULKANA_DIFFUSION_ENGINE_DIR}/include" "${VULKANA_DIFFUSION_ENGINE_DIR}/thirdparty")
 target_link_libraries(vulkana-diffusion-worker PRIVATE stable-diffusion Threads::Threads)
+if(SD_CUDA AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    enable_language(CUDA)
+    find_package(CUDAToolkit REQUIRED)
+    add_library(vulkana_layerdiff STATIC
+        layerdiff/backend.cpp layerdiff/cuda_projections.cu layerdiff/clip.cpp layerdiff/denoiser.cpp
+        layerdiff/image.cpp layerdiff/model.cpp layerdiff/vae.cpp)
+    set_target_properties(vulkana_layerdiff PROPERTIES CUDA_STANDARD 17 CUDA_STANDARD_REQUIRED ON CUDA_RUNTIME_LIBRARY Shared)
+    target_include_directories(vulkana_layerdiff PRIVATE
+        "${VULKANA_DIFFUSION_ENGINE_DIR}/src" "${VULKANA_DIFFUSION_ENGINE_DIR}/thirdparty"
+        "${VULKANA_DIFFUSION_ENGINE_DIR}/ggml/src")
+    if(NOT SD_USE_SYSTEM_GGML)
+        # The pinned engine builds its bundled ggml with this tensor structure layout.
+        target_compile_definitions(vulkana_layerdiff PUBLIC GGML_MAX_NAME=160)
+    endif()
+    target_link_libraries(vulkana_layerdiff PUBLIC ggml ggml-cuda PRIVATE CUDA::cublas)
+    target_compile_definitions(vulkana-diffusion-worker PRIVATE VULKANA_LAYERDIFF_CUDA=1)
+    target_link_libraries(vulkana-diffusion-worker PRIVATE vulkana_layerdiff)
+endif()
 if(VULKANA_DIFFUSION_RELEASE AND UNIX AND NOT APPLE)
     # The first directory belongs only to this worker. The second permits an
     # enclosing portable app to supply its reviewed GCC/OpenMP runtime.
@@ -170,6 +188,24 @@ if(BUILD_TESTING)
     target_link_libraries(vulkana_diffusion_convrot_tests PRIVATE stable-diffusion)
     add_test(NAME vulkana_diffusion_convrot_cpu COMMAND vulkana_diffusion_convrot_tests)
     set_tests_properties(vulkana_diffusion_convrot_cpu PROPERTIES TIMEOUT 90 LABELS "diffusion;kernel")
+    if(TARGET vulkana_layerdiff)
+        foreach(suite IN ITEMS Image Bundle)
+            set(test_name vulkana_layerdiff_${suite}_tests)
+            add_executable(${test_name} "${CMAKE_CURRENT_SOURCE_DIR}/../../../tests/diffusion/LayerDiff${suite}Tests.cpp")
+            target_include_directories(${test_name} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${VULKANA_DIFFUSION_ENGINE_DIR}/thirdparty")
+            target_link_libraries(${test_name} PRIVATE vulkana_layerdiff)
+            add_test(NAME ${test_name} COMMAND ${test_name})
+            set_tests_properties(${test_name} PROPERTIES LABELS "diffusion;layerdiff")
+        endforeach()
+        add_test(NAME vulkana_layerdiff_cuda_shapes COMMAND vulkana_layerdiff_Bundle_tests --cuda-shapes)
+        add_test(NAME vulkana_layerdiff_cuda_graph COMMAND vulkana_layerdiff_Bundle_tests --cuda-graph)
+        add_test(NAME vulkana_layerdiff_cuda_projections COMMAND vulkana_layerdiff_Bundle_tests --cuda-projections)
+        add_test(NAME vulkana_layerdiff_cuda_precision_override COMMAND vulkana_layerdiff_Bundle_tests --cuda-projections)
+        set_tests_properties(vulkana_layerdiff_cuda_precision_override PROPERTIES ENVIRONMENT "GGML_CUDA_CUBLAS_COMPUTE_TYPE=f32")
+        set_tests_properties(vulkana_layerdiff_cuda_shapes vulkana_layerdiff_cuda_graph
+            vulkana_layerdiff_cuda_projections vulkana_layerdiff_cuda_precision_override
+            PROPERTIES SKIP_RETURN_CODE 77 LABELS "diffusion;layerdiff;gpu")
+    endif()
     if(SD_CUDA)
         add_test(NAME vulkana_diffusion_convrot_cuda COMMAND vulkana_diffusion_convrot_tests cuda)
         set_tests_properties(vulkana_diffusion_convrot_cuda PROPERTIES TIMEOUT 90 SKIP_RETURN_CODE 77 LABELS "diffusion;kernel;gpu")

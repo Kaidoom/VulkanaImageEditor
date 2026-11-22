@@ -382,7 +382,11 @@ private slots:
     DiffusionPanel panel;
     auto *family = panel.findChild<QComboBox *>("DiffusionFamily");
     auto *variant = panel.findChild<QComboBox *>("DiffusionProfile");
+#ifdef Q_OS_LINUX
+    QCOMPARE(family->count(), 7);
+#else
     QCOMPARE(family->count(), 6);
+#endif
     QVERIFY(family->findData("qwen-image-layered") >= 0);
     QCOMPARE(family->currentText(), QString("Qwen 2.1 Image"));
     QCOMPARE(variant->count(), 2);
@@ -410,10 +414,10 @@ private slots:
       const auto familyKey = p.value("familyGroup").toString(p.value("family").toString());
       QCOMPARE(family->currentData().toString(), familyKey);
       QCOMPARE(variant->isHidden(), variant->count() == 1);
-      auto *steps = panel.findChild<QDoubleSpinBox *>("Diffusion_steps");
-      steps->setValue(31);
+      if (p.value("namedParts").toBool()) panel.findChild<QSpinBox *>("DiffusionPartSteps")->setValue(31);
+      else panel.findChild<QDoubleSpinBox *>("Diffusion_steps")->setValue(31);
       panel.setProfiles(imageeditor::diffusion::modelProfiles());
-      QCOMPARE(steps->value(), 31.0); // Worker discovery preserves edited defaults.
+      QCOMPARE(panel.request()["steps"].toInt(), 31); // Worker discovery preserves edited defaults.
       panel.saveSettings();
       DiffusionPanel restored;
       QCOMPARE(restored.configuration()["profile"], p["id"]);
@@ -1771,13 +1775,14 @@ private slots:
     placement.translate(50, 20);
     placement.scale(2, 2);
     panel.appendResult({composite, {}, "Stack", {{"contextId","one"}}, placement,
-                        DiffusionPanel::Mode::Decompose, {}, {bottom, top}});
+                        DiffusionPanel::Mode::Decompose, {}, imageeditor::ui::DiffusionLayerStack::fromFullImages({bottom, top})});
     panel.setDestination(DiffusionPanel::Destination::NewDocument);
     QCOMPARE(panel.resultPlacement(), placement);
     int applied = 0;
     panel.onApply = [&] {
       QCOMPARE(panel.selectedResult()->image, composite);
-      QCOMPARE(panel.selectedResult()->layers, QVector<QImage>({bottom, top}));
+      QCOMPARE(panel.selectedResult()->stack.parts[0].pixels, bottom);
+      QCOMPARE(panel.selectedResult()->stack.parts[1].pixels, top);
       ++applied;
     };
     panel.showResultPreview();

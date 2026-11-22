@@ -2566,6 +2566,164 @@ private slots:
     addDecompositionInput();
     QCOMPARE(panel->inputs().first().metadata["layerId"].toString(), QString::number(*session().activeLayer()));
   }
+#ifdef Q_OS_LINUX
+  void namedPartsUseCapturedLayerCoordinates() {
+    qputenv("VULKANA_TEST_DIFFUSION_NAMED", "1");
+    const auto restore = qScopeGuard([] { qunsetenv("VULKANA_TEST_DIFFUSION_NAMED"); });
+    const auto realModel = qEnvironmentVariable("VULKANA_TEST_SEETHROUGH_MODEL");
+    if (!realModel.isEmpty()) {
+      panel->setWorkerExecutable(qEnvironmentVariable("VULKANA_DIFFUSION_TEST_WORKER"));
+      QVERIFY(window->openImageFromPath(qEnvironmentVariable("VULKANA_TEST_SEETHROUGH_SOURCE")));
+    } else {
+      // A transparent hole and fractional alpha must survive capture on a non-aligned source grid.
+      QImage art(53, 29, QImage::Format_RGBA8888);
+      art.fill(QColor(70, 90, 210, 124));
+      for (int y=10; y<19; ++y)
+        for (int x=17; x<36; ++x) art.setPixelColor(x,y,Qt::transparent);
+      const auto path=temporary.filePath("layerdiff-input.png");
+      QVERIFY(art.save(path));
+      QVERIFY(window->openImageFromPath(path));
+    }
+    panel->setConfiguration({{"profile","see-through-layerdiff-v3"},
+                             {"files",QJsonObject{{"modelDirectory",realModel.isEmpty() ? temporary.path() : realModel}}}});
+    auto *doc = session().document();
+    const auto id = *session().activeLayer();
+    if (realModel.isEmpty()) QVERIFY(doc->setLayerTransform(id, {0, -1, 71, 1, 0, 13}));
+    openMode("AIGenerateImageAction");
+    QCOMPARE(panel->mode(), u::DiffusionPanel::Mode::Decompose);
+    addDecompositionInput();
+    const auto source = panel->inputs().first();
+    auto *seedMode = child<QComboBox>("DiffusionSeedMode");
+    QVERIFY(seedMode);
+    seedMode->setCurrentIndex(seedMode->findData("fixed"));
+    child<QDoubleSpinBox>("DiffusionSeed")->setValue(3115789088.0);
+    QCOMPARE(panel->request().value("steps").toInt(), 30);
+    QCOMPARE(panel->request().value("processingResolution").toInt(), 1088);
+    QVERIFY(panel->request().value("splitParts").toBool());
+    QVERIFY(!panel->request().contains("layerCount"));
+    QVERIFY(!panel->request().contains("prompt"));
+    QVERIFY(!child<QPlainTextEdit>("DiffusionPrompt")->isVisible());
+    const auto revision = doc->revision();
+    auto *go = child<QPushButton>("DiffusionGenerate");
+    QVERIFY2(go->isEnabled(), qPrintable(go->toolTip()));
+    QTest::mouseClick(go, Qt::LeftButton);
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(),realModel.isEmpty() ? 10000 : 1200000);
+    QVERIFY2(panel->selectedResult(),qPrintable(child<QLabel>("DiffusionProgressStatus")->text()));
+    const auto &result = *panel->selectedResult();
+    const auto &stack = result.stack;
+    QCOMPARE(stack.extent, source.fullImage.size());
+    QCOMPARE(result.toDocument, source.fullToDocument);
+    if (realModel.isEmpty()) {
+      QCOMPARE(stack.parts.size(), 12);
+      QCOMPARE(stack.extent, QSize(29,53));
+      const auto references=result.metadata["request"].toObject()["referenceImages"].toArray();
+      QCOMPARE(references.size(), 1);
+      const QImage captured(references[0].toString());
+      QCOMPARE(captured.convertToFormat(QImage::Format_RGBA8888), source.fullImage.convertToFormat(QImage::Format_RGBA8888));
+      QCOMPARE(captured.pixelColor(captured.rect().center()).alpha(), 0);
+      QCOMPARE(captured.pixelColor(2,2).alpha(), 124);
+    } else QVERIFY(!stack.parts.isEmpty());
+    QCOMPARE(doc->revision(),revision);
+    const auto tree = doc->tree();
+    panel->showResultPreview();
+    auto *inspect = child<QComboBox>("DiffusionStackInspector");
+    QCOMPARE(inspect->itemText(1), stack.parts.front().name);
+    inspect->setCurrentIndex(1);
+    if (realModel.isEmpty()) {
+      QCOMPARE(stack.parts.front().offset,QPoint(3,7));
+      QCOMPARE(stack.inspect(0).pixelColor(3,7),QColor(0,41,20,220));
+      QCOMPARE(stack.inspect(0).pixelColor(0,0).alpha(),0);
+    }
+    child<QPushButton>("DiffusionApply")->click();
+    const auto* folder = doc->tree().container(session().activeLayer().value_or(0));
+    QVERIFY(folder);
+    QCOMPARE(folder->children.size(),size_t(stack.parts.size()));
+    for (qsizetype i=0;i<stack.parts.size();++i) {
+      const auto& part=stack.parts[i];
+      const auto* layer=doc->layer(folder->children[i]);
+      QVERIFY(layer);
+      QCOMPARE(QString::fromStdString(layer->name),part.name);
+      QCOMPARE(u::diffusionRawLayer(*layer),part.pixels);
+      QCOMPARE(layer->rasterOrigin.x,double(part.offset.x()));
+      QCOMPARE(layer->rasterOrigin.y,double(part.offset.y()));
+      QCOMPARE(layer->localToDocument.m02,source.fullToDocument.dx());
+      QCOMPARE(layer->localToDocument.m12,source.fullToDocument.dy());
+    }
+    QVERIFY(!doc->layer(id)->visible);
+    QVERIFY(session().undo());
+    QCOMPARE(doc->tree(),tree);
+    QVERIFY(doc->layer(id)->visible);
+    QVERIFY(session().redo());
+    const auto save = qEnvironmentVariable("VULKANA_TEST_SEETHROUGH_PROJECT");
+    if (!save.isEmpty()) QVERIFY(u::saveProject(save,*doc));
+  }
+
+  void modelDirectoryAcceptsNativeKeyboardInput() {
+    panel->setConfiguration({{"profile","see-through-layerdiff-v3"}});
+    openMode("AIGenerateImageAction");
+    auto *tabs=child<QTabWidget>("DiffusionTabs");
+    tabs->setCurrentIndex(0);
+    auto *header=child<QToolButton>("DiffusionModelSectionHeader");
+    header->setChecked(true);
+    auto *field=child<QLineEdit>("DiffusionFile_modelDirectory");
+    QVERIFY(field && field->isVisible());
+    QVERIFY(!child<QLineEdit>("DiffusionFile_vae")->isVisible());
+    QTest::mouseClick(field, Qt::LeftButton);
+    const QString path=temporary.filePath(QString::fromUtf8("部品"));
+    QVERIFY(QDir().mkpath(path));
+    QInputMethodEvent input;
+    input.setCommitString(path);
+    QCoreApplication::sendEvent(window->windowHandle(), &input);
+    QCOMPARE(field->text(),path);
+    QCOMPARE(panel->configuration()["files"].toObject(),QJsonObject({{"modelDirectory",path}}));
+  }
+
+  void oldWorkerKeepsNamedPartsConfiguration_data() {
+    QTest::addColumn<QByteArray>("backend");
+    QTest::newRow("older CUDA") << QByteArray("cuda");
+    QTest::newRow("Vulkan") << QByteArray("vulkan");
+  }
+  void oldWorkerKeepsNamedPartsConfiguration() {
+    QFETCH(QByteArray, backend);
+    qputenv("VULKANA_TEST_FAKE_BACKEND", backend);
+    const auto restore = qScopeGuard([] { qunsetenv("VULKANA_TEST_FAKE_BACKEND"); });
+    panel->setConfiguration({{"profile","see-through-layerdiff-v3"},
+                             {"files",QJsonObject{{"modelDirectory",temporary.path()}}}});
+    openMode("AIGenerateImageAction"); addDecompositionInput();
+    const auto revision=session().document()->revision();
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(),10000);
+    QCOMPARE(panel->configuration()["profile"].toString(),"see-through-layerdiff-v3");
+    QVERIFY(panel->results().isEmpty());
+    QCOMPARE(session().document()->revision(), revision);
+    QVERIFY(child<QLabel>("DiffusionProgressStatus")->text().contains("CUDA"));
+  }
+  void invalidNamedPartDoesNotEditDocument_data() {
+    QTest::addColumn<QByteArray>("invalidPart");
+    QTest::addColumn<QString>("error");
+    QTest::newRow("out of bounds") << QByteArray("bounds") << QString("bounds");
+    QTest::newRow("duplicate label") << QByteArray("name") << QString("duplicate");
+    QTest::newRow("too many parts") << QByteArray("count") << QString("too many");
+  }
+  void invalidNamedPartDoesNotEditDocument() {
+    QFETCH(QByteArray, invalidPart);
+    QFETCH(QString, error);
+    qputenv("VULKANA_TEST_DIFFUSION_NAMED","1");
+    qputenv("VULKANA_TEST_INVALID_PART", invalidPart);
+    const auto restore=qScopeGuard([]{
+      qunsetenv("VULKANA_TEST_DIFFUSION_NAMED"); qunsetenv("VULKANA_TEST_INVALID_PART");
+    });
+    panel->setConfiguration({{"profile","see-through-layerdiff-v3"},
+                             {"files",QJsonObject{{"modelDirectory",temporary.path()}}}});
+    openMode("AIGenerateImageAction"); addDecompositionInput();
+    const auto revision=session().document()->revision();
+    generate();
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(),10000);
+    QVERIFY(panel->results().isEmpty());
+    QCOMPARE(session().document()->revision(),revision);
+    QVERIFY(child<QLabel>("DiffusionProgressStatus")->text().contains(error));
+  }
+#endif
   void oldWorkerKeepsDecompositionConfiguration() {
     qputenv("VULKANA_TEST_DIFFUSION_NO_STACK", "1");
     const auto restore = qScopeGuard([] { qunsetenv("VULKANA_TEST_DIFFUSION_NO_STACK"); });
@@ -2614,11 +2772,12 @@ private slots:
     QVERIFY2(panel->selectedResult(), qPrintable(child<QLabel>("DiffusionProgressStatus")->text()));
     QCOMPARE(panel->results().size(), 1);
     const auto &result = *panel->selectedResult();
-    QCOMPARE(result.layers.size(), 3);
+    QCOMPARE(result.stack.parts.size(), 3);
     QCOMPARE(result.metadata["request"].toObject()["prompt"].toString(), QString{});
     if (!realLoad.isEmpty())
       qInfo() << "Decomposition worker time (ms)" << result.metadata["timings"].toObject()["totalMs"].toDouble();
-    for (const auto &pixels : result.layers) {
+    for (const auto &part : result.stack.parts) {
+      const auto &pixels = part.pixels;
       QVERIFY(pixels.hasAlphaChannel());
       QCOMPARE(pixels.size(), result.image.size());
     }

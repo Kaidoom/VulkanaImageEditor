@@ -9564,6 +9564,39 @@ Requested: %1 × %2 px</source>
     <message id="diffusion.decompose.mode">
       <source>Decompose into Layers</source>
     </message>
+    <message id="diffusion.layerdiff.missing.cuda">
+      <source>See-through requires the optional Linux CUDA worker. Add it in Configuration and choose CUDA or Auto.</source>
+    </message>
+    <message id="diffusion.layerdiff.gpu.required">
+      <source>See-through needs a CUDA GPU. Choose a GPU or Auto under Memory and performance.</source>
+    </message>
+    <message id="diffusion.layerdiff.missing.folder">
+      <source>Choose the LayerDiff 3D model folder in Configuration.</source>
+    </message>
+    <message id="diffusion.layerdiff.large.source">
+      <source>The source layer exceeds 8192 pixels per side.</source>
+    </message>
+    <message id="diffusion.layerdiff.choose.folder">
+      <source>Choose the LayerDiff 3D model folder</source>
+    </message>
+    <message id="diffusion.layerdiff.model.folder">
+      <source>Model folder</source>
+    </message>
+    <message id="diffusion.layerdiff.split">
+      <source>Separate left and right parts</source>
+    </message>
+    <message id="diffusion.layerdiff.old.worker">
+      <source>See-through requires a Linux CUDA worker with named layer support. Select an updated CUDA worker in Configuration.</source>
+    </message>
+    <message id="diffusion.layerdiff.invalid.part">
+      <source>The worker returned an invalid part name or source bounds.</source>
+    </message>
+    <message id="diffusion.layerdiff.too.many.parts">
+      <source>The worker returned too many decomposition parts.</source>
+    </message>
+    <message id="diffusion.layerdiff.duplicate.part">
+      <source>The worker returned duplicate decomposition part names.</source>
+    </message>
     <message id="diffusion.decompose.composite">
       <source>Composite</source>
     </message>

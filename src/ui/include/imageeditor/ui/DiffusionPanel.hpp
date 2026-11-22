@@ -2,6 +2,7 @@
 #include "imageeditor/ui/Localization.hpp"
 
 #include "imageeditor/ui/DiffusionPreview.hpp"
+#include "imageeditor/ui/DiffusionLayerStack.hpp"
 #include <QImage>
 #include <QIcon>
 #include <QJsonArray>
@@ -52,7 +53,7 @@ public:
     QTransform toDocument;
     Mode mode{Mode::Generate};
     std::optional<bool> fitToBounds;
-    QVector<QImage> layers; // Native bottom-to-top order for a decomposition.
+    DiffusionLayerStack stack;
     QString layerName() const; // Frozen model identity and the output's actual seed.
   };
 

@@ -51,17 +51,23 @@ class ProtocolTests(unittest.TestCase):
         self.log.close()
         self.directory.cleanup()
 
-    def call(self, method, params=None):
+    def send_request(self, method, params=None):
         self.counter += 1
         ident = f"test-{self.counter}"
         self.process.stdin.write(json.dumps({"protocol": 1, "id": ident,
                                             "method": method, "params": params or {}}) + "\n")
         self.process.stdin.flush()
+        return ident
+
+    def call(self, method, params=None, on_event=None):
+        ident = self.send_request(method, params)
         while True:
             result = self.messages.get(timeout=30)
             self.assertNotIn("invalid_stdout", result)
             if result.get("id") == ident:
                 return result
+            if on_event:
+                on_event(result)
 
     def test_discovery_and_lifecycle(self):
         self.assertTrue(self.hello["generationStages"])
@@ -130,6 +136,63 @@ class ProtocolTests(unittest.TestCase):
         self.assertTrue(self.call("ping")["ok"])
         self.assertFalse(self.call("status")["result"]["loaded"])
         self.assertEqual(self.call("status")["result"]["loadedModels"], [])
+
+    def test_named_stack_discovery_and_missing_model(self):
+        profile = "see-through-layerdiff-v3"
+        profiles = {entry["id"]: entry for entry in self.hello["profiles"]}
+        enabled = self.hello["backend"] == "cuda" and sys.platform.startswith("linux")
+        self.assertEqual(profile in profiles, enabled)
+        self.assertEqual(self.hello.get("namedLayerStacks", False), enabled)
+        if enabled:
+            self.assertEqual(profiles[profile]["modes"], ["decompose"])
+            reply = self.call("load", {"profile": profile, "files": {"modelDirectory": self.directory.name}})
+            self.assertFalse(reply["ok"])
+            self.assertIn(reply["error"]["code"], {"model_load_failed", "invalid_arguments"})
+            self.assertFalse(self.call("status")["result"]["loaded"])
+
+    @unittest.skipUnless(os.getenv("VULKANA_TEST_SEETHROUGH_MODEL") and os.getenv("VULKANA_TEST_SEETHROUGH_SOURCE"),
+                         "Set a See-through model directory and a character PNG for the CUDA lifecycle test.")
+    def test_named_stack_cancel_and_reuse(self):
+        if not self.hello.get("namedLayerStacks"):
+            self.skipTest("Requires the Linux CUDA LayerDiff worker")
+        loaded = self.call("load", {"profile": "see-through-layerdiff-v3",
+                                    "files": {"modelDirectory": os.environ["VULKANA_TEST_SEETHROUGH_MODEL"]}})
+        self.assertTrue(loaded["ok"], loaded)
+        generation = loaded["result"]["contextGeneration"]
+        source = Path(os.environ["VULKANA_TEST_SEETHROUGH_SOURCE"]).resolve()
+        with source.open("rb") as png:
+            self.assertEqual(png.read(8), b"\x89PNG\r\n\x1a\n")
+            png.seek(16)
+            width, height = struct.unpack(">II", png.read(8))
+        params = {"referenceImages": [str(source)], "width": width, "height": height,
+                  "processingResolution": 512, "steps": 4, "seed": 3115789088, "splitParts": True}
+        cancel_id = None
+
+        def cancel_on_sampling(event):
+            nonlocal cancel_id
+            if event.get("stage") == "sampling" and cancel_id is None:
+                cancel_id = self.send_request("cancel")
+
+        cancelled = self.call("generate", params, on_event=cancel_on_sampling)
+        self.assertIsNotNone(cancel_id)
+        self.assertEqual(cancelled["error"]["code"], "cancelled", cancelled)
+        self.assertFalse(any(Path(self.directory.name).glob("job-*")))
+        self.assertTrue(self.call("status")["result"]["loaded"])
+        stages = set()
+        finished = self.call("generate", params, on_event=lambda event: stages.add(event.get("stage")))
+        self.assertTrue(finished["ok"], finished)
+        self.assertTrue({"vae_encode", "sampling", "vae_decode", "saving"}.issubset(stages), stages)
+        result = finished["result"]
+        self.assertEqual(result["contextGeneration"], generation)
+        self.assertEqual((result["stackWidth"], result["stackHeight"]), (width, height))
+        self.assertTrue(result["images"])
+        for item in result["images"]:
+            self.assertTrue(Path(item["path"]).is_file())
+            self.assertEqual(item["channels"], 4)
+            self.assertTrue(0 <= item["x"] < item["x"] + item["width"] <= width)
+            self.assertTrue(0 <= item["y"] < item["y"] + item["height"] <= height)
+        self.assertTrue(self.call("unload")["ok"])
+        self.assertFalse(self.call("status")["result"]["loaded"])
 
     def test_pointer_rejection(self):
         pointer = Path(self.directory.name) / "model.gguf"

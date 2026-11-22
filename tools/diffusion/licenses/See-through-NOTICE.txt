@@ -1,0 +1,14 @@
+See-through: Single-image Layer Decomposition for Anime Characters
+Upstream project: https://github.com/shitagaki-lab/see-through
+Jian Lin, Chengze Li, Haoyun Qin, Kwun Wang Chan, Yanghua Jin, Hanyuan Liu,
+Stephen Chun Wang Choy, and Xueting Liu.
+
+The Linux CUDA worker adapts the See-through v3 body/head network architecture,
+semantic tag conditioning and transparent decoding for native GGML inference.
+The upstream implementation incorporates Diffusers code bearing the following
+notice: Copyright 2025 The HuggingFace Team. All rights reserved.
+
+Vulkana's modifications implement inference in C++, use GGML on CUDA, and
+return source-aligned named RGBA layers. The upstream See-through code is
+licensed under the Apache License, Version 2.0 (see Apache-2.0.txt).
+Model checkpoints are obtained separately by users and have their own terms.

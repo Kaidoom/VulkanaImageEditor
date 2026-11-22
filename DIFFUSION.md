@@ -106,6 +106,16 @@ Decomposition predicts an approximate separation. The model can keep several sub
 
 The native worker advertises `layerStackResults`. The layered profile uses one RGBA reference, batch size one and a `layerCount` of 2–10. A successful response identifies one `layerStack` and lists its PNGs from bottom to top. The worker excludes the engine's extra source-reconstruction slot.
 
+**See-through LayerDiff 3D** uses the Linux CUDA worker. In Configuration select the See-through family, then choose the local LayerDiff 3D model folder containing the V3 UNet, both CLIP encoders/tokenizers, the VAE and transparent VAE. No Marigold depth model is required. Choose Auto or CUDA in the worker settings. An older CUDA worker needs updating to support named, cropped layers.
+
+In Generate, add one visible raster layer to the input list. Choose the processing resolution (1088 by default), steps (30 by default), seed, and whether to separate left and right parts. See-through predicts a variable set of named parts without a prompt or a requested layer count. Its preview and output use the captured source extent, independent of the processing resolution. Select a part in the expanded preview to inspect it in place. **Apply as folder** preserves the captured offsets, keeps the original hidden beneath the folder, and supports one-step undo. Initial stacking uses the part labels. Where upper and lower garments overlap, the editor favors the garment whose visible colors better match the source. You can reorder any part in the Layers panel.
+
+The worker advertises `namedLayerStacks` for this profile. It streams cropped RGBA parts to the job directory and reports their names and offsets on the original pixel grid. Source transparency bounds each part, including soft edges. Pixels revealed by moving a part may need artist cleanup.
+
+The CUDA worker keeps intermediate features on the GPU when a denoising step fits. If free VRAM is tight, it stages features in system memory for the rest of that body or face pass. Both paths use the same sampling and layer placement. Lowering the processing resolution reduces the memory needed.
+
+On supported CUDA devices, large LayerDiff projections keep cuBLAS's FP16 result until a consumer needs FP32. Normalization, bias addition, activation arithmetic and residual additions retain their original precision. Explicit cuBLAS compute-type overrides use the standard ggml projection path.
+
 ## Supported models and regions
 
 **MiniMax-H3-Image** supports Generate and reference-based Edit Layer. Select
@@ -408,6 +418,8 @@ Templates accept `{instruction}`, `{background}`, `{subject}`, and `{style}`. `{
 ## Testing and distribution
 
 Run the deterministic host and UI tests with `ctest --test-dir build/release -R imageeditor_diffusion --output-on-failure`. They cover process lifecycle, validation, snapshots, undo, soft selections, preview navigation, comparison, reversible input cropping, region remapping, size-limit persistence and cropped replacement placement. Worker tests cover the spatial protocol and bounded reference resizing, including alpha and edge extension, native FLUX box formats, reference/object/scene aliases, source-target pairing, description escaping, invalid links and explicit crop-guidance selection. UI tests cover rename/reorder/crop stability, output-aspect mapping, destination drawing/cancellation and native keyboard/IME entry. The opt-in real-inference smoke executable described above requires user-provided models.
+
+For a real See-through check, set `VULKANA_TEST_SEETHROUGH_MODEL` to the local LayerDiff v3 directory and `VULKANA_TEST_SEETHROUGH_SOURCE` to a character PNG. The CUDA worker protocol test then cancels during sampling and repeats a decomposition with the loaded model. For the end-to-end editor test, also set `VULKANA_DIFFUSION_TEST_WORKER` to the CUDA executable and run `imageeditor_diffusion_integration_tests namedPartsUseCapturedLayerCoordinates`. Set `VULKANA_TEST_SEETHROUGH_PROJECT` to an unused project filename to keep the applied stack for visual review.
 
 Document transactions stay in the editor; the worker receives immutable files and returns independent images. Input capture and Apply compositing use the editor thread, so unusually large images can pause briefly during those steps. Inference and model loading remain asynchronous.
 

@@ -2,6 +2,7 @@
 
 #include "imageeditor/core/EditorSession.hpp"
 #include "imageeditor/ui/FlattenedDocument.hpp"
+#include "imageeditor/ui/DiffusionLayerStack.hpp"
 
 #include <QImage>
 #include <QString>
@@ -33,13 +34,13 @@ struct DiffusionTarget {
 [[nodiscard]] bool diffusionTargetCurrent(
     const core::Document&, const DiffusionTarget&, QString* error = nullptr);
 [[nodiscard]] QImage diffusionRawLayer(const core::Layer&);
-// Stack images share a straight-alpha pixel grid in bottom-to-top order.
+// A saved output stack is frozen until the user applies its folder.
 [[nodiscard]] bool canDecomposeLayer(const core::Document&, core::LayerId);
-[[nodiscard]] QImage diffusionStackPreview(const QVector<QImage>& layers,
+[[nodiscard]] QImage diffusionStackPreview(const DiffusionLayerStack& stack,
     core::CompositingSpace space = core::CompositingSpace::LinearSRgb);
 [[nodiscard]] std::unique_ptr<core::Command> diffusionStackCommand(
     const core::Document&, core::LayerId source, const core::LayerSelectionState&,
-    const QVector<QImage>& layers, const QTransform& placement);
+    const DiffusionLayerStack& stack, const QTransform& placement);
 // Nontransparent rendered bounds in document pixels, including off-canvas content. Backdrop-dependent blend modes can
 // differ from the visible canvas; use flattenDocument for a full composite.
 [[nodiscard]] FlattenedDocumentResult diffusionRenderedLayer(

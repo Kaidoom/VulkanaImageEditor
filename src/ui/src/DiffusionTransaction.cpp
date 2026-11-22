@@ -443,23 +443,56 @@ std::optional<core::Layer> diffusionResultLayer(const DiffusionTarget* target, c
     }
 }
 namespace {
-std::vector<core::Layer> stackRasterLayers(const QVector<QImage>& images)
+std::vector<core::Layer> stackRasterLayers(const DiffusionLayerStack& stack)
 {
-    if (images.isEmpty()) throw std::invalid_argument("The decomposition contains no layers.");
-    const auto size = images.front().size();
-    validateSize(size);
+    if (stack.parts.isEmpty()) throw std::invalid_argument("The decomposition contains no layers.");
+    validateSize(stack.extent);
     std::vector<core::Layer> layers;
-    layers.reserve(static_cast<std::size_t>(images.size()));
-    for (const auto& image : images) {
-        if (image.size() != size || !image.hasAlphaChannel())
-            throw std::invalid_argument("Invalid decomposition layer dimensions or alpha channel.");
-        auto raster = rasterLayerFromImage(image, QString("Layer %1").arg(layers.size() + 1));
+    layers.reserve(static_cast<std::size_t>(stack.parts.size()));
+    for (const auto& part : stack.parts) {
+        const auto& image = part.pixels;
+        const auto origin = part.offset;
+        if (image.isNull() || !image.hasAlphaChannel() || origin.x() < 0 || origin.y() < 0 ||
+            origin.x() > stack.extent.width() - image.width() || origin.y() > stack.extent.height() - image.height())
+            throw std::invalid_argument("Invalid decomposition layer bounds or alpha channel.");
+        const auto label = part.name.isEmpty() ? QString("Layer %1").arg(layers.size()+1) : part.name;
+        auto raster = rasterLayerFromImage(image, label);
         if (!raster) throw std::runtime_error(raster.error.toStdString());
+        raster.layer->rasterOrigin = {double(origin.x()), double(origin.y())};
         layers.push_back(std::move(*raster.layer));
     }
     return layers;
 }
 } // namespace
+
+DiffusionLayerStack DiffusionLayerStack::fromFullImages(const QVector<QImage>& images)
+{
+    DiffusionLayerStack stack;
+    if (!images.isEmpty()) stack.extent = images.front().size();
+    for (const auto& image : images) {
+        if (image.size() != stack.extent) throw std::invalid_argument("Decomposition layers must share a pixel grid.");
+        stack.parts.append({{}, {}, image});
+    }
+    return stack;
+}
+
+QImage DiffusionLayerStack::inspect(qsizetype index) const
+{
+    const auto& part = parts.at(index);
+    if (part.offset.isNull() && part.pixels.size() == extent) return part.pixels;
+    QImage page(extent, QImage::Format_RGBA8888);
+    if (page.isNull()) throw std::bad_alloc();
+    page.setColorSpace(part.pixels.colorSpace());
+    page.fill(Qt::transparent);
+    const auto pixels = part.pixels.convertToFormat(QImage::Format_RGBA8888);
+    if (pixels.isNull()) throw std::bad_alloc();
+    if (!QRect(QPoint{}, extent).contains(QRect(part.offset, pixels.size())))
+        throw std::invalid_argument("Cannot inspect a part outside the stack grid.");
+    for (int y = 0; y < pixels.height(); ++y)
+        std::memcpy(page.scanLine(part.offset.y() + y) + part.offset.x() * 4,
+                    pixels.constScanLine(y), size_t(pixels.width()) * 4);
+    return page;
+}
 
 bool canDecomposeLayer(const core::Document& doc, core::LayerId sourceId)
 {
@@ -475,10 +508,10 @@ bool canDecomposeLayer(const core::Document& doc, core::LayerId sourceId)
     return true;
 }
 
-QImage diffusionStackPreview(const QVector<QImage>& images, core::CompositingSpace space)
+QImage diffusionStackPreview(const DiffusionLayerStack& stack, core::CompositingSpace space)
 {
-    auto layers = stackRasterLayers(images);
-    const auto size = images.front().size();
+    auto layers = stackRasterLayers(stack);
+    const auto size = stack.extent;
     core::Document preview({{unsigned(size.width()), unsigned(size.height())}, 96.0, space});
     core::LayerTree tree;
     for (const auto& layer : layers) tree.roots.push_back(layer.id);
@@ -490,7 +523,7 @@ QImage diffusionStackPreview(const QVector<QImage>& images, core::CompositingSpa
 }
 
 std::unique_ptr<core::Command> diffusionStackCommand(const core::Document& doc, core::LayerId sourceId,
-    const core::LayerSelectionState& selection, const QVector<QImage>& images, const QTransform& placement)
+    const core::LayerSelectionState& selection, const DiffusionLayerStack& stack, const QTransform& placement)
 {
     if (!canDecomposeLayer(doc, sourceId))
         throw std::invalid_argument("Choose a visible color raster outside clipping and channel groups.");
@@ -498,7 +531,7 @@ std::unique_ptr<core::Command> diffusionStackCommand(const core::Document& doc, 
                                           placement.m12(), placement.m22(), placement.dy(),
                                           placement.m13(), placement.m23(), placement.m33()};
     if (!transform.inverted()) throw std::invalid_argument("The decomposed stack has invalid placement.");
-    auto added = stackRasterLayers(images);
+    auto added = stackRasterLayers(stack);
     auto tree = doc.tree();
     const auto at = *tree.placement(sourceId);
     const auto folderId = core::makeLayerId();

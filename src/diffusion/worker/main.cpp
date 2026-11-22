@@ -1,6 +1,9 @@
 // The engine is process-isolated: backend assertions and allocation failures must
 // never bring down the editor. stdout is reserved exclusively for this protocol.
 #include "Profiles.h"
+#ifdef VULKANA_LAYERDIFF_CUDA
+#include "layerdiff/model.hpp"
+#endif
 #include "SpatialGuidance.h"
 #include "FluxSpatial.h"
 #include "LoraReport.h"
@@ -24,6 +27,7 @@
 #include <iostream>
 #include <memory>
 #include <mutex>
+#include <random>
 #include <regex>
 #include <set>
 #include <sstream>
@@ -135,7 +139,13 @@ static std::string inputFile(const Json& j, const char* key, bool required)
 }
 static Json profiles()
 {
-    return Json::parse(profileJson);
+    auto all = Json::parse(profileJson);
+#ifndef VULKANA_LAYERDIFF_CUDA
+    all.erase(std::remove_if(all.begin(), all.end(), [](const Json& p) {
+        return p["id"] == "see-through-layerdiff-v3";
+    }), all.end());
+#endif
+    return all;
 }
 static Json findProfile(const std::string& id)
 {
@@ -185,6 +195,11 @@ class Worker {
     std::atomic<bool> busy { false }, cancelled { false };
     std::atomic<bool> loadingModel { false };
     sd_ctx_t* context = nullptr; // protected by stateMutex when accessed by the control thread
+#ifdef VULKANA_LAYERDIFF_CUDA
+    std::unique_ptr<layerdiff::Model> layerDiff;
+    Json loadLayerDiff(const Json& profile, const Json& params);
+    Json generateLayerDiff(const Json& params);
+#endif
     Json loadedProfile, effectiveSettings, files;
     Json loadedModels = Json::array(); // Immutable snapshots, protected by stateMutex.
     std::string jobId, state = "idle", lastError;
@@ -365,7 +380,7 @@ public:
     Json status()
     {
         std::lock_guard lock(stateMutex);
-        return { { "state", state }, { "loaded", context != nullptr }, { "jobId", busy.load() ? jobId : "" },
+        return { { "state", state }, { "loaded", !loadedModels.empty() }, { "jobId", busy.load() ? jobId : "" },
             { "contextGeneration", generation }, { "loadedModels", loadedModels } };
     }
     void announce()
@@ -378,6 +393,9 @@ public:
         send({ { "samplers", samplers }, { "schedulers", schedulers }, { "event", "hello" },
             { "generationStages", true },
             { "referenceSizeLimit", true },
+#ifdef VULKANA_LAYERDIFF_CUDA
+            { "namedLayerStacks", true },
+#endif
             { "loraParameters", true }, { "layerStackResults", true },
             { "flux3NativeRegions", true },
             { "protocol", 1 }, { "spatialVersions", Json::array({1, 2, 3}) }, { "engineCommit", VULKANA_DIFFUSION_ENGINE_COMMIT },
@@ -423,19 +441,25 @@ public:
     void release()
     {
         sd_ctx_t* old = nullptr;
+#ifdef VULKANA_LAYERDIFF_CUDA
+        std::unique_ptr<layerdiff::Model> oldLayerDiff;
+#endif
+        bool changed;
         {
             std::lock_guard lock(stateMutex);
             old = context;
             context = nullptr;
+#ifdef VULKANA_LAYERDIFF_CUDA
+            oldLayerDiff = std::move(layerDiff);
+#endif
+            changed = !loadedModels.empty();
+            loadedModels = Json::array();
         }
-        if (old) {
-            free_sd_ctx(old);
-            {
-                std::lock_guard lock(stateMutex);
-                loadedModels = Json::array();
-            }
-            stateEvent();
-        }
+        if (old) free_sd_ctx(old);
+#ifdef VULKANA_LAYERDIFF_CUDA
+        oldLayerDiff.reset();
+#endif
+        if (changed) stateEvent();
     }
     void checkCancel()
     {
@@ -581,10 +605,110 @@ public:
     }
 };
 
+#ifdef VULKANA_LAYERDIFF_CUDA
+Json Worker::loadLayerDiff(const Json& profile, const Json& params)
+{
+    const auto f = params.value("files", Json::object());
+    const auto s = params.value("settings", Json::object());
+    keys(f, { "modelDirectory" });
+    keys(s, { "device" });
+    const auto path = fs::u8path(str(f, "modelDirectory"));
+    std::string device = str(s, "device");
+    const auto found = std::find_if(devices.begin(), devices.end(), [&](const Json& d) {
+        const auto id = d.at("id").get<std::string>();
+        return id.starts_with("CUDA") && (device.empty() || device == "auto" || device == id);
+    });
+    require(found != devices.end(), "See-through requires an available CUDA device");
+    device = found->at("id");
+    const auto start = Clock::now();
+    try {
+        layerdiff::validateBundle(path);
+        release();
+        progress("loading", "See-through LayerDiff");
+        auto model
+            = std::make_unique<layerdiff::Model>(path, std::stoi(device.substr(4)), [this] { checkCancel(); });
+        checkCancel();
+        loadedProfile = profile;
+        files = f;
+        effectiveSettings = { { "device", device }, { "architecture", "See-through LayerDiff v3" } };
+        std::lock_guard lock(stateMutex);
+        layerDiff = std::move(model);
+        ++generation;
+        loadedModels = Json::array({ { { "contextGeneration", generation }, { "profile", profile }, { "files", f },
+            { "effectiveSettings", effectiveSettings }, { "backend", "cuda" } } });
+    } catch (const Failure&) {
+        throw;
+    } catch (const std::bad_alloc&) {
+        throw Failure("out_of_memory", "Not enough GPU or host memory to load LayerDiff");
+    } catch (const std::exception& e) {
+        throw Failure("model_load_failed", e.what());
+    }
+    if (cancelled.load()) {
+        release();
+        checkCancel();
+    }
+    return { { "profile", profile }, { "contextGeneration", generation },
+        { "effectiveSettings", effectiveSettings },
+        { "timings", { { "modelLoadMs", millis(start) }, { "totalMs", millis(jobStart) } } } };
+}
+
+Json Worker::generateLayerDiff(const Json& p)
+{
+    keys(p, { "referenceImages", "width", "height", "processingResolution", "steps", "seed", "splitParts" });
+    require(p.contains("referenceImages") && p["referenceImages"].is_array() && p["referenceImages"].size() == 1,
+        "See-through requires one source layer");
+    const auto input = inputFile(Json { { "image", p["referenceImages"][0] } }, "image", true);
+    const int width = integer(p, "width", 0, 1, 8192), height = integer(p, "height", 0, 1, 8192);
+    const int size = integer(p, "processingResolution", 1088, 256, 1280), steps = integer(p, "steps", 30, 1, 100);
+    require(size % 64 == 0, "See-through processing resolution must be a multiple of 64");
+    const double given = number(p, "seed", -1, -1, 9007199254740991.0);
+    require(std::floor(given) == given, "Seed must be an integer");
+    const uint64_t seed = given >= 0 ? uint64_t(given) : std::random_device { }();
+    const bool splitParts = flag(p, "splitParts", true);
+    Image source(input);
+    require(width == int(source.view.width) && height == int(source.view.height),
+        "Original layer dimensions do not match the input");
+    layerdiff::Image image(width, height);
+    std::copy_n(source.view.data, image.rgba.size(), image.rgba.data());
+    source.pixels.reset();
+    require(!layerdiff::support(image, 0).empty(), "The source layer is fully transparent");
+    const auto directory = root / ("job-" + jobId);
+    require(fs::create_directory(directory), "Job output directory already exists; use a new request id");
+    jobDirectory = directory;
+    Json images = Json::array();
+    const auto start = Clock::now();
+    layerDiff->generate(
+        image, size, steps, seed, splitParts,
+        [this](const char* stage, const char* detail, int step, int total, int pass) {
+            progress(stage, detail, std::string_view(stage) == "sampling" ? "steps" : "parts", step, total, pass);
+        },
+        [&](layerdiff::Part&& part) {
+            checkCancel();
+            const auto path = directory / ("part-" + std::to_string(images.size()) + ".png");
+            png(path, { unsigned(part.pixels.w), unsigned(part.pixels.h), 4, part.pixels.rgba.data() });
+            images.push_back({ { "path", path.string() }, { "name", part.name }, { "x", part.x }, { "y", part.y },
+                { "width", part.pixels.w }, { "height", part.pixels.h }, { "channels", 4 } });
+        });
+    const double engineMs = millis(start);
+    checkCancel();
+    if (images.empty())
+        throw Failure("empty_result", "LayerDiff did not find any visible character parts");
+    auto request = p;
+    request["seed"] = seed;
+    return { { "images", images }, { "resultKind", "layerStack" }, { "stackWidth", width },
+        { "stackHeight", height }, { "profile", layerdiff::profileId }, { "contextGeneration", generation },
+        { "effectiveSettings", effectiveSettings }, { "request", request },
+        { "timings", { { "engineMs", engineMs }, { "totalMs", millis(jobStart) } } } };
+}
+#endif
+
 Json Worker::load(const Json& params)
 {
     keys(params, { "profile", "files", "settings" });
     const auto profile = findProfile(str(params, "profile"));
+#ifdef VULKANA_LAYERDIFF_CUDA
+    if (profile["id"] == layerdiff::profileId) return loadLayerDiff(profile, params);
+#endif
     const auto f = params.value("files", Json::object());
     keys(f, { "diffusion", "textEncoder", "vae", "vision" });
     const bool checkpoint = profile.value("checkpoint", false);
@@ -730,6 +854,15 @@ Json Worker::load(const Json& params)
 
 Json Worker::generate(const Json& p)
 {
+#ifdef VULKANA_LAYERDIFF_CUDA
+    if (layerDiff) {
+        try {
+            return generateLayerDiff(p);
+        } catch (const std::bad_alloc&) {
+            throw Failure("out_of_memory", "Not enough GPU or host memory for LayerDiff. Try a smaller processing resolution.");
+        }
+    }
+#endif
     keys(p,
         { "prompt", "negativePrompt", "width", "height", "steps", "guidance", "seed", "batch", "sampler",
             "scheduler", "schedule", "sigmas", "strength", "referenceImages", "initialImage", "mask",
