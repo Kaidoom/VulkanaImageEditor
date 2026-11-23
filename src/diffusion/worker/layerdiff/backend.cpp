@@ -136,6 +136,13 @@ void Backend::trim() {
         ggml_gallocr_free(allocator_);
     allocator_ = nullptr;
 }
+size_t Backend::weightBudget() const {
+    size_t available = 0, total = 0;
+    ggml_backend_dev_memory(ggml_backend_get_device(handle), &available, &total);
+    // Leave space for both VAEs and the denoising/decoding workspace.
+    constexpr size_t reserve = 1024ull << 20;
+    return available > reserve ? available - reserve : 0;
+}
 void Backend::check() const {
     if (checkpoint_)
         checkpoint_();
@@ -146,21 +153,34 @@ class Weights::Impl {
     Context context{nullptr, ggml_free};
     Buffer buffer{nullptr, ggml_backend_buffer_free};
     std::map<std::string, ggml_tensor *> tensors;
+    bool staged = false;
 };
-Weights::Weights(Backend &backend, const std::filesystem::path &path) : impl_(std::make_unique<Impl>()) {
+Weights::Weights(Backend &backend, const std::filesystem::path &path, std::optional<size_t> deviceBudget)
+    : impl_(std::make_unique<Impl>()) {
     Safetensors disk(path);
     backend.check();
-    impl_->context.reset(ggml_init({ggml_tensor_overhead() * (disk.records.size() + 1), nullptr, true}));
-    if (!impl_->context)
-        throw std::bad_alloc();
-    for (const auto &[name, r] : disk.records) {
-        auto *t = makeTensor(impl_->context.get(), r.shape.size() >= 2 ? GGML_TYPE_F16 : GGML_TYPE_F32, r.shape);
-        ggml_set_name(t, name.c_str());
-        impl_->tensors.emplace(name, t);
+    auto describe = [&] {
+        impl_->tensors.clear();
+        impl_->context.reset(ggml_init({ggml_tensor_overhead() * (disk.records.size() + 1), nullptr, true}));
+        if (!impl_->context) throw std::bad_alloc();
+        for (const auto &[name, r] : disk.records) {
+            auto *t = makeTensor(impl_->context.get(), r.shape.size() >= 2 ? GGML_TYPE_F16 : GGML_TYPE_F32, r.shape);
+            ggml_set_name(t, name.c_str());
+            impl_->tensors.emplace(name, t);
+        }
+    };
+    describe();
+    const auto deviceType = ggml_backend_get_default_buffer_type(backend.handle);
+    if (!deviceBudget || ggml_backend_alloc_ctx_tensors_from_buft_size(impl_->context.get(), deviceType) <= *deviceBudget) {
+        impl_->buffer.reset(ggml_backend_alloc_ctx_tensors_from_buft(impl_->context.get(), deviceType));
+        // A failed multi-buffer allocation can leave descriptors pointing to released device memory.
+        if (!impl_->buffer && deviceBudget) describe();
     }
-    impl_->buffer.reset(ggml_backend_alloc_ctx_tensors(impl_->context.get(), backend.handle));
-    if (!impl_->buffer)
-        throw std::bad_alloc();
+    if (!impl_->buffer && deviceBudget) {
+        impl_->buffer.reset(ggml_backend_alloc_ctx_tensors_from_buft(impl_->context.get(), ggml_backend_cpu_buffer_type()));
+        impl_->staged = true;
+    }
+    if (!impl_->buffer) throw std::bad_alloc();
     ggml_backend_buffer_set_usage(impl_->buffer.get(), GGML_BACKEND_BUFFER_USAGE_WEIGHTS);
     std::vector<float> floats;
     std::vector<ggml_fp16_t> half;
@@ -183,6 +203,7 @@ Weights::Weights(Backend &backend, const std::filesystem::path &path) : impl_(st
     }
 }
 Weights::~Weights() = default;
+bool Weights::staged() const { return impl_->staged; }
 ggml_tensor *Weights::operator()(const std::string &key) const {
     auto i = impl_->tensors.find(key);
     if (i == impl_->tensors.end())
@@ -209,6 +230,18 @@ ggml_tensor *Graph::inputRef(const Tensor &host) {
     ggml_set_input(t);
     inputs_.emplace_back(t, &host);
     return t;
+}
+ggml_tensor *Graph::weight(const Weights &weights, const std::string &key) {
+    auto *host = weights(key);
+    if (!weights.staged()) return host;
+    // Each graph owns one device input per distinct weight, including shared views.
+    auto [it, added] = stagedWeights_.try_emplace(host, nullptr);
+    if (added) {
+        it->second = ggml_dup_tensor(ctx, host);
+        ggml_set_name(it->second, host->name);
+        ggml_set_input(it->second);
+    }
+    return it->second;
 }
 Tensor Graph::evaluate(ggml_tensor *t, std::vector<int64_t> shape) {
     return execute(t, std::move(shape), false).value();
@@ -263,6 +296,10 @@ std::optional<Tensor> Graph::execute(ggml_tensor *t, std::vector<int64_t> shape,
     for (const auto &[input, host] : inputs_)
         if (input->data)
             ggml_backend_tensor_set(input, host->values.data(), 0, host->values.size() * sizeof(float));
+    for (const auto &[host, input] : stagedWeights_) {
+        backend_.check();
+        if (input->data) ggml_backend_tensor_set(input, host->data, 0, ggml_nbytes(host));
+    }
     const int nodes = ggml_graph_n_nodes(graph);
     // Keep cancellation responsive without reading activations back to the host.
     const int batch = completeStep ? 256 : nodes;

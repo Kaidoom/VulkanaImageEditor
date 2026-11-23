@@ -17,6 +17,7 @@ class Model {
   public:
     Model(const std::filesystem::path &root, ggml_backend_dev_t device, std::function<void()> checkpoint);
     ~Model();
+    bool stagesDenoiserWeights() const;
     void generate(const Image &source, int resolution, int steps, uint64_t seed, bool splitParts,
                   const Progress &report, const std::function<void(Part &&)> &writePart);
 

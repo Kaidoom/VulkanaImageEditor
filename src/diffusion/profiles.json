@@ -294,7 +294,7 @@
     "resultName": "See-through",
     "namedParts": true,
     "modelDirectory": true,
-    "platform": "linux",
+    "platforms": ["linux", "windows"],
     "steps": 30,
     "processingResolution": 1088,
     "modes": ["decompose"],

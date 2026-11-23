@@ -117,7 +117,10 @@ target_include_directories(vulkana-diffusion-worker PRIVATE "${CMAKE_CURRENT_BIN
 target_include_directories(vulkana-diffusion-worker PRIVATE
     "${VULKANA_DIFFUSION_ENGINE_DIR}/include" "${VULKANA_DIFFUSION_ENGINE_DIR}/thirdparty")
 target_link_libraries(vulkana-diffusion-worker PRIVATE stable-diffusion Threads::Threads)
-if((SD_CUDA OR SD_VULKAN) AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+if(MINGW)
+    target_link_options(vulkana-diffusion-worker PRIVATE -municode)
+endif()
+if((SD_CUDA OR SD_VULKAN) AND (WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Linux"))
     add_library(vulkana_layerdiff STATIC
         layerdiff/backend.cpp layerdiff/clip.cpp layerdiff/denoiser.cpp
         layerdiff/image.cpp layerdiff/model.cpp layerdiff/vae.cpp)
@@ -174,7 +177,9 @@ if(BUILD_TESTING)
     add_test(NAME vulkana_diffusion_worker_protocol
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/../../../tests/diffusion/WorkerProtocolTests.py"
         "$<TARGET_FILE:vulkana-diffusion-worker>")
-    set_tests_properties(vulkana_diffusion_worker_protocol PROPERTIES TIMEOUT 90 LABELS "diffusion;protocol")
+    # The opt-in real model load, cancellation and regeneration can take several
+    # minutes on a small GPU. Ordinary protocol requests retain their short deadline.
+    set_tests_properties(vulkana_diffusion_worker_protocol PROPERTIES TIMEOUT 900 LABELS "diffusion;protocol")
 endif()
 if(BUILD_TESTING)
     add_executable(vulkana_diffusion_spatial_tests "${CMAKE_CURRENT_SOURCE_DIR}/../../../tests/diffusion/SpatialGuidanceTests.cpp")

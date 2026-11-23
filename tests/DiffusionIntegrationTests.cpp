@@ -2566,7 +2566,7 @@ private slots:
     addDecompositionInput();
     QCOMPARE(panel->inputs().first().metadata["layerId"].toString(), QString::number(*session().activeLayer()));
   }
-#ifdef Q_OS_LINUX
+#if defined(Q_OS_LINUX) || defined(Q_OS_WIN)
   void namedPartsUseCapturedLayerCoordinates_data() {
     QTest::addColumn<QByteArray>("backend");
     if (!qEnvironmentVariableIsSet("VULKANA_TEST_SEETHROUGH_MODEL")) {
@@ -2613,6 +2613,19 @@ private slots:
     child<QDoubleSpinBox>("DiffusionSeed")->setValue(3115789088.0);
     QCOMPARE(panel->request().value("steps").toInt(), 30);
     QCOMPARE(panel->request().value("processingResolution").toInt(), 1088);
+    if (!realModel.isEmpty()) {
+      if (const int resolution = qEnvironmentVariableIntValue("VULKANA_TEST_SEETHROUGH_RESOLUTION")) {
+        auto *selector = child<QComboBox>("DiffusionPartResolution");
+        const int index = selector->findData(resolution);
+        QVERIFY(index >= 0);
+        selector->setCurrentIndex(index);
+        QCOMPARE(panel->request().value("processingResolution").toInt(), resolution);
+      }
+      if (const int steps = qEnvironmentVariableIntValue("VULKANA_TEST_SEETHROUGH_STEPS")) {
+        child<QSpinBox>("DiffusionPartSteps")->setValue(steps);
+        QCOMPARE(panel->request().value("steps").toInt(), steps);
+      }
+    }
     QVERIFY(panel->request().value("splitParts").toBool());
     QVERIFY(!panel->request().contains("layerCount"));
     QVERIFY(!panel->request().contains("prompt"));
@@ -2621,7 +2634,9 @@ private slots:
     auto *go = child<QPushButton>("DiffusionGenerate");
     QVERIFY2(go->isEnabled(), qPrintable(go->toolTip()));
     QTest::mouseClick(go, Qt::LeftButton);
-    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(),realModel.isEmpty() ? 10000 : 1200000);
+    const int waitMs = realModel.isEmpty() ? 10000 :
+        std::max(1200000, qEnvironmentVariableIntValue("QTEST_FUNCTION_TIMEOUT"));
+    QTRY_VERIFY_WITH_TIMEOUT(!panel->isBusy(), waitMs);
     QVERIFY2(panel->selectedResult(),qPrintable(child<QLabel>("DiffusionProgressStatus")->text()));
     const auto &result = *panel->selectedResult();
     const auto &stack = result.stack;
@@ -2636,7 +2651,15 @@ private slots:
       QCOMPARE(captured.convertToFormat(QImage::Format_RGBA8888), source.fullImage.convertToFormat(QImage::Format_RGBA8888));
       QCOMPARE(captured.pixelColor(captured.rect().center()).alpha(), 0);
       QCOMPARE(captured.pixelColor(2,2).alpha(), 124);
-    } else QVERIFY(!stack.parts.isEmpty());
+    } else {
+      QVERIFY(!stack.parts.isEmpty());
+      const auto settings = result.metadata["effectiveSettings"].toObject();
+      const auto device = settings["deviceName"].toString();
+      qInfo() << "LayerDiff device" << device << "weights" << settings["denoiserWeights"].toString()
+              << "engine ms" << result.metadata["timings"].toObject()["engineMs"].toDouble();
+      const auto expectedDevice = qEnvironmentVariable("VULKANA_TEST_SEETHROUGH_GPU");
+      if (!expectedDevice.isEmpty()) QVERIFY2(device.contains(expectedDevice), qPrintable(device));
+    }
     QCOMPARE(doc->revision(),revision);
     const auto tree = doc->tree();
     panel->showResultPreview();
@@ -2693,7 +2716,13 @@ private slots:
   }
 
   void autoUsesCapableVulkanAfterOlderCuda() {
-    const auto cuda = temporary.filePath("legacy-cuda");
+    const auto cuda = temporary.filePath(
+#ifdef Q_OS_WIN
+        "legacy-cuda.exe"
+#else
+        "legacy-cuda"
+#endif
+    );
     QVERIFY(QFile::copy(QString::fromUtf8(DIFFUSION_UI_WORKER), cuda));
     const QList<QByteArray> keys{"VULKANA_DIFFUSION_WORKER", "VULKANA_DIFFUSION_WORKER_CUDA",
       "VULKANA_DIFFUSION_WORKER_VULKAN", "VULKANA_TEST_DIFFUSION_NAMED", "VULKANA_TEST_FAKE_BACKEND"};

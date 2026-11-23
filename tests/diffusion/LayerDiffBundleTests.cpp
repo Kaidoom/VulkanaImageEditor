@@ -147,6 +147,34 @@ void wrongShapes(Fixture& f) {
     mustReject([&] { Vae vae(gpu, f.root); }, "encoder.conv_in.weight");
 }
 
+void stagedWeightInputs(Fixture& f) {
+    using namespace layerdiff;
+    const auto file = f.root / "projection.safetensors";
+    f.weights(file, "matrix");
+    {
+        std::fstream stream(file, std::ios::in | std::ios::out | std::ios::binary);
+        stream.seekp(-512, std::ios::end);
+        for (unsigned i = 0; i < 8 * 32; ++i) {
+            auto sample = ggml_fp32_to_fp16(float(i % 13));
+            stream.write(reinterpret_cast<const char*>(&sample), sizeof(sample));
+        }
+        if (!stream) throw std::runtime_error("Failed to populate weight fixture");
+    }
+    Backend gpu(ggml_backend_reg_dev_get(gpuRegistry(), 0));
+    Weights host(gpu, file, 0), resident(gpu, file);
+    if (!host.staged() || resident.staged()) throw std::runtime_error("Incorrect weight placement");
+    auto project = [&](Weights& source) {
+        Graph graph(gpu);
+        auto w = graph.weight(source, "matrix");
+        if (graph.weight(source, "matrix") != w) throw std::runtime_error("Stage reused the weight twice");
+        return graph.evaluate(ggml_mul_mat(graph.ctx, w, graph.input({{32}, std::vector<float>(32, 1.f)})));
+    };
+    const auto reference = project(resident);
+    if (reference.values.front() != 171.f || project(host).values != reference.values ||
+        project(host).values != reference.values)
+        throw std::runtime_error("Staged weights changed between graphs");
+}
+
 int residentGraph() {
     using namespace layerdiff;
     int checkpoints = 0;
@@ -290,6 +318,7 @@ int main(int argc, char** argv) {
             if (std::string(argv[1]) == "--cuda-projections") return projectionPrecision();
             if (std::string(argv[1]) != "--gpu-shapes") return 1;
             wrongShapes(fixture);
+            stagedWeightInputs(fixture);
         } else
             admission(fixture);
     } catch (const std::exception& e) {

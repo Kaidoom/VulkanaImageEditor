@@ -35,7 +35,7 @@ Tensor partSlice(const Tensor& t, int first, int count) {
 // be approximated by evaluating one text prompt and image at a time.
 class Blocks {
   public:
-    Blocks(Graph& graph, Weights& weights) : ctx(graph.ctx), w(weights), kernels(graph.projectionKernels()) {}
+    Blocks(Graph& graph, Weights& weights) : ctx(graph.ctx), graph(graph), weights(weights), kernels(graph.projectionKernels()) {}
 
     Node linear(const std::string& key, Node x, bool bias = true) const {
         Node weight = w(key + ".weight");
@@ -119,7 +119,9 @@ class Blocks {
 
   private:
     ggml_context* ctx;
-    Weights& w;
+    Graph& graph;
+    Weights& weights;
+    Node w(const std::string& key) const { return graph.weight(weights, key); }
     ProjectionKernels kernels;
     static constexpr int64_t chunkRows = 8192;
 

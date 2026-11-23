@@ -58,7 +58,7 @@ attributions and full license texts accompany the worker and appear in the
 application's offline notices. Model weights are supplied separately by the
 user. See [Vulkana Diffusion build and distribution details](DIFFUSION.md).
 
-The Linux CUDA and Vulkan workers include a native GGML adaptation of See-through's
+The Linux and Windows CUDA and Vulkan workers include a native GGML adaptation of See-through's
 LayerDiff v3 architecture. Its source attribution and license accompany each
 worker. [See-through notice](tools/diffusion/licenses/See-through-NOTICE.txt) ·
 [Apache License 2.0](res/notices/licenses/Apache-2.0.txt).

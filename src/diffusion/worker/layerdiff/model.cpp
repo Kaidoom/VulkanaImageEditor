@@ -135,7 +135,7 @@ struct Model::Impl {
     Impl(const fs::path &root, ggml_backend_dev_t device, std::function<void()> check)
         : backend(device, std::move(check)), body(encodeParts(backend, root, bodyTags)),
           face(encodeParts(backend, root, faceTags)),
-          unet(backend, root / "unet/diffusion_pytorch_model.safetensors"), vae(backend, root),
+          unet(backend, root / "unet/diffusion_pytorch_model.safetensors", backend.weightBudget()), vae(backend, root),
           scheduler(config(root / "scheduler/scheduler_config.json")) {}
     void pass(const Image &page, int steps, PhiloxRNG &initialRng, PhiloxRNG &rng, int group,
               std::map<std::string, Image> &images, const Progress &report) {
@@ -160,7 +160,7 @@ struct Model::Impl {
                                   {float(size), float(size), 0.f, 0.f, float(size), float(size)});
         }
         Sampler sampler(scheduler, steps);
-        bool tryResident = true;
+        bool tryResident = !unet.staged();
         for (int i = 0; i < steps; ++i) {
             backend.check();
             report("sampling", name, i, steps, group + 1);
@@ -188,6 +188,7 @@ Model::Model(const fs::path &root, ggml_backend_dev_t device, std::function<void
     impl_ = std::make_unique<Impl>(root, device, std::move(check));
 }
 Model::~Model() = default;
+bool Model::stagesDenoiserWeights() const { return impl_->unet.staged(); }
 void Model::generate(const Image &source, int size, int steps, uint64_t seed, bool splitParts,
                      const Progress &report, const std::function<void(Part &&)> &writePart) {
     if (size < 256 || size > 1280 || size % 64 || steps < 1 || steps > 100)

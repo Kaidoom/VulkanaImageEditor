@@ -17,11 +17,11 @@ WORKER = str(Path(sys.argv.pop(1)).resolve())
 
 class ProtocolTests(unittest.TestCase):
     def setUp(self):
-        self.directory = tempfile.TemporaryDirectory(prefix="vulkana-diffusion-")
+        self.directory = tempfile.TemporaryDirectory(prefix="vulkana-diffusion-猫-")
         self.log = tempfile.TemporaryFile()
         self.process = subprocess.Popen([WORKER, "--work-dir", self.directory.name],
                                         stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                        stderr=self.log, text=True, bufsize=1)
+                                        stderr=self.log, text=True, encoding="utf-8", bufsize=1)
         self.messages = queue.Queue()
         self.counter = 0
         def read():
@@ -59,10 +59,10 @@ class ProtocolTests(unittest.TestCase):
         self.process.stdin.flush()
         return ident
 
-    def call(self, method, params=None, on_event=None):
+    def call(self, method, params=None, on_event=None, timeout=30):
         ident = self.send_request(method, params)
         while True:
-            result = self.messages.get(timeout=30)
+            result = self.messages.get(timeout=timeout)
             self.assertNotIn("invalid_stdout", result)
             if result.get("id") == ident:
                 return result
@@ -140,7 +140,7 @@ class ProtocolTests(unittest.TestCase):
     def test_named_stack_discovery_and_missing_model(self):
         profile = "see-through-layerdiff-v3"
         profiles = {entry["id"]: entry for entry in self.hello["profiles"]}
-        enabled = self.hello["backend"] in {"cuda", "vulkan"} and sys.platform.startswith("linux")
+        enabled = self.hello["backend"] in {"cuda", "vulkan"} and sys.platform in {"linux", "win32"}
         self.assertEqual(profile in profiles, enabled)
         self.assertEqual(self.hello.get("namedLayerStacks", False), enabled)
         if enabled:
@@ -162,9 +162,9 @@ class ProtocolTests(unittest.TestCase):
                          "Set a See-through model directory and a character PNG for the GPU lifecycle test.")
     def test_named_stack_cancel_and_reuse(self):
         if not self.hello.get("namedLayerStacks"):
-            self.skipTest("Requires a Linux LayerDiff worker")
+            self.skipTest("Requires a LayerDiff GPU worker")
         loaded = self.call("load", {"profile": "see-through-layerdiff-v3",
-                                    "files": {"modelDirectory": os.environ["VULKANA_TEST_SEETHROUGH_MODEL"]}})
+                                    "files": {"modelDirectory": os.environ["VULKANA_TEST_SEETHROUGH_MODEL"]}}, timeout=180)
         self.assertTrue(loaded["ok"], loaded)
         generation = loaded["result"]["contextGeneration"]
         source = Path(os.environ["VULKANA_TEST_SEETHROUGH_SOURCE"]).resolve()
@@ -173,7 +173,9 @@ class ProtocolTests(unittest.TestCase):
             png.seek(16)
             width, height = struct.unpack(">II", png.read(8))
         params = {"referenceImages": [str(source)], "width": width, "height": height,
-                  "processingResolution": 512, "steps": 4, "seed": 3115789088, "splitParts": True}
+                  "processingResolution": int(os.getenv("VULKANA_TEST_SEETHROUGH_RESOLUTION", "512")),
+                  "steps": int(os.getenv("VULKANA_TEST_SEETHROUGH_STEPS", "4")), "seed": 3115789088,
+                  "splitParts": True}
         cancel_id = None
 
         def cancel_on_sampling(event):
@@ -181,13 +183,13 @@ class ProtocolTests(unittest.TestCase):
             if event.get("stage") == "sampling" and cancel_id is None:
                 cancel_id = self.send_request("cancel")
 
-        cancelled = self.call("generate", params, on_event=cancel_on_sampling)
+        cancelled = self.call("generate", params, on_event=cancel_on_sampling, timeout=180)
         self.assertIsNotNone(cancel_id)
         self.assertEqual(cancelled["error"]["code"], "cancelled", cancelled)
         self.assertFalse(any(Path(self.directory.name).glob("job-*")))
         self.assertTrue(self.call("status")["result"]["loaded"])
         stages = set()
-        finished = self.call("generate", params, on_event=lambda event: stages.add(event.get("stage")))
+        finished = self.call("generate", params, on_event=lambda event: stages.add(event.get("stage")), timeout=180)
         self.assertTrue(finished["ok"], finished)
         self.assertTrue({"vae_encode", "sampling", "vae_decode", "saving"}.issubset(stages), stages)
         result = finished["result"]

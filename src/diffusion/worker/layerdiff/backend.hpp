@@ -10,6 +10,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -31,6 +32,7 @@ class Backend {
     Backend(const Backend &) = delete;
     void check() const;
     void trim();
+    size_t weightBudget() const;
     ggml_backend_t handle;
 
   private:
@@ -42,7 +44,10 @@ class Backend {
 
 class Weights {
   public:
-    Weights(Backend &, const std::filesystem::path &file);
+    // A budget permits host storage when the file's tensors do not fit on the GPU.
+    // Access budgeted weights through Graph::weight so each stage receives device tensors.
+    Weights(Backend &, const std::filesystem::path &file, std::optional<size_t> deviceBudget = {});
+    bool staged() const;
     ~Weights();
     Weights(const Weights &) = delete;
     ggml_tensor *operator()(const std::string &key) const;
@@ -61,6 +66,7 @@ class Graph {
     // Caller keeps the host tensor alive through synchronous evaluate().
     ggml_tensor *inputRef(const Tensor &host);
     ggml_tensor *inputRef(Tensor &&) = delete;
+    ggml_tensor *weight(const Weights &weights, const std::string &key);
     Tensor evaluate(ggml_tensor *result, std::vector<int64_t> outputShape = {});
     // Preflight a complete denoising step and leave room for GPU kernel workspaces.
     std::optional<Tensor> evaluateIfFits(ggml_tensor *result, std::vector<int64_t> outputShape);
@@ -72,6 +78,7 @@ class Graph {
     size_t capacity_;
     std::optional<Tensor> execute(ggml_tensor *result, std::vector<int64_t> shape, bool completeStep);
     std::deque<Tensor> owned_;
+    std::unordered_map<const ggml_tensor *, ggml_tensor *> stagedWeights_;
     std::vector<std::pair<ggml_tensor *, const Tensor *>> inputs_;
 };
 } // namespace layerdiff

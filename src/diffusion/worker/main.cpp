@@ -12,6 +12,10 @@
 #include "ReferenceSizing.h"
 #include <json.hpp>
 #include <stable-diffusion.h>
+#ifdef _WIN32
+#define STBI_WINDOWS_UTF8
+#define STBIW_WINDOWS_UTF8
+#endif
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <algorithm>
@@ -47,6 +51,11 @@
 using Json = nlohmann::json;
 namespace fs = std::filesystem;
 using Clock = std::chrono::steady_clock;
+static std::string utf8Path(const fs::path& path)
+{
+    const auto bytes = path.u8string();
+    return {bytes.begin(), bytes.end()};
+}
 static double millis(Clock::time_point from)
 {
     return std::chrono::duration<double, std::milli>(Clock::now() - from).count();
@@ -172,8 +181,9 @@ static void png(const fs::path& path, const sd_image_t& image)
 {
     if (!image.data || image.width == 0 || image.height == 0 || image.channel < 1 || image.channel > 4)
         throw Failure("invalid_output", "Engine returned an invalid image");
-    const auto temporary = path.string() + ".tmp";
-    if (!stbi_write_png(temporary.c_str(), int(image.width), int(image.height), int(image.channel),
+    auto temporary = path;
+    temporary += ".tmp";
+    if (!stbi_write_png(utf8Path(temporary).c_str(), int(image.width), int(image.height), int(image.channel),
             image.data, int(image.width * image.channel)))
         throw Failure("output_failed", "Cannot write generated image");
     std::error_code ec;
@@ -616,12 +626,18 @@ Json Worker::loadLayerDiff(const Json& profile, const Json& params)
     std::string device = str(s, "device");
     const auto registry = layerdiff::gpuRegistry();
     ggml_backend_dev_t selected = nullptr;
+    const bool automatic = device.empty() || device == "auto";
     for (size_t i = 0; registry && i < ggml_backend_reg_dev_count(registry); ++i) {
         const auto gpu = ggml_backend_reg_dev_get(registry, i);
-        if (device.empty() || device == "auto" || device == ggml_backend_dev_name(gpu)) {
-            selected = gpu;
-            break;
+        if (automatic) {
+            if (!selected) selected = gpu;
+            // Hybrid laptops may enumerate the display's integrated GPU first.
+            if (ggml_backend_dev_type(gpu) != GGML_BACKEND_DEVICE_TYPE_GPU) continue;
+        } else if (device != ggml_backend_dev_name(gpu)) {
+            continue;
         }
+        selected = gpu;
+        break;
     }
     require(selected != nullptr, "Select an available GPU for the " VULKANA_DIFFUSION_BACKEND " worker");
     device = ggml_backend_dev_name(selected);
@@ -635,7 +651,9 @@ Json Worker::loadLayerDiff(const Json& profile, const Json& params)
         checkCancel();
         loadedProfile = profile;
         files = f;
-        effectiveSettings = { { "device", device }, { "architecture", "See-through LayerDiff v3" } };
+        effectiveSettings = { { "device", device }, { "deviceName", ggml_backend_dev_description(selected) },
+            { "architecture", "See-through LayerDiff v3" },
+            { "denoiserWeights", model->stagesDenoiserWeights() ? "hostStaged" : "device" } };
         std::lock_guard lock(stateMutex);
         layerDiff = std::move(model);
         ++generation;
@@ -691,7 +709,7 @@ Json Worker::generateLayerDiff(const Json& p)
             checkCancel();
             const auto path = directory / ("part-" + std::to_string(images.size()) + ".png");
             png(path, { unsigned(part.pixels.w), unsigned(part.pixels.h), 4, part.pixels.rgba.data() });
-            images.push_back({ { "path", path.string() }, { "name", part.name }, { "x", part.x }, { "y", part.y },
+            images.push_back({ { "path", utf8Path(path) }, { "name", part.name }, { "x", part.x }, { "y", part.y },
                 { "width", part.pixels.w }, { "height", part.pixels.h }, { "channels", 4 } });
         });
     const double engineMs = millis(start);
@@ -1187,7 +1205,7 @@ Json Worker::generate(const Json& p)
             try {
                 const auto path = w.jobDirectory / "preview.png";
                 png(path, frames[0]);
-                w.send({ { "event", "preview" }, { "jobId", w.jobId }, { "path", path.string() },
+                w.send({ { "event", "preview" }, { "jobId", w.jobId }, { "path", utf8Path(path) },
                     { "step", step }, { "width", frames[0].width }, { "height", frames[0].height } });
             } catch (const std::exception& e) {
                 std::fprintf(stderr, "Preview unavailable: %s\n", e.what());
@@ -1265,7 +1283,7 @@ Json Worker::generate(const Json& p)
         Json metadata = Json::object();
         if (result->items[i].generation_info)
             metadata = Json::parse(result->items[i].generation_info, nullptr, false);
-        outputs.push_back({ { "path", path.string() }, { "width", pixels.width },
+        outputs.push_back({ { "path", utf8Path(path) }, { "width", pixels.width },
             { "height", pixels.height }, { "channels", pixels.channel },
             { "generationInfo", metadata } });
     }
@@ -1288,7 +1306,11 @@ Json Worker::generate(const Json& p)
         { "fluxRegionBindings", fluxRegionBindings }, { "fluxRegionRows", fluxRegionRows } };
 }
 
+#ifdef _WIN32
+int wmain(int argc, wchar_t** argv)
+#else
 int main(int argc, char** argv)
+#endif
 {
     // Even third-party printf diagnostics must never contaminate protocol stdio.
     // Keep a private duplicate of stdout for framed protocol output, redirect all
@@ -1305,9 +1327,9 @@ int main(int argc, char** argv)
     if (!stream)
         return 2;
     try {
-        require(argc == 3 && std::string(argv[1]) == "--work-dir",
+        require(argc == 3 && fs::path(argv[1]) == "--work-dir",
             "Usage: vulkana-diffusion-worker --work-dir ABSOLUTE_PRIVATE_DIRECTORY");
-        fs::path root = fs::path(reinterpret_cast<const char8_t*>(argv[2]));
+        fs::path root(argv[2]);
         require(root.is_absolute() && fs::is_directory(root) && !fs::is_symlink(root),
             "work-dir must be an existing private directory, not a symbolic link");
 #ifndef _WIN32

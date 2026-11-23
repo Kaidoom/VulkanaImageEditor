@@ -382,7 +382,7 @@ private slots:
     DiffusionPanel panel;
     auto *family = panel.findChild<QComboBox *>("DiffusionFamily");
     auto *variant = panel.findChild<QComboBox *>("DiffusionProfile");
-#ifdef Q_OS_LINUX
+#if defined(Q_OS_LINUX) || defined(Q_OS_WIN)
     QCOMPARE(family->count(), 7);
 #else
     QCOMPARE(family->count(), 6);

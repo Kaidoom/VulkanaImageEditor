@@ -2394,7 +2394,7 @@ DiffusionPanel::DiffusionPanel(QWidget *parent)
   partRow->addWidget(i18n::make<QLabel>(i18n::text("diffusion.decompose.resolution")));
   d->partResolution = new ScrollSafe<QComboBox>;
   d->partResolution->setObjectName("DiffusionPartResolution");
-  for (const int resolution : {640, 768, 1024, 1088, 1280})
+  for (const int resolution : {256, 384, 512, 640, 768, 1024, 1088, 1280})
     d->partResolution->addItem(QString::number(resolution), resolution);
   const int savedPartResolution = d->partResolution->findData(QSettings().value("diffusion/namedPartResolution", 1088));
   d->partResolution->setCurrentIndex(savedPartResolution >= 0 ? savedPartResolution : d->partResolution->findData(1088));
