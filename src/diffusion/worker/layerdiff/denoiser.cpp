@@ -1,7 +1,7 @@
 // LayerDiff 3D v3. Architecture reference: See-through (Apache-2.0),
 // common/modules/layerdiffuse/{layerdiff3d,transformer3d}.py.
 #include "denoiser.hpp"
-#include "cuda_projections.hpp"
+#include "projections.hpp"
 
 #include "ggml.h"
 
@@ -43,7 +43,7 @@ class Blocks {
         requireShape(x->ne[0] == weight->ne[0] && x->ne[3] == 1 && weight->ne[2] == 1 && weight->ne[3] == 1, key);
         Node flat = ggml_reshape_2d(ctx, contiguous(x), x->ne[0], tokens * parts);
         Node result = kernels.halfProducts && usesHalfProjection(flat->ne[1])
-                    ? halfProjection(ctx, weight, flat) : nullptr;
+                    ? kernels.halfProducts(ctx, weight, flat) : nullptr;
         if (!result) result = ggml_mul_mat(ctx, weight, flat);
         if (bias) {
             auto b = w(key + ".bias");
@@ -136,7 +136,7 @@ class Blocks {
         auto normalized = ggml_norm(ctx, x, 1e-5f);
         // Preserve FP32 for any tail that will use ggml's small-batch path.
         if (kernels.affineInput && usesHalfProjection(1 + (ggml_nrows(x) - 1) % chunkRows)) {
-            if (auto packed = affineProjectionInput(ctx, normalized, weight, bias)) return packed;
+            if (auto packed = kernels.affineInput(ctx, normalized, weight, bias)) return packed;
         }
         return ggml_add(ctx, ggml_mul(ctx, normalized, weight), bias);
     }
@@ -149,7 +149,7 @@ class Blocks {
             requireShape(z->ne[0] == channels, key);
             z = ggml_reshape_4d(ctx, z, 64, heads, src->ne[1], parts);
             z = ggml_permute(ctx, z, 0, 2, 1, 3);
-            // CUDA Flash Attention uses float queries and half keys/values.
+            // Flash attention uses float queries and half keys/values.
             auto type = half ? GGML_TYPE_F16 : GGML_TYPE_F32;
             return z->type == type ? contiguous(z) : ggml_cast(ctx, z, type);
         };
@@ -382,7 +382,7 @@ Tensor denoise(Backend& backend, Weights& weights, const Tensor& input, double t
                              tokens.shape);
     }
     if (tryResident) {
-        // A complete step keeps skip connections on CUDA. Narrower devices can still
+        // A complete step keeps skip connections on the GPU. Narrower devices can still
         // run the identical network with host-staged skips for the rest of the pass.
         Graph graph(backend, 24576);
         Blocks block(graph, weights);

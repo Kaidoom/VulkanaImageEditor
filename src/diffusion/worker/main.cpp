@@ -1,7 +1,7 @@
 // The engine is process-isolated: backend assertions and allocation failures must
 // never bring down the editor. stdout is reserved exclusively for this protocol.
 #include "Profiles.h"
-#ifdef VULKANA_LAYERDIFF_CUDA
+#ifdef VULKANA_LAYERDIFF
 #include "layerdiff/model.hpp"
 #endif
 #include "SpatialGuidance.h"
@@ -140,7 +140,7 @@ static std::string inputFile(const Json& j, const char* key, bool required)
 static Json profiles()
 {
     auto all = Json::parse(profileJson);
-#ifndef VULKANA_LAYERDIFF_CUDA
+#ifndef VULKANA_LAYERDIFF
     all.erase(std::remove_if(all.begin(), all.end(), [](const Json& p) {
         return p["id"] == "see-through-layerdiff-v3";
     }), all.end());
@@ -195,7 +195,7 @@ class Worker {
     std::atomic<bool> busy { false }, cancelled { false };
     std::atomic<bool> loadingModel { false };
     sd_ctx_t* context = nullptr; // protected by stateMutex when accessed by the control thread
-#ifdef VULKANA_LAYERDIFF_CUDA
+#ifdef VULKANA_LAYERDIFF
     std::unique_ptr<layerdiff::Model> layerDiff;
     Json loadLayerDiff(const Json& profile, const Json& params);
     Json generateLayerDiff(const Json& params);
@@ -393,7 +393,7 @@ public:
         send({ { "samplers", samplers }, { "schedulers", schedulers }, { "event", "hello" },
             { "generationStages", true },
             { "referenceSizeLimit", true },
-#ifdef VULKANA_LAYERDIFF_CUDA
+#ifdef VULKANA_LAYERDIFF
             { "namedLayerStacks", true },
 #endif
             { "loraParameters", true }, { "layerStackResults", true },
@@ -441,7 +441,7 @@ public:
     void release()
     {
         sd_ctx_t* old = nullptr;
-#ifdef VULKANA_LAYERDIFF_CUDA
+#ifdef VULKANA_LAYERDIFF
         std::unique_ptr<layerdiff::Model> oldLayerDiff;
 #endif
         bool changed;
@@ -449,14 +449,14 @@ public:
             std::lock_guard lock(stateMutex);
             old = context;
             context = nullptr;
-#ifdef VULKANA_LAYERDIFF_CUDA
+#ifdef VULKANA_LAYERDIFF
             oldLayerDiff = std::move(layerDiff);
 #endif
             changed = !loadedModels.empty();
             loadedModels = Json::array();
         }
         if (old) free_sd_ctx(old);
-#ifdef VULKANA_LAYERDIFF_CUDA
+#ifdef VULKANA_LAYERDIFF
         oldLayerDiff.reset();
 #endif
         if (changed) stateEvent();
@@ -605,7 +605,7 @@ public:
     }
 };
 
-#ifdef VULKANA_LAYERDIFF_CUDA
+#ifdef VULKANA_LAYERDIFF
 Json Worker::loadLayerDiff(const Json& profile, const Json& params)
 {
     const auto f = params.value("files", Json::object());
@@ -614,19 +614,24 @@ Json Worker::loadLayerDiff(const Json& profile, const Json& params)
     keys(s, { "device" });
     const auto path = fs::u8path(str(f, "modelDirectory"));
     std::string device = str(s, "device");
-    const auto found = std::find_if(devices.begin(), devices.end(), [&](const Json& d) {
-        const auto id = d.at("id").get<std::string>();
-        return id.starts_with("CUDA") && (device.empty() || device == "auto" || device == id);
-    });
-    require(found != devices.end(), "See-through requires an available CUDA device");
-    device = found->at("id");
+    const auto registry = layerdiff::gpuRegistry();
+    ggml_backend_dev_t selected = nullptr;
+    for (size_t i = 0; registry && i < ggml_backend_reg_dev_count(registry); ++i) {
+        const auto gpu = ggml_backend_reg_dev_get(registry, i);
+        if (device.empty() || device == "auto" || device == ggml_backend_dev_name(gpu)) {
+            selected = gpu;
+            break;
+        }
+    }
+    require(selected != nullptr, "Select an available GPU for the " VULKANA_DIFFUSION_BACKEND " worker");
+    device = ggml_backend_dev_name(selected);
     const auto start = Clock::now();
     try {
         layerdiff::validateBundle(path);
         release();
         progress("loading", "See-through LayerDiff");
         auto model
-            = std::make_unique<layerdiff::Model>(path, std::stoi(device.substr(4)), [this] { checkCancel(); });
+            = std::make_unique<layerdiff::Model>(path, selected, [this] { checkCancel(); });
         checkCancel();
         loadedProfile = profile;
         files = f;
@@ -635,7 +640,7 @@ Json Worker::loadLayerDiff(const Json& profile, const Json& params)
         layerDiff = std::move(model);
         ++generation;
         loadedModels = Json::array({ { { "contextGeneration", generation }, { "profile", profile }, { "files", f },
-            { "effectiveSettings", effectiveSettings }, { "backend", "cuda" } } });
+            { "effectiveSettings", effectiveSettings }, { "backend", VULKANA_DIFFUSION_BACKEND } } });
     } catch (const Failure&) {
         throw;
     } catch (const std::bad_alloc&) {
@@ -706,7 +711,7 @@ Json Worker::load(const Json& params)
 {
     keys(params, { "profile", "files", "settings" });
     const auto profile = findProfile(str(params, "profile"));
-#ifdef VULKANA_LAYERDIFF_CUDA
+#ifdef VULKANA_LAYERDIFF
     if (profile["id"] == layerdiff::profileId) return loadLayerDiff(profile, params);
 #endif
     const auto f = params.value("files", Json::object());
@@ -854,7 +859,7 @@ Json Worker::load(const Json& params)
 
 Json Worker::generate(const Json& p)
 {
-#ifdef VULKANA_LAYERDIFF_CUDA
+#ifdef VULKANA_LAYERDIFF
     if (layerDiff) {
         try {
             return generateLayerDiff(p);

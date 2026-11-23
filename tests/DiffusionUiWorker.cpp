@@ -41,11 +41,12 @@ int main(int argc, char** argv)
     if (!stacks)
         for (qsizetype i = profiles.size(); i-- > 0;)
             if (profiles[i].toObject()["id"] == "qwen-image-layered") profiles.removeAt(i);
-    const bool named = qEnvironmentVariableIsSet("VULKANA_TEST_DIFFUSION_NAMED");
+    const bool legacyCuda = app.applicationName() == "legacy-cuda";
+    const bool named = !legacyCuda && qEnvironmentVariableIsSet("VULKANA_TEST_DIFFUSION_NAMED");
     if (!named)
         for (qsizetype i = profiles.size(); i-- > 0;)
             if (profiles[i].toObject()["id"] == "see-through-layerdiff-v3") profiles.removeAt(i);
-    auto backend = qEnvironmentVariable("VULKANA_TEST_FAKE_BACKEND");
+    auto backend = legacyCuda ? QStringLiteral("cuda") : qEnvironmentVariable("VULKANA_TEST_FAKE_BACKEND");
     if (backend.isEmpty()) backend = qEnvironmentVariableIsSet("VULKANA_TEST_DIFFUSION_PHASES") ? "vulkan" : named ? "cuda" : "test";
     send({ { "namedLayerStacks", named }, { "event", "hello" }, { "protocol", 1 }, { "backend", backend },
         { "referenceSizeLimit", true }, { "layerStackResults", stacks },
@@ -117,7 +118,7 @@ int main(int argc, char** argv)
                 parts.append(QJsonObject{{"path",path},{"width",3},{"height",4},{"x",x},{"y",7},{"name",name}});
             }
             ok(id, {{"images",parts},{"resultKind","layerStack"},{"stackWidth",image.width()},
-                    {"stackHeight",image.height()},{"request",params},{"contextGeneration",serial}});
+                    {"stackHeight",image.height()},{"testWorkerPid",app.applicationPid()},{"request",params},{"contextGeneration",serial}});
             stateEvent();
             return;
         }

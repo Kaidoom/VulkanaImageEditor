@@ -24,6 +24,7 @@
 #include <QApplication>
 #include <QColorSpace>
 #include <QDir>
+#include <QDateTime>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFrame>
@@ -196,6 +197,15 @@ struct DiffusionWorkspace {
   QToolButton *noticeOpen{};
   bool noticeDismissed{}, noticeFinished{}, panelOpen{};
   QString pendingExecutable, activeExecutable, pendingBackend, pendingConfigurationName;
+  std::pair<QString, QDateTime> cudaWithoutNamedParts;
+  bool useBundledNamedWorker() {
+    if (pendingBackend != "auto" || !panel->workerExecutable().isEmpty() || !sessionCudaWorker().isEmpty()) return false;
+    const auto vulkan = discoverDiffusionWorker("vulkan");
+    if (vulkan.isEmpty() || vulkan == pendingExecutable) return false;
+    pendingExecutable = vulkan;
+    pendingBackend = "vulkan";
+    return true;
+  }
   QString comparisonKey;
   std::unique_ptr<diffusion::WorkerClient> worker;
   QTemporaryDir files{QDir::tempPath() + "/vulkana-diffusion-XXXXXX"};
@@ -890,11 +900,18 @@ void MainWindow::generateDiffusion() {
     s.noticeDismissed = false;
     updateDiffusionNotice(i18n::text("diffusion.ui.preparing.generation"));
     s.pendingBackend = s.panel->backend();
-    if (s.pendingBackend == "auto")
-      s.pendingBackend = s.pendingProfile().value("backend").toString("auto");
+    const bool named = s.pendingProfile().value("namedParts").toBool();
+    if (named && s.pendingBackend == "auto") {
+      const auto device = s.pendingConfiguration.value("settings").toObject().value("device").toString();
+      if (device.startsWith("Vulkan")) s.pendingBackend = "vulkan";
+      else if (device.startsWith("CUDA")) s.pendingBackend = "cuda";
+    }
     s.pendingExecutable = s.panel->workerExecutable();
     if (s.pendingExecutable.isEmpty())
       s.pendingExecutable = discoverDiffusionWorker(s.pendingBackend);
+    if (named && !s.cudaWithoutNamedParts.first.isEmpty() && s.pendingExecutable == s.cudaWithoutNamedParts.first &&
+        QFileInfo(s.pendingExecutable).lastModified() == s.cudaWithoutNamedParts.second)
+      s.useBundledNamedWorker();
     if (s.pendingExecutable.isEmpty())
       throw std::runtime_error(
           i18n::text("diffusion.ui.1.inference.worker.is.not.installed.choose").arg(i18n::ltrToken(s.pendingBackend.toUpper()))
@@ -937,7 +954,12 @@ void MainWindow::continueDiffusionJob() {
   const auto actualBackend = s.worker->hello()["backend"].toString();
   const auto profile = s.pendingProfile();
   if (profile.value("namedParts").toBool() &&
-      (actualBackend != "cuda" || !s.worker->hello().value("namedLayerStacks").toBool())) {
+      !s.worker->hello().value("namedLayerStacks").toBool()) {
+    if (actualBackend == "cuda" && s.useBundledNamedWorker()) {
+      s.cudaWithoutNamedParts = {s.activeExecutable, QFileInfo(s.activeExecutable).lastModified()};
+      s.worker->stop();
+      return;
+    }
     s.wanted = false;
     s.panel->setBusy(false);
     s.panel->setStatus(i18n::text("diffusion.layerdiff.old.worker"), true);

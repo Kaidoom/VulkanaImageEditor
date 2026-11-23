@@ -410,7 +410,7 @@ def notices(engine, cuda, msvc_license, platform, backend="cuda", vulkan_headers
         files.pop('SageAttention-Apache-2.0.txt')
         files['SPIRV-Headers.txt'] = spirv_license
         files['Apache-2.0.txt'] = ROOT / 'res/notices/licenses/Apache-2.0.txt'
-    if backend == 'cuda' and platform == 'linux':
+    if platform == 'linux':
         files['See-through-NOTICE.txt'] = ROOT / 'tools/diffusion/licenses/See-through-NOTICE.txt'
         files['Apache-2.0.txt'] = ROOT / 'res/notices/licenses/Apache-2.0.txt'
     out = {name: read_text(path) for name, path in files.items()}
@@ -599,7 +599,7 @@ def make_app_notices(legal, lock, platform, versions, compiler, backend='cuda'):
     if 'See-through-NOTICE.txt' in legal:
         component('Vulkana Diffusion / See-through', 'LayerDiff v3', 'Apache-2.0',
                   ['See-through-NOTICE.txt', 'Apache-2.0.txt'],
-                  'Native character-part decomposition for the Linux CUDA worker. Model weights are supplied by the user.')
+                  'Native character-part decomposition for the Linux GPU worker. Model weights are supplied by the user.')
     utilities = [key for key in legal if key.startswith(('stb_', 'miniz.', 'darts-', 'Oniguruma-', 'utf8proc-', 'nlohmann-', 'zip-'))]
     component('Vulkana Diffusion / image and tokenizer utilities', 'Engine-pinned sources',
               'MIT, BSD and Unicode licenses; see component texts', utilities,

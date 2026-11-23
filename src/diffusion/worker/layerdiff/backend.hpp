@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cuda_projections.hpp"
+#include "projections.hpp"
 #include <deque>
 #include <filesystem>
 #include <functional>
@@ -22,9 +22,11 @@ struct Tensor {
 };
 size_t elements(const std::vector<int64_t> &shape);
 
+ggml_backend_reg_t gpuRegistry();
+
 class Backend {
   public:
-    explicit Backend(int cudaIndex, std::function<void()> checkpoint = {});
+    explicit Backend(ggml_backend_dev_t device, std::function<void()> checkpoint = {});
     ~Backend();
     Backend(const Backend &) = delete;
     void check() const;
@@ -60,7 +62,7 @@ class Graph {
     ggml_tensor *inputRef(const Tensor &host);
     ggml_tensor *inputRef(Tensor &&) = delete;
     Tensor evaluate(ggml_tensor *result, std::vector<int64_t> outputShape = {});
-    // Preflight a complete denoising step and leave room for CUDA kernel workspaces.
+    // Preflight a complete denoising step and leave room for GPU kernel workspaces.
     std::optional<Tensor> evaluateIfFits(ggml_tensor *result, std::vector<int64_t> outputShape);
     ProjectionKernels projectionKernels() const { return backend_.projectionKernels_; }
     ggml_context *ctx;

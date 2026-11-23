@@ -14402,12 +14402,12 @@ Requested: %1 × %2 px</source>
       <source>Decompose into Layers</source>
       <translation>Katmanlara Ayrıştır</translation>
     </message>
-    <message id="diffusion.layerdiff.missing.cuda">
-      <source>See-through requires the optional Linux CUDA worker. Add it in Configuration and choose CUDA or Auto.</source>
+    <message id="diffusion.layerdiff.missing.worker">
+      <source>Choose an available Vulkan or CUDA worker in Configuration to use See-through.</source>
       <translation type="unfinished" />
     </message>
     <message id="diffusion.layerdiff.gpu.required">
-      <source>See-through needs a CUDA GPU. Choose a GPU or Auto under Memory and performance.</source>
+      <source>See-through needs a GPU. Choose a GPU or Auto under Memory and performance.</source>
       <translation type="unfinished" />
     </message>
     <message id="diffusion.layerdiff.missing.folder">
@@ -14431,7 +14431,7 @@ Requested: %1 × %2 px</source>
       <translation type="unfinished" />
     </message>
     <message id="diffusion.layerdiff.old.worker">
-      <source>See-through requires a Linux CUDA worker with named layer support. Select an updated CUDA worker in Configuration.</source>
+      <source>This worker does not support See-through. Update Vulkana for the bundled Vulkan worker, or select an updated CUDA worker.</source>
       <translation type="unfinished" />
     </message>
     <message id="diffusion.layerdiff.invalid.part">

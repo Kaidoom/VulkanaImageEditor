@@ -140,21 +140,29 @@ class ProtocolTests(unittest.TestCase):
     def test_named_stack_discovery_and_missing_model(self):
         profile = "see-through-layerdiff-v3"
         profiles = {entry["id"]: entry for entry in self.hello["profiles"]}
-        enabled = self.hello["backend"] == "cuda" and sys.platform.startswith("linux")
+        enabled = self.hello["backend"] in {"cuda", "vulkan"} and sys.platform.startswith("linux")
         self.assertEqual(profile in profiles, enabled)
         self.assertEqual(self.hello.get("namedLayerStacks", False), enabled)
         if enabled:
             self.assertEqual(profiles[profile]["modes"], ["decompose"])
+            foreign = "CUDA0" if self.hello["backend"] == "vulkan" else "Vulkan0"
+            for device in ("CPU", foreign, "unrecognized"):
+                with self.subTest(device=device):
+                    reply = self.call("load", {"profile": profile, "settings": {"device": device},
+                                               "files": {"modelDirectory": self.directory.name}})
+                    self.assertFalse(reply["ok"])
+                    self.assertEqual(reply["error"]["code"], "invalid_arguments")
+                    self.assertIn("GPU", reply["error"]["message"])
             reply = self.call("load", {"profile": profile, "files": {"modelDirectory": self.directory.name}})
             self.assertFalse(reply["ok"])
             self.assertIn(reply["error"]["code"], {"model_load_failed", "invalid_arguments"})
             self.assertFalse(self.call("status")["result"]["loaded"])
 
     @unittest.skipUnless(os.getenv("VULKANA_TEST_SEETHROUGH_MODEL") and os.getenv("VULKANA_TEST_SEETHROUGH_SOURCE"),
-                         "Set a See-through model directory and a character PNG for the CUDA lifecycle test.")
+                         "Set a See-through model directory and a character PNG for the GPU lifecycle test.")
     def test_named_stack_cancel_and_reuse(self):
         if not self.hello.get("namedLayerStacks"):
-            self.skipTest("Requires the Linux CUDA LayerDiff worker")
+            self.skipTest("Requires a Linux LayerDiff worker")
         loaded = self.call("load", {"profile": "see-through-layerdiff-v3",
                                     "files": {"modelDirectory": os.environ["VULKANA_TEST_SEETHROUGH_MODEL"]}})
         self.assertTrue(loaded["ok"], loaded)

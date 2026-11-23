@@ -1210,8 +1210,8 @@ struct DiffusionPanel::Impl {
   }
   i18n::Message decompositionInputError() const {
     if (namedParts()) {
-      if (q.backend() == "vulkan" || (workerOverride.isEmpty() && discoverDiffusionWorker("cuda").isEmpty()))
-        return i18n::text("diffusion.layerdiff.missing.cuda");
+      if (workerOverride.isEmpty() && discoverDiffusionWorker(q.backend()).isEmpty())
+        return i18n::text("diffusion.layerdiff.missing.worker");
       if (qobject_cast<QComboBox *>(resource["device"])->currentData().toString() == "CPU")
         return i18n::text("diffusion.layerdiff.gpu.required");
       const auto directory = modelFiles().value("modelDirectory").toString();

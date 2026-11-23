@@ -1,11 +1,12 @@
-#include "layerdiff/cuda_projections.hpp"
+#include "layerdiff/projections.hpp"
 #include "layerdiff/clip.hpp"
 #include "layerdiff/model.hpp"
 #include "layerdiff/vae.hpp"
-#include <ggml-cuda.h>
 #include <json.hpp>
 
+#include <array>
 #include <chrono>
+#include <cmath>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -141,7 +142,7 @@ void admission(Fixture& f) {
 void wrongShapes(Fixture& f) {
     using namespace layerdiff;
     f.setup();
-    Backend gpu(0);
+    Backend gpu(ggml_backend_reg_dev_get(gpuRegistry(), 0));
     mustReject([&] { encodeParts(gpu, f.root, {"a"}); }, "token_embedding.weight");
     mustReject([&] { Vae vae(gpu, f.root); }, "encoder.conv_in.weight");
 }
@@ -150,7 +151,7 @@ int residentGraph() {
     using namespace layerdiff;
     int checkpoints = 0;
     bool cancel = false;
-    Backend gpu(0, [&] {
+    Backend gpu(ggml_backend_reg_dev_get(gpuRegistry(), 0), [&] {
         if (++checkpoints == 2 && cancel) throw std::runtime_error("cancelled at graph checkpoint");
     });
     auto evaluate = [&] {
@@ -164,7 +165,7 @@ int residentGraph() {
         return graph.evaluateIfFits(x, {2});
     };
     const auto first = evaluate();
-    if (!first) return 77; // insufficient free CUDA memory for the resident path
+    if (!first) return 77; // insufficient free GPU memory for the resident path
     if (first->values != std::vector<float>{602.f, 1208.f} || checkpoints < 3)
         throw std::runtime_error("Resident graph lost a skip connection or cancellation checkpoint");
     cancel = true;
@@ -173,6 +174,7 @@ int residentGraph() {
     const auto retry = evaluate();
     if (!retry || retry->values != first->values)
         throw std::runtime_error("Resident graph failed after cancellation");
+    if (std::string(ggml_backend_reg_name(gpuRegistry())) != "CUDA") return 0;
     // The last CUDA block is partial, and distinct gate/content biases expose a swapped half.
     constexpr int width = 257;
     Tensor projection{{3, 2 * width}, {}}, bias{{2 * width}, {}};
@@ -182,9 +184,9 @@ int residentGraph() {
         bias.values.push_back((int(i % 13) - 6) * .0625f);
     auto gate = [&](bool fused) {
         Graph graph(gpu);
-        if (fused && !graph.projectionKernels().biasedGate)
-            throw std::runtime_error("CUDA feed-forward kernel registration failed");
-        auto output = biasedGeglu(graph.ctx, graph.inputRef(projection), graph.inputRef(bias), fused);
+        const auto kernel = graph.projectionKernels().biasedGate;
+        if (fused && !kernel) throw std::runtime_error("CUDA feed-forward kernel registration failed");
+        auto output = biasedGeglu(graph.ctx, graph.inputRef(projection), graph.inputRef(bias), fused ? kernel : nullptr);
         return graph.evaluate(output);
     };
     if (gate(true).values != gate(false).values)
@@ -192,9 +194,43 @@ int residentGraph() {
     return 0;
 }
 
+// Exercise the full 136 x 136 latent grid: small inputs can hide numerical
+// failures in the RGB VAE's 512-wide spatial attention.
+int fullResolutionVae() {
+    using namespace layerdiff;
+    const auto model = std::getenv("VULKANA_DIFFUSION_TEST_SEETHROUGH_MODEL");
+    if (!model) return 77;
+    constexpr int size = 1088, latent = size / 8;
+    Tensor image{{1, 3, size, size}, std::vector<float>(3 * size * size)};
+    for (int c = 0; c < 3; ++c)
+        for (int y = 0; y < size; ++y)
+            for (int x = 0; x < size; ++x)
+                image.values[(c * size + y) * size + x] = ((x / 7 + y / 11 + c * 73) % 256) / 255.f;
+    Tensor noise{{1, 4, latent, latent}, std::vector<float>(4 * latent * latent)};
+    Backend gpu(ggml_backend_reg_dev_get(gpuRegistry(), 0));
+    Vae vae(gpu, fs::absolute(model));
+    const auto encoded = vae.encode(image, noise);
+    // Mean absolute posterior values from the validated v3 RGB VAE on CUDA.
+    // Allow device-level rounding while catching an incorrectly normalized attention grid.
+    constexpr std::array<double, 4> reference{0.831, 1.258, 1.616, 0.549};
+    for (int c = 0; c < 4; ++c) {
+        double total = 0.;
+        for (int i = 0; i < latent * latent; ++i) {
+            const float value = encoded.values[c * latent * latent + i];
+            if (!std::isfinite(value)) throw std::runtime_error("Non-finite full-resolution VAE encoding");
+            total += std::abs(value);
+        }
+        const double mean = total / (latent * latent);
+        if (std::abs(mean - reference[c]) > 0.05)
+            throw std::runtime_error("Unexpected full-resolution VAE channel " + std::to_string(c) +
+                                     " mean absolute value: " + std::to_string(mean));
+    }
+    return 0;
+}
+
 int projectionPrecision() {
     using namespace layerdiff;
-    Backend gpu(0);
+    Backend gpu(ggml_backend_reg_dev_get(gpuRegistry(), 0));
     Graph capabilities(gpu);
     const auto kernels = capabilities.projectionKernels();
     if (std::getenv("GGML_CUDA_CUBLAS_COMPUTE_TYPE")) {
@@ -223,13 +259,13 @@ int projectionPrecision() {
     auto evaluate = [&](bool optimized) {
         Graph g(gpu);
         auto input = g.inputRef(x), gain = g.inputRef(scale), offset = g.inputRef(shift);
-        input = optimized ? affineProjectionInput(g.ctx, input, gain, offset)
+        input = optimized ? kernels.affineInput(g.ctx, input, gain, offset)
                           : ggml_add(g.ctx, ggml_mul(g.ctx, input, gain), offset);
         auto weight1 = ggml_cast(g.ctx, g.inputRef(w1), GGML_TYPE_F16);
         auto weight2 = ggml_cast(g.ctx, g.inputRef(w2), GGML_TYPE_F16);
-        auto wide = optimized ? halfProjection(g.ctx, weight1, input) : ggml_mul_mat(g.ctx, weight1, input);
-        auto gate = biasedGeglu(g.ctx, wide, g.inputRef(b1), optimized);
-        auto product = optimized ? halfProjection(g.ctx, weight2, gate) : ggml_mul_mat(g.ctx, weight2, gate);
+        auto wide = optimized ? kernels.halfProducts(g.ctx, weight1, input) : ggml_mul_mat(g.ctx, weight1, input);
+        auto gate = biasedGeglu(g.ctx, wide, g.inputRef(b1), optimized ? kernels.biasedGate : nullptr);
+        auto product = optimized ? kernels.halfProducts(g.ctx, weight2, gate) : ggml_mul_mat(g.ctx, weight2, gate);
         auto result = optimized ? ggml_add_cast(g.ctx, product, g.inputRef(b2), GGML_TYPE_F32)
                                 : ggml_add(g.ctx, product, g.inputRef(b2));
         if (optimized && (input->type != GGML_TYPE_F16 || wide->type != GGML_TYPE_F16 ||
@@ -247,11 +283,12 @@ int main(int argc, char** argv) {
     try {
         Fixture fixture;
         if (argc == 2) {
-            if (ggml_backend_cuda_get_device_count() < 1)
+            if (!layerdiff::gpuRegistry() || ggml_backend_reg_dev_count(layerdiff::gpuRegistry()) < 1)
                 return 77;
-            if (std::string(argv[1]) == "--cuda-graph") return residentGraph();
+            if (std::string(argv[1]) == "--gpu-vae") return fullResolutionVae();
+            if (std::string(argv[1]) == "--gpu-graph") return residentGraph();
             if (std::string(argv[1]) == "--cuda-projections") return projectionPrecision();
-            if (std::string(argv[1]) != "--cuda-shapes") return 1;
+            if (std::string(argv[1]) != "--gpu-shapes") return 1;
             wrongShapes(fixture);
         } else
             admission(fixture);

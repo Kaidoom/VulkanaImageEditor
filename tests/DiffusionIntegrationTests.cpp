@@ -2567,7 +2567,21 @@ private slots:
     QCOMPARE(panel->inputs().first().metadata["layerId"].toString(), QString::number(*session().activeLayer()));
   }
 #ifdef Q_OS_LINUX
+  void namedPartsUseCapturedLayerCoordinates_data() {
+    QTest::addColumn<QByteArray>("backend");
+    if (!qEnvironmentVariableIsSet("VULKANA_TEST_SEETHROUGH_MODEL")) {
+      QTest::newRow("CUDA") << QByteArray("cuda");
+      QTest::newRow("Vulkan") << QByteArray("vulkan");
+    } else QTest::newRow("native") << QByteArray{};
+  }
   void namedPartsUseCapturedLayerCoordinates() {
+    QFETCH(QByteArray, backend);
+    if (!backend.isEmpty()) {
+      qputenv("VULKANA_TEST_FAKE_BACKEND", backend);
+      auto *backendBox = child<QComboBox>("DiffusionBackend");
+      backendBox->setCurrentIndex(backendBox->findData(QString::fromLatin1(backend)));
+    }
+    const auto restoreBackend = qScopeGuard([] { qunsetenv("VULKANA_TEST_FAKE_BACKEND"); });
     qputenv("VULKANA_TEST_DIFFUSION_NAMED", "1");
     const auto restore = qScopeGuard([] { qunsetenv("VULKANA_TEST_DIFFUSION_NAMED"); });
     const auto realModel = qEnvironmentVariable("VULKANA_TEST_SEETHROUGH_MODEL");
@@ -2678,10 +2692,42 @@ private slots:
     QCOMPARE(panel->configuration()["files"].toObject(),QJsonObject({{"modelDirectory",path}}));
   }
 
+  void autoUsesCapableVulkanAfterOlderCuda() {
+    const auto cuda = temporary.filePath("legacy-cuda");
+    QVERIFY(QFile::copy(QString::fromUtf8(DIFFUSION_UI_WORKER), cuda));
+    const QList<QByteArray> keys{"VULKANA_DIFFUSION_WORKER", "VULKANA_DIFFUSION_WORKER_CUDA",
+      "VULKANA_DIFFUSION_WORKER_VULKAN", "VULKANA_TEST_DIFFUSION_NAMED", "VULKANA_TEST_FAKE_BACKEND"};
+    QMap<QByteArray,QByteArray> prior;
+    for (const auto &key : keys) prior.insert(key, qgetenv(key));
+    const auto restore = qScopeGuard([&] {
+      for (auto it = prior.begin(); it != prior.end(); ++it) {
+        if (it.value().isNull()) qunsetenv(it.key()); else qputenv(it.key(), it.value());
+      }
+    });
+    qunsetenv("VULKANA_DIFFUSION_WORKER");
+    qputenv("VULKANA_DIFFUSION_WORKER_CUDA", cuda.toUtf8());
+    qputenv("VULKANA_DIFFUSION_WORKER_VULKAN", DIFFUSION_UI_WORKER);
+    qputenv("VULKANA_TEST_DIFFUSION_NAMED", "1");
+    qputenv("VULKANA_TEST_FAKE_BACKEND", "vulkan");
+    panel->setWorkerExecutable({});
+    auto *backend = child<QComboBox>("DiffusionBackend");
+    backend->setCurrentIndex(backend->findData("auto"));
+    panel->setConfiguration({{"profile","see-through-layerdiff-v3"},
+                             {"files",QJsonObject{{"modelDirectory",temporary.path()}}}});
+    openMode("AIGenerateImageAction"); addDecompositionInput();
+    generate();
+    QTRY_COMPARE_WITH_TIMEOUT(panel->results().size(), 1, 10000);
+    const auto pid = panel->selectedResult()->metadata.value("testWorkerPid").toInteger();
+    QVERIFY(pid > 0);
+    generate();
+    QTRY_COMPARE_WITH_TIMEOUT(panel->results().size(), 2, 10000);
+    QCOMPARE(panel->selectedResult()->metadata.value("testWorkerPid").toInteger(), pid);
+    QCOMPARE(panel->backend(), "auto");
+  }
   void oldWorkerKeepsNamedPartsConfiguration_data() {
     QTest::addColumn<QByteArray>("backend");
     QTest::newRow("older CUDA") << QByteArray("cuda");
-    QTest::newRow("Vulkan") << QByteArray("vulkan");
+    QTest::newRow("older Vulkan") << QByteArray("vulkan");
   }
   void oldWorkerKeepsNamedPartsConfiguration() {
     QFETCH(QByteArray, backend);
@@ -2696,7 +2742,7 @@ private slots:
     QCOMPARE(panel->configuration()["profile"].toString(),"see-through-layerdiff-v3");
     QVERIFY(panel->results().isEmpty());
     QCOMPARE(session().document()->revision(), revision);
-    QVERIFY(child<QLabel>("DiffusionProgressStatus")->text().contains("CUDA"));
+    QVERIFY(child<QLabel>("DiffusionProgressStatus")->text().contains("does not support See-through"));
   }
   void invalidNamedPartDoesNotEditDocument_data() {
     QTest::addColumn<QByteArray>("invalidPart");

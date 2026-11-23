@@ -295,7 +295,6 @@
     "namedParts": true,
     "modelDirectory": true,
     "platform": "linux",
-    "backend": "cuda",
     "steps": 30,
     "processingResolution": 1088,
     "modes": ["decompose"],

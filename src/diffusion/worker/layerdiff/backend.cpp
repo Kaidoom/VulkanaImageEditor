@@ -1,10 +1,8 @@
 #include "backend.hpp"
-#include "cuda_projections.hpp"
 #include <algorithm>
 #include <array>
 #include <cstring>
 #include <fstream>
-#include <ggml-cuda.h>
 #include <ggml-impl.h> // graph views retain use counts across cancellation checkpoints
 #include <json.hpp>
 #include <limits>
@@ -114,14 +112,19 @@ size_t elements(const std::vector<int64_t> &dims) {
     }
     return n;
 }
-Backend::Backend(int index, std::function<void()> checkpoint)
+ggml_backend_reg_t gpuRegistry() {
+    return ggml_backend_reg_by_name(VULKANA_LAYERDIFF_REGISTRY);
+}
+Backend::Backend(ggml_backend_dev_t device, std::function<void()> checkpoint)
     : handle(nullptr), checkpoint_(std::move(checkpoint)) {
-    if (index < 0 || index >= ggml_backend_cuda_get_device_count())
-        throw std::runtime_error("Selected CUDA device is unavailable");
-    std::unique_ptr<ggml_backend, decltype(&ggml_backend_free)> initialized(ggml_backend_cuda_init(index), ggml_backend_free);
+    if (!device || ggml_backend_dev_backend_reg(device) != gpuRegistry())
+        throw std::runtime_error("Selected LayerDiff GPU is unavailable");
+    std::unique_ptr<ggml_backend, decltype(&ggml_backend_free)> initialized(ggml_backend_dev_init(device, nullptr), ggml_backend_free);
     if (!initialized)
-        throw std::runtime_error("Could not initialize LayerDiff CUDA backend");
-    projectionKernels_ = registerProjectionKernels(initialized.get());
+        throw std::runtime_error("Could not initialize LayerDiff on " + std::string(ggml_backend_dev_name(device)));
+#ifdef VULKANA_LAYERDIFF_CUDA
+    projectionKernels_ = registerCudaProjectionKernels(initialized.get());
+#endif
     handle = initialized.release();
 }
 Backend::~Backend() {
@@ -229,7 +232,7 @@ std::optional<Tensor> Graph::execute(ggml_tensor *t, std::vector<int64_t> shape,
     for (int n = 0; n < ggml_graph_n_nodes(graph); ++n) {
         auto *node = ggml_graph_node(graph, n);
         if (!ggml_backend_supports_op(backend_.handle, node))
-            throw std::runtime_error(std::string("Unsupported CUDA operator in LayerDiff: ") + ggml_op_desc(node));
+            throw std::runtime_error(std::string("Unsupported LayerDiff operator on ") + ggml_backend_name(backend_.handle) + ": " + ggml_op_desc(node));
     }
     const auto bufferType = ggml_backend_get_default_buffer_type(backend_.handle);
     if (!backend_.allocator_)
@@ -273,7 +276,7 @@ std::optional<Tensor> Graph::execute(ggml_tensor *t, std::vector<int64_t> shape,
             throw std::bad_alloc();
         }
         if (status != GGML_STATUS_SUCCESS)
-            throw std::runtime_error(std::string("LayerDiff CUDA graph failed: ") + ggml_status_to_string(status));
+            throw std::runtime_error(std::string("LayerDiff GPU graph failed: ") + ggml_status_to_string(status));
     }
     Tensor result{std::move(shape), std::vector<float>(size_t(ggml_nelements(t)))};
     ggml_backend_tensor_get(t, result.values.data(), 0, result.values.size() * sizeof(float));

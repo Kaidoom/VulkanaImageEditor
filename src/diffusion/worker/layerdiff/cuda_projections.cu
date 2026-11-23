@@ -1,4 +1,4 @@
-#include "cuda_projections.hpp"
+#include "projections.hpp"
 
 #include <cublas_v2.h>
 #include <cuda_fp16.h>
@@ -11,11 +11,6 @@
 #include <mutex>
 
 namespace layerdiff {
-bool usesHalfProjection(int64_t rows) {
-    // Small batches can dispatch to ggml's specialized matrix/vector kernels.
-    return rows >= 256 && rows <= INT_MAX;
-}
-
 namespace {
 bool gateShape(ggml_tensor *const *inputs, int count, const void *, ggml_ext_tensor_desc *out) {
     if (count != 2) return false;
@@ -168,9 +163,22 @@ bool install(ggml_backend_dev_t device, const char *name, ggml_ext_op_t op, decl
     kernel.execute = run;
     return ggml_ext_register_kernel_ex(device, &kernel, GGML_EXT_KERNEL_CAPTURE_SAFE | GGML_EXT_KERNEL_REPLAY_REUSABLE);
 }
+ggml_tensor *halfProjection(ggml_context *ctx, ggml_tensor *weight, ggml_tensor *input) {
+    ggml_tensor *inputs[] = {weight, input->type == GGML_TYPE_F16 ? input : ggml_cast(ctx, input, GGML_TYPE_F16)};
+    return ggml_ext_op_create(ctx, productOp(), inputs, 2, nullptr);
+}
+
+ggml_tensor *gateProjection(ggml_context *ctx, ggml_tensor *projection, ggml_tensor *bias) {
+    ggml_tensor *inputs[] = {projection, bias};
+    return ggml_ext_op_create(ctx, gateOp(), inputs, 2, nullptr);
+}
+ggml_tensor *affineProjectionInput(ggml_context *ctx, ggml_tensor *normalized, ggml_tensor *scale, ggml_tensor *bias) {
+    ggml_tensor *inputs[] = {normalized, scale, bias};
+    return ggml_ext_op_create(ctx, affineOp(), inputs, 3, nullptr);
+}
 } // namespace
 
-ProjectionKernels registerProjectionKernels(ggml_backend_t backend) {
+ProjectionKernels registerCudaProjectionKernels(ggml_backend_t backend) {
     const auto device = ggml_backend_get_device(backend);
     static std::mutex mutex;
     static std::map<ggml_backend_dev_t, ProjectionKernels> devices;
@@ -178,40 +186,20 @@ ProjectionKernels registerProjectionKernels(ggml_backend_t backend) {
     auto [it, added] = devices.try_emplace(device);
     auto &kernels = it->second;
     if (added && streamQuery(device)) {
-        kernels.biasedGate = install(device, "vulkana.layerdiff.biased_geglu.cuda", gateOp(), runGate);
+        if (install(device, "vulkana.layerdiff.biased_geglu.cuda", gateOp(), runGate)) kernels.biasedGate = gateProjection;
         const auto ordinal = reinterpret_cast<ggml_ext_cuda_device_fn>(
             ggml_backend_reg_get_proc_address(ggml_backend_dev_backend_reg(device), "ggml_ext_cuda_device_v1"));
         int major = 0;
         if (kernels.biasedGate && ordinal && blasQuery(device) &&
             cudaDeviceGetAttribute(&major, cudaDevAttrComputeCapabilityMajor, ordinal(device)) == cudaSuccess && major >= 8) {
-            kernels.halfProducts = install(device, "vulkana.layerdiff.half_projection.cuda", productOp(), runProduct);
-            kernels.affineInput = kernels.halfProducts &&
-                install(device, "vulkana.layerdiff.affine_projection_input.cuda", affineOp(), runAffine);
+            if (install(device, "vulkana.layerdiff.half_projection.cuda", productOp(), runProduct)) kernels.halfProducts = halfProjection;
+            if (kernels.halfProducts && install(device, "vulkana.layerdiff.affine_projection_input.cuda", affineOp(), runAffine))
+                kernels.affineInput = affineProjectionInput;
         }
     }
     // Explicit compute-type overrides belong to ggml. Do not narrow their inputs.
-    if (std::getenv("GGML_CUDA_CUBLAS_COMPUTE_TYPE")) return {kernels.biasedGate, false, false};
+    if (std::getenv("GGML_CUDA_CUBLAS_COMPUTE_TYPE")) return {kernels.biasedGate, nullptr, nullptr};
     return kernels;
 }
 
-ggml_tensor *halfProjection(ggml_context *ctx, ggml_tensor *weight, ggml_tensor *input) {
-    ggml_tensor *inputs[] = {weight, input->type == GGML_TYPE_F16 ? input : ggml_cast(ctx, input, GGML_TYPE_F16)};
-    return ggml_ext_op_create(ctx, productOp(), inputs, 2, nullptr);
-}
-
-ggml_tensor *biasedGeglu(ggml_context *ctx, ggml_tensor *projection, ggml_tensor *bias, bool fused) {
-    if (fused) {
-        ggml_tensor *inputs[] = {projection, bias};
-        if (auto *result = ggml_ext_op_create(ctx, gateOp(), inputs, 2, nullptr)) return result;
-    }
-    const bool half = projection->type == GGML_TYPE_F16;
-    if (half) projection = ggml_cast(ctx, projection, GGML_TYPE_F32);
-    auto *activated = ggml_geglu_erf_swapped(ctx, ggml_add(ctx, projection, bias));
-    return half ? ggml_cast(ctx, activated, GGML_TYPE_F16) : activated;
-}
-
-ggml_tensor *affineProjectionInput(ggml_context *ctx, ggml_tensor *normalized, ggml_tensor *scale, ggml_tensor *bias) {
-    ggml_tensor *inputs[] = {normalized, scale, bias};
-    return ggml_ext_op_create(ctx, affineOp(), inputs, 3, nullptr);
-}
 } // namespace layerdiff

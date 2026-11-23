@@ -132,8 +132,8 @@ struct Model::Impl {
     Weights unet;
     Vae vae;
     Json scheduler;
-    Impl(const fs::path &root, int index, std::function<void()> check)
-        : backend(index, std::move(check)), body(encodeParts(backend, root, bodyTags)),
+    Impl(const fs::path &root, ggml_backend_dev_t device, std::function<void()> check)
+        : backend(device, std::move(check)), body(encodeParts(backend, root, bodyTags)),
           face(encodeParts(backend, root, faceTags)),
           unet(backend, root / "unet/diffusion_pytorch_model.safetensors"), vae(backend, root),
           scheduler(config(root / "scheduler/scheduler_config.json")) {}
@@ -183,7 +183,7 @@ struct Model::Impl {
         backend.trim();
     }
 };
-Model::Model(const fs::path &root, int device, std::function<void()> check) {
+Model::Model(const fs::path &root, ggml_backend_dev_t device, std::function<void()> check) {
     validateBundle(root);
     impl_ = std::make_unique<Impl>(root, device, std::move(check));
 }

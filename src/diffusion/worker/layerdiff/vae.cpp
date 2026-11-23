@@ -72,10 +72,18 @@ class VaeGraph {
             auto selected = ggml_view_3d(ctx, attention, 8, heads, n, attention->nb[1], attention->nb[2], 0);
             out = ggml_reshape_2d(ctx, ggml_cont(ctx, selected), c, n);
         } else {
-            // A 512-wide RGB VAE head does not fit a general CUDA flash-attention
-            // kernel. Chunk only queries; softmax still sees every spatial key.
             if (heads != 1 || headSize != 512)
                 throw std::runtime_error("Unsupported VAE attention head");
+#ifdef VULKANA_LAYERDIFF_VULKAN
+            // Vulkan supports the RGB VAE's 512-wide head directly. Use online
+            // softmax with FP32 accumulation across the entire spatial grid.
+            auto attn = ggml_flash_attn_ext(ctx, q, ggml_cast(ctx, k, GGML_TYPE_F16),
+                                            ggml_cast(ctx, v, GGML_TYPE_F16), nullptr,
+                                            1.f / std::sqrt(float(headSize)), 0.f, 0.f);
+            ggml_prec_set_acc(attn, GGML_PREC_F32);
+            out = ggml_reshape_2d(ctx, attn, c, n);
+#else
+            // CUDA evaluates these queries in chunks, each attending to every key.
             auto kt = ggml_cast(ctx, k, GGML_TYPE_F16);
             auto vt = ggml_cast(ctx, ggml_cont(ctx, ggml_transpose(ctx, v)), GGML_TYPE_F16);
             constexpr int64_t chunk = 256;
@@ -95,6 +103,7 @@ class VaeGraph {
                 chunks = std::move(next);
             }
             out = chunks.front();
+#endif
         }
         out = linear(out, key + ".to_out.0");
         out = ggml_cont(ctx, ggml_transpose(ctx, out));
