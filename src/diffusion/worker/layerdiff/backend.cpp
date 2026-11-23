@@ -243,6 +243,33 @@ ggml_tensor *Graph::weight(const Weights &weights, const std::string &key) {
     }
     return it->second;
 }
+void Graph::uploadStagedWeights() {
+    if (stagedWeights_.empty()) return;
+#ifdef VULKANA_LAYERDIFF_VULKAN
+    const auto device = ggml_backend_get_device(backend_.handle);
+    // The Vulkan transfer path stages ordinary host pointers and can queue copies
+    // from pinned memory. Direct writes can be expensive on a discrete GPU.
+    const bool useTransfer = ggml_backend_dev_type(device) == GGML_BACKEND_DEVICE_TYPE_GPU;
+#else
+    constexpr bool useTransfer = false;
+#endif
+    try {
+        for (const auto &[host, input] : stagedWeights_) {
+            backend_.check();
+            if (!input->data) continue;
+            if (useTransfer)
+                ggml_backend_tensor_set_async(backend_.handle, input, host->data, 0, ggml_nbytes(host));
+            else
+                ggml_backend_tensor_set(input, host->data, 0, ggml_nbytes(host));
+        }
+    } catch (...) {
+        // Drain any queued reads before cancellation can release the host weights.
+        if (useTransfer) ggml_backend_synchronize(backend_.handle);
+        throw;
+    }
+    if (useTransfer) ggml_backend_synchronize(backend_.handle);
+}
+
 Tensor Graph::evaluate(ggml_tensor *t, std::vector<int64_t> shape) {
     return execute(t, std::move(shape), false).value();
 }
@@ -296,10 +323,7 @@ std::optional<Tensor> Graph::execute(ggml_tensor *t, std::vector<int64_t> shape,
     for (const auto &[input, host] : inputs_)
         if (input->data)
             ggml_backend_tensor_set(input, host->values.data(), 0, host->values.size() * sizeof(float));
-    for (const auto &[host, input] : stagedWeights_) {
-        backend_.check();
-        if (input->data) ggml_backend_tensor_set(input, host->data, 0, ggml_nbytes(host));
-    }
+    uploadStagedWeights();
     const int nodes = ggml_graph_n_nodes(graph);
     // Keep cancellation responsive without reading activations back to the host.
     const int batch = completeStep ? 256 : nodes;

@@ -77,6 +77,7 @@ class Graph {
     Backend &backend_;
     size_t capacity_;
     std::optional<Tensor> execute(ggml_tensor *result, std::vector<int64_t> shape, bool completeStep);
+    void uploadStagedWeights();
     std::deque<Tensor> owned_;
     std::unordered_map<const ggml_tensor *, ggml_tensor *> stagedWeights_;
     std::vector<std::pair<ggml_tensor *, const Tensor *>> inputs_;

@@ -44,11 +44,13 @@ class Fixture {
     void weights(const fs::path& file, const std::string& name) const {
         const std::vector<int> shape{8, 32};
         json header = {{name, {{"dtype", "F16"}, {"shape", shape}, {"data_offsets", {0, 512}}}}};
+        tensorFile(file, header, std::string(512, '\0'));
+    }
+    void tensorFile(const fs::path& file, const json& header, const std::string& payload) const {
         auto s = header.dump();
         s.resize((s.size() + 7) / 8 * 8, ' ');
         uint64_t n = s.size();
-        auto bytes = std::string(reinterpret_cast<const char*>(&n), 8) + s + std::string(512, '\0');
-        text(file, bytes);
+        text(file, std::string(reinterpret_cast<const char*>(&n), 8) + s + payload);
     }
     json scheduler() const {
         return {{"_class_name", "DPMSolverMultistepScheduler"},
@@ -150,27 +152,36 @@ void wrongShapes(Fixture& f) {
 void stagedWeightInputs(Fixture& f) {
     using namespace layerdiff;
     const auto file = f.root / "projection.safetensors";
-    f.weights(file, "matrix");
-    {
-        std::fstream stream(file, std::ios::in | std::ios::out | std::ios::binary);
-        stream.seekp(-512, std::ios::end);
-        for (unsigned i = 0; i < 8 * 32; ++i) {
-            auto sample = ggml_fp32_to_fp16(float(i % 13));
-            stream.write(reinterpret_cast<const char*>(&sample), sizeof(sample));
-        }
-        if (!stream) throw std::runtime_error("Failed to populate weight fixture");
-    }
-    Backend gpu(ggml_backend_reg_dev_get(gpuRegistry(), 0));
+    const json header = {
+        {"matrix", {{"dtype", "F16"}, {"shape", {8, 32}}, {"data_offsets", {0, 512}}}},
+        {"bias", {{"dtype", "F32"}, {"shape", {8}}, {"data_offsets", {512, 544}}}},
+        {"tail", {{"dtype", "F16"}, {"shape", {1, 3}}, {"data_offsets", {544, 550}}}}
+    };
+    std::string payload;
+    auto append = [&](auto value) { payload.append(reinterpret_cast<const char*>(&value), sizeof(value)); };
+    for (unsigned i = 0; i < 8 * 32; ++i) append(ggml_fp32_to_fp16(float(i % 13)));
+    for (unsigned i = 0; i < 8; ++i) append(float(i + 3));
+    for (float value : {5.f, 7.f, 11.f}) append(ggml_fp32_to_fp16(value));
+    f.tensorFile(file, header, payload);
+    int checksUntilCancel = 0;
+    Backend gpu(ggml_backend_reg_dev_get(gpuRegistry(), 0), [&] {
+        if (checksUntilCancel > 0 && --checksUntilCancel == 0) throw std::runtime_error("cancelled during upload");
+    });
     Weights host(gpu, file, 0), resident(gpu, file);
     if (!host.staged() || resident.staged()) throw std::runtime_error("Incorrect weight placement");
-    auto project = [&](Weights& source) {
+    auto project = [&](Weights& source, bool cancel = false) {
         Graph graph(gpu);
         auto w = graph.weight(source, "matrix");
         if (graph.weight(source, "matrix") != w) throw std::runtime_error("Stage reused the weight twice");
-        return graph.evaluate(ggml_mul_mat(graph.ctx, w, graph.input({{32}, std::vector<float>(32, 1.f)})));
+        auto product = ggml_mul_mat(graph.ctx, w, graph.input({{32}, std::vector<float>(32, 1.f)}));
+        auto biased = ggml_add(graph.ctx, product, graph.weight(source, "bias"));
+        auto tail = ggml_cast(graph.ctx, graph.weight(source, "tail"), GGML_TYPE_F32);
+        checksUntilCancel = cancel ? 2 : 0; // Interrupt between two live weight uploads.
+        return graph.evaluate(ggml_add(graph.ctx, biased, ggml_sum_rows(graph.ctx, tail)));
     };
     const auto reference = project(resident);
-    if (reference.values.front() != 171.f || project(host).values != reference.values ||
+    mustReject([&] { project(host, true); }, "cancelled during upload");
+    if (reference.values.front() != 197.f || project(host).values != reference.values ||
         project(host).values != reference.values)
         throw std::runtime_error("Staged weights changed between graphs");
 }
